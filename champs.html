@@ -105,6 +105,10 @@
         const linksWrap = document.createElement("div");
         linksWrap.className = "links";
         linksWrap.appendChild(ui.createExternalLink(ui.summonerSearchUrl(player.summoner), "OP.GG player search"));
+        const fillInMobalyticsUrl = ui.summonerMobalyticsUrl(player.summoner);
+        if (fillInMobalyticsUrl) {
+          linksWrap.appendChild(ui.createExternalLink(fillInMobalyticsUrl, "Mobalytics player profile"));
+        }
         card.appendChild(linksWrap);
         fillInHost.appendChild(card);
       }
@@ -200,6 +204,10 @@
       linksWrap.className = "links";
 
       linksWrap.appendChild(ui.createExternalLink(ui.summonerSearchUrl(player), "OP.GG player search"));
+      const mobalyticsUrl = ui.summonerMobalyticsUrl(player);
+      if (mobalyticsUrl) {
+        linksWrap.appendChild(ui.createExternalLink(mobalyticsUrl, "Mobalytics player profile"));
+      }
       for (const champion of champs.top3) {
         linksWrap.appendChild(ui.createExternalLink(ui.championBuildUrl(champion), `Build guide: ${champion}`));
       }
