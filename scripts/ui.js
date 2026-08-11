@@ -69,7 +69,10 @@ function summonerSearchUrl(name) {
   if (meta && meta.region && meta.opggSlug) {
     return `https://op.gg/lol/summoners/${meta.region}/${meta.opggSlug}`;
   }
-  return `https://www.op.gg/search?q=${encodeURIComponent(name)}`;
+
+  const region = (meta && meta.region) || "euw";
+  const riotTag = (meta && meta.riotTag) || region.toUpperCase();
+  return `https://op.gg/lol/summoners/${region}/${encodeURIComponent(name)}-${encodeURIComponent(riotTag)}`;
 }
 
 function summonerMobalyticsUrl(name) {
