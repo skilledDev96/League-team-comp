@@ -3,79 +3,262 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="League of Legends team stats, champion pools, and team compositions.">
-  <title>League Team Hub</title>
-  <style>
-    :root {
-      color-scheme: dark;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0b0b12;
-      color: #f5f5f5;
-    }
-    * {
-      box-sizing: border-box;
-    }
-    body {
-      min-height: 100vh;
-      margin: 0;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-    }
-    main {
-      width: min(900px, 100%);
-    }
-    h1 {
-      margin-bottom: 8px;
-      color: #ffb347;
-    }
-    p {
-      color: #c0c0d9;
-    }
-    nav {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 16px;
-      margin-top: 32px;
-    }
-    a {
-      padding: 24px;
-      border: 1px solid #26263a;
-      border-radius: 12px;
-      background: #151522;
-      color: #9fd3ff;
-      font-size: 1.2rem;
-      font-weight: 700;
-      text-decoration: none;
-    }
-    a:hover,
-    a:focus-visible {
-      border-color: #ffb347;
-      transform: translateY(-2px);
-    }
-    a span {
-      display: block;
-      margin-top: 8px;
-      color: #c0c0d9;
-      font-size: 0.9rem;
-      font-weight: 400;
-    }
-  </style>
+  <meta name="description" content="Bom Squad League prep dashboard: roster, champion pools, comps, draft plans, and macro playbook.">
+  <title>Bom Squad Draft Hub</title>
+  <script>
+    (function () {
+      const stored = localStorage.getItem("bom-theme");
+      const valid = ["dark", "dark-blue", "dark-red", "light"];
+      const theme = valid.includes(stored)
+        ? stored
+        : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-initial-theme", theme);
+    })();
+  </script>
+  <link rel="stylesheet" href="styles/main.css?v=14">
 </head>
-<body>
-  <main>
-    <h1>League Team Hub</h1>
-    <p>Team champion pools, compositions, and stats in one place.</p>
-    <nav aria-label="Team pages">
-      <a href="champs.html">
-        Champion Pools
-        <span>View each player's main champions and learning picks.</span>
-      </a>
-      <a href="team-comps.html">
-        Team Compositions
-        <span>Browse engage, pick, dive, poke, and teamfight comps.</span>
-      </a>
-    </nav>
-  </main>
+<body data-theme="dark">
+  <div class="page">
+    <header class="topbar">
+      <div class="brand" id="brandTitle">
+        Bom Squad
+        <small>Draft Hub</small>
+      </div>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="index.html">Overview</a>
+        <a href="champs.html">Player Intel</a>
+        <a href="team-comps.html">Comps and Macro</a>
+        <label for="themeSelect" class="visually-hidden">Theme</label>
+        <select id="themeSelect" class="theme-select" data-theme-select aria-label="Theme selector">
+          <option value="dark">Dark</option>
+          <option value="dark-blue">Blue</option>
+          <option value="dark-red">Red</option>
+          <option value="light">Light</option>
+        </select>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <h1 id="heroTitle">Bom Squad Ready Room</h1>
+      <p id="heroText">Everything in one place: role ownership, champ pools, bans, and game plan links.</p>
+    </section>
+
+    <section class="view-controls" aria-label="View controls">
+      <button id="starterViewBtn" class="view-btn active" type="button">Starter View</button>
+      <button id="fullViewBtn" class="view-btn" type="button">Full View</button>
+      <p class="muted">Starter View shows only essentials. Use Full View for full prep details.</p>
+    </section>
+
+    <section class="grid three" id="roleCards" aria-label="Role cards"></section>
+
+    <section class="grid two" id="strategySection">
+      <article class="card">
+        <h2 class="title-with-icon"><span class="section-icon">ID</span>Team Identity</h2>
+        <dl class="kv" id="identityList"></dl>
+      </article>
+
+      <article class="card">
+        <h2 class="title-with-icon"><span class="section-icon">QA</span>Quick Access</h2>
+        <div class="links">
+          <a href="champs.html">Open full player profiles</a>
+          <a href="team-comps.html#compSection">Open comp cheat sheets</a>
+          <a href="team-comps.html#banSection">Open ban recommendations</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid three" id="resourceCards" aria-label="Resource links"></section>
+
+    <section class="grid two" id="fillInCards" aria-label="Fill-in players"></section>
+
+    <p class="footer-note">Tip: this project is now data-driven. Update scripts/team-data.js once, and all pages refresh automatically.</p>
+  </div>
+
+  <script>
+    document.body.setAttribute("data-theme", document.documentElement.getAttribute("data-initial-theme") || "dark");
+  </script>
+  <script src="scripts/theme.js?v=4"></script>
+  <script src="scripts/team-data.js?v=4"></script>
+  <script src="scripts/ui.js?v=7"></script>
+  <script>
+    window.Theme.initThemeToggle();
+
+    const data = window.TEAM_DATA;
+    const ui = window.UI;
+    const playerAnchorId = ui.playerAnchorId || function (playerName) {
+      const safe = (playerName || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      return `player-${safe}`;
+    };
+
+    document.getElementById("brandTitle").firstChild.textContent = data.teamName;
+    document.getElementById("heroTitle").textContent = `${data.teamName} Ready Room`;
+
+    const roles = Object.entries(data.team);
+    const roleCards = document.getElementById("roleCards");
+
+    for (const [role, player] of roles) {
+      const championInfo = data.top3Champs[player];
+      const stats = data.strengthsWeaknesses[player];
+      const iconRef = data.summonerIcons[player];
+      const block = document.createElement("article");
+      block.className = "card clickable-card";
+
+      const playerTarget = `player-intel.html?player=${encodeURIComponent(player)}`;
+
+      block.innerHTML = `
+        <div class="title-row">
+          <h2>${role} - ${player}</h2>
+        </div>
+        ${ui.createPlaystyleLine(data.playstyles[player]).outerHTML}
+        <p class="meta-line main-champ-inline"><img class="main-champ-icon" src="${ui.championIconUrl(championInfo.top3[0])}" alt="${championInfo.top3[0]} icon"><span class="meta-label">Main Champion</span><span class="meta-value">${championInfo.top3[0]}</span></p>
+        <button type="button" class="view-btn role-toggle">Show Details</button>
+      `;
+
+      const titleRow = block.querySelector(".title-row");
+      titleRow.prepend(ui.createPlayerAvatar(player, iconRef, { role }));
+
+      const overlayLink = document.createElement("a");
+      overlayLink.href = playerTarget;
+      overlayLink.className = "card-link-overlay";
+      overlayLink.setAttribute("aria-label", `Open ${player} in Player Intel`);
+      block.appendChild(overlayLink);
+
+      const roleDetails = document.createElement("div");
+      roleDetails.className = "role-details";
+
+      const learn = document.createElement("p");
+      learn.className = "muted";
+      learn.textContent = `Learn next: ${championInfo.learn}`;
+      roleDetails.appendChild(learn);
+
+      const champRow = document.createElement("div");
+      champRow.className = "champ-chip-row";
+      for (const champion of championInfo.top3) {
+        champRow.appendChild(ui.createChampionChip(champion, champion));
+      }
+      roleDetails.appendChild(champRow);
+
+      const row = document.createElement("div");
+      row.className = "tag-row";
+      for (const s of stats.strengths.slice(0, 2)) {
+        row.appendChild(ui.createTag(s, "tag good"));
+      }
+      for (const w of stats.weaknesses.slice(0, 1)) {
+        row.appendChild(ui.createTag(w, "tag bad"));
+      }
+      roleDetails.appendChild(row);
+
+      const playerLink = ui.createExternalLink(ui.summonerSearchUrl(player), "Open player lookup");
+      playerLink.className = "tag";
+      roleDetails.appendChild(document.createElement("br"));
+      roleDetails.appendChild(playerLink);
+
+      block.appendChild(roleDetails);
+
+      const toggleBtn = block.querySelector(".role-toggle");
+      toggleBtn.addEventListener("click", () => {
+        const expanded = block.classList.toggle("expanded");
+        toggleBtn.textContent = expanded ? "Hide Details" : "Show Details";
+      });
+
+      roleCards.appendChild(block);
+    }
+
+    const identityList = document.getElementById("identityList");
+    const identityRows = [
+      ["Vision", data.teamIdentity.visionDriven ? "Primary pillar" : "Secondary"],
+      ["Objectives", data.teamIdentity.objectiveFocused ? "Priority" : "Flexible"],
+      ["Primary", data.teamIdentity.primaryPlaystyle.join(" + ")],
+      ["Jungle", data.teamIdentity.jungleTempo],
+      ["Damage", data.teamIdentity.damageProfile],
+      ["Mid role", data.teamIdentity.midRole],
+      ["Frontline", data.teamIdentity.lateGameFrontline]
+    ];
+
+    for (const [label, value] of identityRows) {
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      const dd = document.createElement("dd");
+      dd.textContent = value;
+      identityList.appendChild(dt);
+      identityList.appendChild(dd);
+    }
+
+    const resourceCards = document.getElementById("resourceCards");
+    for (const [group, links] of Object.entries(data.resourceLinks)) {
+      const card = document.createElement("article");
+      card.className = "card";
+      const title = document.createElement("h2");
+      title.className = "title-with-icon";
+      const iconMap = {
+        DraftTools: "DT",
+        MacroAndObjectives: "MO",
+        MatchupResearch: "MR"
+      };
+      title.innerHTML = `<span class="section-icon">${iconMap[group] || "RS"}</span>${group.replace(/([A-Z])/g, " $1").trim()}`;
+      card.appendChild(title);
+
+      const wrap = document.createElement("div");
+      wrap.className = "links";
+      for (const link of links) {
+        wrap.appendChild(ui.createExternalLink(link.url, link.label));
+      }
+      card.appendChild(wrap);
+      resourceCards.appendChild(card);
+    }
+
+    const fillInCards = document.getElementById("fillInCards");
+    const fillIns = Array.isArray(data.fillIns) ? data.fillIns : [];
+    if (fillIns.length > 0) {
+      const card = document.createElement("article");
+      card.className = "card";
+
+      const title = document.createElement("h2");
+      title.className = "title-with-icon";
+      title.innerHTML = "<span class=\"section-icon\">FI</span>Fill-in Roster (Pending Confirmation)";
+      card.appendChild(title);
+
+      const wrap = document.createElement("div");
+      wrap.className = "links";
+      for (const player of fillIns) {
+        const roles = (player.preferredRoles || []).join(", ");
+        const text = `${player.summoner} - ${roles} - ${player.status}`;
+        const entry = document.createElement("div");
+        entry.className = "title-row";
+        entry.appendChild(ui.createPlayerAvatar(player.summoner, player.icon, { role: (player.preferredRoles || [""])[0] }));
+        entry.appendChild(ui.createExternalLink(ui.summonerSearchUrl(player.summoner), text));
+        wrap.appendChild(entry);
+      }
+
+      const note = document.createElement("p");
+      note.className = "muted";
+      note.textContent = fillIns[0].note || "";
+
+      card.appendChild(wrap);
+      card.appendChild(note);
+      fillInCards.appendChild(card);
+    }
+
+    const starterBtn = document.getElementById("starterViewBtn");
+    const fullBtn = document.getElementById("fullViewBtn");
+    const strategySection = document.getElementById("strategySection");
+    const advancedSections = [strategySection, resourceCards, fillInCards];
+
+    function setView(mode) {
+      const showAdvanced = mode === "full";
+      for (const section of advancedSections) {
+        section.hidden = !showAdvanced;
+      }
+
+      starterBtn.classList.toggle("active", !showAdvanced);
+      fullBtn.classList.toggle("active", showAdvanced);
+    }
+
+    starterBtn.addEventListener("click", () => setView("starter"));
+    fullBtn.addEventListener("click", () => setView("full"));
+
+    setView("starter");
+  </script>
+  <script src="scripts/index-fallback.js?v=1"></script>
 </body>
 </html>

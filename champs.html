@@ -2,119 +2,256 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Top 3 Champs + Learn Picks</title>
+<title>Bom Squad Player Intel</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #0b0b12;
-    color: #f5f5f5;
-    margin: 0;
-    padding: 16px;
-  }
-  .container {
-    max-width: 900px;
-    margin: 0 auto;
-  }
-  h1 {
-    text-align: center;
-    color: #ffb347;
-    margin-bottom: 20px;
-  }
-  h2 {
-    color: #9fd3ff;
-    margin-top: 24px;
-    margin-bottom: 8px;
-  }
-  .block {
-    background: #151522;
-    border-radius: 10px;
-    padding: 14px;
-    margin-bottom: 14px;
-    border: 1px solid #26263a;
-  }
-  .title {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: #ffb347;
-    margin-bottom: 10px;
-  }
-  ul {
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
-  }
-  li {
-    margin: 4px 0;
-    font-size: 1rem;
-  }
-  .learn {
-    margin-top: 10px;
-    font-size: 0.95rem;
-    color: #c0c0d9;
-  }
-</style>
+<script>
+  (function () {
+    const stored = localStorage.getItem("bom-theme");
+    const valid = ["dark", "dark-blue", "dark-red", "light"];
+    const theme = valid.includes(stored)
+      ? stored
+      : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-initial-theme", theme);
+  })();
+</script>
+<link rel="stylesheet" href="styles/main.css?v=14">
 </head>
-<body>
-<div class="container">
+<body data-theme="dark">
+  <div class="page">
+    <header class="topbar">
+      <div class="brand" id="brandTitle">
+        Bom Squad
+        <small>Player Intel</small>
+      </div>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="index.html">Overview</a>
+        <a href="champs.html">Player Intel</a>
+        <a href="team-comps.html">Comps and Macro</a>
+        <label for="themeSelect" class="visually-hidden">Theme</label>
+        <select id="themeSelect" class="theme-select" data-theme-select aria-label="Theme selector">
+          <option value="dark">Dark</option>
+          <option value="dark-blue">Blue</option>
+          <option value="dark-red">Red</option>
+          <option value="light">Light</option>
+        </select>
+      </nav>
+    </header>
 
-<h1>Top 3 Champs + Learn Picks</h1>
+    <section class="hero">
+      <h1 id="pageTitle">Role Profiles and Champion Links</h1>
+      <p>Each card has strengths, weaknesses, top picks, ban priorities, and direct research links.</p>
+    </section>
 
-<!-- RULUKUKU -->
-<div class="block">
-  <div class="title">Top — Rulukuku</div>
-  <ul>
-    <li>• Yorick</li>
-    <li>• Mordekaiser</li>
-    <li>• Vladimir</li>
-  </ul>
-  <div class="learn">Learn Pick: Maokai (best for team comps)</div>
-</div>
+    <section class="view-controls" aria-label="View controls">
+      <button id="starterViewBtn" class="view-btn active" type="button">Starter View</button>
+      <button id="fullViewBtn" class="view-btn" type="button">Full View</button>
+      <p class="muted">Starter View keeps each role compact. Open Full View for prep deep-dive.</p>
+    </section>
 
-<!-- GO10X -->
-<div class="block">
-  <div class="title">Jungle — Go10x</div>
-  <ul>
-    <li>• Udyr</li>
-    <li>• Diana</li>
-    <li>• Vi</li>
-  </ul>
-  <div class="learn">Learn Pick: Sejuani (engage tank for comps)</div>
-</div>
+    <section class="grid two" id="fillInSection" aria-label="Fill-in profiles"></section>
 
-<!-- DRUNKENBANNANA -->
-<div class="block">
-  <div class="title">Mid — DrunkenBannana</div>
-  <ul>
-    <li>• Yasuo</li>
-    <li>• Ahri</li>
-    <li>• Akali</li>
-  </ul>
-  <div class="learn">Learn Pick: Galio (best for teamfight comps)</div>
-</div>
+    <section class="grid two" id="playerCards" aria-label="Player intel"></section>
+  </div>
 
-<!-- SKILLEDSCARE -->
-<div class="block">
-  <div class="title">ADC — SkilledScarecrow</div>
-  <ul>
-    <li>• Miss Fortune</li>
-    <li>• Jhin</li>
-    <li>• Tristana</li>
-  </ul>
-  <div class="learn">Learn Pick: Sivir (safe scaling + teamfight utility)</div>
-</div>
+  <script>
+    document.body.setAttribute("data-theme", document.documentElement.getAttribute("data-initial-theme") || "dark");
+  </script>
+  <script src="scripts/theme.js?v=4"></script>
+  <script src="scripts/team-data.js?v=4"></script>
+  <script src="scripts/ui.js?v=7"></script>
+  <script>
+    window.Theme.initThemeToggle();
 
-<!-- DAWHITEHAMMER -->
-<div class="block">
-  <div class="title">Support — DaWhiteHammer</div>
-  <ul>
-    <li>• Leona</li>
-    <li>• Nautilus</li>
-    <li>• Lux</li>
-  </ul>
-  <div class="learn">Learn Pick: Mel (AoE CC for wombo comps)</div>
-</div>
+    const data = window.TEAM_DATA;
+    const ui = window.UI;
+    const playerAnchorId = ui.playerAnchorId || function (playerName) {
+      const safe = (playerName || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      return `player-${safe}`;
+    };
 
-</div>
+    document.getElementById("brandTitle").firstChild.textContent = data.teamName;
+    document.getElementById("pageTitle").textContent = `${data.teamName} Role Profiles and Champion Links`;
+
+    const fillInHost = document.getElementById("fillInSection");
+    const fillIns = Array.isArray(data.fillIns) ? data.fillIns : [];
+    if (fillIns.length > 0) {
+      for (const player of fillIns) {
+        const card = document.createElement("article");
+        card.className = "card";
+
+        const titleRow = document.createElement("div");
+        titleRow.className = "title-row";
+        titleRow.appendChild(ui.createPlayerAvatar(player.summoner, player.icon, { role: (player.preferredRoles || [""])[0] }));
+        const heading = document.createElement("h2");
+        heading.textContent = `Fill-in: ${player.summoner}`;
+        titleRow.appendChild(heading);
+        card.appendChild(titleRow);
+
+        const status = document.createElement("p");
+        status.className = "muted";
+        status.textContent = `Status: ${player.status}`;
+        card.appendChild(status);
+
+        const roles = document.createElement("p");
+        roles.className = "muted";
+        roles.textContent = `Likely roles: ${(player.preferredRoles || []).join(", ")}`;
+        card.appendChild(roles);
+
+        const note = document.createElement("p");
+        note.className = "muted";
+        note.textContent = player.note || "";
+        card.appendChild(note);
+
+        const linksWrap = document.createElement("div");
+        linksWrap.className = "links";
+        linksWrap.appendChild(ui.createExternalLink(ui.summonerSearchUrl(player.summoner), "OP.GG player search"));
+        card.appendChild(linksWrap);
+        fillInHost.appendChild(card);
+      }
+    }
+
+    const players = Object.entries(data.team);
+    const host = document.getElementById("playerCards");
+
+    for (const [role, player] of players) {
+      const stats = data.strengthsWeaknesses[player];
+      const champs = data.top3Champs[player];
+      const bans = data.banRecommendations[player];
+      const icon = data.summonerIcons[player];
+
+      const card = document.createElement("article");
+      card.className = "card";
+      card.id = playerAnchorId(player);
+
+      const titleRow = document.createElement("div");
+      titleRow.className = "title-row";
+      titleRow.appendChild(ui.createPlayerAvatar(player, icon, { role }));
+
+      const title = document.createElement("h2");
+      title.textContent = `${role} - ${player}`;
+      titleRow.appendChild(title);
+      card.appendChild(titleRow);
+
+      card.appendChild(ui.createPlaystyleLine(data.playstyles[player]));
+
+      const mainChamp = document.createElement("p");
+      mainChamp.className = "meta-line main-champ-inline";
+
+      const mainChampIcon = document.createElement("img");
+      mainChampIcon.className = "main-champ-icon";
+      mainChampIcon.src = ui.championIconUrl(champs.top3[0]);
+      mainChampIcon.alt = `${champs.top3[0]} icon`;
+
+      const mainChampText = document.createElement("span");
+      mainChampText.className = "meta-label";
+      mainChampText.textContent = "Main Champion";
+
+      const mainChampValue = document.createElement("span");
+      mainChampValue.className = "meta-value";
+      mainChampValue.textContent = champs.top3[0];
+
+      mainChamp.appendChild(mainChampIcon);
+      mainChamp.appendChild(mainChampText);
+      mainChamp.appendChild(mainChampValue);
+      card.appendChild(mainChamp);
+
+      const toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.className = "view-btn role-toggle";
+      toggleBtn.textContent = "Show Details";
+      card.appendChild(toggleBtn);
+
+      const details = document.createElement("div");
+      details.className = "role-details";
+
+      const strengthsTitle = document.createElement("h3");
+      strengthsTitle.textContent = "Strengths";
+      details.appendChild(strengthsTitle);
+      const strengthsRow = document.createElement("div");
+      strengthsRow.className = "tag-row";
+      for (const item of stats.strengths) {
+        strengthsRow.appendChild(ui.createTag(item, "tag good"));
+      }
+      details.appendChild(strengthsRow);
+
+      const weakTitle = document.createElement("h3");
+      weakTitle.textContent = "Weaknesses";
+      details.appendChild(weakTitle);
+      const weakRow = document.createElement("div");
+      weakRow.className = "tag-row";
+      for (const item of stats.weaknesses) {
+        weakRow.appendChild(ui.createTag(item, "tag bad"));
+      }
+      details.appendChild(weakRow);
+
+      const champTitle = document.createElement("h3");
+      champTitle.textContent = "Champion Pool";
+      details.appendChild(champTitle);
+
+      const champRow = document.createElement("div");
+      champRow.className = "champ-chip-row";
+      for (const champion of champs.top3) {
+        champRow.appendChild(ui.createChampionChip(champion, champion));
+      }
+      champRow.appendChild(ui.createChampionChip(champs.learn, `Learn: ${champs.learn}`));
+      details.appendChild(champRow);
+
+      const linksWrap = document.createElement("div");
+      linksWrap.className = "links";
+
+      linksWrap.appendChild(ui.createExternalLink(ui.summonerSearchUrl(player), "OP.GG player search"));
+      for (const champion of champs.top3) {
+        linksWrap.appendChild(ui.createExternalLink(ui.championBuildUrl(champion), `Build guide: ${champion}`));
+      }
+      linksWrap.appendChild(ui.createExternalLink(ui.championBuildUrl(champs.learn), `Learn next build: ${champs.learn}`));
+      details.appendChild(linksWrap);
+
+      const banTitle = document.createElement("h3");
+      banTitle.textContent = "Suggested Bans";
+      details.appendChild(banTitle);
+
+      const banList = document.createElement("ul");
+      banList.className = "list-clean";
+      for (const ban of bans) {
+        const li = document.createElement("li");
+        li.textContent = ban;
+        banList.appendChild(li);
+      }
+      details.appendChild(banList);
+
+      card.appendChild(details);
+
+      toggleBtn.addEventListener("click", () => {
+        const expanded = card.classList.toggle("expanded");
+        toggleBtn.textContent = expanded ? "Hide Details" : "Show Details";
+      });
+
+      host.appendChild(card);
+    }
+
+    const starterBtn = document.getElementById("starterViewBtn");
+    const fullBtn = document.getElementById("fullViewBtn");
+
+    function setView(mode) {
+      const full = mode === "full";
+      fillInHost.hidden = !full;
+      for (const card of host.children) {
+        card.classList.toggle("expanded", full);
+        const btn = card.querySelector(".role-toggle");
+        if (btn) {
+          btn.textContent = full ? "Hide Details" : "Show Details";
+        }
+      }
+
+      starterBtn.classList.toggle("active", !full);
+      fullBtn.classList.toggle("active", full);
+    }
+
+    starterBtn.addEventListener("click", () => setView("starter"));
+    fullBtn.addEventListener("click", () => setView("full"));
+
+    setView("starter");
+  </script>
+  <script src="scripts/champs-fallback.js?v=1"></script>
 </body>
 </html>
