@@ -23,9 +23,34 @@ const TEAM_DATA = {
     DrunkenBannana: "drunkenbannana.png"
   },
   summonerProfiles: {
+    Rulukuku: {
+      region: "euw",
+      opggSlug: "Rulukuku-EUW",
+      riotTag: "EUW",
+      mobalyticsSlug: "rulukuku-euw"
+    },
+    Go10x: {
+      region: "euw",
+      opggSlug: "Go10x-EUW",
+      riotTag: "EUW",
+      mobalyticsSlug: "go10x-euw"
+    },
+    DrunkenBannana: {
+      region: "euw",
+      opggSlug: "DrunkenBannana-EUW",
+      riotTag: "EUW",
+      mobalyticsSlug: "drunkenbannana-euw"
+    },
+    DaWhiteHammer: {
+      region: "euw",
+      opggSlug: "DaWhiteHammer-EUW",
+      riotTag: "EUW",
+      mobalyticsSlug: "dawhitehammer-euw"
+    },
     SkilledScarecrow: {
       region: "euw",
       opggSlug: "SkilledScarecrow-42096",
+      riotTag: "42096",
       mobalyticsSlug: "skilledscarecrow-42096"
     }
   },
