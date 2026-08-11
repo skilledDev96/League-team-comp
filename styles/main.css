@@ -764,6 +764,137 @@ body {
   margin: 0.35rem 0;
 }
 
+.comp-panel {
+  margin: 0;
+}
+
+.comp-panel-summary {
+  list-style: none;
+  cursor: pointer;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.comp-panel-summary::-webkit-details-marker {
+  display: none;
+}
+
+.comp-panel-summary::before {
+  content: ">";
+  display: inline-block;
+  margin-right: 0.45rem;
+  color: var(--accent-2);
+  transition: transform 140ms ease;
+}
+
+.comp-panel[open] .comp-panel-summary::before {
+  transform: rotate(90deg);
+}
+
+.comp-panel-body {
+  margin-top: 0.68rem;
+}
+
+body.comps-page .card {
+  padding: 1.2rem;
+}
+
+body.comps-page #macroSection {
+  align-items: start;
+}
+
+body.comps-page .comp-panel-summary {
+  font-size: 1.25rem;
+}
+
+body.comps-page .comp-line {
+  font-size: 1.02rem;
+  line-height: 1.7;
+  margin: 0.5rem 0;
+}
+
+body.comps-page .comp-line .role {
+  font-size: 1.12rem;
+}
+
+body.comps-page .comp-line .champ-chip {
+  font-size: 0.98rem;
+}
+
+body.comps-page .comp-line .champ-chip .champ-icon {
+  width: 24px;
+  height: 24px;
+}
+
+body.comps-page .view-controls {
+  transition: border-color 170ms ease, background 170ms ease;
+}
+
+body.comps-page[data-comp-view="starter"] .view-controls {
+  border-color: color-mix(in srgb, var(--card-border) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-controls) 86%, transparent);
+}
+
+body.comps-page[data-comp-view="full"] .view-controls {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--card-border) 42%);
+  background: color-mix(in srgb, var(--surface-controls) 78%, var(--accent) 22%);
+}
+
+.view-mode-inline {
+  margin-left: 0.45rem;
+  padding: 0.2rem 0.62rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 72%, var(--card-border) 28%);
+  color: var(--text-0);
+  background: color-mix(in srgb, var(--accent) 24%, var(--surface-btn) 76%);
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-2) 26%, transparent);
+}
+
+body.comps-page .hero .view-mode-inline {
+  margin-left: 0.55rem;
+  vertical-align: middle;
+}
+
+body.comps-page[data-comp-view="starter"] .hero .view-mode-inline {
+  border-color: color-mix(in srgb, var(--warn) 60%, var(--card-border) 40%);
+  background: color-mix(in srgb, var(--warn) 22%, var(--surface-btn) 78%);
+}
+
+body.comps-page[data-comp-view="full"] .hero .view-mode-inline {
+  border-color: color-mix(in srgb, var(--ok) 56%, var(--card-border) 44%);
+  background: color-mix(in srgb, var(--ok) 20%, var(--surface-btn) 80%);
+}
+
+body.comps-page[data-comp-view="starter"] .comp-panel,
+body.comps-page[data-comp-view="full"] .comp-panel,
+body.comps-page #banSection {
+  transition: opacity 170ms ease, transform 170ms ease;
+}
+
+body.comps-page[data-comp-view="starter"] .comp-panel {
+  opacity: 0.92;
+}
+
+body.comps-page[data-comp-view="full"] .comp-panel {
+  opacity: 1;
+}
+
+body.comps-page .kv {
+  font-size: 1.04rem;
+  gap: 0.45rem 1rem;
+}
+
+body.comps-page .list-clean li {
+  font-size: 1rem;
+  margin: 0.38rem 0;
+}
+
 .comp-line .role {
   color: var(--accent-2);
   font-weight: 700;
@@ -784,6 +915,34 @@ body {
   margin-top: 1rem;
   font-size: 0.82rem;
   color: var(--text-1);
+}
+
+body.intel-page #playerCards {
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+body.intel-page #playerCards .card {
+  border-left: 4px solid color-mix(in srgb, var(--accent) 72%, var(--card-border) 28%);
+  background:
+    linear-gradient(105deg, color-mix(in srgb, var(--surface-hero-a) 72%, transparent), color-mix(in srgb, var(--surface-hero-b) 46%, transparent));
+  padding: 1.1rem 1.15rem;
+}
+
+body.intel-page #playerCards .title-row {
+  margin-bottom: 0.3rem;
+}
+
+body.intel-page #playerCards .meta-line {
+  margin: 0.2rem 0;
+}
+
+body.intel-page #playerCards .role-toggle {
+  margin-top: 0.6rem;
+}
+
+body.intel-page #fillInSection {
+  margin-bottom: 0.2rem;
 }
 
 @media (max-width: 900px) {

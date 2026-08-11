@@ -25,7 +25,7 @@
     brandTitle.firstChild.textContent = data.teamName;
   }
   if (pageTitle) {
-    pageTitle.textContent = `${data.teamName} Role Profiles and Champion Links`;
+    pageTitle.textContent = `${data.teamName} Scouting Board: Role Profiles and Champion Links`;
   }
 
   const fillInHost = document.getElementById("fillInSection");

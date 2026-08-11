@@ -60,7 +60,7 @@
   </script>
   <script src="scripts/theme.js?v=4"></script>
   <script src="scripts/team-data.js?v=4"></script>
-  <script src="scripts/ui.js?v=7"></script>
+  <script src="scripts/ui.js?v=8"></script>
   <script>
     window.Theme.initThemeToggle();
 
@@ -91,6 +91,18 @@
     const champs = data.top3Champs[selectedPlayer];
     const bans = data.banRecommendations[selectedPlayer];
     const icon = data.summonerIcons[selectedPlayer];
+    const quickLinks = document.getElementById("quickLinks");
+
+    if (quickLinks) {
+      const opggProfile = ui.createExternalLink(ui.summonerSearchUrl(selectedPlayer), "OP.GG player profile");
+      quickLinks.prepend(opggProfile);
+
+      const mobalyticsUrl = ui.summonerMobalyticsUrl(selectedPlayer);
+      if (mobalyticsUrl) {
+        const mobalyticsProfile = ui.createExternalLink(mobalyticsUrl, "Mobalytics player profile");
+        quickLinks.insertBefore(mobalyticsProfile, quickLinks.children[1] || null);
+      }
+    }
 
     const card = document.getElementById("playerCard");
 
@@ -146,7 +158,7 @@
 
     const linksWrap = document.createElement("div");
     linksWrap.className = "links";
-    linksWrap.appendChild(ui.createExternalLink(ui.summonerSearchUrl(selectedPlayer), "OP.GG player search"));
+    linksWrap.appendChild(ui.createExternalLink(ui.summonerSearchUrl(selectedPlayer), "OP.GG player profile"));
     card.appendChild(linksWrap);
 
     const buildDropdown = document.createElement("details");

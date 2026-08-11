@@ -16,7 +16,7 @@
   </script>
   <link rel="stylesheet" href="styles/main.css?v=14">
 </head>
-<body data-theme="dark">
+<body data-theme="dark" class="comps-page">
   <div class="page">
     <header class="topbar">
       <div class="brand" id="brandTitle">
@@ -39,12 +39,13 @@
 
     <section class="hero">
       <h1 id="pageTitle">Draft Categories, Bans, and Win Plan</h1>
-      <p>Use this as your in-lobby cheat sheet: comp identity, role picks, and linked champion references.</p>
+      <p>Use this as your in-lobby cheat sheet: comp identity, role picks, and linked champion references. <span id="viewModeBadge" class="view-mode-inline" aria-live="polite">Current: Full View</span></p>
     </section>
 
     <section class="view-controls" aria-label="View controls">
       <button id="starterViewBtn" class="view-btn active" type="button">Starter View</button>
       <button id="fullViewBtn" class="view-btn" type="button">Full View</button>
+      <button id="picksToggleBtn" class="view-btn" type="button">Hide Picks</button>
       <p class="muted">Starter View shows only macro plus comp names. Full View opens all drafting detail.</p>
     </section>
 
@@ -53,7 +54,7 @@
     <section class="grid two" id="macroSection" aria-label="Macro summary"></section>
 
     <section id="banSection" class="card" aria-label="Ban matrix">
-      <h2>Ban Matrix by Role</h2>
+      <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded" aria-hidden="true">gavel</span>Ban Matrix by Role</h2>
       <div class="grid three" id="banGrid"></div>
     </section>
   </div>
@@ -73,24 +74,40 @@
     document.getElementById("brandTitle").firstChild.textContent = data.teamName;
     document.getElementById("pageTitle").textContent = `${data.teamName} Draft Categories, Bans, and Win Plan`;
 
+    function iconizedTitle(iconName, text) {
+      return `<span class="title-with-icon"><span class="section-icon material-symbols-rounded" aria-hidden="true">${iconName}</span>${text}</span>`;
+    }
+
+    function compIcon(name) {
+      const map = {
+        Engage: "campaign",
+        Pick: "ads_click",
+        Dive: "flight_takeoff",
+        Wombo: "bolt",
+        Skirmish: "swords",
+        Poke: "track_changes",
+        FrontToBack: "shield"
+      };
+      return map[name] || "tactic";
+    }
+
     const compSection = document.getElementById("compSection");
 
     for (const [compName, compBody] of Object.entries(data.comps)) {
       const card = document.createElement("article");
       card.className = "card";
 
-      const h2 = document.createElement("h2");
-      h2.textContent = compName;
-      card.appendChild(h2);
+      const details = document.createElement("details");
+      details.className = "comp-panel";
+      details.open = true;
 
-      const toggleBtn = document.createElement("button");
-      toggleBtn.type = "button";
-      toggleBtn.className = "view-btn role-toggle";
-      toggleBtn.textContent = "Show Picks";
-      card.appendChild(toggleBtn);
+      const summary = document.createElement("summary");
+      summary.className = "comp-panel-summary";
+      summary.innerHTML = iconizedTitle(compIcon(compName), compName);
+      details.appendChild(summary);
 
-      const details = document.createElement("div");
-      details.className = "role-details";
+      const detailsBody = document.createElement("div");
+      detailsBody.className = "comp-panel-body";
 
       for (const [role, line] of Object.entries(compBody)) {
         const parsed = ui.parseCompLine(line);
@@ -110,15 +127,11 @@
           p.append(` - ${parsed.note}`);
         }
 
-        details.appendChild(p);
+        detailsBody.appendChild(p);
       }
 
+      details.appendChild(detailsBody);
       card.appendChild(details);
-
-      toggleBtn.addEventListener("click", () => {
-        const expanded = card.classList.toggle("expanded");
-        toggleBtn.textContent = expanded ? "Hide Picks" : "Show Picks";
-      });
 
       compSection.appendChild(card);
     }
@@ -127,7 +140,7 @@
     const early = document.createElement("article");
     early.className = "card";
     early.innerHTML = `
-      <h2>Early Game Plan</h2>
+      <h2>${iconizedTitle("schedule", "Early Game Plan")}</h2>
       <dl class="kv">
         <dt>Top</dt><dd>${data.macroSummary.earlyGame.top}</dd>
         <dt>Mid</dt><dd>${data.macroSummary.earlyGame.mid}</dd>
@@ -148,7 +161,7 @@
     const midLate = document.createElement("article");
     midLate.className = "card";
     const h2 = document.createElement("h2");
-    h2.textContent = "Mid to Late Transition";
+    h2.innerHTML = iconizedTitle("swap_horiz", "Mid to Late Transition");
     midLate.appendChild(h2);
 
     const midTitle = document.createElement("h3");
@@ -202,26 +215,43 @@
 
     const starterBtn = document.getElementById("starterViewBtn");
     const fullBtn = document.getElementById("fullViewBtn");
+    const picksToggleBtn = document.getElementById("picksToggleBtn");
+    const viewModeBadge = document.getElementById("viewModeBadge");
+
+    function setAllCompPanels(open) {
+      const panels = compSection.querySelectorAll(".comp-panel");
+      for (const panel of panels) {
+        panel.open = open;
+      }
+      if (picksToggleBtn) {
+        picksToggleBtn.textContent = open ? "Hide Picks" : "Show Picks";
+      }
+    }
 
     function setView(mode) {
       const full = mode === "full";
+      document.body.setAttribute("data-comp-view", full ? "full" : "starter");
       banSection.hidden = !full;
-      for (const card of compSection.children) {
-        card.classList.toggle("expanded", full);
-        const btn = card.querySelector(".role-toggle");
-        if (btn) {
-          btn.textContent = full ? "Hide Picks" : "Show Picks";
-        }
-      }
+      setAllCompPanels(full);
 
       starterBtn.classList.toggle("active", !full);
       fullBtn.classList.toggle("active", full);
+      if (viewModeBadge) {
+        viewModeBadge.textContent = `Current: ${full ? "Full View" : "Starter View"}`;
+      }
+    }
+
+    if (picksToggleBtn) {
+      picksToggleBtn.addEventListener("click", () => {
+        const anyOpen = compSection.querySelector(".comp-panel[open]");
+        setAllCompPanels(!anyOpen);
+      });
     }
 
     starterBtn.addEventListener("click", () => setView("starter"));
     fullBtn.addEventListener("click", () => setView("full"));
 
-    setView("starter");
+    setView("full");
   </script>
 </body>
 </html>
