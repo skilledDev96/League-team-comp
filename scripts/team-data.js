@@ -25,7 +25,7 @@ const TEAM_DATA = {
   summonerProfiles: {
     Rulukuku: {
       region: "euw",
-      opggSlug: "Rulukuku-EUW",
+      opggSlug: "RULUKUKULUKU-EUW",
       riotTag: "EUW",
       mobalyticsSlug: "rulukuku-euw"
     },
