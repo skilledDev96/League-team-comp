@@ -159,6 +159,10 @@
     const linksWrap = document.createElement("div");
     linksWrap.className = "links";
     linksWrap.appendChild(ui.createExternalLink(ui.summonerSearchUrl(selectedPlayer), "OP.GG player profile"));
+    const cardMobalyticsUrl = ui.summonerMobalyticsUrl(selectedPlayer);
+    if (cardMobalyticsUrl) {
+      linksWrap.appendChild(ui.createExternalLink(cardMobalyticsUrl, "Mobalytics player profile"));
+    }
     card.appendChild(linksWrap);
 
     const buildDropdown = document.createElement("details");

@@ -89,6 +89,13 @@
     playerLink.className = "tag";
     roleDetails.appendChild(document.createElement("br"));
     roleDetails.appendChild(playerLink);
+    const mobalyticsProfileLink = ui.summonerMobalyticsUrl(player);
+    if (mobalyticsProfileLink) {
+      const mobalyticsLink = ui.createExternalLink(mobalyticsProfileLink, "Open Mobalytics profile");
+      mobalyticsLink.className = "tag";
+      roleDetails.appendChild(document.createElement("br"));
+      roleDetails.appendChild(mobalyticsLink);
+    }
 
     block.appendChild(roleDetails);
 
@@ -168,6 +175,10 @@
       entry.className = "title-row";
       entry.appendChild(ui.createPlayerAvatar(player.summoner, player.icon, { role: (player.preferredRoles || [""])[0] }));
       entry.appendChild(ui.createExternalLink(ui.summonerSearchUrl(player.summoner), text));
+      const fillInMobalyticsUrl = ui.summonerMobalyticsUrl(player.summoner);
+      if (fillInMobalyticsUrl) {
+        entry.appendChild(ui.createExternalLink(fillInMobalyticsUrl, "Mobalytics"));
+      }
       wrap.appendChild(entry);
     }
 

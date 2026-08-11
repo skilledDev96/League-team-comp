@@ -78,7 +78,7 @@ function summonerSearchUrl(name) {
 function summonerMobalyticsUrl(name) {
   const meta = summonerProfileMeta(name);
   if (meta && meta.region && meta.mobalyticsSlug) {
-    return `https://www.mobalytics.gg/lol/summoners/${meta.region}/${meta.mobalyticsSlug}`;
+    return `https://mobalytics.gg/lol/profile/${meta.region}/${encodeURIComponent(meta.mobalyticsSlug)}/overview`;
   }
   return "";
 }

@@ -27,7 +27,7 @@ const TEAM_DATA = {
       region: "euw",
       opggSlug: "RULUKUKULUKU-EUW",
       riotTag: "EUW",
-      mobalyticsSlug: "rulukuku-euw"
+      mobalyticsSlug: "rulukukuluku-euw"
     },
     Go10x: {
       region: "euw",
@@ -52,6 +52,10 @@ const TEAM_DATA = {
       opggSlug: "SkilledScarecrow-42096",
       riotTag: "42096",
       mobalyticsSlug: "skilledscarecrow-42096"
+    },
+    SirStonedAlott: {
+      region: "euw",
+      mobalyticsSlug: "sir stonedalot-euw"
     }
   },
   playstyles: {
