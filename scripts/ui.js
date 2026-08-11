@@ -59,8 +59,25 @@ function summonerIconUrl(iconRef, basePath = "assets/summoners") {
   return `${basePath}/${iconRef}`;
 }
 
+function summonerProfileMeta(name) {
+  const profiles = (window.TEAM_DATA && window.TEAM_DATA.summonerProfiles) || {};
+  return profiles[name] || null;
+}
+
 function summonerSearchUrl(name) {
+  const meta = summonerProfileMeta(name);
+  if (meta && meta.region && meta.opggSlug) {
+    return `https://op.gg/lol/summoners/${meta.region}/${meta.opggSlug}`;
+  }
   return `https://www.op.gg/search?q=${encodeURIComponent(name)}`;
+}
+
+function summonerMobalyticsUrl(name) {
+  const meta = summonerProfileMeta(name);
+  if (meta && meta.region && meta.mobalyticsSlug) {
+    return `https://www.mobalytics.gg/lol/summoners/${meta.region}/${meta.mobalyticsSlug}`;
+  }
+  return "";
 }
 
 function championBuildUrl(championName) {
@@ -229,6 +246,7 @@ window.UI = {
   playerAnchorId,
   createTag,
   createExternalLink,
+  summonerMobalyticsUrl,
   summonerSearchUrl,
   summonerIconUrl
 };

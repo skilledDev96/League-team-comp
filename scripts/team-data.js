@@ -22,6 +22,13 @@ const TEAM_DATA = {
     DaWhiteHammer: "dawhitehammer.webp",
     DrunkenBannana: "drunkenbannana.png"
   },
+  summonerProfiles: {
+    SkilledScarecrow: {
+      region: "euw",
+      opggSlug: "SkilledScarecrow-42096",
+      mobalyticsSlug: "skilledscarecrow-42096"
+    }
+  },
   playstyles: {
     Rulukuku: "Late Bloomer",
     Go10x: "Ultimate Predator",

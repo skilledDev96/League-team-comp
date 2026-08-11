@@ -16,7 +16,7 @@
 </script>
 <link rel="stylesheet" href="styles/main.css?v=14">
 </head>
-<body data-theme="dark">
+<body data-theme="dark" class="intel-page">
   <div class="page">
     <header class="topbar">
       <div class="brand" id="brandTitle">
@@ -38,8 +38,8 @@
     </header>
 
     <section class="hero">
-      <h1 id="pageTitle">Role Profiles and Champion Links</h1>
-      <p>Each card has strengths, weaknesses, top picks, ban priorities, and direct research links.</p>
+      <h1 id="pageTitle">Scouting Board: Role Profiles and Champion Links</h1>
+      <p>Deep-dive mode with full role scouting cards, matchup prep links, and expandable pick intel.</p>
     </section>
 
     <section class="view-controls" aria-label="View controls">
@@ -58,7 +58,7 @@
   </script>
   <script src="scripts/theme.js?v=4"></script>
   <script src="scripts/team-data.js?v=4"></script>
-  <script src="scripts/ui.js?v=7"></script>
+  <script src="scripts/ui.js?v=8"></script>
   <script>
     window.Theme.initThemeToggle();
 
@@ -70,7 +70,7 @@
     };
 
     document.getElementById("brandTitle").firstChild.textContent = data.teamName;
-    document.getElementById("pageTitle").textContent = `${data.teamName} Role Profiles and Champion Links`;
+    document.getElementById("pageTitle").textContent = `${data.teamName} Scouting Board: Role Profiles and Champion Links`;
 
     const fillInHost = document.getElementById("fillInSection");
     const fillIns = Array.isArray(data.fillIns) ? data.fillIns : [];
