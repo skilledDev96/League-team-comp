@@ -36,10 +36,10 @@ jobs:
       - run: npm ci
       - run: npm run build -- --base-href=/League-team-comp/
       # GitHub Pages has no server-side routing; serve index.html for deep links.
-      - run: cp dist/bom-squad/browser/index.html dist/bom-squad/browser/404.html
+      - run: cp dist/bom-squad/index.html dist/bom-squad/404.html
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: app/dist/bom-squad/browser
+          path: app/dist/bom-squad
 
   deploy:
     needs: build
