@@ -80,7 +80,13 @@
 
   <div class="grid two">
     @for (draft of playerDrafts(); track draft) {
-      <article class="card" [id]="'player-draft-' + $index">
+      <article class="card card-loadable" [id]="'player-draft-' + $index">
+        @if (enrichingPlayerId() === enrichmentKey(draft)) {
+          <div class="card-loading-overlay" role="status" aria-live="polite">
+            <span class="app-loading-spinner" aria-hidden="true"></span>
+            <p>Fetching Riot data…</p>
+          </div>
+        }
         <label class="field"><span>Summoner name</span>
           <input type="text" required [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname' + $index" placeholder="e.g. DaWhiteHammer" /></label>
         <label class="field"><span>Role</span>

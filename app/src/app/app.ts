@@ -52,5 +52,6 @@ export class App {
 
   protected async logout(): Promise<void> {
     await this.auth.logout();
+    await this.router.navigate(['/login']);
   }
 }

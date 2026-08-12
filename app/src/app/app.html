@@ -7,27 +7,27 @@
       {{ data.settings().teamName || 'Bom Squad' }}
       <small>Draft Hub</small>
     </div>
-    <nav class="nav-links" aria-label="Main navigation">
-      <a routerLink="/overview" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Overview</a>
-      <a routerLink="/players" routerLinkActive="active">Player Intel</a>
-      <a routerLink="/comps" routerLinkActive="active">Comps and Macro</a>
-      @if (auth.canEdit()) {
-        <a routerLink="/admin" routerLinkActive="active">Edit</a>
-      }
-    </nav>
-    <div class="user-bar">
-      <label for="themeSelect" class="visually-hidden">Theme</label>
-      <select id="themeSelect" class="theme-select" aria-label="Theme selector"
-              [value]="theme.current()" (change)="onThemeChange($event)">
-        <option value="dark">Dark</option>
-        <option value="dark-blue">Blue</option>
-        <option value="dark-red">Red</option>
-        <option value="light">Light</option>
-      </select>
+    @if (auth.isAuthed()) {
+      <nav class="nav-links" aria-label="Main navigation">
+        <a routerLink="/overview" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Overview</a>
+        <a routerLink="/players" routerLinkActive="active">Player Intel</a>
+        <a routerLink="/comps" routerLinkActive="active">Comps and Macro</a>
+        @if (auth.canEdit()) {
+          <a routerLink="/admin" routerLinkActive="active">Edit</a>
+        }
+      </nav>
+      <div class="user-bar">
+        <label for="themeSelect" class="visually-hidden">Theme</label>
+        <select id="themeSelect" class="theme-select" aria-label="Theme selector"
+                [value]="theme.current()" (change)="onThemeChange($event)">
+          <option value="dark">Dark</option>
+          <option value="dark-blue">Blue</option>
+          <option value="dark-red">Red</option>
+          <option value="light">Light</option>
+        </select>
 
-      <span class="topbar-divider" aria-hidden="true"></span>
+        <span class="topbar-divider" aria-hidden="true"></span>
 
-      @if (auth.isAuthed()) {
         <div class="user-chip">
           <span class="user-avatar" aria-hidden="true">{{ (auth.userEmail() || '?').charAt(0).toUpperCase() }}</span>
           <span class="user-name">{{ auth.userEmail() }}</span>
@@ -36,10 +36,19 @@
           }
         </div>
         <button type="button" class="view-btn" (click)="logout()">Log out</button>
-      } @else {
-        <a routerLink="/login" routerLinkActive="active" class="view-btn">Log in</a>
-      }
-    </div>
+      </div>
+    } @else {
+      <div class="user-bar">
+        <label for="themeSelect" class="visually-hidden">Theme</label>
+        <select id="themeSelect" class="theme-select" aria-label="Theme selector"
+                [value]="theme.current()" (change)="onThemeChange($event)">
+          <option value="dark">Dark</option>
+          <option value="dark-blue">Blue</option>
+          <option value="dark-red">Red</option>
+          <option value="light">Light</option>
+        </select>
+      </div>
+    }
   </header>
 
   @if (data.mode === 'local') {

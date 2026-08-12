@@ -5,7 +5,13 @@
   </section>
 
   <section class="grid two">
-    <article class="card">
+    <article class="card card-loadable">
+      @if (refreshing()) {
+        <div class="card-loading-overlay" role="status" aria-live="polite">
+          <span class="app-loading-spinner" aria-hidden="true"></span>
+          <p>Fetching Riot data…</p>
+        </div>
+      }
       <div class="title-row">
         <app-player-avatar [name]="p.name" [icon]="p.icon" [role]="p.role" />
         <h2>{{ p.role }} - {{ p.name }}</h2>
