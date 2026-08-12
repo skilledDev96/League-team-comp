@@ -79,6 +79,18 @@ body[data-theme="dark"] {
   }
 }
 
+.btn-spinner {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--text-0) 38%, transparent);
+  border-top-color: var(--text-0);
+  display: inline-block;
+  vertical-align: -0.12rem;
+  margin-right: 0.45rem;
+  animation: spin 0.8s linear infinite;
+}
+
 body[data-theme="dark-blue"] {
   --bg-0: #0f1418;
   --bg-1: #1a232d;
