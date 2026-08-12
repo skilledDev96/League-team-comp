@@ -644,6 +644,13 @@ body {
   box-shadow: 0 12px 30px var(--shadow-elev);
 }
 
+/* Prevent grid siblings from stretching to match an expanded card's height. */
+.clickable-card,
+.player-intel-card,
+.comp-panel {
+  align-self: start;
+}
+
 .clickable-card {
   position: relative;
   cursor: pointer;
