@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Comp, CompPicks, FillIn, Player, ROLES, Role, AccessRole, AccessEntry } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
+import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
 import { TeamDataService } from '../../services/team-data.service';
 
 interface PlayerDraft {
@@ -78,6 +79,7 @@ function emptyPicks(): CompPicks {
 export class AdminComponent {
   protected readonly auth = inject(AuthService);
   protected readonly data = inject(TeamDataService);
+  private readonly enrichment = inject(PlayerEnrichmentService);
   protected readonly roles = ROLES;
   protected readonly accessRoles: AccessRole[] = ['admin', 'contributor', 'viewer'];
 
@@ -87,6 +89,7 @@ export class AdminComponent {
   protected readonly compDrafts = signal<CompDraft[]>([]);
   protected readonly accessDrafts = signal<AccessDraft[]>([]);
   protected readonly activeTab = signal<EditorTab>('players');
+  protected readonly enrichingPlayerId = signal<string | null>(null);
   protected readonly status = signal('');
 
   private initialized = false;
@@ -207,6 +210,37 @@ export class AdminComponent {
 
     if (!draft.mobalyticsSlug.trim()) {
       draft.mobalyticsSlug = normalizedTag ? `${baseName}-${normalizedTag}` : baseName;
+    }
+  }
+
+  async autoFillPlayerInsights(draft: PlayerDraft): Promise<void> {
+    const playerName = draft.name.trim();
+    if (!playerName) {
+      this.flash('Add a player name first.');
+      return;
+    }
+
+    this.autoFillPlayerSlugs(draft);
+
+    const loadingKey = draft.id || draft.name;
+    this.enrichingPlayerId.set(loadingKey);
+    try {
+      const enriched = await this.enrichment.enrichPlayer({
+        summonerName: playerName,
+        riotTag: draft.riotTag,
+        region: draft.region,
+        role: draft.role,
+        mobalyticsSlug: draft.mobalyticsSlug
+      });
+
+      draft.playstyle = enriched.playstyle;
+      draft.strengths = enriched.strengths.join(', ');
+      draft.weaknesses = enriched.weaknesses.join(', ');
+      this.flash(`Profile filled from ${enriched.provider}.`);
+    } catch (err) {
+      this.flash(err instanceof Error ? err.message : 'Failed to enrich profile.');
+    } finally {
+      this.enrichingPlayerId.set(null);
     }
   }
 
