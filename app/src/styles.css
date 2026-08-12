@@ -723,6 +723,33 @@ body {
   border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--card-border) 55%);
 }
 
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 1.6rem 0 0.2rem;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 0.03em;
+}
+
+.section-title .section-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 1.2rem;
+}
+
+.kv-icons dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.kv-icons dt .material-symbols-rounded {
+  font-size: 1.1rem;
+  color: var(--accent-2);
+}
+
 .title-row {
   display: flex;
   align-items: center;

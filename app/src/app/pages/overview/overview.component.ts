@@ -24,6 +24,11 @@ export class OverviewComponent {
     MacroAndObjectives: 'MO',
     MatchupResearch: 'MR'
   };
+  protected readonly resourceIconSymbol: Record<string, string> = {
+    DraftTools: 'construction',
+    MacroAndObjectives: 'map',
+    MatchupResearch: 'query_stats'
+  };
 
   protected isExpanded(id: string): boolean {
     return this.expanded().has(id);
