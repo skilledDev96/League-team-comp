@@ -10,6 +10,8 @@
       <a routerLink="/comps" routerLinkActive="active">Comps and Macro</a>
       @if (auth.canEdit()) {
         <a routerLink="/admin" routerLinkActive="active">Edit</a>
+      }
+      @if (auth.isAuthed()) {
         <button type="button" class="view-btn" (click)="logout()">Log out</button>
       } @else {
         <a routerLink="/login" routerLinkActive="active">Log in</a>
