@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import {
   NavigationCancel,
   NavigationEnd,
@@ -33,6 +33,8 @@ export class App {
   // Thin top bar for subsequent route changes.
   protected readonly routeLoading = computed(() => this.navigating() && this.data.ready());
 
+  protected readonly showTutorial = signal(false);
+
   constructor() {
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart) {
@@ -45,6 +47,29 @@ export class App {
         this.navigating.set(false);
       }
     });
+
+    // Show a one-time welcome tour the first time a user signs in on this browser.
+    effect(() => {
+      if (!this.auth.ready() || !this.auth.isAuthed()) {
+        return;
+      }
+      const email = this.auth.userEmail();
+      if (email && !localStorage.getItem(this.tutorialKey(email))) {
+        this.showTutorial.set(true);
+      }
+    });
+  }
+
+  private tutorialKey(email: string): string {
+    return `bom-tutorial-seen:${email}`;
+  }
+
+  protected dismissTutorial(): void {
+    const email = this.auth.userEmail();
+    if (email) {
+      localStorage.setItem(this.tutorialKey(email), '1');
+    }
+    this.showTutorial.set(false);
   }
 
   protected onThemeChange(event: Event): void {

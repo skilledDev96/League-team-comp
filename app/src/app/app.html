@@ -3,10 +3,17 @@
     <div class="route-progress" role="status" aria-label="Loading"></div>
   }
   <header class="topbar">
-    <div class="brand">
-      {{ data.settings().teamName || 'Bom Squad' }}
-      <small>Draft Hub</small>
-    </div>
+    @if (auth.isAuthed()) {
+      <a class="brand brand-link" routerLink="/overview">
+        {{ data.settings().teamName || 'Bom Squad' }}
+        <small>Draft Hub</small>
+      </a>
+    } @else {
+      <div class="brand">
+        {{ data.settings().teamName || 'Bom Squad' }}
+        <small>Draft Hub</small>
+      </div>
+    }
     @if (auth.isAuthed()) {
       <nav class="nav-links" aria-label="Main navigation">
         <a routerLink="/overview" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Overview</a>
@@ -65,5 +72,25 @@
   <div class="app-loading-overlay" role="status" aria-live="polite">
     <span class="app-loading-spinner" aria-hidden="true"></span>
     <p>Loading team data…</p>
+  </div>
+}
+
+@if (showTutorial()) {
+  <div class="modal-backdrop" (click)="dismissTutorial()">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Welcome tour" (click)="$event.stopPropagation()">
+      <h2 class="title-with-icon"><span class="section-icon">Hi</span>Welcome to {{ data.settings().teamName || 'Bom Squad' }}</h2>
+      <p class="muted">A quick tour of your draft hub:</p>
+      <ul class="list-clean">
+        <li><strong>Overview</strong> — roster, playstyles, and champ pools at a glance.</li>
+        <li><strong>Player Intel</strong> — deep-dive scouting cards per player.</li>
+        <li><strong>Comps and Macro</strong> — team comps, bans, and the game plan.</li>
+        @if (auth.canEdit()) {
+          <li><strong>Edit</strong> — manage the roster and auto-fill player stats from Riot.</li>
+        }
+      </ul>
+      <div class="links">
+        <button class="view-btn active" type="button" (click)="dismissTutorial()">Got it</button>
+      </div>
+    </div>
   </div>
 }

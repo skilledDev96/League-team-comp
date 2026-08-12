@@ -299,6 +299,19 @@ body {
   font-weight: 700;
 }
 
+.brand-link {
+  color: var(--text-0);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.brand-link:hover,
+.brand-link:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+
 .brand small {
   display: block;
   font-size: 0.8rem;
