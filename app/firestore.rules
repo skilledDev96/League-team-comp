@@ -43,6 +43,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /userPrefs/{emailId} {
+      allow read, write: if signedIn() && emailId == emailKey();
+    }
+
     match /{document=**} {
       allow read: if true;
       allow write: if canEdit();

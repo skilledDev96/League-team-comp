@@ -147,9 +147,10 @@
 
 @if (activeTab() === 'fillins') {
 <section aria-label="Fill-ins">
-  <div class="view-controls">
+  <div class="view-controls edit-toolbar">
     <h2 class="title-with-icon"><span class="section-icon">FI</span>Fill-ins</h2>
-    <button class="view-btn active" type="button" (click)="addFillIn()">Add fill-in</button>
+    <p class="muted edit-hint">Add substitute players who can step in, with their preferred roles and availability.</p>
+    <button class="view-btn active btn-cta" type="button" (click)="addFillIn()">+ Add fill-in</button>
   </div>
 
   <div class="grid two">
@@ -183,9 +184,10 @@
 
 @if (activeTab() === 'comps') {
 <section aria-label="Comps">
-  <div class="view-controls">
+  <div class="view-controls edit-toolbar">
     <h2 class="title-with-icon"><span class="section-icon">CP</span>Team Comps</h2>
-    <button class="view-btn active" type="button" (click)="addComp()">Add comp</button>
+    <p class="muted edit-hint">Build a comp by naming it and assigning a champion and note per role.</p>
+    <button class="view-btn active btn-cta" type="button" (click)="addComp()">+ Add comp</button>
   </div>
 
   <div class="grid two">
@@ -209,14 +211,11 @@
 
 @if (auth.canManageUsers() && activeTab() === 'access') {
   <section aria-label="Team access">
-    <div class="view-controls">
+    <div class="view-controls edit-toolbar">
       <h2 class="title-with-icon"><span class="section-icon">AC</span>Team Access</h2>
-      <button class="view-btn active" type="button" (click)="addAccessEntry()">Add member</button>
+      <p class="muted edit-hint">Grant access by email and role. Admins manage; user accounts/passwords are created in the Firebase console.</p>
+      <button class="view-btn active btn-cta" type="button" (click)="addAccessEntry()">+ Add member</button>
     </div>
-
-    <p class="muted">
-      Admins manage access by email and role here. Firebase Auth user creation/passwords still happen in the Firebase console.
-    </p>
 
     <div class="grid two">
       @for (draft of accessDrafts(); track draft.email + $index) {

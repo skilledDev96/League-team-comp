@@ -884,6 +884,13 @@ body {
   border-color: var(--accent);
 }
 
+.link-icon {
+  font-size: 1.05rem;
+  vertical-align: -0.22rem;
+  margin-right: 0.45rem;
+  color: var(--accent-2);
+}
+
 .links.compact {
   margin-top: 0.45rem;
 }

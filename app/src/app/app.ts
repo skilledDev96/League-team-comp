@@ -34,6 +34,7 @@ export class App {
   protected readonly routeLoading = computed(() => this.navigating() && this.data.ready());
 
   protected readonly showTutorial = signal(false);
+  private tourChecked = false;
 
   constructor() {
     this.router.events.subscribe((event) => {
@@ -48,28 +49,30 @@ export class App {
       }
     });
 
-    // Show a one-time welcome tour the first time a user signs in on this browser.
+    // Show a one-time welcome tour the first time a user signs in (stored per-account in Firestore).
     effect(() => {
-      if (!this.auth.ready() || !this.auth.isAuthed()) {
+      if (!this.auth.ready()) {
         return;
       }
-      const email = this.auth.userEmail();
-      if (email && !localStorage.getItem(this.tutorialKey(email))) {
-        this.showTutorial.set(true);
+      if (!this.auth.isAuthed()) {
+        this.tourChecked = false;
+        return;
       }
+      if (this.tourChecked) {
+        return;
+      }
+      this.tourChecked = true;
+      void this.auth.hasSeenTour().then((seen) => {
+        if (!seen) {
+          this.showTutorial.set(true);
+        }
+      });
     });
   }
 
-  private tutorialKey(email: string): string {
-    return `bom-tutorial-seen:${email}`;
-  }
-
   protected dismissTutorial(): void {
-    const email = this.auth.userEmail();
-    if (email) {
-      localStorage.setItem(this.tutorialKey(email), '1');
-    }
     this.showTutorial.set(false);
+    void this.auth.markTourSeen();
   }
 
   protected onThemeChange(event: Event): void {

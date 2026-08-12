@@ -81,9 +81,9 @@
     <article class="card">
       <h2 class="title-with-icon"><span class="section-icon">QA</span>Quick Access</h2>
       <div class="links">
-        <a routerLink="/players">Open full player profiles</a>
-        <a routerLink="/comps">Open comp cheat sheets</a>
-        <a routerLink="/comps">Open ban recommendations</a>
+        <a routerLink="/players"><span class="link-icon material-symbols-rounded" aria-hidden="true">groups</span>Open full player profiles</a>
+        <a routerLink="/comps"><span class="link-icon material-symbols-rounded" aria-hidden="true">menu_book</span>Open comp cheat sheets</a>
+        <a routerLink="/comps"><span class="link-icon material-symbols-rounded" aria-hidden="true">block</span>Open ban recommendations</a>
       </div>
     </article>
   </section>
@@ -94,7 +94,7 @@
         <h2 class="title-with-icon"><span class="section-icon">{{ resourceIcon[group[0]] || 'RS' }}</span>{{ groupLabel(group[0]) }}</h2>
         <div class="links">
           @for (link of group[1]; track link.url) {
-            <a [href]="link.url" target="_blank" rel="noopener noreferrer">{{ link.label }}</a>
+            <a [href]="link.url" target="_blank" rel="noopener noreferrer"><span class="link-icon material-symbols-rounded" aria-hidden="true">open_in_new</span>{{ link.label }}</a>
           }
         </div>
       </article>

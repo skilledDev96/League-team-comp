@@ -7,7 +7,7 @@ import {
   signInWithPopup,
   signOut
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { isBootstrapAdminEmail, normalizeEmail } from '../core/access';
 import { getAuthInstance, getDb, isFirebaseConfigured } from '../core/firebase';
 import { AccessRole } from '../models/team.models';
@@ -173,5 +173,51 @@ export class AuthService {
     sessionStorage.removeItem(LOCAL_FLAG);
     this.userEmail.set(null);
     this.role.set(null);
+  }
+
+  /** Whether the current user has already seen the welcome tour (stored per-account in Firestore). */
+  async hasSeenTour(): Promise<boolean> {
+    const email = this.userEmail();
+    if (!email) {
+      return true;
+    }
+    const localFlag = () => Boolean(localStorage.getItem(this.tourKey(email)));
+    if (this.mode !== 'firebase') {
+      return localFlag();
+    }
+    const db = getDb();
+    if (!db) {
+      return localFlag();
+    }
+    try {
+      const snap = await getDoc(doc(db, 'userPrefs', email));
+      return snap.exists() && (snap.data() as { tourSeen?: boolean }).tourSeen === true;
+    } catch {
+      return localFlag();
+    }
+  }
+
+  async markTourSeen(): Promise<void> {
+    const email = this.userEmail();
+    if (!email) {
+      return;
+    }
+    localStorage.setItem(this.tourKey(email), '1');
+    if (this.mode !== 'firebase') {
+      return;
+    }
+    const db = getDb();
+    if (!db) {
+      return;
+    }
+    try {
+      await setDoc(doc(db, 'userPrefs', email), { tourSeen: true }, { merge: true });
+    } catch {
+      // localStorage fallback already set above.
+    }
+  }
+
+  private tourKey(email: string): string {
+    return `bom-tour:${email}`;
   }
 }
