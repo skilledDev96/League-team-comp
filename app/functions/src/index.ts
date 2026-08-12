@@ -210,6 +210,10 @@ interface RiotMatchParticipant {
   assists: number;
   totalMinionsKilled: number;
   neutralMinionsKilled: number;
+  totalDamageDealtToChampions: number;
+  damageDealtToBuildings: number;
+  totalDamageTaken: number;
+  visionScore: number;
 }
 
 interface RiotMatch {
@@ -268,6 +272,12 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
   let totalCsPerMin = 0;
   let totalKillParticipation = 0;
   let killParticipationSamples = 0;
+  let totalDamageShare = 0;
+  let damageShareSamples = 0;
+  let totalTankShare = 0;
+  let tankShareSamples = 0;
+  let totalBuildingDamage = 0;
+  let totalVisionScore = 0;
 
   for (const match of matches) {
     const me = match.info.participants.find((p) => p.puuid === account.puuid);
@@ -288,13 +298,26 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
     totalAssists += me.assists;
     const minutes = Math.max(match.info.gameDuration / 60, 1);
     totalCsPerMin += (me.totalMinionsKilled + me.neutralMinionsKilled) / minutes;
+    totalBuildingDamage += me.damageDealtToBuildings ?? 0;
+    totalVisionScore += me.visionScore ?? 0;
 
-    const teamKills = match.info.participants
-      .filter((p) => p.teamId === me.teamId)
-      .reduce((sum, p) => sum + p.kills, 0);
+    const teammates = match.info.participants.filter((p) => p.teamId === me.teamId);
+    const teamKills = teammates.reduce((sum, p) => sum + p.kills, 0);
     if (teamKills > 0) {
       totalKillParticipation += (me.kills + me.assists) / teamKills;
       killParticipationSamples += 1;
+    }
+
+    const teamDamage = teammates.reduce((sum, p) => sum + (p.totalDamageDealtToChampions ?? 0), 0);
+    if (teamDamage > 0) {
+      totalDamageShare += (me.totalDamageDealtToChampions ?? 0) / teamDamage;
+      damageShareSamples += 1;
+    }
+
+    const teamTaken = teammates.reduce((sum, p) => sum + (p.totalDamageTaken ?? 0), 0);
+    if (teamTaken > 0) {
+      totalTankShare += (me.totalDamageTaken ?? 0) / teamTaken;
+      tankShareSamples += 1;
     }
 
     if (!me.win && me.teamPosition) {
@@ -315,6 +338,10 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
   const avgCsPerMin = totalCsPerMin / games;
   const avgKda = avgDeaths > 0 ? (avgKills + avgAssists) / avgDeaths : avgKills + avgAssists;
   const avgKillParticipation = killParticipationSamples > 0 ? totalKillParticipation / killParticipationSamples : 0;
+  const avgDamageShare = damageShareSamples > 0 ? totalDamageShare / damageShareSamples : 0;
+  const avgTankShare = tankShareSamples > 0 ? totalTankShare / tankShareSamples : 0;
+  const avgBuildingDamage = totalBuildingDamage / games;
+  const avgVisionScore = totalVisionScore / games;
 
   const sortedChamps = [...champGames.entries()].sort((a, b) => b[1] - a[1]);
   const top3 = sortedChamps.slice(0, 3).map(([champ]) => displayChampionName(champ));
@@ -361,22 +388,30 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
 
   const roleTemplate = ROLE_TEMPLATES[role];
   const killParticipationPct = Math.round(avgKillParticipation * 100);
+  const damageSharePct = Math.round(avgDamageShare * 100);
 
+  // Classify a GPI-style archetype from real match aggregates (ordered by specificity).
   let archetype: string;
-  if (avgKillParticipation >= 0.5) {
+  if (role === 'Support' || (avgVisionScore >= 40 && avgDamageShare < 0.18)) {
+    archetype = 'Utility';
+  } else if (avgTankShare >= 0.28 && avgDamageShare < 0.22) {
+    archetype = 'Tank / Frontline';
+  } else if (avgBuildingDamage >= 2200 && avgKillParticipation < 0.5) {
+    archetype = 'Split Pusher';
+  } else if (avgDamageShare >= 0.28 && avgKillParticipation >= 0.5) {
     archetype = 'Carry';
-  } else if (avgCsPerMin >= 7.5 && role !== 'Support') {
+  } else if (avgCsPerMin >= 7.5) {
     archetype = 'Farm-focused';
   } else if (avgAssists >= avgKills * 1.3 && avgAssists >= 5) {
     archetype = 'Playmaker';
   } else if (avgKda >= 4) {
     archetype = 'Duelist';
   } else {
-    archetype = `${role} generalist`;
+    archetype = `${role} Generalist`;
   }
 
   return {
-    playstyle: `${archetype} — ${roleTemplate.playstyle} (${games} recent games: ${winRate}% WR, ${avgKda.toFixed(1)} KDA, ${killParticipationPct}% kill participation)`,
+    playstyle: `${archetype} — ${roleTemplate.playstyle} (${games} recent games: ${winRate}% WR, ${avgKda.toFixed(1)} KDA, ${killParticipationPct}% KP, ${damageSharePct}% team dmg)`,
     strengths: strengths.slice(0, 3),
     weaknesses: weaknesses.slice(0, 3),
     role,
