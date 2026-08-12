@@ -1,19 +1,46 @@
 rules_version = '2';
 
-// Public read so anyone can view the hub; only allowlisted team emails can edit.
-// Keep this list in sync with EDITOR_EMAILS in app/src/app/core/allowlist.ts.
+// Public read for the app; role-based writes are controlled through access docs.
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isEditor() {
-      return request.auth != null
-        && request.auth.token.email.lower() in [
-          'ruanhart7@gmail.com'
-        ];
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function emailKey() {
+      return request.auth.token.email.lower();
+    }
+
+    function bootstrapAdmin() {
+      return signedIn() && emailKey() in [
+        'ruanhart7@gmail.com'
+      ];
+    }
+
+    function hasAccessDoc() {
+      return signedIn() && exists(/databases/$(database)/documents/access/$(emailKey()));
+    }
+
+    function accessRole() {
+      return get(/databases/$(database)/documents/access/$(emailKey())).data.role;
+    }
+
+    function isAdmin() {
+      return bootstrapAdmin() || (hasAccessDoc() && accessRole() == 'admin');
+    }
+
+    function canEdit() {
+      return bootstrapAdmin() || (hasAccessDoc() && (accessRole() == 'admin' || accessRole() == 'contributor'));
+    }
+
+    match /access/{emailId} {
+      allow read: if signedIn() && (bootstrapAdmin() || isAdmin() || emailId == emailKey());
+      allow create, update, delete: if isAdmin();
     }
 
     match /{document=**} {
       allow read: if true;
-      allow write: if isEditor();
+      allow write: if canEdit();
     }
   }
 }

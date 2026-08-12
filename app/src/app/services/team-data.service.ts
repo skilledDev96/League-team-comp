@@ -12,6 +12,7 @@ import { getDb, isFirebaseConfigured } from '../core/firebase';
 import { SEED_DATA } from '../data/seed-data';
 import {
   Comp,
+  AccessEntry,
   FillIn,
   MacroSummary,
   Player,
@@ -20,6 +21,7 @@ import {
   TeamData,
   TeamIdentity
 } from '../models/team.models';
+import { normalizeEmail } from '../core/access';
 
 const LOCAL_KEY = 'bom-team-data';
 
@@ -32,6 +34,7 @@ export class TeamDataService {
   readonly players = signal<Player[]>([]);
   readonly fillIns = signal<FillIn[]>([]);
   readonly comps = signal<Comp[]>([]);
+  readonly accessEntries = signal<AccessEntry[]>([]);
   readonly teamIdentity = signal<TeamIdentity | null>(null);
   readonly macroSummary = signal<MacroSummary | null>(null);
   readonly resourceLinks = signal<ResourceLinks>({});
@@ -68,6 +71,7 @@ export class TeamDataService {
     this.players.set([...data.players].sort((a, b) => a.order - b.order));
     this.fillIns.set([...data.fillIns].sort((a, b) => a.order - b.order));
     this.comps.set([...data.comps].sort((a, b) => a.order - b.order));
+    this.accessEntries.set([{ email: 'ruanhart7@gmail.com', role: 'admin', active: true }]);
     this.teamIdentity.set(data.teamIdentity);
     this.macroSummary.set(data.macroSummary);
     this.resourceLinks.set(data.resourceLinks);
@@ -114,6 +118,13 @@ export class TeamDataService {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Comp, 'id'>) }));
       this.comps.set(list.sort((a, b) => a.order - b.order));
     });
+    onSnapshot(collection(db, 'access'), (snap) => {
+      const list = snap.docs.map((d) => ({
+        email: d.id,
+        ...(d.data() as Omit<AccessEntry, 'email'>)
+      }));
+      this.accessEntries.set(list.sort((a, b) => a.email.localeCompare(b.email)));
+    });
     onSnapshot(doc(db, 'meta', 'teamIdentity'), (d) => {
       this.teamIdentity.set((d.data() as TeamIdentity) ?? null);
     });
@@ -152,6 +163,11 @@ export class TeamDataService {
       const { id, ...rest } = comp;
       batch.set(doc(db, 'comps', id), rest);
     }
+    batch.set(doc(db, 'access', 'ruanhart7@gmail.com'), {
+      email: 'ruanhart7@gmail.com',
+      role: 'admin',
+      active: true
+    });
     batch.set(doc(db, 'meta', 'teamIdentity'), SEED_DATA.teamIdentity);
     batch.set(doc(db, 'meta', 'macro'), SEED_DATA.macroSummary);
     batch.set(doc(db, 'meta', 'resourceLinks'), { groups: SEED_DATA.resourceLinks });
@@ -249,6 +265,53 @@ export class TeamDataService {
 
   deleteComp(id: string): Promise<void> {
     return this.persistRemove('comps', this.comps, id);
+  }
+
+  // ---- Access entries --------------------------------------------------
+
+  createAccessEntry(data: Omit<AccessEntry, 'email'> & { email: string }): Promise<void> {
+    const email = normalizeEmail(data.email);
+    const entry: AccessEntry = {
+      email,
+      role: data.role,
+      active: data.active
+    };
+    return this.persistAccessUpsert(entry);
+  }
+
+  updateAccessEntry(entry: AccessEntry): Promise<void> {
+    return this.persistAccessUpsert(entry);
+  }
+
+  deleteAccessEntry(email: string): Promise<void> {
+    const normalized = normalizeEmail(email);
+    if (this.mode === 'firebase') {
+      const db = getDb();
+      if (!db) return Promise.resolve();
+      return deleteDoc(doc(db, 'access', normalized));
+    }
+    this.accessEntries.set(this.accessEntries().filter((item) => item.email !== normalized));
+    this.persistLocal();
+    return Promise.resolve();
+  }
+
+  private async persistAccessUpsert(entry: AccessEntry): Promise<void> {
+    if (this.mode === 'firebase') {
+      const db = getDb();
+      if (!db) return;
+      await setDoc(doc(db, 'access', entry.email), {
+        role: entry.role,
+        active: entry.active
+      });
+      return;
+    }
+    const current = this.accessEntries();
+    const exists = current.some((item) => item.email === entry.email);
+    const next = exists
+      ? current.map((item) => (item.email === entry.email ? entry : item))
+      : [...current, entry];
+    this.accessEntries.set([...next].sort((a, b) => a.email.localeCompare(b.email)));
+    this.persistLocal();
   }
 
   // ---- Meta singletons --------------------------------------------------

@@ -1,7 +1,8 @@
 import { Component, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Comp, CompPicks, FillIn, Player, ROLES, Role } from '../../models/team.models';
+import { Comp, CompPicks, FillIn, Player, ROLES, Role, AccessRole, AccessEntry } from '../../models/team.models';
+import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 
 interface PlayerDraft {
@@ -38,6 +39,12 @@ interface CompDraft {
   picks: CompPicks;
 }
 
+interface AccessDraft {
+  email: string;
+  role: AccessRole;
+  active: boolean;
+}
+
 function splitList(value: string): string[] {
   return value
     .split(',')
@@ -55,13 +62,16 @@ function emptyPicks(): CompPicks {
   templateUrl: './admin.component.html'
 })
 export class AdminComponent {
+  protected readonly auth = inject(AuthService);
   protected readonly data = inject(TeamDataService);
   protected readonly roles = ROLES;
+  protected readonly accessRoles: AccessRole[] = ['admin', 'contributor', 'viewer'];
 
   protected readonly teamName = signal('');
   protected readonly playerDrafts = signal<PlayerDraft[]>([]);
   protected readonly fillInDrafts = signal<FillInDraft[]>([]);
   protected readonly compDrafts = signal<CompDraft[]>([]);
+  protected readonly accessDrafts = signal<AccessDraft[]>([]);
   protected readonly status = signal('');
 
   private initialized = false;
@@ -71,6 +81,7 @@ export class AdminComponent {
       const players = this.data.players();
       const fillIns = this.data.fillIns();
       const comps = this.data.comps();
+      const accessEntries = this.data.accessEntries();
       if (!this.data.ready() || this.initialized) {
         return;
       }
@@ -79,6 +90,17 @@ export class AdminComponent {
       this.playerDrafts.set(players.map((p) => this.toPlayerDraft(p)));
       this.fillInDrafts.set(fillIns.map((f) => this.toFillInDraft(f)));
       this.compDrafts.set(comps.map((c) => ({ id: c.id, name: c.name, picks: { ...c.picks } })));
+      this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry })));
+    });
+
+    effect(() => {
+      if (!this.auth.canManageUsers() || !this.data.ready()) {
+        return;
+      }
+      const accessEntries = this.data.accessEntries();
+      if (accessEntries.length > 0 && this.accessDrafts().length === 0) {
+        this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry })));
+      }
     });
   }
 
@@ -274,6 +296,53 @@ export class AdminComponent {
     await this.data.deleteComp(draft.id);
     this.compDrafts.update((list) => list.filter((d) => d.id !== draft.id));
     this.flash(`Deleted ${draft.name}.`);
+  }
+
+  // ---- Access entries --------------------------------------------------
+
+  addAccessEntry(): void {
+    this.accessDrafts.update((list) => [
+      ...list,
+      { email: '', role: 'viewer', active: true }
+    ]);
+  }
+
+  async saveAccessEntry(draft: AccessDraft): Promise<void> {
+    const email = draft.email.trim().toLowerCase();
+    if (!email) {
+      this.flash('Email is required.');
+      return;
+    }
+
+    const base: AccessEntry = {
+      email,
+      role: draft.role,
+      active: draft.active
+    };
+
+    const existing = this.data.accessEntries().find((entry) => entry.email === email);
+    if (existing) {
+      await this.data.updateAccessEntry(base);
+      this.accessDrafts.update((list) => list.map((item) => (item.email === email ? { ...base } : item)));
+    } else {
+      await this.data.createAccessEntry(base);
+      this.accessDrafts.update((list) => [...list.filter((item) => item.email !== email), { ...base }].sort((a, b) => a.email.localeCompare(b.email)));
+    }
+    this.flash(`Saved ${email}.`);
+  }
+
+  async deleteAccessEntry(draft: AccessDraft): Promise<void> {
+    const email = draft.email.trim().toLowerCase();
+    if (!email) {
+      this.accessDrafts.update((list) => list.filter((item) => item !== draft));
+      return;
+    }
+    if (!confirm(`Delete access entry for ${email}?`)) {
+      return;
+    }
+    await this.data.deleteAccessEntry(email);
+    this.accessDrafts.update((list) => list.filter((item) => item.email.trim().toLowerCase() !== email));
+    this.flash(`Deleted ${email}.`);
   }
 
   // ---- Maintenance ------------------------------------------------------

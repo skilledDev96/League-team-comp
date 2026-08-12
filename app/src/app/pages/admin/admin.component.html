@@ -133,4 +133,38 @@
   </div>
 </section>
 
+@if (auth.canManageUsers()) {
+  <section aria-label="Team access">
+    <div class="view-controls">
+      <h2 class="title-with-icon"><span class="section-icon">AC</span>Team Access</h2>
+      <button class="view-btn active" type="button" (click)="addAccessEntry()">Add member</button>
+    </div>
+
+    <p class="muted">
+      Admins manage access by email and role here. Firebase Auth user creation/passwords still happen in the Firebase console.
+    </p>
+
+    <div class="grid two">
+      @for (draft of accessDrafts(); track draft.email + $index) {
+        <article class="card">
+          <label class="field"><span>Email</span>
+            <input type="email" [ngModel]="draft.email" (ngModelChange)="draft.email = $event" [name]="'aemail' + $index" /></label>
+          <label class="field"><span>Role</span>
+            <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'arole' + $index">
+              @for (role of accessRoles; track role) { <option [value]="role">{{ role }}</option> }
+            </select></label>
+          <label class="field">
+            <span>Active</span>
+            <input type="checkbox" [ngModel]="draft.active" (ngModelChange)="draft.active = $event" [name]="'aactive' + $index" />
+          </label>
+          <div class="links">
+            <button class="view-btn active" type="button" (click)="saveAccessEntry(draft)">Save</button>
+            <button class="view-btn" type="button" (click)="deleteAccessEntry(draft)">Delete</button>
+          </div>
+        </article>
+      }
+    </div>
+  </section>
+}
+
 <p class="footer-note"><a routerLink="/">Back to Overview</a></p>
