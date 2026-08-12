@@ -189,6 +189,74 @@ body[data-theme="dark"] {
   font-weight: 700;
 }
 
+.player-panel {
+  padding: 0.6rem 0.75rem;
+  align-self: start;
+}
+
+.player-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: var(--text-0);
+  text-align: left;
+}
+
+.player-panel-header .avatar {
+  width: 42px;
+  height: 42px;
+}
+
+.player-panel-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.pp-name {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.pp-role {
+  font-size: 0.78rem;
+  color: var(--text-1);
+}
+
+.player-panel-chevron {
+  margin-left: auto;
+  color: var(--accent-2);
+}
+
+.player-panel-body {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.player-panel-open {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--card-border) 45%);
+}
+
+.player-panel-highlight {
+  animation: panel-highlight 2.2s ease;
+}
+
+@keyframes panel-highlight {
+  0%, 30% {
+    box-shadow: 0 0 0 2px var(--accent), 0 12px 30px var(--shadow-elev);
+  }
+  100% {
+    box-shadow: 0 12px 30px var(--shadow-elev);
+  }
+}
+
 body[data-theme="dark-blue"] {
   --bg-0: #0f1418;
   --bg-1: #1a232d;

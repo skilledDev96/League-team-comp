@@ -5,6 +5,7 @@ import { Comp, CompPicks, FillIn, Player, ROLES, Role, AccessRole, AccessEntry }
 import { AuthService } from '../../services/auth.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 
 interface PlayerDraft {
   id: string;
@@ -73,7 +74,7 @@ function emptyPicks(): CompPicks {
 
 @Component({
   selector: 'app-admin',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, PlayerAvatarComponent],
   templateUrl: './admin.component.html'
 })
 export class AdminComponent {
@@ -92,6 +93,10 @@ export class AdminComponent {
   protected readonly activeTab = signal<EditorTab>('players');
   protected readonly enrichingPlayerId = signal<string | null>(null);
   protected readonly status = signal('');
+
+  // Accordion: only one player panel open at a time to reduce clutter.
+  protected readonly openPlayer = signal<PlayerDraft | null>(null);
+  protected readonly highlightedPlayer = signal<PlayerDraft | null>(null);
 
   protected readonly showAddPlayerDialog = signal(false);
   protected readonly addPlayerMode = signal<'choose' | 'summoner'>('choose');
@@ -194,6 +199,18 @@ export class AdminComponent {
     }, 0);
   }
 
+  protected isPlayerOpen(draft: PlayerDraft): boolean {
+    return this.openPlayer() === draft;
+  }
+
+  protected togglePlayer(draft: PlayerDraft): void {
+    this.openPlayer.set(this.openPlayer() === draft ? null : draft);
+  }
+
+  protected isPlayerHighlighted(draft: PlayerDraft): boolean {
+    return this.highlightedPlayer() === draft;
+  }
+
   private applyRouteFocus(): void {
     const params = this.route.snapshot.queryParamMap;
     const tab = params.get('tab');
@@ -204,7 +221,13 @@ export class AdminComponent {
     const playerId = params.get('playerId');
     if (playerId) {
       const idx = this.playerDrafts().findIndex((d) => d.id === playerId);
-      if (idx >= 0) this.scrollToCard(`player-draft-${idx}`);
+      if (idx >= 0) {
+        const draft = this.playerDrafts()[idx];
+        this.openPlayer.set(draft);
+        this.highlightedPlayer.set(draft);
+        setTimeout(() => this.highlightedPlayer.set(null), 2400);
+        this.scrollToCard(`player-draft-${idx}`);
+      }
     }
 
     const fillInId = params.get('fillInId');
@@ -362,6 +385,7 @@ export class AdminComponent {
       newIndex = list.length;
       return [...list, draft];
     });
+    this.openPlayer.set(draft);
     this.scrollToCard(`player-draft-${newIndex}`);
     return draft;
   }
