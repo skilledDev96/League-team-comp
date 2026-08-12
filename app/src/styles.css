@@ -8,6 +8,26 @@
   opacity: 0.72;
   cursor: not-allowed;
 }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(6, 10, 14, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-card {
+  width: min(420px, 100%);
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  border-radius: 14px;
+  padding: 1.1rem;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
   --card: rgba(18, 29, 37, 0.88);
   --card-border: rgba(94, 162, 204, 0.38);
   --text-0: #e9f4fb;
