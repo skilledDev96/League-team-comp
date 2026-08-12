@@ -1,0 +1,87 @@
+<section class="hero">
+  <h1>{{ data.settings().teamName || 'Bom Squad' }} Comps and Macro</h1>
+  <p>
+    Team compositions, macro priorities, and ban recommendations.
+    Current: {{ fullView() ? 'Full View' : 'Starter View' }}.
+  </p>
+</section>
+
+<section class="view-controls" aria-label="View controls">
+  <button class="view-btn" [class.active]="!fullView()" type="button" (click)="setView(false)">Starter View</button>
+  <button class="view-btn" [class.active]="fullView()" type="button" (click)="setView(true)">Full View</button>
+  <button class="view-btn" type="button" (click)="showPicks.set(!showPicks())">
+    {{ showPicks() ? 'Hide Picks' : 'Show Picks' }}
+  </button>
+</section>
+
+<section id="compSection" class="grid two" aria-label="Team compositions">
+  @for (comp of data.comps(); track comp.id) {
+    <details class="card comp-panel" [open]="showPicks()">
+      <summary><span class="section-icon">CP</span>{{ comp.name }}</summary>
+      <div class="comp-rows">
+        @for (role of roles; track role) {
+          @if (comp.picks[role]; as line) {
+            <div class="comp-row">
+              <span class="comp-role">{{ role }}</span>
+              <app-champion-chip [champion]="ui.parseCompLine(line).champion" />
+              <span class="comp-note">{{ ui.parseCompLine(line).note }}</span>
+            </div>
+          }
+        }
+      </div>
+    </details>
+  }
+</section>
+
+@if (data.macroSummary(); as macro) {
+  <section class="grid two" aria-label="Macro plan">
+    <article class="card">
+      <h2 class="title-with-icon"><span class="section-icon">EG</span>Early Game Lanes</h2>
+      <dl class="kv">
+        <dt>Top</dt><dd>{{ macro.earlyGame.top }}</dd>
+        <dt>Mid</dt><dd>{{ macro.earlyGame.mid }}</dd>
+        <dt>Bot</dt><dd>{{ macro.earlyGame.bot }}</dd>
+        <dt>Jungle path</dt><dd>{{ macro.earlyGame.junglePath }}</dd>
+      </dl>
+      <ul class="list-clean">
+        @for (point of macro.earlyGame.strategy; track point) {
+          <li>{{ point }}</li>
+        }
+      </ul>
+    </article>
+
+    <article class="card">
+      <h2 class="title-with-icon"><span class="section-icon">ML</span>Mid to Late Transition</h2>
+      <h3>Mid game priorities</h3>
+      <ul class="list-clean">
+        @for (point of macro.midGame.strategy; track point) {
+          <li>{{ point }}</li>
+        }
+      </ul>
+      <h3>Late game priorities</h3>
+      <ul class="list-clean">
+        @for (point of macro.lateGame.strategy; track point) {
+          <li>{{ point }}</li>
+        }
+      </ul>
+    </article>
+  </section>
+}
+
+@if (fullView()) {
+  <section id="banSection" aria-label="Ban recommendations">
+    <h2 class="title-with-icon"><span class="section-icon">BN</span>Ban Recommendations</h2>
+    <div class="grid three">
+      @for (row of banRows(); track row.name) {
+        <article class="card">
+          <h3>{{ row.role }} - {{ row.name }}</h3>
+          <div class="tag-row">
+            @for (ban of row.bans; track ban) {
+              <app-champion-chip [champion]="ban" />
+            }
+          </div>
+        </article>
+      }
+    </div>
+  </section>
+}

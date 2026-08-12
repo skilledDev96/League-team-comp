@@ -1,0 +1,136 @@
+<section class="hero">
+  <h1>Edit Team Data</h1>
+  <p>Create, update, and delete roster, fill-ins, comps, and settings. Changes save to
+    {{ data.mode === 'firebase' ? 'the shared database' : 'this browser' }}.</p>
+</section>
+
+@if (status()) {
+  <p class="tag good" role="status">{{ status() }}</p>
+}
+
+<section class="card">
+  <h2 class="title-with-icon"><span class="section-icon">ST</span>Settings</h2>
+  <label class="field">
+    <span>Team name</span>
+    <input type="text" [ngModel]="teamName()" (ngModelChange)="teamName.set($event)" name="teamName" />
+  </label>
+  <button class="view-btn active" type="button" (click)="saveSettings()">Save settings</button>
+
+  <div class="links" style="margin-top: 12px;">
+    @if (data.mode === 'firebase') {
+      <button class="view-btn" type="button" (click)="seed()">Seed database from starter data</button>
+    } @else {
+      <button class="view-btn" type="button" (click)="resetLocal()">Reset local data</button>
+    }
+  </div>
+</section>
+
+<section aria-label="Players">
+  <div class="view-controls">
+    <h2 class="title-with-icon"><span class="section-icon">PL</span>Players</h2>
+    <button class="view-btn active" type="button" (click)="addPlayer()">Add player</button>
+  </div>
+
+  <div class="grid two">
+    @for (draft of playerDrafts(); track draft) {
+      <article class="card">
+        <label class="field"><span>Name</span>
+          <input type="text" [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname' + $index" /></label>
+        <label class="field"><span>Role</span>
+          <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'prole' + $index">
+            @for (role of roles; track role) { <option [value]="role">{{ role }}</option> }
+          </select></label>
+        <label class="field"><span>Icon file</span>
+          <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event" [name]="'picon' + $index" placeholder="name.webp" /></label>
+        <label class="field"><span>Playstyle</span>
+          <input type="text" [ngModel]="draft.playstyle" (ngModelChange)="draft.playstyle = $event" [name]="'pstyle' + $index" /></label>
+        <label class="field"><span>Strengths (comma separated)</span>
+          <input type="text" [ngModel]="draft.strengths" (ngModelChange)="draft.strengths = $event" [name]="'pstr' + $index" /></label>
+        <label class="field"><span>Weaknesses (comma separated)</span>
+          <input type="text" [ngModel]="draft.weaknesses" (ngModelChange)="draft.weaknesses = $event" [name]="'pweak' + $index" /></label>
+        <label class="field"><span>Top 3 champions (comma separated)</span>
+          <input type="text" [ngModel]="draft.top3" (ngModelChange)="draft.top3 = $event" [name]="'ptop' + $index" /></label>
+        <label class="field"><span>Learn next</span>
+          <input type="text" [ngModel]="draft.learn" (ngModelChange)="draft.learn = $event" [name]="'plearn' + $index" /></label>
+        <label class="field"><span>Bans (comma separated)</span>
+          <input type="text" [ngModel]="draft.bans" (ngModelChange)="draft.bans = $event" [name]="'pbans' + $index" /></label>
+
+        <div class="grid two">
+          <label class="field"><span>Region</span>
+            <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event" [name]="'preg' + $index" /></label>
+          <label class="field"><span>OP.GG slug</span>
+            <input type="text" [ngModel]="draft.opggSlug" (ngModelChange)="draft.opggSlug = $event" [name]="'popgg' + $index" /></label>
+          <label class="field"><span>Riot tag</span>
+            <input type="text" [ngModel]="draft.riotTag" (ngModelChange)="draft.riotTag = $event" [name]="'ptag' + $index" /></label>
+          <label class="field"><span>Mobalytics slug</span>
+            <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event" [name]="'pmoba' + $index" /></label>
+        </div>
+
+        <div class="links">
+          <button class="view-btn active" type="button" (click)="savePlayer(draft)">Save</button>
+          <button class="view-btn" type="button" (click)="deletePlayer(draft)">Delete</button>
+        </div>
+      </article>
+    }
+  </div>
+</section>
+
+<section aria-label="Fill-ins">
+  <div class="view-controls">
+    <h2 class="title-with-icon"><span class="section-icon">FI</span>Fill-ins</h2>
+    <button class="view-btn active" type="button" (click)="addFillIn()">Add fill-in</button>
+  </div>
+
+  <div class="grid two">
+    @for (draft of fillInDrafts(); track draft) {
+      <article class="card">
+        <label class="field"><span>Summoner</span>
+          <input type="text" [ngModel]="draft.summoner" (ngModelChange)="draft.summoner = $event" [name]="'fname' + $index" /></label>
+        <label class="field"><span>Status</span>
+          <input type="text" [ngModel]="draft.status" (ngModelChange)="draft.status = $event" [name]="'fstatus' + $index" /></label>
+        <label class="field"><span>Preferred roles (comma separated)</span>
+          <input type="text" [ngModel]="draft.preferredRoles" (ngModelChange)="draft.preferredRoles = $event" [name]="'froles' + $index" /></label>
+        <label class="field"><span>Note</span>
+          <input type="text" [ngModel]="draft.note" (ngModelChange)="draft.note = $event" [name]="'fnote' + $index" /></label>
+        <label class="field"><span>Icon file</span>
+          <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event" [name]="'ficon' + $index" /></label>
+        <div class="grid two">
+          <label class="field"><span>Region</span>
+            <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event" [name]="'freg' + $index" /></label>
+          <label class="field"><span>Mobalytics slug</span>
+            <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event" [name]="'fmoba' + $index" /></label>
+        </div>
+        <div class="links">
+          <button class="view-btn active" type="button" (click)="saveFillIn(draft)">Save</button>
+          <button class="view-btn" type="button" (click)="deleteFillIn(draft)">Delete</button>
+        </div>
+      </article>
+    }
+  </div>
+</section>
+
+<section aria-label="Comps">
+  <div class="view-controls">
+    <h2 class="title-with-icon"><span class="section-icon">CP</span>Team Comps</h2>
+    <button class="view-btn active" type="button" (click)="addComp()">Add comp</button>
+  </div>
+
+  <div class="grid two">
+    @for (draft of compDrafts(); track draft) {
+      <article class="card">
+        <label class="field"><span>Comp name</span>
+          <input type="text" [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'cname' + $index" /></label>
+        @for (role of roles; track role) {
+          <label class="field"><span>{{ role }} (Champion - note)</span>
+            <input type="text" [ngModel]="draft.picks[role]" (ngModelChange)="draft.picks[role] = $event" [name]="'cpick' + $index + role" /></label>
+        }
+        <div class="links">
+          <button class="view-btn active" type="button" (click)="saveComp(draft)">Save</button>
+          <button class="view-btn" type="button" (click)="deleteComp(draft)">Delete</button>
+        </div>
+      </article>
+    }
+  </div>
+</section>
+
+<p class="footer-note"><a routerLink="/">Back to Overview</a></p>

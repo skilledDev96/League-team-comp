@@ -1,0 +1,36 @@
+<div class="page">
+  <header class="topbar">
+    <div class="brand">
+      {{ data.settings().teamName || 'Bom Squad' }}
+      <small>Draft Hub</small>
+    </div>
+    <nav class="nav-links" aria-label="Main navigation">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Overview</a>
+      <a routerLink="/players" routerLinkActive="active">Player Intel</a>
+      <a routerLink="/comps" routerLinkActive="active">Comps and Macro</a>
+      @if (auth.canEdit()) {
+        <a routerLink="/admin" routerLinkActive="active">Edit</a>
+        <button type="button" class="view-btn" (click)="logout()">Log out</button>
+      } @else {
+        <a routerLink="/login" routerLinkActive="active">Log in</a>
+      }
+      <label for="themeSelect" class="visually-hidden">Theme</label>
+      <select id="themeSelect" class="theme-select" aria-label="Theme selector"
+              [value]="theme.current()" (change)="onThemeChange($event)">
+        <option value="dark">Dark</option>
+        <option value="dark-blue">Blue</option>
+        <option value="dark-red">Red</option>
+        <option value="light">Light</option>
+      </select>
+    </nav>
+  </header>
+
+  @if (data.mode === 'local') {
+    <p class="footer-note" style="margin: 0 0 12px;">
+      Local preview mode — edits save in this browser only. Add Firebase config in
+      environment.ts to enable shared data.
+    </p>
+  }
+
+  <router-outlet />
+</div>

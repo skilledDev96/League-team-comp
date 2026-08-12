@@ -1,0 +1,106 @@
+<section class="hero">
+  <h1>{{ data.settings().teamName || 'Bom Squad' }} Scouting Board: Role Profiles and Champion Links</h1>
+  <p>Deep-dive mode with full role scouting cards, matchup prep links, and expandable pick intel.</p>
+</section>
+
+<section class="view-controls" aria-label="View controls">
+  <button class="view-btn" [class.active]="!fullView()" type="button" (click)="fullView.set(false)">Starter View</button>
+  <button class="view-btn" [class.active]="fullView()" type="button" (click)="fullView.set(true)">Full View</button>
+  <p class="muted">Starter View keeps each role compact. Open Full View for prep deep-dive.</p>
+</section>
+
+@if (data.fillIns().length) {
+  <section class="grid two" aria-label="Fill-in profiles">
+    @for (player of data.fillIns(); track player.id) {
+      <article class="card">
+        <div class="title-row">
+          <app-player-avatar [name]="player.summoner" [icon]="player.icon" [role]="player.preferredRoles[0]" />
+          <h2>Fill-in: {{ player.summoner }}</h2>
+        </div>
+        <p class="muted">Status: {{ player.status }}</p>
+        <p class="muted">Likely roles: {{ player.preferredRoles.join(', ') }}</p>
+        <p class="muted">{{ player.note }}</p>
+        <div class="links">
+          <a [href]="ui.summonerSearchUrl(player.summoner, player.profile)" target="_blank" rel="noopener noreferrer">OP.GG player search</a>
+          @if (ui.summonerMobalyticsUrl(player.profile); as mobaUrl) {
+            <a [href]="mobaUrl" target="_blank" rel="noopener noreferrer">Mobalytics player profile</a>
+          }
+        </div>
+      </article>
+    }
+  </section>
+}
+
+<section class="grid two" aria-label="Player intel">
+  @for (player of data.players(); track player.id) {
+    <article class="card" [class.expanded]="isExpanded(player.id)" [id]="ui.playerAnchorId(player.name)">
+      <div class="title-row">
+        <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
+        <h2>{{ player.role }} - {{ player.name }}</h2>
+      </div>
+      <p class="meta-line meta-playstyle">
+        <span class="meta-label">Playstyle</span>
+        <span class="meta-value">{{ player.playstyle || 'Unknown' }}</span>
+        <span class="playstyle-icon material-symbols-rounded trailing" aria-hidden="true">{{ ui.playstyleIcon(player.playstyle) }}</span>
+      </p>
+      @if (player.top3.length) {
+        <p class="meta-line main-champ-inline">
+          <img class="main-champ-icon" [src]="ui.championIconUrl(player.top3[0])" [alt]="player.top3[0] + ' icon'" />
+          <span class="meta-label">Main Champion</span>
+          <span class="meta-value">{{ player.top3[0] }}</span>
+        </p>
+      }
+      @if (!fullView()) {
+        <button type="button" class="view-btn role-toggle" (click)="toggle(player.id)">
+          {{ isExpanded(player.id) ? 'Hide Details' : 'Show Details' }}
+        </button>
+      }
+
+      <div class="role-details">
+        <h3>Strengths</h3>
+        <div class="tag-row">
+          @for (s of player.strengths; track s) {
+            <span class="tag good">{{ s }}</span>
+          }
+        </div>
+
+        <h3>Weaknesses</h3>
+        <div class="tag-row">
+          @for (w of player.weaknesses; track w) {
+            <span class="tag bad">{{ w }}</span>
+          }
+        </div>
+
+        <h3>Champion Pool</h3>
+        <div class="champ-chip-row">
+          @for (champ of player.top3; track champ) {
+            <app-champion-chip [champion]="champ" />
+          }
+          @if (player.learn) {
+            <app-champion-chip [champion]="player.learn" [label]="'Learn: ' + player.learn" />
+          }
+        </div>
+
+        <div class="links">
+          <a [href]="opgg(player)" target="_blank" rel="noopener noreferrer">OP.GG player search</a>
+          @if (mobalytics(player)) {
+            <a [href]="mobalytics(player)" target="_blank" rel="noopener noreferrer">Mobalytics player profile</a>
+          }
+          @for (champ of player.top3; track champ) {
+            <a [href]="ui.championBuildUrl(champ)" target="_blank" rel="noopener noreferrer">Build guide: {{ champ }}</a>
+          }
+          @if (player.learn) {
+            <a [href]="ui.championBuildUrl(player.learn)" target="_blank" rel="noopener noreferrer">Learn next build: {{ player.learn }}</a>
+          }
+        </div>
+
+        <h3>Suggested Bans</h3>
+        <ul class="list-clean">
+          @for (ban of player.bans; track ban) {
+            <li>{{ ban }}</li>
+          }
+        </ul>
+      </div>
+    </article>
+  }
+</section>

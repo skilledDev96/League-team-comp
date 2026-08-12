@@ -1,0 +1,42 @@
+<section class="hero">
+  <h1>Team Login</h1>
+  <p>Log in to edit roster, champion pools, comps, and macro notes.</p>
+</section>
+
+<section class="grid two">
+  <article class="card">
+    <form (submit)="$event.preventDefault(); submit()">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" autocomplete="username" [ngModel]="email()" (ngModelChange)="email.set($event)" name="email" required />
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" autocomplete="current-password" [ngModel]="password()" (ngModelChange)="password.set($event)" name="password" required />
+      </label>
+
+      @if (error()) {
+        <p class="tag bad" role="alert">{{ error() }}</p>
+      }
+
+      <button type="submit" class="view-btn active" [disabled]="busy()">
+        {{ busy() ? 'Signing in...' : 'Log in' }}
+      </button>
+    </form>
+
+    @if (mode === 'firebase') {
+      <div class="links" style="margin-top: 12px;">
+        <button type="button" class="view-btn" [disabled]="busy()" (click)="googleSignIn()">
+          Sign in with Google
+        </button>
+      </div>
+    }
+
+    @if (mode === 'local') {
+      <p class="muted">
+        Local preview mode: any email and password unlock editing for this browser session.
+        Configure Firebase to require real team accounts.
+      </p>
+    }
+  </article>
+</section>

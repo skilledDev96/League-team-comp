@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// Public read so anyone can view the hub; only allowlisted team emails can edit.
+// Keep this list in sync with EDITOR_EMAILS in app/src/app/core/allowlist.ts.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isEditor() {
+      return request.auth != null
+        && request.auth.token.email.lower() in [
+          'ruanhart7@gmail.com'
+        ];
+    }
+
+    match /{document=**} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+  }
+}

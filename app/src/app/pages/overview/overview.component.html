@@ -1,0 +1,125 @@
+<section class="hero">
+  <h1>{{ data.settings().teamName || 'Bom Squad' }} Ready Room</h1>
+  <p>Everything in one place: role ownership, champ pools, bans, and game plan links.</p>
+</section>
+
+<section class="view-controls" aria-label="View controls">
+  <button class="view-btn" [class.active]="!fullView()" type="button" (click)="fullView.set(false)">Starter View</button>
+  <button class="view-btn" [class.active]="fullView()" type="button" (click)="fullView.set(true)">Full View</button>
+  <p class="muted">Starter View shows only essentials. Use Full View for full prep details.</p>
+</section>
+
+<section class="grid three" aria-label="Role cards">
+  @for (player of data.players(); track player.id) {
+    <article class="card clickable-card" [class.expanded]="isExpanded(player.id)">
+      <div class="title-row">
+        <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
+        <h2>{{ player.role }} - {{ player.name }}</h2>
+      </div>
+      <p class="meta-line meta-playstyle">
+        <span class="meta-label">Playstyle</span>
+        <span class="meta-value">{{ player.playstyle || 'Unknown' }}</span>
+        <span class="playstyle-icon material-symbols-rounded trailing" aria-hidden="true">{{ ui.playstyleIcon(player.playstyle) }}</span>
+      </p>
+      @if (player.top3.length) {
+        <p class="meta-line main-champ-inline">
+          <img class="main-champ-icon" [src]="ui.championIconUrl(player.top3[0])" [alt]="player.top3[0] + ' icon'" />
+          <span class="meta-label">Main Champion</span>
+          <span class="meta-value">{{ player.top3[0] }}</span>
+        </p>
+      }
+      <button type="button" class="view-btn role-toggle" (click)="toggle(player.id)">
+        {{ isExpanded(player.id) ? 'Hide Details' : 'Show Details' }}
+      </button>
+
+      <a class="card-link-overlay" [routerLink]="['/player', player.id]"
+         [attr.aria-label]="'Open ' + player.name + ' in Player Intel'"></a>
+
+      <div class="role-details">
+        <p class="muted">Learn next: {{ player.learn }}</p>
+        <div class="champ-chip-row">
+          @for (champ of player.top3; track champ) {
+            <app-champion-chip [champion]="champ" />
+          }
+        </div>
+        <div class="tag-row">
+          @for (s of player.strengths.slice(0, 2); track s) {
+            <span class="tag good">{{ s }}</span>
+          }
+          @for (w of player.weaknesses.slice(0, 1); track w) {
+            <span class="tag bad">{{ w }}</span>
+          }
+        </div>
+        <br />
+        <a class="tag" [href]="opgg(player)" target="_blank" rel="noopener noreferrer">Open player lookup</a>
+        @if (mobalytics(player)) {
+          <br />
+          <a class="tag" [href]="mobalytics(player)" target="_blank" rel="noopener noreferrer">Open Mobalytics profile</a>
+        }
+      </div>
+    </article>
+  }
+</section>
+
+@if (fullView()) {
+  <section class="grid two">
+    <article class="card">
+      <h2 class="title-with-icon"><span class="section-icon">ID</span>Team Identity</h2>
+      @if (data.teamIdentity(); as identity) {
+        <dl class="kv">
+          <dt>Vision</dt><dd>{{ identity.visionDriven ? 'Primary pillar' : 'Secondary' }}</dd>
+          <dt>Objectives</dt><dd>{{ identity.objectiveFocused ? 'Priority' : 'Flexible' }}</dd>
+          <dt>Primary</dt><dd>{{ identity.primaryPlaystyle.join(' + ') }}</dd>
+          <dt>Jungle</dt><dd>{{ identity.jungleTempo }}</dd>
+          <dt>Damage</dt><dd>{{ identity.damageProfile }}</dd>
+          <dt>Mid role</dt><dd>{{ identity.midRole }}</dd>
+          <dt>Frontline</dt><dd>{{ identity.lateGameFrontline }}</dd>
+        </dl>
+      }
+    </article>
+
+    <article class="card">
+      <h2 class="title-with-icon"><span class="section-icon">QA</span>Quick Access</h2>
+      <div class="links">
+        <a routerLink="/players">Open full player profiles</a>
+        <a routerLink="/comps">Open comp cheat sheets</a>
+        <a routerLink="/comps">Open ban recommendations</a>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid three" aria-label="Resource links">
+    @for (group of resourceGroups(); track group[0]) {
+      <article class="card">
+        <h2 class="title-with-icon"><span class="section-icon">{{ resourceIcon[group[0]] || 'RS' }}</span>{{ groupLabel(group[0]) }}</h2>
+        <div class="links">
+          @for (link of group[1]; track link.url) {
+            <a [href]="link.url" target="_blank" rel="noopener noreferrer">{{ link.label }}</a>
+          }
+        </div>
+      </article>
+    }
+  </section>
+
+  @if (data.fillIns().length) {
+    <section class="grid two" aria-label="Fill-in players">
+      <article class="card">
+        <h2 class="title-with-icon"><span class="section-icon">FI</span>Fill-in Roster (Pending Confirmation)</h2>
+        <div class="links">
+          @for (player of data.fillIns(); track player.id) {
+            <div class="title-row">
+              <app-player-avatar [name]="player.summoner" [icon]="player.icon" [role]="player.preferredRoles[0]" />
+              <a [href]="ui.summonerSearchUrl(player.summoner, player.profile)" target="_blank" rel="noopener noreferrer">
+                {{ player.summoner }} - {{ player.preferredRoles.join(', ') }} - {{ player.status }}
+              </a>
+              @if (ui.summonerMobalyticsUrl(player.profile); as mobaUrl) {
+                <a [href]="mobaUrl" target="_blank" rel="noopener noreferrer">Mobalytics</a>
+              }
+            </div>
+          }
+        </div>
+        <p class="muted">{{ data.fillIns()[0].note }}</p>
+      </article>
+    </section>
+  }
+}
