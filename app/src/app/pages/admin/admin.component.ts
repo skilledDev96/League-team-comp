@@ -45,11 +45,17 @@ interface AccessDraft {
   active: boolean;
 }
 
+type EditorTab = 'settings' | 'players' | 'fillins' | 'comps' | 'access';
+
 function splitList(value: string): string[] {
   return value
     .split(',')
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+}
+
+function normalizeEmailValue(value: string): string {
+  return value.trim().toLowerCase();
 }
 
 function emptyPicks(): CompPicks {
@@ -72,6 +78,7 @@ export class AdminComponent {
   protected readonly fillInDrafts = signal<FillInDraft[]>([]);
   protected readonly compDrafts = signal<CompDraft[]>([]);
   protected readonly accessDrafts = signal<AccessDraft[]>([]);
+  protected readonly activeTab = signal<EditorTab>('settings');
   protected readonly status = signal('');
 
   private initialized = false;
@@ -143,6 +150,19 @@ export class AdminComponent {
 
   // ---- Settings ---------------------------------------------------------
 
+  protected openTab(tab: EditorTab): void {
+    this.activeTab.set(tab);
+  }
+
+  private scrollToCard(id: string): void {
+    setTimeout(() => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 0);
+  }
+
   async saveSettings(): Promise<void> {
     await this.data.updateSettings({ teamName: this.teamName().trim() || 'Bom Squad' });
     this.flash('Team name saved.');
@@ -151,25 +171,31 @@ export class AdminComponent {
   // ---- Players ----------------------------------------------------------
 
   addPlayer(): void {
-    this.playerDrafts.update((list) => [
-      ...list,
-      {
-        id: '',
-        name: '',
-        role: 'Top',
-        icon: '',
-        playstyle: '',
-        strengths: '',
-        weaknesses: '',
-        top3: '',
-        learn: '',
-        bans: '',
-        region: 'euw',
-        opggSlug: '',
-        riotTag: 'EUW',
-        mobalyticsSlug: ''
-      }
-    ]);
+    this.openTab('players');
+    let newIndex = 0;
+    this.playerDrafts.update((list) => {
+      newIndex = list.length;
+      return [
+        ...list,
+        {
+          id: '',
+          name: '',
+          role: 'Top',
+          icon: '',
+          playstyle: '',
+          strengths: '',
+          weaknesses: '',
+          top3: '',
+          learn: '',
+          bans: '',
+          region: 'euw',
+          opggSlug: '',
+          riotTag: 'EUW',
+          mobalyticsSlug: ''
+        }
+      ];
+    });
+    this.scrollToCard(`player-draft-${newIndex}`);
   }
 
   async savePlayer(draft: PlayerDraft): Promise<void> {
@@ -221,6 +247,7 @@ export class AdminComponent {
   // ---- Fill-ins ---------------------------------------------------------
 
   addFillIn(): void {
+    this.openTab('fillins');
     this.fillInDrafts.update((list) => [
       ...list,
       { id: '', summoner: '', status: 'provisional', preferredRoles: '', note: '', icon: '', region: 'euw', mobalyticsSlug: '' }
@@ -266,6 +293,7 @@ export class AdminComponent {
   // ---- Comps ------------------------------------------------------------
 
   addComp(): void {
+    this.openTab('comps');
     this.compDrafts.update((list) => [...list, { id: '', name: '', picks: emptyPicks() }]);
   }
 
@@ -301,6 +329,7 @@ export class AdminComponent {
   // ---- Access entries --------------------------------------------------
 
   addAccessEntry(): void {
+    this.openTab('access');
     this.accessDrafts.update((list) => [
       ...list,
       { email: '', role: 'viewer', active: true }
@@ -308,11 +337,12 @@ export class AdminComponent {
   }
 
   async saveAccessEntry(draft: AccessDraft): Promise<void> {
-    const email = draft.email.trim().toLowerCase();
+    const email = normalizeEmailValue(draft.email);
     if (!email) {
       this.flash('Email is required.');
       return;
     }
+    draft.email = email;
 
     const base: AccessEntry = {
       email,
@@ -320,19 +350,19 @@ export class AdminComponent {
       active: draft.active
     };
 
-    const existing = this.data.accessEntries().find((entry) => entry.email === email);
+    const existing = this.data.accessEntries().find((entry) => normalizeEmailValue(entry.email) === email);
     if (existing) {
       await this.data.updateAccessEntry(base);
-      this.accessDrafts.update((list) => list.map((item) => (item.email === email ? { ...base } : item)));
+      this.accessDrafts.update((list) => list.map((item) => (normalizeEmailValue(item.email) === email ? { ...base } : item)));
     } else {
       await this.data.createAccessEntry(base);
-      this.accessDrafts.update((list) => [...list.filter((item) => item.email !== email), { ...base }].sort((a, b) => a.email.localeCompare(b.email)));
+      this.accessDrafts.update((list) => [...list.filter((item) => normalizeEmailValue(item.email) !== email), { ...base }].sort((a, b) => a.email.localeCompare(b.email)));
     }
     this.flash(`Saved ${email}.`);
   }
 
   async deleteAccessEntry(draft: AccessDraft): Promise<void> {
-    const email = draft.email.trim().toLowerCase();
+    const email = normalizeEmailValue(draft.email);
     if (!email) {
       this.accessDrafts.update((list) => list.filter((item) => item !== draft));
       return;

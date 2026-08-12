@@ -8,23 +8,36 @@
   <p class="tag good" role="status">{{ status() }}</p>
 }
 
-<section class="card">
-  <h2 class="title-with-icon"><span class="section-icon">ST</span>Settings</h2>
-  <label class="field">
-    <span>Team name</span>
-    <input type="text" [ngModel]="teamName()" (ngModelChange)="teamName.set($event)" name="teamName" />
-  </label>
-  <button class="view-btn active" type="button" (click)="saveSettings()">Save settings</button>
-
-  <div class="links" style="margin-top: 12px;">
-    @if (data.mode === 'firebase') {
-      <button class="view-btn" type="button" (click)="seed()">Seed database from starter data</button>
-    } @else {
-      <button class="view-btn" type="button" (click)="resetLocal()">Reset local data</button>
-    }
-  </div>
+<section class="view-controls" aria-label="Editor tabs">
+  <button class="view-btn" [class.active]="activeTab() === 'settings'" type="button" (click)="openTab('settings')">Settings</button>
+  <button class="view-btn" [class.active]="activeTab() === 'players'" type="button" (click)="openTab('players')">Players</button>
+  <button class="view-btn" [class.active]="activeTab() === 'fillins'" type="button" (click)="openTab('fillins')">Fill-ins</button>
+  <button class="view-btn" [class.active]="activeTab() === 'comps'" type="button" (click)="openTab('comps')">Comps</button>
+  @if (auth.canManageUsers()) {
+    <button class="view-btn" [class.active]="activeTab() === 'access'" type="button" (click)="openTab('access')">Access</button>
+  }
 </section>
 
+@if (activeTab() === 'settings') {
+  <section class="card">
+    <h2 class="title-with-icon"><span class="section-icon">ST</span>Settings</h2>
+    <label class="field">
+      <span>Team name</span>
+      <input type="text" [ngModel]="teamName()" (ngModelChange)="teamName.set($event)" name="teamName" />
+    </label>
+    <button class="view-btn active" type="button" (click)="saveSettings()">Save settings</button>
+
+    <div class="links" style="margin-top: 12px;">
+      @if (data.mode === 'firebase') {
+        <button class="view-btn" type="button" (click)="seed()">Seed database from starter data</button>
+      } @else {
+        <button class="view-btn" type="button" (click)="resetLocal()">Reset local data</button>
+      }
+    </div>
+  </section>
+}
+
+@if (activeTab() === 'players') {
 <section aria-label="Players">
   <div class="view-controls">
     <h2 class="title-with-icon"><span class="section-icon">PL</span>Players</h2>
@@ -33,7 +46,7 @@
 
   <div class="grid two">
     @for (draft of playerDrafts(); track draft) {
-      <article class="card">
+      <article class="card" [id]="'player-draft-' + $index">
         <label class="field"><span>Name</span>
           <input type="text" [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname' + $index" /></label>
         <label class="field"><span>Role</span>
@@ -74,7 +87,9 @@
     }
   </div>
 </section>
+}
 
+@if (activeTab() === 'fillins') {
 <section aria-label="Fill-ins">
   <div class="view-controls">
     <h2 class="title-with-icon"><span class="section-icon">FI</span>Fill-ins</h2>
@@ -108,7 +123,9 @@
     }
   </div>
 </section>
+}
 
+@if (activeTab() === 'comps') {
 <section aria-label="Comps">
   <div class="view-controls">
     <h2 class="title-with-icon"><span class="section-icon">CP</span>Team Comps</h2>
@@ -132,8 +149,9 @@
     }
   </div>
 </section>
+}
 
-@if (auth.canManageUsers()) {
+@if (auth.canManageUsers() && activeTab() === 'access') {
   <section aria-label="Team access">
     <div class="view-controls">
       <h2 class="title-with-icon"><span class="section-icon">AC</span>Team Access</h2>
