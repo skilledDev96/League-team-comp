@@ -114,7 +114,6 @@
         </div>
 
           <div class="links">
-            <button class="view-btn" type="button" (click)="autoFillPlayerSlugs(draft)">Auto-fill slugs</button>
             <button
               class="view-btn"
               type="button"
@@ -122,9 +121,9 @@
               (click)="autoFillPlayerInsights(draft)">
               @if (enrichingPlayerId() === enrichmentKey(draft)) {
                 <span class="btn-spinner" aria-hidden="true"></span>
-                Filling insights...
+                Refreshing...
               } @else {
-              Auto-fill from Summoner
+              Refresh from Summoner
               }
             </button>
           </div>
