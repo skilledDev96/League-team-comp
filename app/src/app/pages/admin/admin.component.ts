@@ -278,6 +278,21 @@ export class AdminComponent {
       draft.playstyle = enriched.playstyle;
       draft.strengths = enriched.strengths.join(', ');
       draft.weaknesses = enriched.weaknesses.join(', ');
+      if (enriched.role) {
+        draft.role = enriched.role;
+      }
+      if (enriched.top3?.length) {
+        draft.top3 = enriched.top3.join(', ');
+      }
+      if (enriched.learn) {
+        draft.learn = enriched.learn;
+      }
+      if (enriched.bans?.length) {
+        draft.bans = enriched.bans.join(', ');
+      }
+      if (enriched.iconUrl) {
+        draft.icon = enriched.iconUrl;
+      }
       this.flash(`Profile filled from ${enriched.provider}.`);
     } catch (err) {
       this.flash(err instanceof Error ? err.message : 'Failed to enrich profile.');

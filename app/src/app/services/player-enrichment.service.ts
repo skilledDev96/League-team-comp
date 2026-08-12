@@ -15,6 +15,11 @@ interface EnrichResponse {
   playstyle: string;
   strengths: string[];
   weaknesses: string[];
+  role?: Role;
+  top3?: string[];
+  learn?: string;
+  bans?: string[];
+  iconUrl?: string;
   source: 'template' | 'provider';
   provider: string;
   generatedAt: string;
@@ -114,6 +119,11 @@ export class PlayerEnrichmentService {
       playstyle: data.playstyle ?? '',
       strengths: data.strengths ?? [],
       weaknesses: data.weaknesses ?? [],
+      role: data.role,
+      top3: data.top3,
+      learn: data.learn,
+      bans: data.bans,
+      iconUrl: data.iconUrl,
       source: data.source === 'provider' ? 'provider' : 'template',
       provider: data.provider ?? 'unknown',
       generatedAt: data.generatedAt ?? new Date().toISOString()
