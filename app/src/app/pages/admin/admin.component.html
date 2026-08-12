@@ -73,9 +73,10 @@
 
 @if (activeTab() === 'players') {
 <section aria-label="Players">
-  <div class="view-controls">
+  <div class="view-controls edit-toolbar">
     <h2 class="title-with-icon"><span class="section-icon">PL</span>Players</h2>
-    <button class="view-btn active" type="button" (click)="openAddPlayerDialog()">Add player</button>
+    <p class="muted edit-hint">Tip: use <strong>Add player</strong> to autofill a profile from a Riot Summoner name, or add one manually.</p>
+    <button class="view-btn active btn-cta" type="button" (click)="openAddPlayerDialog()">+ Add player</button>
   </div>
 
   <div class="grid two">
