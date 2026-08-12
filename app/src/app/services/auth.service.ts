@@ -30,18 +30,45 @@ export class AuthService {
 
   readonly canManageUsers = computed(() => this.mode === 'local' || this.role() === 'admin');
 
+  // Resolves once the initial auth state has been determined (prevents guard redirect races on refresh).
+  readonly ready = signal(false);
+  private readonly readyPromise: Promise<void>;
+  private resolveReady!: () => void;
+
   constructor() {
+    this.readyPromise = new Promise<void>((resolve) => {
+      this.resolveReady = resolve;
+    });
+
     if (this.mode === 'firebase') {
       const auth = getAuthInstance();
       if (auth) {
         onAuthStateChanged(auth, async (user) => {
           await this.resolveRole(auth, user);
+          this.markReady();
         });
+      } else {
+        this.markReady();
       }
-    } else if (sessionStorage.getItem(LOCAL_FLAG)) {
-      this.userEmail.set(sessionStorage.getItem(LOCAL_FLAG));
-      this.role.set('admin');
+    } else {
+      if (sessionStorage.getItem(LOCAL_FLAG)) {
+        this.userEmail.set(sessionStorage.getItem(LOCAL_FLAG));
+        this.role.set('admin');
+      }
+      this.markReady();
     }
+  }
+
+  private markReady(): void {
+    if (!this.ready()) {
+      this.ready.set(true);
+      this.resolveReady();
+    }
+  }
+
+  /** Await until the first auth-state resolution completes. */
+  waitUntilReady(): Promise<void> {
+    return this.readyPromise;
   }
 
   private async resolveRole(auth: NonNullable<ReturnType<typeof getAuthInstance>>, user: User | null): Promise<void> {

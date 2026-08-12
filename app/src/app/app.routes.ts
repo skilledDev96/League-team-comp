@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth.guard';
+import { authGuard, viewerGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   {
@@ -8,18 +8,22 @@ export const routes: Routes = [
   },
   {
     path: 'overview',
+    canActivate: [viewerGuard],
     loadComponent: () => import('./pages/overview/overview.component').then((m) => m.OverviewComponent)
   },
   {
     path: 'players',
+    canActivate: [viewerGuard],
     loadComponent: () => import('./pages/player-intel/player-intel.component').then((m) => m.PlayerIntelComponent)
   },
   {
     path: 'player/:id',
+    canActivate: [viewerGuard],
     loadComponent: () => import('./pages/player-profile/player-profile.component').then((m) => m.PlayerProfileComponent)
   },
   {
     path: 'comps',
+    canActivate: [viewerGuard],
     loadComponent: () => import('./pages/comps/comps.component').then((m) => m.CompsComponent)
   },
   {

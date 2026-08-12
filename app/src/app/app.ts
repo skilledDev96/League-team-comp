@@ -26,8 +26,10 @@ export class App {
   private readonly router = inject(Router);
 
   protected readonly navigating = signal(false);
-  // Full-screen loader on first paint until initial Firestore data arrives.
-  protected readonly initialLoading = computed(() => !this.data.ready());
+  // Full-screen loader only for signed-in users waiting on initial Firestore data.
+  protected readonly initialLoading = computed(
+    () => this.auth.ready() && this.auth.isAuthed() && !this.data.ready()
+  );
   // Thin top bar for subsequent route changes.
   protected readonly routeLoading = computed(() => this.navigating() && this.data.ready());
 
