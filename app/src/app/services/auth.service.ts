@@ -153,14 +153,14 @@ export class AuthService {
     const db = getDb();
     if (!db) {
       await this.logout();
-      throw new Error('This account is not authorized. Ask an admin to add your email.');
+      throw new Error('Not authorized — ask an admin for access.');
     }
 
     const accessSnap = await getDoc(doc(db, 'access', normalized));
     const access = accessSnap.exists() ? (accessSnap.data() as { role?: AccessRole; active?: boolean }) : null;
     if (!access || !access.active || !access.role) {
       await this.logout();
-      throw new Error('This account is not authorized. Ask an admin to add your email.');
+      throw new Error('Not authorized — ask an admin for access.');
     }
 
     this.role.set(access.role);

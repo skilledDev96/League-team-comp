@@ -262,11 +262,18 @@ body[data-theme="dark"] {
 .role-group-heading {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin: 0 0 0.5rem;
+  gap: 0.55rem;
+  margin: 0 0 0.6rem;
   font-family: "Chakra Petch", sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-0);
+}
+
+.role-group-heading .tag {
   font-size: 0.95rem;
-  color: var(--text-1);
+  padding: 0.25rem 0.8rem;
 }
 
 body[data-theme="dark-blue"] {
