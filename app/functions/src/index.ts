@@ -363,7 +363,7 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
   const killParticipationPct = Math.round(avgKillParticipation * 100);
 
   let archetype: string;
-  if (avgKillParticipation >= 0.55) {
+  if (avgKillParticipation >= 0.5) {
     archetype = 'Carry';
   } else if (avgCsPerMin >= 7.5 && role !== 'Support') {
     archetype = 'Farm-focused';
@@ -383,7 +383,7 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
     top3,
     learn,
     bans,
-    iconUrl: `https://ddragon.leagueoflegends.com/cdn/${DDRAGON_VERSION}/img/profileicon/${summoner.profileIconId}.png`,
+    iconUrl: `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons/${summoner.profileIconId}.jpg`,
     source: 'provider',
     provider: 'riot-api',
     generatedAt: new Date().toISOString()
