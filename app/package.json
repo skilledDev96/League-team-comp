@@ -6,7 +6,10 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "functions:install": "npm --prefix functions install",
+    "functions:build": "npm --prefix functions run build",
+    "functions:deploy": "firebase deploy --only functions:enrichPlayer"
   },
   "private": true,
   "packageManager": "npm@11.17.0",
