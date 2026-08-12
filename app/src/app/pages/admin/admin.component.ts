@@ -213,6 +213,11 @@ export class AdminComponent {
     }
   }
 
+  protected enrichmentKey(draft: PlayerDraft): string {
+    const name = draft.name.trim().toLowerCase();
+    return draft.id || (name ? `new-${name}` : `new-${this.playerDrafts().indexOf(draft)}`);
+  }
+
   async autoFillPlayerInsights(draft: PlayerDraft): Promise<void> {
     const playerName = draft.name.trim();
     if (!playerName) {
@@ -222,7 +227,10 @@ export class AdminComponent {
 
     this.autoFillPlayerSlugs(draft);
 
-    const loadingKey = draft.id || draft.name;
+    const loadingKey = this.enrichmentKey(draft);
+    if (this.enrichingPlayerId() === loadingKey) {
+      return;
+    }
     this.enrichingPlayerId.set(loadingKey);
     try {
       const enriched = await this.enrichment.enrichPlayer({

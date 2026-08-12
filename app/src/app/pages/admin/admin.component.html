@@ -83,7 +83,13 @@
 
           <div class="links">
             <button class="view-btn" type="button" (click)="autoFillPlayerSlugs(draft)">Auto-fill slugs</button>
-            <button class="view-btn" type="button" (click)="autoFillPlayerInsights(draft)">Auto-fill insights</button>
+            <button
+              class="view-btn"
+              type="button"
+              [disabled]="enrichingPlayerId() === enrichmentKey(draft)"
+              (click)="autoFillPlayerInsights(draft)">
+              {{ enrichingPlayerId() === enrichmentKey(draft) ? 'Filling insights...' : 'Auto-fill insights' }}
+            </button>
           </div>
 
         <div class="links">
