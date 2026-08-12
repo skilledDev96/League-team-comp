@@ -78,6 +78,22 @@
 
     <article class="card">
       <h2 class="title-with-icon"><span class="section-icon">NX</span>Quick Actions</h2>
+      @if (auth.canEdit()) {
+        @if (refreshStatus()) {
+          <p class="tag good" role="status">{{ refreshStatus() }}</p>
+        }
+        <div class="links">
+          <a class="view-btn" [routerLink]="['/admin']" [queryParams]="{ tab: 'players', playerId: p.id }">Edit this player</a>
+          <button class="view-btn" type="button" [disabled]="refreshing()" (click)="refreshData()">
+            @if (refreshing()) {
+              <span class="btn-spinner" aria-hidden="true"></span>
+              Refreshing...
+            } @else {
+              Refresh data from Riot
+            }
+          </button>
+        </div>
+      }
       <div class="links">
         <a [href]="ui.summonerSearchUrl(p.name, p.profile)" target="_blank" rel="noopener noreferrer">OP.GG player profile</a>
         @if (ui.summonerMobalyticsUrl(p.profile); as mobaUrl) {
