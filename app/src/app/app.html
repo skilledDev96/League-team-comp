@@ -1,4 +1,7 @@
 <div class="page">
+  @if (routeLoading()) {
+    <div class="route-progress" role="status" aria-label="Loading"></div>
+  }
   <header class="topbar">
     <div class="brand">
       {{ data.settings().teamName || 'Bom Squad' }}
@@ -48,3 +51,10 @@
 
   <router-outlet />
 </div>
+
+@if (initialLoading()) {
+  <div class="app-loading-overlay" role="status" aria-live="polite">
+    <span class="app-loading-spinner" aria-hidden="true"></span>
+    <p>Loading team data…</p>
+  </div>
+}
