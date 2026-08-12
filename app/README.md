@@ -57,3 +57,24 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+## Cloud Function Scaffold
+
+The project includes a Firebase Cloud Function scaffold for future player enrichment:
+
+- Source: functions/src/index.ts
+- Function name: enrichPlayer
+- Type: HTTPS POST endpoint with Firebase auth and role checks
+
+Commands:
+
+```bash
+npm run functions:install
+npm run functions:build
+```
+
+Deployment requires updating .firebaserc with your Firebase project id, then running:
+
+```bash
+npm run functions:deploy
+```

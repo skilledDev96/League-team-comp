@@ -9,7 +9,9 @@
 }
 
 <section class="view-controls" aria-label="Editor tabs">
-  <button class="view-btn" [class.active]="activeTab() === 'settings'" type="button" (click)="openTab('settings')">Settings</button>
+  @if (auth.canManageUsers()) {
+    <button class="view-btn" [class.active]="activeTab() === 'settings'" type="button" (click)="openTab('settings')">Settings</button>
+  }
   <button class="view-btn" [class.active]="activeTab() === 'players'" type="button" (click)="openTab('players')">Players</button>
   <button class="view-btn" [class.active]="activeTab() === 'fillins'" type="button" (click)="openTab('fillins')">Fill-ins</button>
   <button class="view-btn" [class.active]="activeTab() === 'comps'" type="button" (click)="openTab('comps')">Comps</button>
@@ -18,7 +20,7 @@
   }
 </section>
 
-@if (activeTab() === 'settings') {
+@if (auth.canManageUsers() && activeTab() === 'settings') {
   <section class="card">
     <h2 class="title-with-icon"><span class="section-icon">ST</span>Settings</h2>
     <label class="field">
@@ -78,6 +80,22 @@
           <label class="field"><span>Mobalytics slug</span>
             <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event" [name]="'pmoba' + $index" /></label>
         </div>
+
+          <div class="links">
+            <button class="view-btn" type="button" (click)="autoFillPlayerSlugs(draft)">Auto-fill slugs</button>
+            <button
+              class="view-btn"
+              type="button"
+              [disabled]="enrichingPlayerId() === enrichmentKey(draft)"
+              (click)="autoFillPlayerInsights(draft)">
+              @if (enrichingPlayerId() === enrichmentKey(draft)) {
+                <span class="btn-spinner" aria-hidden="true"></span>
+                Filling insights...
+              } @else {
+                Auto-fill insights
+              }
+            </button>
+          </div>
 
         <div class="links">
           <button class="view-btn active" type="button" (click)="savePlayer(draft)">Save</button>

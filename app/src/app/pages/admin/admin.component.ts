@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Comp, CompPicks, FillIn, Player, ROLES, Role, AccessRole, AccessEntry } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
+import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
 import { TeamDataService } from '../../services/team-data.service';
 
 interface PlayerDraft {
@@ -58,6 +59,14 @@ function normalizeEmailValue(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function slugifyName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function emptyPicks(): CompPicks {
   return { Top: '', Jungle: '', Mid: '', ADC: '', Support: '' };
 }
@@ -70,6 +79,7 @@ function emptyPicks(): CompPicks {
 export class AdminComponent {
   protected readonly auth = inject(AuthService);
   protected readonly data = inject(TeamDataService);
+  private readonly enrichment = inject(PlayerEnrichmentService);
   protected readonly roles = ROLES;
   protected readonly accessRoles: AccessRole[] = ['admin', 'contributor', 'viewer'];
 
@@ -78,7 +88,8 @@ export class AdminComponent {
   protected readonly fillInDrafts = signal<FillInDraft[]>([]);
   protected readonly compDrafts = signal<CompDraft[]>([]);
   protected readonly accessDrafts = signal<AccessDraft[]>([]);
-  protected readonly activeTab = signal<EditorTab>('settings');
+  protected readonly activeTab = signal<EditorTab>('players');
+  protected readonly enrichingPlayerId = signal<string | null>(null);
   protected readonly status = signal('');
 
   private initialized = false;
@@ -107,6 +118,14 @@ export class AdminComponent {
       const accessEntries = this.data.accessEntries();
       if (accessEntries.length > 0 && this.accessDrafts().length === 0) {
         this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry })));
+      }
+    });
+
+    effect(() => {
+      const canManageUsers = this.auth.canManageUsers();
+      const currentTab = this.activeTab();
+      if (!canManageUsers && (currentTab === 'settings' || currentTab === 'access')) {
+        this.activeTab.set('players');
       }
     });
   }
@@ -151,6 +170,10 @@ export class AdminComponent {
   // ---- Settings ---------------------------------------------------------
 
   protected openTab(tab: EditorTab): void {
+    if (!this.auth.canManageUsers() && (tab === 'settings' || tab === 'access')) {
+      this.activeTab.set('players');
+      return;
+    }
     this.activeTab.set(tab);
   }
 
@@ -164,8 +187,69 @@ export class AdminComponent {
   }
 
   async saveSettings(): Promise<void> {
+    if (!this.auth.canManageUsers()) {
+      this.flash('Only admins can edit team settings.');
+      return;
+    }
     await this.data.updateSettings({ teamName: this.teamName().trim() || 'Bom Squad' });
     this.flash('Team name saved.');
+  }
+
+  protected autoFillPlayerSlugs(draft: PlayerDraft): void {
+    const baseName = slugifyName(draft.name);
+    const tag = draft.riotTag.trim();
+    const normalizedTag = tag ? tag.toLowerCase() : '';
+
+    if (!baseName) {
+      return;
+    }
+
+    if (!draft.opggSlug.trim()) {
+      draft.opggSlug = tag ? `${draft.name.trim()}-${tag}` : draft.name.trim();
+    }
+
+    if (!draft.mobalyticsSlug.trim()) {
+      draft.mobalyticsSlug = normalizedTag ? `${baseName}-${normalizedTag}` : baseName;
+    }
+  }
+
+  protected enrichmentKey(draft: PlayerDraft): string {
+    const name = draft.name.trim().toLowerCase();
+    return draft.id || (name ? `new-${name}` : `new-${this.playerDrafts().indexOf(draft)}`);
+  }
+
+  async autoFillPlayerInsights(draft: PlayerDraft): Promise<void> {
+    const playerName = draft.name.trim();
+    if (!playerName) {
+      this.flash('Add a player name first.');
+      return;
+    }
+
+    this.autoFillPlayerSlugs(draft);
+
+    const loadingKey = this.enrichmentKey(draft);
+    if (this.enrichingPlayerId() === loadingKey) {
+      return;
+    }
+    this.enrichingPlayerId.set(loadingKey);
+    try {
+      const enriched = await this.enrichment.enrichPlayer({
+        summonerName: playerName,
+        riotTag: draft.riotTag,
+        region: draft.region,
+        role: draft.role,
+        mobalyticsSlug: draft.mobalyticsSlug
+      });
+
+      draft.playstyle = enriched.playstyle;
+      draft.strengths = enriched.strengths.join(', ');
+      draft.weaknesses = enriched.weaknesses.join(', ');
+      this.flash(`Profile filled from ${enriched.provider}.`);
+    } catch (err) {
+      this.flash(err instanceof Error ? err.message : 'Failed to enrich profile.');
+    } finally {
+      this.enrichingPlayerId.set(null);
+    }
   }
 
   // ---- Players ----------------------------------------------------------
@@ -329,6 +413,10 @@ export class AdminComponent {
   // ---- Access entries --------------------------------------------------
 
   addAccessEntry(): void {
+    if (!this.auth.canManageUsers()) {
+      this.flash('Only admins can manage access.');
+      return;
+    }
     this.openTab('access');
     this.accessDrafts.update((list) => [
       ...list,
@@ -337,6 +425,10 @@ export class AdminComponent {
   }
 
   async saveAccessEntry(draft: AccessDraft): Promise<void> {
+    if (!this.auth.canManageUsers()) {
+      this.flash('Only admins can manage access.');
+      return;
+    }
     const email = normalizeEmailValue(draft.email);
     if (!email) {
       this.flash('Email is required.');
@@ -362,6 +454,10 @@ export class AdminComponent {
   }
 
   async deleteAccessEntry(draft: AccessDraft): Promise<void> {
+    if (!this.auth.canManageUsers()) {
+      this.flash('Only admins can manage access.');
+      return;
+    }
     const email = normalizeEmailValue(draft.email);
     if (!email) {
       this.accessDrafts.update((list) => list.filter((item) => item !== draft));
@@ -378,6 +474,10 @@ export class AdminComponent {
   // ---- Maintenance ------------------------------------------------------
 
   async seed(): Promise<void> {
+    if (!this.auth.canManageUsers()) {
+      this.flash('Only admins can seed the database.');
+      return;
+    }
     try {
       await this.data.seedFirestore();
       this.flash('Firestore seeded from starter data.');
