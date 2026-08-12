@@ -73,20 +73,22 @@ export class AuthService {
 
   private async resolveRole(auth: NonNullable<ReturnType<typeof getAuthInstance>>, user: User | null): Promise<void> {
     const email = normalizeEmail(user?.email);
-    this.userEmail.set(email || null);
 
     if (!user || !email) {
+      this.userEmail.set(null);
       this.role.set(null);
       return;
     }
 
     if (isBootstrapAdminEmail(email)) {
       this.role.set('admin');
+      this.userEmail.set(email);
       return;
     }
 
     const db = getDb();
     if (!db) {
+      this.userEmail.set(null);
       this.role.set(null);
       await signOut(auth!);
       return;
@@ -95,12 +97,15 @@ export class AuthService {
     const accessSnap = await getDoc(doc(db, 'access', email));
     const access = accessSnap.exists() ? (accessSnap.data() as { role?: AccessRole; active?: boolean }) : null;
     if (!access || !access.active || !access.role) {
+      // Not authorized: never expose an authed session — sign straight back out.
+      this.userEmail.set(null);
       this.role.set(null);
       await signOut(auth!);
       return;
     }
 
     this.role.set(access.role);
+    this.userEmail.set(email);
   }
 
   async login(email: string, password: string): Promise<void> {

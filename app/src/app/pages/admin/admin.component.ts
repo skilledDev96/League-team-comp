@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Comp, CompPicks, FillIn, Player, ROLES, Role, AccessRole, AccessEntry } from '../../models/team.models';
@@ -8,6 +8,7 @@ import { TeamDataService } from '../../services/team-data.service';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 
 interface PlayerDraft {
+  uid: string;
   id: string;
   name: string;
   role: Role;
@@ -98,6 +99,14 @@ export class AdminComponent {
   protected readonly openPlayer = signal<PlayerDraft | null>(null);
   protected readonly highlightedPlayer = signal<PlayerDraft | null>(null);
 
+  // Group player drafts by role for the editor (Top, Jungle, Mid, ADC, Support).
+  protected readonly playersByRole = computed(() => {
+    const drafts = this.playerDrafts();
+    return ROLES.map((role) => ({ role, drafts: drafts.filter((d) => d.role === role) })).filter(
+      (group) => group.drafts.length > 0
+    );
+  });
+
   protected readonly showAddPlayerDialog = signal(false);
   protected readonly addPlayerMode = signal<'choose' | 'summoner'>('choose');
   protected readonly newPlayerSummoner = signal('');
@@ -145,6 +154,7 @@ export class AdminComponent {
 
   private toPlayerDraft(p: Player): PlayerDraft {
     return {
+      uid: this.newUid(),
       id: p.id,
       name: p.name,
       role: p.role,
@@ -160,6 +170,10 @@ export class AdminComponent {
       riotTag: p.profile?.riotTag ?? '',
       mobalyticsSlug: p.profile?.mobalyticsSlug ?? ''
     };
+  }
+
+  private newUid(): string {
+    return (crypto as Crypto).randomUUID?.() ?? `uid-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
 
   private toFillInDraft(f: FillIn): FillInDraft {
@@ -220,13 +234,12 @@ export class AdminComponent {
 
     const playerId = params.get('playerId');
     if (playerId) {
-      const idx = this.playerDrafts().findIndex((d) => d.id === playerId);
-      if (idx >= 0) {
-        const draft = this.playerDrafts()[idx];
+      const draft = this.playerDrafts().find((d) => d.id === playerId);
+      if (draft) {
         this.openPlayer.set(draft);
         this.highlightedPlayer.set(draft);
         setTimeout(() => this.highlightedPlayer.set(null), 2400);
-        this.scrollToCard(`player-draft-${idx}`);
+        this.scrollToCard(`player-${draft.uid}`);
       }
     }
 
@@ -364,6 +377,7 @@ export class AdminComponent {
   private insertPlayerDraft(overrides: Partial<PlayerDraft>): PlayerDraft {
     this.openTab('players');
     const draft: PlayerDraft = {
+      uid: this.newUid(),
       id: '',
       name: '',
       role: 'Top',
@@ -380,13 +394,9 @@ export class AdminComponent {
       mobalyticsSlug: '',
       ...overrides
     };
-    let newIndex = 0;
-    this.playerDrafts.update((list) => {
-      newIndex = list.length;
-      return [...list, draft];
-    });
+    this.playerDrafts.update((list) => [...list, draft]);
     this.openPlayer.set(draft);
-    this.scrollToCard(`player-draft-${newIndex}`);
+    this.scrollToCard(`player-${draft.uid}`);
     return draft;
   }
 

@@ -28,4 +28,17 @@ export class CompsComponent {
     this.fullView.set(full);
     this.showPicks.set(full);
   }
+
+  // Pick a Material Symbol that reflects the comp's playstyle from its name.
+  protected compIcon(name: string): string {
+    const n = (name || '').toLowerCase();
+    if (n.includes('engage')) return 'bolt';
+    if (n.includes('pick')) return 'my_location';
+    if (n.includes('poke') || n.includes('siege')) return 'sports_esports';
+    if (n.includes('split')) return 'call_split';
+    if (n.includes('protect') || n.includes('peel')) return 'shield';
+    if (n.includes('teamfight') || n.includes('aoe') || n.includes('wombo')) return 'groups';
+    if (n.includes('scal')) return 'trending_up';
+    return 'swords';
+  }
 }

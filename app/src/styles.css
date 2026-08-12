@@ -192,9 +192,7 @@ body[data-theme="dark"] {
 .player-panel {
   padding: 0.6rem 0.75rem;
   align-self: start;
-}
-
-.player-panel-header {
+}.player-panel-header {
   display: flex;
   align-items: center;
   gap: 0.7rem;
@@ -255,6 +253,20 @@ body[data-theme="dark"] {
   100% {
     box-shadow: 0 12px 30px var(--shadow-elev);
   }
+}
+
+.role-group {
+  margin-top: 1rem;
+}
+
+.role-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 0.95rem;
+  color: var(--text-1);
 }
 
 body[data-theme="dark-blue"] {
@@ -1050,6 +1062,63 @@ body {
   margin: 0;
 }
 
+.comp-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.comp-summary::-webkit-details-marker {
+  display: none;
+}
+
+.comp-type-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: var(--text-0);
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-btn) 70%);
+  border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--card-border) 55%);
+  flex: 0 0 auto;
+}
+
+.comp-summary-name {
+  flex: 1 1 auto;
+}
+
+.comp-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  padding: 0.32rem 0.7rem;
+  flex: 0 0 auto;
+}
+
+.comp-edit-btn .material-symbols-rounded {
+  font-size: 1rem;
+}
+
+.comp-chevron {
+  color: var(--accent-2);
+  transition: transform 160ms ease;
+  flex: 0 0 auto;
+}
+
+.comp-panel[open] .comp-chevron {
+  transform: rotate(180deg);
+}
+
 .comp-panel-summary {
   list-style: none;
   cursor: pointer;
@@ -1321,6 +1390,16 @@ body.intel-page #fillInSection {
   grid-template-columns: 3.4rem auto 1fr;
   align-items: center;
   gap: 0.6rem;
+}
+
+.comp-row .champ-chip {
+  font-size: 0.95rem;
+  padding: 0.3rem 0.7rem 0.3rem 0.34rem;
+}
+
+.comp-row .champ-icon {
+  width: 30px;
+  height: 30px;
 }
 
 .comp-role {

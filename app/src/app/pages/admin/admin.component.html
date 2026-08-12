@@ -79,13 +79,16 @@
     <button class="view-btn active btn-cta" type="button" (click)="openAddPlayerDialog()">+ Add player</button>
   </div>
 
-  <div class="grid player-panel-list">
-    @for (draft of playerDrafts(); track draft) {
+  @for (group of playersByRole(); track group.role) {
+  <div class="role-group">
+    <h3 class="role-group-heading"><span class="tag good">{{ group.role }}</span> {{ group.drafts.length }}</h3>
+    <div class="grid player-panel-list">
+      @for (draft of group.drafts; track draft.uid) {
       <article
         class="card card-loadable player-panel"
         [class.player-panel-open]="isPlayerOpen(draft)"
         [class.player-panel-highlight]="isPlayerHighlighted(draft)"
-        [id]="'player-draft-' + $index">
+        [id]="'player-' + draft.uid">
         @if (enrichingPlayerId() === enrichmentKey(draft)) {
           <div class="card-loading-overlay" role="status" aria-live="polite">
             <span class="app-loading-spinner" aria-hidden="true"></span>
@@ -108,35 +111,35 @@
         @if (isPlayerOpen(draft)) {
         <div class="player-panel-body">
         <label class="field"><span>Summoner name</span>
-          <input type="text" required [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname' + $index" placeholder="e.g. DaWhiteHammer" /></label>
+          <input type="text" required [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname-' + draft.uid" placeholder="e.g. DaWhiteHammer" /></label>
         <label class="field"><span>Role</span>
-          <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'prole' + $index">
+          <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'prole-' + draft.uid">
             @for (role of roles; track role) { <option [value]="role">{{ role }}</option> }
           </select></label>
         <label class="field"><span>Icon file</span>
-          <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event" [name]="'picon' + $index" placeholder="name.webp" /></label>
+          <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event" [name]="'picon-' + draft.uid" placeholder="name.webp" /></label>
         <label class="field"><span>Playstyle</span>
-          <input type="text" [ngModel]="draft.playstyle" (ngModelChange)="draft.playstyle = $event" [name]="'pstyle' + $index" /></label>
+          <input type="text" [ngModel]="draft.playstyle" (ngModelChange)="draft.playstyle = $event" [name]="'pstyle-' + draft.uid" /></label>
         <label class="field"><span>Strengths (comma separated)</span>
-          <input type="text" [ngModel]="draft.strengths" (ngModelChange)="draft.strengths = $event" [name]="'pstr' + $index" /></label>
+          <input type="text" [ngModel]="draft.strengths" (ngModelChange)="draft.strengths = $event" [name]="'pstr-' + draft.uid" /></label>
         <label class="field"><span>Weaknesses (comma separated)</span>
-          <input type="text" [ngModel]="draft.weaknesses" (ngModelChange)="draft.weaknesses = $event" [name]="'pweak' + $index" /></label>
+          <input type="text" [ngModel]="draft.weaknesses" (ngModelChange)="draft.weaknesses = $event" [name]="'pweak-' + draft.uid" /></label>
         <label class="field"><span>Top 3 champions (comma separated)</span>
-          <input type="text" [ngModel]="draft.top3" (ngModelChange)="draft.top3 = $event" [name]="'ptop' + $index" /></label>
+          <input type="text" [ngModel]="draft.top3" (ngModelChange)="draft.top3 = $event" [name]="'ptop-' + draft.uid" /></label>
         <label class="field"><span>Learn next</span>
-          <input type="text" [ngModel]="draft.learn" (ngModelChange)="draft.learn = $event" [name]="'plearn' + $index" /></label>
+          <input type="text" [ngModel]="draft.learn" (ngModelChange)="draft.learn = $event" [name]="'plearn-' + draft.uid" /></label>
         <label class="field"><span>Bans (comma separated)</span>
-          <input type="text" [ngModel]="draft.bans" (ngModelChange)="draft.bans = $event" [name]="'pbans' + $index" /></label>
+          <input type="text" [ngModel]="draft.bans" (ngModelChange)="draft.bans = $event" [name]="'pbans-' + draft.uid" /></label>
 
         <div class="grid two">
           <label class="field"><span>Region</span>
-            <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event" [name]="'preg' + $index" /></label>
+            <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event" [name]="'preg-' + draft.uid" /></label>
           <label class="field"><span>OP.GG slug</span>
-            <input type="text" [ngModel]="draft.opggSlug" (ngModelChange)="draft.opggSlug = $event" [name]="'popgg' + $index" /></label>
+            <input type="text" [ngModel]="draft.opggSlug" (ngModelChange)="draft.opggSlug = $event" [name]="'popgg-' + draft.uid" /></label>
           <label class="field"><span>Riot tag</span>
-            <input type="text" [ngModel]="draft.riotTag" (ngModelChange)="draft.riotTag = $event" [name]="'ptag' + $index" /></label>
+            <input type="text" [ngModel]="draft.riotTag" (ngModelChange)="draft.riotTag = $event" [name]="'ptag-' + draft.uid" /></label>
           <label class="field"><span>Mobalytics slug</span>
-            <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event" [name]="'pmoba' + $index" /></label>
+            <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event" [name]="'pmoba-' + draft.uid" /></label>
         </div>
 
           <div class="links">
@@ -161,8 +164,10 @@
         </div>
         }
       </article>
-    }
+      }
+    </div>
   </div>
+  }
 </section>
 }
 
