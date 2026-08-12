@@ -36,33 +36,33 @@
 
 <section class="grid two" aria-label="Player intel">
   @for (player of data.players(); track player.id) {
-    <article class="card" [class.expanded]="isExpanded(player.id)" [id]="ui.playerAnchorId(player.name)">
-      <div class="title-row">
+    <article class="card player-intel-card" [class.expanded]="isExpanded(player.id)" [id]="ui.playerAnchorId(player.name)">
+      <button type="button" class="player-panel-header" (click)="toggle(player.id)"
+              [attr.aria-expanded]="isExpanded(player.id)">
         <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
-        <h2>{{ player.role }} - {{ player.name }}</h2>
+        <span class="player-panel-title">
+          <span class="pp-name">{{ player.role }} - {{ player.name }}</span>
+          <span class="pp-role">{{ player.playstyle || 'Unknown' }}</span>
+        </span>
         @if (auth.canEdit()) {
-          <a class="view-btn role-toggle" [routerLink]="['/admin']" [queryParams]="{ tab: 'players', playerId: player.id }">Edit</a>
+          <a class="view-btn pi-edit-btn" [routerLink]="['/admin']" [queryParams]="{ tab: 'players', playerId: player.id }" (click)="$event.stopPropagation()">
+            <span class="material-symbols-rounded" aria-hidden="true">edit</span> Edit
+          </a>
         }
-      </div>
-      <p class="meta-line meta-playstyle">
-        <span class="meta-label">Playstyle</span>
-        <span class="meta-value">{{ player.playstyle || 'Unknown' }}</span>
-        <span class="playstyle-icon material-symbols-rounded trailing" aria-hidden="true">{{ ui.playstyleIcon(player.playstyle) }}</span>
-      </p>
-      @if (player.top3.length) {
-        <p class="meta-line main-champ-inline">
-          <img class="main-champ-icon" [src]="ui.championIconUrl(player.top3[0])" [alt]="player.top3[0] + ' icon'" />
-          <span class="meta-label">Main Champion</span>
-          <span class="meta-value">{{ player.top3[0] }}</span>
-        </p>
-      }
-      @if (!fullView()) {
-        <button type="button" class="view-btn role-toggle" (click)="toggle(player.id)">
-          {{ isExpanded(player.id) ? 'Hide Details' : 'Show Details' }}
-        </button>
-      }
+        <span class="player-panel-chevron material-symbols-rounded" aria-hidden="true">
+          {{ isExpanded(player.id) ? 'expand_less' : 'expand_more' }}
+        </span>
+      </button>
 
       <div class="role-details">
+        @if (player.top3.length) {
+          <p class="meta-line main-champ-inline">
+            <img class="main-champ-icon" [src]="ui.championIconUrl(player.top3[0])" [alt]="player.top3[0] + ' icon'" />
+            <span class="meta-label">Main Champion</span>
+            <span class="meta-value">{{ player.top3[0] }}</span>
+          </p>
+        }
+
         <h3>Strengths</h3>
         <div class="tag-row">
           @for (s of player.strengths; track s) {

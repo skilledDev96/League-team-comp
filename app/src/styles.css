@@ -230,12 +230,35 @@ body[data-theme="dark"] {
 .player-panel-chevron {
   margin-left: auto;
   color: var(--accent-2);
-}
-
-.player-panel-body {
+}.player-panel-body {
   margin-top: 0.6rem;
   padding-top: 0.6rem;
   border-top: 1px solid var(--card-border);
+}
+
+.player-intel-card .player-panel-title {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.player-intel-card .pp-role {
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pi-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  padding: 0.32rem 0.7rem;
+  flex: 0 0 auto;
+}
+
+.pi-edit-btn .material-symbols-rounded {
+  font-size: 1rem;
 }
 
 .player-panel-open {
