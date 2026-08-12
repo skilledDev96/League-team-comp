@@ -1,6 +1,6 @@
 import { Component, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Comp, CompPicks, FillIn, Player, ROLES, Role, AccessRole, AccessEntry } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
@@ -80,6 +80,7 @@ export class AdminComponent {
   protected readonly auth = inject(AuthService);
   protected readonly data = inject(TeamDataService);
   private readonly enrichment = inject(PlayerEnrichmentService);
+  private readonly route = inject(ActivatedRoute);
   protected readonly roles = ROLES;
   protected readonly accessRoles: AccessRole[] = ['admin', 'contributor', 'viewer'];
 
@@ -115,6 +116,7 @@ export class AdminComponent {
       this.fillInDrafts.set(fillIns.map((f) => this.toFillInDraft(f)));
       this.compDrafts.set(comps.map((c) => ({ id: c.id, name: c.name, picks: { ...c.picks } })));
       this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry })));
+      this.applyRouteFocus();
     });
 
     effect(() => {
@@ -190,6 +192,32 @@ export class AdminComponent {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }, 0);
+  }
+
+  private applyRouteFocus(): void {
+    const params = this.route.snapshot.queryParamMap;
+    const tab = params.get('tab');
+    if (tab === 'settings' || tab === 'players' || tab === 'fillins' || tab === 'comps' || tab === 'access') {
+      this.openTab(tab);
+    }
+
+    const playerId = params.get('playerId');
+    if (playerId) {
+      const idx = this.playerDrafts().findIndex((d) => d.id === playerId);
+      if (idx >= 0) this.scrollToCard(`player-draft-${idx}`);
+    }
+
+    const fillInId = params.get('fillInId');
+    if (fillInId) {
+      const idx = this.fillInDrafts().findIndex((d) => d.id === fillInId);
+      if (idx >= 0) this.scrollToCard(`fillin-draft-${idx}`);
+    }
+
+    const compId = params.get('compId');
+    if (compId) {
+      const idx = this.compDrafts().findIndex((d) => d.id === compId);
+      if (idx >= 0) this.scrollToCard(`comp-draft-${idx}`);
+    }
   }
 
   async saveSettings(): Promise<void> {

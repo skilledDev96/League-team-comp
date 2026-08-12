@@ -82,7 +82,7 @@
     @for (draft of playerDrafts(); track draft) {
       <article class="card" [id]="'player-draft-' + $index">
         <label class="field"><span>Summoner name</span>
-          <input type="text" [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname' + $index" placeholder="e.g. DaWhiteHammer" /></label>
+          <input type="text" required [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname' + $index" placeholder="e.g. DaWhiteHammer" /></label>
         <label class="field"><span>Role</span>
           <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'prole' + $index">
             @for (role of roles; track role) { <option [value]="role">{{ role }}</option> }
@@ -148,7 +148,7 @@
 
   <div class="grid two">
     @for (draft of fillInDrafts(); track draft) {
-      <article class="card">
+      <article class="card" [id]="'fillin-draft-' + $index">
         <label class="field"><span>Summoner</span>
           <input type="text" [ngModel]="draft.summoner" (ngModelChange)="draft.summoner = $event" [name]="'fname' + $index" /></label>
         <label class="field"><span>Status</span>
@@ -184,7 +184,7 @@
 
   <div class="grid two">
     @for (draft of compDrafts(); track draft) {
-      <article class="card">
+      <article class="card" [id]="'comp-draft-' + $index">
         <label class="field"><span>Comp name</span>
           <input type="text" [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'cname' + $index" /></label>
         @for (role of roles; track role) {
@@ -235,4 +235,4 @@
   </section>
 }
 
-<p class="footer-note"><a routerLink="/">Back to Overview</a></p>
+<p class="footer-note"><a routerLink="/overview">Back to Overview</a></p>

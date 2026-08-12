@@ -234,6 +234,54 @@ body {
   transform: translateY(-1px);
 }
 
+.user-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 1.4rem;
+  background: var(--card-border);
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--surface-nav);
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem 0.3rem 0.3rem;
+}
+
+.user-avatar {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #072028;
+  background: linear-gradient(135deg, #9be7f5, #4fd0e8);
+  flex: 0 0 auto;
+}
+
+.user-name {
+  font-size: 0.82rem;
+  color: var(--text-0);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .theme-toggle {
   border: 1px solid var(--card-border);
   background: var(--surface-nav);

@@ -29,6 +29,11 @@
           }
         }
       </div>
+      @if (auth.canEdit()) {
+        <div class="links">
+          <a class="view-btn" [routerLink]="['/admin']" [queryParams]="{ tab: 'comps', compId: comp.id }">Edit comp</a>
+        </div>
+      }
     </details>
   }
 </section>
