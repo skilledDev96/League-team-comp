@@ -386,10 +386,6 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
     weaknesses.push(`High average deaths (${avgDeaths.toFixed(1)}) — focus on positioning`);
   }
 
-  const roleTemplate = ROLE_TEMPLATES[role];
-  const killParticipationPct = Math.round(avgKillParticipation * 100);
-  const damageSharePct = Math.round(avgDamageShare * 100);
-
   // Classify a GPI-style archetype from real match aggregates (ordered by specificity).
   let archetype: string;
   if (role === 'Support' || (avgVisionScore >= 40 && avgDamageShare < 0.18)) {
@@ -411,7 +407,7 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
   }
 
   return {
-    playstyle: `${archetype} — ${roleTemplate.playstyle} (${games} recent games: ${winRate}% WR, ${avgKda.toFixed(1)} KDA, ${killParticipationPct}% KP, ${damageSharePct}% team dmg)`,
+    playstyle: archetype,
     strengths: strengths.slice(0, 3),
     weaknesses: weaknesses.slice(0, 3),
     role,
