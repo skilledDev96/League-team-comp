@@ -2,6 +2,14 @@ export type Role = 'Top' | 'Jungle' | 'Mid' | 'ADC' | 'Support';
 
 export const ROLES: Role[] = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
 
+export type AccessRole = 'admin' | 'contributor' | 'viewer';
+
+export interface AccessEntry {
+  email: string;
+  role: AccessRole;
+  active: boolean;
+}
+
 export interface SummonerProfile {
   region: string;
   opggSlug?: string;

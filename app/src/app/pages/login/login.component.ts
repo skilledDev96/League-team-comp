@@ -19,11 +19,12 @@ export class LoginComponent {
   protected readonly mode = this.auth.mode;
 
   constructor() {
-    // After a Google redirect returns here, send authorized users to the editor.
+    // After sign-in completes, send editors to the editor and viewers to the public app.
     effect(() => {
-      if (this.auth.canEdit()) {
-        void this.router.navigate(['/admin']);
+      if (!this.auth.isAuthed()) {
+        return;
       }
+      void this.router.navigate([this.auth.canEdit() ? '/admin' : '/']);
     });
   }
 
@@ -32,7 +33,7 @@ export class LoginComponent {
     this.busy.set(true);
     try {
       await this.auth.login(this.email(), this.password());
-      await this.router.navigate(['/admin']);
+      await this.router.navigate([this.auth.canEdit() ? '/admin' : '/']);
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Login failed.');
     } finally {
@@ -45,7 +46,7 @@ export class LoginComponent {
     this.busy.set(true);
     try {
       await this.auth.loginWithGoogle();
-      await this.router.navigate(['/admin']);
+      await this.router.navigate([this.auth.canEdit() ? '/admin' : '/']);
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Google sign-in failed.');
     } finally {
