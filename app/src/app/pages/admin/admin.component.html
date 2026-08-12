@@ -88,7 +88,12 @@
               type="button"
               [disabled]="enrichingPlayerId() === enrichmentKey(draft)"
               (click)="autoFillPlayerInsights(draft)">
-              {{ enrichingPlayerId() === enrichmentKey(draft) ? 'Filling insights...' : 'Auto-fill insights' }}
+              @if (enrichingPlayerId() === enrichmentKey(draft)) {
+                <span class="btn-spinner" aria-hidden="true"></span>
+                Filling insights...
+              } @else {
+                Auto-fill insights
+              }
             </button>
           </div>
 

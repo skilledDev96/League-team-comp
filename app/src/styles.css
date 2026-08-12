@@ -4,6 +4,10 @@
   --bg-0: #0f1418;
   --bg-1: #1a232d;
   --bg-2: #233345;
+.view-btn:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
   --card: rgba(18, 29, 37, 0.88);
   --card-border: rgba(94, 162, 204, 0.38);
   --text-0: #e9f4fb;
@@ -41,6 +45,15 @@ body[data-theme="dark"] {
   --surface-hero-b: rgba(30, 38, 46, 0.92);
   --surface-controls: rgba(24, 31, 38, 0.74);
   --surface-btn: rgba(37, 46, 56, 0.86);
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
   --shadow-elev: rgba(0, 0, 0, 0.26);
 }
 
