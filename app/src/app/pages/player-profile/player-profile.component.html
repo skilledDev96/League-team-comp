@@ -1,0 +1,97 @@
+@if (player(); as p) {
+  <section class="hero">
+    <h1>{{ p.role }} - {{ p.name }}</h1>
+    <p>Single-player prep view for {{ p.name }}.</p>
+  </section>
+
+  <section class="grid two">
+    <article class="card">
+      <div class="title-row">
+        <app-player-avatar [name]="p.name" [icon]="p.icon" [role]="p.role" />
+        <h2>{{ p.role }} - {{ p.name }}</h2>
+      </div>
+
+      <p class="meta-line meta-playstyle">
+        <span class="meta-label">Playstyle</span>
+        <span class="meta-value">{{ p.playstyle || 'Unknown' }}</span>
+        <span class="playstyle-icon material-symbols-rounded trailing" aria-hidden="true">{{ ui.playstyleIcon(p.playstyle) }}</span>
+      </p>
+
+      @if (p.top3.length) {
+        <p class="meta-line main-champ-inline">
+          <img class="main-champ-icon" [src]="ui.championIconUrl(p.top3[0])" [alt]="p.top3[0] + ' icon'" />
+          <span class="meta-label">Main Champion</span>
+          <span class="meta-value">{{ p.top3[0] }}</span>
+        </p>
+      }
+
+      <h3>Strengths</h3>
+      <div class="tag-row">
+        @for (s of p.strengths; track s) {
+          <span class="tag good">{{ s }}</span>
+        }
+      </div>
+
+      <h3>Weaknesses</h3>
+      <div class="tag-row">
+        @for (w of p.weaknesses; track w) {
+          <span class="tag bad">{{ w }}</span>
+        }
+      </div>
+
+      <h3>Champion Pool</h3>
+      <div class="champ-chip-row">
+        @for (champ of p.top3; track champ) {
+          <app-champion-chip [champion]="champ" />
+        }
+        @if (p.learn) {
+          <app-champion-chip [champion]="p.learn" [label]="'Learn: ' + p.learn" />
+        }
+      </div>
+
+      <div class="links">
+        <a [href]="ui.summonerSearchUrl(p.name, p.profile)" target="_blank" rel="noopener noreferrer">OP.GG player profile</a>
+        @if (ui.summonerMobalyticsUrl(p.profile); as mobaUrl) {
+          <a [href]="mobaUrl" target="_blank" rel="noopener noreferrer">Mobalytics player profile</a>
+        }
+      </div>
+
+      <details class="link-dropdown">
+        <summary>Build Guides ({{ buildCount() }})</summary>
+        <div class="links compact">
+          @for (champ of p.top3; track champ) {
+            <a [href]="ui.championBuildUrl(champ)" target="_blank" rel="noopener noreferrer">Build guide: {{ champ }}</a>
+          }
+          @if (p.learn) {
+            <a [href]="ui.championBuildUrl(p.learn)" target="_blank" rel="noopener noreferrer">Learn next build: {{ p.learn }}</a>
+          }
+        </div>
+      </details>
+
+      <h3>Suggested Bans</h3>
+      <ul class="list-clean">
+        @for (ban of p.bans; track ban) {
+          <li>{{ ban }}</li>
+        }
+      </ul>
+    </article>
+
+    <article class="card">
+      <h2 class="title-with-icon"><span class="section-icon">NX</span>Quick Actions</h2>
+      <div class="links">
+        <a [href]="ui.summonerSearchUrl(p.name, p.profile)" target="_blank" rel="noopener noreferrer">OP.GG player profile</a>
+        @if (ui.summonerMobalyticsUrl(p.profile); as mobaUrl) {
+          <a [href]="mobaUrl" target="_blank" rel="noopener noreferrer">Mobalytics player profile</a>
+        }
+        <a routerLink="/players">Back to full Player Intel</a>
+        <a routerLink="/">Back to Overview</a>
+        <a routerLink="/comps">Open team comps</a>
+      </div>
+    </article>
+  </section>
+} @else {
+  <section class="hero">
+    <h1>Player not found</h1>
+    <p><a routerLink="/players">Back to Player Intel</a></p>
+  </section>
+}
