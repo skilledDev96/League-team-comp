@@ -1,5 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { Player } from '../../models/team.models';
+import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
@@ -7,12 +9,13 @@ import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 
 @Component({
   selector: 'app-player-intel',
-  imports: [PlayerAvatarComponent, ChampionChipComponent],
+  imports: [RouterLink, PlayerAvatarComponent, ChampionChipComponent],
   templateUrl: './player-intel.component.html'
 })
 export class PlayerIntelComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
+  protected readonly auth = inject(AuthService);
 
   protected readonly fullView = signal(false);
   private readonly expanded = signal<Set<string>>(new Set());

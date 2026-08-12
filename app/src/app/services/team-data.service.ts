@@ -27,6 +27,22 @@ const LOCAL_KEY = 'bom-team-data';
 
 type EntityKey = 'players' | 'fillIns' | 'comps';
 
+// Firestore rejects any field set to undefined; drop those keys (incl. one level of nested objects).
+function stripUndefined<T extends Record<string, unknown>>(value: T): T {
+  const result = {} as T;
+  for (const [key, val] of Object.entries(value)) {
+    if (val === undefined) {
+      continue;
+    }
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      result[key as keyof T] = stripUndefined(val as Record<string, unknown>) as T[keyof T];
+    } else {
+      result[key as keyof T] = val as T[keyof T];
+    }
+  }
+  return result;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TeamDataService {
   readonly mode: 'firebase' | 'local' = isFirebaseConfigured() ? 'firebase' : 'local';
@@ -195,7 +211,7 @@ export class TeamDataService {
       const db = getDb();
       if (!db) return;
       const { id, ...rest } = entity;
-      await setDoc(doc(db, key, id), rest as Record<string, unknown>);
+      await setDoc(doc(db, key, id), stripUndefined(rest as Record<string, unknown>));
       return;
     }
     const current = sig();

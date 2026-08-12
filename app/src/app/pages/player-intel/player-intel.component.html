@@ -25,6 +25,9 @@
           @if (ui.summonerMobalyticsUrl(player.profile); as mobaUrl) {
             <a [href]="mobaUrl" target="_blank" rel="noopener noreferrer">Mobalytics player profile</a>
           }
+          @if (auth.canEdit()) {
+            <a class="view-btn" [routerLink]="['/admin']" [queryParams]="{ tab: 'fillins', fillInId: player.id }">Edit fill-in</a>
+          }
         </div>
       </article>
     }
@@ -37,6 +40,9 @@
       <div class="title-row">
         <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
         <h2>{{ player.role }} - {{ player.name }}</h2>
+        @if (auth.canEdit()) {
+          <a class="view-btn role-toggle" [routerLink]="['/admin']" [queryParams]="{ tab: 'players', playerId: player.id }">Edit</a>
+        }
       </div>
       <p class="meta-line meta-playstyle">
         <span class="meta-label">Playstyle</span>

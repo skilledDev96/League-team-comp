@@ -8,6 +8,38 @@
   <p class="tag good" role="status">{{ status() }}</p>
 }
 
+@if (showAddPlayerDialog()) {
+  <div class="modal-backdrop" (click)="closeAddPlayerDialog()">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Add player" (click)="$event.stopPropagation()">
+      @if (addPlayerMode() === 'choose') {
+        <h2 class="title-with-icon"><span class="section-icon">PL</span>Add player</h2>
+        <p class="muted">How do you want to add this player?</p>
+        <div class="links">
+          <button class="view-btn active" type="button" (click)="chooseAutofillAdd()">Autofill with Summoner name</button>
+          <button class="view-btn" type="button" (click)="addPlayerManually()">Add manually</button>
+        </div>
+        <div class="links" style="margin-top: 12px;">
+          <button class="view-btn" type="button" (click)="closeAddPlayerDialog()">Cancel</button>
+        </div>
+      } @else {
+        <h2 class="title-with-icon"><span class="section-icon">PL</span>Autofill with Summoner name</h2>
+        <label class="field"><span>Summoner name</span>
+          <input type="text" [ngModel]="newPlayerSummoner()" (ngModelChange)="newPlayerSummoner.set($event)" name="newPlayerSummoner" placeholder="e.g. DaWhiteHammer" /></label>
+        <div class="grid two">
+          <label class="field"><span>Riot tag</span>
+            <input type="text" [ngModel]="newPlayerTag()" (ngModelChange)="newPlayerTag.set($event)" name="newPlayerTag" /></label>
+          <label class="field"><span>Region</span>
+            <input type="text" [ngModel]="newPlayerRegion()" (ngModelChange)="newPlayerRegion.set($event)" name="newPlayerRegion" /></label>
+        </div>
+        <div class="links">
+          <button class="view-btn active" type="button" (click)="confirmAutofillAdd()">Add and autofill</button>
+          <button class="view-btn" type="button" (click)="closeAddPlayerDialog()">Cancel</button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
 <section class="view-controls" aria-label="Editor tabs">
   @if (auth.canManageUsers()) {
     <button class="view-btn" [class.active]="activeTab() === 'settings'" type="button" (click)="openTab('settings')">Settings</button>
@@ -43,14 +75,14 @@
 <section aria-label="Players">
   <div class="view-controls">
     <h2 class="title-with-icon"><span class="section-icon">PL</span>Players</h2>
-    <button class="view-btn active" type="button" (click)="addPlayer()">Add player</button>
+    <button class="view-btn active" type="button" (click)="openAddPlayerDialog()">Add player</button>
   </div>
 
   <div class="grid two">
     @for (draft of playerDrafts(); track draft) {
       <article class="card" [id]="'player-draft-' + $index">
-        <label class="field"><span>Name</span>
-          <input type="text" [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname' + $index" /></label>
+        <label class="field"><span>Summoner name</span>
+          <input type="text" required [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname' + $index" placeholder="e.g. DaWhiteHammer" /></label>
         <label class="field"><span>Role</span>
           <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'prole' + $index">
             @for (role of roles; track role) { <option [value]="role">{{ role }}</option> }
@@ -82,7 +114,6 @@
         </div>
 
           <div class="links">
-            <button class="view-btn" type="button" (click)="autoFillPlayerSlugs(draft)">Auto-fill slugs</button>
             <button
               class="view-btn"
               type="button"
@@ -90,9 +121,9 @@
               (click)="autoFillPlayerInsights(draft)">
               @if (enrichingPlayerId() === enrichmentKey(draft)) {
                 <span class="btn-spinner" aria-hidden="true"></span>
-                Filling insights...
+                Refreshing...
               } @else {
-                Auto-fill insights
+              Refresh from Summoner
               }
             </button>
           </div>
@@ -116,7 +147,7 @@
 
   <div class="grid two">
     @for (draft of fillInDrafts(); track draft) {
-      <article class="card">
+      <article class="card" [id]="'fillin-draft-' + $index">
         <label class="field"><span>Summoner</span>
           <input type="text" [ngModel]="draft.summoner" (ngModelChange)="draft.summoner = $event" [name]="'fname' + $index" /></label>
         <label class="field"><span>Status</span>
@@ -152,7 +183,7 @@
 
   <div class="grid two">
     @for (draft of compDrafts(); track draft) {
-      <article class="card">
+      <article class="card" [id]="'comp-draft-' + $index">
         <label class="field"><span>Comp name</span>
           <input type="text" [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'cname' + $index" /></label>
         @for (role of roles; track role) {
@@ -203,4 +234,4 @@
   </section>
 }
 
-<p class="footer-note"><a routerLink="/">Back to Overview</a></p>
+<p class="footer-note"><a routerLink="/overview">Back to Overview</a></p>
