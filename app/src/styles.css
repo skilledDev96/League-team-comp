@@ -2368,10 +2368,126 @@ body {
   color: var(--text-1);
 }
 
-.analysis-offbook {
-  margin-top: 0.6rem;
-  font-size: 0.82rem;
+.offbook-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.9rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.offbook-title {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  color: var(--text-0);
+}
+
+.offbook-record {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
   color: var(--text-1);
+}
+
+.offbook-record.is-positive {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--card-border) 55%);
+}
+
+.offbook-note {
+  font-size: 0.8rem;
+  color: var(--text-1);
+}
+
+.offbook-toggle {
+  margin-left: auto;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.offbook-toggle:hover,
+.offbook-toggle:focus-visible {
+  color: var(--text-0);
+  border-color: var(--accent);
+}
+
+.offbook-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.offbook-game {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  border-left-width: 3px;
+}
+
+.offbook-game.is-win {
+  border-left-color: var(--ok);
+}
+
+.offbook-game.is-loss {
+  border-left-color: var(--warn);
+}
+
+.offbook-outcome {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.offbook-game.is-win .offbook-outcome {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 20%, transparent);
+}
+
+.offbook-game.is-loss .offbook-outcome {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 20%, transparent);
+}
+
+.offbook-champs {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.offbook-champ {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  object-fit: cover;
 }
 
 .analysis-empty {

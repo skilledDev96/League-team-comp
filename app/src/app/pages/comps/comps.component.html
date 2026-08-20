@@ -257,10 +257,30 @@
     }
 
     @if (a.offBook.length) {
-      <p class="analysis-offbook">
-        + {{ a.offBook.length }} off-book 5-stack game{{ a.offBook.length === 1 ? '' : 's' }}
-        (comps you played that don't match a defined comp).
-      </p>
+      <div class="offbook-head">
+        <span class="offbook-title">Off-book 5-stacks</span>
+        @if (offBookRecord(a.offBook); as r) {
+          <span class="offbook-record" [class.is-positive]="r.wins >= r.losses">{{ r.wins }}W&#8211;{{ r.losses }}L</span>
+        }
+        <span class="offbook-note">comps you played that don't match a defined comp</span>
+        <button type="button" class="offbook-toggle" (click)="showOffBook.set(!showOffBook())">
+          {{ showOffBook() ? 'Hide' : 'Show ' + a.offBook.length }}
+        </button>
+      </div>
+      @if (showOffBook()) {
+        <ul class="offbook-list">
+          @for (game of a.offBook; track $index) {
+            <li class="offbook-game" [class.is-win]="game.win" [class.is-loss]="!game.win">
+              <span class="offbook-outcome">{{ game.win ? 'W' : 'L' }}</span>
+              <span class="offbook-champs">
+                @for (champ of game.champions; track champ) {
+                  <img class="offbook-champ" [src]="ui.championIconUrl(champ)" [alt]="champ" [title]="champ" loading="lazy" />
+                }
+              </span>
+            </li>
+          }
+        </ul>
+      }
     }
   } @else if (!analysisLoading()) {
     <p class="muted analysis-empty">

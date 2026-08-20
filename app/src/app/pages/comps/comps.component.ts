@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Comp, CompOutcome, CompPerformance, CompRecord, CompResult, Play, ROLES } from '../../models/team.models';
+import { Comp, CompOutcome, CompPerformance, CompRecord, CompResult, OffBookGame, Play, ROLES } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -130,6 +130,12 @@ export class CompsComponent {
 
   protected readonly analysisLoading = signal(false);
   protected readonly analysisError = signal('');
+  protected readonly showOffBook = signal(false);
+
+  protected offBookRecord(games: OffBookGame[]): { wins: number; losses: number } {
+    const wins = games.filter((g) => g.win).length;
+    return { wins, losses: games.length - wins };
+  }
 
   protected async refreshAnalysis(): Promise<void> {
     if (this.analysisLoading()) return;
