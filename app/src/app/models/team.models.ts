@@ -165,6 +165,8 @@ export interface AnalysisPlayer {
   kills: number;
   deaths: number;
   assists: number;
+  cs: number;
+  damage: number;
 }
 
 export interface AnalysisGame {
@@ -172,6 +174,8 @@ export interface AnalysisGame {
   compId: string | null;
   compName: string | null;
   win: boolean;
+  queue: string;
+  date: number;
   players: AnalysisPlayer[];
 }
 

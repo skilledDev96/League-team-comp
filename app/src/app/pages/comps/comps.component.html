@@ -290,15 +290,25 @@
                            [title]="p.position + ' · ' + p.name + ' · ' + p.champion" loading="lazy" />
                     }
                   </span>
+                  @if (game.queue) { <span class="game-queue">{{ game.queue }}</span> }
+                  @if (game.date) { <span class="game-date">{{ game.date | date: 'MMM d' }}</span> }
                   <span class="game-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
                 </summary>
                 <ul class="game-players">
+                  <li class="game-player game-player-head">
+                    <span></span><span></span><span></span>
+                    <span class="game-col">KDA</span>
+                    <span class="game-col">CS</span>
+                    <span class="game-col">DMG</span>
+                  </li>
                   @for (p of game.players; track p.name) {
                     <li class="game-player">
                       <img class="game-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" loading="lazy" />
                       <span class="game-pos">{{ p.position }}</span>
                       <span class="game-pname">{{ p.name }}</span>
                       <span class="game-kda">{{ p.kills }}/{{ p.deaths }}/{{ p.assists }}</span>
+                      <span class="game-cs">{{ p.cs }}</span>
+                      <span class="game-dmg">{{ fmtDamage(p.damage) }}</span>
                     </li>
                   }
                 </ul>

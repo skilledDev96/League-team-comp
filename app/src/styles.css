@@ -2502,6 +2502,26 @@ body {
   object-fit: cover;
 }
 
+.game-queue {
+  flex: 0 0 auto;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.game-date {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+
 .game-chevron {
   flex: 0 0 auto;
   color: var(--accent-2);
@@ -2524,7 +2544,7 @@ body {
 
 .game-player {
   display: grid;
-  grid-template-columns: 28px 4.75rem 1fr auto;
+  grid-template-columns: 28px 4.75rem minmax(6rem, 1fr) 4.25rem 3rem 3.5rem;
   align-items: center;
   gap: 0.65rem;
   padding: 0.32rem 0;
@@ -2533,6 +2553,28 @@ body {
 
 .game-player:last-child {
   border-bottom: none;
+}
+
+.game-player-head {
+  padding-top: 0.1rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.game-col {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  text-align: right;
+}
+
+.game-cs,
+.game-dmg {
+  font-size: 0.8rem;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .game-champ {

@@ -334,6 +334,8 @@ interface RiotMatchParticipant {
 interface RiotMatch {
   info: {
     gameDuration: number;
+    gameCreation: number;
+    queueId: number;
     participants: RiotMatchParticipant[];
   };
 }
@@ -843,6 +845,8 @@ interface AnalysisPlayerResponse {
   kills: number;
   deaths: number;
   assists: number;
+  cs: number;
+  damage: number;
 }
 
 interface AnalysisGameResponse {
@@ -850,8 +854,17 @@ interface AnalysisGameResponse {
   compId: string | null;
   compName: string | null;
   win: boolean;
+  queue: string;
+  date: number;
   players: AnalysisPlayerResponse[];
 }
+
+// Human labels for the team queues we scan.
+const QUEUE_LABEL: Record<number, string> = {
+  440: 'Flex',
+  400: '5v5 Draft',
+  430: '5v5 Blind'
+};
 
 interface CompAnalysisResponse {
   comps: CompPerformanceResponse[];
@@ -996,7 +1009,9 @@ async function computeCompAnalysis(
         champion: displayChampionName(p.championName),
         kills: p.kills,
         deaths: p.deaths,
-        assists: p.assists
+        assists: p.assists,
+        cs: p.totalMinionsKilled + p.neutralMinionsKilled,
+        damage: p.totalDamageDealtToChampions
       }))
       .sort((a, b) => (roleOrder[a.position] ?? 9) - (roleOrder[b.position] ?? 9));
     const playedSet = new Set(players.map((p) => normalizeChampKey(p.champion)));
@@ -1028,6 +1043,8 @@ async function computeCompAnalysis(
       compId: matched ? bestId : null,
       compName: matched ? bestName : null,
       win,
+      queue: QUEUE_LABEL[match.info.queueId] ?? 'Team',
+      date: match.info.gameCreation,
       players
     });
   }

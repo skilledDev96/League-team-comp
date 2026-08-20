@@ -142,6 +142,11 @@ export class CompsComponent {
     return { wins, losses: games.length - wins };
   }
 
+  // Compact damage label, e.g. 24312 -> "24.3k".
+  protected fmtDamage(value: number): string {
+    return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : `${value}`;
+  }
+
   // Match-analysis record for a comp panel, keyed by comp id.
   protected analysisFor(compId: string): CompPerformance | undefined {
     return this.data.compAnalysis()?.comps.find((c) => c.compId === compId);
