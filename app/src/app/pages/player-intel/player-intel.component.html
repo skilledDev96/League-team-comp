@@ -37,6 +37,11 @@
 <section class="grid two" aria-label="Player intel">
   @for (player of data.players(); track player.id) {
     <article class="card player-intel-card" [class.expanded]="isExpanded(player.id)" [id]="ui.playerAnchorId(player.name)">
+      @if (auth.canEdit()) {
+        <app-overflow-menu class="card-overflow">
+          <a class="overflow-item" [routerLink]="['/admin']" [queryParams]="{ tab: 'players', playerId: player.id }">Edit player</a>
+        </app-overflow-menu>
+      }
       <button type="button" class="player-panel-header" (click)="toggle(player.id)"
               [attr.aria-expanded]="isExpanded(player.id)">
         <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
@@ -44,11 +49,6 @@
           <span class="pp-name">{{ player.role }} - {{ player.name }}</span>
           <span class="pp-role">{{ player.playstyle || 'Unknown' }}</span>
         </span>
-        @if (auth.canEdit()) {
-          <a class="view-btn pi-edit-btn" [routerLink]="['/admin']" [queryParams]="{ tab: 'players', playerId: player.id }" (click)="$event.stopPropagation()">
-            <span class="material-symbols-rounded" aria-hidden="true">edit</span> Edit
-          </a>
-        }
         <span class="player-panel-chevron material-symbols-rounded" aria-hidden="true">
           {{ isExpanded(player.id) ? 'expand_less' : 'expand_more' }}
         </span>
@@ -87,18 +87,19 @@
           }
         </div>
 
-        <div class="links">
-          <a [href]="opgg(player)" target="_blank" rel="noopener noreferrer">OP.GG player search</a>
-          @if (mobalytics(player)) {
-            <a [href]="mobalytics(player)" target="_blank" rel="noopener noreferrer">Mobalytics player profile</a>
-          }
-          @for (champ of player.top3; track champ) {
-            <a [href]="ui.championBuildUrl(champ)" target="_blank" rel="noopener noreferrer">Build guide: {{ champ }}</a>
-          }
-          @if (player.learn) {
-            <a [href]="ui.championBuildUrl(player.learn)" target="_blank" rel="noopener noreferrer">Learn next build: {{ player.learn }}</a>
-          }
-        </div>
+        <app-external-profiles [name]="player.name" [profile]="player.profile" />
+
+        <details class="link-dropdown">
+          <summary>Build Guides</summary>
+          <div class="links compact">
+            @for (champ of player.top3; track champ) {
+              <a [href]="ui.championBuildUrl(champ)" target="_blank" rel="noopener noreferrer">Build guide: {{ champ }}</a>
+            }
+            @if (player.learn) {
+              <a [href]="ui.championBuildUrl(player.learn)" target="_blank" rel="noopener noreferrer">Learn next build: {{ player.learn }}</a>
+            }
+          </div>
+        </details>
 
         <h3>Suggested Bans</h3>
         <ul class="list-clean">

@@ -17,6 +17,58 @@ export interface SummonerProfile {
   mobalyticsSlug?: string;
 }
 
+export interface RankedQueueStats {
+  queueType: 'RANKED_SOLO_5x5' | 'RANKED_FLEX_SR';
+  tier: string;
+  rank: string;
+  leaguePoints: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
+export interface QueueMatchStats {
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  avgKills: number;
+  avgDeaths: number;
+  avgAssists: number;
+  avgKda: number;
+  avgCsPerMin: number;
+  avgKillParticipation: number;
+  avgDamageShare: number;
+  avgTankShare: number;
+  avgBuildingDamage: number;
+  avgVisionScore: number;
+  playstyle: string;
+  strengths: string[];
+  weaknesses: string[];
+  top3: string[];
+  learn?: string;
+  bans: string[];
+}
+
+export interface PlayerQueueStats {
+  rank?: RankedQueueStats;
+  matches?: QueueMatchStats;
+}
+
+export type SynergyQueue = 'RANKED_SOLO_5x5' | 'RANKED_FLEX_SR';
+
+export interface PremadeGroupStats {
+  playerIds: string[];
+  playerNames: string[];
+  queueType: SynergyQueue;
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  averageKda: number;
+  topChampions: string[];
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -28,6 +80,10 @@ export interface Player {
   top3: string[];
   learn?: string;
   bans: string[];
+  queueStats?: {
+    solo?: PlayerQueueStats;
+    flex?: PlayerQueueStats;
+  };
   profile?: SummonerProfile;
   order: number;
 }

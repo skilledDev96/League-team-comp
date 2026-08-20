@@ -1,14 +1,14 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Player } from '../../models/team.models';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
+import { ExternalProfilesComponent } from '../../shared/external-profiles.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 
 @Component({
   selector: 'app-overview',
-  imports: [RouterLink, PlayerAvatarComponent, ChampionChipComponent],
+  imports: [RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent],
   templateUrl: './overview.component.html'
 })
 export class OverviewComponent {
@@ -42,13 +42,5 @@ export class OverviewComponent {
 
   protected groupLabel(group: string): string {
     return group.replace(/([A-Z])/g, ' $1').trim();
-  }
-
-  protected opgg(player: Player): string {
-    return this.ui.summonerSearchUrl(player.name, player.profile);
-  }
-
-  protected mobalytics(player: Player): string {
-    return this.ui.summonerMobalyticsUrl(player.profile);
   }
 }

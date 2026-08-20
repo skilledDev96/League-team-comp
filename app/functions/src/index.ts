@@ -21,6 +21,17 @@ interface EnrichRequest {
   mobalyticsSlug?: string;
 }
 
+interface SynergyPlayerRequest {
+  id: string;
+  name: string;
+  riotTag?: string;
+  region?: string;
+}
+
+interface SynergyRequest {
+  players: SynergyPlayerRequest[];
+}
+
 interface EnrichResponse {
   playstyle: string;
   strengths: string[];
@@ -29,6 +40,10 @@ interface EnrichResponse {
   top3?: string[];
   learn?: string;
   bans?: string[];
+  queueStats?: {
+    solo?: QueueStats;
+    flex?: QueueStats;
+  };
   iconUrl?: string;
   source: 'template' | 'provider';
   provider: string;
@@ -158,6 +173,31 @@ function parseRequest(body: unknown): EnrichRequest {
   };
 }
 
+function parseSynergyRequest(body: unknown): SynergyRequest {
+  if (!body || typeof body !== 'object') {
+    throw new Error('Invalid payload. Expected a JSON object.');
+  }
+  const candidate = body as { players?: unknown };
+  if (!Array.isArray(candidate.players) || candidate.players.length < 2 || candidate.players.length > 5) {
+    throw new Error('players must contain between 2 and 5 roster players.');
+  }
+  const players = candidate.players.map((value) => {
+    const player = value as Record<string, unknown>;
+    const id = typeof player.id === 'string' ? player.id.trim() : '';
+    const name = typeof player.name === 'string' ? player.name.trim() : '';
+    if (!id || !name) {
+      throw new Error('Each synergy player requires an id and name.');
+    }
+    return {
+      id,
+      name,
+      riotTag: typeof player.riotTag === 'string' ? player.riotTag.trim() : undefined,
+      region: typeof player.region === 'string' ? player.region.trim().toLowerCase() : undefined
+    };
+  });
+  return { players };
+}
+
 async function getAccessRoleByEmail(email: string): Promise<AccessRole | null> {
   if (BOOTSTRAP_ADMIN_EMAILS.has(email)) {
     return 'admin';
@@ -184,6 +224,9 @@ function displayChampionName(riotChampionName: string): string {
 async function riotFetch<T>(url: string, apiKey: string): Promise<T> {
   const response = await fetch(url, { headers: { 'X-Riot-Token': apiKey } });
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Riot API key expired or invalid — ask an admin to refresh it.');
+    }
     throw new Error(`Riot API request failed (${response.status}) for ${url}`);
   }
   return (await response.json()) as T;
@@ -196,7 +239,79 @@ interface RiotAccount {
 }
 
 interface RiotSummoner {
+  id: string;
   profileIconId: number;
+}
+
+interface RiotLeagueEntry {
+  queueType: string;
+  tier: string;
+  rank: string;
+  leaguePoints: number;
+  wins: number;
+  losses: number;
+}
+
+interface RankedStats {
+  queueType: 'RANKED_SOLO_5x5' | 'RANKED_FLEX_SR';
+  tier: string;
+  rank: string;
+  leaguePoints: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
+interface MatchStats {
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  avgKills: number;
+  avgDeaths: number;
+  avgAssists: number;
+  avgKda: number;
+  avgCsPerMin: number;
+  avgKillParticipation: number;
+  avgDamageShare: number;
+  avgTankShare: number;
+  avgBuildingDamage: number;
+  avgVisionScore: number;
+  playstyle: string;
+  strengths: string[];
+  weaknesses: string[];
+  top3: string[];
+  learn?: string;
+  bans: string[];
+}
+
+interface QueueStats {
+  rank?: RankedStats;
+  matches?: MatchStats;
+}
+
+type SynergyQueueResponse = 'RANKED_SOLO_5x5' | 'RANKED_FLEX_SR';
+
+interface PremadeGroupResponse {
+  playerIds: string[];
+  playerNames: string[];
+  queueType: SynergyQueueResponse;
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  averageKda: number;
+  topChampions: string[];
+}
+
+interface PremadeAccumulator {
+  playerIds: string[];
+  playerNames: string[];
+  queueType: SynergyQueueResponse;
+  games: number;
+  wins: number;
+  kdaTotal: number;
+  champions: Map<string, number>;
 }
 
 interface RiotMatchParticipant {
@@ -223,7 +338,12 @@ interface RiotMatch {
   };
 }
 
-async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Promise<EnrichResponse> {
+async function fetchRiotQueueEnrichment(
+  payload: EnrichRequest,
+  apiKey: string,
+  queueType: 'RANKED_SOLO_5x5' | 'RANKED_FLEX_SR',
+  queueId: 420 | 440
+): Promise<EnrichResponse> {
   const region = payload.region ?? 'euw';
   const routing = REGION_ROUTING[region] ?? REGION_ROUTING['euw'];
   const gameName = payload.summonerName;
@@ -239,8 +359,14 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
     apiKey
   );
 
+  const rankedEntries = await riotFetch<RiotLeagueEntry[]>(
+    `https://${routing.platform}.api.riotgames.com/lol/league/v4/entries/by-summoner/${encodeURIComponent(summoner.id)}`,
+    apiKey
+  );
+  const rankedEntry = rankedEntries.find((entry) => entry.queueType === queueType);
+
   const matchIds = await riotFetch<string[]>(
-    `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${account.puuid}/ids?start=0&count=15`,
+    `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${account.puuid}/ids?queue=${queueId}&start=0&count=15`,
     apiKey
   );
 
@@ -414,10 +540,74 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
     top3,
     learn,
     bans,
+    queueStats: {
+      [queueType === 'RANKED_SOLO_5x5' ? 'solo' : 'flex']: {
+        rank: rankedEntry
+          ? {
+              queueType,
+              tier: rankedEntry.tier,
+              rank: rankedEntry.rank,
+              leaguePoints: rankedEntry.leaguePoints,
+              wins: rankedEntry.wins,
+              losses: rankedEntry.losses,
+              winRate: Math.round((rankedEntry.wins / Math.max(rankedEntry.wins + rankedEntry.losses, 1)) * 100)
+            }
+          : undefined,
+        matches: {
+        games,
+        wins: totalWins,
+        losses: games - totalWins,
+        winRate,
+        avgKills,
+        avgDeaths,
+        avgAssists,
+        avgKda,
+        avgCsPerMin,
+        avgKillParticipation,
+        avgDamageShare,
+        avgTankShare,
+        avgBuildingDamage,
+        avgVisionScore,
+        playstyle: archetype,
+        strengths: strengths.slice(0, 3),
+        weaknesses: weaknesses.slice(0, 3),
+        top3,
+        learn,
+          bans
+        }
+      }
+    },
     iconUrl: `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons/${summoner.profileIconId}.jpg`,
     source: 'provider',
     provider: 'riot-api',
     generatedAt: new Date().toISOString()
+  };
+}
+
+async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Promise<EnrichResponse> {
+  const [solo, flex] = await Promise.allSettled([
+    fetchRiotQueueEnrichment(payload, apiKey, 'RANKED_SOLO_5x5', 420),
+    fetchRiotQueueEnrichment(payload, apiKey, 'RANKED_FLEX_SR', 440)
+  ]);
+
+  const soloStats = solo.status === 'fulfilled' ? solo.value : undefined;
+  const flexStats = flex.status === 'fulfilled' ? flex.value : undefined;
+  const primary = flexStats ?? soloStats;
+
+  if (!primary) {
+    const reason = [solo, flex]
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      .map((result) => (result.reason instanceof Error ? result.reason.message : 'queue request failed'))
+      .join('; ');
+    throw new Error(reason || 'No ranked data found for this Riot ID.');
+  }
+
+  return {
+    ...primary,
+    queueStats: {
+      solo: soloStats?.queueStats?.solo,
+      flex: flexStats?.queueStats?.flex
+    }
   };
 }
 
@@ -477,6 +667,140 @@ export const enrichPlayer = onRequest({ cors: true, secrets: [RIOT_API_KEY] }, a
     const payload = parseRequest(req.body);
     const enriched = await enrichPlayerProfile(payload, RIOT_API_KEY.value());
     res.status(200).json(enriched);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unexpected error.';
+    res.status(400).json({ error: message });
+  }
+});
+
+function combinations<T>(items: T[], size: number): T[][] {
+  if (size === 0) return [[]];
+  if (items.length < size) return [];
+  const result: T[][] = [];
+  for (let index = 0; index <= items.length - size; index += 1) {
+    for (const rest of combinations(items.slice(index + 1), size - 1)) {
+      result.push([items[index], ...rest]);
+    }
+  }
+  return result;
+}
+
+async function getSynergyGroups(payload: SynergyRequest, apiKey: string): Promise<PremadeGroupResponse[]> {
+  const firstRegion = payload.players[0].region ?? 'euw';
+  const routing = REGION_ROUTING[firstRegion] ?? REGION_ROUTING.euw;
+  const identities = await Promise.all(payload.players.map(async (player) => {
+    const tagLine = (player.riotTag || firstRegion.toUpperCase()).replace(/^#/, '');
+    const account = await riotFetch<RiotAccount>(
+      `https://${routing.regional}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(player.name)}/${encodeURIComponent(tagLine)}`,
+      apiKey
+    );
+    return { ...player, puuid: account.puuid };
+  }));
+  const byPuuid = new Map(identities.map((player) => [player.puuid, player]));
+  const matchIdsByQueue = new Map<SynergyQueueResponse, Set<string>>();
+
+  for (const [queueType, queueId] of [['RANKED_FLEX_SR', 440], ['RANKED_SOLO_5x5', 420] ] as const) {
+    const ids = new Set<string>();
+    for (const player of identities) {
+      const matchIds = await riotFetch<string[]>(
+        `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${player.puuid}/ids?queue=${queueId}&start=0&count=20`,
+        apiKey
+      );
+      matchIds.forEach((matchId) => ids.add(matchId));
+    }
+    matchIdsByQueue.set(queueType, ids);
+  }
+
+  const groups = new Map<string, PremadeAccumulator>();
+  for (const [queueType, matchIds] of matchIdsByQueue) {
+    for (const matchId of matchIds) {
+      let match: RiotMatch;
+      try {
+        match = await riotFetch<RiotMatch>(
+          `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/${matchId}`,
+          apiKey
+        );
+      } catch {
+        continue;
+      }
+      const rosterParticipants = match.info.participants.filter((participant) => byPuuid.has(participant.puuid));
+      const teamGroups = new Map<number, RiotMatchParticipant[]>();
+      for (const participant of rosterParticipants) {
+        const members = teamGroups.get(participant.teamId) ?? [];
+        members.push(participant);
+        teamGroups.set(participant.teamId, members);
+      }
+      for (const members of teamGroups.values()) {
+        if (members.length < 2) continue;
+        for (let size = 2; size <= members.length; size += 1) {
+          for (const subset of combinations(members, size)) {
+            const playerIds = subset.map((member) => byPuuid.get(member.puuid)!.id).sort();
+            const key = `${queueType}:${playerIds.join('|')}`;
+            const accumulator = groups.get(key) ?? {
+              playerIds,
+              playerNames: playerIds.map((id) => identities.find((player) => player.id === id)!.name),
+              queueType,
+              games: 0,
+              wins: 0,
+              kdaTotal: 0,
+              champions: new Map<string, number>()
+            };
+            accumulator.games += 1;
+            if (subset[0].win) accumulator.wins += 1;
+            for (const member of subset) {
+              accumulator.kdaTotal += member.deaths > 0 ? (member.kills + member.assists) / member.deaths : member.kills + member.assists;
+              accumulator.champions.set(member.championName, (accumulator.champions.get(member.championName) ?? 0) + 1);
+            }
+            groups.set(key, accumulator);
+          }
+        }
+      }
+    }
+  }
+  return [...groups.values()]
+    .filter((group) => group.games > 0)
+    .map((group) => ({
+      playerIds: group.playerIds,
+      playerNames: group.playerNames,
+      queueType: group.queueType,
+      games: group.games,
+      wins: group.wins,
+      losses: group.games - group.wins,
+      winRate: Math.round((group.wins / group.games) * 100),
+      averageKda: group.kdaTotal / group.games / group.playerIds.length,
+      topChampions: [...group.champions.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([champion]) => displayChampionName(champion))
+    }))
+    .sort((a, b) => b.games - a.games);
+}
+
+export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY] }, async (req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed. Use POST.' });
+    return;
+  }
+  try {
+    const idToken = parseBearerToken(req.headers.authorization);
+    if (!idToken) {
+      res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
+      return;
+    }
+    const decoded = await getAuth().verifyIdToken(idToken);
+    const email = normalizeEmail(decoded.email);
+    const role = await getAccessRoleByEmail(email);
+    if (!role) {
+      res.status(403).json({ error: 'Insufficient role. Viewer access required.' });
+      return;
+    }
+    const payload = parseSynergyRequest(req.body);
+    const groups = await getSynergyGroups(payload, RIOT_API_KEY.value());
+    res.status(200).json({ groups, generatedAt: new Date().toISOString(), provider: 'riot-api' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected error.';
     res.status(400).json({ error: message });

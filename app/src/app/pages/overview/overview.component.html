@@ -80,12 +80,7 @@
               <span class="tag bad">{{ w }}</span>
             }
           </div>
-          <br />
-          <a class="tag" [href]="opgg(player)" target="_blank" rel="noopener noreferrer">Open player lookup</a>
-          @if (mobalytics(player)) {
-            <br />
-            <a class="tag" [href]="mobalytics(player)" target="_blank" rel="noopener noreferrer">Open Mobalytics profile</a>
-          }
+          <app-external-profiles [name]="player.name" [profile]="player.profile" />
         </div>
       </article>
     }

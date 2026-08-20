@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { getAuthInstance, isFirebaseConfigured } from '../core/firebase';
-import { Role } from '../models/team.models';
+import { PlayerQueueStats, Role } from '../models/team.models';
 
 interface EnrichRequest {
   summonerName: string;
@@ -19,6 +19,10 @@ interface EnrichResponse {
   top3?: string[];
   learn?: string;
   bans?: string[];
+  queueStats?: {
+    solo?: PlayerQueueStats;
+    flex?: PlayerQueueStats;
+  };
   iconUrl?: string;
   source: 'template' | 'provider';
   provider: string;
@@ -123,6 +127,7 @@ export class PlayerEnrichmentService {
       top3: data.top3,
       learn: data.learn,
       bans: data.bans,
+      queueStats: data.queueStats,
       iconUrl: data.iconUrl,
       source: data.source === 'provider' ? 'provider' : 'template',
       provider: data.provider ?? 'unknown',

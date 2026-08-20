@@ -5,6 +5,7 @@ import { Comp, CompPicks, FillIn, Player, ROLES, Role, AccessRole, AccessEntry }
 import { AuthService } from '../../services/auth.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 
 interface PlayerDraft {
@@ -23,6 +24,7 @@ interface PlayerDraft {
   opggSlug: string;
   riotTag: string;
   mobalyticsSlug: string;
+  queueStats?: Player['queueStats'];
 }
 
 interface FillInDraft {
@@ -75,7 +77,7 @@ function emptyPicks(): CompPicks {
 
 @Component({
   selector: 'app-admin',
-  imports: [FormsModule, RouterLink, PlayerAvatarComponent],
+  imports: [FormsModule, RouterLink, PlayerAvatarComponent, OverflowMenuComponent],
   templateUrl: './admin.component.html'
 })
 export class AdminComponent {
@@ -168,7 +170,8 @@ export class AdminComponent {
       region: p.profile?.region ?? 'euw',
       opggSlug: p.profile?.opggSlug ?? '',
       riotTag: p.profile?.riotTag ?? '',
-      mobalyticsSlug: p.profile?.mobalyticsSlug ?? ''
+      mobalyticsSlug: p.profile?.mobalyticsSlug ?? '',
+      queueStats: p.queueStats
     };
   }
 
@@ -329,7 +332,10 @@ export class AdminComponent {
       if (enriched.iconUrl) {
         draft.icon = enriched.iconUrl;
       }
-      this.flash(`Profile filled from ${enriched.provider}.`);
+      draft.queueStats = enriched.queueStats;
+      this.flash(enriched.source === 'provider'
+        ? `Profile filled from ${enriched.provider}.`
+        : `Couldn't fetch live Riot data: ${enriched.provider.replace(/^template-fallback:\s*/, '')}`);
     } catch (err) {
       this.flash(err instanceof Error ? err.message : 'Failed to enrich profile.');
     } finally {
@@ -417,6 +423,7 @@ export class AdminComponent {
       top3: splitList(draft.top3),
       learn: draft.learn.trim() || undefined,
       bans: splitList(draft.bans),
+      queueStats: draft.queueStats,
       profile
     };
     if (!base.name) {
@@ -434,6 +441,10 @@ export class AdminComponent {
   }
 
   async deletePlayer(draft: PlayerDraft): Promise<void> {
+    if (!this.auth.canManageUsers()) {
+      this.flash('Only admins can delete players.');
+      return;
+    }
     if (!draft.id) {
       this.playerDrafts.update((list) => list.filter((d) => d !== draft));
       return;
@@ -480,6 +491,10 @@ export class AdminComponent {
   }
 
   async deleteFillIn(draft: FillInDraft): Promise<void> {
+    if (!this.auth.canManageUsers()) {
+      this.flash('Only admins can delete fill-ins.');
+      return;
+    }
     if (!draft.id) {
       this.fillInDrafts.update((list) => list.filter((d) => d !== draft));
       return;
@@ -516,6 +531,10 @@ export class AdminComponent {
   }
 
   async deleteComp(draft: CompDraft): Promise<void> {
+    if (!this.auth.canManageUsers()) {
+      this.flash('Only admins can delete comps.');
+      return;
+    }
     if (!draft.id) {
       this.compDrafts.update((list) => list.filter((d) => d !== draft));
       return;

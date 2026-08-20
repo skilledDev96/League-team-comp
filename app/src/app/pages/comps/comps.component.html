@@ -21,9 +21,9 @@
         <span class="comp-type-icon material-symbols-rounded" aria-hidden="true">{{ compIcon(comp.name) }}</span>
         <span class="comp-summary-name">{{ comp.name }}</span>
         @if (auth.canEdit()) {
-          <a class="view-btn comp-edit-btn" [routerLink]="['/admin']" [queryParams]="{ tab: 'comps', compId: comp.id }" (click)="$event.stopPropagation()">
-            <span class="material-symbols-rounded" aria-hidden="true">edit</span> Edit
-          </a>
+          <app-overflow-menu>
+            <a class="overflow-item" [routerLink]="['/admin']" [queryParams]="{ tab: 'comps', compId: comp.id }">Edit comp</a>
+          </app-overflow-menu>
         }
         <span class="comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
       </summary>

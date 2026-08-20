@@ -27,6 +27,206 @@
   cursor: not-allowed;
 }
 
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.overflow-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.overflow-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: var(--surface-btn);
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.overflow-trigger:hover,
+.overflow-trigger.active {
+  color: var(--text-0);
+  border-color: var(--accent);
+}
+
+.overflow-panel {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 30;
+  min-width: 11rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.35rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: 0 14px 32px var(--shadow-elev);
+}
+
+.overflow-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-0);
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.overflow-item:hover,
+.overflow-item:focus-visible {
+  background: var(--surface-btn);
+}
+
+.overflow-item.danger {
+  color: var(--warn);
+}
+
+.card-overflow {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 5;
+}
+
+.player-intel-card {
+  position: relative;
+}
+
+.synergy-toolbar {
+  margin-bottom: 1rem;
+}
+
+.synergy-toolbar .view-controls {
+  align-items: end;
+}
+
+.segmented-control {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.segmented-control button {
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-1);
+  background: transparent;
+  cursor: pointer;
+}
+
+.segmented-control button.active,
+.segmented-control button:hover {
+  color: var(--text-0);
+  border-color: var(--accent);
+  background: var(--surface-btn);
+}
+
+.compact-field {
+  min-width: 9rem;
+}
+
+.synergy-grid {
+  align-items: start;
+}
+
+.synergy-card h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.synergy-card .title-row {
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.synergy-empty {
+  margin-top: 1rem;
+}
+
+.queue-stats {
+  margin: 1.25rem 0;
+  padding: 1rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: var(--surface-controls);
+}
+
+.queue-stats-heading {
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.queue-stats-heading h2 {
+  margin: 0;
+}
+
+.queue-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.85rem 0;
+}
+
+.queue-selector button {
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  padding: 0.45rem 0.7rem;
+  color: var(--text-1);
+  background: transparent;
+  cursor: pointer;
+}
+
+.queue-selector button.active,
+.queue-selector button:hover {
+  color: var(--text-0);
+  border-color: var(--accent);
+  background: var(--surface-btn);
+}
+
+.rank-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  align-items: baseline;
+  margin-bottom: 0.85rem;
+  color: var(--text-1);
+}
+
+.rank-summary strong {
+  color: var(--accent-2);
+  font-size: 1.2rem;
+}
+
+.combined-ranks {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.queue-stat-grid {
+  margin-bottom: 0.6rem;
+}
+
+.empty-state {
+  margin: 0;
+  color: var(--text-1);
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

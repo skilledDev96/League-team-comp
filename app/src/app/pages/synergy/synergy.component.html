@@ -1,0 +1,86 @@
+<section class="hero">
+  <h1>Team Synergy</h1>
+  <p>Compare roster combinations that played ranked together, or each player's own ranked and flex stats.</p>
+</section>
+
+<section class="card synergy-toolbar" aria-label="Team synergy controls">
+  <div class="view-controls">
+    <div class="segmented-control" role="group" aria-label="View">
+      <button type="button" [class.active]="viewMode() === 'groups'" (click)="viewMode.set('groups')">Groups</button>
+      <button type="button" [class.active]="viewMode() === 'individual'" (click)="viewMode.set('individual')">Individual</button>
+    </div>
+    <div class="segmented-control" role="group" aria-label="Queue">
+      <button type="button" [class.active]="queue() === 'RANKED_FLEX_SR'" (click)="queue.set('RANKED_FLEX_SR')">Flex</button>
+      <button type="button" [class.active]="queue() === 'RANKED_SOLO_5x5'" (click)="queue.set('RANKED_SOLO_5x5')">Solo/Duo</button>
+    </div>
+    @if (viewMode() === 'groups') {
+      <label class="field compact-field"><span>Group size</span>
+        <select [value]="groupFilter()" (change)="groupFilter.set($any($event.target).value)">
+          <option value="all">All groups</option><option value="duos">Duos</option><option value="trios">Trios</option><option value="full">4-5 players</option>
+        </select>
+      </label>
+      <label class="field compact-field"><span>Sort by</span>
+        <select [value]="sortMode()" (change)="sortMode.set($any($event.target).value)">
+          <option value="games">Most games</option><option value="winRate">Win rate</option>
+        </select>
+      </label>
+      <button class="view-btn active" type="button" [disabled]="loading()" (click)="refresh()">
+        @if (loading()) { <span class="btn-spinner" aria-hidden="true"></span>Refreshing... } @else { Refresh synergy }
+      </button>
+    }
+  </div>
+  @if (status()) { <p class="meta-line" role="status">{{ status() }}</p> }
+</section>
+
+@if (viewMode() === 'individual') {
+  <section class="grid three synergy-grid" aria-label="Individual ranked stats">
+    @for (row of rosterStats(); track row.player.id) {
+      <article class="card synergy-card">
+        <div class="title-row">
+          <app-player-avatar [name]="row.player.name" [icon]="row.player.icon" [role]="row.player.role" />
+          <h2>{{ row.player.role }} - {{ row.player.name }}</h2>
+          <span class="tag">{{ queueLabel(queue()) }}</span>
+        </div>
+        @if (row.stats?.rank; as rank) {
+          <p class="rank-summary"><strong>{{ rank.tier }} {{ rank.rank }}</strong> <span>{{ rank.leaguePoints }} LP</span> <span>{{ rank.wins }}W / {{ rank.losses }}L</span> <span>{{ rank.winRate }}%</span></p>
+        }
+        @if (row.stats?.matches; as m) {
+          <div class="stat-grid">
+            <span><b>{{ m.games }}</b> games</span>
+            <span><b>{{ m.winRate }}%</b> win rate</span>
+            <span><b>{{ m.avgKda.toFixed(1) }}</b> avg KDA</span>
+            <span><b>{{ m.avgCsPerMin.toFixed(1) }}</b> CS/min</span>
+          </div>
+          <p class="meta-line"><span class="meta-label">Champion pool</span><span class="meta-value">{{ m.top3.join(', ') || 'Unknown' }}</span></p>
+        }
+        @if (!row.stats?.rank && !row.stats?.matches) {
+          <p class="empty-state">No {{ queueLabel(queue()) }} data yet. Refresh this player from their profile.</p>
+        }
+        <a class="overflow-item" [routerLink]="['/player', row.player.id]">Open full profile</a>
+      </article>
+    }
+  </section>
+} @else if (visibleGroups().length) {
+  <section class="grid three synergy-grid" aria-label="Premade groups">
+    @for (group of visibleGroups(); track group.playerIds.join('-') + group.queueType) {
+      <article class="card synergy-card">
+        <div class="title-row">
+          <h2>{{ group.playerNames.join(' + ') }}</h2>
+          <span class="tag">{{ queueLabel(group.queueType) }}</span>
+        </div>
+        <div class="stat-grid">
+          <span><b>{{ group.games }}</b> games</span>
+          <span><b>{{ group.winRate }}%</b> win rate</span>
+          <span><b>{{ group.averageKda.toFixed(1) }}</b> avg KDA</span>
+          <span><b>{{ group.wins }}-{{ group.losses }}</b> record</span>
+        </div>
+        <p class="meta-line"><span class="meta-label">Champions together</span><span class="meta-value">{{ group.topChampions.join(', ') || 'Unknown' }}</span></p>
+      </article>
+    }
+  </section>
+} @else {
+  <section class="card empty-state synergy-empty">
+    <h2>No synergy data yet</h2>
+    <p>Refresh to inspect recent {{ queueLabel(queue()) }} matches. Only roster players found on the same team are included.</p>
+  </section>
+}

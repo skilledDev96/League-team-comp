@@ -27,6 +27,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/comps/comps.component').then((m) => m.CompsComponent)
   },
   {
+    path: 'synergy',
+    canActivate: [viewerGuard],
+    loadComponent: () => import('./pages/synergy/synergy.component').then((m) => m.SynergyComponent)
+  },
+  {
     path: 'login',
     loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent)
   },

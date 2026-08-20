@@ -5,10 +5,11 @@ import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
+import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 
 @Component({
   selector: 'app-comps',
-  imports: [RouterLink, ChampionChipComponent],
+  imports: [RouterLink, ChampionChipComponent, OverflowMenuComponent],
   templateUrl: './comps.component.html'
 })
 export class CompsComponent {
