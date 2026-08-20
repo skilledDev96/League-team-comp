@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Comp, CompOutcome, CompPerformance, CompRecord, CompResult, OffBookGame, Play, ROLES } from '../../models/team.models';
+import { AnalysisGame, Comp, CompOutcome, CompPerformance, CompRecord, CompResult, Play, ROLES } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -132,9 +132,24 @@ export class CompsComponent {
   protected readonly analysisError = signal('');
   protected readonly showOffBook = signal(false);
 
-  protected offBookRecord(games: OffBookGame[]): { wins: number; losses: number } {
+  // Off-book games (played 5-stacks that don't match a defined comp).
+  protected readonly offBookGames = computed<AnalysisGame[]>(() =>
+    (this.data.compAnalysis()?.games ?? []).filter((g) => !g.compId)
+  );
+
+  protected offBookRecord(games: AnalysisGame[]): { wins: number; losses: number } {
     const wins = games.filter((g) => g.win).length;
     return { wins, losses: games.length - wins };
+  }
+
+  // Match-analysis record for a comp panel, keyed by comp id.
+  protected analysisFor(compId: string): CompPerformance | undefined {
+    return this.data.compAnalysis()?.comps.find((c) => c.compId === compId);
+  }
+
+  // The full-5-stack games credited to one comp, for its expandable detail.
+  protected analysisGamesFor(compId: string): AnalysisGame[] {
+    return (this.data.compAnalysis()?.games ?? []).filter((g) => g.compId === compId);
   }
 
   protected async refreshAnalysis(): Promise<void> {

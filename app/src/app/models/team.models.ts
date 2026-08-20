@@ -158,14 +158,26 @@ export interface CompPerformance {
   winRate: number;
 }
 
-export interface OffBookGame {
-  champions: string[];
+export interface AnalysisPlayer {
+  name: string;
+  position: string;
+  champion: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+}
+
+export interface AnalysisGame {
+  matchId: string;
+  compId: string | null;
+  compName: string | null;
   win: boolean;
+  players: AnalysisPlayer[];
 }
 
 export interface CompAnalysis {
   comps: CompPerformance[];
-  offBook: OffBookGame[];
+  games: AnalysisGame[];
   totalTeamGames: number;
   scannedMatches: number;
   generatedAt: string;

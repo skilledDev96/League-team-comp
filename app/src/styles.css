@@ -2425,69 +2425,144 @@ body {
   border-color: var(--accent);
 }
 
-.offbook-list {
+/* Per-game breakdown: outcome + the five players with position and KDA. */
+.game-list {
   list-style: none;
   margin: 0.6rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
-.offbook-game {
+.game-card {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.35rem 0.6rem;
+  align-items: stretch;
+  gap: 0.7rem;
+  padding: 0.5rem 0.7rem;
   border-radius: 10px;
   border: 1px solid var(--card-border);
   background: var(--surface-btn);
   border-left-width: 3px;
 }
 
-.offbook-game.is-win {
+.game-card.is-win {
   border-left-color: var(--ok);
 }
 
-.offbook-game.is-loss {
+.game-card.is-loss {
   border-left-color: var(--warn);
 }
 
-.offbook-outcome {
+.game-outcome {
   flex: 0 0 auto;
+  align-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.6rem;
+  height: 1.6rem;
   border-radius: 999px;
   font-family: "Chakra Petch", sans-serif;
   font-weight: 700;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
 }
 
-.offbook-game.is-win .offbook-outcome {
+.game-card.is-win .game-outcome {
   color: var(--ok);
   background: color-mix(in srgb, var(--ok) 20%, transparent);
 }
 
-.offbook-game.is-loss .offbook-outcome {
+.game-card.is-loss .game-outcome {
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 20%, transparent);
 }
 
-.offbook-champs {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
+.game-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.3rem 0.9rem;
 }
 
-.offbook-champ {
-  width: 30px;
-  height: 30px;
+.game-player {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.game-champ {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
   border-radius: 999px;
   border: 1px solid var(--card-border);
   object-fit: cover;
+}
+
+.game-pos {
+  flex: 0 0 auto;
+  width: 2.6rem;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+}
+
+.game-pname {
+  flex: 1 1 auto;
+  font-size: 0.82rem;
+  color: var(--text-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-kda {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Match-history record shown on each comp panel. */
+.comp-ranked-record {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--text-1);
+}
+
+.comp-ranked-record .material-symbols-rounded {
+  font-size: 1rem;
+  color: var(--accent-2);
+}
+
+.comp-ranked-label {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.7rem;
+}
+
+.comp-ranked-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.comp-ranked-value.is-positive {
+  color: var(--ok);
+}
+
+.comp-ranked-value.is-negative {
+  color: var(--warn);
 }
 
 .analysis-empty {

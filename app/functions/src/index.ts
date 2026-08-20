@@ -836,14 +836,26 @@ interface CompPerformanceResponse {
   winRate: number;
 }
 
-interface OffBookGameResponse {
-  champions: string[];
+interface AnalysisPlayerResponse {
+  name: string;
+  position: string;
+  champion: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+}
+
+interface AnalysisGameResponse {
+  matchId: string;
+  compId: string | null;
+  compName: string | null;
   win: boolean;
+  players: AnalysisPlayerResponse[];
 }
 
 interface CompAnalysisResponse {
   comps: CompPerformanceResponse[];
-  offBook: OffBookGameResponse[];
+  games: AnalysisGameResponse[];
   totalTeamGames: number;
   scannedMatches: number;
   generatedAt: string;
@@ -909,6 +921,7 @@ async function computeCompAnalysis(
     })
   );
   const rosterPuuids = new Set(identities.map((i) => i.puuid));
+  const nameByPuuid = new Map(identities.map((i) => [i.puuid, i.name]));
   const fullStackSize = Math.min(5, identities.length);
 
   // Count how many roster members share each match id — a full 5-stack shows up
@@ -940,9 +953,12 @@ async function computeCompAnalysis(
   }));
 
   const perComp = new Map<string, { compId: string; compName: string; games: number; wins: number }>();
-  const offBook: OffBookGameResponse[] = [];
+  const games: AnalysisGameResponse[] = [];
   let totalTeamGames = 0;
   let scannedMatches = 0;
+
+  // Riot's position labels vary; normalise them and keep a role order for display.
+  const roleOrder: Record<string, number> = { Top: 0, Jungle: 1, Mid: 2, ADC: 3, Support: 4 };
 
   for (const matchId of candidateIds) {
     let match: RiotMatch;
@@ -972,9 +988,18 @@ async function computeCompAnalysis(
     if (!teamParts) continue;
 
     totalTeamGames += 1;
-    const champions = teamParts.map((p) => displayChampionName(p.championName));
     const win = teamParts[0].win;
-    const playedSet = new Set(champions.map(normalizeChampKey));
+    const players: AnalysisPlayerResponse[] = teamParts
+      .map((p) => ({
+        name: nameByPuuid.get(p.puuid) ?? 'Unknown',
+        position: TEAM_POSITION_TO_ROLE[p.teamPosition] ?? p.teamPosition ?? '',
+        champion: displayChampionName(p.championName),
+        kills: p.kills,
+        deaths: p.deaths,
+        assists: p.assists
+      }))
+      .sort((a, b) => (roleOrder[a.position] ?? 9) - (roleOrder[b.position] ?? 9));
+    const playedSet = new Set(players.map((p) => normalizeChampKey(p.champion)));
 
     let bestId: string | null = null;
     let bestName = '';
@@ -991,14 +1016,20 @@ async function computeCompAnalysis(
       }
     }
 
-    if (bestId && bestOverlap >= COMP_MATCH_THRESHOLD) {
+    const matched = bestId && bestOverlap >= COMP_MATCH_THRESHOLD;
+    if (matched && bestId) {
       const acc = perComp.get(bestId) ?? { compId: bestId, compName: bestName, games: 0, wins: 0 };
       acc.games += 1;
       if (win) acc.wins += 1;
       perComp.set(bestId, acc);
-    } else {
-      offBook.push({ champions, win });
     }
+    games.push({
+      matchId,
+      compId: matched ? bestId : null,
+      compName: matched ? bestName : null,
+      win,
+      players
+    });
   }
 
   const comps = [...perComp.values()]
@@ -1014,7 +1045,7 @@ async function computeCompAnalysis(
 
   return {
     comps,
-    offBook,
+    games,
     totalTeamGames,
     scannedMatches,
     generatedAt: new Date().toISOString()

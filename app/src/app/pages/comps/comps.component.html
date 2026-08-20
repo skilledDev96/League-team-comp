@@ -70,6 +70,16 @@
           }
         </div>
 
+        @if (analysisFor(comp.id); as ranked) {
+          <div class="comp-ranked-record">
+            <span class="material-symbols-rounded" aria-hidden="true">query_stats</span>
+            <span class="comp-ranked-label">Match history</span>
+            <span class="comp-ranked-value" [class.is-positive]="ranked.winRate >= 50" [class.is-negative]="ranked.winRate < 50">
+              {{ ranked.wins }}W&#8211;{{ ranked.losses }}L &middot; {{ ranked.winRate }}%
+            </span>
+          </div>
+        }
+
         @if (recordFor(comp.id); as record) {
           <div class="comp-record-bar" role="img" [attr.aria-label]="record.winRate + '% win rate'">
             <span class="comp-record-bar-fill" [style.width.%]="record.winRate"></span>
@@ -256,27 +266,32 @@
       <p class="muted">No full 5-stack games matched your comps in the scanned history.</p>
     }
 
-    @if (a.offBook.length) {
+    @if (offBookGames().length) {
       <div class="offbook-head">
         <span class="offbook-title">Off-book 5-stacks</span>
-        @if (offBookRecord(a.offBook); as r) {
+        @if (offBookRecord(offBookGames()); as r) {
           <span class="offbook-record" [class.is-positive]="r.wins >= r.losses">{{ r.wins }}W&#8211;{{ r.losses }}L</span>
         }
         <span class="offbook-note">comps you played that don't match a defined comp</span>
         <button type="button" class="offbook-toggle" (click)="showOffBook.set(!showOffBook())">
-          {{ showOffBook() ? 'Hide' : 'Show ' + a.offBook.length }}
+          {{ showOffBook() ? 'Hide' : 'Show ' + offBookGames().length }}
         </button>
       </div>
       @if (showOffBook()) {
-        <ul class="offbook-list">
-          @for (game of a.offBook; track $index) {
-            <li class="offbook-game" [class.is-win]="game.win" [class.is-loss]="!game.win">
-              <span class="offbook-outcome">{{ game.win ? 'W' : 'L' }}</span>
-              <span class="offbook-champs">
-                @for (champ of game.champions; track champ) {
-                  <img class="offbook-champ" [src]="ui.championIconUrl(champ)" [alt]="champ" [title]="champ" loading="lazy" />
+        <ul class="game-list">
+          @for (game of offBookGames(); track game.matchId) {
+            <li class="game-card" [class.is-win]="game.win" [class.is-loss]="!game.win">
+              <span class="game-outcome">{{ game.win ? 'W' : 'L' }}</span>
+              <ul class="game-players">
+                @for (p of game.players; track p.name) {
+                  <li class="game-player">
+                    <img class="game-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" [title]="p.champion" loading="lazy" />
+                    <span class="game-pos">{{ p.position }}</span>
+                    <span class="game-pname">{{ p.name }}</span>
+                    <span class="game-kda">{{ p.kills }}/{{ p.deaths }}/{{ p.assists }}</span>
+                  </li>
                 }
-              </span>
+              </ul>
             </li>
           }
         </ul>
