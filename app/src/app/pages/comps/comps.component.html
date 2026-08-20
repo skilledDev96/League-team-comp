@@ -20,8 +20,20 @@
       <summary class="comp-summary">
         <span class="comp-type-icon material-symbols-rounded" aria-hidden="true">{{ compIcon(comp.name) }}</span>
         <span class="comp-summary-name">{{ comp.name }}</span>
+        @if (recordFor(comp.id); as record) {
+          <span class="comp-record-badge"
+                [class.is-positive]="record.winRate >= 50"
+                [class.is-negative]="record.winRate < 50"
+                [attr.title]="record.wins + ' wins, ' + record.losses + ' losses'">
+            {{ record.wins }}W&#8211;{{ record.losses }}L
+            <span class="comp-record-rate">{{ record.winRate }}%</span>
+          </span>
+        }
         @if (auth.canEdit()) {
           <app-overflow-menu>
+            <button type="button" class="overflow-item" (click)="toggleLog(comp.id)">
+              {{ isLogging(comp.id) ? 'Hide result form' : 'Log a game' }}
+            </button>
             <a class="overflow-item" [routerLink]="['/admin']" [queryParams]="{ tab: 'comps', compId: comp.id }">Edit comp</a>
           </app-overflow-menu>
         }
@@ -36,6 +48,73 @@
               <span class="comp-note">{{ ui.parseCompLine(line).note }}</span>
             </div>
           }
+        }
+      </div>
+
+      <div class="comp-record">
+        <div class="comp-record-head">
+          <span class="comp-record-title material-symbols-rounded" aria-hidden="true">scoreboard</span>
+          <span class="comp-record-label">Track record</span>
+          @if (recordFor(comp.id); as record) {
+            <span class="comp-record-summary">{{ record.wins }}W&#8211;{{ record.losses }}L &middot; {{ record.winRate }}% win rate</span>
+          } @else {
+            <span class="comp-record-summary muted">No games logged yet</span>
+          }
+        </div>
+
+        @if (recordFor(comp.id); as record) {
+          <div class="comp-record-bar" role="img" [attr.aria-label]="record.winRate + '% win rate'">
+            <span class="comp-record-bar-fill" [style.width.%]="record.winRate"></span>
+          </div>
+          <ul class="comp-result-list">
+            @for (result of record.results; track result.id) {
+              <li class="comp-result" [class.is-win]="result.outcome === 'win'" [class.is-loss]="result.outcome === 'loss'">
+                <span class="comp-result-outcome">{{ result.outcome === 'win' ? 'Win' : 'Loss' }}</span>
+                <span class="comp-result-meta">
+                  @if (result.opponent) { <span class="comp-result-opp">vs {{ result.opponent }}</span> }
+                  <span class="comp-result-date">{{ result.playedOn }}</span>
+                  @if (result.note) { <span class="comp-result-note">{{ result.note }}</span> }
+                </span>
+                @if (auth.canEdit()) {
+                  <button type="button" class="comp-result-del" aria-label="Delete this result" (click)="deleteResult(result)">
+                    <span class="material-symbols-rounded" aria-hidden="true">close</span>
+                  </button>
+                }
+              </li>
+            }
+          </ul>
+        }
+
+        @if (auth.canEdit() && isLogging(comp.id)) {
+          <form class="comp-log-form" (ngSubmit)="logResult(comp.id)">
+            <div class="comp-log-outcome" role="group" aria-label="Result">
+              <button type="button" class="comp-log-toggle is-win"
+                      [class.active]="draftFor(comp.id).outcome === 'win'"
+                      (click)="patchDraft(comp.id, { outcome: 'win' })">Win</button>
+              <button type="button" class="comp-log-toggle is-loss"
+                      [class.active]="draftFor(comp.id).outcome === 'loss'"
+                      (click)="patchDraft(comp.id, { outcome: 'loss' })">Loss</button>
+            </div>
+            <label class="comp-log-field">
+              <span>Opponent</span>
+              <input type="text" [ngModel]="draftFor(comp.id).opponent"
+                     (ngModelChange)="patchDraft(comp.id, { opponent: $event })"
+                     [name]="'opp-' + comp.id" placeholder="e.g. Team Solo" />
+            </label>
+            <label class="comp-log-field">
+              <span>Date</span>
+              <input type="date" [ngModel]="draftFor(comp.id).playedOn"
+                     (ngModelChange)="patchDraft(comp.id, { playedOn: $event })"
+                     [name]="'date-' + comp.id" />
+            </label>
+            <label class="comp-log-field comp-log-field-wide">
+              <span>Note</span>
+              <input type="text" [ngModel]="draftFor(comp.id).note"
+                     (ngModelChange)="patchDraft(comp.id, { note: $event })"
+                     [name]="'note-' + comp.id" placeholder="What worked or didn't" />
+            </label>
+            <button type="submit" class="view-btn comp-log-submit" [disabled]="saving()">Log game</button>
+          </form>
         }
       </div>
     </details>

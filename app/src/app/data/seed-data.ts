@@ -173,6 +173,7 @@ export const SEED_DATA: TeamData = {
       }
     }
   ],
+  compResults: [],
   teamIdentity: {
     visionDriven: true,
     objectiveFocused: true,

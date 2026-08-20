@@ -108,6 +108,26 @@ export interface Comp {
   order: number;
 }
 
+export type CompOutcome = 'win' | 'loss';
+
+export interface CompResult {
+  id: string;
+  compId: string;
+  outcome: CompOutcome;
+  opponent?: string;
+  note?: string;
+  playedOn: string;
+  order: number;
+}
+
+export interface CompRecord {
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  results: CompResult[];
+}
+
 export interface TeamIdentity {
   visionDriven: boolean;
   objectiveFocused: boolean;
@@ -151,6 +171,7 @@ export interface TeamData {
   players: Player[];
   fillIns: FillIn[];
   comps: Comp[];
+  compResults: CompResult[];
   teamIdentity: TeamIdentity;
   macroSummary: MacroSummary;
   resourceLinks: ResourceLinks;

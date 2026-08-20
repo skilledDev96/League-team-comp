@@ -1383,6 +1383,269 @@ body {
   transform: rotate(180deg);
 }
 
+/* ---- Comp win/loss record ---------------------------------------------- */
+
+.comp-record-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+}
+
+.comp-record-badge.is-positive {
+  border-color: color-mix(in srgb, var(--ok) 55%, var(--card-border) 45%);
+  color: var(--ok);
+}
+
+.comp-record-badge.is-negative {
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--card-border) 45%);
+  color: var(--warn);
+}
+
+.comp-record-rate {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.comp-record {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.comp-record-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.comp-record-title {
+  font-size: 1.15rem;
+  color: var(--accent-2);
+}
+
+.comp-record-label {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  color: var(--text-0);
+}
+
+.comp-record-summary {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--text-1);
+}
+
+.comp-record-summary.muted {
+  opacity: 0.7;
+}
+
+.comp-record-bar {
+  position: relative;
+  height: 7px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--warn) 32%, transparent);
+}
+
+.comp-record-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--ok);
+  transition: width 260ms ease;
+}
+
+.comp-result-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.comp-result {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  border-left-width: 3px;
+}
+
+.comp-result.is-win {
+  border-left-color: var(--ok);
+}
+
+.comp-result.is-loss {
+  border-left-color: var(--warn);
+}
+
+.comp-result-outcome {
+  flex: 0 0 auto;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  width: 3rem;
+}
+
+.comp-result.is-win .comp-result-outcome {
+  color: var(--ok);
+}
+
+.comp-result.is-loss .comp-result-outcome {
+  color: var(--warn);
+}
+
+.comp-result-meta {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.7rem;
+  font-size: 0.85rem;
+  color: var(--text-1);
+  min-width: 0;
+}
+
+.comp-result-opp {
+  color: var(--text-0);
+  font-weight: 600;
+}
+
+.comp-result-date {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.comp-result-note {
+  opacity: 0.9;
+}
+
+.comp-result-del {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.comp-result-del:hover,
+.comp-result-del:focus-visible {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
+}
+
+.comp-result-del .material-symbols-rounded {
+  font-size: 1rem;
+}
+
+.comp-log-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  border: 1px dashed var(--card-border);
+  background: var(--surface-controls);
+}
+
+.comp-log-outcome {
+  display: inline-flex;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+}
+
+.comp-log-toggle {
+  padding: 0.4rem 0.9rem;
+  border: none;
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.comp-log-toggle.is-win.active {
+  background: color-mix(in srgb, var(--ok) 30%, var(--surface-btn) 70%);
+  color: var(--ok);
+}
+
+.comp-log-toggle.is-loss.active {
+  background: color-mix(in srgb, var(--warn) 30%, var(--surface-btn) 70%);
+  color: var(--warn);
+}
+
+.comp-log-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 8rem;
+  min-width: 7rem;
+}
+
+.comp-log-field-wide {
+  flex: 2 1 12rem;
+}
+
+.comp-log-field > span {
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.comp-log-field input {
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.comp-log-field input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.comp-log-submit {
+  flex: 0 0 auto;
+}
+
 .comp-panel-summary {
   list-style: none;
   cursor: pointer;
