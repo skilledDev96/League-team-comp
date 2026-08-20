@@ -24,8 +24,9 @@ const ALLY_SPOTS: Record<Role, { x: number; y: number }> = {
   Top: { x: 16, y: 26 },
   Jungle: { x: 32, y: 52 },
   Mid: { x: 46, y: 54 },
-  ADC: { x: 66, y: 82 },
-  Support: { x: 56, y: 82 }
+  // ADC + Support start in the blue-side bot-lane brushes (tri-brush pair).
+  ADC: { x: 74, y: 76 },
+  Support: { x: 80, y: 70 }
 };
 const ENEMY_SPOTS = [
   { x: 74, y: 18 },

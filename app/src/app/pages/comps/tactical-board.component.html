@@ -138,15 +138,9 @@
 
       @if (canEdit()) {
         <div class="tb-mode" role="group" aria-label="Board mode">
-          <button type="button" class="tb-mode-btn" [class.active]="mode() === 'move'" (click)="mode.set('move')">
-            <span class="material-symbols-rounded" aria-hidden="true">open_with</span> Move
-          </button>
-          <button type="button" class="tb-mode-btn" [class.active]="mode() === 'arrow'" (click)="mode.set('arrow')">
-            <span class="material-symbols-rounded" aria-hidden="true">arrow_outward</span> Draw
-          </button>
-          <button type="button" class="tb-mode-btn" [class.active]="mode() === 'objectives'" (click)="mode.set('objectives')">
-            <span class="material-symbols-rounded" aria-hidden="true">flag</span> Objectives
-          </button>
+          <button type="button" class="tb-mode-btn" [class.active]="mode() === 'move'" (click)="mode.set('move')">Move</button>
+          <button type="button" class="tb-mode-btn" [class.active]="mode() === 'arrow'" (click)="mode.set('arrow')">Draw</button>
+          <button type="button" class="tb-mode-btn" [class.active]="mode() === 'objectives'" (click)="mode.set('objectives')">Objectives</button>
         </div>
 
         @if (mode() === 'arrow') {

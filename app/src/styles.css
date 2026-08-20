@@ -1970,29 +1970,33 @@ body {
 }
 
 .tb-mode {
-  display: inline-flex;
+  display: flex;
+  width: 100%;
   border-radius: 999px;
   overflow: hidden;
   border: 1px solid var(--card-border);
-  align-self: flex-start;
 }
 
 .tb-mode-btn {
+  flex: 1 1 0;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.4rem 0.8rem;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.4rem;
   border: none;
   background: var(--surface-btn);
   color: var(--text-1);
   font-family: "Chakra Petch", sans-serif;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .tb-mode-btn .material-symbols-rounded {
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .tb-mode-btn.active {
@@ -2252,11 +2256,13 @@ body {
 }
 
 .tb-rail {
-  flex: 0 0 15rem;
+  flex: 0 0 16rem;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .tb-legend {
