@@ -20,13 +20,13 @@
       <summary class="comp-summary">
         <span class="comp-type-icon material-symbols-rounded" aria-hidden="true">{{ compIcon(comp.name) }}</span>
         <span class="comp-summary-name">{{ comp.name }}</span>
-        @if (recordFor(comp.id); as record) {
+        @if (panelBadge(comp.id); as badge) {
           <span class="comp-record-badge"
-                [class.is-positive]="record.winRate >= 50"
-                [class.is-negative]="record.winRate < 50"
-                [attr.title]="record.wins + ' wins, ' + record.losses + ' losses'">
-            {{ record.wins }}W&#8211;{{ record.losses }}L
-            <span class="comp-record-rate">{{ record.winRate }}%</span>
+                [class.is-positive]="badge.winRate >= 50"
+                [class.is-negative]="badge.winRate < 50"
+                [attr.title]="(badge.source === 'ranked' ? 'Match history: ' : 'Logged: ') + badge.wins + ' wins, ' + badge.losses + ' losses'">
+            {{ badge.wins }}W&#8211;{{ badge.losses }}L
+            <span class="comp-record-rate">{{ badge.winRate }}%</span>
           </span>
         }
         @if (auth.editing()) {
@@ -280,18 +280,29 @@
       @if (showOffBook()) {
         <ul class="game-list">
           @for (game of offBookGames(); track game.matchId) {
-            <li class="game-card" [class.is-win]="game.win" [class.is-loss]="!game.win">
-              <span class="game-outcome">{{ game.win ? 'W' : 'L' }}</span>
-              <ul class="game-players">
-                @for (p of game.players; track p.name) {
-                  <li class="game-player">
-                    <img class="game-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" [title]="p.champion" loading="lazy" />
-                    <span class="game-pos">{{ p.position }}</span>
-                    <span class="game-pname">{{ p.name }}</span>
-                    <span class="game-kda">{{ p.kills }}/{{ p.deaths }}/{{ p.assists }}</span>
-                  </li>
-                }
-              </ul>
+            <li>
+              <details class="game-panel" [class.is-win]="game.win" [class.is-loss]="!game.win">
+                <summary class="game-summary">
+                  <span class="game-outcome">{{ game.win ? 'W' : 'L' }}</span>
+                  <span class="game-champs">
+                    @for (p of game.players; track p.name) {
+                      <img class="game-champ-sm" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion"
+                           [title]="p.position + ' · ' + p.name + ' · ' + p.champion" loading="lazy" />
+                    }
+                  </span>
+                  <span class="game-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+                </summary>
+                <ul class="game-players">
+                  @for (p of game.players; track p.name) {
+                    <li class="game-player">
+                      <img class="game-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" loading="lazy" />
+                      <span class="game-pos">{{ p.position }}</span>
+                      <span class="game-pname">{{ p.name }}</span>
+                      <span class="game-kda">{{ p.kills }}/{{ p.deaths }}/{{ p.assists }}</span>
+                    </li>
+                  }
+                </ul>
+              </details>
             </li>
           }
         </ul>

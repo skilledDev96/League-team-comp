@@ -147,6 +147,22 @@ export class CompsComponent {
     return this.data.compAnalysis()?.comps.find((c) => c.compId === compId);
   }
 
+  // Collapsed-panel badge: prefer the manually logged record, fall back to the
+  // match-history record so comps with only Riot data still show a win ratio.
+  protected panelBadge(
+    compId: string
+  ): { wins: number; losses: number; winRate: number; source: 'log' | 'ranked' } | null {
+    const logged = this.recordFor(compId);
+    if (logged) {
+      return { wins: logged.wins, losses: logged.losses, winRate: logged.winRate, source: 'log' };
+    }
+    const ranked = this.analysisFor(compId);
+    if (ranked) {
+      return { wins: ranked.wins, losses: ranked.losses, winRate: ranked.winRate, source: 'ranked' };
+    }
+    return null;
+  }
+
   // The full-5-stack games credited to one comp, for its expandable detail.
   protected analysisGamesFor(compId: string): AnalysisGame[] {
     return (this.data.compAnalysis()?.games ?? []).filter((g) => g.compId === compId);

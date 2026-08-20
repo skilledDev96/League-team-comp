@@ -2425,7 +2425,7 @@ body {
   border-color: var(--accent);
 }
 
-/* Per-game breakdown: outcome + the five players with position and KDA. */
+/* Per-game breakdown: each game is a collapsible panel. */
 .game-list {
   list-style: none;
   margin: 0.6rem 0 0;
@@ -2435,28 +2435,37 @@ body {
   gap: 0.5rem;
 }
 
-.game-card {
-  display: flex;
-  align-items: stretch;
-  gap: 0.7rem;
-  padding: 0.5rem 0.7rem;
+.game-panel {
   border-radius: 10px;
   border: 1px solid var(--card-border);
   background: var(--surface-btn);
   border-left-width: 3px;
+  overflow: hidden;
 }
 
-.game-card.is-win {
+.game-panel.is-win {
   border-left-color: var(--ok);
 }
 
-.game-card.is-loss {
+.game-panel.is-loss {
   border-left-color: var(--warn);
+}
+
+.game-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.7rem;
+}
+
+.game-summary::-webkit-details-marker {
+  display: none;
 }
 
 .game-outcome {
   flex: 0 0 auto;
-  align-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2468,67 +2477,95 @@ body {
   font-size: 0.82rem;
 }
 
-.game-card.is-win .game-outcome {
+.game-panel.is-win .game-outcome {
   color: var(--ok);
   background: color-mix(in srgb, var(--ok) 20%, transparent);
 }
 
-.game-card.is-loss .game-outcome {
+.game-panel.is-loss .game-outcome {
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 20%, transparent);
 }
 
+.game-champs {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.game-champ-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  object-fit: cover;
+}
+
+.game-chevron {
+  flex: 0 0 auto;
+  color: var(--accent-2);
+  transition: transform 160ms ease;
+}
+
+.game-panel[open] .game-chevron {
+  transform: rotate(180deg);
+}
+
+/* Expanded detail: one player per line for clean, full-name readability. */
 .game-players {
   list-style: none;
   margin: 0;
-  padding: 0;
-  flex: 1 1 auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  gap: 0.3rem 0.9rem;
+  padding: 0.3rem 0.8rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--card-border);
 }
 
 .game-player {
-  display: flex;
+  display: grid;
+  grid-template-columns: 28px 4.75rem 1fr auto;
   align-items: center;
-  gap: 0.45rem;
-  min-width: 0;
+  gap: 0.65rem;
+  padding: 0.32rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 45%, transparent);
+}
+
+.game-player:last-child {
+  border-bottom: none;
 }
 
 .game-champ {
-  flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
   border: 1px solid var(--card-border);
   object-fit: cover;
 }
 
 .game-pos {
-  flex: 0 0 auto;
-  width: 2.6rem;
   font-family: "Chakra Petch", sans-serif;
   font-weight: 700;
   font-size: 0.66rem;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--accent-2);
 }
 
 .game-pname {
-  flex: 1 1 auto;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   color: var(--text-0);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .game-kda {
-  flex: 0 0 auto;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: var(--text-1);
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 /* Match-history record shown on each comp panel. */
