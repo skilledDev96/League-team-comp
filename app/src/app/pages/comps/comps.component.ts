@@ -16,6 +16,10 @@ interface ResultDraft {
   playedOn: string;
 }
 
+interface LogRow extends CompResult {
+  compName: string;
+}
+
 @Component({
   selector: 'app-comps',
   imports: [FormsModule, RouterLink, ChampionChipComponent, OverflowMenuComponent, TacticalBoardComponent],
@@ -89,6 +93,34 @@ export class CompsComponent {
     this.boardComp.set(null);
     this.boardPlay.set(null);
   }
+
+  // ---- Team-wide game log ----------------------------------------------
+
+  protected readonly logCompFilter = signal<string>('all');
+  protected readonly logResultFilter = signal<'all' | 'win' | 'loss'>('all');
+
+  private compName(compId: string): string {
+    return this.data.comps().find((c) => c.id === compId)?.name ?? 'Unknown comp';
+  }
+
+  // Every logged game, newest-first, with its comp name, after the active filters.
+  protected readonly logRows = computed<LogRow[]>(() => {
+    const comp = this.logCompFilter();
+    const result = this.logResultFilter();
+    return this.data
+      .compResults()
+      .filter((r) => (comp === 'all' || r.compId === comp) && (result === 'all' || r.outcome === result))
+      .map((r) => ({ ...r, compName: this.compName(r.compId) }))
+      .sort((a, b) => (a.playedOn === b.playedOn ? b.order - a.order : b.playedOn.localeCompare(a.playedOn)));
+  });
+
+  // Win/loss totals for whatever the filters currently show.
+  protected readonly logSummary = computed(() => {
+    const rows = this.logRows();
+    const wins = rows.filter((r) => r.outcome === 'win').length;
+    const games = rows.length;
+    return { games, wins, losses: games - wins, winRate: games ? Math.round((wins / games) * 100) : 0 };
+  });
 
   protected readonly banRows = computed(() =>
     this.data.players().map((p) => ({ role: p.role, name: p.name, bans: p.bans }))

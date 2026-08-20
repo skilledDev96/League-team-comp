@@ -1715,6 +1715,225 @@ body {
   color: var(--text-1);
 }
 
+/* ---- Game log ---------------------------------------------------------- */
+
+#logSection {
+  margin-top: 1.5rem;
+}
+
+.log-head {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.log-record {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+}
+
+.log-record.is-positive {
+  border-color: color-mix(in srgb, var(--ok) 55%, var(--card-border) 45%);
+  color: var(--ok);
+}
+
+.log-record.is-negative {
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--card-border) 45%);
+  color: var(--warn);
+}
+
+.log-record-rate {
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.log-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin: 0.9rem 0;
+}
+
+.log-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-1);
+}
+
+.log-filter select {
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.log-result-toggle {
+  display: inline-flex;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+}
+
+.log-result-toggle button {
+  padding: 0.42rem 0.9rem;
+  border: none;
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.log-result-toggle button.active {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-btn) 70%);
+  color: var(--text-0);
+}
+
+.log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.log-row {
+  display: grid;
+  grid-template-columns: 1.6rem 6.2rem 8rem 9rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  border-left-width: 3px;
+}
+
+.log-row.is-win {
+  border-left-color: var(--ok);
+}
+
+.log-row.is-loss {
+  border-left-color: var(--warn);
+}
+
+.log-outcome {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.log-row.is-win .log-outcome {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 20%, transparent);
+}
+
+.log-row.is-loss .log-outcome {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 20%, transparent);
+}
+
+.log-date {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  color: var(--text-1);
+}
+
+.log-comp {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--text-0);
+}
+
+.log-opp {
+  font-size: 0.85rem;
+  color: var(--text-1);
+}
+
+.log-note {
+  font-size: 0.85rem;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.log-del:hover,
+.log-del:focus-visible {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
+}
+
+.log-del .material-symbols-rounded {
+  font-size: 1rem;
+}
+
+.log-empty {
+  color: var(--text-1);
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+@media (max-width: 720px) {
+  .log-row {
+    grid-template-columns: 1.6rem 1fr auto;
+    grid-template-areas:
+      "outcome comp del"
+      "outcome meta del"
+      "note note note";
+    row-gap: 0.2rem;
+  }
+
+  .log-outcome { grid-area: outcome; }
+  .log-comp { grid-area: comp; }
+  .log-date { grid-area: meta; }
+  .log-opp { display: none; }
+  .log-note {
+    grid-area: note;
+    white-space: normal;
+  }
+  .log-del { grid-area: del; }
+}
+
 /* ---- Tactical board overlay -------------------------------------------- */
 
 .tb-scrim {

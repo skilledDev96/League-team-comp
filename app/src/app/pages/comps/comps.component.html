@@ -204,3 +204,53 @@
     </div>
   </section>
 }
+
+<section id="logSection" aria-label="Game log">
+  <div class="log-head">
+    <h2 class="title-with-icon"><span class="section-icon">GL</span>Game Log</h2>
+    @if (logSummary(); as s) {
+      <span class="log-record" [class.is-positive]="s.winRate >= 50" [class.is-negative]="s.winRate < 50 && s.games">
+        {{ s.wins }}W&#8211;{{ s.losses }}L
+        @if (s.games) { <span class="log-record-rate">{{ s.winRate }}%</span> }
+      </span>
+    }
+  </div>
+
+  <div class="log-filters">
+    <label class="log-filter">
+      <span>Comp</span>
+      <select [ngModel]="logCompFilter()" (ngModelChange)="logCompFilter.set($event)" name="logComp">
+        <option value="all">All comps</option>
+        @for (comp of data.comps(); track comp.id) {
+          <option [value]="comp.id">{{ comp.name }}</option>
+        }
+      </select>
+    </label>
+    <div class="log-result-toggle" role="group" aria-label="Result filter">
+      <button type="button" [class.active]="logResultFilter() === 'all'" (click)="logResultFilter.set('all')">All</button>
+      <button type="button" [class.active]="logResultFilter() === 'win'" (click)="logResultFilter.set('win')">Wins</button>
+      <button type="button" [class.active]="logResultFilter() === 'loss'" (click)="logResultFilter.set('loss')">Losses</button>
+    </div>
+  </div>
+
+  @if (logRows().length) {
+    <ul class="log-list">
+      @for (row of logRows(); track row.id) {
+        <li class="log-row" [class.is-win]="row.outcome === 'win'" [class.is-loss]="row.outcome === 'loss'">
+          <span class="log-outcome">{{ row.outcome === 'win' ? 'W' : 'L' }}</span>
+          <span class="log-date">{{ row.playedOn }}</span>
+          <span class="log-comp">{{ row.compName }}</span>
+          <span class="log-opp">{{ row.opponent ? 'vs ' + row.opponent : '—' }}</span>
+          <span class="log-note">{{ row.note }}</span>
+          @if (auth.canEdit()) {
+            <button type="button" class="log-del" aria-label="Delete this game" (click)="deleteResult(row)">
+              <span class="material-symbols-rounded" aria-hidden="true">close</span>
+            </button>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="log-empty">No games logged{{ logCompFilter() !== 'all' || logResultFilter() !== 'all' ? ' for this filter' : ' yet' }}. Log results from each comp above.</p>
+  }
+</section>
