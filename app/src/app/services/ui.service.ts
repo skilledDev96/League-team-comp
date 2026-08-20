@@ -1,5 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Role, SummonerProfile } from '../models/team.models';
+import { ChampionDataService } from './champion-data.service';
 
 const CHAMP_SLUG_MAP: Record<string, string> = {
   "Bel'Veth": 'belveth',
@@ -49,16 +50,29 @@ const PLAYSTYLE_ICONS: { test: RegExp; icon: string }[] = [
 export class UiService {
   readonly assetsBase = 'assets/summoners';
 
+  private readonly champions = inject(ChampionDataService);
+
   championSlug(championName: string): string {
     return CHAMP_SLUG_MAP[championName] ?? championName.toLowerCase().replace(/[^a-z0-9]/g, '');
   }
 
   championDDragonName(championName: string): string {
-    return CHAMP_DDRAGON_MAP[championName] ?? championName.replace(/[^A-Za-z0-9]/g, '');
+    // Prefer the live Data Dragon index; fall back to the static maps.
+    return (
+      this.champions.resolveId(championName) ??
+      CHAMP_DDRAGON_MAP[championName] ??
+      championName.replace(/[^A-Za-z0-9]/g, '')
+    );
   }
 
   championIconUrl(championName: string): string {
-    return `https://ddragon.leagueoflegends.com/cdn/14.24.1/img/champion/${this.championDDragonName(championName)}.png`;
+    const version = this.champions.version();
+    return `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${this.championDDragonName(championName)}.png`;
+  }
+
+  /** Riot class tags (Fighter, Mage, …) once the champion index has loaded. */
+  championTags(championName: string): string[] {
+    return this.champions.tags(championName);
   }
 
   championBuildUrl(championName: string): string {
