@@ -2032,6 +2032,161 @@ body {
   color: var(--ok);
 }
 
+/* Wide, invisible grab strip so the arrow body can be dragged as a whole. */
+.tb-arrow-hit {
+  stroke: transparent;
+  stroke-width: 5;
+  stroke-linecap: round;
+  fill: none;
+  pointer-events: stroke;
+  cursor: grab;
+}
+
+.tb-arrow-hit:active {
+  cursor: grabbing;
+}
+
+/* ---- Objective / wave markers ------------------------------------------ */
+
+.tb-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: default;
+  z-index: 2;
+}
+
+.tb-marker.draggable {
+  cursor: grab;
+}
+
+.tb-marker.draggable:active {
+  cursor: grabbing;
+}
+
+.tb-marker-badge {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: #10161c;
+  background: var(--mk, #d9b44a);
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.tb-marker-time {
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 0.02rem 0.3rem;
+  border-radius: 999px;
+}
+
+.tb-marker.is-minion,
+.tb-kind-btn.is-minion,
+.tb-marker-row.is-minion { --mk: #d9b44a; }
+.tb-marker.is-dragon,
+.tb-kind-btn.is-dragon,
+.tb-marker-row.is-dragon { --mk: #e2703a; }
+.tb-marker.is-grubs,
+.tb-kind-btn.is-grubs,
+.tb-marker-row.is-grubs { --mk: #6fc2a3; }
+.tb-marker.is-herald,
+.tb-kind-btn.is-herald,
+.tb-marker-row.is-herald { --mk: #a071d1; }
+.tb-marker.is-baron,
+.tb-kind-btn.is-baron,
+.tb-marker-row.is-baron { --mk: #8f7fe0; }
+
+.tb-kind-btn.is-minion,
+.tb-kind-btn.is-dragon,
+.tb-kind-btn.is-grubs,
+.tb-kind-btn.is-herald,
+.tb-kind-btn.is-baron {
+  border-color: color-mix(in srgb, var(--mk) 55%, var(--card-border) 45%);
+  color: var(--mk);
+}
+
+.tb-marker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tb-marker-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  border-left: 3px solid var(--mk, var(--accent));
+}
+
+.tb-marker-tag {
+  flex: 1 1 auto;
+  font-size: 0.8rem;
+  color: var(--text-0);
+}
+
+.tb-marker-time-input {
+  flex: 0 0 4.2rem;
+  width: 4.2rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.tb-marker-del {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.tb-marker-del:hover,
+.tb-marker-del:focus-visible {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
+}
+
+.tb-marker-del .material-symbols-rounded {
+  font-size: 0.95rem;
+}
+
 .tb-token {
   position: absolute;
   transform: translate(-50%, -50%);

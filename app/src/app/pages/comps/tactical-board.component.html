@@ -87,6 +87,11 @@
           <line class="tb-arrow-line" [class]="arrowClass(arrow)"
                 [attr.x1]="arrow.x1" [attr.y1]="arrow.y1" [attr.x2]="arrow.x2" [attr.y2]="arrow.y2"
                 marker-end="url(#tbArrowHead)" />
+          @if (canEdit() && mode() === 'arrow') {
+            <line class="tb-arrow-hit"
+                  [attr.x1]="arrow.x1" [attr.y1]="arrow.y1" [attr.x2]="arrow.x2" [attr.y2]="arrow.y2"
+                  (pointerdown)="startArrowMove(arrow, $event)" />
+          }
         }
       </svg>
 
@@ -109,6 +114,19 @@
           </button>
         }
       }
+
+      @for (marker of markers(); track marker.id) {
+        <button type="button" class="tb-marker" [class]="'is-' + marker.kind"
+                [class.draggable]="canEdit() && mode() !== 'arrow'"
+                [style.left.%]="marker.x" [style.top.%]="marker.y"
+                [attr.aria-label]="markerLabel(marker.kind) + (marker.time ? ' at ' + marker.time : '')"
+                (pointerdown)="startMarkerDrag(marker, $event)">
+          <span class="tb-marker-badge">{{ markerShort(marker.kind) }}</span>
+          @if (marker.time) {
+            <span class="tb-marker-time">{{ marker.time }}</span>
+          }
+        </button>
+      }
     </div>
     </div>
 
@@ -126,6 +144,9 @@
           <button type="button" class="tb-mode-btn" [class.active]="mode() === 'arrow'" (click)="mode.set('arrow')">
             <span class="material-symbols-rounded" aria-hidden="true">arrow_outward</span> Draw
           </button>
+          <button type="button" class="tb-mode-btn" [class.active]="mode() === 'objectives'" (click)="mode.set('objectives')">
+            <span class="material-symbols-rounded" aria-hidden="true">flag</span> Objectives
+          </button>
         </div>
 
         @if (mode() === 'arrow') {
@@ -134,7 +155,31 @@
             <button type="button" class="tb-kind-btn is-rotate" [class.active]="arrowKind() === 'rotate'" (click)="arrowKind.set('rotate')">Rotate</button>
             <button type="button" class="tb-kind-btn is-ward" [class.active]="arrowKind() === 'ward'" (click)="arrowKind.set('ward')">Vision</button>
           </div>
-          <p class="tb-hint">Drag on the map to draw a {{ arrowKind() }} arrow. Drag the dots to adjust, ✕ to remove.</p>
+          <p class="tb-hint">Drag on the map to draw a {{ arrowKind() }} arrow. Drag the line to move it, the dots to adjust, ✕ to remove.</p>
+        } @else if (mode() === 'objectives') {
+          <div class="tb-kind" role="group" aria-label="Add objective marker">
+            @for (kind of markerKinds; track kind) {
+              <button type="button" class="tb-kind-btn" [class]="'is-' + kind" (click)="addMarker(kind)">
+                + {{ markerShort(kind) }}
+              </button>
+            }
+          </div>
+          <p class="tb-hint">Add an objective or wave marker, drag it into place, and set its timer below.</p>
+          @if (markers().length) {
+            <ul class="tb-marker-list">
+              @for (marker of markers(); track marker.id) {
+                <li class="tb-marker-row" [class]="'is-' + marker.kind">
+                  <span class="tb-marker-tag">{{ markerLabel(marker.kind) }}</span>
+                  <input type="text" class="tb-marker-time-input" [ngModel]="marker.time"
+                         (ngModelChange)="setMarkerTime(marker.id, $event)"
+                         [name]="'time-' + marker.id" placeholder="mm:ss" />
+                  <button type="button" class="tb-marker-del" aria-label="Remove marker" (click)="deleteMarker(marker.id)">
+                    <span class="material-symbols-rounded" aria-hidden="true">close</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
         } @else {
           <p class="tb-hint">Drag any token to position it. Set the enemy champs you're planning against:</p>
         }

@@ -3,8 +3,10 @@ import { FormsModule } from '@angular/forms';
 import {
   ArrowKind,
   Comp,
+  MarkerKind,
   Play,
   PlayArrow,
+  PlayMarker,
   PlayPhase,
   PlayToken,
   Role,
@@ -33,6 +35,26 @@ const ENEMY_SPOTS = [
   { x: 72, y: 44 }
 ];
 
+// Objectives spawn at fixed spots; blue base is bottom-left, so the river runs
+// top-left (Baron/grubs/herald) to bottom-right (Dragon).
+const MARKER_DEFAULTS: Record<MarkerKind, { x: number; y: number }> = {
+  minion: { x: 50, y: 50 },
+  dragon: { x: 70, y: 66 },
+  grubs: { x: 32, y: 30 },
+  herald: { x: 34, y: 34 },
+  baron: { x: 30, y: 28 }
+};
+
+const MARKER_META: Record<MarkerKind, { label: string; short: string }> = {
+  minion: { label: 'Minion wave', short: 'M' },
+  dragon: { label: 'Dragon', short: 'DRK' },
+  grubs: { label: 'Void grubs', short: 'GRB' },
+  herald: { label: 'Rift Herald', short: 'HLD' },
+  baron: { label: 'Baron', short: 'BRN' }
+};
+
+const MARKER_KINDS: MarkerKind[] = ['minion', 'dragon', 'grubs', 'herald', 'baron'];
+
 @Component({
   selector: 'app-tactical-board',
   imports: [FormsModule],
@@ -60,16 +82,21 @@ export class TacticalBoardComponent {
   protected readonly notes = signal('');
   protected readonly tokens = signal<PlayToken[]>([]);
   protected readonly arrows = signal<PlayArrow[]>([]);
+  protected readonly markers = signal<PlayMarker[]>([]);
 
-  // 'move' drags tokens; 'arrow' draws/edits arrows. Arrow kind picks the style.
-  protected readonly mode = signal<'move' | 'arrow'>('move');
+  // 'move' drags tokens/markers; 'arrow' draws arrows; 'objectives' places markers.
+  protected readonly mode = signal<'move' | 'arrow' | 'objectives'>('move');
   protected readonly arrowKind = signal<ArrowKind>('dive');
+  protected readonly markerKinds = MARKER_KINDS;
 
   private boardEl: HTMLElement | null = null;
-  // What the current pointer gesture is manipulating.
+  // What the current pointer gesture is manipulating. arrow-move tracks the last
+  // pointer position so the whole arrow can be translated by the delta each frame.
   private drag:
     | { type: 'token'; id: string }
+    | { type: 'marker'; id: string }
     | { type: 'arrow-end'; id: string; end: 1 | 2 }
+    | { type: 'arrow-move'; id: string; lastX: number; lastY: number }
     | { type: 'new-arrow'; id: string }
     | null = null;
 
@@ -86,6 +113,7 @@ export class TacticalBoardComponent {
       this.notes.set(existing.notes ?? '');
       this.tokens.set(existing.tokens.map((t) => ({ ...t })));
       this.arrows.set((existing.arrows ?? []).map((a) => ({ ...a })));
+      this.markers.set((existing.markers ?? []).map((m) => ({ ...m })));
       return;
     }
     // New play: ally tokens from the comp's picks, plus five enemy slots.
@@ -179,6 +207,24 @@ export class TacticalBoardComponent {
     this.drag = { type: 'arrow-end', id: arrow.id, end };
   }
 
+  // Grab the arrow body to slide the whole arrow, both ends together.
+  protected startArrowMove(arrow: PlayArrow, event: PointerEvent): void {
+    if (!this.canEdit()) return;
+    const pos = this.posFromEvent(event);
+    if (!pos) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.drag = { type: 'arrow-move', id: arrow.id, lastX: pos.x, lastY: pos.y };
+  }
+
+  // Drag a marker — allowed in move or objectives mode.
+  protected startMarkerDrag(marker: PlayMarker, event: PointerEvent): void {
+    if (!this.canEdit() || this.mode() === 'arrow') return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.drag = { type: 'marker', id: marker.id };
+  }
+
   protected onPointerMove(event: PointerEvent): void {
     if (!this.drag) return;
     const pos = this.posFromEvent(event);
@@ -187,6 +233,28 @@ export class TacticalBoardComponent {
     if (active.type === 'token') {
       this.tokens.update((list) =>
         list.map((t) => (t.id === active.id ? { ...t, x: pos.x, y: pos.y } : t))
+      );
+    } else if (active.type === 'marker') {
+      this.markers.update((list) =>
+        list.map((m) => (m.id === active.id ? { ...m, x: pos.x, y: pos.y } : m))
+      );
+    } else if (active.type === 'arrow-move') {
+      const dx = pos.x - active.lastX;
+      const dy = pos.y - active.lastY;
+      active.lastX = pos.x;
+      active.lastY = pos.y;
+      this.arrows.update((list) =>
+        list.map((a) =>
+          a.id === active.id
+            ? {
+                ...a,
+                x1: clamp(a.x1 + dx),
+                y1: clamp(a.y1 + dy),
+                x2: clamp(a.x2 + dx),
+                y2: clamp(a.y2 + dy)
+              }
+            : a
+        )
       );
     } else {
       this.arrows.update((list) =>
@@ -223,6 +291,32 @@ export class TacticalBoardComponent {
     return (a.y1 + a.y2) / 2;
   }
 
+  // ---- Objective / wave markers -----------------------------------------
+
+  protected addMarker(kind: MarkerKind): void {
+    const spot = MARKER_DEFAULTS[kind];
+    const marker: PlayMarker = { id: `mk-${Date.now().toString(36)}`, kind, x: spot.x, y: spot.y };
+    this.markers.update((list) => [...list, marker]);
+  }
+
+  protected setMarkerTime(id: string, time: string): void {
+    this.markers.update((list) =>
+      list.map((m) => (m.id === id ? { ...m, time: time.trim() } : m))
+    );
+  }
+
+  protected deleteMarker(id: string): void {
+    this.markers.update((list) => list.filter((m) => m.id !== id));
+  }
+
+  protected markerLabel(kind: MarkerKind): string {
+    return MARKER_META[kind].label;
+  }
+
+  protected markerShort(kind: MarkerKind): string {
+    return MARKER_META[kind].short;
+  }
+
   // ---- Enemy champion assignment ----------------------------------------
 
   protected setEnemyChampion(id: string, champion: string): void {
@@ -244,7 +338,8 @@ export class TacticalBoardComponent {
         phase: this.phase(),
         notes: this.notes().trim() || undefined,
         tokens: this.tokens(),
-        arrows: this.arrows()
+        arrows: this.arrows(),
+        markers: this.markers()
       };
       if (existing) {
         await this.data.updatePlay({ ...existing, ...payload });

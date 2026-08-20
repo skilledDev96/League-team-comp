@@ -153,6 +153,18 @@ export interface PlayArrow {
   y2: number;
 }
 
+export type MarkerKind = 'minion' | 'dragon' | 'grubs' | 'herald' | 'baron';
+
+export interface PlayMarker {
+  id: string;
+  kind: MarkerKind;
+  // Position as a percentage of the board (0-100).
+  x: number;
+  y: number;
+  // Optional game-clock timing, e.g. "14:00".
+  time?: string;
+}
+
 export interface Play {
   id: string;
   compId: string;
@@ -161,6 +173,7 @@ export interface Play {
   notes?: string;
   tokens: PlayToken[];
   arrows?: PlayArrow[];
+  markers?: PlayMarker[];
   order: number;
 }
 
