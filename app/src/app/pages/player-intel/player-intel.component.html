@@ -11,6 +11,72 @@
   <p class="muted">Starter keeps each role compact. Full expands every scouting card.</p>
 </section>
 
+<section class="card practice-board" aria-label="Team practice board">
+  <div class="practice-head">
+    <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">fitness_center</span>Practice Board</h2>
+    @if (painSummary(); as s) {
+      <span class="practice-counts">
+        <span class="practice-count open">{{ s.open }} open</span>
+        <span class="practice-count done">{{ s.resolved }} resolved</span>
+      </span>
+    }
+  </div>
+
+  <div class="practice-filters">
+    <label class="practice-filter">
+      <span>Player</span>
+      <select [ngModel]="ppPlayerFilter()" (ngModelChange)="ppPlayerFilter.set($event)" name="ppPlayer">
+        <option value="all">All players</option>
+        @for (player of data.players(); track player.id) {
+          <option [value]="player.id">{{ player.name }}</option>
+        }
+      </select>
+    </label>
+    <div class="practice-status" role="group" aria-label="Status filter">
+      <button type="button" [class.active]="ppStatusFilter() === 'open'" (click)="ppStatusFilter.set('open')">Open</button>
+      <button type="button" [class.active]="ppStatusFilter() === 'resolved'" (click)="ppStatusFilter.set('resolved')">Resolved</button>
+      <button type="button" [class.active]="ppStatusFilter() === 'all'" (click)="ppStatusFilter.set('all')">All</button>
+    </div>
+  </div>
+
+  @if (auth.editing()) {
+    <form class="practice-add" (ngSubmit)="addPain()">
+      <select [ngModel]="ppNewPlayer()" (ngModelChange)="ppNewPlayer.set($event)" name="ppNewPlayer" aria-label="Player">
+        <option value="" disabled>Pick player…</option>
+        @for (player of data.players(); track player.id) {
+          <option [value]="player.id">{{ player.name }}</option>
+        }
+      </select>
+      <input type="text" [ngModel]="ppNewText()" (ngModelChange)="ppNewText.set($event)" name="ppNewText"
+             placeholder="e.g. Overextends without vision" />
+      <button type="submit" class="view-btn" [disabled]="ppSaving()">Add</button>
+    </form>
+  }
+
+  @if (painRows().length) {
+    <ul class="practice-list">
+      @for (row of painRows(); track row.id) {
+        <li class="practice-item" [class.resolved]="row.resolved">
+          <button type="button" class="practice-check" [class.done]="row.resolved"
+                  [disabled]="!auth.editing()" (click)="toggleResolved(row)"
+                  [attr.aria-label]="row.resolved ? 'Mark open' : 'Mark resolved'">
+            <span class="material-symbols-rounded" aria-hidden="true">{{ row.resolved ? 'check_circle' : 'radio_button_unchecked' }}</span>
+          </button>
+          <span class="practice-player">{{ row.playerName }}</span>
+          <span class="practice-text">{{ row.text }}</span>
+          @if (auth.editing()) {
+            <button type="button" class="practice-del" aria-label="Delete" (click)="deletePain(row.id)">
+              <span class="material-symbols-rounded" aria-hidden="true">close</span>
+            </button>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="muted">No pain points{{ ppStatusFilter() !== 'all' ? ' (' + ppStatusFilter() + ')' : '' }}{{ ppPlayerFilter() !== 'all' ? ' for this player' : '' }}.</p>
+  }
+</section>
+
 @if (data.fillIns().length) {
   <section class="grid two" aria-label="Fill-in profiles">
     @for (player of data.fillIns(); track player.id) {
@@ -78,6 +144,18 @@
             <span class="tag bad">{{ w }}</span>
           }
         </div>
+
+        @if (painFor(player.id).length) {
+          <h3>Working On</h3>
+          <ul class="player-pain-list">
+            @for (pain of painFor(player.id); track pain.id) {
+              <li class="player-pain" [class.resolved]="pain.resolved">
+                <span class="material-symbols-rounded" aria-hidden="true">{{ pain.resolved ? 'check_circle' : 'radio_button_unchecked' }}</span>
+                {{ pain.text }}
+              </li>
+            }
+          </ul>
+        }
 
         <h3>Champion Pool</h3>
         <div class="champ-chip-row">

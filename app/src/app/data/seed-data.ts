@@ -175,6 +175,7 @@ export const SEED_DATA: TeamData = {
   ],
   compResults: [],
   plays: [],
+  painPoints: [],
   teamIdentity: {
     visionDriven: true,
     objectiveFocused: true,

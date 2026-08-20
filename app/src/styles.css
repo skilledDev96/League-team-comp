@@ -762,6 +762,268 @@ body {
   color: var(--text-0);
 }
 
+/* ---- Practice board (pain points) -------------------------------------- */
+
+.practice-board {
+  margin-bottom: 1.25rem;
+}
+
+.practice-head {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.practice-head h2 {
+  margin: 0;
+}
+
+.practice-counts {
+  display: inline-flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.practice-count {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+}
+
+.practice-count.open {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
+}
+
+.practice-count.done {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--card-border) 55%);
+}
+
+.practice-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin: 0.9rem 0;
+}
+
+.practice-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-1);
+}
+
+.practice-filter select {
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.practice-status {
+  display: inline-flex;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+}
+
+.practice-status button {
+  padding: 0.42rem 0.9rem;
+  border: none;
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.practice-status button.active {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-btn) 70%);
+  color: var(--text-0);
+}
+
+.practice-add {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.9rem;
+}
+
+.practice-add select {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.practice-add input {
+  flex: 1 1 14rem;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.practice-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.practice-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  border-left: 3px solid var(--warn);
+}
+
+.practice-item.resolved {
+  border-left-color: var(--ok);
+  opacity: 0.7;
+}
+
+.practice-check {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.practice-check:disabled {
+  cursor: default;
+}
+
+.practice-check.done {
+  color: var(--ok);
+}
+
+.practice-check .material-symbols-rounded {
+  font-size: 1.25rem;
+}
+
+.practice-player {
+  flex: 0 0 auto;
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--accent-2);
+  min-width: 5.5rem;
+}
+
+.practice-text {
+  flex: 1 1 auto;
+  font-size: 0.9rem;
+  color: var(--text-0);
+}
+
+.practice-item.resolved .practice-text {
+  text-decoration: line-through;
+  color: var(--text-1);
+}
+
+.practice-del {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.practice-del:hover,
+.practice-del:focus-visible {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
+}
+
+.practice-del .material-symbols-rounded {
+  font-size: 1rem;
+}
+
+/* Per-player "Working On" list on the scouting card. */
+.player-pain-list {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.player-pain {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  color: var(--text-0);
+}
+
+.player-pain .material-symbols-rounded {
+  font-size: 1.05rem;
+  color: var(--warn);
+}
+
+.player-pain.resolved {
+  color: var(--text-1);
+}
+
+.player-pain.resolved .material-symbols-rounded {
+  color: var(--ok);
+}
+
+.player-pain.resolved {
+  text-decoration: line-through;
+}
+
+@media (max-width: 640px) {
+  .practice-item {
+    flex-wrap: wrap;
+  }
+
+  .practice-player {
+    min-width: 0;
+  }
+}
+
 .user-chip {
   display: flex;
   align-items: center;

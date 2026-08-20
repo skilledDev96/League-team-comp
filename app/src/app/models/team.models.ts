@@ -128,6 +128,15 @@ export interface CompRecord {
   results: CompResult[];
 }
 
+export interface PainPoint {
+  id: string;
+  playerId: string;
+  text: string;
+  resolved: boolean;
+  note?: string;
+  order: number;
+}
+
 export type PlayPhase = 'Early' | 'Mid' | 'Late';
 export type TokenSide = 'ally' | 'enemy';
 
@@ -224,6 +233,7 @@ export interface TeamData {
   comps: Comp[];
   compResults: CompResult[];
   plays: Play[];
+  painPoints: PainPoint[];
   teamIdentity: TeamIdentity;
   macroSummary: MacroSummary;
   resourceLinks: ResourceLinks;
