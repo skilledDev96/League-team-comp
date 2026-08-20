@@ -823,9 +823,9 @@ export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY] },
 
 // ---- Comp analysis (real win rates from full-5-stack team games) ----------
 
-// Queues that can be a full roster 5-stack: Ranked Flex plus the normal 5v5
-// variants (Draft, legacy Blind, and Quickplay — where casual 5-stacks land now).
-const TEAM_QUEUES = [440, 400, 430, 490];
+// Queues the team actually plays as a full 5-stack: Ranked Flex and weekend
+// Clash ("Ranked 5s"). Both are competitive 5v5 on Summoner's Rift.
+const TEAM_QUEUES = [440, 700];
 // Match-id pagination: how deep to look per player/queue (pages of 100).
 const MATCH_ID_PAGE_SIZE = 100;
 const MAX_MATCH_ID_PAGES = 4;
@@ -880,9 +880,10 @@ interface AnalysisGameResponse {
   players: AnalysisPlayerResponse[];
 }
 
-// Human labels for the team queues we scan.
+// Human labels for match queues (a few extras in case a cached match has them).
 const QUEUE_LABEL: Record<number, string> = {
   440: 'Flex',
+  700: 'Clash',
   400: '5v5 Draft',
   430: '5v5 Blind',
   490: '5v5 Quickplay'
