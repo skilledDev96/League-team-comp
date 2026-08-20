@@ -2234,6 +2234,165 @@ body {
 
 /* ---- Game log ---------------------------------------------------------- */
 
+/* ---- Match analysis panel --------------------------------------------- */
+
+#analysisSection {
+  margin-top: 1.5rem;
+}
+
+.analysis-head {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.analysis-head h2 {
+  margin: 0;
+}
+
+.analysis-refresh {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.analysis-refresh .material-symbols-rounded {
+  font-size: 1.05rem;
+}
+
+.analysis-error {
+  color: var(--warn);
+  font-size: 0.88rem;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+}
+
+.analysis-meta {
+  font-size: 0.82rem;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.analysis-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.analysis-row {
+  display: grid;
+  grid-template-columns: 9rem 4.5rem 1fr 3rem auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+}
+
+.analysis-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-0);
+}
+
+.analysis-record {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.analysis-bar {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--warn) 28%, transparent);
+}
+
+.analysis-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--accent-2);
+  transition: width 260ms ease;
+}
+
+.analysis-bar-fill.high {
+  background: var(--ok);
+}
+
+.analysis-bar-fill.low {
+  background: var(--warn);
+}
+
+.analysis-rate {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-0);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.analysis-verdict {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  white-space: nowrap;
+}
+
+.analysis-verdict.tone-good {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 50%, var(--card-border) 50%);
+}
+
+.analysis-verdict.tone-warn {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 50%, var(--card-border) 50%);
+}
+
+.analysis-verdict.tone-neutral {
+  color: var(--text-1);
+}
+
+.analysis-offbook {
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--text-1);
+}
+
+.analysis-empty {
+  margin-top: 0.4rem;
+}
+
+@media (max-width: 720px) {
+  .analysis-row {
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas:
+      "name record verdict"
+      "bar bar rate";
+    row-gap: 0.3rem;
+  }
+  .analysis-name { grid-area: name; }
+  .analysis-record { grid-area: record; }
+  .analysis-verdict { grid-area: verdict; }
+  .analysis-bar { grid-area: bar; }
+  .analysis-rate { grid-area: rate; }
+}
+
 #logSection {
   margin-top: 1.5rem;
 }

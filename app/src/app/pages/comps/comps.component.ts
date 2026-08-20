@@ -1,8 +1,10 @@
+import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Comp, CompOutcome, CompRecord, CompResult, Play, ROLES } from '../../models/team.models';
+import { Comp, CompOutcome, CompPerformance, CompRecord, CompResult, Play, ROLES } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
+import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
@@ -22,13 +24,14 @@ interface LogRow extends CompResult {
 
 @Component({
   selector: 'app-comps',
-  imports: [FormsModule, RouterLink, ChampionChipComponent, OverflowMenuComponent, TacticalBoardComponent],
+  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, OverflowMenuComponent, TacticalBoardComponent],
   templateUrl: './comps.component.html'
 })
 export class CompsComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
+  private readonly analysis = inject(CompAnalysisService);
   protected readonly roles = ROLES;
 
   // Start calm: Starter view with comp panels collapsed.
@@ -122,6 +125,35 @@ export class CompsComponent {
     const games = rows.length;
     return { games, wins, losses: games - wins, winRate: games ? Math.round((wins / games) * 100) : 0 };
   });
+
+  // ---- Riot match analysis ---------------------------------------------
+
+  protected readonly analysisLoading = signal(false);
+  protected readonly analysisError = signal('');
+
+  protected async refreshAnalysis(): Promise<void> {
+    if (this.analysisLoading()) return;
+    this.analysisLoading.set(true);
+    this.analysisError.set('');
+    try {
+      const result = await this.analysis.refresh(this.data.players(), this.data.comps());
+      // In Firebase mode the cache doc updates via onSnapshot; set directly as a
+      // fallback so the UI reflects the fresh result immediately.
+      this.data.compAnalysis.set(result);
+    } catch (err) {
+      this.analysisError.set(err instanceof Error ? err.message : 'Analysis failed.');
+    } finally {
+      this.analysisLoading.set(false);
+    }
+  }
+
+  // Keep / work-on / drop signal from win rate and sample size.
+  protected verdict(perf: CompPerformance): { label: string; tone: 'good' | 'warn' | 'neutral' } {
+    if (perf.games < 3) return { label: 'Low sample', tone: 'neutral' };
+    if (perf.winRate >= 60) return { label: 'Keep', tone: 'good' };
+    if (perf.winRate < 40) return { label: 'Drop', tone: 'warn' };
+    return { label: 'Work on', tone: 'neutral' };
+  }
 
   protected readonly banRows = computed(() =>
     this.data.players().map((p) => ({ role: p.role, name: p.name, bans: p.bans }))
