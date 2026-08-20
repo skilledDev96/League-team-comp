@@ -221,15 +221,27 @@ function displayChampionName(riotChampionName: string): string {
   return DDRAGON_TO_DISPLAY[riotChampionName] ?? riotChampionName;
 }
 
-async function riotFetch<T>(url: string, apiKey: string): Promise<T> {
-  const response = await fetch(url, { headers: { 'X-Riot-Token': apiKey } });
-  if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
-      throw new Error('Riot API key expired or invalid — ask an admin to refresh it.');
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function riotFetch<T>(url: string, apiKey: string, retries = 3): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetch(url, { headers: { 'X-Riot-Token': apiKey } });
+    // On rate limit, wait the server-provided window and retry a few times.
+    if (response.status === 429 && attempt < retries) {
+      const retryAfter = Number(response.headers.get('Retry-After')) || 2;
+      await sleep((retryAfter + 0.5) * 1000);
+      continue;
     }
-    throw new Error(`Riot API request failed (${response.status}) for ${url}`);
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Riot API key expired or invalid — ask an admin to refresh it.');
+      }
+      throw new Error(`Riot API request failed (${response.status}) for ${url}`);
+    }
+    return (await response.json()) as T;
   }
-  return (await response.json()) as T;
 }
 
 interface RiotAccount {
@@ -813,8 +825,9 @@ export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY] },
 
 // Queues that can be a full roster 5-stack: Ranked Flex and normal 5v5 Draft.
 const TEAM_QUEUES = [440, 400];
-// How many recent matches to pull per player, per queue.
-const TEAM_MATCH_COUNT = 20;
+// How many recent matches to pull per player, per queue. Deeper history is safe
+// now that match details are cached and rate limits are retried.
+const TEAM_MATCH_COUNT = 50;
 // A played comp is credited to a defined comp when at least this many champs overlap.
 const COMP_MATCH_THRESHOLD = 3;
 
@@ -866,11 +879,67 @@ const QUEUE_LABEL: Record<number, string> = {
   430: '5v5 Blind'
 };
 
+// A finished match never changes, so we cache the fields we need in Firestore
+// and only fetch a match from Riot the first time we see it.
+interface CachedParticipant {
+  puuid: string;
+  championName: string;
+  win: boolean;
+  teamId: number;
+  teamPosition: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  cs: number;
+  damage: number;
+}
+
+interface CachedMatch {
+  queueId: number;
+  gameCreation: number;
+  participants: CachedParticipant[];
+}
+
+async function getCachedMatch(
+  matchId: string,
+  regional: string,
+  apiKey: string
+): Promise<{ match: CachedMatch; fromCache: boolean }> {
+  const ref = getFirestore().doc(`matchCache/${matchId}`);
+  const snap = await ref.get();
+  if (snap.exists) {
+    return { match: snap.data() as CachedMatch, fromCache: true };
+  }
+  const raw = await riotFetch<RiotMatch>(
+    `https://${regional}.api.riotgames.com/lol/match/v5/matches/${matchId}`,
+    apiKey
+  );
+  const match: CachedMatch = {
+    queueId: raw.info.queueId,
+    gameCreation: raw.info.gameCreation,
+    participants: raw.info.participants.map((p) => ({
+      puuid: p.puuid,
+      championName: p.championName,
+      win: p.win,
+      teamId: p.teamId,
+      teamPosition: p.teamPosition,
+      kills: p.kills,
+      deaths: p.deaths,
+      assists: p.assists,
+      cs: p.totalMinionsKilled + p.neutralMinionsKilled,
+      damage: p.totalDamageDealtToChampions
+    }))
+  };
+  await ref.set(match);
+  return { match, fromCache: false };
+}
+
 interface CompAnalysisResponse {
   comps: CompPerformanceResponse[];
   games: AnalysisGameResponse[];
   totalTeamGames: number;
   scannedMatches: number;
+  newMatches: number;
   generatedAt: string;
 }
 
@@ -969,29 +1038,29 @@ async function computeCompAnalysis(
   const games: AnalysisGameResponse[] = [];
   let totalTeamGames = 0;
   let scannedMatches = 0;
+  let newMatches = 0;
 
   // Riot's position labels vary; normalise them and keep a role order for display.
   const roleOrder: Record<string, number> = { Top: 0, Jungle: 1, Mid: 2, ADC: 3, Support: 4 };
 
   for (const matchId of candidateIds) {
-    let match: RiotMatch;
+    let match: CachedMatch;
     try {
-      match = await riotFetch<RiotMatch>(
-        `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/${matchId}`,
-        apiKey
-      );
+      const result = await getCachedMatch(matchId, routing.regional, apiKey);
+      match = result.match;
+      if (!result.fromCache) newMatches += 1;
     } catch {
       continue;
     }
     scannedMatches += 1;
-    const rosterParticipants = match.info.participants.filter((p) => rosterPuuids.has(p.puuid));
-    const byTeam = new Map<number, RiotMatchParticipant[]>();
+    const rosterParticipants = match.participants.filter((p) => rosterPuuids.has(p.puuid));
+    const byTeam = new Map<number, CachedParticipant[]>();
     for (const participant of rosterParticipants) {
       const members = byTeam.get(participant.teamId) ?? [];
       members.push(participant);
       byTeam.set(participant.teamId, members);
     }
-    let teamParts: RiotMatchParticipant[] | null = null;
+    let teamParts: CachedParticipant[] | null = null;
     for (const members of byTeam.values()) {
       if (members.length >= fullStackSize) {
         teamParts = members;
@@ -1010,8 +1079,8 @@ async function computeCompAnalysis(
         kills: p.kills,
         deaths: p.deaths,
         assists: p.assists,
-        cs: p.totalMinionsKilled + p.neutralMinionsKilled,
-        damage: p.totalDamageDealtToChampions
+        cs: p.cs,
+        damage: p.damage
       }))
       .sort((a, b) => (roleOrder[a.position] ?? 9) - (roleOrder[b.position] ?? 9));
     const playedSet = new Set(players.map((p) => normalizeChampKey(p.champion)));
@@ -1043,8 +1112,8 @@ async function computeCompAnalysis(
       compId: matched ? bestId : null,
       compName: matched ? bestName : null,
       win,
-      queue: QUEUE_LABEL[match.info.queueId] ?? 'Team',
-      date: match.info.gameCreation,
+      queue: QUEUE_LABEL[match.queueId] ?? 'Team',
+      date: match.gameCreation,
       players
     });
   }
@@ -1065,6 +1134,7 @@ async function computeCompAnalysis(
     games,
     totalTeamGames,
     scannedMatches,
+    newMatches,
     generatedAt: new Date().toISOString()
   };
 }

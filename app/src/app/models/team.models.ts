@@ -184,6 +184,7 @@ export interface CompAnalysis {
   games: AnalysisGame[];
   totalTeamGames: number;
   scannedMatches: number;
+  newMatches?: number;
   generatedAt: string;
 }
 
