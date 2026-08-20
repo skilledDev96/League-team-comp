@@ -170,7 +170,9 @@ export interface Play {
   compId: string;
   title: string;
   phase: PlayPhase;
+  // Legacy single note; kept for reading old plays. New plays use noteItems.
   notes?: string;
+  noteItems?: string[];
   tokens: PlayToken[];
   arrows?: PlayArrow[];
   markers?: PlayMarker[];

@@ -1727,7 +1727,7 @@ body {
 
 .tb-modal {
   position: fixed;
-  inset: 3vh 3vw;
+  inset: 1.5vh 1.5vw;
   z-index: 41;
   display: flex;
   flex-direction: column;
@@ -1838,8 +1838,8 @@ body {
 .tb-body {
   flex: 1 1 auto;
   display: flex;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 0.9rem;
+  padding: 0.75rem;
   min-height: 0;
 }
 
@@ -2357,21 +2357,89 @@ body {
   color: var(--text-1);
 }
 
-.tb-notes textarea {
-  padding: 0.5rem;
+.tb-note-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tb-note-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  background: var(--surface-btn);
+  border: 1px solid var(--card-border);
+  border-left: 3px solid var(--accent-2);
+  font-size: 0.82rem;
+  color: var(--text-0);
+}
+
+.tb-note-item > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tb-note-del {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.tb-note-del:hover,
+.tb-note-del:focus-visible {
+  color: var(--warn);
+}
+
+.tb-note-del .material-symbols-rounded {
+  font-size: 0.9rem;
+}
+
+.tb-note-add {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.tb-note-add input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.4rem 0.55rem;
   border-radius: 8px;
   border: 1px solid var(--card-border);
   background: var(--surface-btn);
   color: var(--text-0);
   font: inherit;
-  font-size: 0.85rem;
-  resize: vertical;
+  font-size: 0.82rem;
 }
 
-.tb-notes-static p {
-  margin: 0.3rem 0 0;
-  font-size: 0.9rem;
+.tb-note-add input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.tb-note-add-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--accent) 28%, var(--surface-btn) 72%);
   color: var(--text-0);
+  cursor: pointer;
 }
 
 .tb-foot {

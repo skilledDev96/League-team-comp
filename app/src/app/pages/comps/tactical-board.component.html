@@ -191,15 +191,36 @@
           }
         </ul>
 
-        <label class="tb-notes">
-          <span>Notes</span>
-          <textarea rows="4" [ngModel]="notes()" (ngModelChange)="notes.set($event)" name="playNotes"
-                    placeholder="e.g. Vi flanks from river, Galio ults on the all-in at 6."></textarea>
-        </label>
-      } @else if (notes()) {
+        <div class="tb-notes">
+          <span class="tb-notes-label">Notes</span>
+          @if (noteItems().length) {
+            <ul class="tb-note-list">
+              @for (note of noteItems(); track $index) {
+                <li class="tb-note-item">
+                  <span>{{ note }}</span>
+                  <button type="button" class="tb-note-del" aria-label="Delete note" (click)="deleteNote($index)">
+                    <span class="material-symbols-rounded" aria-hidden="true">close</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+          <form class="tb-note-add" (ngSubmit)="addNote()">
+            <input type="text" [ngModel]="newNote()" (ngModelChange)="newNote.set($event)" name="newNote"
+                   placeholder="e.g. Vi flanks from river at 6" />
+            <button type="submit" class="tb-note-add-btn" aria-label="Add note">
+              <span class="material-symbols-rounded" aria-hidden="true">add</span>
+            </button>
+          </form>
+        </div>
+      } @else if (noteItems().length) {
         <div class="tb-notes-static">
           <span class="tb-notes-label">Notes</span>
-          <p>{{ notes() }}</p>
+          <ul class="tb-note-list">
+            @for (note of noteItems(); track $index) {
+              <li class="tb-note-item"><span>{{ note }}</span></li>
+            }
+          </ul>
         </div>
       }
     </aside>

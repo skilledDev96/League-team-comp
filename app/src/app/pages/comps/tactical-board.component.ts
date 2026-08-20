@@ -28,12 +28,14 @@ const ALLY_SPOTS: Record<Role, { x: number; y: number }> = {
   ADC: { x: 74, y: 76 },
   Support: { x: 80, y: 70 }
 };
+// Enemy tokens start as a tidy staging column down the left edge, ready to be
+// dragged onto the map (they have no champion until you assign one).
 const ENEMY_SPOTS = [
-  { x: 74, y: 18 },
-  { x: 60, y: 34 },
-  { x: 54, y: 46 },
-  { x: 82, y: 50 },
-  { x: 72, y: 44 }
+  { x: 5, y: 16 },
+  { x: 5, y: 33 },
+  { x: 5, y: 50 },
+  { x: 5, y: 67 },
+  { x: 5, y: 84 }
 ];
 
 // Objectives spawn at fixed spots; blue base is bottom-left, so the river runs
@@ -80,7 +82,8 @@ export class TacticalBoardComponent {
   // Working copy the board edits; committed to the service on Save.
   protected readonly title = signal('');
   protected readonly phase = signal<PlayPhase>('Early');
-  protected readonly notes = signal('');
+  protected readonly noteItems = signal<string[]>([]);
+  protected readonly newNote = signal('');
   protected readonly tokens = signal<PlayToken[]>([]);
   protected readonly arrows = signal<PlayArrow[]>([]);
   protected readonly markers = signal<PlayMarker[]>([]);
@@ -111,7 +114,9 @@ export class TacticalBoardComponent {
     if (existing) {
       this.title.set(existing.title);
       this.phase.set(existing.phase);
-      this.notes.set(existing.notes ?? '');
+      // Prefer the new list; fall back to migrating a legacy single note.
+      const items = existing.noteItems ?? (existing.notes ? [existing.notes] : []);
+      this.noteItems.set([...items]);
       this.tokens.set(existing.tokens.map((t) => ({ ...t })));
       this.arrows.set((existing.arrows ?? []).map((a) => ({ ...a })));
       this.markers.set((existing.markers ?? []).map((m) => ({ ...m })));
@@ -136,8 +141,19 @@ export class TacticalBoardComponent {
     }));
     this.title.set('New play');
     this.phase.set('Early');
-    this.notes.set('');
+    this.noteItems.set([]);
     this.tokens.set([...ally, ...enemy]);
+  }
+
+  protected addNote(): void {
+    const text = this.newNote().trim();
+    if (!text) return;
+    this.noteItems.update((list) => [...list, text]);
+    this.newNote.set('');
+  }
+
+  protected deleteNote(index: number): void {
+    this.noteItems.update((list) => list.filter((_, i) => i !== index));
   }
 
   protected readonly enemyTokens = computed(() => this.tokens().filter((t) => t.side === 'enemy'));
@@ -337,7 +353,8 @@ export class TacticalBoardComponent {
         compId: this.comp().id,
         title: this.title().trim() || 'Untitled play',
         phase: this.phase(),
-        notes: this.notes().trim() || undefined,
+        notes: undefined,
+        noteItems: this.noteItems(),
         tokens: this.tokens(),
         arrows: this.arrows(),
         markers: this.markers()
