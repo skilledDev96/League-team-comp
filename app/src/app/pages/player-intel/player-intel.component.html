@@ -4,9 +4,11 @@
 </section>
 
 <section class="view-controls" aria-label="View controls">
-  <button class="view-btn" [class.active]="!fullView()" type="button" (click)="fullView.set(false)">Starter View</button>
-  <button class="view-btn" [class.active]="fullView()" type="button" (click)="fullView.set(true)">Full View</button>
-  <p class="muted">Starter View keeps each role compact. Open Full View for prep deep-dive.</p>
+  <div class="view-segment" role="group" aria-label="Detail level">
+    <button type="button" [class.active]="!fullView()" (click)="fullView.set(false)">Starter</button>
+    <button type="button" [class.active]="fullView()" (click)="fullView.set(true)">Full</button>
+  </div>
+  <p class="muted">Starter keeps each role compact. Full expands every scouting card.</p>
 </section>
 
 @if (data.fillIns().length) {
@@ -25,7 +27,7 @@
           @if (ui.summonerMobalyticsUrl(player.profile); as mobaUrl) {
             <a [href]="mobaUrl" target="_blank" rel="noopener noreferrer">Mobalytics player profile</a>
           }
-          @if (auth.canEdit()) {
+          @if (auth.editing()) {
             <a class="view-btn" [routerLink]="['/admin']" [queryParams]="{ tab: 'fillins', fillInId: player.id }">Edit fill-in</a>
           }
         </div>
@@ -37,7 +39,7 @@
 <section class="grid two" aria-label="Player intel">
   @for (player of data.players(); track player.id) {
     <article class="card player-intel-card" [class.expanded]="isExpanded(player.id)" [id]="ui.playerAnchorId(player.name)">
-      @if (auth.canEdit()) {
+      @if (auth.editing()) {
         <app-overflow-menu class="card-overflow">
           <a class="overflow-item" [routerLink]="['/admin']" [queryParams]="{ tab: 'players', playerId: player.id }">Edit player</a>
         </app-overflow-menu>

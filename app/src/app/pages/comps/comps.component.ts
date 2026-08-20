@@ -31,8 +31,9 @@ export class CompsComponent {
   protected readonly auth = inject(AuthService);
   protected readonly roles = ROLES;
 
-  protected readonly fullView = signal(true);
-  protected readonly showPicks = signal(true);
+  // Start calm: Starter view with comp panels collapsed.
+  protected readonly fullView = signal(false);
+  protected readonly showPicks = signal(false);
 
   // Comp id -> whether its result-log form is expanded (editors only).
   protected readonly logging = signal<Record<string, boolean>>({});

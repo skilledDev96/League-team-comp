@@ -30,6 +30,11 @@ export class AuthService {
 
   readonly canManageUsers = computed(() => this.mode === 'local' || this.role() === 'admin');
 
+  // Edit mode is an explicit opt-in so viewing stays calm; inline edit controls
+  // only appear when a user who can edit has also switched editing on.
+  readonly editMode = signal(false);
+  readonly editing = computed(() => this.canEdit() && this.editMode());
+
   // Resolves once the initial auth state has been determined (prevents guard redirect races on refresh).
   readonly ready = signal(false);
   private readonly readyPromise: Promise<void>;

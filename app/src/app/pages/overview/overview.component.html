@@ -4,9 +4,11 @@
 </section>
 
 <section class="view-controls" aria-label="View controls">
-  <button class="view-btn" [class.active]="!fullView()" type="button" (click)="fullView.set(false)">Starter View</button>
-  <button class="view-btn" [class.active]="fullView()" type="button" (click)="fullView.set(true)">Full View</button>
-  <p class="muted">Starter View shows only essentials. Use Full View for full prep details.</p>
+  <div class="view-segment" role="group" aria-label="Detail level">
+    <button type="button" [class.active]="!fullView()" (click)="fullView.set(false)">Starter</button>
+    <button type="button" [class.active]="fullView()" (click)="fullView.set(true)">Full</button>
+  </div>
+  <p class="muted">Starter shows only essentials. Full adds team identity, synergy, and resources.</p>
 </section>
 
 @if (fullView()) {
@@ -32,6 +34,7 @@
         <a routerLink="/players"><span class="link-icon material-symbols-rounded" aria-hidden="true">groups</span>Open full player profiles</a>
         <a routerLink="/comps"><span class="link-icon material-symbols-rounded" aria-hidden="true">menu_book</span>Open comp cheat sheets</a>
         <a routerLink="/comps"><span class="link-icon material-symbols-rounded" aria-hidden="true">block</span>Open ban recommendations</a>
+        <a routerLink="/synergy"><span class="link-icon material-symbols-rounded" aria-hidden="true">hub</span>Open team synergy stats</a>
       </div>
     </article>
   </section>

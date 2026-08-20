@@ -602,7 +602,7 @@ body {
 }
 
 .page {
-  width: min(1200px, 100% - 2rem);
+  width: min(1320px, 100% - 2rem);
   margin: 0 auto;
   padding: 1.25rem 0 2rem;
 }
@@ -681,6 +681,85 @@ body {
   width: 1px;
   height: 1.4rem;
   background: var(--card-border);
+}
+
+.edit-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.edit-toggle .material-symbols-rounded {
+  font-size: 1.05rem;
+}
+
+.edit-toggle:hover,
+.edit-toggle:focus-visible {
+  color: var(--text-0);
+  border-color: var(--accent);
+}
+
+.edit-toggle.active {
+  color: var(--text-0);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 26%, var(--surface-btn) 74%);
+}
+
+.edit-advanced {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-1);
+}
+
+.edit-advanced:hover,
+.edit-advanced:focus-visible,
+.edit-advanced.active {
+  color: var(--text-0);
+  border-color: var(--accent);
+}
+
+.edit-advanced .material-symbols-rounded {
+  font-size: 1.15rem;
+}
+
+/* Segmented Starter/Full control replaces the old row of view buttons. */
+.view-segment {
+  display: inline-flex;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+}
+
+.view-segment button {
+  padding: 0.42rem 1.1rem;
+  border: none;
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.view-segment button.active {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-btn) 70%);
+  color: var(--text-0);
 }
 
 .user-chip {

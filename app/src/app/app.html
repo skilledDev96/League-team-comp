@@ -19,12 +19,23 @@
         <a routerLink="/overview" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Overview</a>
         <a routerLink="/players" routerLinkActive="active">Player Intel</a>
         <a routerLink="/comps" routerLinkActive="active">Comps and Macro</a>
-        <a routerLink="/synergy" routerLinkActive="active">Team Synergy</a>
-        @if (auth.canEdit()) {
-          <a routerLink="/admin" routerLinkActive="active">Edit</a>
-        }
       </nav>
       <div class="user-bar">
+        @if (auth.canEdit()) {
+          <button type="button" class="edit-toggle" [class.active]="auth.editMode()"
+                  [attr.aria-pressed]="auth.editMode()"
+                  (click)="auth.editMode.set(!auth.editMode())">
+            <span class="material-symbols-rounded" aria-hidden="true">{{ auth.editMode() ? 'edit_off' : 'edit' }}</span>
+            {{ auth.editMode() ? 'Done editing' : 'Edit mode' }}
+          </button>
+          @if (auth.editMode()) {
+            <a class="edit-advanced" routerLink="/admin" routerLinkActive="active"
+               title="Roster, comps and access editor">
+              <span class="material-symbols-rounded" aria-hidden="true">tune</span>
+            </a>
+          }
+        }
+
         <label for="themeSelect" class="visually-hidden">Theme</label>
         <select id="themeSelect" class="theme-select" aria-label="Theme selector"
                 [value]="theme.current()" (change)="onThemeChange($event)">
@@ -86,7 +97,7 @@
         <li><strong>Player Intel</strong> — deep-dive scouting cards per player.</li>
         <li><strong>Comps and Macro</strong> — team comps, bans, and the game plan.</li>
         @if (auth.canEdit()) {
-          <li><strong>Edit</strong> — manage the roster and auto-fill player stats from Riot.</li>
+          <li><strong>Edit mode</strong> — flip the top-right switch to reveal editing controls and the roster editor.</li>
         }
       </ul>
       <div class="links">

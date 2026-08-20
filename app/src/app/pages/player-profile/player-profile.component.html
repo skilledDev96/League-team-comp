@@ -125,7 +125,7 @@
         <p class="tag good" role="status">{{ refreshStatus() }}</p>
       }
       <div class="links action-row">
-        @if (auth.canEdit()) {
+        @if (auth.editing()) {
           <button class="view-btn active" type="button" [disabled]="refreshing()" (click)="refreshData()">
             @if (refreshing()) {
               <span class="btn-spinner" aria-hidden="true"></span>
@@ -136,7 +136,7 @@
           </button>
         }
         <app-overflow-menu>
-          @if (auth.canEdit()) {
+          @if (auth.editing()) {
             <a class="overflow-item" [routerLink]="['/admin']" [queryParams]="{ tab: 'players', playerId: p.id }">Edit this player</a>
           }
           <a class="overflow-item" routerLink="/players">Back to Player Intel</a>

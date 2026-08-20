@@ -7,11 +7,11 @@
 </section>
 
 <section class="view-controls" aria-label="View controls">
-  <button class="view-btn" [class.active]="!fullView()" type="button" (click)="setView(false)">Starter View</button>
-  <button class="view-btn" [class.active]="fullView()" type="button" (click)="setView(true)">Full View</button>
-  <button class="view-btn" type="button" (click)="showPicks.set(!showPicks())">
-    {{ showPicks() ? 'Hide Picks' : 'Show Picks' }}
-  </button>
+  <div class="view-segment" role="group" aria-label="Detail level">
+    <button type="button" [class.active]="!fullView()" (click)="setView(false)">Starter</button>
+    <button type="button" [class.active]="fullView()" (click)="setView(true)">Full</button>
+  </div>
+  <p class="muted">Starter keeps comps collapsed. Full opens every comp and shows ban recommendations.</p>
 </section>
 
 <section id="compSection" class="grid two" aria-label="Team compositions">
@@ -29,7 +29,7 @@
             <span class="comp-record-rate">{{ record.winRate }}%</span>
           </span>
         }
-        @if (auth.canEdit()) {
+        @if (auth.editing()) {
           <app-overflow-menu>
             <button type="button" class="overflow-item" (click)="toggleLog(comp.id)">
               {{ isLogging(comp.id) ? 'Hide result form' : 'Log a game' }}
@@ -75,7 +75,7 @@
                   <span class="comp-result-date">{{ result.playedOn }}</span>
                   @if (result.note) { <span class="comp-result-note">{{ result.note }}</span> }
                 </span>
-                @if (auth.canEdit()) {
+                @if (auth.editing()) {
                   <button type="button" class="comp-result-del" aria-label="Delete this result" (click)="deleteResult(result)">
                     <span class="material-symbols-rounded" aria-hidden="true">close</span>
                   </button>
@@ -85,7 +85,7 @@
           </ul>
         }
 
-        @if (auth.canEdit() && isLogging(comp.id)) {
+        @if (auth.editing() && isLogging(comp.id)) {
           <form class="comp-log-form" (ngSubmit)="logResult(comp.id)">
             <div class="comp-log-outcome" role="group" aria-label="Result">
               <button type="button" class="comp-log-toggle is-win"
@@ -122,7 +122,7 @@
         <div class="comp-record-head">
           <span class="comp-record-title material-symbols-rounded" aria-hidden="true">map</span>
           <span class="comp-record-label">Dive plays</span>
-          @if (auth.canEdit()) {
+          @if (auth.editing()) {
             <button type="button" class="view-btn comp-play-add" (click)="openBoard(comp, null)">
               <span class="material-symbols-rounded" aria-hidden="true">add</span> New play
             </button>
@@ -149,7 +149,7 @@
 </section>
 
 @if (boardComp(); as comp) {
-  <app-tactical-board [comp]="comp" [play]="boardPlay()" [canEdit]="auth.canEdit()" (close)="closeBoard()" />
+  <app-tactical-board [comp]="comp" [play]="boardPlay()" [canEdit]="auth.editing()" (close)="closeBoard()" />
 }
 
 @if (data.macroSummary(); as macro) {
@@ -242,7 +242,7 @@
           <span class="log-comp">{{ row.compName }}</span>
           <span class="log-opp">{{ row.opponent ? 'vs ' + row.opponent : '—' }}</span>
           <span class="log-note">{{ row.note }}</span>
-          @if (auth.canEdit()) {
+          @if (auth.editing()) {
             <button type="button" class="log-del" aria-label="Delete this game" (click)="deleteResult(row)">
               <span class="material-symbols-rounded" aria-hidden="true">close</span>
             </button>
