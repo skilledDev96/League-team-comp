@@ -823,8 +823,9 @@ export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY] },
 
 // ---- Comp analysis (real win rates from full-5-stack team games) ----------
 
-// Queues that can be a full roster 5-stack: Ranked Flex and normal 5v5 Draft.
-const TEAM_QUEUES = [440, 400];
+// Queues that can be a full roster 5-stack: Ranked Flex plus the normal 5v5
+// variants (Draft, legacy Blind, and Quickplay — where casual 5-stacks land now).
+const TEAM_QUEUES = [440, 400, 430, 490];
 // Match-id pagination: how deep to look per player/queue (pages of 100).
 const MATCH_ID_PAGE_SIZE = 100;
 const MAX_MATCH_ID_PAGES = 4;
@@ -883,7 +884,8 @@ interface AnalysisGameResponse {
 const QUEUE_LABEL: Record<number, string> = {
   440: 'Flex',
   400: '5v5 Draft',
-  430: '5v5 Blind'
+  430: '5v5 Blind',
+  490: '5v5 Quickplay'
 };
 
 // A finished match never changes, so we cache the fields we need in Firestore
