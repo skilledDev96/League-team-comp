@@ -246,6 +246,7 @@ export interface TeamData {
   compResults: CompResult[];
   plays: Play[];
   painPoints: PainPoint[];
+  learnEntries: LearnEntry[];
   teamIdentity: TeamIdentity;
   macroSummary: MacroSummary;
   resourceLinks: ResourceLinks;

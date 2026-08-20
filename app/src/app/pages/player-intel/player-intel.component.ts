@@ -1,8 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { PainPoint } from '../../models/team.models';
+import { LearnEntry, LearnPriority, PainPoint } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
+import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
@@ -30,6 +31,7 @@ export class PlayerIntelComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
+  protected readonly champData = inject(ChampionDataService);
 
   protected readonly fullView = signal(false);
   private readonly expanded = signal<Set<string>>(new Set());
@@ -101,5 +103,67 @@ export class PlayerIntelComponent {
 
   protected deletePain(id: string): void {
     void this.data.deletePainPoint(id);
+  }
+
+  // ---- Champs to learn --------------------------------------------------
+
+  protected readonly learnPriorities: LearnPriority[] = ['high', 'med', 'low'];
+  // Per-player add-form draft: playerId -> { champion, priority }.
+  protected readonly learnDrafts = signal<Record<string, { champion: string; priority: LearnPriority }>>({});
+  protected readonly learnSaving = signal(false);
+
+  private readonly priorityRank: Record<LearnPriority, number> = { high: 0, med: 1, low: 2 };
+
+  // A player's learn queue: still-learning first, then by priority, then order.
+  protected learnFor(playerId: string): LearnEntry[] {
+    return this.data
+      .learnEntries()
+      .filter((e) => e.playerId === playerId)
+      .sort(
+        (a, b) =>
+          Number(a.status === 'ready') - Number(b.status === 'ready') ||
+          this.priorityRank[a.priority] - this.priorityRank[b.priority] ||
+          a.order - b.order
+      );
+  }
+
+  protected priorityLabel(priority: LearnPriority): string {
+    return priority === 'med' ? 'Medium' : priority === 'high' ? 'High' : 'Low';
+  }
+
+  protected learnDraftFor(playerId: string): { champion: string; priority: LearnPriority } {
+    return this.learnDrafts()[playerId] ?? { champion: '', priority: 'med' };
+  }
+
+  protected patchLearnDraft(playerId: string, patch: Partial<{ champion: string; priority: LearnPriority }>): void {
+    this.learnDrafts.update((state) => ({
+      ...state,
+      [playerId]: { ...this.learnDraftFor(playerId), ...patch }
+    }));
+  }
+
+  protected async addLearn(playerId: string): Promise<void> {
+    const draft = this.learnDraftFor(playerId);
+    const champion = draft.champion.trim();
+    if (this.learnSaving() || !champion) return;
+    this.learnSaving.set(true);
+    try {
+      await this.data.createLearnEntry({ playerId, champion, priority: draft.priority, status: 'learning' });
+      this.patchLearnDraft(playerId, { champion: '' });
+    } finally {
+      this.learnSaving.set(false);
+    }
+  }
+
+  protected toggleLearnStatus(entry: LearnEntry): void {
+    void this.data.updateLearnEntry({ ...entry, status: entry.status === 'ready' ? 'learning' : 'ready' });
+  }
+
+  protected setLearnPriority(entry: LearnEntry, priority: LearnPriority): void {
+    void this.data.updateLearnEntry({ ...entry, priority });
+  }
+
+  protected deleteLearn(id: string): void {
+    void this.data.deleteLearnEntry(id);
   }
 }

@@ -15,6 +15,7 @@ import {
   CompResult,
   Play,
   PainPoint,
+  LearnEntry,
   AccessEntry,
   FillIn,
   MacroSummary,
@@ -28,7 +29,14 @@ import { normalizeEmail } from '../core/access';
 
 const LOCAL_KEY = 'bom-team-data';
 
-type EntityKey = 'players' | 'fillIns' | 'comps' | 'compResults' | 'plays' | 'painPoints';
+type EntityKey =
+  | 'players'
+  | 'fillIns'
+  | 'comps'
+  | 'compResults'
+  | 'plays'
+  | 'painPoints'
+  | 'learnEntries';
 
 // Firestore rejects any field set to undefined; drop those keys (incl. one level of nested objects).
 function stripUndefined<T extends Record<string, unknown>>(value: T): T {
@@ -56,6 +64,7 @@ export class TeamDataService {
   readonly compResults = signal<CompResult[]>([]);
   readonly plays = signal<Play[]>([]);
   readonly painPoints = signal<PainPoint[]>([]);
+  readonly learnEntries = signal<LearnEntry[]>([]);
   readonly accessEntries = signal<AccessEntry[]>([]);
   readonly teamIdentity = signal<TeamIdentity | null>(null);
   readonly macroSummary = signal<MacroSummary | null>(null);
@@ -96,6 +105,7 @@ export class TeamDataService {
     this.compResults.set([...(data.compResults ?? [])].sort((a, b) => a.order - b.order));
     this.plays.set([...(data.plays ?? [])].sort((a, b) => a.order - b.order));
     this.painPoints.set([...(data.painPoints ?? [])].sort((a, b) => a.order - b.order));
+    this.learnEntries.set([...(data.learnEntries ?? [])].sort((a, b) => a.order - b.order));
     this.accessEntries.set([{ email: 'ruanhart7@gmail.com', role: 'admin', active: true }]);
     this.teamIdentity.set(data.teamIdentity);
     this.macroSummary.set(data.macroSummary);
@@ -117,6 +127,7 @@ export class TeamDataService {
       compResults: this.compResults(),
       plays: this.plays(),
       painPoints: this.painPoints(),
+      learnEntries: this.learnEntries(),
       teamIdentity: this.teamIdentity() ?? SEED_DATA.teamIdentity,
       macroSummary: this.macroSummary() ?? SEED_DATA.macroSummary,
       resourceLinks: this.resourceLinks()
@@ -157,6 +168,10 @@ export class TeamDataService {
     onSnapshot(collection(db, 'painPoints'), (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<PainPoint, 'id'>) }));
       this.painPoints.set(list.sort((a, b) => a.order - b.order));
+    });
+    onSnapshot(collection(db, 'learnEntries'), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<LearnEntry, 'id'>) }));
+      this.learnEntries.set(list.sort((a, b) => a.order - b.order));
     });
     onSnapshot(collection(db, 'access'), (snap) => {
       const list = snap.docs.map((d) => ({
@@ -214,6 +229,10 @@ export class TeamDataService {
     for (const pain of SEED_DATA.painPoints) {
       const { id, ...rest } = pain;
       batch.set(doc(db, 'painPoints', id), rest);
+    }
+    for (const learn of SEED_DATA.learnEntries) {
+      const { id, ...rest } = learn;
+      batch.set(doc(db, 'learnEntries', id), rest);
     }
     batch.set(doc(db, 'access', 'ruanhart7@gmail.com'), {
       email: 'ruanhart7@gmail.com',
@@ -362,6 +381,21 @@ export class TeamDataService {
 
   deletePainPoint(id: string): Promise<void> {
     return this.persistRemove('painPoints', this.painPoints, id);
+  }
+
+  // ---- Champs to learn --------------------------------------------------
+
+  createLearnEntry(data: Omit<LearnEntry, 'id' | 'order'>): Promise<void> {
+    const entry: LearnEntry = { ...data, id: this.newId('learn'), order: this.nextOrder(this.learnEntries()) };
+    return this.persistUpsert('learnEntries', this.learnEntries, entry);
+  }
+
+  updateLearnEntry(entry: LearnEntry): Promise<void> {
+    return this.persistUpsert('learnEntries', this.learnEntries, entry);
+  }
+
+  deleteLearnEntry(id: string): Promise<void> {
+    return this.persistRemove('learnEntries', this.learnEntries, id);
   }
 
   // ---- Access entries --------------------------------------------------

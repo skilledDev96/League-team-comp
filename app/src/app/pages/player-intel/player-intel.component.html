@@ -162,10 +162,48 @@
           @for (champ of player.top3; track champ) {
             <app-champion-chip [champion]="champ" />
           }
-          @if (player.learn) {
-            <app-champion-chip [champion]="player.learn" [label]="'Learn: ' + player.learn" />
-          }
         </div>
+
+        @if (learnFor(player.id).length || auth.editing()) {
+          <h3>Learning</h3>
+          <ul class="learn-list">
+            @for (entry of learnFor(player.id); track entry.id) {
+              <li class="learn-item" [class.ready]="entry.status === 'ready'" [class]="'prio-' + entry.priority">
+                <button type="button" class="learn-check" [class.done]="entry.status === 'ready'"
+                        [disabled]="!auth.editing()" (click)="toggleLearnStatus(entry)"
+                        [attr.aria-label]="entry.status === 'ready' ? 'Mark learning' : 'Mark ready'">
+                  <span class="material-symbols-rounded" aria-hidden="true">{{ entry.status === 'ready' ? 'check_circle' : 'radio_button_unchecked' }}</span>
+                </button>
+                <img class="learn-icon" [src]="ui.championIconUrl(entry.champion)" [alt]="entry.champion" loading="lazy" />
+                <span class="learn-name">{{ entry.champion }}</span>
+                @if (auth.editing()) {
+                  <select class="learn-prio-select" [ngModel]="entry.priority"
+                          (ngModelChange)="setLearnPriority(entry, $event)" [name]="'prio-' + entry.id" aria-label="Priority">
+                    @for (p of learnPriorities; track p) { <option [value]="p">{{ priorityLabel(p) }}</option> }
+                  </select>
+                  <button type="button" class="learn-del" aria-label="Remove" (click)="deleteLearn(entry.id)">
+                    <span class="material-symbols-rounded" aria-hidden="true">close</span>
+                  </button>
+                } @else {
+                  <span class="learn-prio" [class]="'prio-' + entry.priority">{{ priorityLabel(entry.priority) }}</span>
+                }
+              </li>
+            }
+          </ul>
+
+          @if (auth.editing()) {
+            <form class="learn-add" (ngSubmit)="addLearn(player.id)">
+              <input type="text" class="learn-champ-input" [ngModel]="learnDraftFor(player.id).champion"
+                     (ngModelChange)="patchLearnDraft(player.id, { champion: $event })"
+                     [name]="'learnchamp-' + player.id" [attr.list]="'champlist'" placeholder="Champion to learn" />
+              <select class="learn-prio-select" [ngModel]="learnDraftFor(player.id).priority"
+                      (ngModelChange)="patchLearnDraft(player.id, { priority: $event })" [name]="'learnprio-' + player.id" aria-label="Priority">
+                @for (p of learnPriorities; track p) { <option [value]="p">{{ priorityLabel(p) }}</option> }
+              </select>
+              <button type="submit" class="view-btn" [disabled]="learnSaving()">Add</button>
+            </form>
+          }
+        }
 
         <app-external-profiles [name]="player.name" [profile]="player.profile" />
 
@@ -191,3 +229,9 @@
     </article>
   }
 </section>
+
+<datalist id="champlist">
+  @for (champ of champData.champions(); track champ.id) {
+    <option [value]="champ.name"></option>
+  }
+</datalist>

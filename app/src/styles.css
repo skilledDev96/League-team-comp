@@ -979,6 +979,153 @@ body {
   font-size: 1rem;
 }
 
+/* ---- Champs-to-learn queue (per player card) --------------------------- */
+
+.learn-list {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.learn-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  border-left: 3px solid var(--prio, var(--accent-2));
+}
+
+.learn-item.prio-high { --prio: var(--warn); }
+.learn-item.prio-med { --prio: var(--accent-2); }
+.learn-item.prio-low { --prio: color-mix(in srgb, var(--text-1) 60%, transparent); }
+
+.learn-item.ready {
+  opacity: 0.6;
+}
+
+.learn-check {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.learn-check:disabled {
+  cursor: default;
+}
+
+.learn-check.done {
+  color: var(--ok);
+}
+
+.learn-check .material-symbols-rounded {
+  font-size: 1.2rem;
+}
+
+.learn-icon {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  object-fit: cover;
+}
+
+.learn-name {
+  flex: 1 1 auto;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-0);
+  min-width: 0;
+}
+
+.learn-item.ready .learn-name {
+  text-decoration: line-through;
+  color: var(--text-1);
+}
+
+.learn-prio {
+  flex: 0 0 auto;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--prio);
+  color: var(--prio);
+}
+
+.learn-prio.prio-high { --prio: var(--warn); }
+.learn-prio.prio-med { --prio: var(--accent-2); }
+.learn-prio.prio-low { --prio: var(--text-1); }
+
+.learn-prio-select {
+  flex: 0 0 auto;
+  padding: 0.28rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.learn-del {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.learn-del:hover,
+.learn-del:focus-visible {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
+}
+
+.learn-del .material-symbols-rounded {
+  font-size: 0.95rem;
+}
+
+.learn-add {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.45rem;
+}
+
+.learn-champ-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
 /* Per-player "Working On" list on the scouting card. */
 .player-pain-list {
   list-style: none;
