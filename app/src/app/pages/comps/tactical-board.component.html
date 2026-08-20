@@ -1,0 +1,126 @@
+<div class="tb-scrim" (click)="dismiss()"></div>
+
+<div class="tb-modal" role="dialog" aria-modal="true" aria-label="Tactical board">
+  <header class="tb-head">
+    <div class="tb-head-main">
+      @if (canEdit()) {
+        <input class="tb-title-input" type="text" [ngModel]="title()" (ngModelChange)="title.set($event)"
+               name="playTitle" placeholder="Play name" aria-label="Play name" />
+      } @else {
+        <span class="tb-title-static">{{ title() }}</span>
+      }
+      <span class="tb-comp-tag">{{ comp().name }} comp</span>
+    </div>
+    <div class="tb-head-actions">
+      @if (canEdit()) {
+        <label class="tb-phase">
+          <span>Phase</span>
+          <select [ngModel]="phase()" (ngModelChange)="phase.set($event)" name="playPhase">
+            @for (p of phases; track p) { <option [value]="p">{{ p }}</option> }
+          </select>
+        </label>
+      } @else {
+        <span class="tb-phase-static">{{ phase() }} game</span>
+      }
+      <button type="button" class="tb-close" aria-label="Close board" (click)="dismiss()">
+        <span class="material-symbols-rounded" aria-hidden="true">close</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="tb-body">
+    <div class="tb-board-wrap">
+    <div class="tb-board" (pointermove)="onPointerMove($event)" (pointerup)="endDrag()" (pointerleave)="endDrag()">
+      @if (mapImage) {
+        <img class="tb-rift-img" [src]="mapImage" alt="Summoner's Rift" draggable="false" />
+      } @else {
+      <svg class="tb-rift" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="tbRiver" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stop-color="var(--accent)" stop-opacity="0.28" />
+            <stop offset="1" stop-color="var(--accent-2)" stop-opacity="0.28" />
+          </linearGradient>
+        </defs>
+        <!-- jungle ground -->
+        <rect x="0" y="0" width="100" height="100" fill="var(--surface-hero-b)" />
+        <!-- river diagonal -->
+        <polygon points="0,72 28,100 100,28 72,0" fill="url(#tbRiver)" />
+        <!-- lanes -->
+        <rect x="6" y="6" width="12" height="88" rx="4" fill="var(--surface-btn)" opacity="0.85" />
+        <rect x="82" y="6" width="12" height="88" rx="4" fill="var(--surface-btn)" opacity="0.85" />
+        <rect x="6" y="82" width="88" height="12" rx="4" fill="var(--surface-btn)" opacity="0.85" />
+        <rect x="6" y="6" width="88" height="12" rx="4" fill="var(--surface-btn)" opacity="0.85" />
+        <line x1="12" y1="88" x2="88" y2="12" stroke="var(--surface-btn)" stroke-width="11" stroke-linecap="round" opacity="0.85" />
+        <!-- bases -->
+        <circle cx="10" cy="90" r="9" fill="var(--ok)" opacity="0.28" />
+        <circle cx="90" cy="10" r="9" fill="var(--warn)" opacity="0.28" />
+      </svg>
+      }
+
+      @for (token of tokens(); track token.id) {
+        <button type="button" class="tb-token"
+                [class.is-ally]="token.side === 'ally'"
+                [class.is-enemy]="token.side === 'enemy'"
+                [class.draggable]="canEdit()"
+                [style.left.%]="token.x" [style.top.%]="token.y"
+                [attr.aria-label]="(token.side === 'ally' ? 'Ally ' : 'Enemy ') + tokenLabel(token)"
+                (pointerdown)="startDrag(token, $event)">
+          @if (iconFor(token); as icon) {
+            <img class="tb-token-img" [src]="icon" [alt]="token.champion" draggable="false" />
+          } @else {
+            <span class="tb-token-fallback">{{ token.role || '?' }}</span>
+          }
+          <span class="tb-token-name">{{ tokenLabel(token) }}</span>
+        </button>
+      }
+    </div>
+    </div>
+
+    <aside class="tb-rail">
+      <div class="tb-legend">
+        <span class="tb-legend-item is-ally">Your team</span>
+        <span class="tb-legend-item is-enemy">Enemy</span>
+      </div>
+
+      @if (canEdit()) {
+        <p class="tb-hint">Drag any token to position it. Set the enemy champs you're planning against:</p>
+        <ul class="tb-enemy-list">
+          @for (token of enemyTokens(); track token.id) {
+            <li class="tb-enemy-row">
+              <span class="tb-enemy-dot" [class.filled]="!!token.champion">
+                @if (iconFor(token); as icon) { <img [src]="icon" [alt]="token.champion" /> }
+              </span>
+              <input type="text" [ngModel]="token.champion"
+                     (ngModelChange)="setEnemyChampion(token.id, $event)"
+                     [name]="'enemy-' + token.id" placeholder="Enemy champion" />
+            </li>
+          }
+        </ul>
+
+        <label class="tb-notes">
+          <span>Notes</span>
+          <textarea rows="4" [ngModel]="notes()" (ngModelChange)="notes.set($event)" name="playNotes"
+                    placeholder="e.g. Vi flanks from river, Galio ults on the all-in at 6."></textarea>
+        </label>
+      } @else if (notes()) {
+        <div class="tb-notes-static">
+          <span class="tb-notes-label">Notes</span>
+          <p>{{ notes() }}</p>
+        </div>
+      }
+    </aside>
+  </div>
+
+  @if (canEdit()) {
+    <footer class="tb-foot">
+      @if (play()) {
+        <button type="button" class="view-btn tb-danger" (click)="remove()">Delete play</button>
+      }
+      <span class="tb-foot-spacer"></span>
+      <button type="button" class="view-btn" (click)="dismiss()">Cancel</button>
+      <button type="button" class="view-btn tb-primary" [disabled]="saving()" (click)="save()">
+        {{ play() ? 'Save changes' : 'Save play' }}
+      </button>
+    </footer>
+  }
+</div>

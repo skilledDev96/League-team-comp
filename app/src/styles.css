@@ -1646,6 +1646,457 @@ body {
   flex: 0 0 auto;
 }
 
+/* ---- Comp plays list --------------------------------------------------- */
+
+.comp-plays {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.comp-play-add {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  padding: 0.32rem 0.7rem;
+}
+
+.comp-play-add .material-symbols-rounded {
+  font-size: 1rem;
+}
+
+.comp-play-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.comp-play-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.comp-play-chip:hover,
+.comp-play-chip:focus-visible {
+  border-color: var(--accent);
+}
+
+.comp-play-phase {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.comp-play-open {
+  font-size: 1rem;
+  color: var(--text-1);
+}
+
+/* ---- Tactical board overlay -------------------------------------------- */
+
+.tb-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 40;
+}
+
+.tb-modal {
+  position: fixed;
+  inset: 3vh 3vw;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.tb-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--card-border);
+  flex-wrap: wrap;
+}
+
+.tb-head-main {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tb-title-input {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  min-width: 12rem;
+}
+
+.tb-title-static {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-0);
+}
+
+.tb-comp-tag {
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  white-space: nowrap;
+}
+
+.tb-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.tb-phase {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-1);
+}
+
+.tb-phase select {
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.tb-phase-static {
+  font-size: 0.85rem;
+  color: var(--text-1);
+}
+
+.tb-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  cursor: pointer;
+}
+
+.tb-close:hover,
+.tb-close:focus-visible {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.tb-body {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  min-height: 0;
+}
+
+.tb-board-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tb-board {
+  position: relative;
+  /* Square that fits the smaller side of its container, so the rift never distorts. */
+  width: 100cqmin;
+  height: 100cqmin;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  overflow: hidden;
+  touch-action: none;
+  background: var(--surface-hero-b);
+}
+
+.tb-rift {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tb-rift-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  pointer-events: none;
+}
+
+.tb-token {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: default;
+  z-index: 2;
+}
+
+.tb-token.draggable {
+  cursor: grab;
+}
+
+.tb-token.draggable:active {
+  cursor: grabbing;
+}
+
+.tb-token-img,
+.tb-token-fallback {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 2px solid var(--token-ring, var(--accent));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  background: var(--surface-btn);
+}
+
+.tb-token-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: var(--text-0);
+}
+
+.tb-token.is-ally {
+  --token-ring: var(--ok);
+}
+
+.tb-token.is-enemy {
+  --token-ring: var(--warn);
+}
+
+.tb-token-name {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-0);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  max-width: 6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tb-rail {
+  flex: 0 0 15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  overflow-y: auto;
+}
+
+.tb-legend {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.tb-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-1);
+}
+
+.tb-legend-item::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid var(--accent);
+}
+
+.tb-legend-item.is-ally::before {
+  border-color: var(--ok);
+}
+
+.tb-legend-item.is-enemy::before {
+  border-color: var(--warn);
+}
+
+.tb-hint {
+  font-size: 0.8rem;
+  color: var(--text-1);
+  margin: 0;
+}
+
+.tb-enemy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tb-enemy-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tb-enemy-dot {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 2px solid var(--warn);
+  overflow: hidden;
+  background: var(--surface-btn);
+}
+
+.tb-enemy-dot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tb-enemy-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.tb-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.tb-notes > span,
+.tb-notes-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-1);
+}
+
+.tb-notes textarea {
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.tb-notes-static p {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-0);
+}
+
+.tb-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem 1rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.tb-foot-spacer {
+  flex: 1 1 auto;
+}
+
+.tb-primary {
+  border-color: var(--accent);
+  color: var(--text-0);
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-btn) 70%);
+}
+
+.tb-danger {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
+}
+
+@media (max-width: 760px) {
+  .tb-body {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .tb-rail {
+    flex: 0 0 auto;
+  }
+}
+
 .comp-panel-summary {
   list-style: none;
   cursor: pointer;

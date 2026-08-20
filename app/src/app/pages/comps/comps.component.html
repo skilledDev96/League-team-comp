@@ -117,9 +117,40 @@
           </form>
         }
       </div>
+
+      <div class="comp-plays">
+        <div class="comp-record-head">
+          <span class="comp-record-title material-symbols-rounded" aria-hidden="true">map</span>
+          <span class="comp-record-label">Dive plays</span>
+          @if (auth.canEdit()) {
+            <button type="button" class="view-btn comp-play-add" (click)="openBoard(comp, null)">
+              <span class="material-symbols-rounded" aria-hidden="true">add</span> New play
+            </button>
+          }
+        </div>
+        @if (playsFor(comp.id).length) {
+          <ul class="comp-play-list">
+            @for (play of playsFor(comp.id); track play.id) {
+              <li>
+                <button type="button" class="comp-play-chip" (click)="openBoard(comp, play)">
+                  <span class="comp-play-phase">{{ play.phase }}</span>
+                  <span class="comp-play-title">{{ play.title }}</span>
+                  <span class="material-symbols-rounded comp-play-open" aria-hidden="true">open_in_full</span>
+                </button>
+              </li>
+            }
+          </ul>
+        } @else {
+          <span class="comp-record-summary muted">No plays drawn yet</span>
+        }
+      </div>
     </details>
   }
 </section>
+
+@if (boardComp(); as comp) {
+  <app-tactical-board [comp]="comp" [play]="boardPlay()" [canEdit]="auth.canEdit()" (close)="closeBoard()" />
+}
 
 @if (data.macroSummary(); as macro) {
   <section class="grid two" aria-label="Macro plan">

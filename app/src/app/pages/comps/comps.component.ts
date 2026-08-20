@@ -1,12 +1,13 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { CompOutcome, CompRecord, CompResult, ROLES } from '../../models/team.models';
+import { Comp, CompOutcome, CompRecord, CompResult, Play, ROLES } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
+import { TacticalBoardComponent } from './tactical-board.component';
 
 interface ResultDraft {
   outcome: CompOutcome;
@@ -17,7 +18,7 @@ interface ResultDraft {
 
 @Component({
   selector: 'app-comps',
-  imports: [FormsModule, RouterLink, ChampionChipComponent, OverflowMenuComponent],
+  imports: [FormsModule, RouterLink, ChampionChipComponent, OverflowMenuComponent, TacticalBoardComponent],
   templateUrl: './comps.component.html'
 })
 export class CompsComponent {
@@ -58,6 +59,35 @@ export class CompsComponent {
 
   protected recordFor(compId: string): CompRecord | undefined {
     return this.recordsByComp().get(compId);
+  }
+
+  // Saved tactical plays grouped by comp id.
+  protected readonly playsByComp = computed(() => {
+    const map = new Map<string, Play[]>();
+    for (const play of this.data.plays()) {
+      const list = map.get(play.compId) ?? [];
+      list.push(play);
+      map.set(play.compId, list);
+    }
+    return map;
+  });
+
+  protected playsFor(compId: string): Play[] {
+    return this.playsByComp().get(compId) ?? [];
+  }
+
+  // Board overlay state: which comp/play is open, if any.
+  protected readonly boardComp = signal<Comp | null>(null);
+  protected readonly boardPlay = signal<Play | null>(null);
+
+  protected openBoard(comp: Comp, play: Play | null): void {
+    this.boardPlay.set(play);
+    this.boardComp.set(comp);
+  }
+
+  protected closeBoard(): void {
+    this.boardComp.set(null);
+    this.boardPlay.set(null);
   }
 
   protected readonly banRows = computed(() =>

@@ -13,6 +13,7 @@ import { SEED_DATA } from '../data/seed-data';
 import {
   Comp,
   CompResult,
+  Play,
   AccessEntry,
   FillIn,
   MacroSummary,
@@ -26,7 +27,7 @@ import { normalizeEmail } from '../core/access';
 
 const LOCAL_KEY = 'bom-team-data';
 
-type EntityKey = 'players' | 'fillIns' | 'comps' | 'compResults';
+type EntityKey = 'players' | 'fillIns' | 'comps' | 'compResults' | 'plays';
 
 // Firestore rejects any field set to undefined; drop those keys (incl. one level of nested objects).
 function stripUndefined<T extends Record<string, unknown>>(value: T): T {
@@ -52,6 +53,7 @@ export class TeamDataService {
   readonly fillIns = signal<FillIn[]>([]);
   readonly comps = signal<Comp[]>([]);
   readonly compResults = signal<CompResult[]>([]);
+  readonly plays = signal<Play[]>([]);
   readonly accessEntries = signal<AccessEntry[]>([]);
   readonly teamIdentity = signal<TeamIdentity | null>(null);
   readonly macroSummary = signal<MacroSummary | null>(null);
@@ -90,6 +92,7 @@ export class TeamDataService {
     this.fillIns.set([...data.fillIns].sort((a, b) => a.order - b.order));
     this.comps.set([...data.comps].sort((a, b) => a.order - b.order));
     this.compResults.set([...(data.compResults ?? [])].sort((a, b) => a.order - b.order));
+    this.plays.set([...(data.plays ?? [])].sort((a, b) => a.order - b.order));
     this.accessEntries.set([{ email: 'ruanhart7@gmail.com', role: 'admin', active: true }]);
     this.teamIdentity.set(data.teamIdentity);
     this.macroSummary.set(data.macroSummary);
@@ -109,6 +112,7 @@ export class TeamDataService {
       fillIns: this.fillIns(),
       comps: this.comps(),
       compResults: this.compResults(),
+      plays: this.plays(),
       teamIdentity: this.teamIdentity() ?? SEED_DATA.teamIdentity,
       macroSummary: this.macroSummary() ?? SEED_DATA.macroSummary,
       resourceLinks: this.resourceLinks()
@@ -141,6 +145,10 @@ export class TeamDataService {
     onSnapshot(collection(db, 'compResults'), (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CompResult, 'id'>) }));
       this.compResults.set(list.sort((a, b) => a.order - b.order));
+    });
+    onSnapshot(collection(db, 'plays'), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Play, 'id'>) }));
+      this.plays.set(list.sort((a, b) => a.order - b.order));
     });
     onSnapshot(collection(db, 'access'), (snap) => {
       const list = snap.docs.map((d) => ({
@@ -190,6 +198,10 @@ export class TeamDataService {
     for (const result of SEED_DATA.compResults) {
       const { id, ...rest } = result;
       batch.set(doc(db, 'compResults', id), rest);
+    }
+    for (const play of SEED_DATA.plays) {
+      const { id, ...rest } = play;
+      batch.set(doc(db, 'plays', id), rest);
     }
     batch.set(doc(db, 'access', 'ruanhart7@gmail.com'), {
       email: 'ruanhart7@gmail.com',
@@ -308,6 +320,21 @@ export class TeamDataService {
 
   deleteCompResult(id: string): Promise<void> {
     return this.persistRemove('compResults', this.compResults, id);
+  }
+
+  // ---- Tactical plays ---------------------------------------------------
+
+  createPlay(data: Omit<Play, 'id' | 'order'>): Promise<void> {
+    const play: Play = { ...data, id: this.newId('play'), order: this.nextOrder(this.plays()) };
+    return this.persistUpsert('plays', this.plays, play);
+  }
+
+  updatePlay(play: Play): Promise<void> {
+    return this.persistUpsert('plays', this.plays, play);
+  }
+
+  deletePlay(id: string): Promise<void> {
+    return this.persistRemove('plays', this.plays, id);
   }
 
   // ---- Access entries --------------------------------------------------

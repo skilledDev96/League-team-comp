@@ -128,6 +128,29 @@ export interface CompRecord {
   results: CompResult[];
 }
 
+export type PlayPhase = 'Early' | 'Mid' | 'Late';
+export type TokenSide = 'ally' | 'enemy';
+
+export interface PlayToken {
+  id: string;
+  side: TokenSide;
+  role?: Role;
+  champion: string;
+  // Position as a percentage of the board (0-100), so it stays responsive.
+  x: number;
+  y: number;
+}
+
+export interface Play {
+  id: string;
+  compId: string;
+  title: string;
+  phase: PlayPhase;
+  notes?: string;
+  tokens: PlayToken[];
+  order: number;
+}
+
 export interface TeamIdentity {
   visionDriven: boolean;
   objectiveFocused: boolean;
@@ -172,6 +195,7 @@ export interface TeamData {
   fillIns: FillIn[];
   comps: Comp[];
   compResults: CompResult[];
+  plays: Play[];
   teamIdentity: TeamIdentity;
   macroSummary: MacroSummary;
   resourceLinks: ResourceLinks;
