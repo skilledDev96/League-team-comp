@@ -79,15 +79,21 @@
       <!-- Arrow layer: lines only, no pointer events so the board catches drags. -->
       <svg class="tb-arrows" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <defs>
-          <marker id="tbArrowHead" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
+          <marker id="tbArrowHead-dive" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--warn)" />
+          </marker>
+          <marker id="tbArrowHead-rotate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent-2)" />
+          </marker>
+          <marker id="tbArrowHead-ward" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ok)" />
           </marker>
         </defs>
         @for (arrow of arrows(); track arrow.id) {
           <line class="tb-arrow-line" [class]="arrowClass(arrow)"
                 [attr.x1]="arrow.x1" [attr.y1]="arrow.y1" [attr.x2]="arrow.x2" [attr.y2]="arrow.y2"
-                marker-end="url(#tbArrowHead)" />
-          @if (canEdit() && mode() === 'arrow') {
+                [attr.marker-end]="arrowMarker(arrow)" />
+          @if (canEdit() && (mode() === 'move' || mode() === 'arrow')) {
             <line class="tb-arrow-hit"
                   [attr.x1]="arrow.x1" [attr.y1]="arrow.y1" [attr.x2]="arrow.x2" [attr.y2]="arrow.y2"
                   (pointerdown)="startArrowMove(arrow, $event)" />
@@ -130,7 +136,25 @@
     </div>
     </div>
 
-    <aside class="tb-rail">
+    @if (canEdit()) {
+      <aside class="tb-enemy-rail">
+        <span class="tb-panel-label">Enemy team</span>
+        <ul class="tb-enemy-list">
+          @for (token of enemyTokens(); track token.id) {
+            <li class="tb-enemy-row">
+              <span class="tb-enemy-dot" [class.filled]="!!token.champion">
+                @if (iconFor(token); as icon) { <img [src]="icon" [alt]="token.champion" /> }
+              </span>
+              <input type="text" [ngModel]="token.champion"
+                     (ngModelChange)="setEnemyChampion(token.id, $event)"
+                     [name]="'enemy-' + token.id" placeholder="Enemy champion" />
+            </li>
+          }
+        </ul>
+      </aside>
+    }
+
+    <aside class="tb-tools-rail">
       <div class="tb-legend">
         <span class="tb-legend-item is-ally">Your team</span>
         <span class="tb-legend-item is-enemy">Enemy</span>
@@ -177,19 +201,6 @@
         } @else {
           <p class="tb-hint">Drag any token to position it. Set the enemy champs you're planning against:</p>
         }
-
-        <ul class="tb-enemy-list">
-          @for (token of enemyTokens(); track token.id) {
-            <li class="tb-enemy-row">
-              <span class="tb-enemy-dot" [class.filled]="!!token.champion">
-                @if (iconFor(token); as icon) { <img [src]="icon" [alt]="token.champion" /> }
-              </span>
-              <input type="text" [ngModel]="token.champion"
-                     (ngModelChange)="setEnemyChampion(token.id, $event)"
-                     [name]="'enemy-' + token.id" placeholder="Enemy champion" />
-            </li>
-          }
-        </ul>
 
         <div class="tb-notes">
           <span class="tb-notes-label">Notes</span>

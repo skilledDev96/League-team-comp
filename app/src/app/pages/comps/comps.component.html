@@ -55,6 +55,14 @@
         <div class="comp-record-head">
           <span class="comp-record-title material-symbols-rounded" aria-hidden="true">scoreboard</span>
           <span class="comp-record-label">Track record</span>
+          @if (auth.editing()) {
+            <button type="button" class="comp-log-trigger"
+                    [attr.aria-label]="isLogging(comp.id) ? 'Hide result form' : 'Log a game'"
+                    [attr.title]="isLogging(comp.id) ? 'Hide result form' : 'Log a game'"
+                    (click)="toggleLog(comp.id)">
+              <span class="material-symbols-rounded" aria-hidden="true">{{ isLogging(comp.id) ? 'close' : 'add' }}</span>
+            </button>
+          }
           @if (recordFor(comp.id); as record) {
             <span class="comp-record-summary">{{ record.wins }}W&#8211;{{ record.losses }}L &middot; {{ record.winRate }}% win rate</span>
           } @else {

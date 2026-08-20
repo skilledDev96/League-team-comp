@@ -137,6 +137,18 @@ export interface PainPoint {
   order: number;
 }
 
+export type LearnPriority = 'high' | 'med' | 'low';
+export type LearnStatus = 'learning' | 'ready';
+
+export interface LearnEntry {
+  id: string;
+  playerId: string;
+  champion: string;
+  priority: LearnPriority;
+  status: LearnStatus;
+  order: number;
+}
+
 export type PlayPhase = 'Early' | 'Mid' | 'Late';
 export type TokenSide = 'ally' | 'enemy';
 

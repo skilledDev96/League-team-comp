@@ -172,6 +172,10 @@ export class TacticalBoardComponent {
     return `is-${arrow.kind}`;
   }
 
+  protected arrowMarker(arrow: PlayArrow): string {
+    return `url(#tbArrowHead-${arrow.kind})`;
+  }
+
   // ---- Board interaction (tokens + arrows) ------------------------------
 
   private board(): HTMLElement | null {
