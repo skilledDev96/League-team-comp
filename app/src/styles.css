@@ -2276,6 +2276,23 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.analysis-pending {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-0);
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--card-border) 55%);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.analysis-pending .material-symbols-rounded {
+  font-size: 1.05rem;
+  color: var(--accent-2);
+}
+
 .analysis-list {
   list-style: none;
   margin: 0.6rem 0 0;

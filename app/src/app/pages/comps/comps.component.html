@@ -245,6 +245,14 @@
       @if (a.newMatches) { {{ a.newMatches }} newly fetched · }
       updated {{ a.generatedAt | date: 'MMM d, HH:mm' }}
     </p>
+    @if (a.pendingMatches) {
+      <p class="analysis-pending">
+        <span class="material-symbols-rounded" aria-hidden="true">hourglass_top</span>
+        {{ a.pendingMatches }} more game{{ a.pendingMatches === 1 ? '' : 's' }} still to fetch —
+        @if (auth.editing()) { hit <strong>Refresh from Riot</strong> again to continue. }
+        @else { an editor can Refresh again to continue. }
+      </p>
+    }
 
     @if (a.comps.length) {
       <ul class="analysis-list">

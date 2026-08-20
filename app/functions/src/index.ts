@@ -825,9 +825,13 @@ export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY] },
 
 // Queues that can be a full roster 5-stack: Ranked Flex and normal 5v5 Draft.
 const TEAM_QUEUES = [440, 400];
-// How many recent matches to pull per player, per queue. Deeper history is safe
-// now that match details are cached and rate limits are retried.
-const TEAM_MATCH_COUNT = 50;
+// Match-id pagination: how deep to look per player/queue (pages of 100).
+const MATCH_ID_PAGE_SIZE = 100;
+const MAX_MATCH_ID_PAGES = 4;
+// Per-run budget of *new* (uncached) matches to fetch, so one run stays under
+// the rate limit and function timeout. Re-run Refresh to fetch the next batch;
+// already-cached matches are always processed regardless of this budget.
+const MAX_NEW_FETCHES = 40;
 // A played comp is credited to a defined comp when at least this many champs overlap.
 const COMP_MATCH_THRESHOLD = 3;
 
@@ -903,12 +907,16 @@ interface CachedMatch {
 async function getCachedMatch(
   matchId: string,
   regional: string,
-  apiKey: string
-): Promise<{ match: CachedMatch; fromCache: boolean }> {
+  apiKey: string,
+  allowFetch: boolean
+): Promise<{ match: CachedMatch; fromCache: boolean } | null> {
   const ref = getFirestore().doc(`matchCache/${matchId}`);
   const snap = await ref.get();
   if (snap.exists) {
     return { match: snap.data() as CachedMatch, fromCache: true };
+  }
+  if (!allowFetch) {
+    return null;
   }
   const raw = await riotFetch<RiotMatch>(
     `https://${regional}.api.riotgames.com/lol/match/v5/matches/${matchId}`,
@@ -940,6 +948,7 @@ interface CompAnalysisResponse {
   totalTeamGames: number;
   scannedMatches: number;
   newMatches: number;
+  pendingMatches: number;
   generatedAt: string;
 }
 
@@ -1011,22 +1020,29 @@ async function computeCompAnalysis(
   const matchIdCounts = new Map<string, number>();
   for (const queueId of TEAM_QUEUES) {
     for (const player of identities) {
-      try {
-        const ids = await riotFetch<string[]>(
-          `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${player.puuid}/ids?queue=${queueId}&start=0&count=${TEAM_MATCH_COUNT}`,
-          apiKey
-        );
+      for (let page = 0; page < MAX_MATCH_ID_PAGES; page += 1) {
+        let ids: string[];
+        try {
+          ids = await riotFetch<string[]>(
+            `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${player.puuid}/ids?queue=${queueId}&start=${page * MATCH_ID_PAGE_SIZE}&count=${MATCH_ID_PAGE_SIZE}`,
+            apiKey
+          );
+        } catch {
+          break; // Stop paging this player/queue on error (e.g. rate limit).
+        }
         for (const id of ids) {
           matchIdCounts.set(id, (matchIdCounts.get(id) ?? 0) + 1);
         }
-      } catch {
-        // Skip a player/queue that errors (e.g. rate limit) rather than fail the run.
+        if (ids.length < MATCH_ID_PAGE_SIZE) break; // No more history.
       }
     }
   }
+  // Full-5-stack candidates, most recent first (match ids sort chronologically).
   const candidateIds = [...matchIdCounts.entries()]
     .filter(([, count]) => count >= fullStackSize)
-    .map(([id]) => id);
+    .map(([id]) => id)
+    .sort()
+    .reverse();
 
   const compSets = payload.comps.map((comp) => ({
     id: comp.id,
@@ -1039,6 +1055,7 @@ async function computeCompAnalysis(
   let totalTeamGames = 0;
   let scannedMatches = 0;
   let newMatches = 0;
+  let pendingMatches = 0;
 
   // Riot's position labels vary; normalise them and keep a role order for display.
   const roleOrder: Record<string, number> = { Top: 0, Jungle: 1, Mid: 2, ADC: 3, Support: 4 };
@@ -1046,10 +1063,17 @@ async function computeCompAnalysis(
   for (const matchId of candidateIds) {
     let match: CachedMatch;
     try {
-      const result = await getCachedMatch(matchId, routing.regional, apiKey);
+      // Only fetch new matches while we're under the per-run budget; cached ones
+      // are always processed. Anything skipped is reported as pending.
+      const result = await getCachedMatch(matchId, routing.regional, apiKey, newMatches < MAX_NEW_FETCHES);
+      if (!result) {
+        pendingMatches += 1;
+        continue;
+      }
       match = result.match;
       if (!result.fromCache) newMatches += 1;
     } catch {
+      pendingMatches += 1;
       continue;
     }
     scannedMatches += 1;
@@ -1129,12 +1153,15 @@ async function computeCompAnalysis(
     }))
     .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
 
+  games.sort((a, b) => b.date - a.date);
+
   return {
     comps,
     games,
     totalTeamGames,
     scannedMatches,
     newMatches,
+    pendingMatches,
     generatedAt: new Date().toISOString()
   };
 }

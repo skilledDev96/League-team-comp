@@ -185,6 +185,7 @@ export interface CompAnalysis {
   totalTeamGames: number;
   scannedMatches: number;
   newMatches?: number;
+  pendingMatches?: number;
   generatedAt: string;
 }
 
