@@ -299,6 +299,9 @@
                            [title]="p.position + ' · ' + p.name + ' · ' + p.champion" loading="lazy" />
                     }
                   </span>
+                  @if (game.nearCompName) {
+                    <span class="game-near" [title]="'Closest defined comp'">≈ {{ game.nearCompName }} ({{ game.nearOverlap }}/5)</span>
+                  }
                   @if (game.queue) { <span class="game-queue">{{ game.queue }}</span> }
                   @if (game.date) { <span class="game-date">{{ game.date | date: 'MMM d' }}</span> }
                   <span class="game-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>

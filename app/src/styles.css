@@ -2519,6 +2519,13 @@ body {
   object-fit: cover;
 }
 
+.game-near {
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  color: var(--text-1);
+  white-space: nowrap;
+}
+
 .game-queue {
   flex: 0 0 auto;
   font-family: "Chakra Petch", sans-serif;

@@ -870,6 +870,9 @@ interface AnalysisGameResponse {
   matchId: string;
   compId: string | null;
   compName: string | null;
+  // Closest defined comp even when below the match threshold, for off-book hints.
+  nearCompName: string | null;
+  nearOverlap: number;
   win: boolean;
   queue: string;
   date: number;
@@ -1135,6 +1138,8 @@ async function computeCompAnalysis(
       matchId,
       compId: matched ? bestId : null,
       compName: matched ? bestName : null,
+      nearCompName: bestOverlap > 0 ? bestName : null,
+      nearOverlap: bestOverlap,
       win,
       queue: QUEUE_LABEL[match.queueId] ?? 'Team',
       date: match.gameCreation,

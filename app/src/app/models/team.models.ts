@@ -173,6 +173,8 @@ export interface AnalysisGame {
   matchId: string;
   compId: string | null;
   compName: string | null;
+  nearCompName?: string | null;
+  nearOverlap?: number;
   win: boolean;
   queue: string;
   date: number;
