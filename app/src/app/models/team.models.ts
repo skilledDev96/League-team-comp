@@ -149,6 +149,28 @@ export interface LearnEntry {
   order: number;
 }
 
+export interface CompPerformance {
+  compId: string;
+  compName: string;
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
+export interface OffBookGame {
+  champions: string[];
+  win: boolean;
+}
+
+export interface CompAnalysis {
+  comps: CompPerformance[];
+  offBook: OffBookGame[];
+  totalTeamGames: number;
+  scannedMatches: number;
+  generatedAt: string;
+}
+
 export type PlayPhase = 'Early' | 'Mid' | 'Late';
 export type TokenSide = 'ally' | 'enemy';
 
@@ -247,6 +269,7 @@ export interface TeamData {
   plays: Play[];
   painPoints: PainPoint[];
   learnEntries: LearnEntry[];
+  compAnalysis?: CompAnalysis;
   teamIdentity: TeamIdentity;
   macroSummary: MacroSummary;
   resourceLinks: ResourceLinks;

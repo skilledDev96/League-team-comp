@@ -806,3 +806,253 @@ export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY] },
     res.status(400).json({ error: message });
   }
 });
+
+// ---- Comp analysis (real win rates from full-5-stack team games) ----------
+
+// Queues that can be a full roster 5-stack: Ranked Flex and normal 5v5 Draft.
+const TEAM_QUEUES = [440, 400];
+// How many recent matches to pull per player, per queue.
+const TEAM_MATCH_COUNT = 20;
+// A played comp is credited to a defined comp when at least this many champs overlap.
+const COMP_MATCH_THRESHOLD = 3;
+
+interface CompInput {
+  id: string;
+  name: string;
+  champions: string[];
+}
+
+interface CompAnalysisRequest {
+  players: SynergyPlayerRequest[];
+  comps: CompInput[];
+}
+
+interface CompPerformanceResponse {
+  compId: string;
+  compName: string;
+  games: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
+interface OffBookGameResponse {
+  champions: string[];
+  win: boolean;
+}
+
+interface CompAnalysisResponse {
+  comps: CompPerformanceResponse[];
+  offBook: OffBookGameResponse[];
+  totalTeamGames: number;
+  scannedMatches: number;
+  generatedAt: string;
+}
+
+function parseCompAnalysisRequest(body: unknown): CompAnalysisRequest {
+  if (!body || typeof body !== 'object') {
+    throw new Error('Invalid payload. Expected a JSON object.');
+  }
+  const candidate = body as { players?: unknown; comps?: unknown };
+  if (!Array.isArray(candidate.players) || candidate.players.length < 5 || candidate.players.length > 10) {
+    throw new Error('players must contain between 5 and 10 roster members.');
+  }
+  const players = candidate.players.map((value) => {
+    const player = value as Record<string, unknown>;
+    const id = typeof player.id === 'string' ? player.id.trim() : '';
+    const name = typeof player.name === 'string' ? player.name.trim() : '';
+    if (!id || !name) {
+      throw new Error('Each roster player requires an id and name.');
+    }
+    return {
+      id,
+      name,
+      riotTag: typeof player.riotTag === 'string' ? player.riotTag.trim() : undefined,
+      region: typeof player.region === 'string' ? player.region.trim().toLowerCase() : undefined
+    };
+  });
+  const comps = Array.isArray(candidate.comps)
+    ? candidate.comps.map((value) => {
+        const comp = value as Record<string, unknown>;
+        return {
+          id: typeof comp.id === 'string' ? comp.id : '',
+          name: typeof comp.name === 'string' ? comp.name : 'Comp',
+          champions: Array.isArray(comp.champions)
+            ? comp.champions.filter((c): c is string => typeof c === 'string')
+            : []
+        };
+      })
+    : [];
+  return { players, comps };
+}
+
+// Lowercase alphanumerics, so "Miss Fortune" == "missfortune" across sources.
+function normalizeChampKey(name: string): string {
+  return (name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+async function computeCompAnalysis(
+  payload: CompAnalysisRequest,
+  apiKey: string
+): Promise<CompAnalysisResponse> {
+  const firstRegion = payload.players[0]?.region ?? 'euw';
+  const routing = REGION_ROUTING[firstRegion] ?? REGION_ROUTING.euw;
+
+  const identities = await Promise.all(
+    payload.players.map(async (player) => {
+      const tagLine = (player.riotTag || firstRegion.toUpperCase()).replace(/^#/, '');
+      const account = await riotFetch<RiotAccount>(
+        `https://${routing.regional}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(player.name)}/${encodeURIComponent(tagLine)}`,
+        apiKey
+      );
+      return { ...player, puuid: account.puuid };
+    })
+  );
+  const rosterPuuids = new Set(identities.map((i) => i.puuid));
+  const fullStackSize = Math.min(5, identities.length);
+
+  // Count how many roster members share each match id — a full 5-stack shows up
+  // in all five members' histories, so we only pull detail for those candidates.
+  const matchIdCounts = new Map<string, number>();
+  for (const queueId of TEAM_QUEUES) {
+    for (const player of identities) {
+      try {
+        const ids = await riotFetch<string[]>(
+          `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${player.puuid}/ids?queue=${queueId}&start=0&count=${TEAM_MATCH_COUNT}`,
+          apiKey
+        );
+        for (const id of ids) {
+          matchIdCounts.set(id, (matchIdCounts.get(id) ?? 0) + 1);
+        }
+      } catch {
+        // Skip a player/queue that errors (e.g. rate limit) rather than fail the run.
+      }
+    }
+  }
+  const candidateIds = [...matchIdCounts.entries()]
+    .filter(([, count]) => count >= fullStackSize)
+    .map(([id]) => id);
+
+  const compSets = payload.comps.map((comp) => ({
+    id: comp.id,
+    name: comp.name,
+    set: new Set(comp.champions.map(normalizeChampKey))
+  }));
+
+  const perComp = new Map<string, { compId: string; compName: string; games: number; wins: number }>();
+  const offBook: OffBookGameResponse[] = [];
+  let totalTeamGames = 0;
+  let scannedMatches = 0;
+
+  for (const matchId of candidateIds) {
+    let match: RiotMatch;
+    try {
+      match = await riotFetch<RiotMatch>(
+        `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/${matchId}`,
+        apiKey
+      );
+    } catch {
+      continue;
+    }
+    scannedMatches += 1;
+    const rosterParticipants = match.info.participants.filter((p) => rosterPuuids.has(p.puuid));
+    const byTeam = new Map<number, RiotMatchParticipant[]>();
+    for (const participant of rosterParticipants) {
+      const members = byTeam.get(participant.teamId) ?? [];
+      members.push(participant);
+      byTeam.set(participant.teamId, members);
+    }
+    let teamParts: RiotMatchParticipant[] | null = null;
+    for (const members of byTeam.values()) {
+      if (members.length >= fullStackSize) {
+        teamParts = members;
+        break;
+      }
+    }
+    if (!teamParts) continue;
+
+    totalTeamGames += 1;
+    const champions = teamParts.map((p) => displayChampionName(p.championName));
+    const win = teamParts[0].win;
+    const playedSet = new Set(champions.map(normalizeChampKey));
+
+    let bestId: string | null = null;
+    let bestName = '';
+    let bestOverlap = 0;
+    for (const comp of compSets) {
+      let overlap = 0;
+      for (const champ of comp.set) {
+        if (playedSet.has(champ)) overlap += 1;
+      }
+      if (overlap > bestOverlap) {
+        bestOverlap = overlap;
+        bestId = comp.id;
+        bestName = comp.name;
+      }
+    }
+
+    if (bestId && bestOverlap >= COMP_MATCH_THRESHOLD) {
+      const acc = perComp.get(bestId) ?? { compId: bestId, compName: bestName, games: 0, wins: 0 };
+      acc.games += 1;
+      if (win) acc.wins += 1;
+      perComp.set(bestId, acc);
+    } else {
+      offBook.push({ champions, win });
+    }
+  }
+
+  const comps = [...perComp.values()]
+    .map((a) => ({
+      compId: a.compId,
+      compName: a.compName,
+      games: a.games,
+      wins: a.wins,
+      losses: a.games - a.wins,
+      winRate: a.games ? Math.round((a.wins / a.games) * 100) : 0
+    }))
+    .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
+
+  return {
+    comps,
+    offBook,
+    totalTeamGames,
+    scannedMatches,
+    generatedAt: new Date().toISOString()
+  };
+}
+
+export const getCompAnalysis = onRequest(
+  { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 300 },
+  async (req, res) => {
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed. Use POST.' });
+      return;
+    }
+    try {
+      const idToken = parseBearerToken(req.headers.authorization);
+      if (!idToken) {
+        res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
+        return;
+      }
+      const decoded = await getAuth().verifyIdToken(idToken);
+      const email = normalizeEmail(decoded.email);
+      const role = await getAccessRoleByEmail(email);
+      if (role !== 'admin' && role !== 'contributor') {
+        res.status(403).json({ error: 'Editor access required to refresh comp analysis.' });
+        return;
+      }
+      const payload = parseCompAnalysisRequest(req.body);
+      const analysis = await computeCompAnalysis(payload, RIOT_API_KEY.value());
+      // Cache the result so viewers see it without re-running the analysis.
+      await getFirestore().doc('meta/compAnalysis').set(analysis);
+      res.status(200).json(analysis);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unexpected error.';
+      res.status(400).json({ error: message });
+    }
+  }
+);

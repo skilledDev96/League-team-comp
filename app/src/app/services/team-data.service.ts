@@ -16,6 +16,7 @@ import {
   Play,
   PainPoint,
   LearnEntry,
+  CompAnalysis,
   AccessEntry,
   FillIn,
   MacroSummary,
@@ -68,6 +69,7 @@ export class TeamDataService {
   readonly accessEntries = signal<AccessEntry[]>([]);
   readonly teamIdentity = signal<TeamIdentity | null>(null);
   readonly macroSummary = signal<MacroSummary | null>(null);
+  readonly compAnalysis = signal<CompAnalysis | null>(null);
   readonly resourceLinks = signal<ResourceLinks>({});
   readonly settings = signal<Settings>({ teamName: '' });
   readonly ready = signal(false);
@@ -109,6 +111,7 @@ export class TeamDataService {
     this.accessEntries.set([{ email: 'ruanhart7@gmail.com', role: 'admin', active: true }]);
     this.teamIdentity.set(data.teamIdentity);
     this.macroSummary.set(data.macroSummary);
+    this.compAnalysis.set(data.compAnalysis ?? null);
     this.resourceLinks.set(data.resourceLinks);
     this.settings.set(data.settings);
   }
@@ -130,6 +133,7 @@ export class TeamDataService {
       learnEntries: this.learnEntries(),
       teamIdentity: this.teamIdentity() ?? SEED_DATA.teamIdentity,
       macroSummary: this.macroSummary() ?? SEED_DATA.macroSummary,
+      compAnalysis: this.compAnalysis() ?? undefined,
       resourceLinks: this.resourceLinks()
     };
     localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
@@ -185,6 +189,9 @@ export class TeamDataService {
     });
     onSnapshot(doc(db, 'meta', 'macro'), (d) => {
       this.macroSummary.set((d.data() as MacroSummary) ?? null);
+    });
+    onSnapshot(doc(db, 'meta', 'compAnalysis'), (d) => {
+      this.compAnalysis.set((d.data() as CompAnalysis) ?? null);
     });
     onSnapshot(doc(db, 'meta', 'resourceLinks'), (d) => {
       const data = d.data() as { groups?: ResourceLinks } | undefined;
