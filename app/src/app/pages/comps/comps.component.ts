@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AnalysisGame, Comp, CompOutcome, CompPerformance, CompRecord, CompResult, Play, ROLES } from '../../models/team.models';
+import { AnalysisGame, Comp, CompOutcome, CompPerformance, CompPicks, CompRecord, CompResult, Play, Role, ROLES } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -145,6 +145,41 @@ export class CompsComponent {
   // Compact damage label, e.g. 24312 -> "24.3k".
   protected fmtDamage(value: number): string {
     return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : `${value}`;
+  }
+
+  // ---- Define a comp from an off-book game ------------------------------
+
+  // matchId -> draft comp name being typed.
+  protected readonly compDrafts = signal<Record<string, string>>({});
+  // matchIds already saved as a comp this session.
+  protected readonly savedComps = signal<Set<string>>(new Set());
+
+  protected compDraft(matchId: string): string {
+    return this.compDrafts()[matchId] ?? '';
+  }
+
+  protected setCompDraft(matchId: string, name: string): void {
+    this.compDrafts.update((state) => ({ ...state, [matchId]: name }));
+  }
+
+  protected isSavedAsComp(matchId: string): boolean {
+    return this.savedComps().has(matchId);
+  }
+
+  protected async saveAsComp(game: AnalysisGame): Promise<void> {
+    const name = this.compDraft(game.matchId).trim();
+    if (!name || this.isSavedAsComp(game.matchId)) return;
+    const picks = {} as CompPicks;
+    for (const role of ROLES) {
+      picks[role] = '';
+    }
+    for (const p of game.players) {
+      if ((ROLES as string[]).includes(p.position)) {
+        picks[p.position as Role] = p.champion;
+      }
+    }
+    await this.data.createComp({ name, picks });
+    this.savedComps.update((set) => new Set(set).add(game.matchId));
   }
 
   // Match-analysis record for a comp panel, keyed by comp id.

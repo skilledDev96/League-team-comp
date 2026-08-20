@@ -324,6 +324,23 @@
                     </li>
                   }
                 </ul>
+                @if (auth.editing()) {
+                  <div class="game-define">
+                    @if (isSavedAsComp(game.matchId)) {
+                      <span class="game-define-saved">
+                        <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
+                        Saved as comp — Refresh to re-match
+                      </span>
+                    } @else {
+                      <input type="text" class="game-define-input" [ngModel]="compDraft(game.matchId)"
+                             (ngModelChange)="setCompDraft(game.matchId, $event)"
+                             [name]="'compname-' + game.matchId" placeholder="Name this comp…" />
+                      <button type="button" class="view-btn" [disabled]="!compDraft(game.matchId).trim()" (click)="saveAsComp(game)">
+                        <span class="material-symbols-rounded" aria-hidden="true">add</span> Save as comp
+                      </button>
+                    }
+                  </div>
+                }
               </details>
             </li>
           }

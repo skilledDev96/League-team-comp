@@ -2601,6 +2601,48 @@ body {
   text-align: right;
 }
 
+.game-define {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.8rem 0.65rem;
+  flex-wrap: wrap;
+}
+
+.game-define-input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: 0.42rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.game-define .view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.game-define .view-btn .material-symbols-rounded {
+  font-size: 1rem;
+}
+
+.game-define-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--ok);
+}
+
+.game-define-saved .material-symbols-rounded {
+  font-size: 1.05rem;
+}
+
 .game-champ {
   width: 28px;
   height: 28px;
