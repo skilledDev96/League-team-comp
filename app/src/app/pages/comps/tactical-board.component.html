@@ -30,7 +30,9 @@
 
   <div class="tb-body">
     <div class="tb-board-wrap">
-    <div class="tb-board" (pointermove)="onPointerMove($event)" (pointerup)="endDrag()" (pointerleave)="endDrag()">
+    <div class="tb-board" [class.arrow-mode]="mode() === 'arrow'"
+         (pointerdown)="onBoardPointerDown($event)"
+         (pointermove)="onPointerMove($event)" (pointerup)="endDrag()" (pointerleave)="endDrag()">
       @if (mapImage) {
         <img class="tb-rift-img" [src]="mapImage" alt="Summoner's Rift" draggable="false" />
       } @else {
@@ -73,6 +75,40 @@
           <span class="tb-token-name">{{ tokenLabel(token) }}</span>
         </button>
       }
+
+      <!-- Arrow layer: lines only, no pointer events so the board catches drags. -->
+      <svg class="tb-arrows" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <marker id="tbArrowHead" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
+          </marker>
+        </defs>
+        @for (arrow of arrows(); track arrow.id) {
+          <line class="tb-arrow-line" [class]="arrowClass(arrow)"
+                [attr.x1]="arrow.x1" [attr.y1]="arrow.y1" [attr.x2]="arrow.x2" [attr.y2]="arrow.y2"
+                marker-end="url(#tbArrowHead)" />
+        }
+      </svg>
+
+      <!-- Editable handles for arrow endpoints + delete, above the line layer. -->
+      @if (canEdit() && mode() === 'arrow') {
+        @for (arrow of arrows(); track arrow.id) {
+          <button type="button" class="tb-handle" [class]="arrowClass(arrow)"
+                  [style.left.%]="arrow.x1" [style.top.%]="arrow.y1"
+                  aria-label="Arrow start"
+                  (pointerdown)="startArrowEnd(arrow, 1, $event)"></button>
+          <button type="button" class="tb-handle" [class]="arrowClass(arrow)"
+                  [style.left.%]="arrow.x2" [style.top.%]="arrow.y2"
+                  aria-label="Arrow end"
+                  (pointerdown)="startArrowEnd(arrow, 2, $event)"></button>
+          <button type="button" class="tb-arrow-del"
+                  [style.left.%]="midX(arrow)" [style.top.%]="midY(arrow)"
+                  aria-label="Delete arrow"
+                  (pointerdown)="$event.stopPropagation()" (click)="deleteArrow(arrow.id)">
+            <span class="material-symbols-rounded" aria-hidden="true">close</span>
+          </button>
+        }
+      }
     </div>
     </div>
 
@@ -83,7 +119,26 @@
       </div>
 
       @if (canEdit()) {
-        <p class="tb-hint">Drag any token to position it. Set the enemy champs you're planning against:</p>
+        <div class="tb-mode" role="group" aria-label="Board mode">
+          <button type="button" class="tb-mode-btn" [class.active]="mode() === 'move'" (click)="mode.set('move')">
+            <span class="material-symbols-rounded" aria-hidden="true">open_with</span> Move
+          </button>
+          <button type="button" class="tb-mode-btn" [class.active]="mode() === 'arrow'" (click)="mode.set('arrow')">
+            <span class="material-symbols-rounded" aria-hidden="true">arrow_outward</span> Draw
+          </button>
+        </div>
+
+        @if (mode() === 'arrow') {
+          <div class="tb-kind" role="group" aria-label="Arrow type">
+            <button type="button" class="tb-kind-btn is-dive" [class.active]="arrowKind() === 'dive'" (click)="arrowKind.set('dive')">Dive</button>
+            <button type="button" class="tb-kind-btn is-rotate" [class.active]="arrowKind() === 'rotate'" (click)="arrowKind.set('rotate')">Rotate</button>
+            <button type="button" class="tb-kind-btn is-ward" [class.active]="arrowKind() === 'ward'" (click)="arrowKind.set('ward')">Vision</button>
+          </div>
+          <p class="tb-hint">Drag on the map to draw a {{ arrowKind() }} arrow. Drag the dots to adjust, ✕ to remove.</p>
+        } @else {
+          <p class="tb-hint">Drag any token to position it. Set the enemy champs you're planning against:</p>
+        }
+
         <ul class="tb-enemy-list">
           @for (token of enemyTokens(); track token.id) {
             <li class="tb-enemy-row">

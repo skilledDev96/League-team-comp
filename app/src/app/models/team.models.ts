@@ -141,6 +141,18 @@ export interface PlayToken {
   y: number;
 }
 
+export type ArrowKind = 'dive' | 'rotate' | 'ward';
+
+export interface PlayArrow {
+  id: string;
+  kind: ArrowKind;
+  // Endpoints as a percentage of the board (0-100).
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
 export interface Play {
   id: string;
   compId: string;
@@ -148,6 +160,7 @@ export interface Play {
   phase: PlayPhase;
   notes?: string;
   tokens: PlayToken[];
+  arrows?: PlayArrow[];
   order: number;
 }
 

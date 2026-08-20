@@ -1,6 +1,16 @@
 import { Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Comp, Play, PlayPhase, PlayToken, Role, ROLES, TokenSide } from '../../models/team.models';
+import {
+  ArrowKind,
+  Comp,
+  Play,
+  PlayArrow,
+  PlayPhase,
+  PlayToken,
+  Role,
+  ROLES,
+  TokenSide
+} from '../../models/team.models';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 
@@ -49,9 +59,19 @@ export class TacticalBoardComponent {
   protected readonly phase = signal<PlayPhase>('Early');
   protected readonly notes = signal('');
   protected readonly tokens = signal<PlayToken[]>([]);
+  protected readonly arrows = signal<PlayArrow[]>([]);
+
+  // 'move' drags tokens; 'arrow' draws/edits arrows. Arrow kind picks the style.
+  protected readonly mode = signal<'move' | 'arrow'>('move');
+  protected readonly arrowKind = signal<ArrowKind>('dive');
 
   private boardEl: HTMLElement | null = null;
-  private draggingId: string | null = null;
+  // What the current pointer gesture is manipulating.
+  private drag:
+    | { type: 'token'; id: string }
+    | { type: 'arrow-end'; id: string; end: 1 | 2 }
+    | { type: 'new-arrow'; id: string }
+    | null = null;
 
   constructor() {
     // input() values aren't ready in the field initializers above, so seed here.
@@ -65,6 +85,7 @@ export class TacticalBoardComponent {
       this.phase.set(existing.phase);
       this.notes.set(existing.notes ?? '');
       this.tokens.set(existing.tokens.map((t) => ({ ...t })));
+      this.arrows.set((existing.arrows ?? []).map((a) => ({ ...a })));
       return;
     }
     // New play: ally tokens from the comp's picks, plus five enemy slots.
@@ -102,28 +123,104 @@ export class TacticalBoardComponent {
     return 'Enemy';
   }
 
-  // ---- Dragging ---------------------------------------------------------
+  protected arrowClass(arrow: PlayArrow): string {
+    return `is-${arrow.kind}`;
+  }
 
+  // ---- Board interaction (tokens + arrows) ------------------------------
+
+  private board(): HTMLElement | null {
+    if (!this.boardEl) {
+      this.boardEl = this.host.nativeElement.querySelector('.tb-board');
+    }
+    return this.boardEl;
+  }
+
+  private posFromEvent(event: PointerEvent): { x: number; y: number } | null {
+    const rect = this.board()?.getBoundingClientRect();
+    if (!rect) return null;
+    return {
+      x: clamp(((event.clientX - rect.left) / rect.width) * 100),
+      y: clamp(((event.clientY - rect.top) / rect.height) * 100)
+    };
+  }
+
+  // Token drag — only in move mode.
   protected startDrag(token: PlayToken, event: PointerEvent): void {
+    if (!this.canEdit() || this.mode() !== 'move') return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.drag = { type: 'token', id: token.id };
+  }
+
+  // Pointer down on empty board in arrow mode starts a new arrow.
+  protected onBoardPointerDown(event: PointerEvent): void {
+    if (!this.canEdit() || this.mode() !== 'arrow') return;
+    const pos = this.posFromEvent(event);
+    if (!pos) return;
+    event.preventDefault();
+    const arrow: PlayArrow = {
+      id: `arrow-${Date.now().toString(36)}`,
+      kind: this.arrowKind(),
+      x1: pos.x,
+      y1: pos.y,
+      x2: pos.x,
+      y2: pos.y
+    };
+    this.arrows.update((list) => [...list, arrow]);
+    this.drag = { type: 'new-arrow', id: arrow.id };
+  }
+
+  // Drag an existing arrow endpoint handle.
+  protected startArrowEnd(arrow: PlayArrow, end: 1 | 2, event: PointerEvent): void {
     if (!this.canEdit()) return;
     event.preventDefault();
-    this.boardEl = this.host.nativeElement.querySelector('.tb-board');
-    this.draggingId = token.id;
-    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+    event.stopPropagation();
+    this.drag = { type: 'arrow-end', id: arrow.id, end };
   }
 
   protected onPointerMove(event: PointerEvent): void {
-    if (!this.draggingId || !this.boardEl) return;
-    const rect = this.boardEl.getBoundingClientRect();
-    const x = clamp(((event.clientX - rect.left) / rect.width) * 100);
-    const y = clamp(((event.clientY - rect.top) / rect.height) * 100);
-    this.tokens.update((list) =>
-      list.map((t) => (t.id === this.draggingId ? { ...t, x, y } : t))
-    );
+    if (!this.drag) return;
+    const pos = this.posFromEvent(event);
+    if (!pos) return;
+    const active = this.drag;
+    if (active.type === 'token') {
+      this.tokens.update((list) =>
+        list.map((t) => (t.id === active.id ? { ...t, x: pos.x, y: pos.y } : t))
+      );
+    } else {
+      this.arrows.update((list) =>
+        list.map((a) => {
+          if (a.id !== active.id) return a;
+          if (active.type === 'arrow-end' && active.end === 1) return { ...a, x1: pos.x, y1: pos.y };
+          return { ...a, x2: pos.x, y2: pos.y };
+        })
+      );
+    }
   }
 
   protected endDrag(): void {
-    this.draggingId = null;
+    // Discard a new arrow that was just a click (too short to be meaningful).
+    if (this.drag?.type === 'new-arrow') {
+      const id = this.drag.id;
+      const a = this.arrows().find((x) => x.id === id);
+      if (a && Math.hypot(a.x2 - a.x1, a.y2 - a.y1) < 3) {
+        this.arrows.update((list) => list.filter((x) => x.id !== id));
+      }
+    }
+    this.drag = null;
+  }
+
+  protected deleteArrow(id: string): void {
+    this.arrows.update((list) => list.filter((a) => a.id !== id));
+  }
+
+  protected midX(a: PlayArrow): number {
+    return (a.x1 + a.x2) / 2;
+  }
+
+  protected midY(a: PlayArrow): number {
+    return (a.y1 + a.y2) / 2;
   }
 
   // ---- Enemy champion assignment ----------------------------------------
@@ -146,7 +243,8 @@ export class TacticalBoardComponent {
         title: this.title().trim() || 'Untitled play',
         phase: this.phase(),
         notes: this.notes().trim() || undefined,
-        tokens: this.tokens()
+        tokens: this.tokens(),
+        arrows: this.arrows()
       };
       if (existing) {
         await this.data.updatePlay({ ...existing, ...payload });

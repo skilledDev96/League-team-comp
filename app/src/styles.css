@@ -1882,6 +1882,156 @@ body {
   pointer-events: none;
 }
 
+.tb-board.arrow-mode {
+  cursor: crosshair;
+}
+
+/* Arrow lines sit above the map, below tokens; they never eat pointer events. */
+.tb-arrows {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+
+.tb-arrow-line {
+  fill: none;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.tb-arrow-line.is-dive {
+  stroke: var(--warn);
+  stroke-width: 2;
+}
+
+.tb-arrow-line.is-rotate {
+  stroke: var(--accent-2);
+}
+
+.tb-arrow-line.is-ward {
+  stroke: var(--ok);
+  stroke-dasharray: 3 2.5;
+}
+
+.tb-handle {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  background: var(--accent);
+  cursor: grab;
+  z-index: 3;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.tb-handle:active {
+  cursor: grabbing;
+}
+
+.tb-handle.is-dive {
+  background: var(--warn);
+}
+
+.tb-handle.is-rotate {
+  background: var(--accent-2);
+}
+
+.tb-handle.is-ward {
+  background: var(--ok);
+}
+
+.tb-arrow-del {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--warn);
+  cursor: pointer;
+  z-index: 3;
+}
+
+.tb-arrow-del .material-symbols-rounded {
+  font-size: 0.9rem;
+}
+
+.tb-mode {
+  display: inline-flex;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  align-self: flex-start;
+}
+
+.tb-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.8rem;
+  border: none;
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.tb-mode-btn .material-symbols-rounded {
+  font-size: 1rem;
+}
+
+.tb-mode-btn.active {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-btn) 70%);
+  color: var(--text-0);
+}
+
+.tb-kind {
+  display: inline-flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.tb-kind-btn {
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tb-kind-btn.is-dive.active {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.tb-kind-btn.is-rotate.active {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+}
+
+.tb-kind-btn.is-ward.active {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
 .tb-token {
   position: absolute;
   transform: translate(-50%, -50%);
