@@ -127,7 +127,13 @@
                 [style.left.%]="marker.x" [style.top.%]="marker.y"
                 [attr.aria-label]="markerLabel(marker.kind) + (marker.time ? ' at ' + marker.time : '')"
                 (pointerdown)="startMarkerDrag(marker, $event)">
-          <span class="tb-marker-badge">{{ markerShort(marker.kind) }}</span>
+          <span class="tb-marker-badge">
+            @if (markerIcon(marker.kind); as icon) {
+              <span class="material-symbols-rounded" aria-hidden="true">{{ icon }}</span>
+            } @else {
+              {{ markerShort(marker.kind) }}
+            }
+          </span>
           @if (marker.time) {
             <span class="tb-marker-time">{{ marker.time }}</span>
           }
@@ -178,7 +184,11 @@
           <div class="tb-kind" role="group" aria-label="Add objective marker">
             @for (kind of markerKinds; track kind) {
               <button type="button" class="tb-kind-btn" [class]="'is-' + kind" (click)="addMarker(kind)">
-                + {{ markerShort(kind) }}
+                @if (markerIcon(kind); as icon) {
+                  + <span class="material-symbols-rounded tb-kind-icon" aria-hidden="true">{{ icon }}</span>
+                } @else {
+                  + {{ markerShort(kind) }}
+                }
               </button>
             }
           </div>

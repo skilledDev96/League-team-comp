@@ -174,7 +174,7 @@ export interface PlayArrow {
   y2: number;
 }
 
-export type MarkerKind = 'minion' | 'dragon' | 'grubs' | 'herald' | 'baron';
+export type MarkerKind = 'minion' | 'dragon' | 'grubs' | 'herald' | 'baron' | 'ward';
 
 export interface PlayMarker {
   id: string;

@@ -2708,14 +2708,29 @@ body {
 .tb-marker.is-baron,
 .tb-kind-btn.is-baron,
 .tb-marker-row.is-baron { --mk: #8f7fe0; }
+.tb-marker.is-ward,
+.tb-kind-btn.is-ward,
+.tb-marker-row.is-ward { --mk: #7fd08a; }
 
 .tb-kind-btn.is-minion,
 .tb-kind-btn.is-dragon,
 .tb-kind-btn.is-grubs,
 .tb-kind-btn.is-herald,
-.tb-kind-btn.is-baron {
+.tb-kind-btn.is-baron,
+.tb-kind-btn.is-ward {
   border-color: color-mix(in srgb, var(--mk) 55%, var(--card-border) 45%);
   color: var(--mk);
+}
+
+/* Icon-style marker badges (ward) render an eye rather than a letter. */
+.tb-marker-badge .material-symbols-rounded {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.tb-kind-icon {
+  font-size: 1rem;
+  vertical-align: -0.15em;
 }
 
 .tb-marker-list {

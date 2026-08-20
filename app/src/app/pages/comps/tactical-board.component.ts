@@ -45,18 +45,20 @@ const MARKER_DEFAULTS: Record<MarkerKind, { x: number; y: number }> = {
   dragon: { x: 70, y: 66 },
   grubs: { x: 32, y: 30 },
   herald: { x: 34, y: 34 },
-  baron: { x: 30, y: 28 }
+  baron: { x: 30, y: 28 },
+  ward: { x: 50, y: 45 }
 };
 
-const MARKER_META: Record<MarkerKind, { label: string; short: string }> = {
+const MARKER_META: Record<MarkerKind, { label: string; short: string; icon?: string }> = {
   minion: { label: 'Minion wave', short: 'M' },
   dragon: { label: 'Dragon', short: 'DRK' },
   grubs: { label: 'Void grubs', short: 'GRB' },
   herald: { label: 'Rift Herald', short: 'HLD' },
-  baron: { label: 'Baron', short: 'BRN' }
+  baron: { label: 'Baron', short: 'BRN' },
+  ward: { label: 'Ward', short: 'WRD', icon: 'visibility' }
 };
 
-const MARKER_KINDS: MarkerKind[] = ['minion', 'dragon', 'grubs', 'herald', 'baron'];
+const MARKER_KINDS: MarkerKind[] = ['ward', 'minion', 'dragon', 'grubs', 'herald', 'baron'];
 
 @Component({
   selector: 'app-tactical-board',
@@ -336,6 +338,11 @@ export class TacticalBoardComponent {
 
   protected markerShort(kind: MarkerKind): string {
     return MARKER_META[kind].short;
+  }
+
+  // A Material Symbol for markers that read better as an icon (e.g. the ward eye).
+  protected markerIcon(kind: MarkerKind): string {
+    return MARKER_META[kind].icon ?? '';
   }
 
   // ---- Enemy champion assignment ----------------------------------------
