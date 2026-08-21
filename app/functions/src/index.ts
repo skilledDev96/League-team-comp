@@ -895,25 +895,13 @@ export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY] },
 const TEAM_QUEUES = [440, 700];
 // Match-id pagination: how deep to look per player/queue (pages of 100).
 const MATCH_ID_PAGE_SIZE = 100;
-// Scan deep enough to re-find older team games (already-cached matches cost no
-// fetch budget, so depth is cheap for history we've seen before).
-const MAX_MATCH_ID_PAGES = 10;
+const MAX_MATCH_ID_PAGES = 4;
 // Per-run budget of *new* (uncached) matches to fetch, so one run stays under
 // the rate limit and function timeout. Re-run Refresh to fetch the next batch;
 // already-cached matches are always processed regardless of this budget.
 const MAX_NEW_FETCHES = 40;
-// Cap on retained team games so the cached analysis doc stays well under
-// Firestore's 1 MB limit (team games are rare, so this is generous headroom).
-const MAX_STORED_GAMES = 250;
 // A played comp is credited to a defined comp when at least this many champs overlap.
 const COMP_MATCH_THRESHOLD = 3;
-// Roster members on the same team needed to count a game toward comp win rates.
-// 4+ so a rotating roster's comp games still count when one player is subbed;
-// such games are flagged (rosterCount < 5) so the sub is visible.
-const TEAM_MIN = 4;
-// Minimum roster on a team for a game to be considered at all. Equal to TEAM_MIN
-// here, so 3-stacks and below are ignored rather than shown off the books.
-const PARTIAL_MIN = 4;
 
 interface CompInput {
   id: string;
@@ -953,8 +941,6 @@ interface AnalysisGameResponse {
   // Closest defined comp even when below the match threshold, for off-book hints.
   nearCompName: string | null;
   nearOverlap: number;
-  // Roster members on our team this game (5 = full stack, 3 = off-the-books).
-  rosterCount: number;
   win: boolean;
   side: 'blue' | 'red';
   enemyChampions: string[];
@@ -1097,15 +1083,10 @@ async function computeCompAnalysis(
   );
   const rosterPuuids = new Set(identities.map((i) => i.puuid));
   const nameByPuuid = new Map(identities.map((i) => [i.puuid, i.name]));
-  const rosterSize = Math.min(5, identities.length);
-  // A game counts toward comp records when at least this many roster members are
-  // on the same team; smaller stacks (down to PARTIAL_MIN) are shown "off the
-  // books" but never attributed to a comp's win rate.
-  const teamMin = Math.min(TEAM_MIN, rosterSize);
-  const partialMin = Math.min(PARTIAL_MIN, rosterSize);
+  const fullStackSize = Math.min(5, identities.length);
 
-  // Count how many roster members share each match id — a stack shows up in each
-  // member's history, so we only pull detail for matches with enough overlap.
+  // Count how many roster members share each match id — a full 5-stack shows up
+  // in all five members' histories, so we only pull detail for those candidates.
   const matchIdCounts = new Map<string, number>();
   for (const queueId of TEAM_QUEUES) {
     for (const player of identities) {
@@ -1126,10 +1107,9 @@ async function computeCompAnalysis(
       }
     }
   }
-  // Candidate matches: at least PARTIAL_MIN roster members present, most recent
-  // first (match ids sort chronologically).
+  // Full-5-stack candidates, most recent first (match ids sort chronologically).
   const candidateIds = [...matchIdCounts.entries()]
-    .filter(([, count]) => count >= partialMin)
+    .filter(([, count]) => count >= fullStackSize)
     .map(([id]) => id)
     .sort()
     .reverse();
@@ -1168,15 +1148,14 @@ async function computeCompAnalysis(
       members.push(participant);
       byTeam.set(participant.teamId, members);
     }
-    // The team with the most roster members on it is "our" side this game.
     let teamParts: CachedParticipant[] | null = null;
     for (const members of byTeam.values()) {
-      if (!teamParts || members.length > teamParts.length) teamParts = members;
+      if (members.length >= fullStackSize) {
+        teamParts = members;
+        break;
+      }
     }
-    const rosterCount = teamParts?.length ?? 0;
-    if (!teamParts || rosterCount < partialMin) continue;
-    // 4+ on the same team counts toward comp records (a sub is still our comp).
-    const isTeamGame = rosterCount >= teamMin;
+    if (!teamParts) continue;
 
     totalTeamGames += 1;
     const win = teamParts[0].win;
@@ -1203,26 +1182,23 @@ async function computeCompAnalysis(
       payload.comps,
       COMP_MATCH_THRESHOLD
     );
-    // Only full team games (4-5 stacks) are attributed to a comp's record.
-    const attributedCompId = isTeamGame ? compMatch.compId : null;
-    if (attributedCompId) {
-      const acc = perComp.get(attributedCompId) ?? {
-        compId: attributedCompId,
+    if (compMatch.compId) {
+      const acc = perComp.get(compMatch.compId) ?? {
+        compId: compMatch.compId,
         compName: compMatch.compName ?? '',
         games: 0,
         wins: 0
       };
       acc.games += 1;
       if (win) acc.wins += 1;
-      perComp.set(attributedCompId, acc);
+      perComp.set(compMatch.compId, acc);
     }
     games.push({
       matchId,
-      compId: attributedCompId,
-      compName: attributedCompId ? compMatch.compName : null,
+      compId: compMatch.compId,
+      compName: compMatch.compName,
       nearCompName: compMatch.nearName,
       nearOverlap: compMatch.overlap,
-      rosterCount,
       win,
       side,
       enemyChampions,
@@ -1256,72 +1232,6 @@ async function computeCompAnalysis(
   };
 }
 
-// Merge freshly-found team games with the ones already stored, so results
-// accumulate instead of being replaced by whatever the recent window returns.
-// A finished team game never changes, so we keep every one we've ever seen
-// (keyed by match id) and re-match them all against the *current* comps.
-async function mergeStoredAnalysis(
-  fresh: CompAnalysisResponse,
-  comps: CompInput[]
-): Promise<CompAnalysisResponse> {
-  const byId = new Map<string, AnalysisGameResponse>();
-  try {
-    const prevSnap = await getFirestore().doc('meta/compAnalysis').get();
-    const prev = prevSnap.exists ? (prevSnap.data() as CompAnalysisResponse) : null;
-    for (const g of prev?.games ?? []) {
-      if (g?.matchId && Array.isArray(g.players)) byId.set(g.matchId, g);
-    }
-  } catch {
-    // No previous cache (or read failed) — fall back to just this run's games.
-  }
-  for (const g of fresh.games) byId.set(g.matchId, g);
-
-  const merged = [...byId.values()].sort((a, b) => b.date - a.date).slice(0, MAX_STORED_GAMES);
-
-  const perComp = new Map<string, { compId: string; compName: string; games: number; wins: number }>();
-  for (const g of merged) {
-    const m = matchComp(
-      g.players.map((p) => p.champion),
-      comps,
-      COMP_MATCH_THRESHOLD
-    );
-    // Legacy games (no rosterCount) were full 5-stacks; treat as team games.
-    const isTeamGame = (g.rosterCount ?? 5) >= TEAM_MIN;
-    const attributedCompId = isTeamGame ? m.compId : null;
-    g.compId = attributedCompId;
-    g.compName = attributedCompId ? m.compName : null;
-    g.nearCompName = m.nearName;
-    g.nearOverlap = m.overlap;
-    if (attributedCompId) {
-      const acc = perComp.get(attributedCompId) ?? { compId: attributedCompId, compName: m.compName ?? '', games: 0, wins: 0 };
-      acc.games += 1;
-      if (g.win) acc.wins += 1;
-      perComp.set(attributedCompId, acc);
-    }
-  }
-
-  const compsOut = [...perComp.values()]
-    .map((a) => ({
-      compId: a.compId,
-      compName: a.compName,
-      games: a.games,
-      wins: a.wins,
-      losses: a.games - a.wins,
-      winRate: a.games ? Math.round((a.wins / a.games) * 100) : 0
-    }))
-    .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
-
-  return {
-    comps: compsOut,
-    games: merged,
-    totalTeamGames: merged.length,
-    scannedMatches: fresh.scannedMatches,
-    newMatches: fresh.newMatches,
-    pendingMatches: fresh.pendingMatches,
-    generatedAt: new Date().toISOString()
-  };
-}
-
 export const getCompAnalysis = onRequest(
   { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 300 },
   async (req, res) => {
@@ -1347,10 +1257,7 @@ export const getCompAnalysis = onRequest(
         return;
       }
       const payload = parseCompAnalysisRequest(req.body);
-      const fresh = await computeCompAnalysis(payload, RIOT_API_KEY.value());
-      // Accumulate with previously-found games so a refresh never drops team
-      // games that have aged out of Riot's recent match-id window.
-      const analysis = await mergeStoredAnalysis(fresh, payload.comps);
+      const analysis = await computeCompAnalysis(payload, RIOT_API_KEY.value());
       // Cache the result so viewers see it without re-running the analysis.
       await getFirestore().doc('meta/compAnalysis').set(analysis);
       res.status(200).json(analysis);

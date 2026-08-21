@@ -299,7 +299,7 @@
       </button>
     }
   </div>
-  <p class="muted">Real win rates from your 4-5 stack Flex and Clash games (auto-matched to your comps). Games with a sub are flagged; anything that doesn't match a comp shows off the books.</p>
+  <p class="muted">Real win rates from your full 5-stack Flex and Clash games (auto-matched to your comps).</p>
 
   @if (analysisError()) {
     <p class="analysis-error">{{ analysisError() }}</p>
@@ -430,11 +430,11 @@
 
     @if (offBookGames().length) {
       <div class="offbook-head">
-        <span class="offbook-title">Off the books</span>
+        <span class="offbook-title">Off-book 5-stacks</span>
         @if (offBookRecord(offBookGames()); as r) {
           <span class="offbook-record" [class.is-positive]="r.wins >= r.losses">{{ r.wins }}W&#8211;{{ r.losses }}L</span>
         }
-        <span class="offbook-note">stacked games that don't match a defined comp</span>
+        <span class="offbook-note">comps you played that don't match a defined comp</span>
         <button type="button" class="offbook-toggle" (click)="showOffBook.set(!showOffBook())">
           {{ showOffBook() ? 'Hide' : 'Show ' + offBookGames().length }}
         </button>
@@ -469,8 +469,10 @@
         @if (!game.compId && game.nearCompName) {
           <span class="game-near" [title]="'Closest defined comp'">≈ {{ game.nearCompName }} ({{ game.nearOverlap }}/5)</span>
         }
-        <span class="game-stack" [class.is-partial]="(game.rosterCount ?? 5) < 5"
-              [title]="stackLabel(game) + ' of the roster on our team'">{{ stackLabel(game) }}</span>
+        @if ((game.rosterCount ?? 5) < 5) {
+          <span class="game-stack is-partial"
+                [title]="stackLabel(game) + ' of the roster on our team'">{{ stackLabel(game) }}</span>
+        }
         @if (game.queue) { <span class="game-queue">{{ game.queue }}</span> }
         @if (game.date) { <span class="game-date">{{ game.date | date: 'MMM d' }}</span> }
         <span class="game-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
