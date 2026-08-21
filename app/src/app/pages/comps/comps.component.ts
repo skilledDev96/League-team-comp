@@ -309,28 +309,45 @@ export class CompsComponent {
     return queue === 'all' ? games : games.filter((g) => g.queue === queue);
   });
 
-  // Per-comp performance aggregated from the filtered games, so the queue
-  // filter drives the table (not just the game lists). `partials` counts games
-  // that were 4-stacks (one player subbed), so the record stays transparent.
-  protected readonly compRows = computed<(CompPerformance & { partials: number })[]>(() => {
+  // How many of a comp's 5 champions a game must share to be credited to it.
+  // Adjustable live via the strictness slider — 3/5 by default. Re-buckets games
+  // on the frontend using each game's overlap, so no re-fetch is needed.
+  protected readonly compStrictness = signal(3);
+
+  // The comp a game is credited to at the current strictness, or null (off the
+  // books). Uses the closest comp + overlap the backend already computed.
+  protected gameComp(game: AnalysisGame): { id: string; name: string } | null {
+    const name = game.nearCompName;
+    if (!name || (game.nearOverlap ?? 0) < this.compStrictness()) return null;
+    const comp = this.data.comps().find((c) => c.name === name);
+    return comp ? { id: comp.id, name: comp.name } : null;
+  }
+
+  // Per-comp performance aggregated from the filtered games at the current
+  // strictness. `partials` counts 4-stacks (one player subbed) for transparency.
+  private readonly compPerf = computed(() => {
     const byComp = new Map<string, { compId: string; compName: string; games: number; wins: number; partials: number }>();
     for (const g of this.filteredGames()) {
-      if (!g.compId) continue;
-      const acc = byComp.get(g.compId) ?? { compId: g.compId, compName: g.compName ?? 'Comp', games: 0, wins: 0, partials: 0 };
+      const gc = this.gameComp(g);
+      if (!gc) continue;
+      const acc = byComp.get(gc.id) ?? { compId: gc.id, compName: gc.name, games: 0, wins: 0, partials: 0 };
       acc.games += 1;
       if (g.win) acc.wins += 1;
       if ((g.rosterCount ?? 5) < 5) acc.partials += 1;
-      byComp.set(g.compId, acc);
+      byComp.set(gc.id, acc);
     }
-    return [...byComp.values()]
-      .map((a) => ({ ...a, losses: a.games - a.wins, winRate: a.games ? Math.round((a.wins / a.games) * 100) : 0 }))
-      .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
+    return byComp;
   });
 
-  // Off-book games: stacks not credited to a comp record — either a full team
-  // game whose champs don't match any comp, or a 3-of-5 partial stack.
+  protected readonly compRows = computed<(CompPerformance & { partials: number })[]>(() =>
+    [...this.compPerf().values()]
+      .map((a) => ({ ...a, losses: a.games - a.wins, winRate: a.games ? Math.round((a.wins / a.games) * 100) : 0 }))
+      .sort((a, b) => b.games - a.games || b.winRate - a.winRate)
+  );
+
+  // Off-book games: stacks not credited to any comp at the current strictness.
   protected readonly offBookGames = computed<AnalysisGame[]>(() =>
-    this.filteredGames().filter((g) => !g.compId)
+    this.filteredGames().filter((g) => !this.gameComp(g))
   );
 
   protected offBookRecord = winLossRecord;
@@ -358,7 +375,7 @@ export class CompsComponent {
   // Whether a played champion is one of the (matched or closest) comp's picks —
   // drives the per-row "part of this comp" indicator.
   protected champInComp(game: AnalysisGame, champion: string): boolean {
-    const picks = this.compChampions(game.compName || game.nearCompName);
+    const picks = this.compChampions(this.gameComp(game)?.name || game.nearCompName);
     if (!picks.length) return false;
     const target = this.normChamp(champion);
     return picks.some((c) => this.normChamp(c) === target);
@@ -450,7 +467,16 @@ export class CompsComponent {
 
   // Match-analysis record for a comp panel, keyed by comp id.
   protected analysisFor(compId: string): CompPerformance | undefined {
-    return this.data.compAnalysis()?.comps.find((c) => c.compId === compId);
+    const a = this.compPerf().get(compId);
+    if (!a) return undefined;
+    return {
+      compId: a.compId,
+      compName: a.compName,
+      games: a.games,
+      wins: a.wins,
+      losses: a.games - a.wins,
+      winRate: a.games ? Math.round((a.wins / a.games) * 100) : 0
+    };
   }
 
   // Collapsed-panel badge: prefer the manually logged record, fall back to the
@@ -469,9 +495,9 @@ export class CompsComponent {
     return null;
   }
 
-  // The full-5-stack games credited to one comp, for its expandable detail.
+  // The games credited to one comp at the current strictness, for its detail.
   protected analysisGamesFor(compId: string): AnalysisGame[] {
-    return this.filteredGames().filter((g) => g.compId === compId);
+    return this.filteredGames().filter((g) => this.gameComp(g)?.id === compId);
   }
 
   protected async refreshAnalysis(): Promise<void> {

@@ -326,6 +326,21 @@
       </p>
     }
 
+    <div class="analysis-strictness">
+      <label for="strictnessRange">Comp match strictness</label>
+      <input id="strictnessRange" type="range" min="2" max="5" step="1"
+             [value]="compStrictness()" (input)="compStrictness.set(+$any($event.target).value)" />
+      <span class="strictness-val">{{ compStrictness() }} / 5 champs</span>
+      <span class="strictness-hint">
+        @switch (compStrictness()) {
+          @case (2) { loose — counts a comp on any 2 shared picks }
+          @case (3) { balanced — 3 of 5 picks (default) }
+          @case (4) { strict — 4 of 5 picks }
+          @default { exact — the full comp }
+        }
+      </span>
+    </div>
+
     @if (analysisQueues().length > 1) {
       <div class="view-segment analysis-filter" role="group" aria-label="Queue filter">
         <button type="button" [class.active]="analysisQueue() === 'all'" (click)="analysisQueue.set('all')">All</button>
@@ -474,7 +489,7 @@
                  [title]="p.position + ' · ' + p.name + ' · ' + p.champion" loading="lazy" />
           }
         </span>
-        @if (!game.compId && game.nearCompName) {
+        @if (!gameComp(game) && game.nearCompName) {
           <span class="game-near" [title]="'Closest defined comp'">≈ {{ game.nearCompName }} ({{ game.nearOverlap }}/5)</span>
         }
         @if ((game.rosterCount ?? 5) < 5) {
@@ -486,10 +501,10 @@
         <span class="game-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
       </summary>
 
-      @if (compChampions(game.compName || game.nearCompName); as champs) {
+      @if (compChampions(gameComp(game)?.name || game.nearCompName); as champs) {
         @if (champs.length) {
           <div class="game-comp-tag">
-            <span class="game-comp-tag-label">{{ game.compId ? 'Comp' : 'Closest' }} · {{ game.compName || game.nearCompName }}</span>
+            <span class="game-comp-tag-label">{{ gameComp(game) ? 'Comp' : 'Closest' }} · {{ gameComp(game)?.name || game.nearCompName }}</span>
             @for (c of champs; track c) {
               <img class="game-comp-champ" [src]="ui.championIconUrl(c)" [alt]="c" [title]="c" loading="lazy" />
             }
@@ -511,7 +526,7 @@
               {{ p.name }}
               @if (champInComp(game, p.champion)) {
                 <span class="game-incomp material-symbols-rounded"
-                      [title]="p.champion + ' is part of ' + (game.compName || game.nearCompName)"
+                      [title]="p.champion + ' is part of ' + (gameComp(game)?.name || game.nearCompName)"
                       aria-label="Part of the comp">check_circle</span>
               }
             </span>
@@ -521,7 +536,7 @@
           </li>
         }
       </ul>
-      @if (auth.editing() && !game.compId) {
+      @if (auth.editing() && !gameComp(game)) {
         <div class="game-define">
           @if (isSavedAsComp(game.matchId)) {
             <span class="game-define-saved">

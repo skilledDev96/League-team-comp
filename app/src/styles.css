@@ -3125,6 +3125,49 @@ a.profiles-row:focus-visible {
   color: var(--text-1);
 }
 
+/* Comp-match strictness slider in the Match Analysis header. */
+.analysis-strictness {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin: 0.6rem 0 0.3rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-controls) 80%, transparent);
+}
+
+.analysis-strictness label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-1);
+}
+
+.analysis-strictness input[type='range'] {
+  flex: 1 1 8rem;
+  min-width: 7rem;
+  max-width: 14rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.strictness-val {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--accent-2);
+  white-space: nowrap;
+}
+
+.strictness-hint {
+  flex: 1 1 100%;
+  font-size: 0.74rem;
+  color: var(--text-1);
+}
+
 /* Overall W-L pill for all stacked team games, in the meta line. */
 .analysis-total-record {
   display: inline-block;
