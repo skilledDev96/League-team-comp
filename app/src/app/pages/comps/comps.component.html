@@ -11,15 +11,29 @@
     <button type="button" [class.active]="!fullView()" (click)="setView(false)">Starter</button>
     <button type="button" [class.active]="fullView()" (click)="setView(true)">Full</button>
   </div>
+  @if (compCategories().length) {
+    <label class="comp-cat-filter">
+      <span>Category</span>
+      <select [ngModel]="compCategoryFilter()" (ngModelChange)="compCategoryFilter.set($event)" name="compCatFilter">
+        <option value="all">All categories</option>
+        @for (cat of compCategories(); track cat) { <option [value]="cat">{{ cat }}</option> }
+      </select>
+    </label>
+  }
   <p class="muted">Starter keeps comps collapsed. Full opens every comp and shows ban recommendations.</p>
 </section>
 
+<datalist id="compcatlist">
+  @for (cat of categorySuggestions; track cat) { <option [value]="cat"></option> }
+</datalist>
+
 <section id="compSection" class="grid two" aria-label="Team compositions">
-  @for (comp of data.comps(); track comp.id) {
+  @for (comp of visibleComps(); track comp.id) {
     <details class="card comp-panel" [open]="showPicks()">
       <summary class="comp-summary">
         <span class="comp-type-icon material-symbols-rounded" aria-hidden="true">{{ compIcon(comp.name) }}</span>
         <span class="comp-summary-name">{{ comp.name }}</span>
+        @if (comp.category) { <span class="comp-cat-chip">{{ comp.category }}</span> }
         @if (panelBadge(comp.id); as badge) {
           <span class="comp-record-badge"
                 [class.is-positive]="badge.winRate >= 50"
@@ -50,6 +64,27 @@
           }
         }
       </div>
+
+      @if (comp.notes || auth.editing()) {
+        <div class="comp-notes">
+          <div class="comp-record-head">
+            <span class="comp-record-title material-symbols-rounded" aria-hidden="true">sticky_note_2</span>
+            <span class="comp-record-label">Notes</span>
+          </div>
+          @if (auth.editing()) {
+            <div class="comp-notes-edit">
+              <input type="text" class="comp-cat-input" list="compcatlist" [ngModel]="compCategoryValue(comp)"
+                     (ngModelChange)="setCategoryDraft(comp, $event)" (blur)="saveCompMeta(comp)"
+                     [name]="'compcat-' + comp.id" placeholder="Category (e.g. Meta, For Fun)" />
+              <textarea class="comp-notes-input" rows="2" [ngModel]="compNotesValue(comp)"
+                        (ngModelChange)="setNotesDraft(comp, $event)" (blur)="saveCompMeta(comp)"
+                        [name]="'compnotes-' + comp.id" placeholder="Draft notes, win conditions, reminders…"></textarea>
+            </div>
+          } @else if (comp.notes) {
+            <p class="comp-notes-text">{{ comp.notes }}</p>
+          }
+        </div>
+      }
 
       <div class="comp-record">
         <div class="comp-record-head">

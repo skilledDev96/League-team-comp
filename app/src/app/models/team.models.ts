@@ -104,6 +104,8 @@ export interface Comp {
   id: string;
   name: string;
   picks: CompPicks;
+  category?: string;
+  notes?: string;
   order: number;
 }
 

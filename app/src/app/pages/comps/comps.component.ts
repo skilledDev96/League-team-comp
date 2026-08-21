@@ -39,6 +39,53 @@ export class CompsComponent {
   protected readonly fullView = signal(false);
   protected readonly showPicks = signal(false);
 
+  // ---- Comp categories + notes -----------------------------------------
+
+  protected readonly categorySuggestions = ['Meta', 'Comfort', 'For Fun', 'Themed', 'Practice'];
+  protected readonly compCategoryFilter = signal<string>('all');
+
+  // Distinct categories actually in use, for the filter control.
+  protected readonly compCategories = computed<string[]>(() => {
+    const seen = new Set<string>();
+    for (const c of this.data.comps()) {
+      if (c.category) seen.add(c.category);
+    }
+    return [...seen].sort();
+  });
+
+  protected readonly visibleComps = computed<Comp[]>(() => {
+    const filter = this.compCategoryFilter();
+    const comps = this.data.comps();
+    return filter === 'all' ? comps : comps.filter((c) => (c.category ?? '') === filter);
+  });
+
+  // Per-comp inline edit drafts (category + notes), saved on blur.
+  private readonly catDrafts = signal<Record<string, string>>({});
+  private readonly noteDrafts = signal<Record<string, string>>({});
+
+  protected compCategoryValue(comp: Comp): string {
+    return this.catDrafts()[comp.id] ?? comp.category ?? '';
+  }
+
+  protected compNotesValue(comp: Comp): string {
+    return this.noteDrafts()[comp.id] ?? comp.notes ?? '';
+  }
+
+  protected setCategoryDraft(comp: Comp, value: string): void {
+    this.catDrafts.update((s) => ({ ...s, [comp.id]: value }));
+  }
+
+  protected setNotesDraft(comp: Comp, value: string): void {
+    this.noteDrafts.update((s) => ({ ...s, [comp.id]: value }));
+  }
+
+  protected saveCompMeta(comp: Comp): void {
+    const category = this.compCategoryValue(comp).trim();
+    const notes = this.compNotesValue(comp).trim();
+    if ((category || undefined) === comp.category && (notes || undefined) === comp.notes) return;
+    void this.data.updateComp({ ...comp, category: category || undefined, notes: notes || undefined });
+  }
+
   // Comp id -> whether its result-log form is expanded (editors only).
   protected readonly logging = signal<Record<string, boolean>>({});
   // Comp id -> draft being entered in that form.

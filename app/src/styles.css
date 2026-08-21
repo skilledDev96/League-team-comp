@@ -2310,6 +2310,77 @@ a.profiles-row:focus-visible {
   flex: 0 0 auto;
 }
 
+/* ---- Comp category + notes --------------------------------------------- */
+
+.comp-cat-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-1);
+}
+
+.comp-cat-filter select {
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.comp-cat-chip {
+  flex: 0 0 auto;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.66rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  color: var(--accent-2);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--card-border) 60%);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.comp-notes {
+  margin-top: 0.9rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.comp-notes-text {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-0);
+  white-space: pre-wrap;
+}
+
+.comp-notes-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+.comp-cat-input,
+.comp-notes-input {
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.comp-notes-input {
+  resize: vertical;
+}
+
 /* ---- Comp plays list --------------------------------------------------- */
 
 .comp-plays {
