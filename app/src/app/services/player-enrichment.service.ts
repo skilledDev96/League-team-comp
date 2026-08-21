@@ -22,6 +22,7 @@ interface EnrichResponse {
   queueStats?: {
     solo?: PlayerQueueStats;
     flex?: PlayerQueueStats;
+    clash?: PlayerQueueStats;
   };
   iconUrl?: string;
   source: 'template' | 'provider';

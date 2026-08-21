@@ -43,6 +43,7 @@ interface EnrichResponse {
   queueStats?: {
     solo?: QueueStats;
     flex?: QueueStats;
+    clash?: QueueStats;
   };
   iconUrl?: string;
   source: 'template' | 'provider';
@@ -355,8 +356,9 @@ interface RiotMatch {
 async function fetchRiotQueueEnrichment(
   payload: EnrichRequest,
   apiKey: string,
-  queueType: 'RANKED_SOLO_5x5' | 'RANKED_FLEX_SR',
-  queueId: 420 | 440
+  statKey: 'solo' | 'flex' | 'clash',
+  queueId: number,
+  rankedQueueType: 'RANKED_SOLO_5x5' | 'RANKED_FLEX_SR' | null
 ): Promise<EnrichResponse> {
   const region = payload.region ?? 'euw';
   const routing = REGION_ROUTING[region] ?? REGION_ROUTING['euw'];
@@ -377,7 +379,9 @@ async function fetchRiotQueueEnrichment(
     `https://${routing.platform}.api.riotgames.com/lol/league/v4/entries/by-summoner/${encodeURIComponent(summoner.id)}`,
     apiKey
   );
-  const rankedEntry = rankedEntries.find((entry) => entry.queueType === queueType);
+  const rankedEntry = rankedQueueType
+    ? rankedEntries.find((entry) => entry.queueType === rankedQueueType)
+    : undefined;
 
   const matchIds = await riotFetch<string[]>(
     `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${account.puuid}/ids?queue=${queueId}&start=0&count=15`,
@@ -555,10 +559,10 @@ async function fetchRiotQueueEnrichment(
     learn,
     bans,
     queueStats: {
-      [queueType === 'RANKED_SOLO_5x5' ? 'solo' : 'flex']: {
-        rank: rankedEntry
+      [statKey]: {
+        rank: rankedEntry && rankedQueueType
           ? {
-              queueType,
+              queueType: rankedQueueType,
               tier: rankedEntry.tier,
               rank: rankedEntry.rank,
               leaguePoints: rankedEntry.leaguePoints,
@@ -599,17 +603,19 @@ async function fetchRiotQueueEnrichment(
 }
 
 async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Promise<EnrichResponse> {
-  const [solo, flex] = await Promise.allSettled([
-    fetchRiotQueueEnrichment(payload, apiKey, 'RANKED_SOLO_5x5', 420),
-    fetchRiotQueueEnrichment(payload, apiKey, 'RANKED_FLEX_SR', 440)
+  const [solo, flex, clash] = await Promise.allSettled([
+    fetchRiotQueueEnrichment(payload, apiKey, 'solo', 420, 'RANKED_SOLO_5x5'),
+    fetchRiotQueueEnrichment(payload, apiKey, 'flex', 440, 'RANKED_FLEX_SR'),
+    fetchRiotQueueEnrichment(payload, apiKey, 'clash', 700, null)
   ]);
 
   const soloStats = solo.status === 'fulfilled' ? solo.value : undefined;
   const flexStats = flex.status === 'fulfilled' ? flex.value : undefined;
-  const primary = flexStats ?? soloStats;
+  const clashStats = clash.status === 'fulfilled' ? clash.value : undefined;
+  const primary = flexStats ?? soloStats ?? clashStats;
 
   if (!primary) {
-    const reason = [solo, flex]
+    const reason = [solo, flex, clash]
       .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
       .map((result) => (result.reason instanceof Error ? result.reason.message : 'queue request failed'))
       .join('; ');
@@ -620,7 +626,8 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
     ...primary,
     queueStats: {
       solo: soloStats?.queueStats?.solo,
-      flex: flexStats?.queueStats?.flex
+      flex: flexStats?.queueStats?.flex,
+      clash: clashStats?.queueStats?.clash
     }
   };
 }

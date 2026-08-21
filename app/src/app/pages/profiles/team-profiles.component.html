@@ -7,6 +7,7 @@
   <div class="view-segment" role="group" aria-label="Queue">
     <button type="button" [class.active]="selectedQueue() === 'solo'" (click)="selectedQueue.set('solo')">Solo/Duo</button>
     <button type="button" [class.active]="selectedQueue() === 'flex'" (click)="selectedQueue.set('flex')">Flex</button>
+    <button type="button" [class.active]="selectedQueue() === 'clash'" (click)="selectedQueue.set('clash')">Clash</button>
   </div>
   @if (summary(); as s) {
     <p class="muted">
@@ -38,7 +39,7 @@
         </span>
 
         @if (row.matches; as m) {
-          <span class="profiles-rank" role="cell">{{ rankLabel(row.rank) }}</span>
+          <span class="profiles-rank" role="cell">{{ selectedQueue() === 'clash' ? '—' : rankLabel(row.rank) }}</span>
           <span class="num" role="cell" [class.pos]="m.winRate >= 50" [class.neg]="m.winRate < 50">{{ m.winRate }}%</span>
           <span class="num" role="cell">{{ m.avgKda | number: '1.1-1' }}</span>
           <span class="num" role="cell">{{ m.avgCsPerMin | number: '1.1-1' }}</span>
@@ -50,7 +51,7 @@
             } @else { — }
           </span>
         } @else {
-          <span class="profiles-norank muted" role="cell">No {{ selectedQueue() === 'solo' ? 'Solo/Duo' : 'Flex' }} data</span>
+          <span class="profiles-norank muted" role="cell">No {{ queueLabel() }} data</span>
         }
       </a>
     }

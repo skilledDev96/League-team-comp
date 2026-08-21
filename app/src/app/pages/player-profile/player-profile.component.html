@@ -25,6 +25,7 @@
         <div class="queue-selector" role="group" aria-label="Ranked queue">
           <button type="button" [class.active]="selectedQueue() === 'flex'" (click)="selectedQueue.set('flex')">Flex</button>
           <button type="button" [class.active]="selectedQueue() === 'solo'" (click)="selectedQueue.set('solo')">Solo/Duo</button>
+          <button type="button" [class.active]="selectedQueue() === 'clash'" (click)="selectedQueue.set('clash')">Clash</button>
           <button type="button" [class.active]="selectedQueue() === 'combined'" (click)="selectedQueue.set('combined')">Combined</button>
         </div>
 

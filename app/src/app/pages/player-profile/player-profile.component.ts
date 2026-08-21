@@ -27,7 +27,7 @@ export class PlayerProfileComponent {
 
   protected readonly refreshing = signal(false);
   protected readonly refreshStatus = signal('');
-  protected readonly selectedQueue = signal<'flex' | 'solo' | 'combined'>('flex');
+  protected readonly selectedQueue = signal<'flex' | 'solo' | 'clash' | 'combined'>('flex');
 
   protected readonly player = computed(() => {
     const id = this.params()?.get('id');
@@ -43,7 +43,10 @@ export class PlayerProfileComponent {
 
   protected readonly selectedQueueLabel = computed(() => {
     const queue = this.selectedQueue();
-    return queue === 'flex' ? 'Flex' : queue === 'solo' ? 'Solo/Duo' : 'Combined ranked';
+    if (queue === 'flex') return 'Flex';
+    if (queue === 'solo') return 'Solo/Duo';
+    if (queue === 'clash') return 'Clash';
+    return 'Combined ranked';
   });
 
   protected readonly selectedQueueStats = computed<PlayerQueueStats | undefined>(() => {
@@ -51,6 +54,7 @@ export class PlayerProfileComponent {
     if (!p?.queueStats) return undefined;
     if (this.selectedQueue() === 'flex') return p.queueStats.flex;
     if (this.selectedQueue() === 'solo') return p.queueStats.solo;
+    if (this.selectedQueue() === 'clash') return p.queueStats.clash;
     return { matches: this.combineMatchStats(p.queueStats.solo?.matches, p.queueStats.flex?.matches) };
   });
 

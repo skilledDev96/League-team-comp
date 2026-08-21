@@ -83,6 +83,7 @@ export interface Player {
   queueStats?: {
     solo?: PlayerQueueStats;
     flex?: PlayerQueueStats;
+    clash?: PlayerQueueStats;
   };
   profile?: SummonerProfile;
   order: number;

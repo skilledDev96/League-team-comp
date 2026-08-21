@@ -6,7 +6,7 @@ import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 
-type QueueKey = 'solo' | 'flex';
+type QueueKey = 'solo' | 'flex' | 'clash';
 
 interface ProfileRow {
   player: Player;
@@ -24,6 +24,11 @@ export class TeamProfilesComponent {
   protected readonly ui = inject(UiService);
 
   protected readonly selectedQueue = signal<QueueKey>('flex');
+
+  protected readonly queueLabel = computed(() => {
+    const q = this.selectedQueue();
+    return q === 'solo' ? 'Solo/Duo' : q === 'clash' ? 'Clash' : 'Flex';
+  });
 
   protected readonly rows = computed<ProfileRow[]>(() => {
     const queue = this.selectedQueue();
