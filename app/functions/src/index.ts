@@ -986,16 +986,18 @@ async function getCachedMatch(
   matchId: string,
   regional: string,
   apiKey: string,
-  allowFetch: boolean
+  allowFetch: boolean,
+  rosterPuuids: Set<string>
 ): Promise<{ match: CachedMatch; fromCache: boolean } | null> {
   const ref = getFirestore().doc(`matchCache/${matchId}`);
   const snap = await ref.get();
   if (snap.exists) {
     const cached = snap.data() as CachedMatch;
-    // Self-heal: older cache entries were stored without participant puuids, so
-    // they read back with no identifiable players. Re-fetch those from Riot.
-    const healthy = cached.participants?.length > 0 && Boolean(cached.participants[0]?.puuid);
-    if (healthy) {
+    // Self-heal: this is only ever called for candidates the roster played, so a
+    // valid cache MUST contain at least one roster puuid. Older entries were
+    // stored without puuids (or with stale data) and read back empty — re-fetch.
+    const hasRoster = cached.participants?.some((p) => rosterPuuids.has(p.puuid));
+    if (hasRoster) {
       return { match: cached, fromCache: true };
     }
     // fall through to re-fetch (counts against the fetch budget like a new match)
@@ -1164,7 +1166,7 @@ async function computeCompAnalysis(
     try {
       // Only fetch new matches while we're under the per-run budget; cached ones
       // are always processed. Anything skipped is reported as pending.
-      const result = await getCachedMatch(matchId, routing.regional, apiKey, newMatches < MAX_NEW_FETCHES);
+      const result = await getCachedMatch(matchId, routing.regional, apiKey, newMatches < MAX_NEW_FETCHES, rosterPuuids);
       if (!result) {
         pendingMatches += 1;
         continue;
