@@ -907,6 +907,10 @@ const MAX_NEW_FETCHES = 40;
 const MAX_STORED_GAMES = 250;
 // A played comp is credited to a defined comp when at least this many champs overlap.
 const COMP_MATCH_THRESHOLD = 3;
+// Roster members on the same team needed to count a game toward comp win rates.
+const TEAM_MIN = 4;
+// Fewer than TEAM_MIN but at least this many on a team → shown "off the books".
+const PARTIAL_MIN = 3;
 
 interface CompInput {
   id: string;
@@ -946,6 +950,8 @@ interface AnalysisGameResponse {
   // Closest defined comp even when below the match threshold, for off-book hints.
   nearCompName: string | null;
   nearOverlap: number;
+  // Roster members on our team this game (5 = full stack, 3 = off-the-books).
+  rosterCount: number;
   win: boolean;
   side: 'blue' | 'red';
   enemyChampions: string[];
@@ -1088,10 +1094,15 @@ async function computeCompAnalysis(
   );
   const rosterPuuids = new Set(identities.map((i) => i.puuid));
   const nameByPuuid = new Map(identities.map((i) => [i.puuid, i.name]));
-  const fullStackSize = Math.min(5, identities.length);
+  const rosterSize = Math.min(5, identities.length);
+  // A game counts toward comp records when at least this many roster members are
+  // on the same team; smaller stacks (down to PARTIAL_MIN) are shown "off the
+  // books" but never attributed to a comp's win rate.
+  const teamMin = Math.min(TEAM_MIN, rosterSize);
+  const partialMin = Math.min(PARTIAL_MIN, rosterSize);
 
-  // Count how many roster members share each match id — a full 5-stack shows up
-  // in all five members' histories, so we only pull detail for those candidates.
+  // Count how many roster members share each match id — a stack shows up in each
+  // member's history, so we only pull detail for matches with enough overlap.
   const matchIdCounts = new Map<string, number>();
   for (const queueId of TEAM_QUEUES) {
     for (const player of identities) {
@@ -1112,9 +1123,10 @@ async function computeCompAnalysis(
       }
     }
   }
-  // Full-5-stack candidates, most recent first (match ids sort chronologically).
+  // Candidate matches: at least PARTIAL_MIN roster members present, most recent
+  // first (match ids sort chronologically).
   const candidateIds = [...matchIdCounts.entries()]
-    .filter(([, count]) => count >= fullStackSize)
+    .filter(([, count]) => count >= partialMin)
     .map(([id]) => id)
     .sort()
     .reverse();
@@ -1153,14 +1165,15 @@ async function computeCompAnalysis(
       members.push(participant);
       byTeam.set(participant.teamId, members);
     }
+    // The team with the most roster members on it is "our" side this game.
     let teamParts: CachedParticipant[] | null = null;
     for (const members of byTeam.values()) {
-      if (members.length >= fullStackSize) {
-        teamParts = members;
-        break;
-      }
+      if (!teamParts || members.length > teamParts.length) teamParts = members;
     }
-    if (!teamParts) continue;
+    const rosterCount = teamParts?.length ?? 0;
+    if (!teamParts || rosterCount < partialMin) continue;
+    // 4-5 stacks count toward comp records; 3-stacks are off-the-books only.
+    const isTeamGame = rosterCount >= teamMin;
 
     totalTeamGames += 1;
     const win = teamParts[0].win;
@@ -1187,23 +1200,26 @@ async function computeCompAnalysis(
       payload.comps,
       COMP_MATCH_THRESHOLD
     );
-    if (compMatch.compId) {
-      const acc = perComp.get(compMatch.compId) ?? {
-        compId: compMatch.compId,
+    // Only full team games (4-5 stacks) are attributed to a comp's record.
+    const attributedCompId = isTeamGame ? compMatch.compId : null;
+    if (attributedCompId) {
+      const acc = perComp.get(attributedCompId) ?? {
+        compId: attributedCompId,
         compName: compMatch.compName ?? '',
         games: 0,
         wins: 0
       };
       acc.games += 1;
       if (win) acc.wins += 1;
-      perComp.set(compMatch.compId, acc);
+      perComp.set(attributedCompId, acc);
     }
     games.push({
       matchId,
-      compId: compMatch.compId,
-      compName: compMatch.compName,
+      compId: attributedCompId,
+      compName: attributedCompId ? compMatch.compName : null,
       nearCompName: compMatch.nearName,
       nearOverlap: compMatch.overlap,
+      rosterCount,
       win,
       side,
       enemyChampions,
@@ -1266,15 +1282,18 @@ async function mergeStoredAnalysis(
       comps,
       COMP_MATCH_THRESHOLD
     );
-    g.compId = m.compId;
-    g.compName = m.compName;
+    // Legacy games (no rosterCount) were full 5-stacks; treat as team games.
+    const isTeamGame = (g.rosterCount ?? 5) >= TEAM_MIN;
+    const attributedCompId = isTeamGame ? m.compId : null;
+    g.compId = attributedCompId;
+    g.compName = attributedCompId ? m.compName : null;
     g.nearCompName = m.nearName;
     g.nearOverlap = m.overlap;
-    if (m.compId) {
-      const acc = perComp.get(m.compId) ?? { compId: m.compId, compName: m.compName ?? '', games: 0, wins: 0 };
+    if (attributedCompId) {
+      const acc = perComp.get(attributedCompId) ?? { compId: attributedCompId, compName: m.compName ?? '', games: 0, wins: 0 };
       acc.games += 1;
       if (g.win) acc.wins += 1;
-      perComp.set(m.compId, acc);
+      perComp.set(attributedCompId, acc);
     }
   }
 

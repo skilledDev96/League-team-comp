@@ -188,6 +188,8 @@ export interface AnalysisGame {
   compName: string | null;
   nearCompName?: string | null;
   nearOverlap?: number;
+  // Roster members on our team this game (5 = full stack, 3 = off-the-books).
+  rosterCount?: number;
   win: boolean;
   side?: 'blue' | 'red';
   enemyChampions?: string[];
