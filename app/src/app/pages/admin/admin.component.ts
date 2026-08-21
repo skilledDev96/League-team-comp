@@ -526,7 +526,15 @@ export class AdminComponent {
     }
     if (draft.id) {
       const existing = this.data.comps().find((c) => c.id === draft.id);
-      await this.data.updateComp({ id: draft.id, name, picks: draft.picks, order: existing?.order ?? 0 });
+      // Preserve category / notes / game plan / bans set via inline editing on
+      // the Comps page — updateComp does a full replace, so spread existing first.
+      await this.data.updateComp({
+        ...(existing ?? {}),
+        id: draft.id,
+        name,
+        picks: draft.picks,
+        order: existing?.order ?? 0
+      });
     } else {
       await this.data.createComp({ name, picks: draft.picks } as Omit<Comp, 'id' | 'order'>);
       this.initialized = false;
