@@ -299,7 +299,7 @@
       </button>
     }
   </div>
-  <p class="muted">Real win rates from your full 5-stack Flex and Clash games (auto-matched to your comps). 4-stacks show off the books to review.</p>
+  <p class="muted">Real win rates from your 4-5 stack Flex and Clash games (auto-matched to your comps). Games with a sub are flagged; anything that doesn't match a comp shows off the books.</p>
 
   @if (analysisError()) {
     <p class="analysis-error">{{ analysisError() }}</p>
@@ -337,6 +337,11 @@
               <summary class="analysis-row">
                 <span class="analysis-name">{{ perf.compName }}</span>
                 <span class="analysis-record">{{ perf.wins }}W&#8211;{{ perf.losses }}L</span>
+                @if (perf.partials) {
+                  <span class="analysis-subs" [title]="perf.partials + ' of these were 4-stacks (a player subbed)'">
+                    {{ perf.partials }} w/ sub{{ perf.partials === 1 ? '' : 's' }}
+                  </span>
+                }
                 <span class="analysis-bar" role="img" [attr.aria-label]="perf.winRate + '% win rate'">
                   <span class="analysis-bar-fill" [class.low]="perf.winRate < 40" [class.high]="perf.winRate >= 60"
                         [style.width.%]="perf.winRate"></span>
@@ -429,7 +434,7 @@
         @if (offBookRecord(offBookGames()); as r) {
           <span class="offbook-record" [class.is-positive]="r.wins >= r.losses">{{ r.wins }}W&#8211;{{ r.losses }}L</span>
         }
-        <span class="offbook-note">4-stacks and full games that don't match a defined comp</span>
+        <span class="offbook-note">stacked games that don't match a defined comp</span>
         <button type="button" class="offbook-toggle" (click)="showOffBook.set(!showOffBook())">
           {{ showOffBook() ? 'Hide' : 'Show ' + offBookGames().length }}
         </button>

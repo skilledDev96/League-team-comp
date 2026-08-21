@@ -3045,6 +3045,20 @@ a.profiles-row:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* How many of a comp's counted games were 4-stacks (a player subbed). */
+.analysis-subs {
+  flex: 0 0 auto;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.08rem 0.4rem;
+  border-radius: 999px;
+  color: var(--warn);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--card-border) 65%);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  white-space: nowrap;
+}
+
 .analysis-bar {
   position: relative;
   height: 8px;

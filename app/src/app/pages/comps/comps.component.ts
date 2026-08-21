@@ -310,14 +310,16 @@ export class CompsComponent {
   });
 
   // Per-comp performance aggregated from the filtered games, so the queue
-  // filter drives the table (not just the game lists).
-  protected readonly compRows = computed<CompPerformance[]>(() => {
-    const byComp = new Map<string, { compId: string; compName: string; games: number; wins: number }>();
+  // filter drives the table (not just the game lists). `partials` counts games
+  // that were 4-stacks (one player subbed), so the record stays transparent.
+  protected readonly compRows = computed<(CompPerformance & { partials: number })[]>(() => {
+    const byComp = new Map<string, { compId: string; compName: string; games: number; wins: number; partials: number }>();
     for (const g of this.filteredGames()) {
       if (!g.compId) continue;
-      const acc = byComp.get(g.compId) ?? { compId: g.compId, compName: g.compName ?? 'Comp', games: 0, wins: 0 };
+      const acc = byComp.get(g.compId) ?? { compId: g.compId, compName: g.compName ?? 'Comp', games: 0, wins: 0, partials: 0 };
       acc.games += 1;
       if (g.win) acc.wins += 1;
+      if ((g.rosterCount ?? 5) < 5) acc.partials += 1;
       byComp.set(g.compId, acc);
     }
     return [...byComp.values()]

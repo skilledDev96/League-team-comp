@@ -908,10 +908,11 @@ const MAX_STORED_GAMES = 250;
 // A played comp is credited to a defined comp when at least this many champs overlap.
 const COMP_MATCH_THRESHOLD = 3;
 // Roster members on the same team needed to count a game toward comp win rates.
-// Full 5-stacks only, so a comp's record reflects the team actually running it.
-const TEAM_MIN = 5;
-// Fewer than TEAM_MIN but at least this many on a team → shown "off the books",
-// where a near-full stack can be reviewed and turned into a comp if it's worth it.
+// 4+ so a rotating roster's comp games still count when one player is subbed;
+// such games are flagged (rosterCount < 5) so the sub is visible.
+const TEAM_MIN = 4;
+// Minimum roster on a team for a game to be considered at all. Equal to TEAM_MIN
+// here, so 3-stacks and below are ignored rather than shown off the books.
 const PARTIAL_MIN = 4;
 
 interface CompInput {
@@ -1174,7 +1175,7 @@ async function computeCompAnalysis(
     }
     const rosterCount = teamParts?.length ?? 0;
     if (!teamParts || rosterCount < partialMin) continue;
-    // Full 5-stacks count toward comp records; 4-stacks are off-the-books only.
+    // 4+ on the same team counts toward comp records (a sub is still our comp).
     const isTeamGame = rosterCount >= teamMin;
 
     totalTeamGames += 1;
