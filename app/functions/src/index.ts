@@ -487,7 +487,9 @@ async function fetchRiotQueueEnrichment(
   const avgVisionScore = totalVisionScore / games;
 
   const sortedChamps = [...champGames.entries()].sort((a, b) => b[1] - a[1]);
-  const top3 = sortedChamps.slice(0, 3).map(([champ]) => displayChampionName(champ));
+  // Champion pool: the player's most-played (comfort) champions from recent
+  // ranked/flex games. Up to 5 so the pool reflects their real spread of picks.
+  const top3 = sortedChamps.slice(0, 5).map(([champ]) => displayChampionName(champ));
 
   const topRoleEntry = [...roleCounts.entries()].sort((a, b) => b[1] - a[1])[0];
   const detectedRole = topRoleEntry ? TEAM_POSITION_TO_ROLE[topRoleEntry[0]] : undefined;
