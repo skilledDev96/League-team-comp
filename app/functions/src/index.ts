@@ -222,6 +222,50 @@ function displayChampionName(riotChampionName: string): string {
   return DDRAGON_TO_DISPLAY[riotChampionName] ?? riotChampionName;
 }
 
+interface RiotChampionMastery {
+  championId: number;
+  championPoints: number;
+}
+
+// DDragon numeric champion id -> display name, fetched once and cached for the
+// life of the function instance (DDragon is public, no API key needed).
+let championIdToNameCache: Map<number, string> | null = null;
+
+async function getChampionIdToName(): Promise<Map<number, string>> {
+  if (championIdToNameCache) return championIdToNameCache;
+  const versions = (await (
+    await fetch('https://ddragon.leagueoflegends.com/api/versions.json')
+  ).json()) as string[];
+  const version = versions[0] ?? '14.1.1';
+  const payload = (await (
+    await fetch(`https://ddragon.leagueoflegends.com/cdn/${version}/data/en_US/champion.json`)
+  ).json()) as { data: Record<string, { key: string; name: string }> };
+  const map = new Map<number, string>();
+  for (const champ of Object.values(payload.data)) {
+    map.set(Number(champ.key), champ.name);
+  }
+  championIdToNameCache = map;
+  return map;
+}
+
+// Top all-time champion-mastery picks for a player, as display names.
+async function fetchTopMasteryChampions(
+  puuid: string,
+  platform: string,
+  apiKey: string,
+  count: number
+): Promise<string[]> {
+  const masteries = await riotFetch<RiotChampionMastery[]>(
+    `https://${platform}.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/${puuid}/top?count=${count + 3}`,
+    apiKey
+  );
+  const idToName = await getChampionIdToName();
+  return masteries
+    .map((m) => idToName.get(m.championId))
+    .filter((name): name is string => Boolean(name))
+    .slice(0, count);
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -619,8 +663,27 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
     throw new Error(reason || 'No ranked data found for this Riot ID.');
   }
 
+  // Champion pool: prefer all-time champion mastery (a truer "pool" than the
+  // last dozen games). Falls back to recent most-played if mastery is
+  // unavailable (new champ not yet in the cached DDragon version, API hiccup…).
+  let masteryPool: string[] = [];
+  try {
+    const region = payload.region ?? 'euw';
+    const routing = REGION_ROUTING[region] ?? REGION_ROUTING['euw'];
+    const gameName = payload.summonerName;
+    const tagLine = (payload.riotTag || region.toUpperCase()).replace(/^#/, '');
+    const account = await riotFetch<RiotAccount>(
+      `https://${routing.regional}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`,
+      apiKey
+    );
+    masteryPool = await fetchTopMasteryChampions(account.puuid, routing.platform, apiKey, 5);
+  } catch {
+    // Keep the recent most-played pool from `primary`.
+  }
+
   return {
     ...primary,
+    top3: masteryPool.length ? masteryPool : primary.top3,
     queueStats: {
       solo: soloStats?.queueStats?.solo,
       flex: flexStats?.queueStats?.flex,
