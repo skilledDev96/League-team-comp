@@ -762,6 +762,116 @@ body {
   color: var(--text-0);
 }
 
+/* ---- Team profiles overview -------------------------------------------- */
+
+.profiles-table {
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+}
+
+.profiles-row {
+  display: grid;
+  grid-template-columns: minmax(11rem, 1.6fr) 8rem 5rem 4rem 5rem 4.5rem minmax(8rem, 1fr);
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.55rem 0.4rem;
+  min-width: 42rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+  color: inherit;
+  text-decoration: none;
+}
+
+.profiles-row:last-child {
+  border-bottom: none;
+}
+
+a.profiles-row:hover,
+a.profiles-row:focus-visible {
+  background: var(--surface-btn);
+  border-radius: 8px;
+}
+
+.profiles-head {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.profiles-row .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.profiles-player {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.profiles-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.profiles-name .pp-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profiles-name .pp-role {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--accent-2);
+}
+
+.profiles-rank {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-0);
+}
+
+.profiles-row .num.pos {
+  color: var(--ok);
+}
+
+.profiles-row .num.neg {
+  color: var(--warn);
+}
+
+.profiles-main {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-0);
+  min-width: 0;
+}
+
+.profiles-champ {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+.profiles-norank {
+  grid-column: 2 / -1;
+  font-size: 0.85rem;
+}
+
 /* ---- Practice board (pain points) -------------------------------------- */
 
 .practice-board {

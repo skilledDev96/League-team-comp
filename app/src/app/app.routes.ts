@@ -17,6 +17,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/player-intel/player-intel.component').then((m) => m.PlayerIntelComponent)
   },
   {
+    path: 'profiles',
+    canActivate: [viewerGuard],
+    loadComponent: () => import('./pages/profiles/team-profiles.component').then((m) => m.TeamProfilesComponent)
+  },
+  {
     path: 'player/:id',
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/player-profile/player-profile.component').then((m) => m.PlayerProfileComponent)
