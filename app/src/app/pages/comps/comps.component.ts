@@ -9,6 +9,7 @@ import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
+import { compVerdict, formatDamage, winLossRecord } from './comp-stats.util';
 import { TacticalBoardComponent } from './tactical-board.component';
 
 interface ResultDraft {
@@ -137,15 +138,10 @@ export class CompsComponent {
     (this.data.compAnalysis()?.games ?? []).filter((g) => !g.compId)
   );
 
-  protected offBookRecord(games: AnalysisGame[]): { wins: number; losses: number } {
-    const wins = games.filter((g) => g.win).length;
-    return { wins, losses: games.length - wins };
-  }
+  protected offBookRecord = winLossRecord;
 
   // Compact damage label, e.g. 24312 -> "24.3k".
-  protected fmtDamage(value: number): string {
-    return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : `${value}`;
-  }
+  protected fmtDamage = formatDamage;
 
   // ---- Define a comp from an off-book game ------------------------------
 
@@ -225,12 +221,7 @@ export class CompsComponent {
   }
 
   // Keep / work-on / drop signal from win rate and sample size.
-  protected verdict(perf: CompPerformance): { label: string; tone: 'good' | 'warn' | 'neutral' } {
-    if (perf.games < 3) return { label: 'Low sample', tone: 'neutral' };
-    if (perf.winRate >= 60) return { label: 'Keep', tone: 'good' };
-    if (perf.winRate < 40) return { label: 'Drop', tone: 'warn' };
-    return { label: 'Work on', tone: 'neutral' };
-  }
+  protected verdict = compVerdict;
 
   protected readonly banRows = computed(() =>
     this.data.players().map((p) => ({ role: p.role, name: p.name, bans: p.bans }))

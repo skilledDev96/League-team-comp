@@ -30,5 +30,7 @@ jobs:
         run: npm run build
       - name: Install functions deps
         run: npm run functions:install
+      - name: Functions unit tests
+        run: npm run functions:test
       - name: Build Cloud Functions
         run: npm run functions:build

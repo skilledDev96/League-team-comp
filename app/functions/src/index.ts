@@ -4,6 +4,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { defineSecret } from 'firebase-functions/params';
+import { matchComp } from './comp-match';
 
 initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 10 });
@@ -996,11 +997,6 @@ function parseCompAnalysisRequest(body: unknown): CompAnalysisRequest {
   return { players, comps };
 }
 
-// Lowercase alphanumerics, so "Miss Fortune" == "missfortune" across sources.
-function normalizeChampKey(name: string): string {
-  return (name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
 async function computeCompAnalysis(
   payload: CompAnalysisRequest,
   apiKey: string
@@ -1050,12 +1046,6 @@ async function computeCompAnalysis(
     .map(([id]) => id)
     .sort()
     .reverse();
-
-  const compSets = payload.comps.map((comp) => ({
-    id: comp.id,
-    name: comp.name,
-    set: new Set(comp.champions.map(normalizeChampKey))
-  }));
 
   const perComp = new Map<string, { compId: string; compName: string; games: number; wins: number }>();
   const games: AnalysisGameResponse[] = [];
@@ -1114,36 +1104,29 @@ async function computeCompAnalysis(
         damage: p.damage
       }))
       .sort((a, b) => (roleOrder[a.position] ?? 9) - (roleOrder[b.position] ?? 9));
-    const playedSet = new Set(players.map((p) => normalizeChampKey(p.champion)));
 
-    let bestId: string | null = null;
-    let bestName = '';
-    let bestOverlap = 0;
-    for (const comp of compSets) {
-      let overlap = 0;
-      for (const champ of comp.set) {
-        if (playedSet.has(champ)) overlap += 1;
-      }
-      if (overlap > bestOverlap) {
-        bestOverlap = overlap;
-        bestId = comp.id;
-        bestName = comp.name;
-      }
-    }
-
-    const matched = bestId && bestOverlap >= COMP_MATCH_THRESHOLD;
-    if (matched && bestId) {
-      const acc = perComp.get(bestId) ?? { compId: bestId, compName: bestName, games: 0, wins: 0 };
+    const compMatch = matchComp(
+      players.map((p) => p.champion),
+      payload.comps,
+      COMP_MATCH_THRESHOLD
+    );
+    if (compMatch.compId) {
+      const acc = perComp.get(compMatch.compId) ?? {
+        compId: compMatch.compId,
+        compName: compMatch.compName ?? '',
+        games: 0,
+        wins: 0
+      };
       acc.games += 1;
       if (win) acc.wins += 1;
-      perComp.set(bestId, acc);
+      perComp.set(compMatch.compId, acc);
     }
     games.push({
       matchId,
-      compId: matched ? bestId : null,
-      compName: matched ? bestName : null,
-      nearCompName: bestOverlap > 0 ? bestName : null,
-      nearOverlap: bestOverlap,
+      compId: compMatch.compId,
+      compName: compMatch.compName,
+      nearCompName: compMatch.nearName,
+      nearOverlap: compMatch.overlap,
       win,
       queue: QUEUE_LABEL[match.queueId] ?? 'Team',
       date: match.gameCreation,

@@ -8,7 +8,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rimraf lib",
-    "watch": "tsc -w -p tsconfig.json"
+    "watch": "tsc -w -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "firebase-admin": "^13.5.0",
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "rimraf": "^6.0.1",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.8"
   }
 }

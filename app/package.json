@@ -9,6 +9,7 @@
     "test": "ng test",
     "functions:install": "npm --prefix functions install",
     "functions:build": "npm --prefix functions run build",
+    "functions:test": "npm --prefix functions test",
     "functions:deploy": "firebase deploy --only functions:enrichPlayer"
   },
   "private": true,
