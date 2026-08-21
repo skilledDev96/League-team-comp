@@ -72,6 +72,8 @@ export interface Player {
   id: string;
   name: string;
   role: Role;
+  // Additional roles this player can flex into, beyond their main `role`.
+  secondaryRoles?: Role[];
   icon?: string;
   playstyle?: string;
   strengths: string[];

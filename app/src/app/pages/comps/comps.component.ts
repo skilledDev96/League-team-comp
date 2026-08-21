@@ -86,6 +86,15 @@ export class CompsComponent {
     void this.data.updateComp({ ...comp, category: category || undefined, notes: notes || undefined });
   }
 
+  // Which roster players can fill a given role, so a comp shows its cover:
+  // the main-role player first, then anyone who can flex into it.
+  protected rolePlayers(role: Role): { name: string; flex: boolean }[] {
+    return this.data
+      .players()
+      .filter((p) => p.role === role || (p.secondaryRoles ?? []).includes(role))
+      .map((p) => ({ name: p.name, flex: p.role !== role }));
+  }
+
   // Comp id -> whether its result-log form is expanded (editors only).
   protected readonly logging = signal<Record<string, boolean>>({});
   // Comp id -> draft being entered in that form.

@@ -117,6 +117,14 @@
         <span class="player-panel-title">
           <span class="pp-name">{{ player.role }} - {{ player.name }}</span>
           <span class="pp-role">{{ player.playstyle || 'Unknown' }}</span>
+          @if (player.secondaryRoles?.length) {
+            <span class="pp-flex-roles">
+              <span class="pp-flex-label">Flex</span>
+              @for (r of player.secondaryRoles ?? []; track r) {
+                <span class="pp-role flex">{{ r }}</span>
+              }
+            </span>
+          }
         </span>
         <span class="player-panel-chevron material-symbols-rounded" aria-hidden="true">
           {{ isExpanded(player.id) ? 'expand_less' : 'expand_more' }}

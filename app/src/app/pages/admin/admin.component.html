@@ -116,6 +116,19 @@
           <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'prole-' + draft.uid">
             @for (role of roles; track role) { <option [value]="role">{{ role }}</option> }
           </select></label>
+        <div class="field"><span>Can also play</span>
+          <div class="role-flex-group">
+            @for (role of roles; track role) {
+              @if (role !== draft.role) {
+                <button
+                  type="button"
+                  class="role-flex-toggle"
+                  [class.on]="draft.secondaryRoles.includes(role)"
+                  (click)="toggleSecondaryRole(draft, role)">{{ role }}</button>
+              }
+            }
+          </div>
+        </div>
         <label class="field"><span>Icon file</span>
           <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event" [name]="'picon-' + draft.uid" placeholder="name.webp" /></label>
         <label class="field"><span>Playstyle</span>

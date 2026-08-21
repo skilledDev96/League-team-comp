@@ -13,6 +13,7 @@ interface PlayerDraft {
   id: string;
   name: string;
   role: Role;
+  secondaryRoles: Role[];
   icon: string;
   playstyle: string;
   strengths: string;
@@ -159,6 +160,7 @@ export class AdminComponent {
       id: p.id,
       name: p.name,
       role: p.role,
+      secondaryRoles: (p.secondaryRoles ?? []).filter((r) => r !== p.role),
       icon: p.icon ?? '',
       playstyle: p.playstyle ?? '',
       strengths: p.strengths.join(', '),
@@ -220,6 +222,12 @@ export class AdminComponent {
 
   protected togglePlayer(draft: PlayerDraft): void {
     this.openPlayer.set(this.openPlayer() === draft ? null : draft);
+  }
+
+  protected toggleSecondaryRole(draft: PlayerDraft, role: Role): void {
+    draft.secondaryRoles = draft.secondaryRoles.includes(role)
+      ? draft.secondaryRoles.filter((r) => r !== role)
+      : [...draft.secondaryRoles, role];
   }
 
   protected isPlayerHighlighted(draft: PlayerDraft): boolean {
@@ -382,6 +390,7 @@ export class AdminComponent {
       id: '',
       name: '',
       role: 'Top',
+      secondaryRoles: [],
       icon: '',
       playstyle: '',
       strengths: '',
@@ -407,9 +416,11 @@ export class AdminComponent {
       riotTag: draft.riotTag.trim(),
       mobalyticsSlug: draft.mobalyticsSlug.trim()
     };
+    const secondaryRoles = draft.secondaryRoles.filter((r) => r !== draft.role);
     const base = {
       name: draft.name.trim(),
       role: draft.role,
+      secondaryRoles: secondaryRoles.length ? secondaryRoles : undefined,
       icon: draft.icon.trim() || undefined,
       playstyle: draft.playstyle.trim() || undefined,
       strengths: splitList(draft.strengths),

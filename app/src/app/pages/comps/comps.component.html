@@ -60,6 +60,13 @@
               <span class="comp-role">{{ role }}</span>
               <app-champion-chip [champion]="ui.parseCompLine(line).champion" />
               <span class="comp-note">{{ ui.parseCompLine(line).note }}</span>
+              @if (rolePlayers(role).length) {
+                <span class="comp-cover" [title]="'Who can play ' + role">
+                  @for (pl of rolePlayers(role); track pl.name) {
+                    <span class="comp-cover-name" [class.flex]="pl.flex">{{ pl.name }}</span>
+                  }
+                </span>
+              }
             </div>
           }
         }

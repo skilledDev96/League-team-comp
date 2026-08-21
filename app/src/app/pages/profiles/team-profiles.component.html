@@ -44,7 +44,12 @@
           <app-player-avatar [name]="row.player.name" [icon]="row.player.icon" [role]="row.player.role" />
           <span class="profiles-name">
             <span class="pp-name">{{ row.player.name }}</span>
-            <span class="pp-role">{{ row.player.role }}</span>
+            <span class="pp-roles">
+              <span class="pp-role">{{ row.player.role }}</span>
+              @for (r of row.player.secondaryRoles ?? []; track r) {
+                <span class="pp-role flex">{{ r }}</span>
+              }
+            </span>
           </span>
         </span>
 

@@ -2381,6 +2381,98 @@ a.profiles-row:focus-visible {
   resize: vertical;
 }
 
+/* ---- Secondary / flex roles -------------------------------------------- */
+
+/* Admin editor: toggle buttons for the roles a player can also flex into. */
+.role-flex-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.role-flex-toggle {
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.role-flex-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+
+.role-flex-toggle.on {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent);
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+/* A flex-role chip shown alongside a player's main role. */
+.pp-roles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pp-role.flex {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  color: var(--text-1);
+  background: var(--surface-btn);
+}
+
+.pp-flex-roles {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+}
+
+.pp-flex-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-1);
+}
+
+/* Comp role row: who on the roster can fill this slot (main + flex). */
+.comp-cover {
+  margin-left: auto;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.comp-cover-name {
+  font-size: 0.68rem;
+  color: var(--text-0);
+  padding: 0.05rem 0.4rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ok) 30%, var(--card-border) 70%);
+}
+
+.comp-cover-name.flex {
+  color: var(--text-1);
+  background: var(--surface-btn);
+  border-color: var(--card-border);
+  font-style: italic;
+}
+
 /* ---- Comp plays list --------------------------------------------------- */
 
 .comp-plays {
