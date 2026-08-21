@@ -342,6 +342,19 @@ export class CompsComponent {
     return ROLES.map((r) => this.ui.parseCompLine(comp.picks[r] ?? '').champion).filter(Boolean);
   }
 
+  private normChamp(s: string): string {
+    return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  // Whether a played champion is one of the (matched or closest) comp's picks —
+  // drives the per-row "part of this comp" indicator.
+  protected champInComp(game: AnalysisGame, champion: string): boolean {
+    const picks = this.compChampions(game.compName || game.nearCompName);
+    if (!picks.length) return false;
+    const target = this.normChamp(champion);
+    return picks.some((c) => this.normChamp(c) === target);
+  }
+
   // "4/5" style label for how much of the roster was on our team that game.
   protected stackLabel(game: AnalysisGame): string {
     const n = game.rosterCount ?? 5;

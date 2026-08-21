@@ -299,7 +299,7 @@
       </button>
     }
   </div>
-  <p class="muted">Real win rates from your 4-5 stack Flex and Clash games (auto-matched to your comps). 3-stacks show off the books.</p>
+  <p class="muted">Real win rates from your full 5-stack Flex and Clash games (auto-matched to your comps). 4-stacks show off the books to review.</p>
 
   @if (analysisError()) {
     <p class="analysis-error">{{ analysisError() }}</p>
@@ -429,7 +429,7 @@
         @if (offBookRecord(offBookGames()); as r) {
           <span class="offbook-record" [class.is-positive]="r.wins >= r.losses">{{ r.wins }}W&#8211;{{ r.losses }}L</span>
         }
-        <span class="offbook-note">3-stacks and full games that don't match a defined comp</span>
+        <span class="offbook-note">4-stacks and full games that don't match a defined comp</span>
         <button type="button" class="offbook-toggle" (click)="showOffBook.set(!showOffBook())">
           {{ showOffBook() ? 'Hide' : 'Show ' + offBookGames().length }}
         </button>
@@ -464,7 +464,7 @@
         @if (!game.compId && game.nearCompName) {
           <span class="game-near" [title]="'Closest defined comp'">≈ {{ game.nearCompName }} ({{ game.nearOverlap }}/5)</span>
         }
-        <span class="game-stack" [class.is-partial]="(game.rosterCount ?? 5) < 4"
+        <span class="game-stack" [class.is-partial]="(game.rosterCount ?? 5) < 5"
               [title]="stackLabel(game) + ' of the roster on our team'">{{ stackLabel(game) }}</span>
         @if (game.queue) { <span class="game-queue">{{ game.queue }}</span> }
         @if (game.date) { <span class="game-date">{{ game.date | date: 'MMM d' }}</span> }
@@ -489,10 +489,17 @@
           <span class="game-col">DMG</span>
         </li>
         @for (p of game.players; track p.name) {
-          <li class="game-player">
+          <li class="game-player" [class.in-comp]="champInComp(game, p.champion)">
             <img class="game-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" loading="lazy" />
             <span class="game-pos">{{ p.position }}</span>
-            <span class="game-pname">{{ p.name }}</span>
+            <span class="game-pname">
+              {{ p.name }}
+              @if (champInComp(game, p.champion)) {
+                <span class="game-incomp material-symbols-rounded"
+                      [title]="p.champion + ' is part of ' + (game.compName || game.nearCompName)"
+                      aria-label="Part of the comp">check_circle</span>
+              }
+            </span>
             <span class="game-kda">{{ p.kills }}/{{ p.deaths }}/{{ p.assists }}</span>
             <span class="game-cs">{{ p.cs }}</span>
             <span class="game-dmg">{{ fmtDamage(p.damage) }}</span>

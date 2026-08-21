@@ -3333,15 +3333,27 @@ a.profiles-row:focus-visible {
 
 .game-player {
   display: grid;
-  grid-template-columns: 28px 4.75rem minmax(6rem, 1fr) 4.25rem 3rem 3.5rem;
+  grid-template-columns: 40px 4.75rem minmax(6rem, 1fr) 4.25rem 3rem 3.5rem;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.9rem;
   padding: 0.32rem 0;
   border-bottom: 1px solid color-mix(in srgb, var(--card-border) 45%, transparent);
 }
 
 .game-player:last-child {
   border-bottom: none;
+}
+
+/* A played champion that's part of the matched/closest comp. */
+.game-player.in-comp .game-champ {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.game-incomp {
+  font-size: 1rem;
+  color: var(--accent-2);
+  flex: 0 0 auto;
 }
 
 .game-player-head {
@@ -3426,6 +3438,10 @@ a.profiles-row:focus-visible {
 }
 
 .game-pname {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
   font-size: 0.9rem;
   color: var(--text-0);
   white-space: nowrap;
