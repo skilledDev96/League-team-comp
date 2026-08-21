@@ -299,7 +299,7 @@
       </button>
     }
   </div>
-  <p class="muted">Real win rates from your full 5-stack games — normal 5v5, Flex and Clash (auto-matched to your comps).</p>
+  <p class="muted">Real win rates from your 4-5 stack team games — Flex, Clash and normal 5v5 (auto-matched to your comps). Games with a sub are flagged.</p>
 
   @if (analysisError()) {
     <p class="analysis-error">{{ analysisError() }}</p>
@@ -430,7 +430,7 @@
 
     @if (offBookGames().length) {
       <div class="offbook-head">
-        <span class="offbook-title">Off-book 5-stacks</span>
+        <span class="offbook-title">Off the books</span>
         @if (offBookRecord(offBookGames()); as r) {
           <span class="offbook-record" [class.is-positive]="r.wins >= r.losses">{{ r.wins }}W&#8211;{{ r.losses }}L</span>
         }

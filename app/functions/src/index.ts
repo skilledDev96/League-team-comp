@@ -943,6 +943,8 @@ interface AnalysisGameResponse {
   // Closest defined comp even when below the match threshold, for off-book hints.
   nearCompName: string | null;
   nearOverlap: number;
+  // Roster members on our team this game (5 = full stack, 4 = a sub was in).
+  rosterCount: number;
   win: boolean;
   side: 'blue' | 'red';
   enemyChampions: string[];
@@ -1085,10 +1087,13 @@ async function computeCompAnalysis(
   );
   const rosterPuuids = new Set(identities.map((i) => i.puuid));
   const nameByPuuid = new Map(identities.map((i) => [i.puuid, i.name]));
-  const fullStackSize = Math.min(5, identities.length);
+  // A game counts as "ours" when at least this many roster members are on the
+  // same team — 4, so 4-of-5 stacks (a sub or one player absent) still count,
+  // not just clean 5-premades. Games with a sub are flagged via rosterCount.
+  const teamMin = Math.min(4, identities.length);
 
-  // Count how many roster members share each match id — a full 5-stack shows up
-  // in all five members' histories, so we only pull detail for those candidates.
+  // Count how many roster members share each match id — a stack shows up in each
+  // member's history, so we only pull detail for matches with enough overlap.
   const matchIdCounts = new Map<string, number>();
   for (const queueId of TEAM_QUEUES) {
     for (const player of identities) {
@@ -1109,9 +1114,9 @@ async function computeCompAnalysis(
       }
     }
   }
-  // Full-5-stack candidates, most recent first (match ids sort chronologically).
+  // Candidates: at least `teamMin` roster present, most recent first.
   const candidateIds = [...matchIdCounts.entries()]
-    .filter(([, count]) => count >= fullStackSize)
+    .filter(([, count]) => count >= teamMin)
     .map(([id]) => id)
     .sort()
     .reverse();
@@ -1150,14 +1155,13 @@ async function computeCompAnalysis(
       members.push(participant);
       byTeam.set(participant.teamId, members);
     }
+    // The team with the most roster members on it is "our" side this game.
     let teamParts: CachedParticipant[] | null = null;
     for (const members of byTeam.values()) {
-      if (members.length >= fullStackSize) {
-        teamParts = members;
-        break;
-      }
+      if (!teamParts || members.length > teamParts.length) teamParts = members;
     }
-    if (!teamParts) continue;
+    const rosterCount = teamParts?.length ?? 0;
+    if (!teamParts || rosterCount < teamMin) continue;
 
     totalTeamGames += 1;
     const win = teamParts[0].win;
@@ -1201,6 +1205,7 @@ async function computeCompAnalysis(
       compName: compMatch.compName,
       nearCompName: compMatch.nearName,
       nearOverlap: compMatch.overlap,
+      rosterCount,
       win,
       side,
       enemyChampions,
