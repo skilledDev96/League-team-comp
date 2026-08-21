@@ -3031,6 +3031,14 @@ a.profiles-row:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+.analysis-name-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
 .analysis-name {
   font-weight: 700;
   font-size: 0.9rem;
@@ -3115,6 +3123,30 @@ a.profiles-row:focus-visible {
 
 .analysis-verdict.tone-neutral {
   color: var(--text-1);
+}
+
+/* Overall W-L pill for all stacked team games, in the meta line. */
+.analysis-total-record {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.74rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  color: var(--text-1);
+  vertical-align: middle;
+}
+
+.analysis-total-record.is-positive {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--card-border) 55%);
+}
+
+.analysis-total-record.is-negative {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
 }
 
 .offbook-head {
@@ -3517,7 +3549,7 @@ a.profiles-row:focus-visible {
       "bar bar rate";
     row-gap: 0.3rem;
   }
-  .analysis-name { grid-area: name; }
+  .analysis-name-cell { grid-area: name; }
   .analysis-record { grid-area: record; }
   .analysis-verdict { grid-area: verdict; }
   .analysis-bar { grid-area: bar; }

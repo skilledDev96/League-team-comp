@@ -335,6 +335,13 @@ export class CompsComponent {
 
   protected offBookRecord = winLossRecord;
 
+  // Overall win/loss across every stacked team game found (matched + off-book).
+  protected readonly teamRecord = computed(() => {
+    const { wins, losses } = winLossRecord(this.filteredGames());
+    const games = wins + losses;
+    return { wins, losses, games, winRate: games ? Math.round((wins / games) * 100) : 0 };
+  });
+
   // The champions that make up a defined comp, by name — for the "what comp is
   // this" tag shown on each analysed game.
   protected compChampions(name: string | null | undefined): string[] {
