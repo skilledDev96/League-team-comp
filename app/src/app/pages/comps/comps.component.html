@@ -455,7 +455,10 @@
       <div class="offbook-head">
         <span class="offbook-title">Off the books</span>
         @if (offBookRecord(offBookGames()); as r) {
-          <span class="offbook-record" [class.is-positive]="r.wins >= r.losses">{{ r.wins }}W&#8211;{{ r.losses }}L</span>
+          <span class="offbook-record" [class.is-positive]="r.wins >= r.losses" [class.is-negative]="r.wins < r.losses">
+            {{ r.wins }}W&#8211;{{ r.losses }}L
+            @if (r.wins + r.losses) { · {{ pct(r.wins, r.wins + r.losses) }}% }
+          </span>
         }
         <span class="offbook-note">comps you played that don't match a defined comp</span>
         <button type="button" class="offbook-toggle" (click)="showOffBook.set(!showOffBook())">

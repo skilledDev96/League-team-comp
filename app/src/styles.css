@@ -3225,6 +3225,11 @@ a.profiles-row:focus-visible {
   border-color: color-mix(in srgb, var(--ok) 45%, var(--card-border) 55%);
 }
 
+.offbook-record.is-negative {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
+}
+
 .offbook-note {
   font-size: 0.8rem;
   color: var(--text-1);

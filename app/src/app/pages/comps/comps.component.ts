@@ -352,6 +352,11 @@ export class CompsComponent {
 
   protected offBookRecord = winLossRecord;
 
+  // Whole-number win percentage from a wins/total pair.
+  protected pct(wins: number, total: number): number {
+    return total ? Math.round((wins / total) * 100) : 0;
+  }
+
   // Overall win/loss across every stacked team game found (matched + off-book).
   protected readonly teamRecord = computed(() => {
     const { wins, losses } = winLossRecord(this.filteredGames());
