@@ -102,12 +102,20 @@ export interface FillIn {
 
 export type CompPicks = Record<Role, string>;
 
+// A short, per-comp game plan by phase — the macro that applies to this draft.
+export interface CompGamePlan {
+  early?: string;
+  mid?: string;
+  late?: string;
+}
+
 export interface Comp {
   id: string;
   name: string;
   picks: CompPicks;
   category?: string;
   notes?: string;
+  gamePlan?: CompGamePlan;
   order: number;
 }
 
@@ -257,23 +265,6 @@ export interface TeamIdentity {
   lateGameFrontline: string;
 }
 
-export interface MacroPhase {
-  strategy: string[];
-}
-
-export interface MacroEarlyGame extends MacroPhase {
-  top: string;
-  mid: string;
-  bot: string;
-  junglePath: string;
-}
-
-export interface MacroSummary {
-  earlyGame: MacroEarlyGame;
-  midGame: MacroPhase;
-  lateGame: MacroPhase;
-}
-
 export interface ResourceLink {
   label: string;
   url: string;
@@ -296,6 +287,5 @@ export interface TeamData {
   learnEntries: LearnEntry[];
   compAnalysis?: CompAnalysis;
   teamIdentity: TeamIdentity;
-  macroSummary: MacroSummary;
   resourceLinks: ResourceLinks;
 }

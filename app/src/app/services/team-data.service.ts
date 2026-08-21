@@ -19,7 +19,6 @@ import {
   CompAnalysis,
   AccessEntry,
   FillIn,
-  MacroSummary,
   Player,
   ResourceLinks,
   Settings,
@@ -68,7 +67,6 @@ export class TeamDataService {
   readonly learnEntries = signal<LearnEntry[]>([]);
   readonly accessEntries = signal<AccessEntry[]>([]);
   readonly teamIdentity = signal<TeamIdentity | null>(null);
-  readonly macroSummary = signal<MacroSummary | null>(null);
   readonly compAnalysis = signal<CompAnalysis | null>(null);
   readonly resourceLinks = signal<ResourceLinks>({});
   readonly settings = signal<Settings>({ teamName: '' });
@@ -110,7 +108,6 @@ export class TeamDataService {
     this.learnEntries.set([...(data.learnEntries ?? [])].sort((a, b) => a.order - b.order));
     this.accessEntries.set([{ email: 'ruanhart7@gmail.com', role: 'admin', active: true }]);
     this.teamIdentity.set(data.teamIdentity);
-    this.macroSummary.set(data.macroSummary);
     this.compAnalysis.set(data.compAnalysis ?? null);
     this.resourceLinks.set(data.resourceLinks);
     this.settings.set(data.settings);
@@ -132,7 +129,6 @@ export class TeamDataService {
       painPoints: this.painPoints(),
       learnEntries: this.learnEntries(),
       teamIdentity: this.teamIdentity() ?? SEED_DATA.teamIdentity,
-      macroSummary: this.macroSummary() ?? SEED_DATA.macroSummary,
       compAnalysis: this.compAnalysis() ?? undefined,
       resourceLinks: this.resourceLinks()
     };
@@ -186,9 +182,6 @@ export class TeamDataService {
     });
     onSnapshot(doc(db, 'meta', 'teamIdentity'), (d) => {
       this.teamIdentity.set((d.data() as TeamIdentity) ?? null);
-    });
-    onSnapshot(doc(db, 'meta', 'macro'), (d) => {
-      this.macroSummary.set((d.data() as MacroSummary) ?? null);
     });
     onSnapshot(doc(db, 'meta', 'compAnalysis'), (d) => {
       this.compAnalysis.set((d.data() as CompAnalysis) ?? null);
@@ -247,7 +240,6 @@ export class TeamDataService {
       active: true
     });
     batch.set(doc(db, 'meta', 'teamIdentity'), SEED_DATA.teamIdentity);
-    batch.set(doc(db, 'meta', 'macro'), SEED_DATA.macroSummary);
     batch.set(doc(db, 'meta', 'resourceLinks'), { groups: SEED_DATA.resourceLinks });
     batch.set(doc(db, 'meta', 'settings'), SEED_DATA.settings);
     await batch.commit();
@@ -460,16 +452,6 @@ export class TeamDataService {
       if (db) await setDoc(doc(db, 'meta', 'teamIdentity'), identity);
     } else {
       this.teamIdentity.set(identity);
-      this.persistLocal();
-    }
-  }
-
-  async updateMacro(macro: MacroSummary): Promise<void> {
-    if (this.mode === 'firebase') {
-      const db = getDb();
-      if (db) await setDoc(doc(db, 'meta', 'macro'), macro);
-    } else {
-      this.macroSummary.set(macro);
       this.persistLocal();
     }
   }

@@ -93,6 +93,38 @@
         </div>
       }
 
+      @if (hasGamePlan(comp) || auth.editing()) {
+        <div class="comp-notes comp-gameplan">
+          <div class="comp-record-head">
+            <span class="comp-record-title material-symbols-rounded" aria-hidden="true">map</span>
+            <span class="comp-record-label">Game plan</span>
+          </div>
+          @if (auth.editing()) {
+            <div class="comp-gameplan-edit">
+              @for (phase of gamePlanPhases; track phase.key) {
+                <label class="comp-gameplan-row">
+                  <span class="comp-gameplan-phase">{{ phase.label }}</span>
+                  <input type="text" class="comp-notes-input" [ngModel]="gamePlanValue(comp, phase.key)"
+                         (ngModelChange)="setGamePlanDraft(comp, phase.key, $event)" (blur)="saveCompMeta(comp)"
+                         [name]="'plan-' + phase.key + '-' + comp.id" [placeholder]="phase.hint" />
+                </label>
+              }
+            </div>
+          } @else {
+            <dl class="comp-gameplan-view">
+              @for (phase of gamePlanPhases; track phase.key) {
+                @if (gamePlanValue(comp, phase.key); as line) {
+                  <div class="comp-gameplan-line">
+                    <dt>{{ phase.label }}</dt>
+                    <dd>{{ line }}</dd>
+                  </div>
+                }
+              }
+            </dl>
+          }
+        </div>
+      }
+
       <div class="comp-record">
         <div class="comp-record-head">
           <span class="comp-record-title material-symbols-rounded" aria-hidden="true">scoreboard</span>
@@ -210,41 +242,6 @@
 
 @if (boardComp(); as comp) {
   <app-tactical-board [comp]="comp" [play]="boardPlay()" [canEdit]="auth.editing()" (close)="closeBoard()" />
-}
-
-@if (data.macroSummary(); as macro) {
-  <section class="grid two" aria-label="Macro plan">
-    <article class="card">
-      <h2 class="title-with-icon"><span class="section-icon">EG</span>Early Game Lanes</h2>
-      <dl class="kv">
-        <dt>Top</dt><dd>{{ macro.earlyGame.top }}</dd>
-        <dt>Mid</dt><dd>{{ macro.earlyGame.mid }}</dd>
-        <dt>Bot</dt><dd>{{ macro.earlyGame.bot }}</dd>
-        <dt>Jungle path</dt><dd>{{ macro.earlyGame.junglePath }}</dd>
-      </dl>
-      <ul class="list-clean">
-        @for (point of macro.earlyGame.strategy; track point) {
-          <li>{{ point }}</li>
-        }
-      </ul>
-    </article>
-
-    <article class="card">
-      <h2 class="title-with-icon"><span class="section-icon">ML</span>Mid to Late Transition</h2>
-      <h3>Mid game priorities</h3>
-      <ul class="list-clean">
-        @for (point of macro.midGame.strategy; track point) {
-          <li>{{ point }}</li>
-        }
-      </ul>
-      <h3>Late game priorities</h3>
-      <ul class="list-clean">
-        @for (point of macro.lateGame.strategy; track point) {
-          <li>{{ point }}</li>
-        }
-      </ul>
-    </article>
-  </section>
 }
 
 @if (fullView()) {

@@ -93,6 +93,11 @@ export const SEED_DATA: TeamData = {
         Mid: 'Galio - follow-up engage + peel',
         ADC: 'Miss Fortune - AoE wombo finisher',
         Support: 'Leona - reliable engage chain'
+      },
+      gamePlan: {
+        early: 'Weakside top, funnel bot; jungle paths bot-side for early skirmishes.',
+        mid: 'Group as 5 and look for Galio/Leona engage onto a caught-out target.',
+        late: 'Wait for the MF ult wombo — flank with Vi, chain CC, then front-to-back.'
       }
     },
     {
@@ -180,21 +185,6 @@ export const SEED_DATA: TeamData = {
     damageProfile: 'double-carry damage',
     midRole: 'utility mid',
     lateGameFrontline: 'late-game tank frontline'
-  },
-  macroSummary: {
-    earlyGame: {
-      top: 'weakside',
-      mid: 'neutral',
-      bot: 'strongside',
-      junglePath: 'bot -> mid',
-      strategy: ['avoid early fights', 'focus on vision']
-    },
-    midGame: {
-      strategy: ['group early', 'force 5v5', 'play for dragons', 'Herald 2']
-    },
-    lateGame: {
-      strategy: ['full 5v5', 'front-to-back', 'tanks front, carries behind']
-    }
   },
   resourceLinks: {
     DraftTools: [

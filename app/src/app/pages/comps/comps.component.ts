@@ -59,9 +59,17 @@ export class CompsComponent {
     return filter === 'all' ? comps : comps.filter((c) => (c.category ?? '') === filter);
   });
 
-  // Per-comp inline edit drafts (category + notes), saved on blur.
+  // Per-comp game plan, phase by phase — the macro that applies to this draft.
+  protected readonly gamePlanPhases = [
+    { key: 'early' as const, label: 'Early', hint: 'Lanes, jungle path, first objectives…' },
+    { key: 'mid' as const, label: 'Mid', hint: 'Grouping, tempo, objective priority…' },
+    { key: 'late' as const, label: 'Late', hint: 'Win condition, teamfight shape…' }
+  ];
+
+  // Per-comp inline edit drafts (category + notes + game plan), saved on blur.
   private readonly catDrafts = signal<Record<string, string>>({});
   private readonly noteDrafts = signal<Record<string, string>>({});
+  private readonly planDrafts = signal<Record<string, Partial<Record<'early' | 'mid' | 'late', string>>>>({});
 
   protected compCategoryValue(comp: Comp): string {
     return this.catDrafts()[comp.id] ?? comp.category ?? '';
@@ -79,11 +87,45 @@ export class CompsComponent {
     this.noteDrafts.update((s) => ({ ...s, [comp.id]: value }));
   }
 
+  protected hasGamePlan(comp: Comp): boolean {
+    const p = comp.gamePlan;
+    return !!(p && (p.early || p.mid || p.late));
+  }
+
+  protected gamePlanValue(comp: Comp, phase: 'early' | 'mid' | 'late'): string {
+    return this.planDrafts()[comp.id]?.[phase] ?? comp.gamePlan?.[phase] ?? '';
+  }
+
+  protected setGamePlanDraft(comp: Comp, phase: 'early' | 'mid' | 'late', value: string): void {
+    this.planDrafts.update((s) => ({ ...s, [comp.id]: { ...s[comp.id], [phase]: value } }));
+  }
+
   protected saveCompMeta(comp: Comp): void {
     const category = this.compCategoryValue(comp).trim();
     const notes = this.compNotesValue(comp).trim();
-    if ((category || undefined) === comp.category && (notes || undefined) === comp.notes) return;
-    void this.data.updateComp({ ...comp, category: category || undefined, notes: notes || undefined });
+    const early = this.gamePlanValue(comp, 'early').trim();
+    const mid = this.gamePlanValue(comp, 'mid').trim();
+    const late = this.gamePlanValue(comp, 'late').trim();
+    const gamePlan = early || mid || late
+      ? { ...(early && { early }), ...(mid && { mid }), ...(late && { late }) }
+      : undefined;
+    const planUnchanged =
+      (early || undefined) === comp.gamePlan?.early &&
+      (mid || undefined) === comp.gamePlan?.mid &&
+      (late || undefined) === comp.gamePlan?.late;
+    if (
+      (category || undefined) === comp.category &&
+      (notes || undefined) === comp.notes &&
+      planUnchanged
+    ) {
+      return;
+    }
+    void this.data.updateComp({
+      ...comp,
+      category: category || undefined,
+      notes: notes || undefined,
+      gamePlan
+    });
   }
 
   // Which roster players can fill a given role, so a comp shows its cover:

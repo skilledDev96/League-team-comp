@@ -2458,6 +2458,57 @@ a.profiles-row:focus-visible {
   resize: vertical;
 }
 
+/* Per-comp game plan (Early / Mid / Late). */
+.comp-gameplan-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+.comp-gameplan-row {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.comp-gameplan-phase {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--accent-2);
+}
+
+.comp-gameplan-view {
+  margin: 0.45rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.comp-gameplan-line {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.comp-gameplan-line dt {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--accent-2);
+}
+
+.comp-gameplan-line dd {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-0);
+}
+
 /* ---- Secondary / flex roles -------------------------------------------- */
 
 /* Admin editor: toggle buttons for the roles a player can also flex into. */
