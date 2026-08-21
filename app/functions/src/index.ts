@@ -991,7 +991,14 @@ async function getCachedMatch(
   const ref = getFirestore().doc(`matchCache/${matchId}`);
   const snap = await ref.get();
   if (snap.exists) {
-    return { match: snap.data() as CachedMatch, fromCache: true };
+    const cached = snap.data() as CachedMatch;
+    // Self-heal: older cache entries were stored without participant puuids, so
+    // they read back with no identifiable players. Re-fetch those from Riot.
+    const healthy = cached.participants?.length > 0 && Boolean(cached.participants[0]?.puuid);
+    if (healthy) {
+      return { match: cached, fromCache: true };
+    }
+    // fall through to re-fetch (counts against the fetch budget like a new match)
   }
   if (!allowFetch) {
     return null;
