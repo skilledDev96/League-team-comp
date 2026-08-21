@@ -22,7 +22,7 @@ npm run functions:build    # tsc build of functions
 npm run functions:deploy   # firebase deploy --only functions:enrichPlayer
 ```
 
-Run a single test with vitest's filter, e.g. `npx ng test --include='**/comps.component.spec.ts'` or by test name once specs exist. Note: `app/src/app/app.spec.ts` is still the default scaffold (asserts "Hello, bom-squad") and will fail — treat the suite as not yet maintained.
+Run the suite once (CI-style) with `npm test -- --no-watch`; filter with `npx ng test --include='**/ui.service.spec.ts'` or by test name. `src/test-setup.ts` (wired via `angular.json` `test.options.setupFiles`) polyfills `window.matchMedia` and stubs `fetch` so services that fetch on construction (e.g. `ChampionDataService`) stay offline in tests. Specs live next to their targets and focus on pure logic (`core/access`, `UiService`, `ChampionDataService`); CI runs them before the build.
 
 ## Local vs Firebase mode — the core runtime switch
 
