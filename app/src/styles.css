@@ -2412,15 +2412,45 @@ a.profiles-row:focus-visible {
   gap: 0.4rem;
 }
 
-.analysis-row {
-  display: grid;
-  grid-template-columns: 9rem 4.5rem 1fr 3rem auto;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.45rem 0.7rem;
+.analysis-filter {
+  margin: 0.2rem 0 0.6rem;
+}
+
+.analysis-comp {
   border-radius: 10px;
   border: 1px solid var(--card-border);
   background: var(--surface-btn);
+  overflow: hidden;
+}
+
+.analysis-row {
+  display: grid;
+  grid-template-columns: 9rem 4.5rem 1fr 3rem auto 1.4rem;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.analysis-row::-webkit-details-marker {
+  display: none;
+}
+
+.analysis-comp-chevron {
+  color: var(--accent-2);
+  font-size: 1.2rem;
+  transition: transform 160ms ease;
+}
+
+.analysis-comp[open] .analysis-comp-chevron {
+  transform: rotate(180deg);
+}
+
+.analysis-comp-games {
+  padding: 0 0.6rem 0.6rem;
+  border-top: 1px solid var(--card-border);
+  margin-top: 0.2rem;
 }
 
 .analysis-name {

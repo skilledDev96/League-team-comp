@@ -254,25 +254,44 @@
       </p>
     }
 
-    @if (a.comps.length) {
+    @if (analysisQueues().length > 1) {
+      <div class="view-segment analysis-filter" role="group" aria-label="Queue filter">
+        <button type="button" [class.active]="analysisQueue() === 'all'" (click)="analysisQueue.set('all')">All</button>
+        @for (q of analysisQueues(); track q) {
+          <button type="button" [class.active]="analysisQueue() === q" (click)="analysisQueue.set(q)">{{ q }}</button>
+        }
+      </div>
+    }
+
+    @if (compRows().length) {
       <ul class="analysis-list">
-        @for (perf of a.comps; track perf.compId) {
-          <li class="analysis-row">
-            <span class="analysis-name">{{ perf.compName }}</span>
-            <span class="analysis-record">{{ perf.wins }}W&#8211;{{ perf.losses }}L</span>
-            <span class="analysis-bar" role="img" [attr.aria-label]="perf.winRate + '% win rate'">
-              <span class="analysis-bar-fill" [class.low]="perf.winRate < 40" [class.high]="perf.winRate >= 60"
-                    [style.width.%]="perf.winRate"></span>
-            </span>
-            <span class="analysis-rate">{{ perf.winRate }}%</span>
-            @if (verdict(perf); as v) {
-              <span class="analysis-verdict" [class]="'tone-' + v.tone">{{ v.label }}</span>
-            }
+        @for (perf of compRows(); track perf.compId) {
+          <li>
+            <details class="analysis-comp">
+              <summary class="analysis-row">
+                <span class="analysis-name">{{ perf.compName }}</span>
+                <span class="analysis-record">{{ perf.wins }}W&#8211;{{ perf.losses }}L</span>
+                <span class="analysis-bar" role="img" [attr.aria-label]="perf.winRate + '% win rate'">
+                  <span class="analysis-bar-fill" [class.low]="perf.winRate < 40" [class.high]="perf.winRate >= 60"
+                        [style.width.%]="perf.winRate"></span>
+                </span>
+                <span class="analysis-rate">{{ perf.winRate }}%</span>
+                @if (verdict(perf); as v) {
+                  <span class="analysis-verdict" [class]="'tone-' + v.tone">{{ v.label }}</span>
+                }
+                <span class="analysis-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+              </summary>
+              <ul class="game-list analysis-comp-games">
+                @for (game of analysisGamesFor(perf.compId); track game.matchId) {
+                  <li><ng-container [ngTemplateOutlet]="gamePanel" [ngTemplateOutletContext]="{ $implicit: game }"></ng-container></li>
+                }
+              </ul>
+            </details>
           </li>
         }
       </ul>
     } @else {
-      <p class="muted">No full 5-stack games matched your comps in the scanned history.</p>
+      <p class="muted">No games matched your comps{{ analysisQueue() === 'all' ? ' in the scanned history' : ' in ' + analysisQueue() }}.</p>
     }
 
     @if (offBookGames().length) {
@@ -289,60 +308,7 @@
       @if (showOffBook()) {
         <ul class="game-list">
           @for (game of offBookGames(); track game.matchId) {
-            <li>
-              <details class="game-panel" [class.is-win]="game.win" [class.is-loss]="!game.win">
-                <summary class="game-summary">
-                  <span class="game-outcome">{{ game.win ? 'W' : 'L' }}</span>
-                  <span class="game-champs">
-                    @for (p of game.players; track p.name) {
-                      <img class="game-champ-sm" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion"
-                           [title]="p.position + ' · ' + p.name + ' · ' + p.champion" loading="lazy" />
-                    }
-                  </span>
-                  @if (game.nearCompName) {
-                    <span class="game-near" [title]="'Closest defined comp'">≈ {{ game.nearCompName }} ({{ game.nearOverlap }}/5)</span>
-                  }
-                  @if (game.queue) { <span class="game-queue">{{ game.queue }}</span> }
-                  @if (game.date) { <span class="game-date">{{ game.date | date: 'MMM d' }}</span> }
-                  <span class="game-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
-                </summary>
-                <ul class="game-players">
-                  <li class="game-player game-player-head">
-                    <span></span><span></span><span></span>
-                    <span class="game-col">KDA</span>
-                    <span class="game-col">CS</span>
-                    <span class="game-col">DMG</span>
-                  </li>
-                  @for (p of game.players; track p.name) {
-                    <li class="game-player">
-                      <img class="game-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" loading="lazy" />
-                      <span class="game-pos">{{ p.position }}</span>
-                      <span class="game-pname">{{ p.name }}</span>
-                      <span class="game-kda">{{ p.kills }}/{{ p.deaths }}/{{ p.assists }}</span>
-                      <span class="game-cs">{{ p.cs }}</span>
-                      <span class="game-dmg">{{ fmtDamage(p.damage) }}</span>
-                    </li>
-                  }
-                </ul>
-                @if (auth.editing()) {
-                  <div class="game-define">
-                    @if (isSavedAsComp(game.matchId)) {
-                      <span class="game-define-saved">
-                        <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
-                        Saved as comp — Refresh to re-match
-                      </span>
-                    } @else {
-                      <input type="text" class="game-define-input" [ngModel]="compDraft(game.matchId)"
-                             (ngModelChange)="setCompDraft(game.matchId, $event)"
-                             [name]="'compname-' + game.matchId" placeholder="Name this comp…" />
-                      <button type="button" class="view-btn" [disabled]="!compDraft(game.matchId).trim()" (click)="saveAsComp(game)">
-                        <span class="material-symbols-rounded" aria-hidden="true">add</span> Save as comp
-                      </button>
-                    }
-                  </div>
-                }
-              </details>
-            </li>
+            <li><ng-container [ngTemplateOutlet]="gamePanel" [ngTemplateOutletContext]="{ $implicit: game }"></ng-container></li>
           }
         </ul>
       }
@@ -354,6 +320,62 @@
       @else { An editor can refresh it from Riot in edit mode. }
     </p>
   }
+
+  <!-- Reusable game panel: used by comp drill-downs and the off-book list. -->
+  <ng-template #gamePanel let-game>
+    <details class="game-panel" [class.is-win]="game.win" [class.is-loss]="!game.win">
+      <summary class="game-summary">
+        <span class="game-outcome">{{ game.win ? 'W' : 'L' }}</span>
+        <span class="game-champs">
+          @for (p of game.players; track p.name) {
+            <img class="game-champ-sm" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion"
+                 [title]="p.position + ' · ' + p.name + ' · ' + p.champion" loading="lazy" />
+          }
+        </span>
+        @if (!game.compId && game.nearCompName) {
+          <span class="game-near" [title]="'Closest defined comp'">≈ {{ game.nearCompName }} ({{ game.nearOverlap }}/5)</span>
+        }
+        @if (game.queue) { <span class="game-queue">{{ game.queue }}</span> }
+        @if (game.date) { <span class="game-date">{{ game.date | date: 'MMM d' }}</span> }
+        <span class="game-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+      </summary>
+      <ul class="game-players">
+        <li class="game-player game-player-head">
+          <span></span><span></span><span></span>
+          <span class="game-col">KDA</span>
+          <span class="game-col">CS</span>
+          <span class="game-col">DMG</span>
+        </li>
+        @for (p of game.players; track p.name) {
+          <li class="game-player">
+            <img class="game-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" loading="lazy" />
+            <span class="game-pos">{{ p.position }}</span>
+            <span class="game-pname">{{ p.name }}</span>
+            <span class="game-kda">{{ p.kills }}/{{ p.deaths }}/{{ p.assists }}</span>
+            <span class="game-cs">{{ p.cs }}</span>
+            <span class="game-dmg">{{ fmtDamage(p.damage) }}</span>
+          </li>
+        }
+      </ul>
+      @if (auth.editing() && !game.compId) {
+        <div class="game-define">
+          @if (isSavedAsComp(game.matchId)) {
+            <span class="game-define-saved">
+              <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
+              Saved as comp — Refresh to re-match
+            </span>
+          } @else {
+            <input type="text" class="game-define-input" [ngModel]="compDraft(game.matchId)"
+                   (ngModelChange)="setCompDraft(game.matchId, $event)"
+                   [name]="'compname-' + game.matchId" placeholder="Name this comp…" />
+            <button type="button" class="view-btn" [disabled]="!compDraft(game.matchId).trim()" (click)="saveAsComp(game)">
+              <span class="material-symbols-rounded" aria-hidden="true">add</span> Save as comp
+            </button>
+          }
+        </div>
+      }
+    </details>
+  </ng-template>
 </section>
 
 <section id="logSection" aria-label="Game log">

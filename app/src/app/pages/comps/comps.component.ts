@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -25,7 +25,7 @@ interface LogRow extends CompResult {
 
 @Component({
   selector: 'app-comps',
-  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, OverflowMenuComponent, TacticalBoardComponent],
+  imports: [DatePipe, NgTemplateOutlet, FormsModule, RouterLink, ChampionChipComponent, OverflowMenuComponent, TacticalBoardComponent],
   templateUrl: './comps.component.html'
 })
 export class CompsComponent {
@@ -133,9 +133,44 @@ export class CompsComponent {
   protected readonly analysisError = signal('');
   protected readonly showOffBook = signal(false);
 
+  // Queue filter for the analysis panel ('all' or a specific queue label).
+  protected readonly analysisQueue = signal<string>('all');
+
+  // Queues present in the analysed games, for the filter control.
+  protected readonly analysisQueues = computed<string[]>(() => {
+    const seen = new Set<string>();
+    for (const g of this.data.compAnalysis()?.games ?? []) {
+      if (g.queue) seen.add(g.queue);
+    }
+    return [...seen];
+  });
+
+  // Games after the queue filter is applied.
+  protected readonly filteredGames = computed<AnalysisGame[]>(() => {
+    const games = this.data.compAnalysis()?.games ?? [];
+    const queue = this.analysisQueue();
+    return queue === 'all' ? games : games.filter((g) => g.queue === queue);
+  });
+
+  // Per-comp performance aggregated from the filtered games, so the queue
+  // filter drives the table (not just the game lists).
+  protected readonly compRows = computed<CompPerformance[]>(() => {
+    const byComp = new Map<string, { compId: string; compName: string; games: number; wins: number }>();
+    for (const g of this.filteredGames()) {
+      if (!g.compId) continue;
+      const acc = byComp.get(g.compId) ?? { compId: g.compId, compName: g.compName ?? 'Comp', games: 0, wins: 0 };
+      acc.games += 1;
+      if (g.win) acc.wins += 1;
+      byComp.set(g.compId, acc);
+    }
+    return [...byComp.values()]
+      .map((a) => ({ ...a, losses: a.games - a.wins, winRate: a.games ? Math.round((a.wins / a.games) * 100) : 0 }))
+      .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
+  });
+
   // Off-book games (played 5-stacks that don't match a defined comp).
   protected readonly offBookGames = computed<AnalysisGame[]>(() =>
-    (this.data.compAnalysis()?.games ?? []).filter((g) => !g.compId)
+    this.filteredGames().filter((g) => !g.compId)
   );
 
   protected offBookRecord = winLossRecord;
@@ -201,7 +236,7 @@ export class CompsComponent {
 
   // The full-5-stack games credited to one comp, for its expandable detail.
   protected analysisGamesFor(compId: string): AnalysisGame[] {
-    return (this.data.compAnalysis()?.games ?? []).filter((g) => g.compId === compId);
+    return this.filteredGames().filter((g) => g.compId === compId);
   }
 
   protected async refreshAnalysis(): Promise<void> {
