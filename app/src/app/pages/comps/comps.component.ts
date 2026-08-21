@@ -19,8 +19,19 @@ interface ResultDraft {
   playedOn: string;
 }
 
-interface LogRow extends CompResult {
+interface LogRow {
+  id: string;
+  compId: string | null;
   compName: string;
+  outcome: CompOutcome;
+  opponent?: string;
+  note?: string;
+  playedOn: string;
+  // Epoch ms used only for sorting (match-history games carry a real timestamp).
+  sortKey: number;
+  source: 'logged' | 'match';
+  // Present for manually-logged rows so they can be deleted.
+  result?: CompResult;
 }
 
 @Component({
@@ -223,15 +234,46 @@ export class CompsComponent {
     return this.data.comps().find((c) => c.id === compId)?.name ?? 'Unknown comp';
   }
 
-  // Every logged game, newest-first, with its comp name, after the active filters.
+  // The game log merges two sources so it reflects every known game: games
+  // manually logged per comp, and games auto-detected from Riot match history.
+  // Match-history rows are read-only; manual rows can be deleted.
   protected readonly logRows = computed<LogRow[]>(() => {
     const comp = this.logCompFilter();
     const result = this.logResultFilter();
-    return this.data
-      .compResults()
-      .filter((r) => (comp === 'all' || r.compId === comp) && (result === 'all' || r.outcome === result))
-      .map((r) => ({ ...r, compName: this.compName(r.compId) }))
-      .sort((a, b) => (a.playedOn === b.playedOn ? b.order - a.order : b.playedOn.localeCompare(a.playedOn)));
+
+    const logged: LogRow[] = this.data.compResults().map((r) => ({
+      id: r.id,
+      compId: r.compId,
+      compName: this.compName(r.compId),
+      outcome: r.outcome,
+      opponent: r.opponent,
+      note: r.note,
+      playedOn: r.playedOn,
+      sortKey: Date.parse(r.playedOn) || 0,
+      source: 'logged' as const,
+      result: r
+    }));
+
+    const matches: LogRow[] = (this.data.compAnalysis()?.games ?? [])
+      .filter((g) => g.compId)
+      .map((g) => ({
+        id: `match-${g.matchId}`,
+        compId: g.compId,
+        compName: g.compName ?? this.compName(g.compId as string),
+        outcome: (g.win ? 'win' : 'loss') as CompOutcome,
+        opponent: undefined,
+        note: g.queue,
+        playedOn: new Date(g.date).toLocaleDateString(),
+        sortKey: g.date,
+        source: 'match' as const
+      }));
+
+    return [...logged, ...matches]
+      .filter(
+        (r) =>
+          (comp === 'all' || r.compId === comp) && (result === 'all' || r.outcome === result)
+      )
+      .sort((a, b) => b.sortKey - a.sortKey);
   });
 
   // Win/loss totals for whatever the filters currently show.

@@ -544,8 +544,12 @@
           <span class="log-comp">{{ row.compName }}</span>
           <span class="log-opp">{{ row.opponent ? 'vs ' + row.opponent : '—' }}</span>
           <span class="log-note">{{ row.note }}</span>
-          @if (auth.editing()) {
-            <button type="button" class="log-del" aria-label="Delete this game" (click)="deleteResult(row)">
+          @if (row.source === 'match') {
+            <span class="log-source" title="Auto-detected from Riot match history">
+              <span class="material-symbols-rounded" aria-hidden="true">query_stats</span>
+            </span>
+          } @else if (auth.editing() && row.result) {
+            <button type="button" class="log-del" aria-label="Delete this game" (click)="deleteResult(row.result)">
               <span class="material-symbols-rounded" aria-hidden="true">close</span>
             </button>
           }
