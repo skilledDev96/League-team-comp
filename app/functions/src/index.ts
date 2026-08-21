@@ -1037,13 +1037,6 @@ interface CompAnalysisResponse {
   newMatches: number;
   pendingMatches: number;
   generatedAt: string;
-  debug?: {
-    playerIdCounts: Record<string, number>;
-    playerScanErrors: string[];
-    recentIdCounts: { id: string; count: number }[];
-    recentCandidates: { id: string; present: number; teamMax: number; teams: number[] }[];
-    teamMin: number;
-  };
 }
 
 function parseCompAnalysisRequest(body: unknown): CompAnalysisRequest {
@@ -1110,10 +1103,6 @@ async function computeCompAnalysis(
   // Count how many roster members share each match id — a stack shows up in each
   // member's history, so we only pull detail for matches with enough overlap.
   const matchIdCounts = new Map<string, number>();
-  // Diagnostics: how many match ids each player contributed, and whether their
-  // scan errored out (rate limit) before finishing.
-  const playerIdCounts: Record<string, number> = {};
-  const playerScanErrors: string[] = [];
   for (const queueId of TEAM_QUEUES) {
     for (const player of identities) {
       for (let page = 0; page < MAX_MATCH_ID_PAGES; page += 1) {
@@ -1124,23 +1113,15 @@ async function computeCompAnalysis(
             apiKey
           );
         } catch {
-          playerScanErrors.push(`${player.name} q${queueId} p${page}`);
           break; // Stop paging this player/queue on error (e.g. rate limit).
         }
         for (const id of ids) {
           matchIdCounts.set(id, (matchIdCounts.get(id) ?? 0) + 1);
-          playerIdCounts[player.name] = (playerIdCounts[player.name] ?? 0) + 1;
         }
         if (ids.length < MATCH_ID_PAGE_SIZE) break; // No more history.
       }
     }
   }
-  // 12 most recent match ids seen, with how many roster members had each — this
-  // shows directly whether a recent game reached the team-min threshold.
-  const recentIdCounts = [...matchIdCounts.entries()]
-    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
-    .slice(0, 12)
-    .map(([id, count]) => ({ id, count }));
   // Candidates: at least `teamMin` roster present, most recent first.
   const candidateIds = [...matchIdCounts.entries()]
     .filter(([, count]) => count >= teamMin)
@@ -1150,9 +1131,6 @@ async function computeCompAnalysis(
 
   const perComp = new Map<string, { compId: string; compName: string; games: number; wins: number }>();
   const games: AnalysisGameResponse[] = [];
-  // Diagnostics: for each processed candidate, how many roster were actually in
-  // the cached match and how they split across teams (reveals split vs bug).
-  const candidateDiag: { id: string; present: number; teamMax: number; teams: number[] }[] = [];
   let totalTeamGames = 0;
   let scannedMatches = 0;
   let newMatches = 0;
@@ -1191,12 +1169,6 @@ async function computeCompAnalysis(
       if (!teamParts || members.length > teamParts.length) teamParts = members;
     }
     const rosterCount = teamParts?.length ?? 0;
-    candidateDiag.push({
-      id: matchId,
-      present: rosterParticipants.length,
-      teamMax: rosterCount,
-      teams: [...byTeam.values()].map((m) => m.length)
-    });
     if (!teamParts || rosterCount < teamMin) continue;
 
     totalTeamGames += 1;
@@ -1271,14 +1243,7 @@ async function computeCompAnalysis(
     scannedMatches,
     newMatches,
     pendingMatches,
-    generatedAt: new Date().toISOString(),
-    debug: {
-      playerIdCounts,
-      playerScanErrors,
-      recentIdCounts,
-      recentCandidates: [...candidateDiag].sort((a, b) => (a.id < b.id ? 1 : -1)).slice(0, 12),
-      teamMin
-    }
+    generatedAt: new Date().toISOString()
   };
 }
 
