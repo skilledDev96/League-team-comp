@@ -2458,6 +2458,10 @@ a.profiles-row:focus-visible {
   resize: vertical;
 }
 
+.comp-bans-chips {
+  margin-top: 0.5rem;
+}
+
 /* Per-comp game plan (Early / Mid / Late). */
 .comp-gameplan-edit {
   display: flex;

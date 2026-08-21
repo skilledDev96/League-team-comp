@@ -66,10 +66,11 @@ export class CompsComponent {
     { key: 'late' as const, label: 'Late', hint: 'Win condition, teamfight shape…' }
   ];
 
-  // Per-comp inline edit drafts (category + notes + game plan), saved on blur.
+  // Per-comp inline edit drafts (category + notes + game plan + bans), saved on blur.
   private readonly catDrafts = signal<Record<string, string>>({});
   private readonly noteDrafts = signal<Record<string, string>>({});
   private readonly planDrafts = signal<Record<string, Partial<Record<'early' | 'mid' | 'late', string>>>>({});
+  private readonly banDrafts = signal<Record<string, string>>({});
 
   protected compCategoryValue(comp: Comp): string {
     return this.catDrafts()[comp.id] ?? comp.category ?? '';
@@ -100,6 +101,14 @@ export class CompsComponent {
     this.planDrafts.update((s) => ({ ...s, [comp.id]: { ...s[comp.id], [phase]: value } }));
   }
 
+  protected compBansValue(comp: Comp): string {
+    return this.banDrafts()[comp.id] ?? (comp.bans ?? []).join(', ');
+  }
+
+  protected setBansDraft(comp: Comp, value: string): void {
+    this.banDrafts.update((s) => ({ ...s, [comp.id]: value }));
+  }
+
   protected saveCompMeta(comp: Comp): void {
     const category = this.compCategoryValue(comp).trim();
     const notes = this.compNotesValue(comp).trim();
@@ -109,14 +118,21 @@ export class CompsComponent {
     const gamePlan = early || mid || late
       ? { ...(early && { early }), ...(mid && { mid }), ...(late && { late }) }
       : undefined;
+    const bansList = this.compBansValue(comp)
+      .split(',')
+      .map((b) => b.trim())
+      .filter(Boolean);
+    const bans = bansList.length ? bansList : undefined;
     const planUnchanged =
       (early || undefined) === comp.gamePlan?.early &&
       (mid || undefined) === comp.gamePlan?.mid &&
       (late || undefined) === comp.gamePlan?.late;
+    const bansUnchanged = bansList.join('|') === (comp.bans ?? []).join('|');
     if (
       (category || undefined) === comp.category &&
       (notes || undefined) === comp.notes &&
-      planUnchanged
+      planUnchanged &&
+      bansUnchanged
     ) {
       return;
     }
@@ -124,7 +140,8 @@ export class CompsComponent {
       ...comp,
       category: category || undefined,
       notes: notes || undefined,
-      gamePlan
+      gamePlan,
+      bans
     });
   }
 

@@ -116,6 +116,8 @@ export interface Comp {
   category?: string;
   notes?: string;
   gamePlan?: CompGamePlan;
+  // Champions to ban when running this comp (counters / hard matchups).
+  bans?: string[];
   order: number;
 }
 

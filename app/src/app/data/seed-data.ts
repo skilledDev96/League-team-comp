@@ -98,7 +98,8 @@ export const SEED_DATA: TeamData = {
         early: 'Weakside top, funnel bot; jungle paths bot-side for early skirmishes.',
         mid: 'Group as 5 and look for Galio/Leona engage onto a caught-out target.',
         late: 'Wait for the MF ult wombo — flank with Vi, chain CC, then front-to-back.'
-      }
+      },
+      bans: ['Janna', 'Tahm Kench', 'Yuumi']
     },
     {
       id: 'pick',
