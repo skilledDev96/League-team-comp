@@ -175,6 +175,8 @@ export interface AnalysisGame {
   nearCompName?: string | null;
   nearOverlap?: number;
   win: boolean;
+  side?: 'blue' | 'red';
+  enemyChampions?: string[];
   queue: string;
   date: number;
   players: AnalysisPlayer[];

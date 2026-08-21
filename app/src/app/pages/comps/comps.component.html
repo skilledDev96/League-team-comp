@@ -294,6 +294,69 @@
       <p class="muted">No games matched your comps{{ analysisQueue() === 'all' ? ' in the scanned history' : ' in ' + analysisQueue() }}.</p>
     }
 
+    @if (filteredGames().length) {
+      <details class="insights">
+        <summary class="insights-head">
+          <span class="material-symbols-rounded" aria-hidden="true">insights</span>
+          <span>Insights</span>
+          <span class="insights-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+        </summary>
+        <div class="insights-body">
+          <div class="insight-tiles">
+            <div class="insight-tile">
+              <span class="insight-label">Blue side</span>
+              <span class="insight-value" [class.pos]="sideSplit().blue.winRate >= 50" [class.neg]="sideSplit().blue.games && sideSplit().blue.winRate < 50">
+                {{ sideSplit().blue.wins }}W&#8211;{{ sideSplit().blue.losses }}L · {{ sideSplit().blue.winRate }}%
+              </span>
+            </div>
+            <div class="insight-tile">
+              <span class="insight-label">Red side</span>
+              <span class="insight-value" [class.pos]="sideSplit().red.winRate >= 50" [class.neg]="sideSplit().red.games && sideSplit().red.winRate < 50">
+                {{ sideSplit().red.wins }}W&#8211;{{ sideSplit().red.losses }}L · {{ sideSplit().red.winRate }}%
+              </span>
+            </div>
+            <div class="insight-tile insight-form">
+              <span class="insight-label">Recent form (newest first)</span>
+              <span class="form-strip">
+                @for (g of recentForm(); track g.matchId) {
+                  <span class="form-pip" [class.win]="g.win" [class.loss]="!g.win">{{ g.win ? 'W' : 'L' }}</span>
+                }
+              </span>
+            </div>
+          </div>
+
+          @if (matchups().toughest.length) {
+            <div class="matchup-grid">
+              <div class="matchup-col">
+                <span class="insight-label">Toughest matchups</span>
+                @for (m of matchups().toughest; track m.champion) {
+                  <div class="matchup-row">
+                    <img class="matchup-champ" [src]="ui.championIconUrl(m.champion)" [alt]="m.champion" [title]="m.champion" loading="lazy" />
+                    <span class="matchup-name">{{ m.champion }}</span>
+                    <span class="matchup-rate neg">{{ m.winRate }}%</span>
+                    <span class="matchup-games">{{ m.wins }}&#8211;{{ m.losses }}</span>
+                  </div>
+                }
+              </div>
+              <div class="matchup-col">
+                <span class="insight-label">Best matchups</span>
+                @for (m of matchups().best; track m.champion) {
+                  <div class="matchup-row">
+                    <img class="matchup-champ" [src]="ui.championIconUrl(m.champion)" [alt]="m.champion" [title]="m.champion" loading="lazy" />
+                    <span class="matchup-name">{{ m.champion }}</span>
+                    <span class="matchup-rate pos">{{ m.winRate }}%</span>
+                    <span class="matchup-games">{{ m.wins }}&#8211;{{ m.losses }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          } @else {
+            <p class="muted">Not enough games yet for matchup trends (need an enemy champ faced 2+ times).</p>
+          }
+        </div>
+      </details>
+    }
+
     @if (offBookGames().length) {
       <div class="offbook-head">
         <span class="offbook-title">Off-book 5-stacks</span>

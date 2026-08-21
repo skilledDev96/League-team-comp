@@ -175,6 +175,46 @@ export class CompsComponent {
 
   protected offBookRecord = winLossRecord;
 
+  // ---- Analytics from the filtered games -------------------------------
+
+  // Win rate by map side (blue/red).
+  protected readonly sideSplit = computed(() => {
+    const record = (side: 'blue' | 'red') => {
+      const list = this.filteredGames().filter((g) => g.side === side);
+      const wins = list.filter((g) => g.win).length;
+      return {
+        games: list.length,
+        wins,
+        losses: list.length - wins,
+        winRate: list.length ? Math.round((wins / list.length) * 100) : 0
+      };
+    };
+    return { blue: record('blue'), red: record('red') };
+  });
+
+  // Most recent games (already newest-first) for a W/L form strip.
+  protected readonly recentForm = computed(() => this.filteredGames().slice(0, 12));
+
+  // Win rate against each enemy champion, split into toughest and best (min 2 games).
+  protected readonly matchups = computed(() => {
+    const byChamp = new Map<string, { champion: string; games: number; wins: number }>();
+    for (const g of this.filteredGames()) {
+      for (const champ of g.enemyChampions ?? []) {
+        const acc = byChamp.get(champ) ?? { champion: champ, games: 0, wins: 0 };
+        acc.games += 1;
+        if (g.win) acc.wins += 1;
+        byChamp.set(champ, acc);
+      }
+    }
+    const rows = [...byChamp.values()]
+      .filter((c) => c.games >= 2)
+      .map((c) => ({ ...c, losses: c.games - c.wins, winRate: Math.round((c.wins / c.games) * 100) }));
+    return {
+      toughest: [...rows].sort((a, b) => a.winRate - b.winRate || b.games - a.games).slice(0, 5),
+      best: [...rows].sort((a, b) => b.winRate - a.winRate || b.games - a.games).slice(0, 5)
+    };
+  });
+
   // Compact damage label, e.g. 24312 -> "24.3k".
   protected fmtDamage = formatDamage;
 

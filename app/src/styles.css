@@ -2453,6 +2453,182 @@ a.profiles-row:focus-visible {
   margin-top: 0.2rem;
 }
 
+/* ---- Analytics / insights ---------------------------------------------- */
+
+.insights {
+  margin-top: 0.9rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.insights-head {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-0);
+  background: var(--surface-btn);
+}
+
+.insights-head::-webkit-details-marker {
+  display: none;
+}
+
+.insights-head > .material-symbols-rounded:first-child {
+  color: var(--accent-2);
+  font-size: 1.1rem;
+}
+
+.insights-chevron {
+  margin-left: auto;
+  color: var(--accent-2);
+  transition: transform 160ms ease;
+}
+
+.insights[open] .insights-chevron {
+  transform: rotate(180deg);
+}
+
+.insights-body {
+  padding: 0.8rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.insight-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.6rem;
+}
+
+.insight-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+}
+
+.insight-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.insight-value {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-0);
+  font-variant-numeric: tabular-nums;
+}
+
+.insight-value.pos {
+  color: var(--ok);
+}
+
+.insight-value.neg {
+  color: var(--warn);
+}
+
+.insight-form {
+  grid-column: 1 / -1;
+}
+
+.form-strip {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.form-pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 6px;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.form-pip.win {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 20%, transparent);
+}
+
+.form-pip.loss {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 20%, transparent);
+}
+
+.matchup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.matchup-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.matchup-row {
+  display: grid;
+  grid-template-columns: 26px 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.matchup-champ {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  object-fit: cover;
+}
+
+.matchup-name {
+  font-size: 0.85rem;
+  color: var(--text-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matchup-rate {
+  font-weight: 700;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.matchup-rate.pos {
+  color: var(--ok);
+}
+
+.matchup-rate.neg {
+  color: var(--warn);
+}
+
+.matchup-games {
+  font-size: 0.78rem;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+
 .analysis-name {
   font-weight: 700;
   font-size: 0.9rem;

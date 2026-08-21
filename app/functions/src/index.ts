@@ -877,6 +877,8 @@ interface AnalysisGameResponse {
   nearCompName: string | null;
   nearOverlap: number;
   win: boolean;
+  side: 'blue' | 'red';
+  enemyChampions: string[];
   queue: string;
   date: number;
   players: AnalysisPlayerResponse[];
@@ -1092,6 +1094,11 @@ async function computeCompAnalysis(
 
     totalTeamGames += 1;
     const win = teamParts[0].win;
+    const rosterTeamId = teamParts[0].teamId;
+    const side: 'blue' | 'red' = rosterTeamId === 100 ? 'blue' : 'red';
+    const enemyChampions = match.participants
+      .filter((p) => p.teamId !== rosterTeamId)
+      .map((p) => displayChampionName(p.championName));
     const players: AnalysisPlayerResponse[] = teamParts
       .map((p) => ({
         name: nameByPuuid.get(p.puuid) ?? 'Unknown',
@@ -1128,6 +1135,8 @@ async function computeCompAnalysis(
       nearCompName: compMatch.nearName,
       nearOverlap: compMatch.overlap,
       win,
+      side,
+      enemyChampions,
       queue: QUEUE_LABEL[match.queueId] ?? 'Team',
       date: match.gameCreation,
       players
