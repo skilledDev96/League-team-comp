@@ -11,8 +11,8 @@
   <p class="muted">Starter keeps each role compact. Full expands every scouting card.</p>
 </section>
 
-<section class="card practice-board" aria-label="Team practice board">
-  <div class="practice-head">
+<details class="card practice-board" aria-label="Team practice board">
+  <summary class="practice-head">
     <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">fitness_center</span>Practice Board</h2>
     @if (painSummary(); as s) {
       <span class="practice-counts">
@@ -20,7 +20,8 @@
         <span class="practice-count done">{{ s.resolved }} resolved</span>
       </span>
     }
-  </div>
+    <span class="practice-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+  </summary>
 
   <div class="practice-filters">
     <label class="practice-filter">
@@ -75,7 +76,7 @@
   } @else {
     <p class="muted">No pain points{{ ppStatusFilter() !== 'all' ? ' (' + ppStatusFilter() + ')' : '' }}{{ ppPlayerFilter() !== 'all' ? ' for this player' : '' }}.</p>
   }
-</section>
+</details>
 
 @if (data.fillIns().length) {
   <section class="grid two" aria-label="Fill-in profiles">

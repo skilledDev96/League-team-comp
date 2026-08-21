@@ -901,10 +901,29 @@ a.profiles-row:focus-visible {
   align-items: center;
   gap: 0.8rem;
   flex-wrap: wrap;
+  cursor: pointer;
+  list-style: none;
+}
+
+.practice-head::-webkit-details-marker {
+  display: none;
 }
 
 .practice-head h2 {
   margin: 0;
+}
+
+.practice-chevron {
+  color: var(--accent-2);
+  transition: transform 160ms ease;
+}
+
+.practice-board[open] .practice-chevron {
+  transform: rotate(180deg);
+}
+
+.practice-board[open] .practice-head {
+  margin-bottom: 0.9rem;
 }
 
 .practice-counts {
