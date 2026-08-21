@@ -3230,8 +3230,55 @@ a.profiles-row:focus-visible {
 }
 
 .game-champ-sm {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  object-fit: cover;
+}
+
+/* Roster-stack size tag (e.g. 5/5, 4/5, 3/5) on each analysed game. */
+.game-stack {
+  flex: 0 0 auto;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  color: var(--ok);
+  border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--card-border) 60%);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  white-space: nowrap;
+}
+
+.game-stack.is-partial {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 40%, var(--card-border) 60%);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+}
+
+/* "What comp is this" tag row shown under a game's summary. */
+.game-comp-tag {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.5rem 0.2rem 0.2rem;
+}
+
+.game-comp-tag-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--accent-2);
+  margin-right: 0.15rem;
+}
+
+.game-comp-champ {
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
   border: 1px solid var(--card-border);
   object-fit: cover;
@@ -3362,8 +3409,8 @@ a.profiles-row:focus-visible {
 }
 
 .game-champ {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   border-radius: 999px;
   border: 1px solid var(--card-border);
   object-fit: cover;

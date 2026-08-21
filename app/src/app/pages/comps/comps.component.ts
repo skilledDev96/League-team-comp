@@ -325,12 +325,28 @@ export class CompsComponent {
       .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
   });
 
-  // Off-book games (played 5-stacks that don't match a defined comp).
+  // Off-book games: stacks not credited to a comp record — either a full team
+  // game whose champs don't match any comp, or a 3-of-5 partial stack.
   protected readonly offBookGames = computed<AnalysisGame[]>(() =>
     this.filteredGames().filter((g) => !g.compId)
   );
 
   protected offBookRecord = winLossRecord;
+
+  // The champions that make up a defined comp, by name — for the "what comp is
+  // this" tag shown on each analysed game.
+  protected compChampions(name: string | null | undefined): string[] {
+    if (!name) return [];
+    const comp = this.data.comps().find((c) => c.name === name);
+    if (!comp) return [];
+    return ROLES.map((r) => this.ui.parseCompLine(comp.picks[r] ?? '').champion).filter(Boolean);
+  }
+
+  // "4/5" style label for how much of the roster was on our team that game.
+  protected stackLabel(game: AnalysisGame): string {
+    const n = game.rosterCount ?? 5;
+    return `${n}/5`;
+  }
 
   // ---- Analytics from the filtered games -------------------------------
 
