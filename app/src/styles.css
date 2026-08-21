@@ -2579,28 +2579,37 @@ a.profiles-row:focus-visible {
 }
 
 /* Comp role row: who on the roster can fill this slot (main + flex). */
+/* A light "who can play this role" sub-line under the champion — main player
+   first, flex options muted. Kept text-weight (no pills) so it reads as a hint
+   rather than competing with the champion row. */
 .comp-cover {
-  margin-left: auto;
-  display: inline-flex;
+  grid-column: 2 / -1;
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.1rem 0.5rem;
+  margin-top: -0.15rem;
+}
+
+.comp-cover::before {
+  content: "group";
+  font-family: "Material Symbols Rounded";
+  font-size: 0.9rem;
+  line-height: 1;
+  color: var(--text-1);
+  opacity: 0.55;
+  margin-right: 0.1rem;
 }
 
 .comp-cover-name {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   color: var(--text-0);
-  padding: 0.05rem 0.4rem;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--ok) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ok) 30%, var(--card-border) 70%);
 }
 
 .comp-cover-name.flex {
   color: var(--text-1);
-  background: var(--surface-btn);
-  border-color: var(--card-border);
   font-style: italic;
+  opacity: 0.75;
 }
 
 /* ---- Comp plays list --------------------------------------------------- */
