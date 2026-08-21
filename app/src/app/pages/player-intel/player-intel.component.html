@@ -155,15 +155,21 @@
         </div>
 
         @if (painFor(player.id).length) {
-          <h3>Working On</h3>
-          <ul class="player-pain-list">
-            @for (pain of painFor(player.id); track pain.id) {
-              <li class="player-pain" [class.resolved]="pain.resolved">
-                <span class="material-symbols-rounded" aria-hidden="true">{{ pain.resolved ? 'check_circle' : 'radio_button_unchecked' }}</span>
-                {{ pain.text }}
-              </li>
-            }
-          </ul>
+          <details class="intel-collapse">
+            <summary class="intel-collapse-head">
+              <span class="material-symbols-rounded intel-collapse-chevron" aria-hidden="true">chevron_right</span>
+              <h3>Working On</h3>
+              <span class="intel-collapse-count">{{ painFor(player.id).length }}</span>
+            </summary>
+            <ul class="player-pain-list">
+              @for (pain of painFor(player.id); track pain.id) {
+                <li class="player-pain" [class.resolved]="pain.resolved">
+                  <span class="material-symbols-rounded" aria-hidden="true">{{ pain.resolved ? 'check_circle' : 'radio_button_unchecked' }}</span>
+                  {{ pain.text }}
+                </li>
+              }
+            </ul>
+          </details>
         }
 
         <h3>Champion Pool</h3>

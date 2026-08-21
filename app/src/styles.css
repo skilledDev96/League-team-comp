@@ -1752,11 +1752,74 @@ a.profiles-row:focus-visible {
 }
 
 .main-champ-icon {
-  width: 36px;
-  height: 36px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+/* Collapsible section inside a Player Intel card (e.g. Working On). */
+.intel-collapse {
+  margin: 0.2rem 0;
+}
+
+.intel-collapse > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.intel-collapse > summary::-webkit-details-marker {
+  display: none;
+}
+
+.intel-collapse-head h3 {
+  margin: 0;
+}
+
+.intel-collapse-chevron {
+  color: var(--accent-2);
+  transition: transform 150ms ease;
+}
+
+.intel-collapse[open] .intel-collapse-chevron {
+  transform: rotate(90deg);
+}
+
+.intel-collapse-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-1);
+  background: var(--surface-btn);
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+}
+
+/* Game Log: marker for a game auto-detected from Riot match history. */
+.log-source {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-1);
+  opacity: 0.7;
+}
+
+.log-source .material-symbols-rounded {
+  font-size: 1.05rem;
+}
+
+/* Emphasise champions in the Player Intel pool with larger chips + icons. */
+.player-intel-card .champ-chip-row .champ-chip {
+  font-size: 0.95rem;
+  padding: 0.3rem 0.8rem 0.3rem 0.34rem;
+}
+
+.player-intel-card .champ-chip-row .champ-icon {
+  width: 38px;
+  height: 38px;
 }
 
 .meta-line {
@@ -4676,13 +4739,14 @@ body.intel-page #fillInSection {
 }
 
 .comp-row .champ-chip {
-  font-size: 0.95rem;
-  padding: 0.3rem 0.7rem 0.3rem 0.34rem;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.32rem 0.85rem 0.32rem 0.38rem;
 }
 
 .comp-row .champ-icon {
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
 }
 
 .comp-role {
