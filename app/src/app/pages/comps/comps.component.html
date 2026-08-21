@@ -72,6 +72,18 @@
         }
       </div>
 
+      @if (auth.editing()) {
+        <div class="comp-notes comp-category-edit">
+          <div class="comp-record-head">
+            <span class="comp-record-title material-symbols-rounded" aria-hidden="true">sell</span>
+            <span class="comp-record-label">Category</span>
+          </div>
+          <input type="text" class="comp-cat-input" list="compcatlist" [ngModel]="compCategoryValue(comp)"
+                 (ngModelChange)="setCategoryDraft(comp, $event)" (blur)="saveCompMeta(comp)"
+                 [name]="'compcat-' + comp.id" placeholder="Short label (e.g. Meta, For Fun)" />
+        </div>
+      }
+
       @if (comp.notes || auth.editing()) {
         <div class="comp-notes">
           <div class="comp-record-head">
@@ -79,14 +91,9 @@
             <span class="comp-record-label">Notes</span>
           </div>
           @if (auth.editing()) {
-            <div class="comp-notes-edit">
-              <input type="text" class="comp-cat-input" list="compcatlist" [ngModel]="compCategoryValue(comp)"
-                     (ngModelChange)="setCategoryDraft(comp, $event)" (blur)="saveCompMeta(comp)"
-                     [name]="'compcat-' + comp.id" placeholder="Category (e.g. Meta, For Fun)" />
-              <textarea class="comp-notes-input" rows="2" [ngModel]="compNotesValue(comp)"
-                        (ngModelChange)="setNotesDraft(comp, $event)" (blur)="saveCompMeta(comp)"
-                        [name]="'compnotes-' + comp.id" placeholder="Draft notes, win conditions, reminders…"></textarea>
-            </div>
+            <textarea class="comp-notes-input" rows="2" [ngModel]="compNotesValue(comp)"
+                      (ngModelChange)="setNotesDraft(comp, $event)" (blur)="saveCompMeta(comp)"
+                      [name]="'compnotes-' + comp.id" placeholder="Draft notes, win conditions, reminders…"></textarea>
           } @else if (comp.notes) {
             <p class="comp-notes-text">{{ comp.notes }}</p>
           }

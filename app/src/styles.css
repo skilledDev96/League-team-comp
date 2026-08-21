@@ -2410,7 +2410,12 @@ a.profiles-row:focus-visible {
 }
 
 .comp-cat-chip {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: "Chakra Petch", sans-serif;
   font-weight: 700;
   font-size: 0.66rem;
@@ -2434,13 +2439,6 @@ a.profiles-row:focus-visible {
   font-size: 0.9rem;
   color: var(--text-0);
   white-space: pre-wrap;
-}
-
-.comp-notes-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin-top: 0.5rem;
 }
 
 .comp-cat-input,
