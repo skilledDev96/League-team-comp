@@ -892,7 +892,9 @@ export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY] },
 
 // Queues the team actually plays as a full 5-stack: Ranked Flex and weekend
 // Clash ("Ranked 5s"). Both are competitive 5v5 on Summoner's Rift.
-const TEAM_QUEUES = [440, 700];
+// Every queue where the team can premade a 5-stack: Normal Draft/Blind/Quickplay
+// 5v5, Ranked Flex, and Clash. Solo/Duo (420) is excluded — no full-team games.
+const TEAM_QUEUES = [400, 430, 440, 490, 700];
 // Match-id pagination: how deep to look per player/queue (pages of 100).
 const MATCH_ID_PAGE_SIZE = 100;
 const MAX_MATCH_ID_PAGES = 4;
