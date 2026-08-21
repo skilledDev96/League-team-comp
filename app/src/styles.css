@@ -712,6 +712,83 @@ body {
   color: var(--text-0);
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 26%, var(--surface-btn) 74%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* ---- Edit mode: unmistakable "you are editing" treatment --------------- */
+
+/* A thin accent frame around the whole viewport while editing. */
+.edit-mode-frame {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
+    inset 0 0 22px color-mix(in srgb, var(--accent) 16%, transparent);
+  animation: edit-frame-in 0.25s ease-out;
+}
+
+@keyframes edit-frame-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* A persistent floating pill so editing state is obvious even when scrolled. */
+.edit-mode-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 1.1rem;
+  transform: translateX(-50%);
+  z-index: 61;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-card) 70%);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35),
+    0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+  animation: edit-banner-in 0.25s ease-out;
+}
+
+@keyframes edit-banner-in {
+  from { opacity: 0; transform: translate(-50%, 0.6rem); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.edit-mode-banner:hover,
+.edit-mode-banner:focus-visible {
+  background: color-mix(in srgb, var(--accent) 42%, var(--surface-card) 58%);
+  outline: none;
+}
+
+.edit-mode-banner .material-symbols-rounded {
+  font-size: 1.1rem;
+}
+
+.edit-mode-banner-text {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-size: 0.76rem;
+}
+
+.edit-mode-banner-hint {
+  color: var(--text-1);
+  font-size: 0.76rem;
+}
+
+@media (max-width: 560px) {
+  .edit-mode-banner-hint {
+    display: none;
+  }
 }
 
 .edit-advanced {

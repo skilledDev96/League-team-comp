@@ -1,4 +1,4 @@
-<div class="page">
+<div class="page" [class.edit-active]="auth.canEdit() && auth.editMode()">
   @if (routeLoading()) {
     <div class="route-progress" role="status" aria-label="Loading"></div>
   }
@@ -79,6 +79,16 @@
   }
 
   <router-outlet />
+
+  @if (auth.canEdit() && auth.editMode()) {
+    <div class="edit-mode-frame" aria-hidden="true"></div>
+    <button type="button" class="edit-mode-banner" (click)="auth.editMode.set(false)"
+            title="Exit edit mode">
+      <span class="material-symbols-rounded" aria-hidden="true">edit</span>
+      <span class="edit-mode-banner-text">Edit mode on</span>
+      <span class="edit-mode-banner-hint">changes save as you go — click to finish</span>
+    </button>
+  }
 </div>
 
 @if (initialLoading()) {
