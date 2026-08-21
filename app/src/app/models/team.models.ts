@@ -46,7 +46,6 @@ export interface QueueMatchStats {
   strengths: string[];
   weaknesses: string[];
   top3: string[];
-  learn?: string;
   bans: string[];
 }
 
@@ -78,7 +77,6 @@ export interface Player {
   strengths: string[];
   weaknesses: string[];
   top3: string[];
-  learn?: string;
   bans: string[];
   queueStats?: {
     solo?: PlayerQueueStats;

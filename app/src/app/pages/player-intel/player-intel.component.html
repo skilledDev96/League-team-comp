@@ -213,9 +213,6 @@
             @for (champ of player.top3; track champ) {
               <a [href]="ui.championBuildUrl(champ)" target="_blank" rel="noopener noreferrer">Build guide: {{ champ }}</a>
             }
-            @if (player.learn) {
-              <a [href]="ui.championBuildUrl(player.learn)" target="_blank" rel="noopener noreferrer">Learn next build: {{ player.learn }}</a>
-            }
           </div>
         </details>
 

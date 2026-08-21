@@ -3,7 +3,7 @@
 The canonical, fuller guide is [`CLAUDE.md`](../CLAUDE.md) at the repo root. Read it for architecture detail. Key points:
 
 ## Repo shape
-- Two apps: a **legacy static site** at the repo root (`index.html`, `scripts/`, `styles/`) and the **active Angular app** in `app/`. All new work is in `app/`. GitHub Pages deploys only `app/`.
+- Single **Angular app** in `app/` (the old root static prototype was removed). GitHub Pages deploys only `app/`.
 
 ## Commands (from `app/`)
 - `npm start` — dev server (localhost:4200)

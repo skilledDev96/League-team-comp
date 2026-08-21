@@ -2,12 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Two apps in one repo
+## Repo layout
 
-- **Legacy static site** at the repo root (`index.html`, `champs.html`, `team-comps.html`, `player-intel.html`, `scripts/`, `styles/`) — the original JSON-driven prototype described in `README.md`. Open the HTML files directly in a browser.
-- **Active Angular app** in `app/` — the current product (**Bom Squad Draft Hub**). All new work happens here. GitHub Pages deploys **only** `app/` (see `.github/workflows/deploy.yml`); the static root site is legacy.
-
-Unless told otherwise, "the app" means `app/`.
+The product is a single **Angular app** in `app/` (**Bom Squad Draft Hub**). GitHub
+Pages deploys only `app/` (see `.github/workflows/deploy.yml`). The original
+JSON-driven static prototype that used to live at the repo root has been removed —
+everything is the Angular app now. "The app" means `app/`.
 
 ## Commands (run from `app/`)
 

@@ -126,8 +126,6 @@
           <input type="text" [ngModel]="draft.weaknesses" (ngModelChange)="draft.weaknesses = $event" [name]="'pweak-' + draft.uid" /></label>
         <label class="field"><span>Top 3 champions (comma separated)</span>
           <input type="text" [ngModel]="draft.top3" (ngModelChange)="draft.top3 = $event" [name]="'ptop-' + draft.uid" /></label>
-        <label class="field"><span>Learn next</span>
-          <input type="text" [ngModel]="draft.learn" (ngModelChange)="draft.learn = $event" [name]="'plearn-' + draft.uid" /></label>
         <label class="field"><span>Bans (comma separated)</span>
           <input type="text" [ngModel]="draft.bans" (ngModelChange)="draft.bans = $event" [name]="'pbans-' + draft.uid" /></label>
 

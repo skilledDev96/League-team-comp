@@ -17,7 +17,6 @@ interface EnrichResponse {
   weaknesses: string[];
   role?: Role;
   top3?: string[];
-  learn?: string;
   bans?: string[];
   queueStats?: {
     solo?: PlayerQueueStats;
@@ -126,7 +125,6 @@ export class PlayerEnrichmentService {
       weaknesses: data.weaknesses ?? [],
       role: data.role,
       top3: data.top3,
-      learn: data.learn,
       bans: data.bans,
       queueStats: data.queueStats,
       iconUrl: data.iconUrl,

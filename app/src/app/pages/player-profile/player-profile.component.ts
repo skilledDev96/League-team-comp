@@ -38,7 +38,7 @@ export class PlayerProfileComponent {
   protected readonly buildCount = computed(() => {
     const p = this.player();
     if (!p) return 0;
-    return p.top3.length + (p.learn ? 1 : 0);
+    return p.top3.length;
   });
 
   protected readonly selectedQueueLabel = computed(() => {
@@ -113,7 +113,6 @@ export class PlayerProfileComponent {
         strengths: enriched.strengths.length ? enriched.strengths : p.strengths,
         weaknesses: enriched.weaknesses.length ? enriched.weaknesses : p.weaknesses,
         top3: enriched.top3?.length ? enriched.top3 : p.top3,
-        learn: enriched.learn ?? p.learn,
         bans: enriched.bans?.length ? enriched.bans : p.bans,
         queueStats: enriched.queueStats ?? p.queueStats
       });

@@ -38,7 +38,6 @@ interface EnrichResponse {
   weaknesses: string[];
   role?: KnownRole;
   top3?: string[];
-  learn?: string;
   bans?: string[];
   queueStats?: {
     solo?: QueueStats;
@@ -294,7 +293,6 @@ interface MatchStats {
   strengths: string[];
   weaknesses: string[];
   top3: string[];
-  learn?: string;
   bans: string[];
 }
 
@@ -489,8 +487,6 @@ async function fetchRiotQueueEnrichment(
 
   const sortedChamps = [...champGames.entries()].sort((a, b) => b[1] - a[1]);
   const top3 = sortedChamps.slice(0, 3).map(([champ]) => displayChampionName(champ));
-  const learnChamp = sortedChamps[3]?.[0];
-  const learn = learnChamp ? displayChampionName(learnChamp) : undefined;
 
   const topRoleEntry = [...roleCounts.entries()].sort((a, b) => b[1] - a[1])[0];
   const detectedRole = topRoleEntry ? TEAM_POSITION_TO_ROLE[topRoleEntry[0]] : undefined;
@@ -556,7 +552,6 @@ async function fetchRiotQueueEnrichment(
     weaknesses: weaknesses.slice(0, 3),
     role,
     top3,
-    learn,
     bans,
     queueStats: {
       [statKey]: {
@@ -590,7 +585,6 @@ async function fetchRiotQueueEnrichment(
         strengths: strengths.slice(0, 3),
         weaknesses: weaknesses.slice(0, 3),
         top3,
-        learn,
           bans
         }
       }

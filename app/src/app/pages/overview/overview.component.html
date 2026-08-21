@@ -69,7 +69,6 @@
            [attr.aria-label]="'Open ' + player.name + ' in Player Intel'"></a>
 
         <div class="role-details">
-          <p class="muted">Learn next: {{ player.learn }}</p>
           <div class="champ-chip-row">
             @for (champ of player.top3; track champ) {
               <app-champion-chip [champion]="champ" />

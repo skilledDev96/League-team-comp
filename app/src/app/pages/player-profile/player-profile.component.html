@@ -93,9 +93,6 @@
         @for (champ of p.top3; track champ) {
           <app-champion-chip [champion]="champ" />
         }
-        @if (p.learn) {
-          <app-champion-chip [champion]="p.learn" [label]="'Learn: ' + p.learn" />
-        }
       </div>
 
       <app-external-profiles [name]="p.name" [profile]="p.profile" />
@@ -105,9 +102,6 @@
         <div class="links compact">
           @for (champ of p.top3; track champ) {
             <a [href]="ui.championBuildUrl(champ)" target="_blank" rel="noopener noreferrer">Build guide: {{ champ }}</a>
-          }
-          @if (p.learn) {
-            <a [href]="ui.championBuildUrl(p.learn)" target="_blank" rel="noopener noreferrer">Learn next build: {{ p.learn }}</a>
           }
         </div>
       </details>

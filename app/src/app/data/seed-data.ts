@@ -14,7 +14,6 @@ export const SEED_DATA: TeamData = {
       strengths: ['vision', 'consistency', 'late-game'],
       weaknesses: ['farming', 'fighting', 'aggression', 'survivability'],
       top3: ['Yorick', 'Mordekaiser', 'Vladimir'],
-      learn: 'Maokai',
       bans: ['Fiora', 'Camille', 'Quinn', 'Jayce'],
       profile: { region: 'euw', opggSlug: 'RULUKUKULUKU-EUW', riotTag: 'EUW', mobalyticsSlug: 'rulukukuluku-euw' },
       order: 0
@@ -28,7 +27,6 @@ export const SEED_DATA: TeamData = {
       strengths: ['fighting', 'tempo', 'objectives', 'vision'],
       weaknesses: ['survivability', 'flex farming'],
       top3: ['Udyr', 'Diana', 'Vi'],
-      learn: 'Sejuani',
       bans: ['Rengar', 'Elise', 'Nidalee', 'Graves'],
       profile: { region: 'euw', opggSlug: 'Go10x-EUW', riotTag: 'EUW', mobalyticsSlug: 'go10x-euw' },
       order: 1
@@ -42,7 +40,6 @@ export const SEED_DATA: TeamData = {
       strengths: ['vision', 'farming', 'aggression', 'versatility'],
       weaknesses: ['survivability', 'objectives', 'consistency'],
       top3: ['Yasuo', 'Ahri', 'Akali'],
-      learn: 'Galio',
       bans: ['Zed', 'Qiyana', 'Talon', 'Xerath', 'Ziggs'],
       profile: { region: 'euw', opggSlug: 'DrunkenBannana-EUW', riotTag: 'EUW', mobalyticsSlug: 'drunkenbannana-euw' },
       order: 2
@@ -56,7 +53,6 @@ export const SEED_DATA: TeamData = {
       strengths: ['vision', 'consistency', 'objectives'],
       weaknesses: ['survivability', 'fighting'],
       top3: ['Miss Fortune', 'Jhin', 'Tristana'],
-      learn: 'Sivir',
       bans: ['Draven', 'Caitlyn', 'Varus', 'Ashe'],
       profile: { region: 'euw', opggSlug: 'SkilledScarecrow-42096', riotTag: '42096', mobalyticsSlug: 'skilledscarecrow-42096' },
       order: 3
@@ -70,7 +66,6 @@ export const SEED_DATA: TeamData = {
       strengths: ['utility', 'vision', 'versatility'],
       weaknesses: ['survivability', 'objective impact'],
       top3: ['Leona', 'Nautilus', 'Lux'],
-      learn: 'Mel',
       bans: ['Blitzcrank', 'Pyke', 'Brand', 'Xerath'],
       profile: { region: 'euw', opggSlug: 'DaWhiteHammer-EUW', riotTag: 'EUW', mobalyticsSlug: 'dawhitehammer-euw' },
       order: 4

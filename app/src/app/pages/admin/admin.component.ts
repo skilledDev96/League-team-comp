@@ -18,7 +18,6 @@ interface PlayerDraft {
   strengths: string;
   weaknesses: string;
   top3: string;
-  learn: string;
   bans: string;
   region: string;
   opggSlug: string;
@@ -165,7 +164,6 @@ export class AdminComponent {
       strengths: p.strengths.join(', '),
       weaknesses: p.weaknesses.join(', '),
       top3: p.top3.join(', '),
-      learn: p.learn ?? '',
       bans: p.bans.join(', '),
       region: p.profile?.region ?? 'euw',
       opggSlug: p.profile?.opggSlug ?? '',
@@ -323,9 +321,6 @@ export class AdminComponent {
       if (enriched.top3?.length) {
         draft.top3 = enriched.top3.join(', ');
       }
-      if (enriched.learn) {
-        draft.learn = enriched.learn;
-      }
       if (enriched.bans?.length) {
         draft.bans = enriched.bans.join(', ');
       }
@@ -392,7 +387,6 @@ export class AdminComponent {
       strengths: '',
       weaknesses: '',
       top3: '',
-      learn: '',
       bans: '',
       region: 'euw',
       opggSlug: '',
@@ -421,7 +415,6 @@ export class AdminComponent {
       strengths: splitList(draft.strengths),
       weaknesses: splitList(draft.weaknesses),
       top3: splitList(draft.top3),
-      learn: draft.learn.trim() || undefined,
       bans: splitList(draft.bans),
       queueStats: draft.queueStats,
       profile
