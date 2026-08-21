@@ -270,7 +270,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function riotFetch<T>(url: string, apiKey: string, retries = 3): Promise<T> {
+async function riotFetch<T>(url: string, apiKey: string, retries = 6): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
     const response = await fetch(url, { headers: { 'X-Riot-Token': apiKey } });
     // On rate limit, wait the server-provided window and retry a few times.
@@ -891,10 +891,9 @@ export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY] },
 // ---- Comp analysis (real win rates from full-5-stack team games) ----------
 
 // Queues the team actually plays as a full 5-stack: Ranked Flex and weekend
-// Clash ("Ranked 5s"). Both are competitive 5v5 on Summoner's Rift.
-// Every queue where the team can premade a 5-stack: Normal Draft/Blind/Quickplay
-// 5v5, Ranked Flex, and Clash. Solo/Duo (420) is excluded — no full-team games.
-const TEAM_QUEUES = [400, 430, 440, 490, 700];
+// Clash. Keeping this tight matters — every extra queue multiplies the match-id
+// scan calls, and rate-limited scans silently drop a player from a game's count.
+const TEAM_QUEUES = [440, 700];
 // Match-id pagination: how deep to look per player/queue (pages of 100).
 const MATCH_ID_PAGE_SIZE = 100;
 const MAX_MATCH_ID_PAGES = 4;
