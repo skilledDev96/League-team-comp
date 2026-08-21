@@ -3,7 +3,7 @@
   <p>Roster stats at a glance — click a player for their full profile.</p>
 </section>
 
-<section class="view-controls" aria-label="Queue">
+<section class="view-controls profiles-controls" aria-label="Queue">
   <div class="view-segment" role="group" aria-label="Queue">
     <button type="button" [class.active]="selectedQueue() === 'solo'" (click)="selectedQueue.set('solo')">Solo/Duo</button>
     <button type="button" [class.active]="selectedQueue() === 'flex'" (click)="selectedQueue.set('flex')">Flex</button>
@@ -14,7 +14,17 @@
       {{ s.players }} of {{ data.players().length }} with data · {{ s.games }} games · {{ s.winRate }}% win rate
     </p>
   }
+  @if (auth.editing()) {
+    <button type="button" class="view-btn profiles-refresh-all" [disabled]="refreshingAll()" (click)="refreshAll()">
+      <span class="material-symbols-rounded" aria-hidden="true">sync</span>
+      {{ refreshingAll() ? 'Refreshing ' + refreshProgress() + '…' : 'Refresh all from Riot' }}
+    </button>
+  }
 </section>
+
+@if (refreshMessage()) {
+  <p class="profiles-refresh-msg">{{ refreshMessage() }}</p>
+}
 
 <section class="card" aria-label="Player profiles">
   <div class="profiles-table" role="table">

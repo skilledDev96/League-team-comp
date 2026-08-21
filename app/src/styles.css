@@ -764,6 +764,24 @@ body {
 
 /* ---- Team profiles overview -------------------------------------------- */
 
+.profiles-refresh-all {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.profiles-refresh-all .material-symbols-rounded {
+  font-size: 1.05rem;
+}
+
+.profiles-refresh-msg {
+  font-size: 0.85rem;
+  color: var(--text-1);
+  margin: 0 0 0.6rem;
+}
+
+
 .profiles-table {
   display: flex;
   flex-direction: column;
