@@ -1342,17 +1342,14 @@ export const getCompAnalysis = onRequest(
 interface KeyHealth {
   ok: boolean;
   status: number;
-  /** Rate-limit header, which also identifies the key tier. */
+  /** Reported app rate limit, e.g. "20:1,100:120". Informational only. */
   appRateLimit: string;
-  /** 'development' expires every 24h; 'personal' does not. */
-  tier: 'development' | 'personal' | 'unknown';
   message: string;
   checkedAt: string;
 }
 
-// A Development key's app rate limit; anything higher is a personal/production key.
-const DEV_KEY_RATE_LIMIT = '20:1,100:120';
-
+// Note: an approved Personal key can carry the same rate limits as a Development
+// key, so the limit does NOT identify the tier. We report validity, not tier.
 async function probeRiotKey(apiKey: string | undefined): Promise<KeyHealth> {
   const checkedAt = new Date().toISOString();
   if (!apiKey) {
@@ -1360,7 +1357,6 @@ async function probeRiotKey(apiKey: string | undefined): Promise<KeyHealth> {
       ok: false,
       status: 0,
       appRateLimit: '',
-      tier: 'unknown',
       message: 'RIOT_API_KEY is not configured.',
       checkedAt
     };
@@ -1370,17 +1366,11 @@ async function probeRiotKey(apiKey: string | undefined): Promise<KeyHealth> {
       headers: { 'X-Riot-Token': apiKey }
     });
     const appRateLimit = response.headers.get('x-app-rate-limit') ?? '';
-    const tier: KeyHealth['tier'] = !appRateLimit
-      ? 'unknown'
-      : appRateLimit === DEV_KEY_RATE_LIMIT
-        ? 'development'
-        : 'personal';
     if (response.status === 401 || response.status === 403) {
       return {
         ok: false,
         status: response.status,
         appRateLimit,
-        tier,
         message: 'Riot API key expired or invalid — an admin needs to refresh it.',
         checkedAt
       };
@@ -1390,7 +1380,6 @@ async function probeRiotKey(apiKey: string | undefined): Promise<KeyHealth> {
         ok: false,
         status: response.status,
         appRateLimit,
-        tier,
         message: `Unexpected response from Riot (${response.status}).`,
         checkedAt
       };
@@ -1399,11 +1388,7 @@ async function probeRiotKey(apiKey: string | undefined): Promise<KeyHealth> {
       ok: true,
       status: response.status,
       appRateLimit,
-      tier,
-      message:
-        tier === 'development'
-          ? 'Key is valid, but it is a Development key and expires within 24h.'
-          : 'Key is valid.',
+      message: 'Key is valid.',
       checkedAt
     };
   } catch (error) {
@@ -1411,7 +1396,6 @@ async function probeRiotKey(apiKey: string | undefined): Promise<KeyHealth> {
       ok: false,
       status: 0,
       appRateLimit: '',
-      tier: 'unknown',
       message: error instanceof Error ? error.message : 'Key probe failed.',
       checkedAt
     };
@@ -1433,8 +1417,6 @@ export const checkRiotKey = onSchedule(
     await writeKeyHealth(health);
     if (!health.ok) {
       console.error(`Riot key health: ${health.message}`);
-    } else if (health.tier === 'development') {
-      console.warn(`Riot key health: ${health.message}`);
     }
   }
 );

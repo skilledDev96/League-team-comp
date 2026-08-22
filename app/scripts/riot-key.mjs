@@ -1,33 +1,59 @@
 #!/usr/bin/env node
-// Test a Riot API key before deploying it, and report which tier it is.
+// Test a Riot API key before deploying it, then optionally set the secret and
+// redeploy. Three ways to supply the key, so you never have to paste into a
+// terminal that won't let you:
 //
-//   npm run key:check          prompt for a key, validate it, report the tier
-//   npm run key:update         same, then set the secret and redeploy functions
+//   npm run key:check                     read ./riot-key.txt (gitignored)
+//   npm run key:check -- --key=RGAPI-…    pass it inline
+//   npm run key:check -- --file=path.txt  read from somewhere else
+//   (falls back to prompting if none of the above)
 //
-// Dev and Personal keys are told apart by their rate limits: a Development key
-// is 20 req/s + 100 req/2min, a Personal/Production key is far higher.
+//   npm run key:update                    same, then set secret + deploy
+//
+// Easiest flow when terminal paste is broken: create app/riot-key.txt in the
+// editor, paste the key there, save, then run `npm run key:update`.
 
 import { createInterface } from 'node:readline/promises';
 import process, { stdin, stdout, argv } from 'node:process';
 import { spawnSync } from 'node:child_process';
+import { readFileSync, existsSync, unlinkSync } from 'node:fs';
 
 const TEST_URL = 'https://euw1.api.riotgames.com/lol/status/v4/platform-data';
-const DEV_LIMIT = '20:1,100:120';
+const DEFAULT_KEY_FILE = 'riot-key.txt';
 
-async function main() {
-  const deploy = argv.includes('--deploy');
+function argValue(name) {
+  const hit = argv.find((a) => a.startsWith(`--${name}=`));
+  return hit ? hit.slice(name.length + 3).trim() : '';
+}
+
+async function readKey() {
+  const inline = argValue('key');
+  if (inline) return { key: inline, source: 'argument', file: '' };
+
+  const file = argValue('file') || DEFAULT_KEY_FILE;
+  if (existsSync(file)) {
+    const key = readFileSync(file, 'utf8').trim();
+    if (key) return { key, source: `file ${file}`, file };
+  }
 
   const rl = createInterface({ input: stdin, output: stdout });
   const key = (await rl.question('Paste your Riot API key (RGAPI-...): ')).trim();
   rl.close();
+  return { key, source: 'prompt', file: '' };
+}
+
+async function main() {
+  const deploy = argv.includes('--deploy');
+  const { key, source, file } = await readKey();
 
   if (!key) {
-    console.error('\nNo key entered. Aborted.');
+    console.error(`\nNo key found. Create app/${DEFAULT_KEY_FILE} with the key in it, or pass --key=RGAPI-…`);
     process.exitCode = 1;
     return;
   }
+  console.log(`Key read from ${source}.`);
   if (!key.startsWith('RGAPI-')) {
-    console.warn('\nWarning: keys normally start with "RGAPI-". Continuing anyway.\n');
+    console.warn('Warning: keys normally start with "RGAPI-". Continuing anyway.');
   }
 
   console.log('\nTesting key against Riot…');
@@ -53,18 +79,13 @@ async function main() {
   }
 
   const appLimit = response.headers.get('x-app-rate-limit') ?? 'unknown';
-  const isDev = appLimit === DEV_LIMIT;
-
   console.log('\n✓ Key is valid.');
   console.log(`  Rate limit: ${appLimit}`);
-  console.log(
-    isDev
-      ? '  Tier: DEVELOPMENT — expires every 24h, you will be doing this again tomorrow.'
-      : '  Tier: PERSONAL/PRODUCTION — does not expire. This is the one you want.'
-  );
+  console.log('  (Rate limit does not identify the tier — an approved Personal');
+  console.log('   key can carry the same limits as a Development key.)');
 
   if (!deploy) {
-    console.log('\nTo deploy this key, re-run with:  npm run key:update');
+    console.log('\nTo deploy this key, run:  npm run key:update');
     return;
   }
 
@@ -91,6 +112,11 @@ async function main() {
     return;
   }
 
+  // The key is live in Secret Manager now; don't leave a copy lying around.
+  if (file && existsSync(file)) {
+    unlinkSync(file);
+    console.log(`\nRemoved ${file} (key is in Secret Manager now).`);
+  }
   console.log('\n✓ Done. Hit "Refresh from Riot" in the app.');
 }
 

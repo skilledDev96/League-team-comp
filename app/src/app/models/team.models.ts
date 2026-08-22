@@ -315,9 +315,9 @@ export interface TeamData {
 export interface KeyHealth {
   ok: boolean;
   status: number;
+  /** Reported app rate limit, e.g. "20:1,100:120". Informational only — an
+   *  approved Personal key can share a Development key's limits. */
   appRateLimit: string;
-  /** 'development' expires every 24h; 'personal' does not. */
-  tier: 'development' | 'personal' | 'unknown';
   message: string;
   checkedAt: string;
 }
