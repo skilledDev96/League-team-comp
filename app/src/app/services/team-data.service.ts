@@ -17,6 +17,7 @@ import {
   PainPoint,
   LearnEntry,
   CompAnalysis,
+  KeyHealth,
   AccessEntry,
   FillIn,
   Player,
@@ -68,6 +69,8 @@ export class TeamDataService {
   readonly accessEntries = signal<AccessEntry[]>([]);
   readonly teamIdentity = signal<TeamIdentity | null>(null);
   readonly compAnalysis = signal<CompAnalysis | null>(null);
+  /** Last Riot API key probe (written by the scheduled health check). */
+  readonly keyHealth = signal<KeyHealth | null>(null);
   readonly resourceLinks = signal<ResourceLinks>({});
   readonly settings = signal<Settings>({ teamName: '' });
   readonly ready = signal(false);
@@ -182,6 +185,9 @@ export class TeamDataService {
     });
     onSnapshot(doc(db, 'meta', 'teamIdentity'), (d) => {
       this.teamIdentity.set((d.data() as TeamIdentity) ?? null);
+    });
+    onSnapshot(doc(db, 'meta', 'keyHealth'), (d) => {
+      this.keyHealth.set((d.data() as KeyHealth) ?? null);
     });
     onSnapshot(doc(db, 'meta', 'compAnalysis'), (d) => {
       this.compAnalysis.set((d.data() as CompAnalysis) ?? null);

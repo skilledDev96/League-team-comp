@@ -5021,3 +5021,38 @@ body.intel-page #fillInSection {
     grid-column: 1 / -1;
   }
 }
+
+/* Riot API key status from the daily health probe. */
+.key-health {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  border: 1px solid var(--card-border);
+}
+
+.key-health .material-symbols-rounded {
+  font-size: 1.1rem;
+}
+
+.key-health.is-bad {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+
+.key-health.is-warn {
+  color: var(--text-1);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--card-border) 65%);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.key-health-when {
+  margin-left: auto;
+  font-size: 0.72rem;
+  opacity: 0.8;
+}

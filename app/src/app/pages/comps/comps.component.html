@@ -305,6 +305,23 @@
     <p class="analysis-error">{{ analysisError() }}</p>
   }
 
+  <!-- Proactive key status from the daily probe, so an expired key is known
+       before someone hits Refresh and gets an empty result. -->
+  @if (data.keyHealth(); as k) {
+    @if (!k.ok) {
+      <p class="key-health is-bad">
+        <span class="material-symbols-rounded" aria-hidden="true">key_off</span>
+        {{ k.message }}
+        <span class="key-health-when">checked {{ k.checkedAt | date: 'MMM d, HH:mm' }}</span>
+      </p>
+    } @else if (k.tier === 'development') {
+      <p class="key-health is-warn">
+        <span class="material-symbols-rounded" aria-hidden="true">schedule</span>
+        Development key in use — expires within 24h. Register a Personal key to stop the daily refresh.
+      </p>
+    }
+  }
+
   @if (data.compAnalysis(); as a) {
     <p class="analysis-meta">
       <strong>{{ a.totalTeamGames }} stacked game{{ a.totalTeamGames === 1 ? '' : 's' }}</strong>

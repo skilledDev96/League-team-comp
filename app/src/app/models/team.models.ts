@@ -310,3 +310,14 @@ export interface TeamData {
   teamIdentity: TeamIdentity;
   resourceLinks: ResourceLinks;
 }
+
+/** Result of the scheduled Riot API key probe (Firestore `meta/keyHealth`). */
+export interface KeyHealth {
+  ok: boolean;
+  status: number;
+  appRateLimit: string;
+  /** 'development' expires every 24h; 'personal' does not. */
+  tier: 'development' | 'personal' | 'unknown';
+  message: string;
+  checkedAt: string;
+}

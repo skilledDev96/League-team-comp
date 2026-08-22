@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
@@ -1332,5 +1333,122 @@ export const getCompAnalysis = onRequest(
       const message = error instanceof Error ? error.message : 'Unexpected error.';
       res.status(400).json({ error: message });
     }
+  }
+);
+
+// ---- Riot API key health ------------------------------------------------
+
+/** What the last key health probe found, mirrored to Firestore for the app. */
+interface KeyHealth {
+  ok: boolean;
+  status: number;
+  /** Rate-limit header, which also identifies the key tier. */
+  appRateLimit: string;
+  /** 'development' expires every 24h; 'personal' does not. */
+  tier: 'development' | 'personal' | 'unknown';
+  message: string;
+  checkedAt: string;
+}
+
+// A Development key's app rate limit; anything higher is a personal/production key.
+const DEV_KEY_RATE_LIMIT = '20:1,100:120';
+
+async function probeRiotKey(apiKey: string | undefined): Promise<KeyHealth> {
+  const checkedAt = new Date().toISOString();
+  if (!apiKey) {
+    return {
+      ok: false,
+      status: 0,
+      appRateLimit: '',
+      tier: 'unknown',
+      message: 'RIOT_API_KEY is not configured.',
+      checkedAt
+    };
+  }
+  try {
+    const response = await fetch('https://euw1.api.riotgames.com/lol/status/v4/platform-data', {
+      headers: { 'X-Riot-Token': apiKey }
+    });
+    const appRateLimit = response.headers.get('x-app-rate-limit') ?? '';
+    const tier: KeyHealth['tier'] = !appRateLimit
+      ? 'unknown'
+      : appRateLimit === DEV_KEY_RATE_LIMIT
+        ? 'development'
+        : 'personal';
+    if (response.status === 401 || response.status === 403) {
+      return {
+        ok: false,
+        status: response.status,
+        appRateLimit,
+        tier,
+        message: 'Riot API key expired or invalid — an admin needs to refresh it.',
+        checkedAt
+      };
+    }
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: response.status,
+        appRateLimit,
+        tier,
+        message: `Unexpected response from Riot (${response.status}).`,
+        checkedAt
+      };
+    }
+    return {
+      ok: true,
+      status: response.status,
+      appRateLimit,
+      tier,
+      message:
+        tier === 'development'
+          ? 'Key is valid, but it is a Development key and expires within 24h.'
+          : 'Key is valid.',
+      checkedAt
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      appRateLimit: '',
+      tier: 'unknown',
+      message: error instanceof Error ? error.message : 'Key probe failed.',
+      checkedAt
+    };
+  }
+}
+
+async function writeKeyHealth(health: KeyHealth): Promise<void> {
+  await getFirestore().doc('meta/keyHealth').set(health);
+}
+
+/**
+ * Daily probe so an expired key surfaces on its own instead of being discovered
+ * when someone opens Match Analysis and finds it empty.
+ */
+export const checkRiotKey = onSchedule(
+  { schedule: 'every day 08:00', timeZone: 'Europe/Amsterdam', secrets: [RIOT_API_KEY] },
+  async () => {
+    const health = await probeRiotKey(RIOT_API_KEY.value());
+    await writeKeyHealth(health);
+    if (!health.ok) {
+      console.error(`Riot key health: ${health.message}`);
+    } else if (health.tier === 'development') {
+      console.warn(`Riot key health: ${health.message}`);
+    }
+  }
+);
+
+/** On-demand probe, so the app can check without waiting for the daily run. */
+export const riotKeyHealth = onRequest(
+  { cors: true, secrets: [RIOT_API_KEY] },
+  async (req, res) => {
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    const health = await probeRiotKey(RIOT_API_KEY.value());
+    await writeKeyHealth(health);
+    res.status(200).json(health);
   }
 );
