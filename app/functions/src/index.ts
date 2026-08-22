@@ -988,17 +988,19 @@ async function getCachedMatch(
   apiKey: string,
   allowFetch: boolean,
   rosterPuuids: Set<string>
-): Promise<{ match: CachedMatch; fromCache: boolean } | null> {
+): Promise<{ match: CachedMatch; fromCache: boolean; healed: boolean } | null> {
   const ref = getFirestore().doc(`matchCache/${matchId}`);
   const snap = await ref.get();
+  let healed = false;
   if (snap.exists) {
     const cached = snap.data() as CachedMatch;
+    healed = true; // a cache entry existed; if we fall through, we're re-fetching it
     // Self-heal: this is only ever called for candidates the roster played, so a
     // valid cache MUST contain at least one roster puuid. Older entries were
     // stored without puuids (or with stale data) and read back empty — re-fetch.
     const hasRoster = cached.participants?.some((p) => rosterPuuids.has(p.puuid));
     if (hasRoster) {
-      return { match: cached, fromCache: true };
+      return { match: cached, fromCache: true, healed: false };
     }
     // fall through to re-fetch (counts against the fetch budget like a new match)
   }
@@ -1026,7 +1028,23 @@ async function getCachedMatch(
     }))
   };
   await ref.set(match);
-  return { match, fromCache: false };
+  return { match, fromCache: false, healed };
+}
+
+/** Stage-by-stage audit of one analysis pass, so silent drops are visible. */
+interface AnalysisFunnel {
+  candidates: number;
+  servedFromCache: number;
+  fetchedFromRiot: number;
+  selfHealed: number;
+  passedTeamMin: number;
+  attributedToComp: number;
+  dropped: {
+    fetch_failed: number;
+    budget_exhausted: number;
+    no_roster_in_match: number;
+    below_team_min: number;
+  };
 }
 
 interface CompAnalysisResponse {
@@ -1036,6 +1054,7 @@ interface CompAnalysisResponse {
   scannedMatches: number;
   newMatches: number;
   pendingMatches: number;
+  funnel?: AnalysisFunnel;
   generatedAt: string;
 }
 
@@ -1123,7 +1142,7 @@ async function computeCompAnalysis(
     }
   }
   // Candidates: at least `teamMin` roster present, most recent first.
-  const candidateIds = [...matchIdCounts.entries()]
+  const candidateIds: string[] = [...matchIdCounts.entries()]
     .filter(([, count]) => count >= teamMin)
     .map(([id]) => id)
     .sort()
@@ -1131,6 +1150,17 @@ async function computeCompAnalysis(
 
   const perComp = new Map<string, { compId: string; compName: string; games: number; wins: number }>();
   const games: AnalysisGameResponse[] = [];
+  // Permanent audit trail of the analysis pass. A silent drop (like the corrupt
+  // match cache) shows up here as a non-zero reason instead of a missing game.
+  const funnel: AnalysisFunnel = {
+    candidates: 0,
+    servedFromCache: 0,
+    fetchedFromRiot: 0,
+    selfHealed: 0,
+    passedTeamMin: 0,
+    attributedToComp: 0,
+    dropped: { fetch_failed: 0, budget_exhausted: 0, no_roster_in_match: 0, below_team_min: 0 }
+  };
   let totalTeamGames = 0;
   let scannedMatches = 0;
   let newMatches = 0;
@@ -1138,6 +1168,8 @@ async function computeCompAnalysis(
 
   // Riot's position labels vary; normalise them and keep a role order for display.
   const roleOrder: Record<string, number> = { Top: 0, Jungle: 1, Mid: 2, ADC: 3, Support: 4 };
+
+  funnel.candidates = candidateIds.length;
 
   for (const matchId of candidateIds) {
     let match: CachedMatch;
@@ -1147,12 +1179,20 @@ async function computeCompAnalysis(
       const result = await getCachedMatch(matchId, routing.regional, apiKey, newMatches < MAX_NEW_FETCHES, rosterPuuids);
       if (!result) {
         pendingMatches += 1;
+        funnel.dropped.budget_exhausted += 1;
         continue;
       }
       match = result.match;
-      if (!result.fromCache) newMatches += 1;
+      if (result.fromCache) {
+        funnel.servedFromCache += 1;
+      } else {
+        newMatches += 1;
+        funnel.fetchedFromRiot += 1;
+        if (result.healed) funnel.selfHealed += 1;
+      }
     } catch {
       pendingMatches += 1;
+      funnel.dropped.fetch_failed += 1;
       continue;
     }
     scannedMatches += 1;
@@ -1169,7 +1209,17 @@ async function computeCompAnalysis(
       if (!teamParts || members.length > teamParts.length) teamParts = members;
     }
     const rosterCount = teamParts?.length ?? 0;
-    if (!teamParts || rosterCount < teamMin) continue;
+    // A cached match that survived the heal but still shows nobody is the exact
+    // silent-drop signature of the old corrupt-cache bug — count it distinctly.
+    if (rosterParticipants.length === 0) {
+      funnel.dropped.no_roster_in_match += 1;
+      continue;
+    }
+    if (!teamParts || rosterCount < teamMin) {
+      funnel.dropped.below_team_min += 1;
+      continue;
+    }
+    funnel.passedTeamMin += 1;
 
     totalTeamGames += 1;
     const win = teamParts[0].win;
@@ -1197,6 +1247,7 @@ async function computeCompAnalysis(
       COMP_MATCH_THRESHOLD
     );
     if (compMatch.compId) {
+      funnel.attributedToComp += 1;
       const acc = perComp.get(compMatch.compId) ?? {
         compId: compMatch.compId,
         compName: compMatch.compName ?? '',
@@ -1243,6 +1294,7 @@ async function computeCompAnalysis(
     scannedMatches,
     newMatches,
     pendingMatches,
+    funnel,
     generatedAt: new Date().toISOString()
   };
 }

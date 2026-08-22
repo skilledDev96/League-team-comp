@@ -357,6 +357,32 @@ export class CompsComponent {
     return total ? Math.round((wins / total) * 100) : 0;
   }
 
+  // Pipeline audit (editors only): each stage of the last analysis pass, plus
+  // why games were dropped. A silent drop shows up here as a non-zero reason.
+  protected readonly funnelStages = computed(() => {
+    const f = this.data.compAnalysis()?.funnel;
+    if (!f) return [];
+    return [
+      { label: 'Candidate matches', value: f.candidates },
+      { label: 'Served from cache', value: f.servedFromCache },
+      { label: 'Fetched from Riot', value: f.fetchedFromRiot },
+      { label: 'Re-fetched (self-heal)', value: f.selfHealed },
+      { label: 'Passed team minimum', value: f.passedTeamMin },
+      { label: 'Attributed to a comp', value: f.attributedToComp }
+    ];
+  });
+
+  protected readonly funnelDrops = computed(() => {
+    const d = this.data.compAnalysis()?.funnel?.dropped;
+    if (!d) return [];
+    return [
+      { label: 'Fetch failed', value: d.fetch_failed },
+      { label: 'Over fetch budget', value: d.budget_exhausted },
+      { label: 'No roster in match', value: d.no_roster_in_match },
+      { label: 'Below team minimum', value: d.below_team_min }
+    ].filter((r) => r.value > 0);
+  });
+
   // Overall win/loss across every stacked team game found (matched + off-book).
   protected readonly teamRecord = computed(() => {
     const { wins, losses } = winLossRecord(this.filteredGames());

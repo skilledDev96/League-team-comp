@@ -3125,6 +3125,102 @@ a.profiles-row:focus-visible {
   color: var(--text-1);
 }
 
+/* Pipeline audit (editors only) — stage counts for the last analysis pass. */
+.analysis-funnel {
+  margin: 0.6rem 0 0.3rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-controls) 80%, transparent);
+}
+
+.analysis-funnel > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-1);
+}
+
+.analysis-funnel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.analysis-funnel-chevron {
+  margin-left: auto;
+  color: var(--accent-2);
+  transition: transform 150ms ease;
+}
+
+.analysis-funnel[open] .analysis-funnel-chevron {
+  transform: rotate(180deg);
+}
+
+.funnel-drop-flag {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: none;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  color: var(--warn);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--card-border) 65%);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+
+.funnel-body {
+  padding: 0 0.75rem 0.7rem;
+}
+
+.funnel-list {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.2rem 1rem;
+}
+
+.funnel-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 45%, transparent);
+}
+
+.funnel-row dt {
+  font-size: 0.8rem;
+  color: var(--text-1);
+}
+
+.funnel-row dd {
+  margin: 0;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-0);
+  font-variant-numeric: tabular-nums;
+}
+
+.funnel-dropped {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.funnel-dropped .funnel-row dd {
+  color: var(--warn);
+}
+
+.funnel-clean {
+  margin: 0.6rem 0 0;
+  font-size: 0.78rem;
+}
+
 /* Comp-match strictness slider in the Match Analysis header. */
 .analysis-strictness {
   display: flex;

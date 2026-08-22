@@ -326,6 +326,41 @@
       </p>
     }
 
+    @if (auth.editing() && funnelStages().length) {
+      <details class="analysis-funnel">
+        <summary class="analysis-funnel-head">
+          <span class="material-symbols-rounded" aria-hidden="true">filter_alt</span>
+          <span>Pipeline audit</span>
+          @if (funnelDrops().length) {
+            <span class="funnel-drop-flag">{{ funnelDrops().length }} drop reason{{ funnelDrops().length === 1 ? '' : 's' }}</span>
+          }
+          <span class="analysis-funnel-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+        </summary>
+        <div class="funnel-body">
+          <dl class="funnel-list">
+            @for (s of funnelStages(); track s.label) {
+              <div class="funnel-row">
+                <dt>{{ s.label }}</dt>
+                <dd>{{ s.value }}</dd>
+              </div>
+            }
+          </dl>
+          @if (funnelDrops().length) {
+            <dl class="funnel-list funnel-dropped">
+              @for (d of funnelDrops(); track d.label) {
+                <div class="funnel-row">
+                  <dt>{{ d.label }}</dt>
+                  <dd>{{ d.value }}</dd>
+                </div>
+              }
+            </dl>
+          } @else {
+            <p class="muted funnel-clean">No games dropped this pass.</p>
+          }
+        </div>
+      </details>
+    }
+
     <div class="analysis-strictness">
       <label for="strictnessRange">Comp match strictness</label>
       <input id="strictnessRange" type="range" min="2" max="5" step="1"

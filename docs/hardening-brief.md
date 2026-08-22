@@ -1,0 +1,197 @@
+# Bom Squad Draft Hub — Hardening Brief
+
+**Written:** Aug 22, 2026 · **Status:** proposed, not yet verified against the code
+
+> ⚠️ This was drafted from the Aug 21 session summary **without repo access**. Every item below is a
+> hypothesis with a stated symptom and a proposed fix. Verify each against the actual code before
+> acting — some may already be handled.
+
+The theme: last session's worst bug (the corrupt match cache) wasn't bad because the cache was
+wrong. It was bad because it was wrong **silently** — the number said 3 instead of 143 and nothing
+in the system objected. Most of what follows is about making that class of failure loud.
+
+---
+
+## P0 — Make the pipeline auditable
+
+**Symptom.** The cache bug took temporary instrumentation (`62e74aa`, `a28c582`) to diagnose, and
+that instrumentation was then removed (`12c0287`). The next silent drop will cost the same
+diagnosis time from scratch.
+
+**Proposal.** A permanent, cheap funnel counter carried through the analysis pass — a plain object
+accumulated as the pipeline runs and returned alongside the results:
+
+| Stage | Count |
+|---|---|
+| candidate match IDs from scan | — |
+| fetched from Riot (cache miss) | — |
+| served from cache | — |
+| re-fetched as self-heal | — |
+| roster members identified | — |
+| passed `teamMin` | — |
+| attributed to a comp | — |
+| **dropped** (with reason tally) | — |
+
+Surface it behind the admin/edit-mode toggle that already exists. The dropped-with-reason tally is
+the part that matters: `no_puuid_match`, `below_team_min`, `queue_excluded`, `fetch_failed`.
+
+**Why first.** Every other item on this list gets easier to confirm once this exists, and it turns
+"the count looks wrong" into a diagnosis rather than an investigation.
+
+---
+
+## P1 — Cache integrity beyond the zero-match case
+
+**Symptom.** The self-heal in `f9172ee` / `3d29488` re-fetches a cached match when it contains
+**none** of the roster. A match cached with *some* participants missing puuids still contains one or
+two roster members, passes the check, and quietly under-counts — potentially dropping the game below
+`teamMin = 4` and excluding it entirely. Same failure mode as the original bug, just harder to see.
+
+**Proposal — two layers:**
+
+1. **Shape validation, not content validation.** A cached match is valid only if it has 10
+   participants and *every* participant has a non-empty `puuid`. That's a structural invariant and
+   doesn't depend on who's on the roster.
+2. **Schema version stamp.** Write `cacheVersion: N` on every cached match. Bump `N` whenever the
+   cache shape changes; treat anything below current as a miss. This makes future cache migrations
+   a one-line change instead of another archaeology session.
+
+Layer 2 makes layer 1's fix retroactive without a manual purge.
+
+---
+
+## P2 — Deploy verification
+
+**Symptom.** From the ops notes: *"Cloud Functions require a manual `firebase deploy --only
+functions`… This tripped us up repeatedly."* The failure is invisible — the frontend looks updated
+because Pages auto-deployed, the backend silently didn't.
+
+**Proposal.** Make deployed backend state observable:
+
+- Functions expose the git SHA they were built from (inject at deploy time via an env var, or read
+  from a generated `build-info.json`).
+- Frontend fetches it and shows it in admin next to the frontend's own SHA.
+- **Mismatched SHAs render in the accent/warning colour.** You'd have seen "backend is 6 commits
+  behind" at a glance every time it happened.
+
+Optional follow-on: a GitHub Action that deploys functions on push to `main` when `functions/**`
+changed, which removes the manual step rather than just flagging it.
+
+---
+
+## P3 — Rate limiting as a budget, not a retry count
+
+**Symptom.** The fix in `ff766b3` / `7eafd36` / `cf37351` was to scan fewer queues and raise retries
+3→6. That treats the symptom: retries burn the same budget more politely, and the ordering fix
+(Flex first) only works because Flex happens to be the queue you care about most. Add a third queue
+later and the same failure returns.
+
+**Proposal.**
+
+- A shared request scheduler with a token bucket matching Riot's published app limits, so calls
+  queue rather than fail-and-retry.
+- Honour `Retry-After` and read `X-App-Rate-Limit-Count` / `X-Method-Rate-Limit-Count` from
+  responses instead of inferring headroom.
+- **Persist the scan cursor.** A run that exhausts its budget should resume from where it stopped on
+  the next invocation, not restart from the top. This is the single highest-value piece — it makes
+  the scan eventually-complete instead of best-effort.
+
+---
+
+## P4 — Comp attribution ambiguity
+
+**Symptom.** Attribution uses champion overlap with a default of 3 of 5, tunable 2–5. At threshold 2
+or 3, one game can plausibly satisfy **multiple** comps — especially comps sharing a meta jungler or
+support. Unclear from the summary what the tie-break is.
+
+**Questions to answer in the code:**
+
+- Does a game get attributed to the first matching comp, the best-overlap comp, or all of them?
+- If first-match: is comp order stable, or does it shift when the user reorders comps in admin?
+  Silently changing analytics on reorder would be a nasty one.
+- Should a genuinely ambiguous game (equal overlap, 2+ comps) be flagged in the UI rather than
+  silently assigned? You already have per-row "in this comp" indicators (`3dfa326`) — an
+  "ambiguous" state would fit there naturally.
+
+**Proposal.** Attribute to best overlap; on a tie, mark ambiguous and show it. At minimum, make the
+current behaviour explicit and intentional rather than emergent.
+
+---
+
+## P5 — Small stuff worth doing while you're in there
+
+- **`environment.ts` footgun.** The blank-`apiKey` local-dev edit is a commit waiting to happen.
+  Move the override to a gitignored `environment.local.ts`, or add a pre-commit hook that rejects
+  the blank value. Cheaper than the incident.
+- **DDragon id→name cache invalidation.** The champion map is cached — confirm it has a patch-based
+  or TTL invalidation path, or new champions will render as blank icons until someone clears it.
+- **`teamMin = 4` edge case.** With a rotating 6-player squad, check the case where 4 are on one
+  team and 2 are on the *other* (in-house / scrim). Detection is "same team" so it's probably
+  correct, but worth an explicit test — it's the kind of thing that produces one weird row nobody
+  trusts.
+
+---
+
+## Suggested order
+
+1. **P0 funnel counters** — small, and makes everything below verifiable.
+2. **P1 cache validation + version stamp** — closes the known gap in the known bug.
+3. **P2 SHA display** — tiny, removes a recurring papercut.
+4. **P3 scan cursor persistence** — the durable rate-limit fix; the scheduler can follow later.
+5. **P4 attribution** — investigate first, decide, then implement.
+6. **P5** — opportunistic.
+
+## Starting prompt for the Code tab
+
+> Read `docs/hardening-brief.md`. Verify P0 and P1 against the actual code — I want to know which of
+> those hypotheses are real before we write anything. Then implement P0 (pipeline funnel counters
+> surfaced in admin).
+
+---
+
+# Verification log — Aug 22, 2026
+
+Each hypothesis above checked against the actual code.
+
+## P0 — CONFIRMED (implemented)
+
+`computeCompAnalysis` returned only four aggregate counters (`totalTeamGames`, `scannedMatches`,
+`newMatches`, `pendingMatches`) and no drop accounting. Real gap.
+
+**Implemented.** An `AnalysisFunnel` is accumulated through the pass and returned on the response:
+candidates → served from cache → fetched from Riot → re-fetched (self-heal) → passed team minimum →
+attributed to a comp, plus a `dropped` tally with reasons `fetch_failed`, `budget_exhausted`,
+`no_roster_in_match`, `below_team_min`. Surfaced as a collapsible "Pipeline audit" panel in Match
+Analysis, editor-only. `no_roster_in_match` is the exact signature of the old corrupt-cache bug, so
+that failure is now loud instead of silent.
+
+## P1 — CONFIRMED, with one correction (not yet implemented)
+
+- The self-heal check is `cached.participants?.some(p => rosterPuuids.has(p.puuid))` — content-based,
+  and a single roster puuid is enough to accept the entry. As described.
+- There is **no `cacheVersion` field** on `CachedMatch`. As described.
+- **Correction:** the write path maps `puuid` for every participant, so a partial-puuid entry cannot
+  originate from our own writes — only from Riot returning participants without puuids (bots, very
+  old matches). The original corruption was *total* (zero roster puuids), not partial. This narrows
+  the likelihood but not the argument: content-based validation is the wrong shape of check.
+
+Proposal stands: structural invariant (10 participants, all with non-empty puuid) + `cacheVersion`
+stamp so future migrations are a constant bump rather than archaeology.
+
+## P4 — REAL, but narrower than stated (not yet implemented)
+
+Answering the brief's questions directly from `functions/src/comp-match.ts`:
+
+- **First-match, best-overlap, or all?** → **Best overlap.** `matchComp` keeps the highest overlap
+  across all comps (`if (overlap > bestOverlap)`). Already correct; no change needed.
+- **Order-sensitive?** → **Yes, on exact ties only.** Because the comparison is strictly `>`, the
+  first comp encountered wins a tie, and the comps array arrives ordered by the admin `order` field.
+  So reordering comps in admin **can silently flip attribution for tied games**. The concern is
+  justified, but scoped to ties rather than all matching.
+- **Ambiguity surfaced?** → No. Nothing marks a game as ambiguous.
+
+Recommendation: keep best-overlap, make the tie-break explicit (deterministic and order-independent),
+and surface an "ambiguous" state rather than silently assigning.
+
+## P2, P3, P5 — not yet verified
+

@@ -198,6 +198,22 @@ export interface AnalysisGame {
   players: AnalysisPlayer[];
 }
 
+/** Stage-by-stage audit of one analysis pass, so silent drops are visible. */
+export interface AnalysisFunnel {
+  candidates: number;
+  servedFromCache: number;
+  fetchedFromRiot: number;
+  selfHealed: number;
+  passedTeamMin: number;
+  attributedToComp: number;
+  dropped: {
+    fetch_failed: number;
+    budget_exhausted: number;
+    no_roster_in_match: number;
+    below_team_min: number;
+  };
+}
+
 export interface CompAnalysis {
   comps: CompPerformance[];
   games: AnalysisGame[];
@@ -205,6 +221,7 @@ export interface CompAnalysis {
   scannedMatches: number;
   newMatches?: number;
   pendingMatches?: number;
+  funnel?: AnalysisFunnel;
   generatedAt: string;
 }
 
