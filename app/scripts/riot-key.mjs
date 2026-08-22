@@ -89,8 +89,11 @@ async function main() {
     return;
   }
 
+  // `firebase` is a .cmd shim on Windows, so it needs shell: true — which means
+  // passing one command string, not an args array (Node DEP0190). Every token
+  // here is a literal; the key itself goes in over stdin, never the command line.
   console.log('\nSetting secret RIOT_API_KEY…');
-  const set = spawnSync('firebase', ['functions:secrets:set', 'RIOT_API_KEY'], {
+  const set = spawnSync('firebase functions:secrets:set RIOT_API_KEY', {
     input: `${key}\n`,
     stdio: ['pipe', 'inherit', 'inherit'],
     shell: true
@@ -102,7 +105,7 @@ async function main() {
   }
 
   console.log('\nDeploying functions (secrets bind at deploy time)…');
-  const deployed = spawnSync('firebase', ['deploy', '--only', 'functions'], {
+  const deployed = spawnSync('firebase deploy --only functions', {
     stdio: 'inherit',
     shell: true
   });
