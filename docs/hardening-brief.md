@@ -195,3 +195,35 @@ and surface an "ambiguous" state rather than silently assigning.
 
 ## P2, P3, P5 — not yet verified
 
+
+---
+
+# P1 follow-up — Aug 22, evening
+
+The pipeline audit (P0) was used to settle whether the cache corruption was
+historical or ongoing. Three refresh passes were run to work through the
+40-fetch-per-run budget. Final pass:
+
+| Stage | Count |
+|---|---|
+| Candidate matches | 143 |
+| Served from cache | 143 |
+| Fetched from Riot | 0 |
+| Re-fetched (self-heal) | 0 |
+| Passed team minimum | 143 |
+| Attributed to a comp | 18 |
+| Dropped | none |
+
+**Conclusion: the corruption was one-time legacy data, not an active bug.** With a
+settled cache, self-heal is 0 — nothing is writing invalid entries. The earlier
+run showing 40 self-heals plus 63 over-budget was simply the repair working
+through the backlog under the fetch cap.
+
+**Effect on P1's priority:** downgraded from "closes the known gap in the known
+bug" to defensive hardening. The structural invariant + `cacheVersion` stamp are
+still worth doing — they make the *next* schema change a constant bump instead of
+another archaeology session — but there is no live defect to chase.
+
+Also worth noting: a settled cache means a refresh costs **zero** Riot API calls,
+so rate limiting is no longer a practical concern for repeat refreshes (relevant
+to P3, which can likewise be deprioritised).
