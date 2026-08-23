@@ -279,3 +279,16 @@ functions did not — is now visible at a glance.
 
 P3 (rate-limit scheduler / scan cursor) and P5 (small stuff) are still open. P3 is
 low priority while a settled cache means refreshes cost zero API calls.
+
+## Verified live — Aug 23, 15:51
+
+First run of P1/P2/P4 against production:
+
+- **P2 works.** Pipeline audit shows `frontend 741a105 / backend 741a105`. The
+  frontend-vs-backend drift check is live and matching.
+- **P1 grandfathering confirmed.** Self-heal = 0 on the existing 143-match cache,
+  so the structural check accepted every legacy entry rather than forcing a mass
+  re-fetch — the specific risk this design was built to avoid.
+- Analysis persisted cleanly (143 candidates → 143 cached → 143 passed, no drops,
+  0 Riot calls) after the `stripUndefinedDeep` fix for the undefined-field write
+  failure.
