@@ -188,6 +188,8 @@ export interface AnalysisGame {
   compName: string | null;
   nearCompName?: string | null;
   nearOverlap?: number;
+  /** Comps tied at the same overlap; length > 1 means attribution is ambiguous. */
+  tiedNames?: string[];
   // Roster members on our team this game (5 = full stack, 3 = off-the-books).
   rosterCount?: number;
   win: boolean;
@@ -222,6 +224,8 @@ export interface CompAnalysis {
   newMatches?: number;
   pendingMatches?: number;
   funnel?: AnalysisFunnel;
+  /** Git SHA the backend was deployed from, to spot frontend/backend drift. */
+  backendSha?: string;
   generatedAt: string;
 }
 

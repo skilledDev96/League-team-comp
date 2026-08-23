@@ -11,6 +11,7 @@ import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { compVerdict, formatDamage, winLossRecord } from './comp-stats.util';
 import { TacticalBoardComponent } from './tactical-board.component';
+import { BUILD_SHA } from '../../build-info';
 
 interface ResultDraft {
   outcome: CompOutcome;
@@ -372,6 +373,16 @@ export class CompsComponent {
     ];
   });
 
+  // Backend/frontend version drift. Functions need a manual deploy while the
+  // frontend auto-deploys, so a mismatch here is the visible form of "did my
+  // function actually go out?" — the question that cost hours to answer.
+  protected readonly frontendSha = BUILD_SHA;
+  protected readonly backendSha = computed(() => this.data.compAnalysis()?.backendSha ?? '');
+  protected readonly shaMismatch = computed(() => {
+    const back = this.backendSha();
+    return Boolean(back) && back !== BUILD_SHA;
+  });
+
   protected readonly funnelDrops = computed(() => {
     const d = this.data.compAnalysis()?.funnel?.dropped;
     if (!d) return [];
@@ -410,6 +421,16 @@ export class CompsComponent {
     if (!picks.length) return false;
     const target = this.normChamp(champion);
     return picks.some((c) => this.normChamp(c) === target);
+  }
+
+  // A game that fits two or more comps equally well. The winner is a tie-break,
+  // not a clear result, so say so rather than presenting it as certain.
+  protected isAmbiguous(game: AnalysisGame): boolean {
+    return (game.tiedNames?.length ?? 0) > 1 && Boolean(this.gameComp(game));
+  }
+
+  protected ambiguousLabel(game: AnalysisGame): string {
+    return (game.tiedNames ?? []).join(' / ');
   }
 
   // "4/5" style label for how much of the roster was on our team that game.

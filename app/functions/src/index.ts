@@ -6,6 +6,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
+import { BUILD_SHA } from './build-info';
 
 initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 10 });
@@ -943,6 +944,8 @@ interface AnalysisGameResponse {
   // Closest defined comp even when below the match threshold, for off-book hints.
   nearCompName: string | null;
   nearOverlap: number;
+  /** Comps tied at the same overlap; length > 1 means attribution is ambiguous. */
+  tiedNames?: string[];
   // Roster members on our team this game (5 = full stack, 4 = a sub was in).
   rosterCount: number;
   win: boolean;
@@ -978,29 +981,49 @@ interface CachedParticipant {
 }
 
 interface CachedMatch {
+  /** Schema stamp. Absent means a legacy entry written before versioning. */
+  cacheVersion?: number;
   queueId: number;
   gameCreation: number;
   participants: CachedParticipant[];
+}
+
+// Bump when the cached shape changes; entries below this are re-fetched once.
+const CACHE_VERSION = 1;
+
+/**
+ * Whether a cached match can be trusted.
+ *
+ * Entries stamped with the current version are trusted outright — we wrote them,
+ * so a re-fetch would only produce the same bytes. That guarantee is what stops a
+ * match Riot returns oddly (a missing puuid, say) from being re-fetched forever.
+ * Unversioned legacy entries get a structural check instead: a 5v5 match has ten
+ * participants and every one of them has a puuid.
+ */
+function isCacheUsable(cached: CachedMatch | undefined): boolean {
+  if (!cached) return false;
+  if (cached.cacheVersion === CACHE_VERSION) return true;
+  const parts = cached.participants;
+  return (
+    Array.isArray(parts) &&
+    parts.length === 10 &&
+    parts.every((p) => typeof p?.puuid === 'string' && p.puuid.length > 0)
+  );
 }
 
 async function getCachedMatch(
   matchId: string,
   regional: string,
   apiKey: string,
-  allowFetch: boolean,
-  rosterPuuids: Set<string>
+  allowFetch: boolean
 ): Promise<{ match: CachedMatch; fromCache: boolean; healed: boolean } | null> {
   const ref = getFirestore().doc(`matchCache/${matchId}`);
   const snap = await ref.get();
   let healed = false;
   if (snap.exists) {
     const cached = snap.data() as CachedMatch;
-    healed = true; // a cache entry existed; if we fall through, we're re-fetching it
-    // Self-heal: this is only ever called for candidates the roster played, so a
-    // valid cache MUST contain at least one roster puuid. Older entries were
-    // stored without puuids (or with stale data) and read back empty — re-fetch.
-    const hasRoster = cached.participants?.some((p) => rosterPuuids.has(p.puuid));
-    if (hasRoster) {
+    healed = true; // an entry existed; if we fall through we are repairing it
+    if (isCacheUsable(cached)) {
       return { match: cached, fromCache: true, healed: false };
     }
     // fall through to re-fetch (counts against the fetch budget like a new match)
@@ -1013,6 +1036,7 @@ async function getCachedMatch(
     apiKey
   );
   const match: CachedMatch = {
+    cacheVersion: CACHE_VERSION,
     queueId: raw.info.queueId,
     gameCreation: raw.info.gameCreation,
     participants: raw.info.participants.map((p) => ({
@@ -1056,6 +1080,8 @@ interface CompAnalysisResponse {
   newMatches: number;
   pendingMatches: number;
   funnel?: AnalysisFunnel;
+  /** Git SHA the backend was deployed from, to spot frontend/backend drift. */
+  backendSha?: string;
   generatedAt: string;
 }
 
@@ -1177,7 +1203,7 @@ async function computeCompAnalysis(
     try {
       // Only fetch new matches while we're under the per-run budget; cached ones
       // are always processed. Anything skipped is reported as pending.
-      const result = await getCachedMatch(matchId, routing.regional, apiKey, newMatches < MAX_NEW_FETCHES, rosterPuuids);
+      const result = await getCachedMatch(matchId, routing.regional, apiKey, newMatches < MAX_NEW_FETCHES);
       if (!result) {
         pendingMatches += 1;
         funnel.dropped.budget_exhausted += 1;
@@ -1265,6 +1291,7 @@ async function computeCompAnalysis(
       compName: compMatch.compName,
       nearCompName: compMatch.nearName,
       nearOverlap: compMatch.overlap,
+      tiedNames: compMatch.tiedNames.length > 1 ? compMatch.tiedNames : undefined,
       rosterCount,
       win,
       side,
@@ -1296,6 +1323,7 @@ async function computeCompAnalysis(
     newMatches,
     pendingMatches,
     funnel,
+    backendSha: BUILD_SHA,
     generatedAt: new Date().toISOString()
   };
 }

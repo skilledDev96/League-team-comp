@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.json",
     "clean": "rimraf lib",
     "watch": "tsc -w -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prebuild": "node ../scripts/gen-build-info.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.5.0",

@@ -19,11 +19,20 @@ export interface CompMatchResult {
   nearName: string | null;
   /** Best champion overlap found across all comps. */
   overlap: number;
+  /**
+   * Names of every comp tied at `overlap`, sorted. Length > 1 means the game
+   * genuinely fits multiple comps equally well and the winner is a tie-break,
+   * not a clear result — surface it rather than assigning silently.
+   */
+  tiedNames: string[];
 }
 
 /**
  * Credit a played 5-champion game to the defined comp it overlaps most, when
  * that overlap meets the threshold. Always reports the closest comp + overlap.
+ *
+ * Ties are broken by comp id, not by array position, so reordering comps in the
+ * admin editor can never silently change historical attribution.
  */
 export function matchComp(
   playedChampions: string[],
@@ -31,9 +40,9 @@ export function matchComp(
   threshold: number
 ): CompMatchResult {
   const played = new Set(playedChampions.map(normalizeChampKey));
-  let bestId: string | null = null;
-  let bestName = '';
+
   let bestOverlap = 0;
+  let tied: CompChampSet[] = [];
 
   for (const comp of comps) {
     const compChamps = new Set(comp.champions.map(normalizeChampKey));
@@ -43,16 +52,21 @@ export function matchComp(
     }
     if (overlap > bestOverlap) {
       bestOverlap = overlap;
-      bestId = comp.id;
-      bestName = comp.name;
+      tied = [comp];
+    } else if (overlap === bestOverlap && overlap > 0) {
+      tied.push(comp);
     }
   }
 
-  const matched = bestId !== null && bestOverlap >= threshold;
+  // Deterministic, order-independent winner: lowest comp id wins a tie.
+  const winner = [...tied].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0] ?? null;
+  const matched = winner !== null && bestOverlap >= threshold;
+
   return {
-    compId: matched ? bestId : null,
-    compName: matched ? bestName : null,
-    nearName: bestOverlap > 0 ? bestName : null,
-    overlap: bestOverlap
+    compId: matched ? winner.id : null,
+    compName: matched ? winner.name : null,
+    nearName: winner ? winner.name : null,
+    overlap: bestOverlap,
+    tiedNames: tied.length > 1 ? [...tied].map((c) => c.name).sort() : []
   };
 }

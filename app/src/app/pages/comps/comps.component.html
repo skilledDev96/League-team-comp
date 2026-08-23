@@ -369,6 +369,14 @@
           } @else {
             <p class="muted funnel-clean">No games dropped this pass.</p>
           }
+          <div class="build-sha" [class.is-mismatch]="shaMismatch()">
+            <span class="material-symbols-rounded" aria-hidden="true">{{ shaMismatch() ? 'sync_problem' : 'commit' }}</span>
+            <span>frontend <code>{{ frontendSha }}</code></span>
+            <span>backend <code>{{ backendSha() || 'unknown' }}</code></span>
+            @if (shaMismatch()) {
+              <span class="build-sha-note">versions differ — redeploy functions</span>
+            }
+          </div>
         </div>
       </details>
     }
@@ -541,6 +549,9 @@
         </span>
         @if (!gameComp(game) && game.nearCompName) {
           <span class="game-near" [title]="'Closest defined comp'">≈ {{ game.nearCompName }} ({{ game.nearOverlap }}/5)</span>
+        }
+        @if (isAmbiguous(game)) {
+          <span class="game-ambiguous" [title]="'Fits equally well: ' + ambiguousLabel(game)">ambiguous</span>
         }
         @if ((game.rosterCount ?? 5) < 5) {
           <span class="game-stack is-partial"

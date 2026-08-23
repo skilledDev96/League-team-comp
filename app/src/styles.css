@@ -5056,3 +5056,59 @@ body.intel-page #fillInSection {
   font-size: 0.72rem;
   opacity: 0.8;
 }
+
+/* A game that fits two or more comps equally well — the winner is a tie-break. */
+.game-ambiguous {
+  flex: 0 0 auto;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.64rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  color: var(--accent-2);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--card-border) 55%);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  white-space: nowrap;
+}
+
+/* Frontend vs backend build stamp, inside the pipeline audit. */
+.build-sha {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.75rem;
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--card-border);
+  font-size: 0.74rem;
+  color: var(--text-1);
+}
+
+.build-sha code {
+  font-size: 0.74rem;
+  color: var(--text-0);
+}
+
+.build-sha .material-symbols-rounded {
+  font-size: 1rem;
+  opacity: 0.7;
+}
+
+.build-sha.is-mismatch {
+  color: var(--warn);
+}
+
+.build-sha.is-mismatch code {
+  color: var(--warn);
+}
+
+.build-sha.is-mismatch .material-symbols-rounded {
+  color: var(--warn);
+  opacity: 1;
+}
+
+.build-sha-note {
+  font-weight: 700;
+}

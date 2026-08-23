@@ -57,3 +57,40 @@ describe('matchComp', () => {
     expect(result.compId).toBe('mf');
   });
 });
+
+describe('matchComp tie-breaking', () => {
+  // Two comps that overlap the played set equally. 'aaa' sorts before 'zzz'.
+  const TIED: CompChampSet[] = [
+    { id: 'zzz', name: 'Zed Comp', champions: ['Vladimir', 'Diana', 'Ashe', 'Thresh', 'Zed'] },
+    { id: 'aaa', name: 'Ahri Comp', champions: ['Vladimir', 'Diana', 'Ashe', 'Braum', 'Ahri'] }
+  ];
+  const played = ['Vladimir', 'Diana', 'Ashe', 'Lulu', 'Sett']; // 3 of each
+
+  it('breaks ties by comp id, not array order', () => {
+    const result = matchComp(played, TIED, 3);
+    expect(result.compId).toBe('aaa');
+  });
+
+  it('gives the same winner when the comps are reordered', () => {
+    const reordered = matchComp(played, [...TIED].reverse(), 3);
+    expect(reordered.compId).toBe('aaa');
+  });
+
+  it('reports every tied comp so the ambiguity can be surfaced', () => {
+    const result = matchComp(played, TIED, 3);
+    expect(result.tiedNames).toEqual(['Ahri Comp', 'Zed Comp']);
+  });
+
+  it('reports no tie when one comp overlaps more', () => {
+    const clear = matchComp(['Maokai', 'Vi', 'Galio', 'Miss Fortune', 'Leona'], COMPS, 3);
+    expect(clear.compId).toBe('engage');
+    expect(clear.tiedNames).toEqual([]);
+  });
+
+  it('still reports the closest comp below threshold, with no match', () => {
+    const result = matchComp(['Vladimir', 'Diana', 'Ashe', 'Lulu', 'Sett'], TIED, 5);
+    expect(result.compId).toBeNull();
+    expect(result.nearName).toBe('Ahri Comp');
+    expect(result.overlap).toBe(3);
+  });
+});

@@ -227,3 +227,55 @@ another archaeology session — but there is no live defect to chase.
 Also worth noting: a settled cache means a refresh costs **zero** Riot API calls,
 so rate limiting is no longer a practical concern for repeat refreshes (relevant
 to P3, which can likewise be deprioritised).
+
+---
+
+# Implementation log — Aug 23, 2026
+
+P4, P1 and P2 implemented together.
+
+## P4 — attribution tie-break + ambiguity (done)
+
+`matchComp` now collects every comp tied at the best overlap and picks the winner
+by **lowest comp id**, not array position. Reordering comps in the admin editor can
+no longer silently change historical attribution. The result carries `tiedNames`,
+and a game credited on a tie renders an **"ambiguous"** chip in the game panel,
+tooltipped with the comps it fits equally well.
+
+Best-overlap selection was already correct and is unchanged. Five new unit tests
+cover the tie-break, including asserting the same winner when the comps array is
+reversed (11 function tests total).
+
+## P1 — cache versioning + structural validation (done)
+
+`CachedMatch` now carries `cacheVersion`, stamped on every write, and acceptance
+runs through `isCacheUsable`:
+
+- **Stamped with the current version** → trusted outright. We wrote it, so a
+  re-fetch would return the same bytes.
+- **Unversioned legacy entry** → accepted only if structurally sound: exactly ten
+  participants, every one with a non-empty puuid.
+
+Trusting our own stamp is what bounds the work: a match Riot returns oddly (a
+missing puuid, say) is re-fetched **once**, then stamped and trusted, instead of
+being re-fetched on every run forever. That failure mode is why acceptance is not
+purely structural. The old roster-content check (`some(p => rosterPuuids.has(...))`)
+is gone, along with the now-unused `rosterPuuids` parameter.
+
+Legacy entries that pass the structural check are grandfathered in, so this does
+**not** trigger a mass re-fetch of the existing 143-match cache.
+
+## P2 — deploy verification (done)
+
+`scripts/gen-build-info.mjs` stamps the current git SHA into both `app/src/app/
+build-info.ts` and `functions/src/build-info.ts`, wired as a `prebuild` hook in
+both package.json files. The backend returns `backendSha` on the analysis
+response; the pipeline audit shows frontend and backend SHAs side by side and
+turns warning-coloured with "versions differ — redeploy functions" when they
+diverge. The invisible failure that cost hours — Pages auto-deploying while the
+functions did not — is now visible at a glance.
+
+## Remaining
+
+P3 (rate-limit scheduler / scan cursor) and P5 (small stuff) are still open. P3 is
+low priority while a settled cache means refreshes cost zero API calls.

@@ -12,7 +12,9 @@
     "functions:test": "npm --prefix functions test",
     "functions:deploy": "firebase deploy --only functions:enrichPlayer",
     "key:check": "node scripts/riot-key.mjs",
-    "key:update": "node scripts/riot-key.mjs --deploy"
+    "key:update": "node scripts/riot-key.mjs --deploy",
+    "build:info": "node scripts/gen-build-info.mjs",
+    "prebuild": "node scripts/gen-build-info.mjs"
   },
   "private": true,
   "packageManager": "npm@11.17.0",
