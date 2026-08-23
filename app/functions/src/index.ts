@@ -1056,6 +1056,25 @@ async function getCachedMatch(
   return { match, fromCache: false, healed };
 }
 
+/**
+ * Firestore rejects undefined values outright, which fails the whole write. The
+ * frontend already strips before persisting; do the same here so one optional
+ * field can never cost a full analysis run.
+ */
+function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((v) => stripUndefinedDeep(v)) as unknown as T;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v !== undefined) out[k] = stripUndefinedDeep(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 /** Stage-by-stage audit of one analysis pass, so silent drops are visible. */
 interface AnalysisFunnel {
   candidates: number;
@@ -1291,7 +1310,8 @@ async function computeCompAnalysis(
       compName: compMatch.compName,
       nearCompName: compMatch.nearName,
       nearOverlap: compMatch.overlap,
-      tiedNames: compMatch.tiedNames.length > 1 ? compMatch.tiedNames : undefined,
+      // Conditional spread, not `: undefined` — Firestore rejects undefined values.
+      ...(compMatch.tiedNames.length > 1 && { tiedNames: compMatch.tiedNames }),
       rosterCount,
       win,
       side,
@@ -1355,7 +1375,7 @@ export const getCompAnalysis = onRequest(
       const payload = parseCompAnalysisRequest(req.body);
       const analysis = await computeCompAnalysis(payload, RIOT_API_KEY.value());
       // Cache the result so viewers see it without re-running the analysis.
-      await getFirestore().doc('meta/compAnalysis').set(analysis);
+      await getFirestore().doc('meta/compAnalysis').set(stripUndefinedDeep(analysis));
       res.status(200).json(analysis);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unexpected error.';
