@@ -288,32 +288,79 @@ export class TournamentsComponent {
   // showing the comp you are building. Clicking one adds it to our picks rather
   // than opening a champion page, which is not what anyone wants at the table.
 
+  /**
+   * Our picks by role. Stored positionally — index 0 is Top, 4 is Support — so
+   * a half-finished draft still says which seats are filled. Empty slots are
+   * blank strings, which every consumer already filters out.
+   */
+  protected pickSlots(game: SeriesGame): { role: Role; champion: string }[] {
+    const picks = game.ourChampions ?? [];
+    return this.roles.map((role, i) => ({ role, champion: picks[i] ?? '' }));
+  }
+
+  protected setPickAt(game: SeriesGame, index: number, champion: string): void {
+    const next = this.roles.map((_, i) => (game.ourChampions ?? [])[i] ?? '');
+    next[index] = champion;
+    void this.data.updateSeriesGame({ ...game, ourChampions: next });
+  }
+
+  /** From a picker, which hands back an array of at most one champion. */
+  protected setPickFromPicker(game: SeriesGame, index: number, champs: string[]): void {
+    this.setPickAt(game, index, champs[0] ?? '');
+  }
+
+  protected pickedCount(game: SeriesGame): number {
+    return (game.ourChampions ?? []).filter(Boolean).length;
+  }
+
+  /** The role a player plays, so a pick off their pool lands in the right seat. */
+  protected roleOfPlayer(name: string): Role | undefined {
+    return this.data.players().find((p) => p.name === name)?.role;
+  }
+
   protected isPicked(game: SeriesGame, champion: string): boolean {
     return blockedSet(game.ourChampions).has(normalizeChampion(champion));
   }
 
   protected picksFull(game: SeriesGame): boolean {
-    return (game.ourChampions ?? []).length >= 5;
+    return this.pickSlots(game).every((s) => Boolean(s.champion));
   }
 
-  /** Adds to our picks, or takes it back off if it is already there. */
-  protected togglePick(game: SeriesGame, champion: string): void {
+  /**
+   * Puts a champion in its own role slot, or takes it back out. A role is
+   * passed when the board knows it — a comp lineup row, or a player's pool —
+   * otherwise it drops into the first free seat.
+   */
+  protected togglePick(game: SeriesGame, champion: string, role?: Role): void {
     if (!champion) return;
-    const current = game.ourChampions ?? [];
-    if (this.isPicked(game, champion)) {
-      const next = current.filter((c) => normalizeChampion(c) !== normalizeChampion(champion));
-      void this.data.updateSeriesGame({ ...game, ourChampions: next });
+    const slots = this.pickSlots(game);
+
+    const held = slots.findIndex((s) => normalizeChampion(s.champion) === normalizeChampion(champion));
+    if (held >= 0) {
+      this.setPickAt(game, held, '');
       return;
     }
-    if (current.length >= 5) return;
-    void this.data.updateSeriesGame({ ...game, ourChampions: [...current, champion] });
+
+    const target = role ? this.roles.indexOf(role) : slots.findIndex((s) => !s.champion);
+    if (target < 0) return;
+    this.setPickAt(game, target, champion);
   }
 
   /** Why a chip cannot be clicked, so the reason is not a mystery. */
-  protected pickHint(game: SeriesGame, champion: string): string {
+  protected pickHint(game: SeriesGame, champion: string, role?: Role): string {
     if (this.isPicked(game, champion)) return 'Picked — click to undo';
+    if (role && this.pickSlots(game)[this.roles.indexOf(role)]?.champion) {
+      return role + ' is already picked';
+    }
     if (this.picksFull(game)) return 'All five picked';
-    return 'Add ' + champion + ' to our picks';
+    return 'Pick ' + champion + (role ? ' at ' + role : '');
+  }
+
+  /** True when this champion cannot go anywhere right now. */
+  protected pickBlocked(game: SeriesGame, champion: string, role?: Role): boolean {
+    if (this.isPicked(game, champion)) return false;
+    if (role) return Boolean(this.pickSlots(game)[this.roles.indexOf(role)]?.champion);
+    return this.picksFull(game);
   }
 
   /** Drop the last game of the series; removing an earlier one would renumber. */
