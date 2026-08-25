@@ -1,6 +1,8 @@
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { AnalysisGame, CompOutcome, CompPerformance, CompPicks, CompResult, Role, ROLES } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
@@ -20,6 +22,8 @@ interface LogRow {
   // Epoch ms used only for sorting (match-history games carry a real timestamp).
   sortKey: number;
   source: 'logged' | 'match';
+  // Present for match-history rows so the row can jump to its game panel.
+  matchId?: string;
   // Present for manually-logged rows so they can be deleted.
   result?: CompResult;
 }
@@ -76,7 +80,8 @@ export class AnalysisComponent {
         note: g.queue,
         playedOn: new Date(g.date).toLocaleDateString(),
         sortKey: g.date,
-        source: 'match' as const
+        source: 'match' as const,
+        matchId: g.matchId
       }));
 
     return [...logged, ...matches]
@@ -100,6 +105,63 @@ export class AnalysisComponent {
   protected readonly analysisLoading = signal(false);
   protected readonly analysisError = signal('');
   protected readonly showOffBook = signal(false);
+
+  // ---- Deep link to one game --------------------------------------------
+  //
+  // The tournament prep list links here with ?match=<id>. A game panel lives
+  // inside a collapsed comp drill-down, or behind the off-book toggle, so
+  // reaching one means opening everything above it — not just scrolling.
+
+  private readonly route = inject(ActivatedRoute);
+  protected readonly focusMatch = signal<string | null>(null);
+
+  constructor() {
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
+      this.focusMatch.set(params.get('match'));
+    });
+
+    effect(() => {
+      const matchId = this.focusMatch();
+      if (!matchId) return;
+
+      // Analysis loads from Firestore, so the game may not exist yet.
+      const games = this.data.compAnalysis()?.games ?? [];
+      if (!games.some((game) => game.matchId === matchId)) return;
+
+      this.focusOn(matchId);
+    });
+  }
+
+  /**
+   * Jump to a game panel from the Game Log further down the page. The log row
+   * and the panel are two views of the same match, so the row acts as a link
+   * into the drill-down rather than repeating the detail.
+   */
+  protected openGame(matchId: string | undefined): void {
+    if (!matchId) return;
+    this.focusMatch.set(matchId);
+    this.focusOn(matchId);
+  }
+
+  private focusOn(matchId: string): void {
+    if (this.offBookGames().some((game) => game.matchId === matchId)) {
+      this.showOffBook.set(true);
+    }
+    // The panel renders after this settles, so wait for the frame.
+    requestAnimationFrame(() => this.revealMatch(matchId));
+  }
+
+  private revealMatch(matchId: string): void {
+    const panel = document.querySelector<HTMLElement>(`[data-match="${CSS.escape(matchId)}"]`);
+    if (!panel) return;
+
+    for (let node: HTMLElement | null = panel; node; node = node.parentElement) {
+      if (node instanceof HTMLDetailsElement) {
+        node.open = true;
+      }
+    }
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 
   // Queue filter for the analysis panel ('all' or a specific queue label).
   protected readonly analysisQueue = signal<string>('all');

@@ -210,7 +210,9 @@
 
   <!-- Reusable game panel: used by comp drill-downs and the off-book list. -->
   <ng-template #gamePanel let-game>
-    <details class="game-panel" [class.is-win]="game.win" [class.is-loss]="!game.win">
+    <details class="game-panel" [attr.data-match]="game.matchId"
+             [class.is-focused]="game.matchId === focusMatch()"
+             [class.is-win]="game.win" [class.is-loss]="!game.win">
       <summary class="game-summary">
         <span class="game-outcome">{{ game.win ? 'W' : 'L' }}</span>
         <span class="game-champs">
@@ -330,9 +332,11 @@
           <span class="log-opp">{{ row.opponent ? 'vs ' + row.opponent : '—' }}</span>
           <span class="log-note">{{ row.note }}</span>
           @if (row.source === 'match') {
-            <span class="log-source" title="Auto-detected from Riot match history">
+            <button type="button" class="log-source" (click)="openGame(row.matchId)"
+                    title="Auto-detected from Riot &mdash; open the game for champions, KDA and notes">
               <span class="material-symbols-rounded" aria-hidden="true">query_stats</span>
-            </span>
+              <span class="log-source-open material-symbols-rounded" aria-hidden="true">chevron_right</span>
+            </button>
           } @else if (auth.editing() && row.result) {
             <button type="button" class="log-del" aria-label="Delete this game" (click)="deleteResult(row.result)">
               <span class="material-symbols-rounded" aria-hidden="true">close</span>

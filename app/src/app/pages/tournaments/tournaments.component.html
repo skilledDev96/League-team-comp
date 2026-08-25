@@ -376,9 +376,12 @@
         @for (m of recentGames(); track m.matchId) {
           <li class="prep-row" [class.is-tagged]="isPrep(m.matchId)">
             <div class="prep-row-head">
-              <span class="prep-outcome" [class.is-win]="m.win" [class.is-loss]="!m.win">{{ m.win ? 'W' : 'L' }}</span>
-              <span class="prep-when">{{ candidateLabel(m) }}</span>
-              <span class="prep-champs">{{ candidateChampions(m).join(', ') }}</span>
+              <a class="prep-link" [routerLink]="['/analysis']" [queryParams]="{ match: m.matchId }"
+                 title="Open this game in Analysis">
+                <span class="prep-outcome" [class.is-win]="m.win" [class.is-loss]="!m.win">{{ m.win ? 'W' : 'L' }}</span>
+                <span class="prep-when">{{ candidateLabel(m) }}</span>
+                <span class="prep-champs">{{ candidateChampions(m).join(', ') }}</span>
+              </a>
               @if (auth.editing()) {
                 <button type="button" class="prep-toggle" [class.on]="isPrep(m.matchId)"
                         (click)="togglePrep(m.matchId)">

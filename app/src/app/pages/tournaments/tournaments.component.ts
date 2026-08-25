@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AnalysisGame, Comp, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { ChampionDataService } from '../../services/champion-data.service';
@@ -21,7 +22,7 @@ interface CompAvailability {
 
 @Component({
   selector: 'app-tournaments',
-  imports: [FormsModule, ChampionChipComponent, ChampionPickerComponent, MatchNoteComponent],
+  imports: [FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, MatchNoteComponent],
   templateUrl: './tournaments.component.html'
 })
 export class TournamentsComponent {

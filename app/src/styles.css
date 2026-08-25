@@ -1803,13 +1803,6 @@ a.profiles-row:focus-visible {
 }
 
 /* Game Log: marker for a game auto-detected from Riot match history. */
-.log-source {
-  display: inline-flex;
-  align-items: center;
-  color: var(--text-1);
-  opacity: 0.7;
-}
-
 .log-source .material-symbols-rounded {
   font-size: 1.05rem;
 }
@@ -6191,4 +6184,69 @@ app-match-note {
 .comp-retro-more:hover {
   border-color: var(--accent);
   color: var(--text-0);
+}
+
+/* ---- Jumping to a game ------------------------------------------------
+   Prep rows and Game Log rows are both summaries of a match whose detail
+   already exists in the analysis drill-down, so each one links there instead
+   of repeating champions, KDA and notes in a third place. */
+
+.prep-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0.3rem;
+  margin: -0.15rem -0.3rem;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.prep-link:hover {
+  background: var(--surface-btn);
+}
+
+.prep-link:hover .prep-when {
+  color: var(--text-0);
+}
+
+.log-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-1);
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.log-source:hover {
+  opacity: 1;
+  color: var(--accent-2);
+  border-color: var(--card-border);
+  background: var(--surface-btn);
+}
+
+.log-source-open {
+  font-size: 0.95rem !important;
+  opacity: 0;
+  margin-left: -0.15rem;
+  transition: opacity 0.12s ease, margin-left 0.12s ease;
+}
+
+.log-source:hover .log-source-open {
+  opacity: 1;
+  margin-left: 0;
+}
+
+/* The panel we were sent to, so it is obvious which one opened. */
+.game-panel.is-focused {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 10px;
 }
