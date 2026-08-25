@@ -28,6 +28,9 @@ export class TournamentsComponent {
   protected readonly ui = inject(UiService);
   protected readonly champData = inject(ChampionDataService);
 
+  /** Our team name, used to label the sides of a game. */
+  protected readonly teamName = computed(() => this.data.settings().teamName || 'Us');
+
   protected readonly roles = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'] as const;
 
   // ---- Selection --------------------------------------------------------
@@ -70,6 +73,35 @@ export class TournamentsComponent {
       .seriesGames()
       .filter((g) => g.seriesId === seriesId)
       .sort((a, b) => a.gameNumber - b.gameNumber);
+  }
+
+  // ---- Notes with links -------------------------------------------------
+
+  /**
+   * Split free text into plain and link segments so pasted URLs render as real
+   * links. Deliberately returns data for the template to bind rather than HTML:
+   * nothing bypasses Angular's escaping, and only http/https matches, so a
+   * "javascript:" string stays inert text.
+   */
+  protected noteParts(text: string | undefined): { text: string; href: string | null }[] {
+    if (!text) return [];
+    const parts: { text: string; href: string | null }[] = [];
+    const pattern = /https?:\/\/[^\s<>"']+/g;
+    let last = 0;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > last) {
+        parts.push({ text: text.slice(last, match.index), href: null });
+      }
+      // Trailing punctuation usually belongs to the sentence, not the URL.
+      const url = match[0].replace(/[.,;:)\]]+$/, '');
+      parts.push({ text: url, href: url });
+      last = match.index + url.length;
+    }
+    if (last < text.length) {
+      parts.push({ text: text.slice(last), href: null });
+    }
+    return parts;
   }
 
   // ---- Fearless draft ---------------------------------------------------

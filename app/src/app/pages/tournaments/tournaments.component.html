@@ -32,7 +32,15 @@
       }
     </dl>
     @if (tournament.notes) {
-      <p class="tournament-notes">{{ tournament.notes }}</p>
+      <p class="tournament-notes">
+        @for (part of noteParts(tournament.notes); track $index) {
+          @if (part.href) {
+            <a [href]="part.href" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
+          } @else {
+            <span>{{ part.text }}</span>
+          }
+        }
+      </p>
     }
   </section>
 
@@ -95,6 +103,13 @@
             }
           </div>
 
+          <details class="fearless-collapse">
+            <summary class="fearless-collapse-head">
+              <span class="material-symbols-rounded fearless-collapse-chevron" aria-hidden="true">chevron_right</span>
+              <span>Comp availability</span>
+              <span class="fearless-count is-ok">{{ playableComps(series.id).length }} playable</span>
+              <span class="fearless-count is-broken">{{ brokenComps(series.id).length }} broken</span>
+            </summary>
           <div class="fearless-split">
             <div class="fearless-col">
               <h4 class="fearless-col-head is-ok">
@@ -141,8 +156,14 @@
             </div>
           </div>
 
+          </details>
+
+          <details class="fearless-collapse">
+            <summary class="fearless-collapse-head">
+              <span class="material-symbols-rounded fearless-collapse-chevron" aria-hidden="true">chevron_right</span>
+              <span>Player pools</span>
+            </summary>
           <div class="pool-pressure">
-            <h4>Player pools</h4>
             <ul class="list-clean">
               @for (row of poolPressure(series.id); track row.name) {
                 <li class="pool-row">
@@ -157,6 +178,7 @@
               }
             </ul>
           </div>
+          </details>
 
           <!-- Games: typed in live, reconciled against match history later. -->
           <div class="series-games">
@@ -194,11 +216,11 @@
                 </div>
 
                 @if (auth.editing()) {
-                  <label class="field"><span>Our champions (comma separated)</span>
+                  <label class="field"><span>{{ teamName() }} champions (comma separated)</span>
                     <input type="text" list="champlist" [ngModel]="champsValue(game.ourChampions)"
                            (ngModelChange)="saveGameChamps(game, 'our', $event)"
                            [name]="'our-' + game.id" placeholder="Maokai, Vi, Galio, Miss Fortune, Leona" /></label>
-                  <label class="field"><span>Their champions (comma separated)</span>
+                  <label class="field"><span>{{ series.opponent }} champions (comma separated)</span>
                     <input type="text" list="champlist" [ngModel]="champsValue(game.theirChampions)"
                            (ngModelChange)="saveGameChamps(game, 'their', $event)"
                            [name]="'their-' + game.id" placeholder="Darius, Kayn, Ahri, Jinx, Thresh" /></label>
@@ -236,13 +258,13 @@
                     </p>
                   }
                   <div class="series-game-champs">
-                    <span class="series-game-side">Us</span>
+                    <span class="series-game-side" [title]="teamName()">{{ teamName() }}</span>
                     @for (champ of game.ourChampions; track champ) {
                       <app-champion-chip [champion]="champ" />
                     }
                   </div>
                   <div class="series-game-champs">
-                    <span class="series-game-side">Them</span>
+                    <span class="series-game-side" [title]="series.opponent">{{ series.opponent }}</span>
                     @for (champ of game.theirChampions; track champ) {
                       <app-champion-chip [champion]="champ" />
                     }

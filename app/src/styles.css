@@ -5712,3 +5712,65 @@ body[data-theme='light'] input[type='datetime-local'],
 body[data-theme='light'] input[type='time'] {
   color-scheme: light;
 }
+
+/* Collapsible fearless sections — collapsed by default, with the key counts
+   still readable in the summary so nothing important needs expanding. */
+.fearless-collapse {
+  margin-top: 0.9rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.fearless-collapse > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-1);
+}
+
+.fearless-collapse > summary::-webkit-details-marker {
+  display: none;
+}
+
+.fearless-collapse-chevron {
+  color: var(--accent-2);
+  transition: transform 150ms ease;
+}
+
+.fearless-collapse[open] .fearless-collapse-chevron {
+  transform: rotate(90deg);
+}
+
+.fearless-count.is-ok {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--card-border) 60%);
+}
+
+.fearless-count.is-broken {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 40%, var(--card-border) 60%);
+}
+
+/* Team names replace "Us"/"Them", so the label column needs room and a clamp. */
+.series-game-side {
+  min-width: 7rem;
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--accent-2);
+}
+
+.tournament-notes a {
+  color: var(--accent-2);
+  word-break: break-all;
+}

@@ -107,6 +107,8 @@ export class AdminComponent {
   protected readonly compDrafts = signal<CompDraft[]>([]);
   protected readonly accessDrafts = signal<AccessDraft[]>([]);
   protected readonly tournamentDrafts = signal<TournamentDraft[]>([]);
+  /** Guards against a second Save landing before the created id comes back. */
+  protected readonly savingTournament = signal(false);
   protected readonly activeTab = signal<EditorTab>('players');
   protected readonly enrichingPlayerId = signal<string | null>(null);
   protected readonly status = signal('');
@@ -260,6 +262,18 @@ export class AdminComponent {
       this.flash('Tournament name is required.');
       return;
     }
+    if (this.savingTournament()) {
+      return;
+    }
+    this.savingTournament.set(true);
+    try {
+      await this.persistTournament(draft, name);
+    } finally {
+      this.savingTournament.set(false);
+    }
+  }
+
+  private async persistTournament(draft: TournamentDraft, name: string): Promise<void> {
     const base = {
       name,
       organiser: draft.organiser.trim() || undefined,
@@ -275,6 +289,9 @@ export class AdminComponent {
       await this.data.updateTournament({ ...existing, ...base, id: draft.id, order: existing?.order ?? 0 });
     } else {
       await this.data.createTournament(base);
+      // Drop the blank draft. It still has an empty id, so leaving it in place
+      // means a second Save would create a duplicate rather than update.
+      this.tournamentDrafts.update((list) => list.filter((d) => d !== draft));
       this.initialized = false;
     }
     // Only one tournament should read as current.

@@ -382,7 +382,7 @@
             <span>Current tournament (opens by default on the Tournaments page)</span>
           </label>
           <div class="links">
-            <button class="view-btn active" type="button" (click)="saveTournament(draft)">Save</button>
+            <button class="view-btn active" type="button" [disabled]="savingTournament()" (click)="saveTournament(draft)">Save</button>
             <button class="view-btn" type="button" (click)="deleteTournament(draft)">Delete</button>
           </div>
         </article>
