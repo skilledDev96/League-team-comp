@@ -7058,3 +7058,55 @@ app-match-note {
   width: 26px;
   height: 26px;
 }
+
+/* ---- Draft board without edit mode -------------------------------------
+   The board is worth reading during a game whether or not you are the one
+   recording it; only the controls need edit mode. */
+
+.draft-readonly-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  border: 1px dashed var(--card-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-1) 60%, transparent);
+  font-size: 0.82rem;
+  color: var(--text-1);
+}
+
+.draft-readonly-hint .material-symbols-rounded {
+  font-size: 1rem;
+  color: var(--accent-2);
+}
+
+.draft-readonly-hint strong {
+  color: var(--text-0);
+}
+
+.pick-static {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.3rem 0.55rem 0.3rem 0.2rem;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: var(--surface-btn);
+  font-size: 0.86rem;
+  color: var(--text-0);
+}
+
+.pick-static.is-empty {
+  color: var(--text-2);
+  border-style: dashed;
+  justify-content: center;
+}
+
+.draft-static-bans {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}

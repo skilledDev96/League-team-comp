@@ -485,13 +485,34 @@
       }
 
       @if (draftGame(); as game) {
-        @if (auth.editing()) {
-          <div class="draft-inputs">
-            <div class="field"><span>Bans this game</span>
-              <app-champion-picker [champions]="game.bans || []" [max]="10"
-                                   [unavailable]="unavailableFor(game, 'ban')"
-                                   [inputName]="'dbans-' + game.id" placeholder="Add a ban…"
-                                   (championsChange)="setGameBans(game, $event)" /></div>
+        @if (auth.canEdit() && !auth.editing()) {
+          <p class="draft-readonly-hint">
+            <span class="material-symbols-rounded" aria-hidden="true">visibility</span>
+            Viewing only — turn on <strong>Edit mode</strong> above to draft.
+          </p>
+        }
+
+        <div class="draft-inputs">
+            <div class="field">
+              <span>Bans this game <small class="pick-count">{{ (game.bans || []).length }}</small></span>
+              @if (auth.editing()) {
+                <app-champion-picker [champions]="game.bans || []" [max]="10"
+                                     [unavailable]="unavailableFor(game, 'ban')"
+                                     [inputName]="'dbans-' + game.id" placeholder="Add a ban…"
+                                     (championsChange)="setGameBans(game, $event)" />
+              } @else if (game.bans?.length) {
+                <div class="draft-static-bans">
+                  @for (champ of game.bans; track champ) {
+                    <span class="pool-champ">
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                      {{ champ }}
+                    </span>
+                  }
+                </div>
+              } @else {
+                <span class="muted">No bans recorded.</span>
+              }
+            </div>
             <div class="field">
               <span>{{ teamName() }} picks <small class="pick-count">{{ pickedCount(game, 'our') }}/5</small></span>
               <ul class="list-clean pick-slots" [class.is-moving]="isMovingPick('our')">
@@ -499,20 +520,31 @@
                   <li class="pick-slot" [class.is-empty]="!slot.champion" [class.is-held]="isHeld('our', i)">
                     <button type="button" class="pick-slot-role"
                             [class.can-drop]="isMovingPick('our') && !isHeld('our', i)"
-                            [disabled]="!slot.champion && !isMovingPick('our')"
+                            [disabled]="!auth.editing() || (!slot.champion && !isMovingPick('our'))"
                             [appTip]="moveHint(game, 'our', i)"
                             (click)="liftOrPlace(game, 'our', i)">
                       <span>{{ slot.role }}</span>
-                      @if (slot.champion || isMovingPick('our')) {
+                      @if (auth.editing() && (slot.champion || isMovingPick('our'))) {
                         <span class="pick-slot-grip material-symbols-rounded" aria-hidden="true">swap_vert</span>
                       }
                     </button>
+                    @if (!auth.editing()) {
+                      <span class="pick-static" [class.is-empty]="!slot.champion">
+                        @if (slot.champion) {
+                          <img class="pool-champ-icon" [src]="ui.championIconUrl(slot.champion)" [alt]="" loading="lazy" />
+                          {{ slot.champion }}
+                        } @else {
+                          &mdash;
+                        }
+                      </span>
+                    } @else {
                     <app-champion-picker [champions]="slot.champion ? [slot.champion] : []" [max]="1"
                                          [role]="slot.role"
                                          [unavailable]="unavailableFor(game, 'pick')"
                                          [inputName]="'pick-' + slot.role + '-' + game.id"
                                          placeholder="Pick…"
                                          (championsChange)="setPickFromPicker(game, 'our', i, $event)" />
+                    }
                   </li>
                 }
               </ul>
@@ -524,26 +556,36 @@
                   <li class="pick-slot" [class.is-empty]="!slot.champion" [class.is-held]="isHeld('their', i)">
                     <button type="button" class="pick-slot-role"
                             [class.can-drop]="isMovingPick('their') && !isHeld('their', i)"
-                            [disabled]="!slot.champion && !isMovingPick('their')"
+                            [disabled]="!auth.editing() || (!slot.champion && !isMovingPick('their'))"
                             [appTip]="moveHint(game, 'their', i)"
                             (click)="liftOrPlace(game, 'their', i)">
                       <span>{{ slot.role }}</span>
-                      @if (slot.champion || isMovingPick('their')) {
+                      @if (auth.editing() && (slot.champion || isMovingPick('their'))) {
                         <span class="pick-slot-grip material-symbols-rounded" aria-hidden="true">swap_vert</span>
                       }
                     </button>
+                    @if (!auth.editing()) {
+                      <span class="pick-static" [class.is-empty]="!slot.champion">
+                        @if (slot.champion) {
+                          <img class="pool-champ-icon" [src]="ui.championIconUrl(slot.champion)" [alt]="" loading="lazy" />
+                          {{ slot.champion }}
+                        } @else {
+                          &mdash;
+                        }
+                      </span>
+                    } @else {
                     <app-champion-picker [champions]="slot.champion ? [slot.champion] : []" [max]="1"
                                          [role]="slot.role"
                                          [unavailable]="unavailableFor(game, 'pick')"
                                          [inputName]="'epick-' + slot.role + '-' + game.id"
                                          placeholder="Pick…"
                                          (championsChange)="setPickFromPicker(game, 'their', i, $event)" />
+                    }
                   </li>
                 }
               </ul>
             </div>
-          </div>
-        }
+        </div>
 
         <div class="draft-status">
           <span class="draft-board-count is-ok">{{ draftPlayable(game).length }} playable</span>
