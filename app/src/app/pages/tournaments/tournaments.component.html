@@ -439,7 +439,7 @@
         }
       </header>
 
-      @if (gamesFor(series.id).length) {
+      @if (gamesFor(series.id).length || auth.editing()) {
         <div class="view-controls draft-game-picker" aria-label="Game">
           @for (g of gamesFor(series.id); track g.id) {
             <button type="button" class="view-btn" [class.active]="isDraftGame(g)"
@@ -448,6 +448,12 @@
               @if (g.win !== undefined) {
                 <span class="draft-game-result" [class.is-win]="g.win">{{ g.win ? 'W' : 'L' }}</span>
               }
+            </button>
+          }
+          @if (auth.editing() && canAddDraftGame(series)) {
+            <button type="button" class="view-btn draft-add-game" (click)="addDraftGame(series)">
+              <span class="material-symbols-rounded" aria-hidden="true">add</span>
+              Game {{ nextGameNumber(series) }}
             </button>
           }
         </div>
@@ -517,7 +523,10 @@
           </div>
         </div>
       } @else {
-        <p class="muted">No games in this series yet. Add game 1 on the Plan view.</p>
+        <p class="muted">
+          No games in this series yet.
+          @if (!auth.editing()) { An editor can add game 1. }
+        </p>
       }
     </section>
   } @else {

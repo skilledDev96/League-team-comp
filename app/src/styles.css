@@ -6591,6 +6591,24 @@ app-match-note {
   margin: 0;
 }
 
+/* Reads as an action rather than another game to switch to. */
+.draft-add-game {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-style: dashed;
+  color: var(--text-2);
+}
+
+.draft-add-game:hover {
+  color: var(--text-0);
+  border-style: solid;
+}
+
+.draft-add-game .material-symbols-rounded {
+  font-size: 1rem;
+}
+
 .draft-game-result {
   margin-left: 0.35rem;
   font-weight: 700;

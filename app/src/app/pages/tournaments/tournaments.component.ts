@@ -218,6 +218,25 @@ export class TournamentsComponent {
     this.pickedGameId.set(gameId);
   }
 
+  /** Bo3 means three games; there is nothing to draft beyond that. */
+  protected canAddDraftGame(series: TournamentSeries): boolean {
+    return this.gamesFor(series.id).length < series.bestOf;
+  }
+
+  protected nextGameNumber(series: TournamentSeries): number {
+    return this.gamesFor(series.id).length + 1;
+  }
+
+  /**
+   * Add the next game and open it, so a series can be drafted from this view
+   * without going back to Plan to create the game first.
+   */
+  protected async addDraftGame(series: TournamentSeries): Promise<void> {
+    await this.addGame(series);
+    const added = this.gamesFor(series.id).at(-1);
+    this.pickedGameId.set(added?.id ?? '');
+  }
+
   protected isDraftGame(game: SeriesGame): boolean {
     return this.draftGame()?.id === game.id;
   }
