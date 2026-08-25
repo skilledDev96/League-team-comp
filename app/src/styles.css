@@ -5698,3 +5698,17 @@ body.intel-page #fillInSection {
   align-items: center;
   gap: 0.5rem;
 }
+
+/* Native date pickers: tell the browser which palette to render the calendar
+   widget and its indicator icon in, or it draws dark-on-dark. */
+input[type='date'],
+input[type='datetime-local'],
+input[type='time'] {
+  color-scheme: dark;
+}
+
+body[data-theme='light'] input[type='date'],
+body[data-theme='light'] input[type='datetime-local'],
+body[data-theme='light'] input[type='time'] {
+  color-scheme: light;
+}

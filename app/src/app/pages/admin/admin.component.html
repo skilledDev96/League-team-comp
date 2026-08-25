@@ -371,9 +371,9 @@
             <input type="text" [ngModel]="draft.format" (ngModelChange)="draft.format = $event" [name]="'tfmt' + $index" placeholder="Bo3 Fearless Draft — Swiss stage" /></label>
           <div class="grid two">
             <label class="field"><span>Start date</span>
-              <input type="text" [ngModel]="draft.startDate" (ngModelChange)="draft.startDate = $event" [name]="'tstart' + $index" placeholder="2026-08-31" /></label>
+              <input type="date" [ngModel]="draft.startDate" (ngModelChange)="draft.startDate = $event" [name]="'tstart' + $index" /></label>
             <label class="field"><span>End date</span>
-              <input type="text" [ngModel]="draft.endDate" (ngModelChange)="draft.endDate = $event" [name]="'tend' + $index" placeholder="2026-11-08" /></label>
+              <input type="date" [ngModel]="draft.endDate" (ngModelChange)="draft.endDate = $event" [name]="'tend' + $index" /></label>
           </div>
           <label class="field"><span>Notes / key rules</span>
             <textarea rows="3" [ngModel]="draft.notes" (ngModelChange)="draft.notes = $event" [name]="'tnotes' + $index"></textarea></label>
