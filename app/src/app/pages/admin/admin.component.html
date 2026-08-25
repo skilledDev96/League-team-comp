@@ -140,7 +140,7 @@
         <label class="field"><span>Weaknesses (comma separated)</span>
           <input type="text" [ngModel]="draft.weaknesses" (ngModelChange)="draft.weaknesses = $event" [name]="'pweak-' + draft.uid" /></label>
         <div class="field"><span>Champion pool</span>
-          <app-champion-picker [champions]="listOf(draft.top3)" [max]="5" [role]="draft.role"
+          <app-champion-picker [champions]="listOf(draft.top3)" [role]="draft.role"
                                [inputName]="'ptop-' + draft.uid" placeholder="Add a champion…"
                                (championsChange)="draft.top3 = $event.join(', ')" /></div>
         <div class="field"><span>Bans</span>

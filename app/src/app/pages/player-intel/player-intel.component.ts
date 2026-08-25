@@ -7,6 +7,7 @@ import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
+import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { ExternalProfilesComponent } from '../../shared/external-profiles.component';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
@@ -22,6 +23,7 @@ interface PainRow extends PainPoint {
     RouterLink,
     PlayerAvatarComponent,
     ChampionChipComponent,
+    ChampionPickerComponent,
     ExternalProfilesComponent,
     OverflowMenuComponent
   ],
@@ -129,6 +131,12 @@ export class PlayerIntelComponent {
 
   protected priorityLabel(priority: LearnPriority): string {
     return priority === 'med' ? 'Medium' : priority === 'high' ? 'High' : 'Low';
+  }
+
+  /** The learn draft's champion as a list, for the single-slot picker. */
+  protected learnPick(playerId: string): string[] {
+    const champion = this.learnDraftFor(playerId).champion;
+    return champion ? [champion] : [];
   }
 
   protected learnDraftFor(playerId: string): { champion: string; priority: LearnPriority } {

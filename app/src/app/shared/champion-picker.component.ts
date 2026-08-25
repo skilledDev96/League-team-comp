@@ -1,6 +1,6 @@
 import { Component, ElementRef, HostListener, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ChampionDataService } from '../services/champion-data.service';
+import { ChampionDataService, ChampionInfo } from '../services/champion-data.service';
 import { UiService } from '../services/ui.service';
 
 /**
@@ -100,22 +100,29 @@ export class ChampionPickerComponent {
   };
 
   /**
-   * Name matches, already-picked removed, capped so the menu stays usable.
-   * With an empty box we show an opening set rather than nothing, so clicking
-   * in makes it obvious the list is there — narrowed by role when we know it.
+   * Every champion that isn't already picked — the menu scrolls, so there's no
+   * reason to truncate and hide options. With an empty box, champions that suit
+   * the role float to the top instead of the rest being filtered out.
    */
   protected readonly suggestions = computed(() => {
     const q = this.norm(this.query());
     const taken = new Set(this.champions().map((c) => this.norm(c)));
     const all = this.champData.champions().filter((c) => !taken.has(this.norm(c.name)));
+    const byName = (a: ChampionInfo, b: ChampionInfo) => a.name.localeCompare(b.name);
 
-    if (!q) {
-      const tags = ChampionPickerComponent.ROLE_TAGS[this.role()] ?? [];
-      const pool = tags.length ? all.filter((c) => c.tags.some((t) => tags.includes(t))) : all;
-      return [...pool].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 8);
+    if (q) {
+      return all.filter((c) => this.norm(c.name).includes(q)).sort(byName);
     }
 
-    return all.filter((c) => this.norm(c.name).includes(q)).slice(0, 8);
+    const tags = ChampionPickerComponent.ROLE_TAGS[this.role()] ?? [];
+    if (!tags.length) {
+      return [...all].sort(byName);
+    }
+    const suits = (c: ChampionInfo) => c.tags.some((t) => tags.includes(t));
+    return [
+      ...all.filter(suits).sort(byName),
+      ...all.filter((c) => !suits(c)).sort(byName)
+    ];
   });
 
   protected onQuery(value: string): void {
