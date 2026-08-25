@@ -46,10 +46,7 @@
 
         <app-user-menu [email]="auth.userEmail() || ''" [role]="auth.role() || ''">
           @if (auth.canEdit()) {
-            <a class="overflow-item" routerLink="/admin">Roster &amp; comps editor</a>
-          }
-          @if (auth.canManageUsers()) {
-            <a class="overflow-item" routerLink="/admin" [queryParams]="{ tab: 'diagnostics' }">Diagnostics</a>
+            <a class="overflow-item" routerLink="/admin">Admin</a>
           }
           <button type="button" class="overflow-item" (click)="logout()">Log out</button>
         </app-user-menu>

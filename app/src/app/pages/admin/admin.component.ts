@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Comp, CompPicks, FillIn, Player, ROLES, Role, AccessRole, AccessEntry, Tournament } from '../../models/team.models';
@@ -159,6 +160,14 @@ export class AdminComponent {
       const accessEntries = this.data.accessEntries();
       if (accessEntries.length > 0 && this.accessDrafts().length === 0) {
         this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry })));
+      }
+    });
+
+    // Query params can change while already on /admin (jumping to a tab from a
+    // link elsewhere), and a snapshot read would miss that.
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(() => {
+      if (this.initialized) {
+        this.applyRouteFocus();
       }
     });
 
