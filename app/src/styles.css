@@ -3567,13 +3567,14 @@ a.profiles-row:focus-visible {
 .game-define {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   padding: 0.55rem 0.8rem 0.65rem;
   flex-wrap: wrap;
 }
 
 .game-define-input {
-  flex: 1 1 12rem;
+  flex: 0 1 18rem;
   min-width: 0;
   padding: 0.42rem 0.6rem;
   border-radius: 8px;
@@ -3649,8 +3650,28 @@ a.profiles-row:focus-visible {
   align-items: center;
   gap: 0.4rem;
   margin-top: 0.5rem;
+  padding: 0.2rem 0.35rem;
+  margin-left: -0.35rem;
+  border-radius: 6px;
   font-size: 0.82rem;
   color: var(--text-1);
+  text-decoration: none;
+}
+
+.comp-ranked-record:hover {
+  background: var(--surface-btn);
+  color: var(--text-0);
+}
+
+.comp-ranked-open {
+  font-size: 1rem !important;
+  color: var(--text-2) !important;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.comp-ranked-record:hover .comp-ranked-open {
+  opacity: 1;
 }
 
 .comp-ranked-record .material-symbols-rounded {
@@ -6150,6 +6171,30 @@ app-match-note {
   gap: 0.35rem;
 }
 
+.comp-retro-note-link {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.15rem 0.3rem;
+  margin: -0.15rem -0.3rem;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.comp-retro-note > .comp-retro-note-link {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.comp-retro-note-link:hover {
+  background: var(--surface-btn);
+}
+
+.comp-retro-note-link:hover .comp-retro-note-text {
+  color: var(--text-0);
+}
+
 .comp-retro-note {
   display: flex;
   gap: 0.5rem;
@@ -6264,6 +6309,7 @@ app-match-note {
 }
 
 /* The panel we were sent to, so it is obvious which one opened. */
+.analysis-comp.is-focused,
 .game-panel.is-focused {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

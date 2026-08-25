@@ -115,27 +115,38 @@ export class AnalysisComponent {
 
   private readonly route = inject(ActivatedRoute);
   protected readonly focusMatch = signal<string | null>(null);
-  private revealedMatch: string | null = null;
+  protected readonly focusComp = signal<string | null>(null);
+  private revealed: string | null = null;
 
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
       this.focusMatch.set(params.get('match'));
+      this.focusComp.set(params.get('comp'));
     });
 
     effect(() => {
       const matchId = this.focusMatch();
-      if (!matchId) return;
+      const compId = this.focusComp();
+      const analysis = this.data.compAnalysis();
+      if (!analysis) return;
 
-      // Analysis loads from Firestore, so the game may not exist yet.
-      const games = this.data.compAnalysis()?.games ?? [];
-      if (!games.some((game) => game.matchId === matchId)) return;
-
-      // Only chase a given match once. Refreshing from Riot rewrites the
+      // Only chase a given target once. Refreshing from Riot rewrites the
       // analysis and would otherwise re-trigger the scroll long afterwards.
-      if (this.revealedMatch === matchId) return;
-      this.revealedMatch = matchId;
+      if (matchId) {
+        // Analysis loads from Firestore, so the game may not exist yet.
+        if (!analysis.games.some((game) => game.matchId === matchId)) return;
+        if (this.revealed === matchId) return;
+        this.revealed = matchId;
+        this.focusOn(matchId);
+        return;
+      }
 
-      this.focusOn(matchId);
+      if (compId) {
+        if (!analysis.comps.some((comp) => comp.compId === compId)) return;
+        if (this.revealed === compId) return;
+        this.revealed = compId;
+        requestAnimationFrame(() => this.reveal(`[data-comp="${CSS.escape(compId)}"]`));
+      }
     });
   }
 
@@ -147,7 +158,7 @@ export class AnalysisComponent {
   protected openGame(matchId: string | undefined): void {
     if (!matchId) return;
     this.focusMatch.set(matchId);
-    this.revealedMatch = matchId;
+    this.revealed = matchId;
     this.focusOn(matchId);
   }
 
@@ -156,11 +167,12 @@ export class AnalysisComponent {
       this.showOffBook.set(true);
     }
     // The panel renders after this settles, so wait for the frame.
-    requestAnimationFrame(() => this.revealMatch(matchId));
+    requestAnimationFrame(() => this.reveal(`[data-match="${CSS.escape(matchId)}"]`));
   }
 
-  private revealMatch(matchId: string): void {
-    const panel = document.querySelector<HTMLElement>(`[data-match="${CSS.escape(matchId)}"]`);
+  /** Open every disclosure above the target, then scroll it into view. */
+  private reveal(selector: string): void {
+    const panel = document.querySelector<HTMLElement>(selector);
     if (!panel) return;
 
     for (let node: HTMLElement | null = panel; node; node = node.parentElement) {
@@ -389,6 +401,7 @@ export class AnalysisComponent {
     if (this.analysisLoading()) return;
     // Drop the deep-link highlight; the refresh is a fresh look at everything.
     this.focusMatch.set(null);
+    this.focusComp.set(null);
     this.analysisLoading.set(true);
     this.analysisError.set('');
     try {

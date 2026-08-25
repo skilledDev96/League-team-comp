@@ -81,7 +81,8 @@
       <ul class="analysis-list">
         @for (perf of compRows(); track perf.compId) {
           <li>
-            <details class="analysis-comp">
+            <details class="analysis-comp" [attr.data-comp]="perf.compId"
+                     [class.is-focused]="perf.compId === focusComp()">
               <summary class="analysis-row">
                 <span class="analysis-name-cell">
                   <span class="analysis-name">{{ perf.compName }}</span>

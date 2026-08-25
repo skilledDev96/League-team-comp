@@ -172,13 +172,15 @@
         </div>
 
         @if (rankedRecord(comp.id); as ranked) {
-          <div class="comp-ranked-record">
+          <a class="comp-ranked-record" [routerLink]="['/analysis']" [queryParams]="{ comp: comp.id }"
+             title="Open this comp&rsquo;s games on the Analysis page">
             <span class="material-symbols-rounded" aria-hidden="true">query_stats</span>
             <span class="comp-ranked-label">Match history</span>
             <span class="comp-ranked-value" [class.is-positive]="ranked.winRate >= 50" [class.is-negative]="ranked.winRate < 50">
               {{ ranked.wins }}W&#8211;{{ ranked.losses }}L &middot; {{ ranked.winRate }}%
             </span>
-          </div>
+            <span class="comp-ranked-open material-symbols-rounded" aria-hidden="true">chevron_right</span>
+          </a>
         }
 
         @if (retro(comp.id); as r) {
@@ -212,11 +214,14 @@
             <ul class="comp-retro-notes">
               @for (n of (retroExpanded(comp.id) ? r.notes : r.notes.slice(0, retroPreviewSize)); track n.matchId) {
                 <li class="comp-retro-note" [class.is-win]="n.win" [class.is-loss]="!n.win">
-                  <span class="comp-retro-note-outcome">{{ n.win ? 'W' : 'L' }}</span>
-                  <span class="comp-retro-note-body">
-                    @if (n.date) { <span class="comp-retro-note-date">{{ n.date | date: 'd MMM' }}</span> }
-                    <span class="comp-retro-note-text">{{ n.text }}</span>
-                  </span>
+                  <a class="comp-retro-note-link" [routerLink]="['/analysis']" [queryParams]="{ match: n.matchId }"
+                     title="Open the game this note is about">
+                    <span class="comp-retro-note-outcome">{{ n.win ? 'W' : 'L' }}</span>
+                    <span class="comp-retro-note-body">
+                      @if (n.date) { <span class="comp-retro-note-date">{{ n.date | date: 'd MMM' }}</span> }
+                      <span class="comp-retro-note-text">{{ n.text }}</span>
+                    </span>
+                  </a>
                 </li>
               }
             </ul>
