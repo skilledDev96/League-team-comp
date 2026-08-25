@@ -6401,3 +6401,145 @@ app-match-note {
   border-top-color: transparent;
   border-bottom-color: var(--card-border);
 }
+
+/* ---- Live draft board -------------------------------------------------
+   What survives the board as it stands, shown next to the pickers that feed
+   it so bans and enemy picks update it as they are typed in. */
+
+.draft-board {
+  margin-top: 0.6rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: var(--bg-1);
+}
+
+.draft-board-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.6rem;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.82rem;
+  color: var(--text-1);
+}
+
+.draft-board-summary::-webkit-details-marker {
+  display: none;
+}
+
+.draft-board-summary > .material-symbols-rounded {
+  font-size: 1.05rem;
+  color: var(--accent-2);
+}
+
+.draft-board-label {
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.draft-board-count {
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.draft-board-count.is-ok {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+}
+
+.draft-board-count.is-broken {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+}
+
+.draft-board-burned {
+  color: var(--text-2);
+  font-size: 0.74rem;
+}
+
+.draft-board-chevron {
+  margin-left: auto;
+  font-size: 1.1rem;
+  transition: transform 0.15s ease;
+}
+
+.draft-board[open] .draft-board-chevron {
+  transform: rotate(180deg);
+}
+
+.draft-board-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.6rem;
+  padding: 0 0.6rem 0.6rem;
+}
+
+.draft-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.draft-col-head {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+}
+
+.draft-col-head.is-ok {
+  color: var(--ok);
+}
+
+.draft-col-head.is-broken {
+  color: var(--warn);
+}
+
+.draft-comp,
+.draft-pool {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  font-size: 0.8rem;
+  color: var(--text-1);
+}
+
+.draft-comp.is-ok {
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--card-border));
+  color: var(--text-0);
+}
+
+.draft-comp.is-broken em,
+.draft-pool em {
+  margin-left: auto;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.draft-comp.is-broken em {
+  color: var(--warn);
+}
+
+/* A pool with no room left for the games still to play. */
+.draft-pool.is-critical {
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--card-border));
+  color: var(--text-0);
+}
+
+.draft-pool.is-critical em,
+.draft-pool.is-critical .material-symbols-rounded {
+  color: var(--warn);
+}
+
+.draft-pool .material-symbols-rounded {
+  font-size: 0.95rem;
+}

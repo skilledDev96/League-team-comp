@@ -388,6 +388,8 @@ export interface SeriesGame {
   gameNumber: number;
   ourChampions: string[];
   theirChampions: string[];
+  /** Every champion banned in this game, both sides — order is not meaningful. */
+  bans?: string[];
   win?: boolean;
   /** Set when reconciled against Riot match history after the fact. */
   matchId?: string;

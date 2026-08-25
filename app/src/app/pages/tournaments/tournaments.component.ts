@@ -10,18 +10,12 @@ import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { MatchNoteButtonComponent } from '../../shared/match-note-button.component';
 import { MatchNoteComponent } from '../../shared/match-note.component';
+import { blockedSet, CompAvailability, compAvailability, PoolPressure, poolPressure } from './draft.util';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 
 /** A comp measured against the champions already burned in a fearless series. */
-interface CompAvailability {
-  comp: Comp;
-  /** Comp champions still legal for the next game. */
-  available: string[];
-  /** Comp champions already used by either team, so no longer draftable. */
-  blocked: string[];
-  playable: boolean;
-}
+
 
 @Component({
   selector: 'app-tournaments',
@@ -148,17 +142,19 @@ export class TournamentsComponent {
     return this.usedChampions(seriesId).length;
   }
 
+  /** Our comps reduced to their five champions, for the availability maths. */
+  private compChampions() {
+    return this.data.comps().map((comp) => ({
+      id: comp.id,
+      name: comp.name,
+      category: comp.category,
+      champions: this.roles.map((role) => this.ui.parseCompLine(comp.picks[role] ?? '').champion)
+    }));
+  }
+
   /** Which of our defined comps survive into the next game of this series. */
   protected compAvailability(seriesId: string): CompAvailability[] {
-    const burned = new Set(this.usedChampions(seriesId).map((c) => this.norm(c)));
-    return this.data.comps().map((comp) => {
-      const champs = this.roles
-        .map((role) => this.ui.parseCompLine(comp.picks[role] ?? '').champion)
-        .filter(Boolean);
-      const blocked = champs.filter((c) => burned.has(this.norm(c)));
-      const available = champs.filter((c) => !burned.has(this.norm(c)));
-      return { comp, available, blocked, playable: blocked.length === 0 };
-    });
+    return compAvailability(this.compChampions(), blockedSet(this.usedChampions(seriesId)));
   }
 
   protected playableComps(seriesId: string): CompAvailability[] {
@@ -167,19 +163,95 @@ export class TournamentsComponent {
 
   /** Broken comps, least-damaged first — those are the easiest to patch. */
   protected brokenComps(seriesId: string): CompAvailability[] {
-    return this.compAvailability(seriesId)
-      .filter((c) => !c.playable)
-      .sort((a, b) => a.blocked.length - b.blocked.length);
+    return this.compAvailability(seriesId).filter((c) => !c.playable);
   }
 
   /** Roster champion pools thinning out as the series burns champions. */
-  protected poolPressure(seriesId: string): { name: string; left: string[]; gone: string[] }[] {
-    const burned = new Set(this.usedChampions(seriesId).map((c) => this.norm(c)));
-    return this.data.players().map((p) => ({
-      name: p.name,
-      left: (p.top3 ?? []).filter((c) => !burned.has(this.norm(c))),
-      gone: (p.top3 ?? []).filter((c) => burned.has(this.norm(c)))
-    }));
+  protected poolPressure(seriesId: string): PoolPressure[] {
+    return poolPressure(
+      this.data.players().map((p) => ({ name: p.name, pool: p.top3 ?? [] })),
+      blockedSet(this.usedChampions(seriesId)),
+      this.gamesLeft(seriesId)
+    );
+  }
+
+  /** Games still to play in the series, used to judge how thin a pool is. */
+  private gamesLeft(seriesId: string): number {
+    const series = this.seriesList().find((s) => s.id === seriesId);
+    const played = this.gamesFor(seriesId).filter((g) => g.win !== undefined).length;
+    return Math.max(1, (series?.bestOf ?? 3) - played);
+  }
+
+  // ---- Live draft --------------------------------------------------------
+  //
+  // Mid-draft the board keeps moving: bans land, the enemy takes something. The
+  // series view answers "what survives into the next game"; this answers "what
+  // survives right now", which is the question being asked at the table.
+
+  /** Champions burned by games *before* this one — the fearless carry-over. */
+  private burnedBefore(seriesId: string, gameNumber: number): string[] {
+    const used: string[] = [];
+    for (const game of this.gamesFor(seriesId)) {
+      if (game.gameNumber >= gameNumber) continue;
+      used.push(...(game.ourChampions ?? []), ...(game.theirChampions ?? []));
+    }
+    return [...new Set(used.filter(Boolean))];
+  }
+
+  /**
+   * Everything we cannot draft into a comp this game. Our own picks are left
+   * out: two of Engage already on the board means Engage is live, not blocked.
+   */
+  private draftBlocked(game: SeriesGame): Set<string> {
+    return blockedSet(
+      this.burnedBefore(game.seriesId, game.gameNumber),
+      game.bans,
+      game.theirChampions
+    );
+  }
+
+  protected draftComps(game: SeriesGame): CompAvailability[] {
+    return compAvailability(this.compChampions(), this.draftBlocked(game));
+  }
+
+  protected draftPlayable(game: SeriesGame): CompAvailability[] {
+    return this.draftComps(game).filter((c) => c.playable);
+  }
+
+  protected draftBroken(game: SeriesGame): CompAvailability[] {
+    return this.draftComps(game).filter((c) => !c.playable);
+  }
+
+  /**
+   * Pool left per player. Our own picks *do* count here — once a champion is on
+   * the board nobody else can have it, so it is gone from everyone's options.
+   */
+  protected draftPools(game: SeriesGame): PoolPressure[] {
+    const blocked = blockedSet(
+      this.burnedBefore(game.seriesId, game.gameNumber),
+      game.bans,
+      game.theirChampions,
+      game.ourChampions
+    );
+    return poolPressure(
+      this.data.players().map((p) => ({ name: p.name, pool: p.top3 ?? [] })),
+      blocked,
+      this.gamesLeft(game.seriesId)
+    );
+  }
+
+  protected burnedBeforeCount(game: SeriesGame): number {
+    return this.burnedBefore(game.seriesId, game.gameNumber).length;
+  }
+
+  protected setGameBans(game: SeriesGame, bans: string[]): void {
+    void this.data.updateSeriesGame({ ...game, bans: bans.length ? bans : undefined });
+  }
+
+  /** The game being drafted or played: the first without a result yet. */
+  protected isLiveGame(game: SeriesGame): boolean {
+    const games = this.gamesFor(game.seriesId);
+    return games.find((g) => g.win === undefined)?.id === game.id;
   }
 
   // ---- Series score -----------------------------------------------------

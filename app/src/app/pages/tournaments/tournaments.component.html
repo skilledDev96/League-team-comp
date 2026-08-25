@@ -122,11 +122,11 @@
               </h4>
               @if (playableComps(series.id).length) {
                 <ul class="list-clean fearless-comp-list">
-                  @for (row of playableComps(series.id); track row.comp.id) {
+                  @for (row of playableComps(series.id); track row.id) {
                     <li class="fearless-comp">
-                      <span class="fearless-comp-name">{{ row.comp.name }}</span>
-                      @if (row.comp.category) {
-                        <span class="comp-cat-chip">{{ row.comp.category }}</span>
+                      <span class="fearless-comp-name">{{ row.name }}</span>
+                      @if (row.category) {
+                        <span class="comp-cat-chip">{{ row.category }}</span>
                       }
                     </li>
                   }
@@ -143,9 +143,9 @@
               </h4>
               @if (brokenComps(series.id).length) {
                 <ul class="list-clean fearless-comp-list">
-                  @for (row of brokenComps(series.id); track row.comp.id) {
+                  @for (row of brokenComps(series.id); track row.id) {
                     <li class="fearless-comp">
-                      <span class="fearless-comp-name">{{ row.comp.name }}</span>
+                      <span class="fearless-comp-name">{{ row.name }}</span>
                       <span class="fearless-blocked">
                         @for (champ of row.blocked; track champ) {
                           <span class="fearless-blocked-name">{{ champ }}</span>
@@ -228,6 +228,62 @@
                     <app-champion-picker [champions]="game.theirChampions || []" [max]="5"
                                          [inputName]="'their-' + game.id" placeholder="Add a pick…"
                                          (championsChange)="setGameChamps(game, 'their', $event)" /></div>
+                  <div class="field"><span>Bans this game</span>
+                    <app-champion-picker [champions]="game.bans || []" [max]="10"
+                                         [inputName]="'bans-' + game.id" placeholder="Add a ban…"
+                                         (championsChange)="setGameBans(game, $event)" /></div>
+
+                  <!-- What is still on the table, given this game so far. -->
+                  <details class="draft-board" [open]="isLiveGame(game)">
+                    <summary class="draft-board-summary">
+                      <span class="material-symbols-rounded" aria-hidden="true">swords</span>
+                      <span class="draft-board-label">Draft board</span>
+                      <span class="draft-board-count is-ok">{{ draftPlayable(game).length }} playable</span>
+                      <span class="draft-board-count is-broken">{{ draftBroken(game).length }} broken</span>
+                      @if (burnedBeforeCount(game); as burned) {
+                        <span class="draft-board-burned" [appTip]="burned + ' champions burned in earlier games of this series'">{{ burned }} burned</span>
+                      }
+                      <span class="draft-board-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+                    </summary>
+
+                    <div class="draft-board-body">
+                      <div class="draft-col">
+                        <span class="draft-col-head is-ok">Still playable</span>
+                        @for (row of draftPlayable(game); track row.id) {
+                          <span class="draft-comp is-ok">{{ row.name }}</span>
+                        } @empty {
+                          <span class="muted">Nothing survives this board.</span>
+                        }
+                      </div>
+
+                      <div class="draft-col">
+                        <span class="draft-col-head is-broken">Broken</span>
+                        @for (row of draftBroken(game); track row.id) {
+                          <span class="draft-comp is-broken"
+                                [appTip]="'Gone: ' + row.blocked.join(', ')">
+                            {{ row.name }}
+                            <em>&minus;{{ row.blocked.length }}</em>
+                          </span>
+                        } @empty {
+                          <span class="muted">Every comp is intact.</span>
+                        }
+                      </div>
+
+                      <div class="draft-col draft-col-pools">
+                        <span class="draft-col-head">Pool left</span>
+                        @for (row of draftPools(game); track row.name) {
+                          <span class="draft-pool" [class.is-critical]="row.critical"
+                                [appTip]="row.left.length ? row.left.join(', ') : 'Nothing left in this pool'">
+                            {{ row.name }}
+                            <em>{{ row.left.length }}</em>
+                            @if (row.critical) {
+                              <span class="material-symbols-rounded" aria-hidden="true">warning</span>
+                            }
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  </details>
                   @if (game.matchId) {
                     <p class="game-linked">
                       <span class="material-symbols-rounded" aria-hidden="true">link</span>
