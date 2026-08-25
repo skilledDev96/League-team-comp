@@ -233,6 +233,7 @@
         }
         @if (game.queue) { <span class="game-queue">{{ game.queue }}</span> }
         @if (game.date) { <span class="game-date">{{ game.date | date: 'MMM d' }}</span> }
+        <app-match-note-button [matchId]="game.matchId" />
         <span class="game-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
       </summary>
 

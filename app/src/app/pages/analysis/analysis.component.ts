@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
+import { MatchNoteButtonComponent } from '../../shared/match-note-button.component';
 import { MatchNoteComponent } from '../../shared/match-note.component';
 import { compVerdict, formatDamage, winLossRecord } from '../comps/comp-stats.util';
 
@@ -30,7 +31,7 @@ interface LogRow {
 
 @Component({
   selector: 'app-analysis',
-  imports: [DatePipe, NgTemplateOutlet, FormsModule, MatchNoteComponent],
+  imports: [DatePipe, NgTemplateOutlet, FormsModule, MatchNoteComponent, MatchNoteButtonComponent],
   templateUrl: './analysis.component.html'
 })
 export class AnalysisComponent {
@@ -114,6 +115,7 @@ export class AnalysisComponent {
 
   private readonly route = inject(ActivatedRoute);
   protected readonly focusMatch = signal<string | null>(null);
+  private revealedMatch: string | null = null;
 
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
@@ -128,6 +130,11 @@ export class AnalysisComponent {
       const games = this.data.compAnalysis()?.games ?? [];
       if (!games.some((game) => game.matchId === matchId)) return;
 
+      // Only chase a given match once. Refreshing from Riot rewrites the
+      // analysis and would otherwise re-trigger the scroll long afterwards.
+      if (this.revealedMatch === matchId) return;
+      this.revealedMatch = matchId;
+
       this.focusOn(matchId);
     });
   }
@@ -140,6 +147,7 @@ export class AnalysisComponent {
   protected openGame(matchId: string | undefined): void {
     if (!matchId) return;
     this.focusMatch.set(matchId);
+    this.revealedMatch = matchId;
     this.focusOn(matchId);
   }
 
@@ -379,6 +387,8 @@ export class AnalysisComponent {
 
   protected async refreshAnalysis(): Promise<void> {
     if (this.analysisLoading()) return;
+    // Drop the deep-link highlight; the refresh is a fresh look at everything.
+    this.focusMatch.set(null);
     this.analysisLoading.set(true);
     this.analysisError.set('');
     try {

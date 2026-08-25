@@ -388,6 +388,7 @@
                   {{ isPrep(m.matchId) ? 'Tagged' : 'Tag as prep' }}
                 </button>
               }
+              <app-match-note-button [matchId]="m.matchId" />
             </div>
 
             <app-match-note [matchId]="m.matchId" />

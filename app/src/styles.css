@@ -5946,31 +5946,41 @@ body[data-theme='light'] input[type='time'] {
   gap: 0.5rem;
 }
 
-.prep-note-toggle {
+/* Note control, shown in a row header wherever a played game is listed. */
+.note-btn {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.35rem;
-  border-radius: 6px;
+  gap: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
   border: 1px solid var(--card-border);
   background: var(--surface-btn);
   color: var(--text-1);
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.6;
   cursor: pointer;
 }
 
-.prep-note-toggle:hover {
+.note-btn:hover {
   border-color: var(--accent);
   color: var(--text-0);
 }
 
-.prep-note-toggle.on {
+.note-btn.on {
   color: var(--accent-2);
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
-.prep-note-toggle .material-symbols-rounded {
-  font-size: 1rem;
+.note-btn .material-symbols-rounded {
+  font-size: 0.95rem;
+}
+
+/* The label is the point — an unlabelled icon read as decoration. */
+.note-btn-label {
+  white-space: nowrap;
 }
 
 .prep-note-input {

@@ -1,6 +1,7 @@
 import { Component, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../services/auth.service';
+import { MatchNoteUiService } from '../services/match-note-ui.service';
 import { TeamDataService } from '../services/team-data.service';
 
 /**
@@ -8,23 +9,16 @@ import { TeamDataService } from '../services/team-data.service';
  *
  * Notes are keyed by Riot match id in their own store, because analysis games
  * are rebuilt from Riot on every refresh — anything attached to the game itself
- * would silently disappear. Used anywhere a played game is listed.
+ * would silently disappear. This renders the note body; the control that opens
+ * it is `app-match-note-button`, which sits up in the row header.
  */
 @Component({
   selector: 'app-match-note',
   imports: [FormsModule],
   template: `
-    @if (auth.editing()) {
-      <button type="button" class="prep-note-toggle" [class.on]="hasNote()"
-              [title]="hasNote() ? 'Edit note' : 'Add a note'"
-              (click)="toggle($event)">
-        <span class="material-symbols-rounded" aria-hidden="true">sticky_note_2</span>
-      </button>
-    }
-
-    @if (auth.editing() && open()) {
+    @if (auth.editing() && noteUi.isOpen(matchId())) {
       <textarea class="prep-note-input" rows="3"
-                [ngModel]="draft()"
+                [ngModel]="draft() ?? stored()"
                 (ngModelChange)="draft.set($event)"
                 (blur)="save()"
                 [name]="'note-' + matchId()"
@@ -35,12 +29,12 @@ import { TeamDataService } from '../services/team-data.service';
   `
 })
 export class MatchNoteComponent {
-  protected readonly data = inject(TeamDataService);
+  private readonly data = inject(TeamDataService);
+  protected readonly noteUi = inject(MatchNoteUiService);
   protected readonly auth = inject(AuthService);
 
   readonly matchId = input.required<string>();
 
-  protected readonly open = signal(false);
   protected readonly draft = signal<string | null>(null);
 
   protected stored(): string {
@@ -51,19 +45,12 @@ export class MatchNoteComponent {
     return Boolean(this.stored());
   }
 
-  protected toggle(event: Event): void {
-    event.stopPropagation();
-    if (!this.open()) {
-      this.draft.set(this.stored());
-    }
-    this.open.update((value) => !value);
-  }
-
   protected save(): void {
-    const text = this.draft() ?? '';
-    if (text.trim() === this.stored()) {
+    const text = this.draft();
+    if (text === null || text.trim() === this.stored()) {
       return;
     }
     void this.data.saveMatchNote(this.matchId(), text);
+    this.draft.set(null);
   }
 }

@@ -8,6 +8,7 @@ import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
+import { MatchNoteButtonComponent } from '../../shared/match-note-button.component';
 import { MatchNoteComponent } from '../../shared/match-note.component';
 
 /** A comp measured against the champions already burned in a fearless series. */
@@ -22,7 +23,7 @@ interface CompAvailability {
 
 @Component({
   selector: 'app-tournaments',
-  imports: [FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, MatchNoteComponent],
+  imports: [FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, MatchNoteComponent, MatchNoteButtonComponent],
   templateUrl: './tournaments.component.html'
 })
 export class TournamentsComponent {
