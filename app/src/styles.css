@@ -19,6 +19,9 @@
   --surface-hero-b: rgba(21, 43, 51, 0.9);
   --surface-controls: rgba(15, 34, 41, 0.68);
   --surface-btn: rgba(20, 44, 53, 0.82);
+  /* Opaque surface for popovers (menus, dropdowns) — anything that floats over
+     page content must not let it show through. Follows the active theme via bg-2. */
+  --surface-card: var(--bg-2);
   --shadow-elev: rgba(0, 0, 0, 0.18);
 }
 

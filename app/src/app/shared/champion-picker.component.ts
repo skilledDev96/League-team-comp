@@ -70,6 +70,8 @@ export class ChampionPickerComponent {
   readonly placeholder = input<string>('Add champion…');
   /** Distinguishes the inner input when several pickers share a form. */
   readonly inputName = input<string>('champ-picker');
+  /** Optional lane, used to seed the opening suggestions. */
+  readonly role = input<string>('');
 
   readonly championsChange = output<string[]>();
 
@@ -85,15 +87,35 @@ export class ChampionPickerComponent {
     return (value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
   }
 
-  /** Name matches, already-picked removed, capped so the menu stays usable. */
+  /**
+   * Riot tags aren't lanes, but they narrow the opening list enough to be a
+   * useful starting point when we know the role a pool is being built for.
+   */
+  private static readonly ROLE_TAGS: Record<string, string[]> = {
+    Top: ['Fighter', 'Tank'],
+    Jungle: ['Fighter', 'Assassin', 'Tank'],
+    Mid: ['Mage', 'Assassin'],
+    ADC: ['Marksman'],
+    Support: ['Support', 'Tank', 'Mage']
+  };
+
+  /**
+   * Name matches, already-picked removed, capped so the menu stays usable.
+   * With an empty box we show an opening set rather than nothing, so clicking
+   * in makes it obvious the list is there — narrowed by role when we know it.
+   */
   protected readonly suggestions = computed(() => {
     const q = this.norm(this.query());
-    if (!q) return [];
     const taken = new Set(this.champions().map((c) => this.norm(c)));
-    return this.champData
-      .champions()
-      .filter((c) => !taken.has(this.norm(c.name)) && this.norm(c.name).includes(q))
-      .slice(0, 8);
+    const all = this.champData.champions().filter((c) => !taken.has(this.norm(c.name)));
+
+    if (!q) {
+      const tags = ChampionPickerComponent.ROLE_TAGS[this.role()] ?? [];
+      const pool = tags.length ? all.filter((c) => c.tags.some((t) => tags.includes(t))) : all;
+      return [...pool].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 8);
+    }
+
+    return all.filter((c) => this.norm(c.name).includes(q)).slice(0, 8);
   });
 
   protected onQuery(value: string): void {
