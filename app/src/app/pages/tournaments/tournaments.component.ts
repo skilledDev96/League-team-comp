@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AnalysisGame, Comp, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
+import { AnalysisGame, Comp, Role, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -144,12 +144,18 @@ export class TournamentsComponent {
 
   /** Our comps reduced to their five champions, for the availability maths. */
   private compChampions() {
-    return this.data.comps().map((comp) => ({
-      id: comp.id,
-      name: comp.name,
-      category: comp.category,
-      champions: this.roles.map((role) => this.ui.parseCompLine(comp.picks[role] ?? '').champion)
-    }));
+    const ranked = this.data.compAnalysis()?.comps ?? [];
+    return this.data.comps().map((comp) => {
+      const record = ranked.find((r) => r.compId === comp.id);
+      return {
+        id: comp.id,
+        name: comp.name,
+        category: comp.category,
+        winRate: record?.winRate,
+        games: record?.games,
+        champions: this.roles.map((role) => this.ui.parseCompLine(comp.picks[role] ?? '').champion)
+      };
+    });
   }
 
   /** Which of our defined comps survive into the next game of this series. */
@@ -170,16 +176,8 @@ export class TournamentsComponent {
   protected poolPressure(seriesId: string): PoolPressure[] {
     return poolPressure(
       this.data.players().map((p) => ({ name: p.name, pool: p.top3 ?? [] })),
-      blockedSet(this.usedChampions(seriesId)),
-      this.gamesLeft(seriesId)
+      blockedSet(this.usedChampions(seriesId))
     );
-  }
-
-  /** Games still to play in the series, used to judge how thin a pool is. */
-  private gamesLeft(seriesId: string): number {
-    const series = this.seriesList().find((s) => s.id === seriesId);
-    const played = this.gamesFor(seriesId).filter((g) => g.win !== undefined).length;
-    return Math.max(1, (series?.bestOf ?? 3) - played);
   }
 
   // ---- Page view ---------------------------------------------------------
@@ -235,6 +233,56 @@ export class TournamentsComponent {
     await this.addGame(series);
     const added = this.gamesFor(series.id).at(-1);
     this.pickedGameId.set(added?.id ?? '');
+  }
+
+  /** Comps and pools open on click, so the detail is there when it is wanted. */
+  private readonly openComps = signal<ReadonlySet<string>>(new Set());
+  private readonly openPools = signal<ReadonlySet<string>>(new Set());
+
+  protected isCompOpen(compId: string): boolean {
+    return this.openComps().has(compId);
+  }
+
+  protected toggleComp(compId: string): void {
+    this.openComps.update((ids) => this.flip(ids, compId));
+  }
+
+  protected isPoolOpen(name: string): boolean {
+    return this.openPools().has(name);
+  }
+
+  protected togglePool(name: string): void {
+    this.openPools.update((ids) => this.flip(ids, name));
+  }
+
+  private flip(ids: ReadonlySet<string>, key: string): ReadonlySet<string> {
+    const next = new Set(ids);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    return next;
+  }
+
+  /** A comp's picks by role, for the expanded row. */
+  protected compLineup(compId: string): { role: Role; champion: string }[] {
+    const comp = this.data.comps().find((c) => c.id === compId);
+    if (!comp) return [];
+    return this.roles.map((role) => ({
+      role,
+      champion: this.ui.parseCompLine(comp.picks[role] ?? '').champion
+    }));
+  }
+
+  /** Drop the last game of the series; removing an earlier one would renumber. */
+  protected removeDraftGame(game: SeriesGame): void {
+    this.pickedGameId.set('');
+    void this.data.deleteSeriesGame(game.id);
+  }
+
+  protected isLastGame(game: SeriesGame): boolean {
+    return this.gamesFor(game.seriesId).at(-1)?.id === game.id;
   }
 
   protected isDraftGame(game: SeriesGame): boolean {
@@ -294,8 +342,7 @@ export class TournamentsComponent {
     );
     return poolPressure(
       this.data.players().map((p) => ({ name: p.name, pool: p.top3 ?? [] })),
-      blocked,
-      this.gamesLeft(game.seriesId)
+      blocked
     );
   }
 

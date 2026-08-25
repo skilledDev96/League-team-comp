@@ -44,6 +44,31 @@ describe('compAvailability', () => {
     expect(rows.map((r) => r.name)).toEqual(['Poke', 'Engage', 'Dive']);
   });
 
+  it('ranks playable comps by win rate, best first', () => {
+    const rated = [
+      { ...COMPS[0], winRate: 40 },
+      { ...COMPS[1], winRate: 80 },
+      { ...COMPS[2], winRate: 60 }
+    ];
+    const rows = compAvailability(rated, blockedSet());
+    expect(rows.map((r) => r.name)).toEqual(['Poke', 'Dive', 'Engage']);
+  });
+
+  it('sinks a comp with no record below one that has won', () => {
+    const rows = compAvailability([{ ...COMPS[0] }, { ...COMPS[1], winRate: 10 }], blockedSet());
+    expect(rows.map((r) => r.name)).toEqual(['Poke', 'Engage']);
+  });
+
+  it('still ranks broken comps by damage before win rate', () => {
+    // Poke loses one champion, Engage two; the nearer fix leads regardless of record.
+    const rated = [
+      { ...COMPS[0], winRate: 90 },
+      { ...COMPS[1], winRate: 10 }
+    ];
+    const rows = compAvailability(rated, blockedSet(['Maokai', 'Vi', 'Jayce']));
+    expect(rows.map((r) => r.name)).toEqual(['Poke', 'Engage']);
+  });
+
   it('treats a differently punctuated pick as the same champion', () => {
     const [dive] = compAvailability([COMPS[2]], blockedSet(["kai'sa"]));
     expect(dive.blocked).toEqual(['Kaisa']);
@@ -73,18 +98,20 @@ describe('poolPressure', () => {
     expect(rows.map((r) => r.name)).toEqual(['Go10x', 'Rulukuku']);
   });
 
-  it('flags a player with no room left for the games remaining', () => {
-    const [go10x] = poolPressure(players, blockedSet(['Vi', 'Sejuani']), 2);
-    expect(go10x.critical).toBe(true);
+  it('flags a pool down to two champions', () => {
+    const rows = poolPressure([{ name: 'Solo', pool: ['Ahri', 'Zed', 'Sylas'] }], blockedSet(['Sylas']));
+    expect(rows[0].left).toHaveLength(2);
+    expect(rows[0].critical).toBe(true);
   });
 
-  it('does not flag a player who still has depth', () => {
-    const rows = poolPressure(players, blockedSet(['Vi']), 1);
-    expect(rows.find((r) => r.name === 'Rulukuku')!.critical).toBe(false);
+  it('leaves a pool of three alone — that is depth, not a warning', () => {
+    const rows = poolPressure([{ name: 'Solo', pool: ['Ahri', 'Zed', 'Sylas'] }], blockedSet());
+    expect(rows[0].critical).toBe(false);
   });
 
-  it('counts a player with exactly one champion left as critical for one game', () => {
-    const rows = poolPressure([{ name: 'Solo', pool: ['Ahri', 'Zed'] }], blockedSet(['Zed']), 1);
+  it('flags an empty pool', () => {
+    const rows = poolPressure([{ name: 'Solo', pool: ['Ahri'] }], blockedSet(['Ahri']));
+    expect(rows[0].left).toEqual([]);
     expect(rows[0].critical).toBe(true);
   });
 });

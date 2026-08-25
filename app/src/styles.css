@@ -4996,7 +4996,8 @@ body.intel-page #fillInSection {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   padding: 0.5rem 0.6rem;
   border-radius: 8px;
   border: 1px solid var(--card-border);
@@ -5005,8 +5006,16 @@ body.intel-page #fillInSection {
   font: inherit;
 }
 
+.field textarea {
+  resize: vertical;
+  field-sizing: content;
+  min-height: 4.5rem;
+  max-height: 20rem;
+}
+
 .field input:focus-visible,
-.field select:focus-visible {
+.field select:focus-visible,
+.field textarea:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -6631,4 +6640,260 @@ app-match-note {
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+/* ---- Draft rows: comps and pools open on click ------------------------- */
+
+.draft-comp-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.draft-comp-row > .draft-comp,
+.draft-comp-row > .draft-pool {
+  width: 100%;
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.draft-comp-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draft-comp-rate {
+  margin-left: auto;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--warn);
+}
+
+.draft-comp-rate.is-positive {
+  color: var(--ok);
+}
+
+/* Sits after the win rate, so that keeps the auto margin. */
+.draft-comp-row > .draft-comp .draft-comp-rate ~ em,
+.draft-comp-row > .draft-pool em {
+  margin-left: 0;
+}
+
+.draft-comp-chevron {
+  font-size: 1rem;
+  color: var(--text-2);
+  transition: transform 0.15s ease;
+}
+
+.draft-comp.open .draft-comp-chevron,
+.draft-pool.open .draft-comp-chevron {
+  transform: rotate(180deg);
+}
+
+.draft-lineup {
+  margin: 0;
+  padding: 0.2rem 0 0.2rem 0.6rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.draft-lineup-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.draft-lineup-role {
+  flex: 0 0 3.6rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+}
+
+/* The champion this comp can no longer have. */
+.draft-lineup-row.is-gone {
+  opacity: 0.55;
+}
+
+.draft-lineup-row.is-gone .draft-lineup-role {
+  color: var(--warn);
+}
+
+.draft-pool-champs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0 0.2rem 0.6rem;
+}
+
+.draft-pool-gone-label {
+  width: 100%;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+}
+
+.draft-pool-gone {
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--surface-btn);
+  font-size: 0.75rem;
+  color: var(--text-2);
+  text-decoration: line-through;
+}
+
+.draft-remove-game {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-style: dashed;
+  color: var(--text-2);
+}
+
+.draft-remove-game:hover {
+  color: var(--warn);
+  border-color: var(--warn);
+  border-style: solid;
+}
+
+.draft-remove-game .material-symbols-rounded {
+  font-size: 1rem;
+}
+
+/* ---- Tournament plan: banner, then series -----------------------------
+   The page was a run of identical cards, so the tournament, the add action
+   and each series all read at the same weight. */
+
+.tournament-head {
+  border-left: 3px solid var(--accent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+    var(--card);
+}
+
+.tournament-head .title-with-icon {
+  font-size: 1.45rem;
+}
+
+/* Adding a series is an action, so it reads as a bar rather than a card. */
+.series-add-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px dashed var(--card-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-1) 60%, transparent);
+}
+
+.series-add-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-1);
+}
+
+.series-add-label > .material-symbols-rounded {
+  font-size: 1.3rem;
+  color: var(--accent-2);
+}
+
+.series-add-label strong {
+  display: block;
+  font-size: 0.92rem;
+  color: var(--text-0);
+}
+
+.series-add-label small {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--text-2);
+}
+
+.series-add-bar .series-add {
+  flex: 1 1 22rem;
+  margin: 0;
+}
+
+/* Says where one part of the page ends and the next begins. */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1.4rem 0 0.6rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-2);
+}
+
+.section-divider::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--card-border);
+}
+
+.section-divider-count {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--surface-btn);
+  color: var(--text-1);
+  letter-spacing: 0;
+}
+
+/* Numbered, so one series card is distinguishable from the next. */
+.series-index {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent-2);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.series-panel {
+  border-left: 3px solid var(--card-border);
+}
+
+.series-panel[open] {
+  border-left-color: var(--accent);
+}
+
+/* Prep is preparation, not live state, so it folds away by default. */
+.series-prep-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.series-prep-head::-webkit-details-marker {
+  display: none;
+}
+
+.series-prep-chevron {
+  margin-left: auto;
+  font-size: 1.1rem;
+  color: var(--text-2);
+  transition: transform 0.15s ease;
+}
+
+.series-prep[open] .series-prep-chevron {
+  transform: rotate(180deg);
 }

@@ -31,6 +31,9 @@ export interface CompChampions {
   name: string;
   category?: string;
   champions: string[];
+  /** From match history, when the comp has been played enough to have one. */
+  winRate?: number;
+  games?: number;
 }
 
 export interface CompAvailability {
@@ -40,6 +43,8 @@ export interface CompAvailability {
   available: string[];
   blocked: string[];
   playable: boolean;
+  winRate?: number;
+  games?: number;
 }
 
 /**
@@ -57,37 +62,47 @@ export function compAvailability(
         id: comp.id,
         name: comp.name,
         category: comp.category,
+        winRate: comp.winRate,
+        games: comp.games,
         available: champions.filter((c) => !blocked.has(normalizeChampion(c))),
         blocked: champions.filter((c) => blocked.has(normalizeChampion(c))),
         playable: champions.length > 0 && champions.every((c) => !blocked.has(normalizeChampion(c)))
       };
     })
-    .sort((a, b) => Number(b.playable) - Number(a.playable) || a.blocked.length - b.blocked.length);
+    .sort(
+      (a, b) =>
+        Number(b.playable) - Number(a.playable) ||
+        (a.playable
+          ? (b.winRate ?? -1) - (a.winRate ?? -1)
+          : a.blocked.length - b.blocked.length || (b.winRate ?? -1) - (a.winRate ?? -1)) ||
+        a.name.localeCompare(b.name)
+    );
 }
 
 export interface PoolPressure {
   name: string;
   left: string[];
   gone: string[];
-  /** Thin enough to plan around — fewer champions left than games remaining. */
+  /** Two or fewer left: one ban away from having no choice at all. */
   critical: boolean;
 }
 
+/** Champions left at or below which a pool is worth flagging. */
+export const CRITICAL_POOL = 2;
+
 /**
- * How much pool each player has left. `gamesRemaining` decides what counts as
- * critical: a player with two champions left going into two more games has no
- * room for a ban, which is worth seeing before the draft, not during it.
+ * How much pool each player has left, thinnest first — that is who the draft
+ * has to be planned around.
  */
 export function poolPressure(
   players: readonly { name: string; pool: readonly string[] }[],
-  blocked: ReadonlySet<string>,
-  gamesRemaining = 1
+  blocked: ReadonlySet<string>
 ): PoolPressure[] {
   return players
     .map((player) => {
       const left = player.pool.filter((c) => c && !blocked.has(normalizeChampion(c)));
       const gone = player.pool.filter((c) => c && blocked.has(normalizeChampion(c)));
-      return { name: player.name, left, gone, critical: left.length <= gamesRemaining };
+      return { name: player.name, left, gone, critical: left.length <= CRITICAL_POOL };
     })
     .sort((a, b) => a.left.length - b.left.length);
 }

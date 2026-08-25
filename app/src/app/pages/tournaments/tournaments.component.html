@@ -58,11 +58,14 @@
   </section>
 
   @if (auth.editing()) {
-    <section class="card" aria-label="Add series">
-      <h3>Add a series</h3>
-      <p class="muted edit-hint">
-        Scheduling happens on Discord — record it here once agreed so it isn't lost.
-      </p>
+    <section class="series-add-bar" aria-label="Add series">
+      <div class="series-add-label">
+        <span class="material-symbols-rounded" aria-hidden="true">add_circle</span>
+        <span>
+          <strong>Add a series</strong>
+          <small>Scheduling happens on Discord — record it here once agreed.</small>
+        </span>
+      </div>
       <div class="series-add">
         <input type="text" [ngModel]="newOpponent()" (ngModelChange)="newOpponent.set($event)"
                name="newOpponent" placeholder="Opponent team name" />
@@ -76,9 +79,14 @@
 
   @if (seriesList().length) {
     <section aria-label="Series">
-      @for (series of seriesList(); track series.id) {
+      <h3 class="section-divider">
+        Series
+        <span class="section-divider-count">{{ seriesList().length }}</span>
+      </h3>
+      @for (series of seriesList(); track series.id; let i = $index) {
         <details class="card series-panel" [open]="isSeriesOpen(series.id)">
           <summary class="series-summary" (click)="$event.preventDefault(); toggleSeries(series.id)">
+            <span class="series-index">{{ i + 1 }}</span>
             <span class="series-opponent">vs {{ series.opponent }}</span>
             @if (series.scheduledAt) {
               <span class="series-when">{{ ui.formatDayTime(series.scheduledAt) }}</span>
@@ -294,11 +302,12 @@
 
           <!-- Opponent-specific prep, kept apart from the per-comp bans. -->
           @if (auth.editing() || series.notes || series.bans?.length) {
-            <div class="series-prep">
-              <div class="comp-record-head">
+            <details class="series-prep">
+              <summary class="comp-record-head series-prep-head">
                 <span class="comp-record-title material-symbols-rounded" aria-hidden="true">description</span>
                 <span class="comp-record-label">Prep for this opponent</span>
-              </div>
+                <span class="series-prep-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+              </summary>
               @if (auth.editing()) {
                 <div class="field"><span>Target bans</span>
                   <app-champion-picker [champions]="series.bans || []"
@@ -349,7 +358,7 @@
                   <p class="muted">Game 1 side: {{ series.side }}</p>
                 }
               }
-            </div>
+            </details>
           }
         </details>
       }
@@ -456,6 +465,16 @@
               Game {{ nextGameNumber(series) }}
             </button>
           }
+          @if (auth.editing() && draftGame(); as game) {
+            @if (isLastGame(game)) {
+              <button type="button" class="view-btn draft-remove-game"
+                      [appTip]="'Remove game ' + game.gameNumber + ' and everything drafted into it'"
+                      (click)="removeDraftGame(game)">
+                <span class="material-symbols-rounded" aria-hidden="true">delete</span>
+                Game {{ game.gameNumber }}
+              </button>
+            }
+          }
         </div>
       }
 
@@ -490,7 +509,31 @@
           <div class="draft-col">
             <span class="draft-col-head is-ok">Still playable</span>
             @for (row of draftPlayable(game); track row.id) {
-              <span class="draft-comp is-ok">{{ row.name }}</span>
+              <div class="draft-comp-row">
+                <button type="button" class="draft-comp is-ok" [class.open]="isCompOpen(row.id)"
+                        [attr.aria-expanded]="isCompOpen(row.id)" (click)="toggleComp(row.id)">
+                  <span class="draft-comp-name">{{ row.name }}</span>
+                  @if (row.winRate !== undefined) {
+                    <span class="draft-comp-rate" [class.is-positive]="row.winRate >= 50"
+                          [appTip]="row.games + ' games in match history'">{{ row.winRate }}%</span>
+                  }
+                  <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+                </button>
+                @if (isCompOpen(row.id)) {
+                  <ul class="list-clean draft-lineup">
+                    @for (line of compLineup(row.id); track line.role) {
+                      <li class="draft-lineup-row">
+                        <span class="draft-lineup-role">{{ line.role }}</span>
+                        @if (line.champion) {
+                          <app-champion-chip [champion]="line.champion" />
+                        } @else {
+                          <span class="muted">&mdash;</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
             } @empty {
               <span class="muted">Nothing survives this board.</span>
             }
@@ -499,10 +542,32 @@
           <div class="draft-col">
             <span class="draft-col-head is-broken">Broken</span>
             @for (row of draftBroken(game); track row.id) {
-              <span class="draft-comp is-broken" [appTip]="'Gone: ' + row.blocked.join(', ')">
-                {{ row.name }}
-                <em>&minus;{{ row.blocked.length }}</em>
-              </span>
+              <div class="draft-comp-row">
+                <button type="button" class="draft-comp is-broken" [class.open]="isCompOpen(row.id)"
+                        [attr.aria-expanded]="isCompOpen(row.id)"
+                        [appTip]="'Gone: ' + row.blocked.join(', ')" (click)="toggleComp(row.id)">
+                  <span class="draft-comp-name">{{ row.name }}</span>
+                  @if (row.winRate !== undefined) {
+                    <span class="draft-comp-rate" [class.is-positive]="row.winRate >= 50">{{ row.winRate }}%</span>
+                  }
+                  <em>&minus;{{ row.blocked.length }}</em>
+                  <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+                </button>
+                @if (isCompOpen(row.id)) {
+                  <ul class="list-clean draft-lineup">
+                    @for (line of compLineup(row.id); track line.role) {
+                      <li class="draft-lineup-row" [class.is-gone]="row.blocked.includes(line.champion)">
+                        <span class="draft-lineup-role">{{ line.role }}</span>
+                        @if (line.champion) {
+                          <app-champion-chip [champion]="line.champion" />
+                        } @else {
+                          <span class="muted">&mdash;</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
             } @empty {
               <span class="muted">Every comp is intact.</span>
             }
@@ -511,14 +576,33 @@
           <div class="draft-col">
             <span class="draft-col-head">Pool left</span>
             @for (row of draftPools(game); track row.name) {
-              <span class="draft-pool" [class.is-critical]="row.critical"
-                    [appTip]="row.left.length ? row.left.join(', ') : 'Nothing left in this pool'">
-                {{ row.name }}
-                <em>{{ row.left.length }}</em>
-                @if (row.critical) {
-                  <span class="material-symbols-rounded" aria-hidden="true">warning</span>
+              <div class="draft-comp-row">
+                <button type="button" class="draft-pool" [class.is-critical]="row.critical"
+                        [class.open]="isPoolOpen(row.name)" [attr.aria-expanded]="isPoolOpen(row.name)"
+                        (click)="togglePool(row.name)">
+                  <span class="draft-comp-name">{{ row.name }}</span>
+                  <em>{{ row.left.length }}</em>
+                  @if (row.critical) {
+                    <span class="material-symbols-rounded" aria-hidden="true">warning</span>
+                  }
+                  <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+                </button>
+                @if (isPoolOpen(row.name)) {
+                  <div class="draft-pool-champs">
+                    @for (champ of row.left; track champ) {
+                      <app-champion-chip [champion]="champ" />
+                    } @empty {
+                      <span class="muted">Nothing left in this pool.</span>
+                    }
+                    @if (row.gone.length) {
+                      <span class="draft-pool-gone-label">Gone</span>
+                      @for (champ of row.gone; track champ) {
+                        <span class="draft-pool-gone">{{ champ }}</span>
+                      }
+                    }
+                  </div>
                 }
-              </span>
+              </div>
             }
           </div>
         </div>
