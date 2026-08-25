@@ -172,12 +172,28 @@
           </details>
         }
 
-        <h3>Champion Pool</h3>
-        <div class="champ-chip-row">
-          @for (champ of player.top3; track champ) {
-            <app-champion-chip [champion]="champ" />
+        <h3 class="head-with-action">
+          Champion Pool
+          @if (auth.editing()) {
+            <button type="button" class="head-action" [class.on]="isPoolOpen(player.id)"
+                    [appTip]="isPoolOpen(player.id) ? 'Done editing the pool' : 'Edit champion pool'"
+                    (click)="togglePoolEdit(player.id)">
+              <span class="material-symbols-rounded" aria-hidden="true">{{ isPoolOpen(player.id) ? 'check' : 'edit' }}</span>
+            </button>
           }
-        </div>
+        </h3>
+        @if (auth.editing() && isPoolOpen(player.id)) {
+          <app-champion-picker [champions]="player.top3 || []" [role]="player.role"
+                               [inputName]="'pool-' + player.id" placeholder="Add a champion…"
+                               (championsChange)="savePool(player, $event)" />
+          <p class="muted pool-hint">First champion is shown as the Main Champion.</p>
+        } @else {
+          <div class="champ-chip-row">
+            @for (champ of player.top3; track champ) {
+              <app-champion-chip [champion]="champ" />
+            }
+          </div>
+        }
 
         @if (learnFor(player.id).length || auth.editing()) {
           <h3>Learning</h3>

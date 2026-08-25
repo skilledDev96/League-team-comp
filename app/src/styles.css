@@ -1337,8 +1337,30 @@ a.profiles-row:focus-visible {
 
 .learn-add {
   display: flex;
+  align-items: stretch;
   gap: 0.5rem;
   margin-top: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.learn-champ-picker {
+  flex: 1 1 11rem;
+  min-width: 0;
+}
+
+/* One champion at a time, so the counter is noise. */
+.learn-champ-picker .champ-picker-count {
+  display: none;
+}
+
+.learn-add .learn-prio-select {
+  flex: 0 0 auto;
+}
+
+.learn-add .view-btn {
+  flex: 0 0 auto;
+  border-radius: 8px;
+  padding-inline: 0.9rem;
 }
 
 .learn-champ-input {
@@ -7109,4 +7131,43 @@ app-match-note {
   display: flex;
   flex-wrap: wrap;
   gap: 0.3rem;
+}
+
+/* ---- Section heading with an inline action ---------------------------- */
+
+.head-with-action {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.head-action {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.3rem;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.head-action:hover {
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+
+.head-action.on {
+  color: var(--ok);
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+}
+
+.head-action .material-symbols-rounded {
+  font-size: 1rem;
+}
+
+.pool-hint {
+  margin: 0.3rem 0 0;
+  font-size: 0.76rem;
 }

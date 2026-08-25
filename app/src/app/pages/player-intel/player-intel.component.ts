@@ -1,13 +1,14 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { LearnEntry, LearnPriority, PainPoint } from '../../models/team.models';
+import { LearnEntry, LearnPriority, PainPoint, Player } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
+import { TooltipDirective } from '../../shared/tooltip.directive';
 import { ExternalProfilesComponent } from '../../shared/external-profiles.component';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
@@ -24,6 +25,7 @@ interface PainRow extends PainPoint {
     PlayerAvatarComponent,
     ChampionChipComponent,
     ChampionPickerComponent,
+    TooltipDirective,
     ExternalProfilesComponent,
     OverflowMenuComponent, NgModelNameDirective],
   templateUrl: './player-intel.component.html'
@@ -160,6 +162,34 @@ export class PlayerIntelComponent {
     } finally {
       this.learnSaving.set(false);
     }
+  }
+
+  // ---- Champion pool -----------------------------------------------------
+  //
+  // Editable here rather than only in admin: the pool is read on this page, so
+  // the moment you notice it is wrong is the moment you want to fix it.
+
+  private readonly poolOpenIds = signal<ReadonlySet<string>>(new Set());
+
+  protected isPoolOpen(playerId: string): boolean {
+    return this.poolOpenIds().has(playerId);
+  }
+
+  protected togglePoolEdit(playerId: string): void {
+    this.poolOpenIds.update((ids) => {
+      const next = new Set(ids);
+      if (next.has(playerId)) {
+        next.delete(playerId);
+      } else {
+        next.add(playerId);
+      }
+      return next;
+    });
+  }
+
+  /** First entry is shown as the Main Champion, so order is meaningful. */
+  protected savePool(player: Player, champions: string[]): void {
+    void this.data.updatePlayer({ ...player, top3: champions });
   }
 
   protected toggleLearnStatus(entry: LearnEntry): void {
