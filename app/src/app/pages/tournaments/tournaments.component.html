@@ -489,6 +489,7 @@
           <div class="draft-inputs">
             <div class="field"><span>Bans this game</span>
               <app-champion-picker [champions]="game.bans || []" [max]="10"
+                                   [unavailable]="unavailableFor(game, 'ban')"
                                    [inputName]="'dbans-' + game.id" placeholder="Add a ban…"
                                    (championsChange)="setGameBans(game, $event)" /></div>
             <div class="field">
@@ -508,6 +509,7 @@
                     </button>
                     <app-champion-picker [champions]="slot.champion ? [slot.champion] : []" [max]="1"
                                          [role]="slot.role"
+                                         [unavailable]="unavailableFor(game, 'pick')"
                                          [inputName]="'pick-' + slot.role + '-' + game.id"
                                          placeholder="Pick…"
                                          (championsChange)="setPickFromPicker(game, 'our', i, $event)" />
@@ -532,6 +534,7 @@
                     </button>
                     <app-champion-picker [champions]="slot.champion ? [slot.champion] : []" [max]="1"
                                          [role]="slot.role"
+                                         [unavailable]="unavailableFor(game, 'pick')"
                                          [inputName]="'epick-' + slot.role + '-' + game.id"
                                          placeholder="Pick…"
                                          (championsChange)="setPickFromPicker(game, 'their', i, $event)" />

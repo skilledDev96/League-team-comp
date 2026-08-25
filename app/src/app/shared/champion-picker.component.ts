@@ -73,6 +73,12 @@ export class ChampionPickerComponent {
   readonly inputName = input<string>('champ-picker');
   /** Optional lane, used to seed the opening suggestions. */
   readonly role = input<string>('');
+  /**
+   * Champions this picker must not offer — banned, already drafted, or burned
+   * earlier in a fearless series. Offering one that cannot be taken is worse
+   * than useless mid-draft.
+   */
+  readonly unavailable = input<string[]>([]);
 
   readonly championsChange = output<string[]>();
 
@@ -107,7 +113,7 @@ export class ChampionPickerComponent {
    */
   protected readonly suggestions = computed(() => {
     const q = this.norm(this.query());
-    const taken = new Set(this.champions().map((c) => this.norm(c)));
+    const taken = new Set([...this.champions(), ...this.unavailable()].map((c) => this.norm(c)));
     const all = this.champData.champions().filter((c) => !taken.has(this.norm(c.name)));
     const byName = (a: ChampionInfo, b: ChampionInfo) => a.name.localeCompare(b.name);
 
@@ -133,7 +139,7 @@ export class ChampionPickerComponent {
 
   protected add(name: string): void {
     if (this.atLimit()) return;
-    const taken = new Set(this.champions().map((c) => this.norm(c)));
+    const taken = new Set([...this.champions(), ...this.unavailable()].map((c) => this.norm(c)));
     if (taken.has(this.norm(name))) return;
     this.championsChange.emit([...this.champions(), name]);
     this.query.set('');

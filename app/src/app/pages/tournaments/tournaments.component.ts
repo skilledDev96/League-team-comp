@@ -496,6 +496,21 @@ export class TournamentsComponent {
     return this.burnedBefore(game.seriesId, game.gameNumber).length;
   }
 
+  /**
+   * Everything already spoken for this game: burned in an earlier game of the
+   * series, banned, or drafted by either team. A ban is the one case that can
+   * still land on a champion the other side has not taken, so existing bans are
+   * left to the bans picker's own list.
+   */
+  protected unavailableFor(game: SeriesGame, kind: 'ban' | 'pick'): string[] {
+    const onBoard = [
+      ...this.burnedBefore(game.seriesId, game.gameNumber),
+      ...(game.ourChampions ?? []).filter(Boolean),
+      ...(game.theirChampions ?? []).filter(Boolean)
+    ];
+    return kind === 'ban' ? onBoard : [...onBoard, ...(game.bans ?? [])];
+  }
+
   protected setGameBans(game: SeriesGame, bans: string[]): void {
     void this.data.updateSeriesGame({ ...game, bans: bans.length ? bans : undefined });
   }
