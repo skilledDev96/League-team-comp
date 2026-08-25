@@ -21,6 +21,7 @@ import {
   Tournament,
   TournamentSeries,
   SeriesGame,
+  MatchNote,
   AccessEntry,
   FillIn,
   Player,
@@ -40,6 +41,7 @@ type EntityKey =
   | 'tournaments'
   | 'tournamentSeries'
   | 'seriesGames'
+  | 'matchNotes'
   | 'compResults'
   | 'plays'
   | 'painPoints'
@@ -78,6 +80,7 @@ export class TeamDataService {
   readonly tournaments = signal<Tournament[]>([]);
   readonly tournamentSeries = signal<TournamentSeries[]>([]);
   readonly seriesGames = signal<SeriesGame[]>([]);
+  readonly matchNotes = signal<MatchNote[]>([]);
   /** Last Riot API key probe (written by the scheduled health check). */
   readonly keyHealth = signal<KeyHealth | null>(null);
   readonly resourceLinks = signal<ResourceLinks>({});
@@ -123,6 +126,7 @@ export class TeamDataService {
     this.tournaments.set([...(data.tournaments ?? [])].sort((a, b) => a.order - b.order));
     this.tournamentSeries.set([...(data.tournamentSeries ?? [])].sort((a, b) => a.order - b.order));
     this.seriesGames.set([...(data.seriesGames ?? [])].sort((a, b) => a.order - b.order));
+    this.matchNotes.set([...(data.matchNotes ?? [])]);
     this.compAnalysis.set(data.compAnalysis ?? null);
     this.resourceLinks.set(data.resourceLinks);
     this.settings.set(data.settings);
@@ -147,6 +151,7 @@ export class TeamDataService {
       tournaments: this.tournaments(),
       tournamentSeries: this.tournamentSeries(),
       seriesGames: this.seriesGames(),
+      matchNotes: this.matchNotes(),
       compAnalysis: this.compAnalysis() ?? undefined,
       resourceLinks: this.resourceLinks()
     };
@@ -202,6 +207,9 @@ export class TeamDataService {
     onSnapshot(collection(db, 'seriesGames'), (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<SeriesGame, 'id'>) }));
       this.seriesGames.set(list.sort((a, b) => a.order - b.order));
+    });
+    onSnapshot(collection(db, 'matchNotes'), (snap) => {
+      this.matchNotes.set(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<MatchNote, 'id'>) })));
     });
     onSnapshot(collection(db, 'access'), (snap) => {
       const list = snap.docs.map((d) => ({
@@ -356,6 +364,27 @@ export class TeamDataService {
   }
 
   // ---- Comps ------------------------------------------------------------
+
+  /** One note per match, so the match id doubles as the document id. */
+  saveMatchNote(matchId: string, text: string): Promise<void> {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return this.deleteMatchNote(matchId);
+    }
+    const note: MatchNote = { id: matchId, matchId, text: trimmed, order: 0 };
+    return this.persistUpsert('matchNotes', this.matchNotes, note);
+  }
+
+  deleteMatchNote(matchId: string): Promise<void> {
+    if (!this.matchNotes().some((note) => note.id === matchId)) {
+      return Promise.resolve();
+    }
+    return this.persistRemove('matchNotes', this.matchNotes, matchId);
+  }
+
+  matchNote(matchId: string): string {
+    return this.matchNotes().find((note) => note.matchId === matchId)?.text ?? '';
+  }
 
   createTournament(data: Omit<Tournament, 'id' | 'order'>): Promise<void> {
     const entity: Tournament = { ...data, id: this.newId('tournament'), order: this.nextOrder(this.tournaments()) };

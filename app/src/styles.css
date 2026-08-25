@@ -5940,3 +5940,63 @@ body[data-theme='light'] input[type='time'] {
   font-weight: 700;
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-2) 30%, transparent);
 }
+
+/* Retrospective notes on a played game. */
+.prep-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.prep-row-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.prep-note-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.prep-note-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+
+.prep-note-toggle.on {
+  color: var(--accent-2);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.prep-note-toggle .material-symbols-rounded {
+  font-size: 1rem;
+}
+
+.prep-note-input {
+  margin-top: 0.4rem;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.prep-note-text {
+  margin: 0.4rem 0 0;
+  padding-left: 1.8rem;
+  font-size: 0.82rem;
+  color: var(--text-1);
+  white-space: pre-wrap;
+}

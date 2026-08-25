@@ -316,6 +316,7 @@ export interface TeamData {
   tournaments: Tournament[];
   tournamentSeries: TournamentSeries[];
   seriesGames: SeriesGame[];
+  matchNotes: MatchNote[];
 }
 
 /** Result of the scheduled Riot API key probe (Firestore `meta/keyHealth`). */
@@ -390,5 +391,19 @@ export interface SeriesGame {
   win?: boolean;
   /** Set when reconciled against Riot match history after the fact. */
   matchId?: string;
+  order: number;
+}
+
+/**
+ * A retrospective note about one played match, keyed by Riot's match id.
+ *
+ * Analysis games are recomputed from Riot on every refresh, so notes cannot
+ * live on the game itself — they are stored separately and looked up by id.
+ */
+export interface MatchNote {
+  /** Same value as `matchId`, so a match has exactly one note document. */
+  id: string;
+  matchId: string;
+  text: string;
   order: number;
 }

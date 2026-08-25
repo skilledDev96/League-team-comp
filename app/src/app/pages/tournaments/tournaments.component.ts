@@ -335,6 +335,50 @@ export class TournamentsComponent {
     void this.data.updateSeriesGame(next);
   }
 
+  // ---- Match notes ------------------------------------------------------
+  //
+  // Notes live in their own store keyed by match id, because analysis games are
+  // recomputed from Riot on every refresh and would take the notes with them.
+
+  private readonly openNoteIds = signal<Set<string>>(new Set());
+  private readonly noteDrafts = signal<Record<string, string>>({});
+
+  protected hasNote(matchId: string): boolean {
+    return Boolean(this.data.matchNote(matchId));
+  }
+
+  protected isNoteOpen(matchId: string): boolean {
+    return this.openNoteIds().has(matchId);
+  }
+
+  protected toggleNote(matchId: string): void {
+    this.openNoteIds.update((set) => {
+      const next = new Set(set);
+      if (next.has(matchId)) {
+        next.delete(matchId);
+      } else {
+        next.add(matchId);
+      }
+      return next;
+    });
+  }
+
+  protected noteDraft(matchId: string): string {
+    return this.noteDrafts()[matchId] ?? this.data.matchNote(matchId);
+  }
+
+  protected setNoteDraft(matchId: string, value: string): void {
+    this.noteDrafts.update((s) => ({ ...s, [matchId]: value }));
+  }
+
+  protected saveNote(matchId: string): void {
+    const text = this.noteDraft(matchId);
+    if (text.trim() === this.data.matchNote(matchId)) {
+      return;
+    }
+    void this.data.saveMatchNote(matchId, text);
+  }
+
   // ---- Prep games -------------------------------------------------------
   //
   // Scrims and practice tagged to this tournament, so prep is isolated from the

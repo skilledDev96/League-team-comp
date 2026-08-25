@@ -375,14 +375,33 @@
       <ul class="list-clean prep-list">
         @for (m of recentGames(); track m.matchId) {
           <li class="prep-row" [class.is-tagged]="isPrep(m.matchId)">
-            <span class="prep-outcome" [class.is-win]="m.win" [class.is-loss]="!m.win">{{ m.win ? 'W' : 'L' }}</span>
-            <span class="prep-when">{{ candidateLabel(m) }}</span>
-            <span class="prep-champs">{{ candidateChampions(m).join(', ') }}</span>
-            @if (auth.editing()) {
-              <button type="button" class="prep-toggle" [class.on]="isPrep(m.matchId)"
-                      (click)="togglePrep(m.matchId)">
-                {{ isPrep(m.matchId) ? 'Tagged' : 'Tag as prep' }}
-              </button>
+            <div class="prep-row-head">
+              <span class="prep-outcome" [class.is-win]="m.win" [class.is-loss]="!m.win">{{ m.win ? 'W' : 'L' }}</span>
+              <span class="prep-when">{{ candidateLabel(m) }}</span>
+              <span class="prep-champs">{{ candidateChampions(m).join(', ') }}</span>
+              @if (auth.editing()) {
+                <button type="button" class="prep-toggle" [class.on]="isPrep(m.matchId)"
+                        (click)="togglePrep(m.matchId)">
+                  {{ isPrep(m.matchId) ? 'Tagged' : 'Tag as prep' }}
+                </button>
+                <button type="button" class="prep-note-toggle"
+                        [class.on]="hasNote(m.matchId)"
+                        [title]="hasNote(m.matchId) ? 'Edit note' : 'Add a note'"
+                        (click)="toggleNote(m.matchId)">
+                  <span class="material-symbols-rounded" aria-hidden="true">sticky_note_2</span>
+                </button>
+              }
+            </div>
+
+            @if (auth.editing() && isNoteOpen(m.matchId)) {
+              <textarea class="prep-note-input" rows="3"
+                        [ngModel]="noteDraft(m.matchId)"
+                        (ngModelChange)="setNoteDraft(m.matchId, $event)"
+                        (blur)="saveNote(m.matchId)"
+                        [name]="'note-' + m.matchId"
+                        placeholder="What worked, what went wrong, champions to swap…"></textarea>
+            } @else if (hasNote(m.matchId)) {
+              <p class="prep-note-text">{{ data.matchNote(m.matchId) }}</p>
             }
           </li>
         }
