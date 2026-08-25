@@ -6,6 +6,7 @@ import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
+import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 
 /** A comp measured against the champions already burned in a fearless series. */
 interface CompAvailability {
@@ -19,7 +20,7 @@ interface CompAvailability {
 
 @Component({
   selector: 'app-tournaments',
-  imports: [FormsModule, ChampionChipComponent],
+  imports: [FormsModule, ChampionChipComponent, ChampionPickerComponent],
   templateUrl: './tournaments.component.html'
 })
 export class TournamentsComponent {
@@ -78,12 +79,6 @@ export class TournamentsComponent {
   // ---- Notes with links -------------------------------------------------
 
   /**
-   * Split free text into plain and link segments so pasted URLs render as real
-   * links. Deliberately returns data for the template to bind rather than HTML:
-   * nothing bypasses Angular's escaping, and only http/https matches, so a
-   * "javascript:" string stays inert text.
-   */
-  /**
    * Notes split into lines, so newlines typed into the textarea survive (HTML
    * would otherwise collapse them) and "- " / "* " lines render as bullets.
    * Each line is further split into link/text segments by `noteParts`.
@@ -99,6 +94,12 @@ export class TournamentsComponent {
     });
   }
 
+  /**
+   * Split one line into plain and link segments so pasted URLs render as real
+   * links. Deliberately returns data for the template to bind rather than HTML:
+   * nothing bypasses Angular's escaping, and only http/https matches, so a
+   * "javascript:" string stays inert text.
+   */
   protected noteParts(text: string | undefined): { text: string; href: string | null }[] {
     if (!text) return [];
     const parts: { text: string; href: string | null }[] = [];
@@ -261,6 +262,17 @@ export class TournamentsComponent {
       ...game,
       ...(side === 'our' ? { ourChampions: champs } : { theirChampions: champs })
     });
+  }
+
+  protected setGameChamps(game: SeriesGame, side: 'our' | 'their', champs: string[]): void {
+    void this.data.updateSeriesGame({
+      ...game,
+      ...(side === 'our' ? { ourChampions: champs } : { theirChampions: champs })
+    });
+  }
+
+  protected setSeriesBans(series: TournamentSeries, bans: string[]): void {
+    this.patchSeries(series, { bans: bans.length ? bans : undefined });
   }
 
   protected setGameResult(game: SeriesGame, win: boolean | undefined): void {

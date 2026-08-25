@@ -7,6 +7,7 @@ import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
+import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { TacticalBoardComponent } from './tactical-board.component';
 
@@ -19,7 +20,7 @@ interface ResultDraft {
 
 @Component({
   selector: 'app-comps',
-  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, OverflowMenuComponent, TacticalBoardComponent],
+  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, OverflowMenuComponent, TacticalBoardComponent],
   templateUrl: './comps.component.html'
 })
 export class CompsComponent {
@@ -96,6 +97,18 @@ export class CompsComponent {
 
   protected compBansValue(comp: Comp): string {
     return this.banDrafts()[comp.id] ?? (comp.bans ?? []).join(', ');
+  }
+
+  protected compBanList(comp: Comp): string[] {
+    return this.compBansValue(comp)
+      .split(',')
+      .map((b) => b.trim())
+      .filter(Boolean);
+  }
+
+  protected saveCompBans(comp: Comp, bans: string[]): void {
+    this.banDrafts.update((s) => ({ ...s, [comp.id]: bans.join(', ') }));
+    this.saveCompMeta(comp);
   }
 
   protected setBansDraft(comp: Comp, value: string): void {

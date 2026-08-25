@@ -37,16 +37,42 @@ export class App {
   protected readonly showTutorial = signal(false);
   private tourChecked = false;
 
+  /**
+   * Routes are lazy-loaded, so each one is a separate hashed chunk. After a
+   * deploy those filenames change and an already-open tab still asks for the
+   * old ones — the fetch 404s and the click appears to do nothing. Reload once
+   * so the browser picks up the current index and its chunk names.
+   */
+  private recoverFromStaleBuild(event: NavigationError): void {
+    const message = String((event.error as { message?: string })?.message ?? event.error ?? '');
+    const isChunkFailure =
+      /dynamically imported module|ChunkLoadError|Loading chunk|Importing a module script failed/i.test(
+        message
+      );
+    if (!isChunkFailure) {
+      return;
+    }
+    // Guard against a reload loop if the chunk is genuinely missing.
+    const key = 'bom-stale-build-reload';
+    if (sessionStorage.getItem(key) === event.url) {
+      return;
+    }
+    sessionStorage.setItem(key, event.url);
+    location.reload();
+  }
+
   constructor() {
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart) {
         this.navigating.set(true);
       } else if (
         event instanceof NavigationEnd ||
-        event instanceof NavigationCancel ||
-        event instanceof NavigationError
+        event instanceof NavigationCancel
       ) {
         this.navigating.set(false);
+      } else if (event instanceof NavigationError) {
+        this.navigating.set(false);
+        this.recoverFromStaleBuild(event);
       }
     });
 

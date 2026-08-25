@@ -7,6 +7,7 @@ import { AuthService } from '../../services/auth.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
+import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 import { BUILD_SHA } from '../../build-info';
 
@@ -91,7 +92,7 @@ function emptyPicks(): CompPicks {
 
 @Component({
   selector: 'app-admin',
-  imports: [FormsModule, PlayerAvatarComponent, OverflowMenuComponent],
+  imports: [FormsModule, PlayerAvatarComponent, OverflowMenuComponent, ChampionPickerComponent],
   templateUrl: './admin.component.html'
 })
 export class AdminComponent {
@@ -345,6 +346,14 @@ export class AdminComponent {
       region: f.profile?.region ?? 'euw',
       mobalyticsSlug: f.profile?.mobalyticsSlug ?? ''
     };
+  }
+
+  /** Comma-separated draft text -> list, for the champion picker. */
+  protected listOf(value: string): string[] {
+    return (value ?? '')
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
   }
 
   private flash(message: string): void {

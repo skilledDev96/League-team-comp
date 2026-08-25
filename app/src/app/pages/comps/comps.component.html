@@ -139,9 +139,9 @@
             <span class="comp-record-label">Ban recommendations</span>
           </div>
           @if (auth.editing()) {
-            <input type="text" class="comp-notes-input" [ngModel]="compBansValue(comp)"
-                   (ngModelChange)="setBansDraft(comp, $event)" (blur)="saveCompMeta(comp)"
-                   [name]="'compbans-' + comp.id" placeholder="Champions to ban vs this comp (comma separated)" />
+            <app-champion-picker [champions]="compBanList(comp)"
+                                 [inputName]="'compbans-' + comp.id" placeholder="Add a ban…"
+                                 (championsChange)="saveCompBans(comp, $event)" />
           } @else if (comp.bans?.length) {
             <div class="tag-row comp-bans-chips">
               @for (ban of comp.bans; track ban) {

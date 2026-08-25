@@ -220,14 +220,14 @@
                 </div>
 
                 @if (auth.editing()) {
-                  <label class="field"><span>{{ teamName() }} champions (comma separated)</span>
-                    <input type="text" list="champlist" [ngModel]="champsValue(game.ourChampions)"
-                           (ngModelChange)="saveGameChamps(game, 'our', $event)"
-                           [name]="'our-' + game.id" placeholder="Maokai, Vi, Galio, Miss Fortune, Leona" /></label>
-                  <label class="field"><span>{{ series.opponent }} champions (comma separated)</span>
-                    <input type="text" list="champlist" [ngModel]="champsValue(game.theirChampions)"
-                           (ngModelChange)="saveGameChamps(game, 'their', $event)"
-                           [name]="'their-' + game.id" placeholder="Darius, Kayn, Ahri, Jinx, Thresh" /></label>
+                  <div class="field"><span>{{ teamName() }} champions</span>
+                    <app-champion-picker [champions]="game.ourChampions || []" [max]="5"
+                                         [inputName]="'our-' + game.id" placeholder="Add a pick…"
+                                         (championsChange)="setGameChamps(game, 'our', $event)" /></div>
+                  <div class="field"><span>{{ series.opponent }} champions</span>
+                    <app-champion-picker [champions]="game.theirChampions || []" [max]="5"
+                                         [inputName]="'their-' + game.id" placeholder="Add a pick…"
+                                         (championsChange)="setGameChamps(game, 'their', $event)" /></div>
                   @if (game.matchId) {
                     <p class="game-linked">
                       <span class="material-symbols-rounded" aria-hidden="true">link</span>
@@ -291,10 +291,10 @@
                 <span class="comp-record-label">Prep for this opponent</span>
               </div>
               @if (auth.editing()) {
-                <label class="field"><span>Target bans (comma separated)</span>
-                  <input type="text" list="champlist" [ngModel]="seriesBansValue(series)"
-                         (ngModelChange)="saveSeriesBans(series, $event)"
-                         [name]="'bans-' + series.id" placeholder="Champions to ban vs this team" /></label>
+                <div class="field"><span>Target bans</span>
+                  <app-champion-picker [champions]="series.bans || []"
+                                       [inputName]="'bans-' + series.id" placeholder="Add a ban…"
+                                       (championsChange)="setSeriesBans(series, $event)" /></div>
                 <label class="field"><span>Scouting notes</span>
                   <textarea rows="3" [ngModel]="series.notes || ''"
                             (ngModelChange)="patchSeries(series, { notes: $event })"
