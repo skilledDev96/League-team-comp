@@ -5502,3 +5502,199 @@ body.intel-page #fillInSection {
   color: var(--warn);
   border-color: color-mix(in srgb, var(--warn) 35%, var(--card-border) 65%);
 }
+
+/* Reconciling a typed-in game against real match history. */
+.reconcile-btn {
+  margin-top: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.reconcile-list {
+  margin-top: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.reconcile-option {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  cursor: pointer;
+}
+
+.reconcile-option:hover,
+.reconcile-option:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.reconcile-label {
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.reconcile-champs {
+  font-size: 0.74rem;
+  color: var(--text-1);
+}
+
+.game-linked {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.4rem 0 0;
+  font-size: 0.76rem;
+  color: var(--ok);
+}
+
+.game-linked .material-symbols-rounded {
+  font-size: 1rem;
+}
+
+.link-undo {
+  border: none;
+  background: none;
+  color: var(--text-1);
+  font: inherit;
+  font-size: 0.74rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Prep games tagged to a tournament. */
+.prep-panel {
+  margin-top: 1rem;
+}
+
+.prep-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.prep-summary::-webkit-details-marker {
+  display: none;
+}
+
+.prep-title {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-0);
+}
+
+.prep-count,
+.prep-record {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  color: var(--text-1);
+}
+
+.prep-record.is-positive {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--card-border) 55%);
+}
+
+.prep-panel[open] .series-chevron {
+  transform: rotate(180deg);
+}
+
+.prep-list {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.prep-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  border-bottom-color: color-mix(in srgb, var(--card-border) 45%, transparent);
+}
+
+.prep-row.is-tagged {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--card-border) 60%);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.prep-outcome {
+  width: 1.3rem;
+  height: 1.3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.prep-outcome.is-win {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 15%, transparent);
+}
+
+.prep-outcome.is-loss {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+}
+
+.prep-when {
+  font-size: 0.78rem;
+  color: var(--text-0);
+  white-space: nowrap;
+}
+
+.prep-champs {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.74rem;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prep-toggle {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.prep-toggle.on {
+  color: var(--accent-2);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  font-weight: 700;
+}
+
+.checkbox-field {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.5rem;
+}

@@ -1,7 +1,7 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { Comp, CompPicks, FillIn, Player, ROLES, Role, AccessRole, AccessEntry } from '../../models/team.models';
+import { Comp, CompPicks, FillIn, Player, ROLES, Role, AccessRole, AccessEntry, Tournament } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -45,13 +45,25 @@ interface CompDraft {
   picks: CompPicks;
 }
 
+interface TournamentDraft {
+  id: string;
+  name: string;
+  organiser: string;
+  division: string;
+  format: string;
+  startDate: string;
+  endDate: string;
+  notes: string;
+  active: boolean;
+}
+
 interface AccessDraft {
   email: string;
   role: AccessRole;
   active: boolean;
 }
 
-type EditorTab = 'settings' | 'players' | 'fillins' | 'comps' | 'access' | 'diagnostics';
+type EditorTab = 'settings' | 'players' | 'fillins' | 'comps' | 'tournaments' | 'access' | 'diagnostics';
 
 function splitList(value: string): string[] {
   return value
@@ -94,6 +106,7 @@ export class AdminComponent {
   protected readonly fillInDrafts = signal<FillInDraft[]>([]);
   protected readonly compDrafts = signal<CompDraft[]>([]);
   protected readonly accessDrafts = signal<AccessDraft[]>([]);
+  protected readonly tournamentDrafts = signal<TournamentDraft[]>([]);
   protected readonly activeTab = signal<EditorTab>('players');
   protected readonly enrichingPlayerId = signal<string | null>(null);
   protected readonly status = signal('');
@@ -133,6 +146,7 @@ export class AdminComponent {
       this.fillInDrafts.set(fillIns.map((f) => this.toFillInDraft(f)));
       this.compDrafts.set(comps.map((c) => ({ id: c.id, name: c.name, picks: { ...c.picks } })));
       this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry })));
+      this.tournamentDrafts.set(this.data.tournaments().map((t) => this.toTournamentDraft(t)));
       this.applyRouteFocus();
     });
 
@@ -219,6 +233,81 @@ export class AdminComponent {
     return (crypto as Crypto).randomUUID?.() ?? `uid-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
 
+  private toTournamentDraft(t: Tournament): TournamentDraft {
+    return {
+      id: t.id,
+      name: t.name,
+      organiser: t.organiser ?? '',
+      division: t.division ?? '',
+      format: t.format ?? '',
+      startDate: t.startDate ?? '',
+      endDate: t.endDate ?? '',
+      notes: t.notes ?? '',
+      active: t.active ?? false
+    };
+  }
+
+  protected addTournamentDraft(): void {
+    this.tournamentDrafts.update((list) => [
+      ...list,
+      { id: '', name: '', organiser: '', division: '', format: '', startDate: '', endDate: '', notes: '', active: false }
+    ]);
+  }
+
+  async saveTournament(draft: TournamentDraft): Promise<void> {
+    const name = draft.name.trim();
+    if (!name) {
+      this.flash('Tournament name is required.');
+      return;
+    }
+    const base = {
+      name,
+      organiser: draft.organiser.trim() || undefined,
+      division: draft.division.trim() || undefined,
+      format: draft.format.trim() || undefined,
+      startDate: draft.startDate.trim() || undefined,
+      endDate: draft.endDate.trim() || undefined,
+      notes: draft.notes.trim() || undefined,
+      active: draft.active
+    };
+    if (draft.id) {
+      const existing = this.data.tournaments().find((t) => t.id === draft.id);
+      await this.data.updateTournament({ ...existing, ...base, id: draft.id, order: existing?.order ?? 0 });
+    } else {
+      await this.data.createTournament(base);
+      this.initialized = false;
+    }
+    // Only one tournament should read as current.
+    if (draft.active) {
+      for (const other of this.data.tournaments()) {
+        if (other.id !== draft.id && other.active) {
+          await this.data.updateTournament({ ...other, active: false });
+        }
+      }
+    }
+    this.flash('Saved ' + name + '.');
+  }
+
+  async deleteTournament(draft: TournamentDraft): Promise<void> {
+    if (!draft.id) {
+      this.tournamentDrafts.update((list) => list.filter((d) => d !== draft));
+      return;
+    }
+    if (!confirm('Delete ' + draft.name + '? Its series and games go too.')) {
+      return;
+    }
+    const series = this.data.tournamentSeries().filter((s) => s.tournamentId === draft.id);
+    for (const s of series) {
+      for (const g of this.data.seriesGames().filter((game) => game.seriesId === s.id)) {
+        await this.data.deleteSeriesGame(g.id);
+      }
+      await this.data.deleteSeries(s.id);
+    }
+    await this.data.deleteTournament(draft.id);
+    this.tournamentDrafts.update((list) => list.filter((d) => d.id !== draft.id));
+    this.flash('Deleted ' + draft.name + '.');
+  }
+
   private toFillInDraft(f: FillIn): FillInDraft {
     return {
       id: f.id,
@@ -277,7 +366,7 @@ export class AdminComponent {
   private applyRouteFocus(): void {
     const params = this.route.snapshot.queryParamMap;
     const tab = params.get('tab');
-    if (tab === 'settings' || tab === 'players' || tab === 'fillins' || tab === 'comps' || tab === 'access' || tab === 'diagnostics') {
+    if (tab === 'settings' || tab === 'players' || tab === 'fillins' || tab === 'comps' || tab === 'tournaments' || tab === 'access' || tab === 'diagnostics') {
       this.openTab(tab);
     }
 

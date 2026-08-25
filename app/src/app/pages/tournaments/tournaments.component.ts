@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Comp, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
+import { AnalysisGame, Comp, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -221,5 +221,99 @@ export class TournamentsComponent {
 
   protected removeGame(game: SeriesGame): void {
     void this.data.deleteSeriesGame(game.id);
+  }
+
+  // ---- Reconcile against Riot match history -----------------------------
+  //
+  // Champions are typed in live during champ select; afterwards the real match
+  // shows up in the analysis data and can be linked to confirm the entry.
+
+  protected readonly reconcilingGameId = signal<string>('');
+
+  protected toggleReconcile(game: SeriesGame): void {
+    this.reconcilingGameId.set(this.reconcilingGameId() === game.id ? '' : game.id);
+  }
+
+  protected isReconciling(game: SeriesGame): boolean {
+    return this.reconcilingGameId() === game.id;
+  }
+
+  /** Analysed games not already linked to a series game, newest first. */
+  protected reconcileCandidates(): AnalysisGame[] {
+    const linked = new Set(
+      this.data.seriesGames().map((g) => g.matchId).filter((id): id is string => Boolean(id))
+    );
+    return (this.data.compAnalysis()?.games ?? [])
+      .filter((g) => !linked.has(g.matchId))
+      .slice(0, 12);
+  }
+
+  protected candidateLabel(game: AnalysisGame): string {
+    const when = new Date(game.date).toLocaleDateString();
+    return (game.win ? 'W' : 'L') + ' · ' + when + ' · ' + (game.compName ?? game.queue);
+  }
+
+  protected candidateChampions(game: AnalysisGame): string[] {
+    return game.players.map((p) => p.champion);
+  }
+
+  /** Link a real match to this series game, filling both sides from it. */
+  protected linkMatch(game: SeriesGame, match: AnalysisGame): void {
+    void this.data.updateSeriesGame({
+      ...game,
+      ourChampions: match.players.map((p) => p.champion),
+      theirChampions: match.enemyChampions ?? [],
+      win: match.win,
+      matchId: match.matchId
+    });
+    this.reconcilingGameId.set('');
+  }
+
+  protected unlinkMatch(game: SeriesGame): void {
+    const next = { ...game };
+    delete next.matchId;
+    void this.data.updateSeriesGame(next);
+  }
+
+  // ---- Prep games -------------------------------------------------------
+  //
+  // Scrims and practice tagged to this tournament, so prep is isolated from the
+  // general match history.
+
+  protected readonly showPrep = signal(false);
+
+  protected prepMatchIds(): string[] {
+    return this.currentTournament()?.prepMatchIds ?? [];
+  }
+
+  protected isPrep(matchId: string): boolean {
+    return this.prepMatchIds().includes(matchId);
+  }
+
+  protected togglePrep(matchId: string): void {
+    const t = this.currentTournament();
+    if (!t) return;
+    const current = t.prepMatchIds ?? [];
+    const next = current.includes(matchId)
+      ? current.filter((id) => id !== matchId)
+      : [...current, matchId];
+    void this.data.updateTournament({ ...t, prepMatchIds: next.length ? next : undefined });
+  }
+
+  /** Recent analysed games, for tagging as prep. */
+  protected recentGames(): AnalysisGame[] {
+    return (this.data.compAnalysis()?.games ?? []).slice(0, 20);
+  }
+
+  /** Only the games tagged as prep for this tournament. */
+  protected prepGames(): AnalysisGame[] {
+    const ids = new Set(this.prepMatchIds());
+    return (this.data.compAnalysis()?.games ?? []).filter((g) => ids.has(g.matchId));
+  }
+
+  protected prepRecord(): { wins: number; losses: number } {
+    const games = this.prepGames();
+    const wins = games.filter((g) => g.win).length;
+    return { wins, losses: games.length - wins };
   }
 }
