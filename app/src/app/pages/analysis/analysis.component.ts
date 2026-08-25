@@ -6,7 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
-import { ChampionChipComponent } from '../../shared/champion-chip.component';
+import { MatchNoteComponent } from '../../shared/match-note.component';
 import { compVerdict, formatDamage, winLossRecord } from '../comps/comp-stats.util';
 
 interface LogRow {
@@ -26,7 +26,7 @@ interface LogRow {
 
 @Component({
   selector: 'app-analysis',
-  imports: [DatePipe, NgTemplateOutlet, FormsModule, ChampionChipComponent],
+  imports: [DatePipe, NgTemplateOutlet, FormsModule, MatchNoteComponent],
   templateUrl: './analysis.component.html'
 })
 export class AnalysisComponent {

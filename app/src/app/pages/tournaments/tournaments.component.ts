@@ -7,6 +7,7 @@ import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
+import { MatchNoteComponent } from '../../shared/match-note.component';
 
 /** A comp measured against the champions already burned in a fearless series. */
 interface CompAvailability {
@@ -20,7 +21,7 @@ interface CompAvailability {
 
 @Component({
   selector: 'app-tournaments',
-  imports: [FormsModule, ChampionChipComponent, ChampionPickerComponent],
+  imports: [FormsModule, ChampionChipComponent, ChampionPickerComponent, MatchNoteComponent],
   templateUrl: './tournaments.component.html'
 })
 export class TournamentsComponent {
@@ -333,50 +334,6 @@ export class TournamentsComponent {
     const next = { ...game };
     delete next.matchId;
     void this.data.updateSeriesGame(next);
-  }
-
-  // ---- Match notes ------------------------------------------------------
-  //
-  // Notes live in their own store keyed by match id, because analysis games are
-  // recomputed from Riot on every refresh and would take the notes with them.
-
-  private readonly openNoteIds = signal<Set<string>>(new Set());
-  private readonly noteDrafts = signal<Record<string, string>>({});
-
-  protected hasNote(matchId: string): boolean {
-    return Boolean(this.data.matchNote(matchId));
-  }
-
-  protected isNoteOpen(matchId: string): boolean {
-    return this.openNoteIds().has(matchId);
-  }
-
-  protected toggleNote(matchId: string): void {
-    this.openNoteIds.update((set) => {
-      const next = new Set(set);
-      if (next.has(matchId)) {
-        next.delete(matchId);
-      } else {
-        next.add(matchId);
-      }
-      return next;
-    });
-  }
-
-  protected noteDraft(matchId: string): string {
-    return this.noteDrafts()[matchId] ?? this.data.matchNote(matchId);
-  }
-
-  protected setNoteDraft(matchId: string, value: string): void {
-    this.noteDrafts.update((s) => ({ ...s, [matchId]: value }));
-  }
-
-  protected saveNote(matchId: string): void {
-    const text = this.noteDraft(matchId);
-    if (text.trim() === this.data.matchNote(matchId)) {
-      return;
-    }
-    void this.data.saveMatchNote(matchId, text);
   }
 
   // ---- Prep games -------------------------------------------------------

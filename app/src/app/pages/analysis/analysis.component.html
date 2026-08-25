@@ -269,6 +269,8 @@
           </li>
         }
       </ul>
+      <app-match-note [matchId]="game.matchId" />
+
       @if (auth.editing() && !gameComp(game)) {
         <div class="game-define">
           @if (isSavedAsComp(game.matchId)) {

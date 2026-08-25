@@ -4,12 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Comp, CompOutcome, CompPerformance, CompRecord, CompResult, Play, Role, ROLES } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
+import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { TacticalBoardComponent } from './tactical-board.component';
+import { NoteRollup, rollupNotes } from './note-insights.util';
 
 interface ResultDraft {
   outcome: CompOutcome;
@@ -27,6 +29,7 @@ export class CompsComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
+  private readonly champData = inject(ChampionDataService);
   protected readonly roles = ROLES;
 
   // Start calm: Starter view with comp panels collapsed.
@@ -227,6 +230,48 @@ export class CompsComponent {
 
   // Match-history record for a comp, straight from the backend result. The
   // strictness slider lives on Analysis, so this page shows the stored value.
+  // ---- Retro notes ------------------------------------------------------
+  //
+  // Every note written on a game this comp was played in. Deliberately kept out
+  // of the comp panel itself and behind a disclosure: fifty games means fifty
+  // notes, and the useful part is the pattern across them, not the transcript.
+  // What surfaces first is which champions keep getting named when we lose.
+
+  protected retro(compId: string): NoteRollup | null {
+    const games = this.data.compAnalysis()?.games.filter((g) => g.compId === compId) ?? [];
+    const notes = games
+      .map((game) => ({
+        matchId: game.matchId,
+        text: this.data.matchNote(game.matchId),
+        win: game.win,
+        date: game.date
+      }))
+      .filter((note) => Boolean(note.text));
+
+    if (!notes.length) return null;
+    return rollupNotes(notes, this.champData.champions().map((c) => c.name));
+  }
+
+  /** Collapsed to the newest few until asked; comps with history get long. */
+  private readonly expandedRetros = signal<Set<string>>(new Set());
+  protected readonly retroPreviewSize = 3;
+
+  protected retroExpanded(compId: string): boolean {
+    return this.expandedRetros().has(compId);
+  }
+
+  protected toggleRetroAll(compId: string): void {
+    this.expandedRetros.update((set) => {
+      const next = new Set(set);
+      if (next.has(compId)) {
+        next.delete(compId);
+      } else {
+        next.add(compId);
+      }
+      return next;
+    });
+  }
+
   protected rankedRecord(compId: string): CompPerformance | undefined {
     return this.data.compAnalysis()?.comps.find((c) => c.compId === compId);
   }

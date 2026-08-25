@@ -181,6 +181,54 @@
           </div>
         }
 
+        @if (retro(comp.id); as r) {
+          <details class="comp-retro">
+            <summary class="comp-retro-summary">
+              <span class="material-symbols-rounded" aria-hidden="true">sticky_note_2</span>
+              <span class="comp-retro-label">Retro</span>
+              <span class="comp-retro-count">{{ r.notes.length }} {{ r.notes.length === 1 ? 'note' : 'notes' }}</span>
+              @if (r.mentions.length) {
+                <span class="comp-retro-lead" [title]="'Named most often when this comp loses'">
+                  {{ r.mentions[0].champion }}
+                  @if (r.mentions[0].losses) { <em>&times;{{ r.mentions[0].losses }}L</em> }
+                </span>
+              }
+              <span class="comp-retro-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+            </summary>
+
+            @if (r.mentions.length) {
+              <div class="comp-retro-mentions">
+                <span class="comp-retro-mentions-label">Keeps coming up</span>
+                @for (m of r.mentions; track m.champion) {
+                  <span class="comp-retro-mention" [class.is-negative]="m.losses > m.count - m.losses">
+                    <img class="comp-retro-mention-icon" [src]="ui.championIconUrl(m.champion)" [alt]="" loading="lazy" />
+                    <span>{{ m.champion }}</span>
+                    <em [title]="m.count + ' notes, ' + m.losses + ' of them losses'">{{ m.count }}@if (m.losses) {<span class="comp-retro-mention-l">&middot;{{ m.losses }}L</span>}</em>
+                  </span>
+                }
+              </div>
+            }
+
+            <ul class="comp-retro-notes">
+              @for (n of (retroExpanded(comp.id) ? r.notes : r.notes.slice(0, retroPreviewSize)); track n.matchId) {
+                <li class="comp-retro-note" [class.is-win]="n.win" [class.is-loss]="!n.win">
+                  <span class="comp-retro-note-outcome">{{ n.win ? 'W' : 'L' }}</span>
+                  <span class="comp-retro-note-body">
+                    @if (n.date) { <span class="comp-retro-note-date">{{ n.date | date: 'd MMM' }}</span> }
+                    <span class="comp-retro-note-text">{{ n.text }}</span>
+                  </span>
+                </li>
+              }
+            </ul>
+
+            @if (r.notes.length > retroPreviewSize) {
+              <button type="button" class="comp-retro-more" (click)="toggleRetroAll(comp.id)">
+                {{ retroExpanded(comp.id) ? 'Show fewer' : 'Show all ' + r.notes.length + ' notes' }}
+              </button>
+            }
+          </details>
+        }
+
         @if (recordFor(comp.id); as record) {
           <div class="comp-record-bar" role="img" [attr.aria-label]="record.winRate + '% win rate'">
             <span class="comp-record-bar-fill" [style.width.%]="record.winRate"></span>

@@ -384,25 +384,10 @@
                         (click)="togglePrep(m.matchId)">
                   {{ isPrep(m.matchId) ? 'Tagged' : 'Tag as prep' }}
                 </button>
-                <button type="button" class="prep-note-toggle"
-                        [class.on]="hasNote(m.matchId)"
-                        [title]="hasNote(m.matchId) ? 'Edit note' : 'Add a note'"
-                        (click)="toggleNote(m.matchId)">
-                  <span class="material-symbols-rounded" aria-hidden="true">sticky_note_2</span>
-                </button>
               }
             </div>
 
-            @if (auth.editing() && isNoteOpen(m.matchId)) {
-              <textarea class="prep-note-input" rows="3"
-                        [ngModel]="noteDraft(m.matchId)"
-                        (ngModelChange)="setNoteDraft(m.matchId, $event)"
-                        (blur)="saveNote(m.matchId)"
-                        [name]="'note-' + m.matchId"
-                        placeholder="What worked, what went wrong, champions to swap…"></textarea>
-            } @else if (hasNote(m.matchId)) {
-              <p class="prep-note-text">{{ data.matchNote(m.matchId) }}</p>
-            }
+            <app-match-note [matchId]="m.matchId" />
           </li>
         }
       </ul>

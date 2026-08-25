@@ -6000,3 +6000,195 @@ body[data-theme='light'] input[type='time'] {
   color: var(--text-1);
   white-space: pre-wrap;
 }
+
+/* ---- Match notes (shared component) ---------------------------------- */
+
+app-match-note {
+  display: block;
+}
+
+.game-panel app-match-note {
+  padding: 0 0.75rem 0.5rem;
+}
+
+/* ---- Comp retro rollup ------------------------------------------------
+   Collapsed by default: a comp with fifty games has fifty notes, so the panel
+   shows the pattern (which champion keeps getting named in losses) and keeps
+   the transcript one click away. */
+
+.comp-retro {
+  margin-top: 0.6rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: var(--bg-1);
+}
+
+.comp-retro-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.82rem;
+  color: var(--text-1);
+}
+
+.comp-retro-summary::-webkit-details-marker {
+  display: none;
+}
+
+.comp-retro-summary:hover {
+  color: var(--text-0);
+}
+
+.comp-retro-summary > .material-symbols-rounded {
+  font-size: 1rem;
+  color: var(--accent-2);
+}
+
+.comp-retro-label {
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.comp-retro-count {
+  color: var(--text-2);
+}
+
+.comp-retro-lead {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--text-0);
+  font-size: 0.76rem;
+}
+
+.comp-retro-lead em {
+  font-style: normal;
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.comp-retro-chevron {
+  font-size: 1.1rem;
+  transition: transform 0.15s ease;
+}
+
+.comp-retro[open] .comp-retro-chevron {
+  transform: rotate(180deg);
+}
+
+.comp-retro-mentions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 0.6rem 0.5rem;
+}
+
+.comp-retro-mentions-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+}
+
+.comp-retro-mention {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  font-size: 0.78rem;
+  color: var(--text-1);
+}
+
+.comp-retro-mention.is-negative {
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border));
+}
+
+.comp-retro-mention-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+
+.comp-retro-mention em {
+  font-style: normal;
+  color: var(--text-2);
+}
+
+.comp-retro-mention-l {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.comp-retro-notes {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.6rem 0.5rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.comp-retro-note {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.82rem;
+}
+
+.comp-retro-note-outcome {
+  flex: 0 0 auto;
+  width: 1.1rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: var(--text-2);
+}
+
+.comp-retro-note.is-win .comp-retro-note-outcome {
+  color: var(--ok);
+}
+
+.comp-retro-note.is-loss .comp-retro-note-outcome {
+  color: var(--warn);
+}
+
+.comp-retro-note-body {
+  min-width: 0;
+}
+
+.comp-retro-note-date {
+  margin-right: 0.4rem;
+  color: var(--text-2);
+  font-size: 0.75rem;
+}
+
+.comp-retro-note-text {
+  color: var(--text-1);
+  white-space: pre-wrap;
+}
+
+.comp-retro-more {
+  margin: 0 0.6rem 0.55rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.comp-retro-more:hover {
+  border-color: var(--accent);
+  color: var(--text-0);
+}
