@@ -1,7 +1,7 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { Comp, CompPicks, FillIn, Player, ROLES, Role, AccessRole, AccessEntry, Tournament } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
@@ -91,7 +91,7 @@ function emptyPicks(): CompPicks {
 
 @Component({
   selector: 'app-admin',
-  imports: [FormsModule, RouterLink, PlayerAvatarComponent, OverflowMenuComponent],
+  imports: [FormsModule, PlayerAvatarComponent, OverflowMenuComponent],
   templateUrl: './admin.component.html'
 })
 export class AdminComponent {

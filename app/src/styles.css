@@ -5774,3 +5774,30 @@ body[data-theme='light'] input[type='time'] {
   color: var(--accent-2);
   word-break: break-all;
 }
+
+/* Notes typed with real line breaks. HTML collapses newlines, so each line is
+   its own element and spacing inside a line is preserved. */
+.note-line {
+  margin: 0 0 0.25rem;
+  white-space: pre-wrap;
+}
+
+.note-line:last-child {
+  margin-bottom: 0;
+}
+
+.note-line:empty {
+  height: 0.5rem;
+}
+
+.note-line.is-bullet {
+  position: relative;
+  padding-left: 1rem;
+}
+
+.note-line.is-bullet::before {
+  content: "•";
+  position: absolute;
+  left: 0.15rem;
+  color: var(--accent-2);
+}

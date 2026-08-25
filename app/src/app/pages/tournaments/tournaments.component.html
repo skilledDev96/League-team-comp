@@ -32,15 +32,19 @@
       }
     </dl>
     @if (tournament.notes) {
-      <p class="tournament-notes">
-        @for (part of noteParts(tournament.notes); track $index) {
-          @if (part.href) {
-            <a [href]="part.href" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
-          } @else {
-            <span>{{ part.text }}</span>
-          }
+      <div class="tournament-notes">
+        @for (line of noteLines(tournament.notes); track $index) {
+          <p class="note-line" [class.is-bullet]="line.bullet">
+            @for (part of line.parts; track $index) {
+              @if (part.href) {
+                <a [href]="part.href" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
+              } @else {
+                <span>{{ part.text }}</span>
+              }
+            }
+          </p>
         }
-      </p>
+      </div>
     }
   </section>
 
@@ -318,7 +322,19 @@
                   </div>
                 }
                 @if (series.notes) {
-                  <p class="comp-notes-text">{{ series.notes }}</p>
+                  <div class="tournament-notes">
+                    @for (line of noteLines(series.notes); track $index) {
+                      <p class="note-line" [class.is-bullet]="line.bullet">
+                        @for (part of line.parts; track $index) {
+                          @if (part.href) {
+                            <a [href]="part.href" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
+                          } @else {
+                            <span>{{ part.text }}</span>
+                          }
+                        }
+                      </p>
+                    }
+                  </div>
                 }
                 @if (series.side) {
                   <p class="muted">Game 1 side: {{ series.side }}</p>

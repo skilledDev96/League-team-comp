@@ -83,6 +83,22 @@ export class TournamentsComponent {
    * nothing bypasses Angular's escaping, and only http/https matches, so a
    * "javascript:" string stays inert text.
    */
+  /**
+   * Notes split into lines, so newlines typed into the textarea survive (HTML
+   * would otherwise collapse them) and "- " / "* " lines render as bullets.
+   * Each line is further split into link/text segments by `noteParts`.
+   */
+  protected noteLines(
+    text: string | undefined
+  ): { bullet: boolean; parts: { text: string; href: string | null }[] }[] {
+    if (!text) return [];
+    return text.split(/\r?\n/).map((line) => {
+      const bullet = /^\s*[-*]\s+/.test(line);
+      const content = bullet ? line.replace(/^\s*[-*]\s+/, '') : line;
+      return { bullet, parts: this.noteParts(content) };
+    });
+  }
+
   protected noteParts(text: string | undefined): { text: string; href: string | null }[] {
     if (!text) return [];
     const parts: { text: string; href: string | null }[] = [];
