@@ -18,6 +18,9 @@ import {
   LearnEntry,
   CompAnalysis,
   KeyHealth,
+  Tournament,
+  TournamentSeries,
+  SeriesGame,
   AccessEntry,
   FillIn,
   Player,
@@ -34,6 +37,9 @@ type EntityKey =
   | 'players'
   | 'fillIns'
   | 'comps'
+  | 'tournaments'
+  | 'tournamentSeries'
+  | 'seriesGames'
   | 'compResults'
   | 'plays'
   | 'painPoints'
@@ -69,6 +75,9 @@ export class TeamDataService {
   readonly accessEntries = signal<AccessEntry[]>([]);
   readonly teamIdentity = signal<TeamIdentity | null>(null);
   readonly compAnalysis = signal<CompAnalysis | null>(null);
+  readonly tournaments = signal<Tournament[]>([]);
+  readonly tournamentSeries = signal<TournamentSeries[]>([]);
+  readonly seriesGames = signal<SeriesGame[]>([]);
   /** Last Riot API key probe (written by the scheduled health check). */
   readonly keyHealth = signal<KeyHealth | null>(null);
   readonly resourceLinks = signal<ResourceLinks>({});
@@ -111,6 +120,9 @@ export class TeamDataService {
     this.learnEntries.set([...(data.learnEntries ?? [])].sort((a, b) => a.order - b.order));
     this.accessEntries.set([{ email: 'ruanhart7@gmail.com', role: 'admin', active: true }]);
     this.teamIdentity.set(data.teamIdentity);
+    this.tournaments.set([...(data.tournaments ?? [])].sort((a, b) => a.order - b.order));
+    this.tournamentSeries.set([...(data.tournamentSeries ?? [])].sort((a, b) => a.order - b.order));
+    this.seriesGames.set([...(data.seriesGames ?? [])].sort((a, b) => a.order - b.order));
     this.compAnalysis.set(data.compAnalysis ?? null);
     this.resourceLinks.set(data.resourceLinks);
     this.settings.set(data.settings);
@@ -132,6 +144,9 @@ export class TeamDataService {
       painPoints: this.painPoints(),
       learnEntries: this.learnEntries(),
       teamIdentity: this.teamIdentity() ?? SEED_DATA.teamIdentity,
+      tournaments: this.tournaments(),
+      tournamentSeries: this.tournamentSeries(),
+      seriesGames: this.seriesGames(),
       compAnalysis: this.compAnalysis() ?? undefined,
       resourceLinks: this.resourceLinks()
     };
@@ -175,6 +190,18 @@ export class TeamDataService {
     onSnapshot(collection(db, 'learnEntries'), (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<LearnEntry, 'id'>) }));
       this.learnEntries.set(list.sort((a, b) => a.order - b.order));
+    });
+    onSnapshot(collection(db, 'tournaments'), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Tournament, 'id'>) }));
+      this.tournaments.set(list.sort((a, b) => a.order - b.order));
+    });
+    onSnapshot(collection(db, 'tournamentSeries'), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TournamentSeries, 'id'>) }));
+      this.tournamentSeries.set(list.sort((a, b) => a.order - b.order));
+    });
+    onSnapshot(collection(db, 'seriesGames'), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<SeriesGame, 'id'>) }));
+      this.seriesGames.set(list.sort((a, b) => a.order - b.order));
     });
     onSnapshot(collection(db, 'access'), (snap) => {
       const list = snap.docs.map((d) => ({
@@ -329,6 +356,45 @@ export class TeamDataService {
   }
 
   // ---- Comps ------------------------------------------------------------
+
+  createTournament(data: Omit<Tournament, 'id' | 'order'>): Promise<void> {
+    const entity: Tournament = { ...data, id: this.newId('tournament'), order: this.nextOrder(this.tournaments()) };
+    return this.persistUpsert('tournaments', this.tournaments, entity);
+  }
+
+  updateTournament(entity: Tournament): Promise<void> {
+    return this.persistUpsert('tournaments', this.tournaments, entity);
+  }
+
+  deleteTournament(id: string): Promise<void> {
+    return this.persistRemove('tournaments', this.tournaments, id);
+  }
+
+  createSeries(data: Omit<TournamentSeries, 'id' | 'order'>): Promise<void> {
+    const entity: TournamentSeries = { ...data, id: this.newId('series'), order: this.nextOrder(this.tournamentSeries()) };
+    return this.persistUpsert('tournamentSeries', this.tournamentSeries, entity);
+  }
+
+  updateSeries(entity: TournamentSeries): Promise<void> {
+    return this.persistUpsert('tournamentSeries', this.tournamentSeries, entity);
+  }
+
+  deleteSeries(id: string): Promise<void> {
+    return this.persistRemove('tournamentSeries', this.tournamentSeries, id);
+  }
+
+  createSeriesGame(data: Omit<SeriesGame, 'id' | 'order'>): Promise<void> {
+    const entity: SeriesGame = { ...data, id: this.newId('game'), order: this.nextOrder(this.seriesGames()) };
+    return this.persistUpsert('seriesGames', this.seriesGames, entity);
+  }
+
+  updateSeriesGame(entity: SeriesGame): Promise<void> {
+    return this.persistUpsert('seriesGames', this.seriesGames, entity);
+  }
+
+  deleteSeriesGame(id: string): Promise<void> {
+    return this.persistRemove('seriesGames', this.seriesGames, id);
+  }
 
   createComp(data: Omit<Comp, 'id' | 'order'>): Promise<void> {
     const comp: Comp = { ...data, id: this.newId('comp'), order: this.nextOrder(this.comps()) };

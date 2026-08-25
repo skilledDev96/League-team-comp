@@ -313,6 +313,9 @@ export interface TeamData {
   compAnalysis?: CompAnalysis;
   teamIdentity: TeamIdentity;
   resourceLinks: ResourceLinks;
+  tournaments: Tournament[];
+  tournamentSeries: TournamentSeries[];
+  seriesGames: SeriesGame[];
 }
 
 /** Result of the scheduled Riot API key probe (Firestore `meta/keyHealth`). */
@@ -324,4 +327,68 @@ export interface KeyHealth {
   appRateLimit: string;
   message: string;
   checkedAt: string;
+}
+
+// ---- Tournaments ---------------------------------------------------------
+
+/**
+ * A tournament we're competing in. Repeatable — the Oryx Fearless League runs
+ * two splits a year and this won't be the only one we enter.
+ */
+export interface Tournament {
+  id: string;
+  name: string;
+  organiser?: string;
+  /** e.g. "First Division" / "Second Division". */
+  division?: string;
+  /** e.g. "Bo3 Fearless — Swiss stage". */
+  format?: string;
+  startDate?: string;
+  endDate?: string;
+  notes?: string;
+  /** Only one tournament is normally "current"; drives default page focus. */
+  active?: boolean;
+  /** Riot matchIds tagged as prep for this tournament (scrims, practice). */
+  prepMatchIds?: string[];
+  order: number;
+}
+
+/**
+ * One weekly match-up against an opponent. Scheduling itself happens on Discord
+ * per the rulebook — this just records what was agreed so it isn't lost.
+ */
+export interface TournamentSeries {
+  id: string;
+  tournamentId: string;
+  opponent: string;
+  /** Agreed kick-off, once settled externally. Free text or ISO. */
+  scheduledAt?: string;
+  /** 3 for a Bo3 Swiss series, 5 for playoffs. */
+  bestOf: number;
+  /** Game 1 side, decided by the pre-series 1v1. */
+  side?: 'blue' | 'red';
+  /** Whether we won the side-selection 1v1. */
+  wonSideSelection?: boolean;
+  /** Scouting notes for this opponent. */
+  notes?: string;
+  /** Target bans for this opponent, kept separate from per-comp bans. */
+  bans?: string[];
+  status?: 'scheduled' | 'played';
+  order: number;
+}
+
+/**
+ * A single game inside a series. Both teams' champions matter: under Fearless
+ * Draft a champion used by *either* side is removed for the rest of the series.
+ */
+export interface SeriesGame {
+  id: string;
+  seriesId: string;
+  gameNumber: number;
+  ourChampions: string[];
+  theirChampions: string[];
+  win?: boolean;
+  /** Set when reconciled against Riot match history after the fact. */
+  matchId?: string;
+  order: number;
 }

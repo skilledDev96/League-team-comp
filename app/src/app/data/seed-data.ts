@@ -187,6 +187,26 @@ export const SEED_DATA: TeamData = {
     midRole: 'utility mid',
     lateGameFrontline: 'late-game tank frontline'
   },
+  tournaments: [
+    {
+      id: 'oryx-2026-split2',
+      name: 'Oryx Fearless League 2026 — Split 2',
+      organiser: 'Oryx Esports',
+      division: 'Second Division',
+      format: 'Bo3 Fearless Draft — Swiss stage, 1 series per week',
+      startDate: '2026-08-31',
+      endDate: '2026-11-08',
+      notes:
+        'Fearless Draft: a champion can only be played once per series by BOTH teams. ' +
+        'Scheduling is agreed on Discord/WhatsApp and must be confirmed before Thursday; ' +
+        'default match time is Sunday 20:00. Game 1 side is decided by a 1v1 (first tower, ' +
+        'first blood, first to 50 CS).',
+      active: true,
+      order: 0
+    }
+  ],
+  tournamentSeries: [],
+  seriesGames: [],
   resourceLinks: {
     DraftTools: [
       { label: 'U.GG Tier Lists', url: 'https://u.gg/lol/tier-list' },

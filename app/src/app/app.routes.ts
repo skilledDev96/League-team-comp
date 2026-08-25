@@ -37,6 +37,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/analysis/analysis.component').then((m) => m.AnalysisComponent)
   },
   {
+    path: 'tournaments',
+    canActivate: [viewerGuard],
+    loadComponent: () => import('./pages/tournaments/tournaments.component').then((m) => m.TournamentsComponent)
+  },
+  {
     path: 'synergy',
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/synergy/synergy.component').then((m) => m.SynergyComponent)
