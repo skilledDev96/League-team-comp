@@ -14,6 +14,7 @@ import { TeamDataService } from '../services/team-data.service';
   template: `
     @if (auth.editing() || hasNote()) {
       <button type="button" class="note-btn" [class.on]="hasNote()"
+              [class.editing]="editing()" [attr.aria-pressed]="editing()"
               [title]="hasNote() ? note() : 'Add a note'"
               (click)="toggle($event)">
         <span class="material-symbols-rounded" aria-hidden="true">sticky_note_2</span>
@@ -24,10 +25,15 @@ import { TeamDataService } from '../services/team-data.service';
 })
 export class MatchNoteButtonComponent {
   private readonly data = inject(TeamDataService);
-  private readonly noteUi = inject(MatchNoteUiService);
+  protected readonly noteUi = inject(MatchNoteUiService);
   protected readonly auth = inject(AuthService);
 
   readonly matchId = input.required<string>();
+
+  /** The editor is open below, so the button has to read as pressed. */
+  protected editing(): boolean {
+    return this.auth.editing() && this.noteUi.isOpen(this.matchId());
+  }
 
   protected note(): string {
     return this.data.matchNote(this.matchId());

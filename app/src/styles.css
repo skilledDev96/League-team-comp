@@ -5968,6 +5968,12 @@ body[data-theme='light'] input[type='time'] {
   color: var(--text-0);
 }
 
+.note-btn.editing {
+  color: var(--text-0);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
 .note-btn.on {
   color: var(--accent-2);
   border-color: var(--accent);
@@ -5986,6 +5992,9 @@ body[data-theme='light'] input[type='time'] {
 .prep-note-input {
   margin-top: 0.4rem;
   width: 100%;
+  field-sizing: content;
+  min-height: 4.75rem;
+  max-height: 22rem;
   padding: 0.45rem 0.6rem;
   border-radius: 8px;
   border: 1px solid var(--card-border);
