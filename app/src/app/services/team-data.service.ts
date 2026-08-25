@@ -9,6 +9,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { getDb, isFirebaseConfigured } from '../core/firebase';
+import { stripUndefined } from '../core/strip-undefined';
 import { SEED_DATA } from '../data/seed-data';
 import {
   Comp,
@@ -46,22 +47,6 @@ type EntityKey =
   | 'plays'
   | 'painPoints'
   | 'learnEntries';
-
-// Firestore rejects any field set to undefined; drop those keys (incl. one level of nested objects).
-function stripUndefined<T extends Record<string, unknown>>(value: T): T {
-  const result = {} as T;
-  for (const [key, val] of Object.entries(value)) {
-    if (val === undefined) {
-      continue;
-    }
-    if (val && typeof val === 'object' && !Array.isArray(val)) {
-      result[key as keyof T] = stripUndefined(val as Record<string, unknown>) as T[keyof T];
-    } else {
-      result[key as keyof T] = val as T[keyof T];
-    }
-  }
-  return result;
-}
 
 @Injectable({ providedIn: 'root' })
 export class TeamDataService {
