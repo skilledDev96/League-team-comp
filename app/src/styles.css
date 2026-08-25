@@ -6980,17 +6980,59 @@ app-match-note {
   gap: 0.5rem;
 }
 
+/* The role label doubles as the lift/place control. */
 .pick-slot-role {
-  flex: 0 0 4.2rem;
+  flex: 0 0 5.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
   font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--accent-2);
+  cursor: pointer;
+  text-align: left;
+}
+
+.pick-slot-role:disabled {
+  cursor: default;
+}
+
+.pick-slot-role:hover:not(:disabled) {
+  border-color: var(--card-border);
+  background: var(--surface-btn);
 }
 
 .pick-slot.is-empty .pick-slot-role {
   color: var(--text-2);
+}
+
+.pick-slot-grip {
+  font-size: 0.9rem !important;
+  color: var(--text-2);
+}
+
+/* Lifted: this is the champion being moved. */
+.pick-slot.is-held .pick-slot-role {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text-0);
+}
+
+/* Everywhere it could go while one is lifted. */
+.pick-slot-role.can-drop {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.pick-slots.is-moving .pick-slot:not(.is-held) app-champion-picker {
+  opacity: 0.55;
 }
 
 .pick-slot app-champion-picker {

@@ -2,6 +2,9 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AnalysisGame, Comp, Role, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
+
+/** Which team a draft slot belongs to. */
+type DraftSide = 'our' | 'their';
 import { AuthService } from '../../services/auth.service';
 import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -221,6 +224,7 @@ export class TournamentsComponent {
 
   protected selectDraftGame(gameId: string): void {
     this.pickedGameId.set(gameId);
+    this.heldPick.set(null);
   }
 
   /** Bo3 means three games; there is nothing to draft beyond that. */
@@ -293,24 +297,78 @@ export class TournamentsComponent {
    * a half-finished draft still says which seats are filled. Empty slots are
    * blank strings, which every consumer already filters out.
    */
-  protected pickSlots(game: SeriesGame): { role: Role; champion: string }[] {
-    const picks = game.ourChampions ?? [];
+  protected pickSlots(game: SeriesGame, side: DraftSide = 'our'): { role: Role; champion: string }[] {
+    const picks = (side === 'our' ? game.ourChampions : game.theirChampions) ?? [];
     return this.roles.map((role, i) => ({ role, champion: picks[i] ?? '' }));
   }
 
-  protected setPickAt(game: SeriesGame, index: number, champion: string): void {
-    const next = this.roles.map((_, i) => (game.ourChampions ?? [])[i] ?? '');
+  // ---- Moving a pick between seats ---------------------------------------
+  //
+  // Flex picks change seat mid-draft. Click the champion to lift it, click the
+  // seat it should go to. Two clicks for any move — arrows would be four to get
+  // Support up to Top — and it swaps rather than overwrites, so the pick that
+  // was there is not lost.
+
+  private readonly heldPick = signal<{ side: DraftSide; index: number } | null>(null);
+
+  protected isHeld(side: DraftSide, index: number): boolean {
+    const held = this.heldPick();
+    return held?.side === side && held.index === index;
+  }
+
+  /** Only the team being moved lights up as a drop target. */
+  protected isMovingPick(side: DraftSide): boolean {
+    return this.heldPick()?.side === side;
+  }
+
+  protected liftOrPlace(game: SeriesGame, side: DraftSide, index: number): void {
+    const held = this.heldPick();
+
+    // Nothing lifted, or lifting on the other team: start a new move.
+    if (!held || held.side !== side) {
+      if (this.pickSlots(game, side)[index].champion) this.heldPick.set({ side, index });
+      return;
+    }
+    if (held.index === index) {
+      this.heldPick.set(null);
+      return;
+    }
+
+    const next = this.pickSlots(game, side).map((s) => s.champion);
+    [next[held.index], next[index]] = [next[index], next[held.index]];
+    void this.data.updateSeriesGame(this.withPicks(game, side, next));
+    this.heldPick.set(null);
+  }
+
+  protected moveHint(game: SeriesGame, side: DraftSide, index: number): string {
+    const slots = this.pickSlots(game, side);
+    const held = this.heldPick();
+    if (held?.side === side) {
+      if (held.index === index) return 'Click again to cancel';
+      const moving = slots[held.index].champion;
+      const sitting = slots[index].champion;
+      return sitting ? 'Swap ' + moving + ' with ' + sitting : 'Move ' + moving + ' to ' + slots[index].role;
+    }
+    return slots[index].champion ? 'Move ' + slots[index].champion + ' to another role' : '';
+  }
+
+  protected setPickAt(game: SeriesGame, side: DraftSide, index: number, champion: string): void {
+    const next = this.pickSlots(game, side).map((s) => s.champion);
     next[index] = champion;
-    void this.data.updateSeriesGame({ ...game, ourChampions: next });
+    void this.data.updateSeriesGame(this.withPicks(game, side, next));
+  }
+
+  private withPicks(game: SeriesGame, side: DraftSide, picks: string[]): SeriesGame {
+    return side === 'our' ? { ...game, ourChampions: picks } : { ...game, theirChampions: picks };
   }
 
   /** From a picker, which hands back an array of at most one champion. */
-  protected setPickFromPicker(game: SeriesGame, index: number, champs: string[]): void {
-    this.setPickAt(game, index, champs[0] ?? '');
+  protected setPickFromPicker(game: SeriesGame, side: DraftSide, index: number, champs: string[]): void {
+    this.setPickAt(game, side, index, champs[0] ?? '');
   }
 
-  protected pickedCount(game: SeriesGame): number {
-    return (game.ourChampions ?? []).filter(Boolean).length;
+  protected pickedCount(game: SeriesGame, side: DraftSide = 'our'): number {
+    return this.pickSlots(game, side).filter((s) => s.champion).length;
   }
 
   /** The role a player plays, so a pick off their pool lands in the right seat. */
@@ -337,13 +395,13 @@ export class TournamentsComponent {
 
     const held = slots.findIndex((s) => normalizeChampion(s.champion) === normalizeChampion(champion));
     if (held >= 0) {
-      this.setPickAt(game, held, '');
+      this.setPickAt(game, 'our', held, '');
       return;
     }
 
     const target = role ? this.roles.indexOf(role) : slots.findIndex((s) => !s.champion);
     if (target < 0) return;
-    this.setPickAt(game, target, champion);
+    this.setPickAt(game, 'our', target, champion);
   }
 
   /** Why a chip cannot be clicked, so the reason is not a mystery. */

@@ -492,24 +492,53 @@
                                    [inputName]="'dbans-' + game.id" placeholder="Add a ban…"
                                    (championsChange)="setGameBans(game, $event)" /></div>
             <div class="field">
-              <span>{{ teamName() }} picks <small class="pick-count">{{ pickedCount(game) }}/5</small></span>
-              <ul class="list-clean pick-slots">
-                @for (slot of pickSlots(game); track slot.role; let i = $index) {
-                  <li class="pick-slot" [class.is-empty]="!slot.champion">
-                    <span class="pick-slot-role">{{ slot.role }}</span>
+              <span>{{ teamName() }} picks <small class="pick-count">{{ pickedCount(game, 'our') }}/5</small></span>
+              <ul class="list-clean pick-slots" [class.is-moving]="isMovingPick('our')">
+                @for (slot of pickSlots(game, 'our'); track slot.role; let i = $index) {
+                  <li class="pick-slot" [class.is-empty]="!slot.champion" [class.is-held]="isHeld('our', i)">
+                    <button type="button" class="pick-slot-role"
+                            [class.can-drop]="isMovingPick('our') && !isHeld('our', i)"
+                            [disabled]="!slot.champion && !isMovingPick('our')"
+                            [appTip]="moveHint(game, 'our', i)"
+                            (click)="liftOrPlace(game, 'our', i)">
+                      <span>{{ slot.role }}</span>
+                      @if (slot.champion || isMovingPick('our')) {
+                        <span class="pick-slot-grip material-symbols-rounded" aria-hidden="true">swap_vert</span>
+                      }
+                    </button>
                     <app-champion-picker [champions]="slot.champion ? [slot.champion] : []" [max]="1"
                                          [role]="slot.role"
                                          [inputName]="'pick-' + slot.role + '-' + game.id"
                                          placeholder="Pick…"
-                                         (championsChange)="setPickFromPicker(game, i, $event)" />
+                                         (championsChange)="setPickFromPicker(game, 'our', i, $event)" />
                   </li>
                 }
               </ul>
             </div>
-            <div class="field"><span>{{ series.opponent }} picks</span>
-              <app-champion-picker [champions]="game.theirChampions || []" [max]="5"
-                                   [inputName]="'dtheir-' + game.id" placeholder="Add a pick…"
-                                   (championsChange)="setGameChamps(game, 'their', $event)" /></div>
+            <div class="field">
+              <span>{{ series.opponent }} picks <small class="pick-count">{{ pickedCount(game, 'their') }}/5</small></span>
+              <ul class="list-clean pick-slots" [class.is-moving]="isMovingPick('their')">
+                @for (slot of pickSlots(game, 'their'); track slot.role; let i = $index) {
+                  <li class="pick-slot" [class.is-empty]="!slot.champion" [class.is-held]="isHeld('their', i)">
+                    <button type="button" class="pick-slot-role"
+                            [class.can-drop]="isMovingPick('their') && !isHeld('their', i)"
+                            [disabled]="!slot.champion && !isMovingPick('their')"
+                            [appTip]="moveHint(game, 'their', i)"
+                            (click)="liftOrPlace(game, 'their', i)">
+                      <span>{{ slot.role }}</span>
+                      @if (slot.champion || isMovingPick('their')) {
+                        <span class="pick-slot-grip material-symbols-rounded" aria-hidden="true">swap_vert</span>
+                      }
+                    </button>
+                    <app-champion-picker [champions]="slot.champion ? [slot.champion] : []" [max]="1"
+                                         [role]="slot.role"
+                                         [inputName]="'epick-' + slot.role + '-' + game.id"
+                                         placeholder="Pick…"
+                                         (championsChange)="setPickFromPicker(game, 'their', i, $event)" />
+                  </li>
+                }
+              </ul>
+            </div>
           </div>
         }
 
