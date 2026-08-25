@@ -190,10 +190,16 @@
                 <li class="pool-row">
                   <span class="pool-name">{{ row.name }}</span>
                   @for (champ of row.left; track champ) {
-                    <span class="pool-champ">{{ champ }}</span>
+                    <span class="pool-champ">
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                      {{ champ }}
+                    </span>
                   }
                   @for (champ of row.gone; track champ) {
-                    <span class="pool-champ is-gone">{{ champ }}</span>
+                    <span class="pool-champ is-gone">
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                      {{ champ }}
+                    </span>
                   }
                 </li>
               }
@@ -597,7 +603,10 @@
                     @if (row.gone.length) {
                       <span class="draft-pool-gone-label">Gone</span>
                       @for (champ of row.gone; track champ) {
-                        <span class="draft-pool-gone">{{ champ }}</span>
+                        <span class="draft-pool-gone">
+                          <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                          {{ champ }}
+                        </span>
                       }
                     }
                   </div>

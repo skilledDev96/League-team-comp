@@ -5478,12 +5478,31 @@ body.intel-page #fillInSection {
 }
 
 .pool-champ {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
   font-size: 0.72rem;
-  padding: 0.05rem 0.4rem;
-  border-radius: 6px;
+  padding: 0.12rem 0.42rem 0.12rem 0.16rem;
+  border-radius: 999px;
   border: 1px solid var(--card-border);
+  background: var(--surface-btn);
   color: var(--text-1);
 }
+
+.pool-champ-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+/* Burned champions read as spent, icon included. */
+.pool-champ.is-gone .pool-champ-icon,
+.draft-pool-gone .pool-champ-icon {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
 
 .pool-champ.is-gone {
   color: var(--warn);
@@ -6741,7 +6760,10 @@ app-match-note {
 }
 
 .draft-pool-gone {
-  padding: 0.1rem 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.1rem 0.4rem 0.1rem 0.16rem;
   border-radius: 999px;
   background: var(--surface-btn);
   font-size: 0.75rem;
