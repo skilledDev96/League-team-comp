@@ -7,6 +7,7 @@ import { PlayerEnrichmentService } from '../../services/player-enrichment.servic
 import { TeamDataService } from '../../services/team-data.service';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
+import { BUILD_SHA } from '../../build-info';
 
 interface PlayerDraft {
   uid: string;
@@ -50,7 +51,7 @@ interface AccessDraft {
   active: boolean;
 }
 
-type EditorTab = 'settings' | 'players' | 'fillins' | 'comps' | 'access';
+type EditorTab = 'settings' | 'players' | 'fillins' | 'comps' | 'access' | 'diagnostics';
 
 function splitList(value: string): string[] {
   return value
@@ -148,12 +149,51 @@ export class AdminComponent {
     effect(() => {
       const canManageUsers = this.auth.canManageUsers();
       const currentTab = this.activeTab();
-      if (!canManageUsers && (currentTab === 'settings' || currentTab === 'access')) {
+      if (!canManageUsers && (currentTab === 'settings' || currentTab === 'access' || currentTab === 'diagnostics')) {
         this.activeTab.set('players');
       }
     });
   }
 
+
+  // ---- Diagnostics (admin only) ----------------------------------------
+
+  // Pipeline audit of the last analysis pass. A silent drop shows up here as a
+  // non-zero reason instead of a missing game.
+  protected readonly funnelStages = computed(() => {
+    const f = this.data.compAnalysis()?.funnel;
+    if (!f) return [];
+    return [
+      { label: 'Candidate matches', value: f.candidates },
+      { label: 'Served from cache', value: f.servedFromCache },
+      { label: 'Fetched from Riot', value: f.fetchedFromRiot },
+      { label: 'Re-fetched (self-heal)', value: f.selfHealed },
+      { label: 'Passed team minimum', value: f.passedTeamMin },
+      { label: 'Attributed to a comp', value: f.attributedToComp }
+    ];
+  });
+
+  protected readonly funnelDrops = computed(() => {
+    const d = this.data.compAnalysis()?.funnel?.dropped;
+    if (!d) return [];
+    return [
+      { label: 'Fetch failed', value: d.fetch_failed },
+      { label: 'Over fetch budget', value: d.budget_exhausted },
+      { label: 'No roster in match', value: d.no_roster_in_match },
+      { label: 'Below team minimum', value: d.below_team_min }
+    ].filter((r) => r.value > 0);
+  });
+
+  // Functions need a manual deploy while the frontend auto-deploys, so drift
+  // here is the visible form of "did my function actually go out?".
+  protected readonly frontendSha = BUILD_SHA;
+  protected readonly backendSha = computed(() => this.data.compAnalysis()?.backendSha ?? '');
+  protected readonly shaMismatch = computed(() => {
+    const back = this.backendSha();
+    return Boolean(back) && back !== BUILD_SHA;
+  });
+
+  protected readonly analysisGeneratedAt = computed(() => this.data.compAnalysis()?.generatedAt ?? '');
   private toPlayerDraft(p: Player): PlayerDraft {
     return {
       uid: this.newUid(),
@@ -200,7 +240,7 @@ export class AdminComponent {
   // ---- Settings ---------------------------------------------------------
 
   protected openTab(tab: EditorTab): void {
-    if (!this.auth.canManageUsers() && (tab === 'settings' || tab === 'access')) {
+    if (!this.auth.canManageUsers() && (tab === 'settings' || tab === 'access' || tab === 'diagnostics')) {
       this.activeTab.set('players');
       return;
     }
@@ -237,7 +277,7 @@ export class AdminComponent {
   private applyRouteFocus(): void {
     const params = this.route.snapshot.queryParamMap;
     const tab = params.get('tab');
-    if (tab === 'settings' || tab === 'players' || tab === 'fillins' || tab === 'comps' || tab === 'access') {
+    if (tab === 'settings' || tab === 'players' || tab === 'fillins' || tab === 'comps' || tab === 'access' || tab === 'diagnostics') {
       this.openTab(tab);
     }
 

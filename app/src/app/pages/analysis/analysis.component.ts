@@ -1,0 +1,337 @@
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
+import { Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { AnalysisGame, CompOutcome, CompPerformance, CompPicks, CompResult, Role, ROLES } from '../../models/team.models';
+import { AuthService } from '../../services/auth.service';
+import { CompAnalysisService } from '../../services/comp-analysis.service';
+import { TeamDataService } from '../../services/team-data.service';
+import { UiService } from '../../services/ui.service';
+import { ChampionChipComponent } from '../../shared/champion-chip.component';
+import { compVerdict, formatDamage, winLossRecord } from '../comps/comp-stats.util';
+
+interface LogRow {
+  id: string;
+  compId: string | null;
+  compName: string;
+  outcome: CompOutcome;
+  opponent?: string;
+  note?: string;
+  playedOn: string;
+  // Epoch ms used only for sorting (match-history games carry a real timestamp).
+  sortKey: number;
+  source: 'logged' | 'match';
+  // Present for manually-logged rows so they can be deleted.
+  result?: CompResult;
+}
+
+@Component({
+  selector: 'app-analysis',
+  imports: [DatePipe, NgTemplateOutlet, FormsModule, ChampionChipComponent],
+  templateUrl: './analysis.component.html'
+})
+export class AnalysisComponent {
+  protected readonly data = inject(TeamDataService);
+  protected readonly ui = inject(UiService);
+  protected readonly auth = inject(AuthService);
+  private readonly analysis = inject(CompAnalysisService);
+  protected readonly roles = ROLES;
+
+  // ---- Team-wide game log ----------------------------------------------
+
+  protected readonly logCompFilter = signal<string>('all');
+  protected readonly logResultFilter = signal<'all' | 'win' | 'loss'>('all');
+
+  private compName(compId: string): string {
+    return this.data.comps().find((c) => c.id === compId)?.name ?? 'Unknown comp';
+  }
+
+  // The game log merges two sources so it reflects every known game: games
+  // manually logged per comp, and games auto-detected from Riot match history.
+  // Match-history rows are read-only; manual rows can be deleted.
+  protected readonly logRows = computed<LogRow[]>(() => {
+    const comp = this.logCompFilter();
+    const result = this.logResultFilter();
+
+    const logged: LogRow[] = this.data.compResults().map((r) => ({
+      id: r.id,
+      compId: r.compId,
+      compName: this.compName(r.compId),
+      outcome: r.outcome,
+      opponent: r.opponent,
+      note: r.note,
+      playedOn: r.playedOn,
+      sortKey: Date.parse(r.playedOn) || 0,
+      source: 'logged' as const,
+      result: r
+    }));
+
+    const matches: LogRow[] = (this.data.compAnalysis()?.games ?? [])
+      .filter((g) => g.compId)
+      .map((g) => ({
+        id: `match-${g.matchId}`,
+        compId: g.compId,
+        compName: g.compName ?? this.compName(g.compId as string),
+        outcome: (g.win ? 'win' : 'loss') as CompOutcome,
+        opponent: undefined,
+        note: g.queue,
+        playedOn: new Date(g.date).toLocaleDateString(),
+        sortKey: g.date,
+        source: 'match' as const
+      }));
+
+    return [...logged, ...matches]
+      .filter(
+        (r) =>
+          (comp === 'all' || r.compId === comp) && (result === 'all' || r.outcome === result)
+      )
+      .sort((a, b) => b.sortKey - a.sortKey);
+  });
+
+  // Win/loss totals for whatever the filters currently show.
+  protected readonly logSummary = computed(() => {
+    const rows = this.logRows();
+    const wins = rows.filter((r) => r.outcome === 'win').length;
+    const games = rows.length;
+    return { games, wins, losses: games - wins, winRate: games ? Math.round((wins / games) * 100) : 0 };
+  });
+
+  // ---- Riot match analysis ---------------------------------------------
+
+  protected readonly analysisLoading = signal(false);
+  protected readonly analysisError = signal('');
+  protected readonly showOffBook = signal(false);
+
+  // Queue filter for the analysis panel ('all' or a specific queue label).
+  protected readonly analysisQueue = signal<string>('all');
+
+  // Queues present in the analysed games, for the filter control.
+  protected readonly analysisQueues = computed<string[]>(() => {
+    const seen = new Set<string>();
+    for (const g of this.data.compAnalysis()?.games ?? []) {
+      if (g.queue) seen.add(g.queue);
+    }
+    return [...seen];
+  });
+
+  // Games after the queue filter is applied.
+  protected readonly filteredGames = computed<AnalysisGame[]>(() => {
+    const games = this.data.compAnalysis()?.games ?? [];
+    const queue = this.analysisQueue();
+    return queue === 'all' ? games : games.filter((g) => g.queue === queue);
+  });
+
+  // How many of a comp's 5 champions a game must share to be credited to it.
+  // Adjustable live via the strictness slider — 3/5 by default. Re-buckets games
+  // on the frontend using each game's overlap, so no re-fetch is needed.
+  protected readonly compStrictness = signal(3);
+
+  // The comp a game is credited to at the current strictness, or null (off the
+  // books). Uses the closest comp + overlap the backend already computed.
+  protected gameComp(game: AnalysisGame): { id: string; name: string } | null {
+    const name = game.nearCompName;
+    if (!name || (game.nearOverlap ?? 0) < this.compStrictness()) return null;
+    const comp = this.data.comps().find((c) => c.name === name);
+    return comp ? { id: comp.id, name: comp.name } : null;
+  }
+
+  // Per-comp performance aggregated from the filtered games at the current
+  // strictness. `partials` counts 4-stacks (one player subbed) for transparency.
+  private readonly compPerf = computed(() => {
+    const byComp = new Map<string, { compId: string; compName: string; games: number; wins: number; partials: number }>();
+    for (const g of this.filteredGames()) {
+      const gc = this.gameComp(g);
+      if (!gc) continue;
+      const acc = byComp.get(gc.id) ?? { compId: gc.id, compName: gc.name, games: 0, wins: 0, partials: 0 };
+      acc.games += 1;
+      if (g.win) acc.wins += 1;
+      if ((g.rosterCount ?? 5) < 5) acc.partials += 1;
+      byComp.set(gc.id, acc);
+    }
+    return byComp;
+  });
+
+  protected readonly compRows = computed<(CompPerformance & { partials: number })[]>(() =>
+    [...this.compPerf().values()]
+      .map((a) => ({ ...a, losses: a.games - a.wins, winRate: a.games ? Math.round((a.wins / a.games) * 100) : 0 }))
+      .sort((a, b) => b.games - a.games || b.winRate - a.winRate)
+  );
+
+  // Off-book games: stacks not credited to any comp at the current strictness.
+  protected readonly offBookGames = computed<AnalysisGame[]>(() =>
+    this.filteredGames().filter((g) => !this.gameComp(g))
+  );
+
+  protected offBookRecord = winLossRecord;
+
+  protected deleteResult(result: CompResult): void {
+    void this.data.deleteCompResult(result.id);
+  }
+
+  // Whole-number win percentage from a wins/total pair.
+  protected pct(wins: number, total: number): number {
+    return total ? Math.round((wins / total) * 100) : 0;
+  }
+
+  // Overall win/loss across every stacked team game found (matched + off-book).
+  protected readonly teamRecord = computed(() => {
+    const { wins, losses } = winLossRecord(this.filteredGames());
+    const games = wins + losses;
+    return { wins, losses, games, winRate: games ? Math.round((wins / games) * 100) : 0 };
+  });
+
+  // The champions that make up a defined comp, by name — for the "what comp is
+  // this" tag shown on each analysed game.
+  protected compChampions(name: string | null | undefined): string[] {
+    if (!name) return [];
+    const comp = this.data.comps().find((c) => c.name === name);
+    if (!comp) return [];
+    return ROLES.map((r) => this.ui.parseCompLine(comp.picks[r] ?? '').champion).filter(Boolean);
+  }
+
+  private normChamp(s: string): string {
+    return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  // Whether a played champion is one of the (matched or closest) comp's picks —
+  // drives the per-row "part of this comp" indicator.
+  protected champInComp(game: AnalysisGame, champion: string): boolean {
+    const picks = this.compChampions(this.gameComp(game)?.name || game.nearCompName);
+    if (!picks.length) return false;
+    const target = this.normChamp(champion);
+    return picks.some((c) => this.normChamp(c) === target);
+  }
+
+  // A game that fits two or more comps equally well. The winner is a tie-break,
+  // not a clear result, so say so rather than presenting it as certain.
+  protected isAmbiguous(game: AnalysisGame): boolean {
+    return (game.tiedNames?.length ?? 0) > 1 && Boolean(this.gameComp(game));
+  }
+
+  protected ambiguousLabel(game: AnalysisGame): string {
+    return (game.tiedNames ?? []).join(' / ');
+  }
+
+  // "4/5" style label for how much of the roster was on our team that game.
+  protected stackLabel(game: AnalysisGame): string {
+    const n = game.rosterCount ?? 5;
+    return `${n}/5`;
+  }
+
+  // ---- Analytics from the filtered games -------------------------------
+
+  // Win rate by map side (blue/red).
+  protected readonly sideSplit = computed(() => {
+    const record = (side: 'blue' | 'red') => {
+      const list = this.filteredGames().filter((g) => g.side === side);
+      const wins = list.filter((g) => g.win).length;
+      return {
+        games: list.length,
+        wins,
+        losses: list.length - wins,
+        winRate: list.length ? Math.round((wins / list.length) * 100) : 0
+      };
+    };
+    return { blue: record('blue'), red: record('red') };
+  });
+
+  // Most recent games (already newest-first) for a W/L form strip.
+  protected readonly recentForm = computed(() => this.filteredGames().slice(0, 12));
+
+  // Win rate against each enemy champion, split into toughest and best (min 2 games).
+  protected readonly matchups = computed(() => {
+    const byChamp = new Map<string, { champion: string; games: number; wins: number }>();
+    for (const g of this.filteredGames()) {
+      for (const champ of g.enemyChampions ?? []) {
+        const acc = byChamp.get(champ) ?? { champion: champ, games: 0, wins: 0 };
+        acc.games += 1;
+        if (g.win) acc.wins += 1;
+        byChamp.set(champ, acc);
+      }
+    }
+    const rows = [...byChamp.values()]
+      .filter((c) => c.games >= 2)
+      .map((c) => ({ ...c, losses: c.games - c.wins, winRate: Math.round((c.wins / c.games) * 100) }));
+    return {
+      toughest: [...rows].sort((a, b) => a.winRate - b.winRate || b.games - a.games).slice(0, 5),
+      best: [...rows].sort((a, b) => b.winRate - a.winRate || b.games - a.games).slice(0, 5)
+    };
+  });
+
+  // Compact damage label, e.g. 24312 -> "24.3k".
+  protected fmtDamage = formatDamage;
+
+  // ---- Define a comp from an off-book game ------------------------------
+
+  // matchId -> draft comp name being typed.
+  protected readonly compDrafts = signal<Record<string, string>>({});
+  // matchIds already saved as a comp this session.
+  protected readonly savedComps = signal<Set<string>>(new Set());
+
+  protected compDraft(matchId: string): string {
+    return this.compDrafts()[matchId] ?? '';
+  }
+
+  protected setCompDraft(matchId: string, name: string): void {
+    this.compDrafts.update((state) => ({ ...state, [matchId]: name }));
+  }
+
+  protected isSavedAsComp(matchId: string): boolean {
+    return this.savedComps().has(matchId);
+  }
+
+  protected async saveAsComp(game: AnalysisGame): Promise<void> {
+    const name = this.compDraft(game.matchId).trim();
+    if (!name || this.isSavedAsComp(game.matchId)) return;
+    const picks = {} as CompPicks;
+    for (const role of ROLES) {
+      picks[role] = '';
+    }
+    for (const p of game.players) {
+      if ((ROLES as string[]).includes(p.position)) {
+        picks[p.position as Role] = p.champion;
+      }
+    }
+    await this.data.createComp({ name, picks });
+    this.savedComps.update((set) => new Set(set).add(game.matchId));
+  }
+
+  // Match-analysis record for a comp panel, keyed by comp id.
+  protected analysisFor(compId: string): CompPerformance | undefined {
+    const a = this.compPerf().get(compId);
+    if (!a) return undefined;
+    return {
+      compId: a.compId,
+      compName: a.compName,
+      games: a.games,
+      wins: a.wins,
+      losses: a.games - a.wins,
+      winRate: a.games ? Math.round((a.wins / a.games) * 100) : 0
+    };
+  }
+
+  // Collapsed-panel badge: prefer the manually logged record, fall back to the
+  // The games credited to one comp at the current strictness, for its detail.
+  protected analysisGamesFor(compId: string): AnalysisGame[] {
+    return this.filteredGames().filter((g) => this.gameComp(g)?.id === compId);
+  }
+
+  protected async refreshAnalysis(): Promise<void> {
+    if (this.analysisLoading()) return;
+    this.analysisLoading.set(true);
+    this.analysisError.set('');
+    try {
+      const result = await this.analysis.refresh(this.data.players(), this.data.comps());
+      // In Firebase mode the cache doc updates via onSnapshot; set directly as a
+      // fallback so the UI reflects the fresh result immediately.
+      this.data.compAnalysis.set(result);
+    } catch (err) {
+      this.analysisError.set(err instanceof Error ? err.message : 'Analysis failed.');
+    } finally {
+      this.analysisLoading.set(false);
+    }
+  }
+
+  // Keep / work-on / drop signal from win rate and sample size.
+  protected verdict = compVerdict;
+
+}

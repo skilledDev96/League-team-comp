@@ -18,7 +18,8 @@
       <nav class="nav-links" aria-label="Main navigation">
         <a routerLink="/overview" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Overview</a>
         <a routerLink="/players" routerLinkActive="active">Player Intel</a>
-        <a routerLink="/comps" routerLinkActive="active">Comps and Macro</a>
+        <a routerLink="/comps" routerLinkActive="active">Comps</a>
+        <a routerLink="/analysis" routerLinkActive="active">Analysis</a>
         <a routerLink="/profiles" routerLinkActive="active">Profiles</a>
       </nav>
       <div class="user-bar">
@@ -29,12 +30,6 @@
             <span class="material-symbols-rounded" aria-hidden="true">{{ auth.editMode() ? 'edit_off' : 'edit' }}</span>
             {{ auth.editMode() ? 'Done editing' : 'Edit mode' }}
           </button>
-          @if (auth.editMode()) {
-            <a class="edit-advanced" routerLink="/admin" routerLinkActive="active"
-               title="Roster, comps and access editor">
-              <span class="material-symbols-rounded" aria-hidden="true">tune</span>
-            </a>
-          }
         }
 
         <label for="themeSelect" class="visually-hidden">Theme</label>
@@ -48,14 +43,15 @@
 
         <span class="topbar-divider" aria-hidden="true"></span>
 
-        <div class="user-chip">
-          <span class="user-avatar" aria-hidden="true">{{ (auth.userEmail() || '?').charAt(0).toUpperCase() }}</span>
-          <span class="user-name">{{ auth.userEmail() }}</span>
-          @if (auth.role()) {
-            <span class="tag good">{{ auth.role() }}</span>
+        <app-user-menu [email]="auth.userEmail() || ''" [role]="auth.role() || ''">
+          @if (auth.canEdit()) {
+            <a class="overflow-item" routerLink="/admin">Roster &amp; comps editor</a>
           }
-        </div>
-        <button type="button" class="view-btn" (click)="logout()">Log out</button>
+          @if (auth.canManageUsers()) {
+            <a class="overflow-item" routerLink="/admin" [queryParams]="{ tab: 'diagnostics' }">Diagnostics</a>
+          }
+          <button type="button" class="overflow-item" (click)="logout()">Log out</button>
+        </app-user-menu>
       </div>
     } @else {
       <div class="user-bar">
@@ -106,7 +102,7 @@
       <ul class="list-clean">
         <li><strong>Overview</strong> — roster, playstyles, and champ pools at a glance.</li>
         <li><strong>Player Intel</strong> — deep-dive scouting cards per player.</li>
-        <li><strong>Comps and Macro</strong> — team comps, bans, and the game plan.</li>
+        <li><strong>Comps</strong> — team comps, bans, and the game plan. <strong>Analysis</strong> — real win rates from your games.</li>
         @if (auth.canEdit()) {
           <li><strong>Edit mode</strong> — flip the top-right switch to reveal editing controls and the roster editor.</li>
         }

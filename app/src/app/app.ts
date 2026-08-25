@@ -12,10 +12,11 @@ import {
 import { AuthService } from './services/auth.service';
 import { TeamDataService } from './services/team-data.service';
 import { Theme, ThemeService } from './services/theme.service';
+import { UserMenuComponent } from './shared/user-menu.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, UserMenuComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
