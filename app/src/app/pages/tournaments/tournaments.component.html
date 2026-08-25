@@ -531,7 +531,17 @@
                       <li class="draft-lineup-row">
                         <span class="draft-lineup-role">{{ line.role }}</span>
                         @if (line.champion) {
-                          <app-champion-chip [champion]="line.champion" />
+                          <button type="button" class="pick-chip"
+                            [class.is-picked]="isPicked(game, line.champion)"
+                            [disabled]="!auth.editing() || (picksFull(game) && !isPicked(game, line.champion))"
+                            [appTip]="pickHint(game, line.champion)"
+                            (click)="togglePick(game, line.champion)">
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(line.champion)" [alt]="" loading="lazy" />
+                      <span>{{ line.champion }}</span>
+                      @if (isPicked(game, line.champion)) {
+                        <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                      }
+                    </button>
                         } @else {
                           <span class="muted">&mdash;</span>
                         }
@@ -565,7 +575,17 @@
                       <li class="draft-lineup-row" [class.is-gone]="row.blocked.includes(line.champion)">
                         <span class="draft-lineup-role">{{ line.role }}</span>
                         @if (line.champion) {
-                          <app-champion-chip [champion]="line.champion" />
+                          <button type="button" class="pick-chip"
+                            [class.is-picked]="isPicked(game, line.champion)"
+                            [disabled]="!auth.editing() || (picksFull(game) && !isPicked(game, line.champion))"
+                            [appTip]="pickHint(game, line.champion)"
+                            (click)="togglePick(game, line.champion)">
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(line.champion)" [alt]="" loading="lazy" />
+                      <span>{{ line.champion }}</span>
+                      @if (isPicked(game, line.champion)) {
+                        <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                      }
+                    </button>
                         } @else {
                           <span class="muted">&mdash;</span>
                         }
@@ -596,7 +616,17 @@
                 @if (isPoolOpen(row.name)) {
                   <div class="draft-pool-champs">
                     @for (champ of row.left; track champ) {
-                      <app-champion-chip [champion]="champ" />
+                      <button type="button" class="pick-chip"
+                            [class.is-picked]="isPicked(game, champ)"
+                            [disabled]="!auth.editing() || (picksFull(game) && !isPicked(game, champ))"
+                            [appTip]="pickHint(game, champ)"
+                            (click)="togglePick(game, champ)">
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                      <span>{{ champ }}</span>
+                      @if (isPicked(game, champ)) {
+                        <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                      }
+                    </button>
                     } @empty {
                       <span class="muted">Nothing left in this pool.</span>
                     }

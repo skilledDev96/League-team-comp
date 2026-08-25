@@ -10,7 +10,14 @@ import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { MatchNoteButtonComponent } from '../../shared/match-note-button.component';
 import { MatchNoteComponent } from '../../shared/match-note.component';
-import { blockedSet, CompAvailability, compAvailability, PoolPressure, poolPressure } from './draft.util';
+import {
+  blockedSet,
+  CompAvailability,
+  compAvailability,
+  normalizeChampion,
+  PoolPressure,
+  poolPressure
+} from './draft.util';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 
@@ -273,6 +280,40 @@ export class TournamentsComponent {
       role,
       champion: this.ui.parseCompLine(comp.picks[role] ?? '').champion
     }));
+  }
+
+  // ---- Drafting a champion straight off the board ------------------------
+  //
+  // Mid-draft the board is the fastest place to reach a champion: it is already
+  // showing the comp you are building. Clicking one adds it to our picks rather
+  // than opening a champion page, which is not what anyone wants at the table.
+
+  protected isPicked(game: SeriesGame, champion: string): boolean {
+    return blockedSet(game.ourChampions).has(normalizeChampion(champion));
+  }
+
+  protected picksFull(game: SeriesGame): boolean {
+    return (game.ourChampions ?? []).length >= 5;
+  }
+
+  /** Adds to our picks, or takes it back off if it is already there. */
+  protected togglePick(game: SeriesGame, champion: string): void {
+    if (!champion) return;
+    const current = game.ourChampions ?? [];
+    if (this.isPicked(game, champion)) {
+      const next = current.filter((c) => normalizeChampion(c) !== normalizeChampion(champion));
+      void this.data.updateSeriesGame({ ...game, ourChampions: next });
+      return;
+    }
+    if (current.length >= 5) return;
+    void this.data.updateSeriesGame({ ...game, ourChampions: [...current, champion] });
+  }
+
+  /** Why a chip cannot be clicked, so the reason is not a mystery. */
+  protected pickHint(game: SeriesGame, champion: string): string {
+    if (this.isPicked(game, champion)) return 'Picked — click to undo';
+    if (this.picksFull(game)) return 'All five picked';
+    return 'Add ' + champion + ' to our picks';
   }
 
   /** Drop the last game of the series; removing an earlier one would renumber. */

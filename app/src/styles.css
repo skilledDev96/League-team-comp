@@ -6919,3 +6919,46 @@ app-match-note {
 .series-prep[open] .series-prep-chevron {
   transform: rotate(180deg);
 }
+
+/* ---- Picking straight off the draft board ------------------------------
+   These sit where champion chips used to. A chip linked out to a champion
+   page, which is not the action anyone wants while drafting. */
+
+.pick-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem 0.15rem 0.16rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.pick-chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-btn));
+  color: var(--text-0);
+}
+
+.pick-chip:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* Already on the board, so the click takes it back off. */
+.pick-chip.is-picked {
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+  color: var(--text-0);
+  opacity: 1;
+}
+
+.pick-chip.is-picked .material-symbols-rounded {
+  font-size: 0.9rem;
+  color: var(--ok);
+}
