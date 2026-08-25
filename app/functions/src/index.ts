@@ -272,6 +272,15 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Short API name from a Riot URL, for error messages. */
+function riotEndpointLabel(url: string): string {
+  const match = /\/(?:lol|riot)\/([a-z-]+)\/(v\d+)/.exec(url);
+  if (match) {
+    return `${match[1]}-${match[2]}`;
+  }
+  return 'the Riot API';
+}
+
 async function riotFetch<T>(url: string, apiKey: string, retries = 6): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
     const response = await fetch(url, { headers: { 'X-Riot-Token': apiKey } });
@@ -282,10 +291,19 @@ async function riotFetch<T>(url: string, apiKey: string, retries = 6): Promise<T
       continue;
     }
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('Riot API key expired or invalid — ask an admin to refresh it.');
+      // 401 and 403 are different problems and need different fixes, so don't
+      // collapse them into one message. Name the endpoint too: "the key is
+      // broken" is useless when only one API is actually being refused.
+      const endpoint = riotEndpointLabel(url);
+      if (response.status === 401) {
+        throw new Error(`Riot API key rejected (401) on ${endpoint} — the key is invalid or expired.`);
       }
-      throw new Error(`Riot API request failed (${response.status}) for ${url}`);
+      if (response.status === 403) {
+        throw new Error(
+          `Riot API forbidden (403) on ${endpoint} — the key is valid but not authorised for this API.`
+        );
+      }
+      throw new Error(`Riot API request failed (${response.status}) on ${endpoint}.`);
     }
     return (await response.json()) as T;
   }
@@ -298,7 +316,6 @@ interface RiotAccount {
 }
 
 interface RiotSummoner {
-  id: string;
   profileIconId: number;
 }
 
@@ -420,8 +437,11 @@ async function fetchRiotQueueEnrichment(
     apiKey
   );
 
+  // Riot removed the encrypted summoner id from Summoner-V4 responses, which
+  // left entries/by-summoner resolving to ".../undefined" and returning 403.
+  // The puuid-keyed endpoint is the supported route and needs no summoner id.
   const rankedEntries = await riotFetch<RiotLeagueEntry[]>(
-    `https://${routing.platform}.api.riotgames.com/lol/league/v4/entries/by-summoner/${encodeURIComponent(summoner.id)}`,
+    `https://${routing.platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
     apiKey
   );
   const rankedEntry = rankedQueueType
