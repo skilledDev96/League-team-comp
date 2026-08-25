@@ -323,7 +323,7 @@
       @for (row of logRows(); track row.id) {
         <li class="log-row" [class.is-win]="row.outcome === 'win'" [class.is-loss]="row.outcome === 'loss'">
           <span class="log-outcome">{{ row.outcome === 'win' ? 'W' : 'L' }}</span>
-          <span class="log-date">{{ row.playedOn }}</span>
+          <span class="log-date">{{ ui.formatDay(row.playedOn) }}</span>
           <span class="log-comp">{{ row.compName }}</span>
           <span class="log-opp">{{ row.opponent ? 'vs ' + row.opponent : '—' }}</span>
           <span class="log-note">{{ row.note }}</span>

@@ -52,6 +52,46 @@ export class UiService {
 
   private readonly champions = inject(ChampionDataService);
 
+  private static readonly MONTHS = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  /**
+   * Render a stored date as "05 Aug, 2026". Values are ISO from the date
+   * pickers, but older records hold free text ("Sun 20:00"), so anything that
+   * does not parse is passed through untouched rather than shown as garbage.
+   */
+  formatDay(value: string | undefined | null): string {
+    const date = this.parseDate(value);
+    if (!date) return value ?? '';
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${day} ${UiService.MONTHS[date.getMonth()]}, ${date.getFullYear()}`;
+  }
+
+  /** Same as formatDay, plus the time when the value carries one. */
+  formatDayTime(value: string | undefined | null): string {
+    const date = this.parseDate(value);
+    if (!date) return value ?? '';
+    const hasTime = typeof value === 'string' && value.includes('T');
+    if (!hasTime) return this.formatDay(value);
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    return `${this.formatDay(value)} · ${hh}:${mm}`;
+  }
+
+  private parseDate(value: string | undefined | null): Date | null {
+    if (!value) return null;
+    // A bare "YYYY-MM-DD" is parsed as UTC midnight, which renders as the day
+    // before in any negative-offset timezone. Build it in local time instead.
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (dateOnly) {
+      const [, y, m, d] = dateOnly;
+      return new Date(Number(y), Number(m) - 1, Number(d));
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
   championSlug(championName: string): string {
     return CHAMP_SLUG_MAP[championName] ?? championName.toLowerCase().replace(/[^a-z0-9]/g, '');
   }

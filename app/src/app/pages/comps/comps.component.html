@@ -191,7 +191,7 @@
                 <span class="comp-result-outcome">{{ result.outcome === 'win' ? 'Win' : 'Loss' }}</span>
                 <span class="comp-result-meta">
                   @if (result.opponent) { <span class="comp-result-opp">vs {{ result.opponent }}</span> }
-                  <span class="comp-result-date">{{ result.playedOn }}</span>
+                  <span class="comp-result-date">{{ ui.formatDay(result.playedOn) }}</span>
                   @if (result.note) { <span class="comp-result-note">{{ result.note }}</span> }
                 </span>
                 @if (auth.editing()) {
