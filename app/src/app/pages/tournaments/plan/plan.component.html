@@ -1,0 +1,414 @@
+@if (tournaments().length > 1) {
+  <section class="view-controls" aria-label="Tournament picker">
+    @for (t of tournaments(); track t.id) {
+      <button type="button" class="view-btn" [class.active]="currentTournament()?.id === t.id"
+              (click)="selectTournament(t.id)">{{ t.name }}</button>
+    }
+  </section>
+}
+
+@if (currentTournament(); as tournament) {
+  <section class="card tournament-head" aria-label="Tournament details">
+    <h2 class="title-with-icon">
+      <span class="section-icon material-symbols-rounded">trophy</span>{{ tournament.name }}
+    </h2>
+    <dl class="tournament-meta">
+      @if (tournament.organiser) {
+        <div><dt>Organiser</dt><dd>{{ tournament.organiser }}</dd></div>
+      }
+      @if (tournament.division) {
+        <div><dt>Division</dt><dd>{{ tournament.division }}</dd></div>
+      }
+      @if (tournament.format) {
+        <div><dt>Format</dt><dd>{{ tournament.format }}</dd></div>
+      }
+      @if (tournament.startDate) {
+        <div><dt>Runs</dt><dd>{{ ui.formatDay(tournament.startDate) }} → {{ ui.formatDay(tournament.endDate) }}</dd></div>
+      }
+    </dl>
+    @if (tournament.notes) {
+      <div class="tournament-notes">
+        @for (line of noteLines(tournament.notes); track $index) {
+          <p class="note-line" [class.is-bullet]="line.bullet">
+            @for (part of line.parts; track $index) {
+              @if (part.href) {
+                <a [href]="part.href" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
+              } @else {
+                <span>{{ part.text }}</span>
+              }
+            }
+          </p>
+        }
+      </div>
+    }
+  </section>
+
+  @if (auth.editing()) {
+    <section class="series-add-bar" aria-label="Add series">
+      <div class="series-add-label">
+        <span class="material-symbols-rounded" aria-hidden="true">add_circle</span>
+        <span>
+          <strong>Add a series</strong>
+          <small>Scheduling happens on Discord — record it here once agreed.</small>
+        </span>
+      </div>
+      <div class="series-add">
+        <input type="text" [ngModel]="newOpponent()" (ngModelChange)="newOpponent.set($event)"
+               name="newOpponent" placeholder="Opponent team name" />
+        <input type="datetime-local" [ngModel]="newScheduledAt()" (ngModelChange)="newScheduledAt.set($event)"
+               name="newScheduledAt" aria-label="Scheduled date and time" />
+        <button type="button" class="view-btn active" [disabled]="!newOpponent().trim() || saving()"
+                (click)="addSeries()">Add series</button>
+      </div>
+    </section>
+  }
+
+  @if (seriesList().length) {
+    <section aria-label="Series">
+      <h3 class="section-divider">
+        Series
+        <span class="section-divider-count">{{ seriesList().length }}</span>
+      </h3>
+      @for (series of seriesList(); track series.id; let i = $index) {
+        <details class="card series-panel" [open]="isSeriesOpen(series.id)">
+          <summary class="series-summary" (click)="$event.preventDefault(); toggleSeries(series.id)">
+            <span class="series-index">{{ i + 1 }}</span>
+            <span class="series-opponent">vs {{ series.opponent }}</span>
+            @if (series.scheduledAt) {
+              <span class="series-when">{{ ui.formatDayTime(series.scheduledAt) }}</span>
+            }
+            <span class="series-bo">Bo{{ series.bestOf }}</span>
+            @if (seriesScore(series.id); as sc) {
+              @if (sc.wins + sc.losses) {
+                <span class="series-score" [class.is-positive]="sc.wins > sc.losses"
+                      [class.is-negative]="sc.wins < sc.losses">{{ sc.wins }}&ndash;{{ sc.losses }}</span>
+              }
+            }
+            @if (usedCount(series.id); as used) {
+              <span class="series-burned" [appTip]="used + ' champions burned this series'">
+                {{ used }} burned
+              </span>
+            }
+            <span class="series-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+          </summary>
+
+          <!-- Fearless pool: the reason this page exists. -->
+          <div class="fearless">
+            <div class="fearless-head">
+              <span class="material-symbols-rounded" aria-hidden="true">block</span>
+              <span class="fearless-title">Fearless pool</span>
+              <span class="fearless-sub">champions burned by both teams — unavailable for the rest of the series</span>
+            </div>
+            @if (usedChampions(series.id).length) {
+              <div class="tag-row fearless-chips">
+                @for (champ of usedChampions(series.id); track champ) {
+                  <app-champion-chip [champion]="champ" />
+                }
+              </div>
+            } @else {
+              <p class="muted">Nothing burned yet — every comp is on the table.</p>
+            }
+          </div>
+
+          <details class="fearless-collapse">
+            <summary class="fearless-collapse-head">
+              <span class="material-symbols-rounded fearless-collapse-chevron" aria-hidden="true">chevron_right</span>
+              <span>Comp availability</span>
+              <span class="fearless-count is-ok">{{ playableComps(series.id).length }} playable</span>
+              <span class="fearless-count is-broken">{{ brokenComps(series.id).length }} broken</span>
+            </summary>
+          <div class="fearless-split">
+            <div class="fearless-col">
+              <h4 class="fearless-col-head is-ok">
+                Still playable
+                <span class="fearless-count">{{ playableComps(series.id).length }}</span>
+              </h4>
+              @if (playableComps(series.id).length) {
+                <ul class="list-clean fearless-comp-list">
+                  @for (row of playableComps(series.id); track row.id) {
+                    <li class="fearless-comp">
+                      <span class="fearless-comp-name">{{ row.name }}</span>
+                      @if (row.category) {
+                        <span class="comp-cat-chip">{{ row.category }}</span>
+                      }
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="muted">No comp survives intact — draft fresh from the pool below.</p>
+              }
+            </div>
+
+            <div class="fearless-col">
+              <h4 class="fearless-col-head is-broken">
+                Broken by fearless
+                <span class="fearless-count">{{ brokenComps(series.id).length }}</span>
+              </h4>
+              @if (brokenComps(series.id).length) {
+                <ul class="list-clean fearless-comp-list">
+                  @for (row of brokenComps(series.id); track row.id) {
+                    <li class="fearless-comp">
+                      <span class="fearless-comp-name">{{ row.name }}</span>
+                      <span class="fearless-blocked">
+                        @for (champ of row.blocked; track champ) {
+                          <span class="fearless-blocked-name">{{ champ }}</span>
+                        }
+                      </span>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="muted">Nothing broken yet.</p>
+              }
+            </div>
+          </div>
+
+          </details>
+
+          <details class="fearless-collapse">
+            <summary class="fearless-collapse-head">
+              <span class="material-symbols-rounded fearless-collapse-chevron" aria-hidden="true">chevron_right</span>
+              <span>Player pools</span>
+            </summary>
+          <div class="pool-pressure">
+            <ul class="list-clean">
+              @for (row of poolPressure(series.id); track row.name) {
+                <li class="pool-row">
+                  <span class="pool-name">{{ row.name }}</span>
+                  @for (champ of row.left; track champ) {
+                    <span class="pool-champ">
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                      {{ champ }}
+                    </span>
+                  }
+                  @for (champ of row.gone; track champ) {
+                    <span class="pool-champ is-gone">
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                      {{ champ }}
+                    </span>
+                  }
+                </li>
+              }
+            </ul>
+          </div>
+          </details>
+
+          <!-- Games: typed in live, reconciled against match history later. -->
+          <div class="series-games">
+            <div class="comp-record-head">
+              <span class="comp-record-title material-symbols-rounded" aria-hidden="true">stadium</span>
+              <span class="comp-record-label">Games</span>
+              @if (auth.editing() && gamesFor(series.id).length < series.bestOf) {
+                <button type="button" class="comp-log-trigger" aria-label="Add game" appTip="Add game"
+                        (click)="addGame(series)">
+                  <span class="material-symbols-rounded" aria-hidden="true">add</span>
+                </button>
+              }
+            </div>
+
+            @for (game of gamesFor(series.id); track game.id) {
+              <div class="series-game">
+                <div class="series-game-head">
+                  <span class="series-game-no">Game {{ game.gameNumber }}</span>
+                  @if (auth.editing()) {
+                    <div class="view-segment series-result" role="group" aria-label="Result">
+                      <button type="button" [class.active]="game.win === true"
+                              (click)="setGameResult(game, true)">Win</button>
+                      <button type="button" [class.active]="game.win === false"
+                              (click)="setGameResult(game, false)">Loss</button>
+                    </div>
+                    <button type="button" class="log-del" aria-label="Remove game"
+                            (click)="removeGame(game)">
+                      <span class="material-symbols-rounded" aria-hidden="true">close</span>
+                    </button>
+                  } @else if (game.win !== undefined) {
+                    <span class="series-game-result" [class.is-win]="game.win" [class.is-loss]="!game.win">
+                      {{ game.win ? 'Win' : 'Loss' }}
+                    </span>
+                  }
+                </div>
+
+                @if (auth.editing()) {
+                  <div class="field"><span>{{ teamName() }} champions</span>
+                    <app-champion-picker [champions]="game.ourChampions || []" [max]="5"
+                                         [inputName]="'our-' + game.id" placeholder="Add a pick…"
+                                         (championsChange)="setGameChamps(game, 'our', $event)" /></div>
+                  <div class="field"><span>{{ series.opponent }} champions</span>
+                    <app-champion-picker [champions]="game.theirChampions || []" [max]="5"
+                                         [inputName]="'their-' + game.id" placeholder="Add a pick…"
+                                         (championsChange)="setGameChamps(game, 'their', $event)" /></div>
+                  @if (game.matchId) {
+                    <p class="game-linked">
+                      <span class="material-symbols-rounded" aria-hidden="true">link</span>
+                      Linked to match {{ game.matchId }}
+                      <button type="button" class="link-undo" (click)="unlinkMatch(game)">unlink</button>
+                    </p>
+                  } @else {
+                    <button type="button" class="view-btn reconcile-btn" (click)="toggleReconcile(game)">
+                      <span class="material-symbols-rounded" aria-hidden="true">sync</span>
+                      {{ isReconciling(game) ? 'Cancel' : 'Fill from match history' }}
+                    </button>
+                    @if (isReconciling(game)) {
+                      <ul class="list-clean reconcile-list">
+                        @for (m of reconcileCandidates(); track m.matchId) {
+                          <li>
+                            <button type="button" class="reconcile-option" (click)="linkMatch(game, m)">
+                              <span class="reconcile-label">{{ candidateLabel(m) }}</span>
+                              <span class="reconcile-champs">{{ candidateChampions(m).join(', ') }}</span>
+                            </button>
+                          </li>
+                        } @empty {
+                          <li class="muted">No unlinked games in match history. Refresh on the Analysis page.</li>
+                        }
+                      </ul>
+                    }
+                  }
+                } @else {
+                  @if (game.matchId) {
+                    <p class="game-linked">
+                      <span class="material-symbols-rounded" aria-hidden="true">link</span>
+                      Confirmed against match history
+                    </p>
+                  }
+                  <div class="series-game-champs">
+                    <span class="series-game-side" [appTip]="teamName()">{{ teamName() }}</span>
+                    @for (champ of game.ourChampions; track champ) {
+                      <app-champion-chip [champion]="champ" />
+                    }
+                  </div>
+                  <div class="series-game-champs">
+                    <span class="series-game-side" [appTip]="series.opponent">{{ series.opponent }}</span>
+                    @for (champ of game.theirChampions; track champ) {
+                      <app-champion-chip [champion]="champ" />
+                    }
+                  </div>
+                }
+              </div>
+            } @empty {
+              <p class="muted">
+                No games yet.
+                @if (auth.editing()) { Add game 1 when the series starts. }
+              </p>
+            }
+          </div>
+
+          <!-- Opponent-specific prep, kept apart from the per-comp bans. -->
+          @if (auth.editing() || series.notes || series.bans?.length) {
+            <details class="series-prep">
+              <summary class="comp-record-head series-prep-head">
+                <span class="comp-record-title material-symbols-rounded" aria-hidden="true">description</span>
+                <span class="comp-record-label">Prep for this opponent</span>
+                <span class="series-prep-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+              </summary>
+              @if (auth.editing()) {
+                <div class="field"><span>Target bans</span>
+                  <app-champion-picker [champions]="series.bans || []"
+                                       [inputName]="'bans-' + series.id" placeholder="Add a ban…"
+                                       (championsChange)="setSeriesBans(series, $event)" /></div>
+                <label class="field"><span>Scouting notes</span>
+                  <textarea rows="3" [ngModel]="series.notes || ''"
+                            (ngModelChange)="patchSeries(series, { notes: $event })"
+                            [name]="'notes-' + series.id"
+                            placeholder="What they play, who carries, tendencies…"></textarea></label>
+                <label class="field"><span>Scheduled</span>
+                  <input type="datetime-local" [ngModel]="series.scheduledAt || ''"
+                         (ngModelChange)="patchSeries(series, { scheduledAt: $event })"
+                         [name]="'when-' + series.id" /></label>
+                <div class="view-segment" role="group" aria-label="Game 1 side">
+                  <button type="button" [class.active]="series.side === 'blue'"
+                          (click)="patchSeries(series, { side: 'blue' })">Blue side G1</button>
+                  <button type="button" [class.active]="series.side === 'red'"
+                          (click)="patchSeries(series, { side: 'red' })">Red side G1</button>
+                </div>
+                <button type="button" class="view-btn series-delete" (click)="removeSeries(series)">
+                  Delete series
+                </button>
+              } @else {
+                @if (series.bans?.length) {
+                  <div class="tag-row">
+                    @for (ban of series.bans; track ban) {
+                      <app-champion-chip [champion]="ban" />
+                    }
+                  </div>
+                }
+                @if (series.notes) {
+                  <div class="tournament-notes">
+                    @for (line of noteLines(series.notes); track $index) {
+                      <p class="note-line" [class.is-bullet]="line.bullet">
+                        @for (part of line.parts; track $index) {
+                          @if (part.href) {
+                            <a [href]="part.href" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
+                          } @else {
+                            <span>{{ part.text }}</span>
+                          }
+                        }
+                      </p>
+                    }
+                  </div>
+                }
+                @if (series.side) {
+                  <p class="muted">Game 1 side: {{ series.side }}</p>
+                }
+              }
+            </details>
+          }
+        </details>
+      }
+    </section>
+  } @else {
+    <p class="muted">
+      No series yet.
+      @if (auth.editing()) { Add your first opponent above. }
+      @else { An editor can add one in edit mode. }
+    </p>
+  }
+  <!-- Scrims and practice tagged to this tournament, isolated from general history. -->
+  <details class="card prep-panel" [open]="showPrep()">
+    <summary class="prep-summary" (click)="$event.preventDefault(); showPrep.set(!showPrep())">
+      <span class="material-symbols-rounded" aria-hidden="true">fitness_center</span>
+      <span class="prep-title">Prep games</span>
+      @if (prepGames().length) {
+        <span class="prep-count">{{ prepGames().length }} tagged</span>
+        @if (prepRecord(); as r) {
+          <span class="prep-record" [class.is-positive]="r.wins >= r.losses">{{ r.wins }}W&ndash;{{ r.losses }}L</span>
+        }
+      }
+      <span class="series-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+    </summary>
+
+    <p class="muted">
+      Tag scrims and practice games as prep for this tournament, so they're isolated from the
+      general match history.
+    </p>
+
+    @if (recentGames().length) {
+      <ul class="list-clean prep-list">
+        @for (m of recentGames(); track m.matchId) {
+          <li class="prep-row" [class.is-tagged]="isPrep(m.matchId)">
+            <div class="prep-row-head">
+              <a class="prep-link" [routerLink]="['/analysis']" [queryParams]="{ match: m.matchId }"
+                 appTip="Open this game in Analysis">
+                <span class="prep-outcome" [class.is-win]="m.win" [class.is-loss]="!m.win">{{ m.win ? 'W' : 'L' }}</span>
+                <span class="prep-when">{{ candidateLabel(m) }}</span>
+                <span class="prep-champs">{{ candidateChampions(m).join(', ') }}</span>
+              </a>
+              @if (auth.editing()) {
+                <button type="button" class="prep-toggle" [class.on]="isPrep(m.matchId)"
+                        (click)="togglePrep(m.matchId)">
+                  {{ isPrep(m.matchId) ? 'Tagged' : 'Tag as prep' }}
+                </button>
+              }
+              <app-match-note-button [matchId]="m.matchId" />
+            </div>
+
+            <app-match-note [matchId]="m.matchId" />
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="muted">No analysed games yet. Refresh from Riot on the Analysis page.</p>
+    }
+  </details>
+} @else {
+  <p class="muted">No tournaments yet.</p>
+}

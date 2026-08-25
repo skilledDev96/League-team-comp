@@ -1,0 +1,311 @@
+@if (draftSeries(); as series) {
+  @if (seriesList().length > 1) {
+    <section class="view-controls" aria-label="Series">
+      @for (s of seriesList(); track s.id) {
+        <button type="button" class="view-btn" [class.active]="s.id === series.id"
+                (click)="selectDraftSeries(s.id)">vs {{ s.opponent }}</button>
+      }
+    </section>
+  }
+
+  <section class="card draft-page" aria-label="Live draft">
+    <header class="draft-page-head">
+      <h2 class="title-with-icon">
+        <span class="section-icon material-symbols-rounded">swords</span>
+        vs {{ series.opponent }}
+      </h2>
+      <span class="draft-page-bo">Bo{{ series.bestOf }}</span>
+      @if (seriesScore(series.id); as sc) {
+        @if (sc.wins + sc.losses) {
+          <span class="series-score" [class.is-positive]="sc.wins > sc.losses"
+                [class.is-negative]="sc.wins < sc.losses">{{ sc.wins }}&ndash;{{ sc.losses }}</span>
+        }
+      }
+    </header>
+
+    @if (gamesFor(series.id).length || auth.editing()) {
+      <div class="view-controls draft-game-picker" aria-label="Game">
+        @for (g of gamesFor(series.id); track g.id) {
+          <button type="button" class="view-btn" [class.active]="isDraftGame(g)"
+                  (click)="selectDraftGame(g.id)">
+            Game {{ g.gameNumber }}
+            @if (g.win !== undefined) {
+              <span class="draft-game-result" [class.is-win]="g.win">{{ g.win ? 'W' : 'L' }}</span>
+            }
+          </button>
+        }
+        @if (auth.editing() && canAddDraftGame(series)) {
+          <button type="button" class="view-btn draft-add-game" (click)="addDraftGame(series)">
+            <span class="material-symbols-rounded" aria-hidden="true">add</span>
+            Game {{ nextGameNumber(series) }}
+          </button>
+        }
+        @if (auth.editing() && draftGame(); as game) {
+          @if (isLastGame(game)) {
+            <button type="button" class="view-btn draft-remove-game"
+                    [appTip]="'Remove game ' + game.gameNumber + ' and everything drafted into it'"
+                    (click)="removeDraftGame(game)">
+              <span class="material-symbols-rounded" aria-hidden="true">delete</span>
+              Game {{ game.gameNumber }}
+            </button>
+          }
+        }
+      </div>
+    }
+
+    @if (draftGame(); as game) {
+      @if (auth.canEdit() && !auth.editing()) {
+        <p class="draft-readonly-hint">
+          <span class="material-symbols-rounded" aria-hidden="true">visibility</span>
+          Viewing only — turn on <strong>Edit mode</strong> above to draft.
+        </p>
+      }
+
+      <div class="draft-inputs">
+          <div class="field">
+            <span>Bans this game <small class="pick-count">{{ (game.bans || []).length }}</small></span>
+            @if (auth.editing()) {
+              <app-champion-picker [champions]="game.bans || []" [max]="10"
+                                   [unavailable]="unavailableFor(game, 'ban')"
+                                   [inputName]="'dbans-' + game.id" placeholder="Add a ban…"
+                                   (championsChange)="setGameBans(game, $event)" />
+            } @else if (game.bans?.length) {
+              <div class="draft-static-bans">
+                @for (champ of game.bans; track champ) {
+                  <span class="pool-champ">
+                    <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                    {{ champ }}
+                  </span>
+                }
+              </div>
+            } @else {
+              <span class="muted">No bans recorded.</span>
+            }
+          </div>
+          <div class="field">
+            <span>{{ teamName() }} picks <small class="pick-count">{{ pickedCount(game, 'our') }}/5</small></span>
+            <ul class="list-clean pick-slots" [class.is-moving]="isMovingPick('our')">
+              @for (slot of pickSlots(game, 'our'); track slot.role; let i = $index) {
+                <li class="pick-slot" [class.is-empty]="!slot.champion" [class.is-held]="isHeld('our', i)">
+                  <button type="button" class="pick-slot-role"
+                          [class.can-drop]="isMovingPick('our') && !isHeld('our', i)"
+                          [disabled]="!auth.editing() || (!slot.champion && !isMovingPick('our'))"
+                          [appTip]="moveHint(game, 'our', i)"
+                          (click)="liftOrPlace(game, 'our', i)">
+                    <span>{{ slot.role }}</span>
+                    @if (auth.editing() && (slot.champion || isMovingPick('our'))) {
+                      <span class="pick-slot-grip material-symbols-rounded" aria-hidden="true">swap_vert</span>
+                    }
+                  </button>
+                  @if (!auth.editing()) {
+                    <span class="pick-static" [class.is-empty]="!slot.champion">
+                      @if (slot.champion) {
+                        <img class="pool-champ-icon" [src]="ui.championIconUrl(slot.champion)" [alt]="" loading="lazy" />
+                        {{ slot.champion }}
+                      } @else {
+                        &mdash;
+                      }
+                    </span>
+                  } @else {
+                  <app-champion-picker [champions]="slot.champion ? [slot.champion] : []" [max]="1"
+                                       [role]="slot.role"
+                                       [unavailable]="unavailableFor(game, 'pick')"
+                                       [inputName]="'pick-' + slot.role + '-' + game.id"
+                                       placeholder="Pick…"
+                                       (championsChange)="setPickFromPicker(game, 'our', i, $event)" />
+                  }
+                </li>
+              }
+            </ul>
+          </div>
+          <div class="field">
+            <span>{{ series.opponent }} picks <small class="pick-count">{{ pickedCount(game, 'their') }}/5</small></span>
+            <ul class="list-clean pick-slots" [class.is-moving]="isMovingPick('their')">
+              @for (slot of pickSlots(game, 'their'); track slot.role; let i = $index) {
+                <li class="pick-slot" [class.is-empty]="!slot.champion" [class.is-held]="isHeld('their', i)">
+                  <button type="button" class="pick-slot-role"
+                          [class.can-drop]="isMovingPick('their') && !isHeld('their', i)"
+                          [disabled]="!auth.editing() || (!slot.champion && !isMovingPick('their'))"
+                          [appTip]="moveHint(game, 'their', i)"
+                          (click)="liftOrPlace(game, 'their', i)">
+                    <span>{{ slot.role }}</span>
+                    @if (auth.editing() && (slot.champion || isMovingPick('their'))) {
+                      <span class="pick-slot-grip material-symbols-rounded" aria-hidden="true">swap_vert</span>
+                    }
+                  </button>
+                  @if (!auth.editing()) {
+                    <span class="pick-static" [class.is-empty]="!slot.champion">
+                      @if (slot.champion) {
+                        <img class="pool-champ-icon" [src]="ui.championIconUrl(slot.champion)" [alt]="" loading="lazy" />
+                        {{ slot.champion }}
+                      } @else {
+                        &mdash;
+                      }
+                    </span>
+                  } @else {
+                  <app-champion-picker [champions]="slot.champion ? [slot.champion] : []" [max]="1"
+                                       [role]="slot.role"
+                                       [unavailable]="unavailableFor(game, 'pick')"
+                                       [inputName]="'epick-' + slot.role + '-' + game.id"
+                                       placeholder="Pick…"
+                                       (championsChange)="setPickFromPicker(game, 'their', i, $event)" />
+                  }
+                </li>
+              }
+            </ul>
+          </div>
+      </div>
+
+      <div class="draft-status">
+        <span class="draft-board-count is-ok">{{ draftPlayable(game).length }} playable</span>
+        <span class="draft-board-count is-broken">{{ draftBroken(game).length }} broken</span>
+        @if (burnedBeforeCount(game); as burned) {
+          <span class="draft-board-burned"
+                [appTip]="burned + ' champions burned in earlier games of this series'">{{ burned }} burned</span>
+        }
+      </div>
+
+      <div class="draft-board-body is-page">
+        <div class="draft-col">
+          <span class="draft-col-head is-ok">Still playable</span>
+          @for (row of draftPlayable(game); track row.id) {
+            <div class="draft-comp-row">
+              <button type="button" class="draft-comp is-ok" [class.open]="isCompOpen(row.id)"
+                      [attr.aria-expanded]="isCompOpen(row.id)" (click)="toggleComp(row.id)">
+                <span class="draft-comp-name">{{ row.name }}</span>
+                @if (row.winRate !== undefined) {
+                  <span class="draft-comp-rate" [class.is-positive]="row.winRate >= 50"
+                        [appTip]="row.games + ' games in match history'">{{ row.winRate }}%</span>
+                }
+                <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+              </button>
+              @if (isCompOpen(row.id)) {
+                <ul class="list-clean draft-lineup">
+                  @for (line of compLineup(row.id); track line.role) {
+                    <li class="draft-lineup-row">
+                      <span class="draft-lineup-role">{{ line.role }}</span>
+                      @if (line.champion) {
+                        <button type="button" class="pick-chip"
+                          [class.is-picked]="isPicked(game, line.champion)"
+                          [disabled]="!auth.editing() || pickBlocked(game, line.champion, line.role)"
+                          [appTip]="pickHint(game, line.champion, line.role)"
+                          (click)="togglePick(game, line.champion, line.role)">
+                    <img class="pool-champ-icon" [src]="ui.championIconUrl(line.champion)" [alt]="" loading="lazy" />
+                    <span>{{ line.champion }}</span>
+                    @if (isPicked(game, line.champion)) {
+                      <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                    }
+                  </button>
+                      } @else {
+                        <span class="muted">&mdash;</span>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          } @empty {
+            <span class="muted">Nothing survives this board.</span>
+          }
+        </div>
+
+        <div class="draft-col">
+          <span class="draft-col-head is-broken">Broken</span>
+          @for (row of draftBroken(game); track row.id) {
+            <div class="draft-comp-row">
+              <button type="button" class="draft-comp is-broken" [class.open]="isCompOpen(row.id)"
+                      [attr.aria-expanded]="isCompOpen(row.id)"
+                      [appTip]="'Gone: ' + row.blocked.join(', ')" (click)="toggleComp(row.id)">
+                <span class="draft-comp-name">{{ row.name }}</span>
+                @if (row.winRate !== undefined) {
+                  <span class="draft-comp-rate" [class.is-positive]="row.winRate >= 50">{{ row.winRate }}%</span>
+                }
+                <em>&minus;{{ row.blocked.length }}</em>
+                <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+              </button>
+              @if (isCompOpen(row.id)) {
+                <ul class="list-clean draft-lineup">
+                  @for (line of compLineup(row.id); track line.role) {
+                    <li class="draft-lineup-row" [class.is-gone]="row.blocked.includes(line.champion)">
+                      <span class="draft-lineup-role">{{ line.role }}</span>
+                      @if (line.champion) {
+                        <button type="button" class="pick-chip"
+                          [class.is-picked]="isPicked(game, line.champion)"
+                          [disabled]="!auth.editing() || pickBlocked(game, line.champion, line.role)"
+                          [appTip]="pickHint(game, line.champion, line.role)"
+                          (click)="togglePick(game, line.champion, line.role)">
+                    <img class="pool-champ-icon" [src]="ui.championIconUrl(line.champion)" [alt]="" loading="lazy" />
+                    <span>{{ line.champion }}</span>
+                    @if (isPicked(game, line.champion)) {
+                      <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                    }
+                  </button>
+                      } @else {
+                        <span class="muted">&mdash;</span>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          } @empty {
+            <span class="muted">Every comp is intact.</span>
+          }
+        </div>
+
+        <div class="draft-col">
+          <span class="draft-col-head">Pool left</span>
+          @for (row of draftPools(game); track row.name) {
+            <div class="draft-comp-row">
+              <button type="button" class="draft-pool" [class.is-critical]="row.critical"
+                      [class.open]="isPoolOpen(row.name)" [attr.aria-expanded]="isPoolOpen(row.name)"
+                      (click)="togglePool(row.name)">
+                <span class="draft-comp-name">{{ row.name }}</span>
+                <em>{{ row.left.length }}</em>
+                @if (row.critical) {
+                  <span class="material-symbols-rounded" aria-hidden="true">warning</span>
+                }
+                <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+              </button>
+              @if (isPoolOpen(row.name)) {
+                <div class="draft-pool-champs">
+                  @for (champ of row.left; track champ) {
+                    <button type="button" class="pick-chip"
+                          [class.is-picked]="isPicked(game, champ)"
+                          [disabled]="!auth.editing() || pickBlocked(game, champ, roleOfPlayer(row.name))"
+                          [appTip]="pickHint(game, champ, roleOfPlayer(row.name))"
+                          (click)="togglePick(game, champ, roleOfPlayer(row.name))">
+                    <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                    <span>{{ champ }}</span>
+                    @if (isPicked(game, champ)) {
+                      <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                    }
+                  </button>
+                  } @empty {
+                    <span class="muted">Nothing left in this pool.</span>
+                  }
+                  @if (row.gone.length) {
+                    <span class="draft-pool-gone-label">Gone</span>
+                    @for (champ of row.gone; track champ) {
+                      <span class="draft-pool-gone">
+                        <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                        {{ champ }}
+                      </span>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    } @else {
+      <p class="muted">
+        No games in this series yet.
+        @if (!auth.editing()) { An editor can add game 1. }
+      </p>
+    }
+  </section>
+} @else {
+  <p class="muted">No series to draft. Add one on the Plan view.</p>
+}
