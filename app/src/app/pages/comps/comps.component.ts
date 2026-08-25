@@ -12,6 +12,7 @@ import { ChampionPickerComponent } from '../../shared/champion-picker.component'
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { TacticalBoardComponent } from './tactical-board.component';
 import { NoteRollup, rollupNotes } from './note-insights.util';
+import { TooltipDirective } from '../../shared/tooltip.directive';
 
 interface ResultDraft {
   outcome: CompOutcome;
@@ -22,7 +23,7 @@ interface ResultDraft {
 
 @Component({
   selector: 'app-comps',
-  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, OverflowMenuComponent, TacticalBoardComponent],
+  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective],
   templateUrl: './comps.component.html'
 })
 export class CompsComponent {

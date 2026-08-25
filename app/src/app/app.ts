@@ -13,10 +13,11 @@ import { AuthService } from './services/auth.service';
 import { TeamDataService } from './services/team-data.service';
 import { Theme, ThemeService } from './services/theme.service';
 import { UserMenuComponent } from './shared/user-menu.component';
+import { TooltipDirective } from './shared/tooltip.directive';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, UserMenuComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, UserMenuComponent, TooltipDirective],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

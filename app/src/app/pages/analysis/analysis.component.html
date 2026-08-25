@@ -87,7 +87,7 @@
                 <span class="analysis-name-cell">
                   <span class="analysis-name">{{ perf.compName }}</span>
                   @if (perf.partials) {
-                    <span class="analysis-subs" [title]="perf.partials + ' of these were 4-stacks (a player subbed)'">
+                    <span class="analysis-subs" [appTip]="perf.partials + ' of these were 4-stacks (a player subbed)'">
                       {{ perf.partials }} w/ sub{{ perf.partials === 1 ? '' : 's' }}
                     </span>
                   }
@@ -153,7 +153,7 @@
                 <span class="insight-label">Toughest matchups</span>
                 @for (m of matchups().toughest; track m.champion) {
                   <div class="matchup-row">
-                    <img class="matchup-champ" [src]="ui.championIconUrl(m.champion)" [alt]="m.champion" [title]="m.champion" loading="lazy" />
+                    <img class="matchup-champ" [src]="ui.championIconUrl(m.champion)" [alt]="m.champion" [appTip]="m.champion" loading="lazy" />
                     <span class="matchup-name">{{ m.champion }}</span>
                     <span class="matchup-rate neg">{{ m.winRate }}%</span>
                     <span class="matchup-games">{{ m.wins }}&#8211;{{ m.losses }}</span>
@@ -164,7 +164,7 @@
                 <span class="insight-label">Best matchups</span>
                 @for (m of matchups().best; track m.champion) {
                   <div class="matchup-row">
-                    <img class="matchup-champ" [src]="ui.championIconUrl(m.champion)" [alt]="m.champion" [title]="m.champion" loading="lazy" />
+                    <img class="matchup-champ" [src]="ui.championIconUrl(m.champion)" [alt]="m.champion" [appTip]="m.champion" loading="lazy" />
                     <span class="matchup-name">{{ m.champion }}</span>
                     <span class="matchup-rate pos">{{ m.winRate }}%</span>
                     <span class="matchup-games">{{ m.wins }}&#8211;{{ m.losses }}</span>
@@ -219,18 +219,18 @@
         <span class="game-champs">
           @for (p of game.players; track p.name) {
             <img class="game-champ-sm" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion"
-                 [title]="p.position + ' · ' + p.name + ' · ' + p.champion" loading="lazy" />
+                 [appTip]="p.position + ' · ' + p.name + ' · ' + p.champion" loading="lazy" />
           }
         </span>
         @if (!gameComp(game) && game.nearCompName) {
-          <span class="game-near" [title]="'Closest defined comp'">≈ {{ game.nearCompName }} ({{ game.nearOverlap }}/5)</span>
+          <span class="game-near" [appTip]="'Closest defined comp'">≈ {{ game.nearCompName }} ({{ game.nearOverlap }}/5)</span>
         }
         @if (isAmbiguous(game)) {
-          <span class="game-ambiguous" [title]="'Fits equally well: ' + ambiguousLabel(game)">ambiguous</span>
+          <span class="game-ambiguous" [appTip]="'Fits equally well: ' + ambiguousLabel(game)">ambiguous</span>
         }
         @if ((game.rosterCount ?? 5) < 5) {
           <span class="game-stack is-partial"
-                [title]="stackLabel(game) + ' of the roster on our team'">{{ stackLabel(game) }}</span>
+                [appTip]="stackLabel(game) + ' of the roster on our team'">{{ stackLabel(game) }}</span>
         }
         @if (game.queue) { <span class="game-queue">{{ game.queue }}</span> }
         @if (game.date) { <span class="game-date">{{ game.date | date: 'MMM d' }}</span> }
@@ -243,7 +243,7 @@
           <div class="game-comp-tag">
             <span class="game-comp-tag-label">{{ gameComp(game) ? 'Comp' : 'Closest' }} · {{ gameComp(game)?.name || game.nearCompName }}</span>
             @for (c of champs; track c) {
-              <img class="game-comp-champ" [src]="ui.championIconUrl(c)" [alt]="c" [title]="c" loading="lazy" />
+              <img class="game-comp-champ" [src]="ui.championIconUrl(c)" [alt]="c" [appTip]="c" loading="lazy" />
             }
           </div>
         }
@@ -263,7 +263,7 @@
               {{ p.name }}
               @if (champInComp(game, p.champion)) {
                 <span class="game-incomp material-symbols-rounded"
-                      [title]="p.champion + ' is part of ' + (gameComp(game)?.name || game.nearCompName)"
+                      [appTip]="p.champion + ' is part of ' + (gameComp(game)?.name || game.nearCompName)"
                       aria-label="Part of the comp">check_circle</span>
               }
             </span>
@@ -334,8 +334,9 @@
           <span class="log-opp">{{ row.opponent ? 'vs ' + row.opponent : '—' }}</span>
           <span class="log-note">{{ row.note }}</span>
           @if (row.source === 'match') {
-            <button type="button" class="log-source" (click)="openGame(row.matchId)"
-                    title="Auto-detected from Riot &mdash; open the game for champions, KDA and notes">
+            <button type="button" class="log-source" aria-label="Open this game"
+                    (click)="openGame(row.matchId)"
+                    appTip="Auto-detected from Riot &mdash; open the game for champions, KDA and notes">
               <span class="material-symbols-rounded" aria-hidden="true">query_stats</span>
               <span class="log-source-open material-symbols-rounded" aria-hidden="true">chevron_right</span>
             </button>

@@ -10,6 +10,7 @@ import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { MatchNoteButtonComponent } from '../../shared/match-note-button.component';
 import { MatchNoteComponent } from '../../shared/match-note.component';
+import { TooltipDirective } from '../../shared/tooltip.directive';
 
 /** A comp measured against the champions already burned in a fearless series. */
 interface CompAvailability {
@@ -23,7 +24,7 @@ interface CompAvailability {
 
 @Component({
   selector: 'app-tournaments',
-  imports: [FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, MatchNoteComponent, MatchNoteButtonComponent],
+  imports: [FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, MatchNoteComponent, MatchNoteButtonComponent, TooltipDirective],
   templateUrl: './tournaments.component.html'
 })
 export class TournamentsComponent {

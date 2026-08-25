@@ -7,6 +7,7 @@ import { PlayerEnrichmentService } from '../../services/player-enrichment.servic
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
+import { TooltipDirective } from '../../shared/tooltip.directive';
 
 type QueueKey = 'solo' | 'flex' | 'clash';
 
@@ -18,7 +19,7 @@ interface ProfileRow {
 
 @Component({
   selector: 'app-team-profiles',
-  imports: [DecimalPipe, RouterLink, PlayerAvatarComponent],
+  imports: [DecimalPipe, RouterLink, PlayerAvatarComponent, TooltipDirective],
   templateUrl: './team-profiles.component.html'
 })
 export class TeamProfilesComponent {

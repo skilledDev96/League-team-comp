@@ -61,7 +61,7 @@
           <span class="num" role="cell">{{ m.avgVisionScore | number: '1.0-0' }}</span>
           <span class="profiles-main" role="cell">
             @if (row.player.top3[0]; as champ) {
-              <img class="profiles-champ" [src]="ui.championIconUrl(champ)" [alt]="champ" [title]="champ" loading="lazy" />
+              <img class="profiles-champ" [src]="ui.championIconUrl(champ)" [alt]="champ" [appTip]="champ" loading="lazy" />
               {{ champ }}
             } @else { — }
           </span>

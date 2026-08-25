@@ -38,7 +38,7 @@
           <span class="comp-record-badge"
                 [class.is-positive]="badge.winRate >= 50"
                 [class.is-negative]="badge.winRate < 50"
-                [attr.title]="(badge.source === 'ranked' ? 'Match history: ' : 'Logged: ') + badge.wins + ' wins, ' + badge.losses + ' losses'">
+                [appTip]="(badge.source === 'ranked' ? 'Match history: ' : 'Logged: ') + badge.wins + ' wins, ' + badge.losses + ' losses'">
             {{ badge.wins }}W&#8211;{{ badge.losses }}L
             <span class="comp-record-rate">{{ badge.winRate }}%</span>
           </span>
@@ -61,7 +61,7 @@
               <app-champion-chip [champion]="ui.parseCompLine(line).champion" />
               <span class="comp-note">{{ ui.parseCompLine(line).note }}</span>
               @if (rolePlayers(role).length) {
-                <span class="comp-cover" [title]="'Who can play ' + role">
+                <span class="comp-cover" [appTip]="'Who can play ' + role">
                   @for (pl of rolePlayers(role); track pl.name) {
                     <span class="comp-cover-name" [class.flex]="pl.flex">{{ pl.name }}</span>
                   }
@@ -159,7 +159,7 @@
           @if (auth.editing()) {
             <button type="button" class="comp-log-trigger"
                     [attr.aria-label]="isLogging(comp.id) ? 'Hide result form' : 'Log a game'"
-                    [attr.title]="isLogging(comp.id) ? 'Hide result form' : 'Log a game'"
+                    [appTip]="isLogging(comp.id) ? 'Hide result form' : 'Log a game'"
                     (click)="toggleLog(comp.id)">
               <span class="material-symbols-rounded" aria-hidden="true">{{ isLogging(comp.id) ? 'close' : 'add' }}</span>
             </button>
@@ -173,7 +173,7 @@
 
         @if (rankedRecord(comp.id); as ranked) {
           <a class="comp-ranked-record" [routerLink]="['/analysis']" [queryParams]="{ comp: comp.id }"
-             title="Open this comp&rsquo;s games on the Analysis page">
+             appTip="Open this comp&rsquo;s games on the Analysis page">
             <span class="material-symbols-rounded" aria-hidden="true">query_stats</span>
             <span class="comp-ranked-label">Match history</span>
             <span class="comp-ranked-value" [class.is-positive]="ranked.winRate >= 50" [class.is-negative]="ranked.winRate < 50">
@@ -190,7 +190,7 @@
               <span class="comp-retro-label">Retro</span>
               <span class="comp-retro-count">{{ r.notes.length }} {{ r.notes.length === 1 ? 'note' : 'notes' }}</span>
               @if (r.mentions.length) {
-                <span class="comp-retro-lead" [title]="'Named most often when this comp loses'">
+                <span class="comp-retro-lead" [appTip]="'Named most often when this comp loses'">
                   {{ r.mentions[0].champion }}
                   @if (r.mentions[0].losses) { <em>&times;{{ r.mentions[0].losses }}L</em> }
                 </span>
@@ -205,7 +205,7 @@
                   <span class="comp-retro-mention" [class.is-negative]="m.losses > m.count - m.losses">
                     <img class="comp-retro-mention-icon" [src]="ui.championIconUrl(m.champion)" [alt]="" loading="lazy" />
                     <span>{{ m.champion }}</span>
-                    <em [title]="m.count + ' notes, ' + m.losses + ' of them losses'">{{ m.count }}@if (m.losses) {<span class="comp-retro-mention-l">&middot;{{ m.losses }}L</span>}</em>
+                    <em [appTip]="m.count + ' notes, ' + m.losses + ' of them losses'">{{ m.count }}@if (m.losses) {<span class="comp-retro-mention-l">&middot;{{ m.losses }}L</span>}</em>
                   </span>
                 }
               </div>
@@ -215,7 +215,7 @@
               @for (n of (retroExpanded(comp.id) ? r.notes : r.notes.slice(0, retroPreviewSize)); track n.matchId) {
                 <li class="comp-retro-note" [class.is-win]="n.win" [class.is-loss]="!n.win">
                   <a class="comp-retro-note-link" [routerLink]="['/analysis']" [queryParams]="{ match: n.matchId }"
-                     title="Open the game this note is about">
+                     appTip="Open the game this note is about">
                     <span class="comp-retro-note-outcome">{{ n.win ? 'W' : 'L' }}</span>
                     <span class="comp-retro-note-body">
                       @if (n.date) { <span class="comp-retro-note-date">{{ n.date | date: 'd MMM' }}</span> }

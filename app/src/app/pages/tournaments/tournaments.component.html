@@ -82,7 +82,7 @@
               }
             }
             @if (usedCount(series.id); as used) {
-              <span class="series-burned" [title]="used + ' champions burned this series'">
+              <span class="series-burned" [appTip]="used + ' champions burned this series'">
                 {{ used }} burned
               </span>
             }
@@ -190,7 +190,7 @@
               <span class="comp-record-title material-symbols-rounded" aria-hidden="true">stadium</span>
               <span class="comp-record-label">Games</span>
               @if (auth.editing() && gamesFor(series.id).length < series.bestOf) {
-                <button type="button" class="comp-log-trigger" title="Add game"
+                <button type="button" class="comp-log-trigger" aria-label="Add game" appTip="Add game"
                         (click)="addGame(series)">
                   <span class="material-symbols-rounded" aria-hidden="true">add</span>
                 </button>
@@ -262,13 +262,13 @@
                     </p>
                   }
                   <div class="series-game-champs">
-                    <span class="series-game-side" [title]="teamName()">{{ teamName() }}</span>
+                    <span class="series-game-side" [appTip]="teamName()">{{ teamName() }}</span>
                     @for (champ of game.ourChampions; track champ) {
                       <app-champion-chip [champion]="champ" />
                     }
                   </div>
                   <div class="series-game-champs">
-                    <span class="series-game-side" [title]="series.opponent">{{ series.opponent }}</span>
+                    <span class="series-game-side" [appTip]="series.opponent">{{ series.opponent }}</span>
                     @for (champ of game.theirChampions; track champ) {
                       <app-champion-chip [champion]="champ" />
                     }
@@ -377,7 +377,7 @@
           <li class="prep-row" [class.is-tagged]="isPrep(m.matchId)">
             <div class="prep-row-head">
               <a class="prep-link" [routerLink]="['/analysis']" [queryParams]="{ match: m.matchId }"
-                 title="Open this game in Analysis">
+                 appTip="Open this game in Analysis">
                 <span class="prep-outcome" [class.is-win]="m.win" [class.is-loss]="!m.win">{{ m.win ? 'W' : 'L' }}</span>
                 <span class="prep-when">{{ candidateLabel(m) }}</span>
                 <span class="prep-champs">{{ candidateChampions(m).join(', ') }}</span>

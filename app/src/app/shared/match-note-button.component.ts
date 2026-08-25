@@ -2,6 +2,7 @@ import { Component, inject, input } from '@angular/core';
 import { AuthService } from '../services/auth.service';
 import { MatchNoteUiService } from '../services/match-note-ui.service';
 import { TeamDataService } from '../services/team-data.service';
+import { TooltipDirective } from './tooltip.directive';
 
 /**
  * Opens the retrospective note for a match. Lives in the row header, next to
@@ -11,11 +12,12 @@ import { TeamDataService } from '../services/team-data.service';
  */
 @Component({
   selector: 'app-match-note-button',
+  imports: [TooltipDirective],
   template: `
     @if (auth.editing() || hasNote()) {
       <button type="button" class="note-btn" [class.on]="hasNote()"
               [class.editing]="editing()" [attr.aria-pressed]="editing()"
-              [title]="hasNote() ? note() : 'Add a note'"
+              [appTip]="hasNote() ? note() : 'Add a note'"
               (click)="toggle($event)">
         <span class="material-symbols-rounded" aria-hidden="true">sticky_note_2</span>
         <span class="note-btn-label">{{ hasNote() ? 'Note' : 'Add note' }}</span>
