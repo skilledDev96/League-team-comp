@@ -12,6 +12,7 @@ import { MatchNoteButtonComponent } from '../../shared/match-note-button.compone
 import { MatchNoteComponent } from '../../shared/match-note.component';
 import { compVerdict, formatDamage, winLossRecord } from '../comps/comp-stats.util';
 import { TooltipDirective } from '../../shared/tooltip.directive';
+import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 
 interface LogRow {
   id: string;
@@ -32,7 +33,7 @@ interface LogRow {
 
 @Component({
   selector: 'app-analysis',
-  imports: [DatePipe, NgTemplateOutlet, FormsModule, MatchNoteComponent, MatchNoteButtonComponent, TooltipDirective],
+  imports: [DatePipe, NgTemplateOutlet, FormsModule, MatchNoteComponent, MatchNoteButtonComponent, TooltipDirective, NgModelNameDirective],
   templateUrl: './analysis.component.html'
 })
 export class AnalysisComponent {

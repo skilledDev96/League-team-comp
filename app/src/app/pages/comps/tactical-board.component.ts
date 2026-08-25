@@ -15,6 +15,7 @@ import {
 } from '../../models/team.models';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
+import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 
 const PHASES: PlayPhase[] = ['Early', 'Mid', 'Late'];
 
@@ -62,7 +63,7 @@ const MARKER_KINDS: MarkerKind[] = ['ward', 'minion', 'dragon', 'grubs', 'herald
 
 @Component({
   selector: 'app-tactical-board',
-  imports: [FormsModule],
+  imports: [FormsModule, NgModelNameDirective],
   templateUrl: './tactical-board.component.html'
 })
 export class TacticalBoardComponent {

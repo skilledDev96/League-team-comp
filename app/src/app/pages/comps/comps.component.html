@@ -29,7 +29,8 @@
 
 <section id="compSection" class="grid two" aria-label="Team compositions">
   @for (comp of visibleComps(); track comp.id) {
-    <details class="card comp-panel" [open]="showPicks()">
+    <div class="card comp-card">
+    <details class="comp-panel" [open]="showPicks()">
       <summary class="comp-summary">
         <span class="comp-type-icon material-symbols-rounded" aria-hidden="true">{{ compIcon(comp.name) }}</span>
         <span class="comp-summary-name">{{ comp.name }}</span>
@@ -42,14 +43,6 @@
             {{ badge.wins }}W&#8211;{{ badge.losses }}L
             <span class="comp-record-rate">{{ badge.winRate }}%</span>
           </span>
-        }
-        @if (auth.editing()) {
-          <app-overflow-menu>
-            <button type="button" class="overflow-item" (click)="toggleLog(comp.id)">
-              {{ isLogging(comp.id) ? 'Hide result form' : 'Log a game' }}
-            </button>
-            <a class="overflow-item" [routerLink]="['/admin']" [queryParams]="{ tab: 'comps', compId: comp.id }">Edit comp</a>
-          </app-overflow-menu>
         }
         <span class="comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
       </summary>
@@ -317,6 +310,15 @@
         }
       </div>
     </details>
+    @if (auth.editing()) {
+      <app-overflow-menu class="comp-card-menu">
+        <button type="button" class="overflow-item" (click)="toggleLog(comp.id)">
+          {{ isLogging(comp.id) ? 'Hide result form' : 'Log a game' }}
+        </button>
+        <a class="overflow-item" [routerLink]="['/admin']" [queryParams]="{ tab: 'comps', compId: comp.id }">Edit comp</a>
+      </app-overflow-menu>
+    }
+    </div>
   }
 </section>
 

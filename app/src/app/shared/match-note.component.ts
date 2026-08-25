@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../services/auth.service';
 import { MatchNoteUiService } from '../services/match-note-ui.service';
 import { TeamDataService } from '../services/team-data.service';
+import { NgModelNameDirective } from './ng-model-name.directive';
 
 /**
  * Retrospective note for one played match.
@@ -14,7 +15,7 @@ import { TeamDataService } from '../services/team-data.service';
  */
 @Component({
   selector: 'app-match-note',
-  imports: [FormsModule],
+  imports: [FormsModule, NgModelNameDirective],
   template: `
     @if (auth.editing() && noteUi.isOpen(matchId())) {
       <textarea class="prep-note-input" rows="3"

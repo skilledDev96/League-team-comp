@@ -11,6 +11,7 @@ import { ChampionPickerComponent } from '../../shared/champion-picker.component'
 import { MatchNoteButtonComponent } from '../../shared/match-note-button.component';
 import { MatchNoteComponent } from '../../shared/match-note.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
+import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 
 /** A comp measured against the champions already burned in a fearless series. */
 interface CompAvailability {
@@ -24,7 +25,7 @@ interface CompAvailability {
 
 @Component({
   selector: 'app-tournaments',
-  imports: [FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, MatchNoteComponent, MatchNoteButtonComponent, TooltipDirective],
+  imports: [FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, MatchNoteComponent, MatchNoteButtonComponent, TooltipDirective, NgModelNameDirective],
   templateUrl: './tournaments.component.html'
 })
 export class TournamentsComponent {

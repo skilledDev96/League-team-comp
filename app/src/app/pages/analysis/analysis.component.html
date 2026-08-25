@@ -211,88 +211,90 @@
 
   <!-- Reusable game panel: used by comp drill-downs and the off-book list. -->
   <ng-template #gamePanel let-game>
-    <details class="game-panel" [attr.data-match]="game.matchId"
-             [class.is-focused]="game.matchId === focusMatch()"
-             [class.is-win]="game.win" [class.is-loss]="!game.win">
-      <summary class="game-summary">
-        <span class="game-outcome">{{ game.win ? 'W' : 'L' }}</span>
-        <span class="game-champs">
-          @for (p of game.players; track p.name) {
-            <img class="game-champ-sm" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion"
-                 [appTip]="p.position + ' · ' + p.name + ' · ' + p.champion" loading="lazy" />
+    <div class="game-entry">
+      <details class="game-panel" [attr.data-match]="game.matchId"
+               [class.is-focused]="game.matchId === focusMatch()"
+               [class.is-win]="game.win" [class.is-loss]="!game.win">
+        <summary class="game-summary">
+          <span class="game-outcome">{{ game.win ? 'W' : 'L' }}</span>
+          <span class="game-champs">
+            @for (p of game.players; track p.name) {
+              <img class="game-champ-sm" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion"
+                   [appTip]="p.position + ' · ' + p.name + ' · ' + p.champion" loading="lazy" />
+            }
+          </span>
+          @if (!gameComp(game) && game.nearCompName) {
+            <span class="game-near" [appTip]="'Closest defined comp'">≈ {{ game.nearCompName }} ({{ game.nearOverlap }}/5)</span>
           }
-        </span>
-        @if (!gameComp(game) && game.nearCompName) {
-          <span class="game-near" [appTip]="'Closest defined comp'">≈ {{ game.nearCompName }} ({{ game.nearOverlap }}/5)</span>
-        }
-        @if (isAmbiguous(game)) {
-          <span class="game-ambiguous" [appTip]="'Fits equally well: ' + ambiguousLabel(game)">ambiguous</span>
-        }
-        @if ((game.rosterCount ?? 5) < 5) {
-          <span class="game-stack is-partial"
-                [appTip]="stackLabel(game) + ' of the roster on our team'">{{ stackLabel(game) }}</span>
-        }
-        @if (game.queue) { <span class="game-queue">{{ game.queue }}</span> }
-        @if (game.date) { <span class="game-date">{{ game.date | date: 'MMM d' }}</span> }
-        <app-match-note-button [matchId]="game.matchId" />
-        <span class="game-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
-      </summary>
+          @if (isAmbiguous(game)) {
+            <span class="game-ambiguous" [appTip]="'Fits equally well: ' + ambiguousLabel(game)">ambiguous</span>
+          }
+          @if ((game.rosterCount ?? 5) < 5) {
+            <span class="game-stack is-partial"
+                  [appTip]="stackLabel(game) + ' of the roster on our team'">{{ stackLabel(game) }}</span>
+          }
+          @if (game.queue) { <span class="game-queue">{{ game.queue }}</span> }
+          @if (game.date) { <span class="game-date">{{ game.date | date: 'MMM d' }}</span> }
+          <span class="game-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+        </summary>
 
-      @if (compChampions(gameComp(game)?.name || game.nearCompName); as champs) {
-        @if (champs.length) {
-          <div class="game-comp-tag">
-            <span class="game-comp-tag-label">{{ gameComp(game) ? 'Comp' : 'Closest' }} · {{ gameComp(game)?.name || game.nearCompName }}</span>
-            @for (c of champs; track c) {
-              <img class="game-comp-champ" [src]="ui.championIconUrl(c)" [alt]="c" [appTip]="c" loading="lazy" />
+        @if (compChampions(gameComp(game)?.name || game.nearCompName); as champs) {
+          @if (champs.length) {
+            <div class="game-comp-tag">
+              <span class="game-comp-tag-label">{{ gameComp(game) ? 'Comp' : 'Closest' }} · {{ gameComp(game)?.name || game.nearCompName }}</span>
+              @for (c of champs; track c) {
+                <img class="game-comp-champ" [src]="ui.championIconUrl(c)" [alt]="c" [appTip]="c" loading="lazy" />
+              }
+            </div>
+          }
+        }
+        <ul class="game-players">
+          <li class="game-player game-player-head">
+            <span></span><span></span><span></span>
+            <span class="game-col">KDA</span>
+            <span class="game-col">CS</span>
+            <span class="game-col">DMG</span>
+          </li>
+          @for (p of game.players; track p.name) {
+            <li class="game-player" [class.in-comp]="champInComp(game, p.champion)">
+              <img class="game-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" loading="lazy" />
+              <span class="game-pos">{{ p.position }}</span>
+              <span class="game-pname">
+                {{ p.name }}
+                @if (champInComp(game, p.champion)) {
+                  <span class="game-incomp material-symbols-rounded"
+                        [appTip]="p.champion + ' is part of ' + (gameComp(game)?.name || game.nearCompName)"
+                        aria-label="Part of the comp">check_circle</span>
+                }
+              </span>
+              <span class="game-kda">{{ p.kills }}/{{ p.deaths }}/{{ p.assists }}</span>
+              <span class="game-cs">{{ p.cs }}</span>
+              <span class="game-dmg">{{ fmtDamage(p.damage) }}</span>
+            </li>
+          }
+        </ul>
+        <app-match-note [matchId]="game.matchId" />
+
+        @if (auth.editing() && !gameComp(game)) {
+          <div class="game-define">
+            @if (isSavedAsComp(game.matchId)) {
+              <span class="game-define-saved">
+                <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
+                Saved as comp — Refresh to re-match
+              </span>
+            } @else {
+              <input type="text" class="game-define-input" [ngModel]="compDraft(game.matchId)"
+                     (ngModelChange)="setCompDraft(game.matchId, $event)"
+                     [name]="'compname-' + game.matchId" placeholder="Name this comp…" />
+              <button type="button" class="view-btn" [disabled]="!compDraft(game.matchId).trim()" (click)="saveAsComp(game)">
+                <span class="material-symbols-rounded" aria-hidden="true">add</span> Save as comp
+              </button>
             }
           </div>
         }
-      }
-      <ul class="game-players">
-        <li class="game-player game-player-head">
-          <span></span><span></span><span></span>
-          <span class="game-col">KDA</span>
-          <span class="game-col">CS</span>
-          <span class="game-col">DMG</span>
-        </li>
-        @for (p of game.players; track p.name) {
-          <li class="game-player" [class.in-comp]="champInComp(game, p.champion)">
-            <img class="game-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" loading="lazy" />
-            <span class="game-pos">{{ p.position }}</span>
-            <span class="game-pname">
-              {{ p.name }}
-              @if (champInComp(game, p.champion)) {
-                <span class="game-incomp material-symbols-rounded"
-                      [appTip]="p.champion + ' is part of ' + (gameComp(game)?.name || game.nearCompName)"
-                      aria-label="Part of the comp">check_circle</span>
-              }
-            </span>
-            <span class="game-kda">{{ p.kills }}/{{ p.deaths }}/{{ p.assists }}</span>
-            <span class="game-cs">{{ p.cs }}</span>
-            <span class="game-dmg">{{ fmtDamage(p.damage) }}</span>
-          </li>
-        }
-      </ul>
-      <app-match-note [matchId]="game.matchId" />
-
-      @if (auth.editing() && !gameComp(game)) {
-        <div class="game-define">
-          @if (isSavedAsComp(game.matchId)) {
-            <span class="game-define-saved">
-              <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
-              Saved as comp — Refresh to re-match
-            </span>
-          } @else {
-            <input type="text" class="game-define-input" [ngModel]="compDraft(game.matchId)"
-                   (ngModelChange)="setCompDraft(game.matchId, $event)"
-                   [name]="'compname-' + game.matchId" placeholder="Name this comp…" />
-            <button type="button" class="view-btn" [disabled]="!compDraft(game.matchId).trim()" (click)="saveAsComp(game)">
-              <span class="material-symbols-rounded" aria-hidden="true">add</span> Save as comp
-            </button>
-          }
-        </div>
-      }
-    </details>
+      </details>
+      <app-match-note-button class="game-entry-note" [matchId]="game.matchId" />
+    </div>
   </ng-template>
 </section>
 

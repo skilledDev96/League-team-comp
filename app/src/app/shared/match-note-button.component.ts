@@ -45,19 +45,14 @@ export class MatchNoteButtonComponent {
     return Boolean(this.note());
   }
 
-  /**
-   * The button often sits inside a `<summary>`, where a click would otherwise
-   * toggle the surrounding `<details>` — and toggle it shut on the very click
-   * that asked to see the note. Suppress that and open the panel explicitly.
-   */
+  /** Opening a note also opens the panel it is written on. */
   protected toggle(event: Event): void {
-    event.preventDefault();
-    event.stopPropagation();
-
     this.noteUi.toggle(this.matchId());
 
     if (this.noteUi.isOpen(this.matchId())) {
-      const details = (event.target as HTMLElement).closest('details');
+      const details = (event.currentTarget as HTMLElement)
+        .closest('.game-entry')
+        ?.querySelector('details');
       if (details) {
         details.open = true;
       }

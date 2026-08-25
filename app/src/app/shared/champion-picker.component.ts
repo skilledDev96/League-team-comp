@@ -2,6 +2,7 @@ import { Component, ElementRef, HostListener, computed, inject, input, output, s
 import { FormsModule } from '@angular/forms';
 import { ChampionDataService, ChampionInfo } from '../services/champion-data.service';
 import { UiService } from '../services/ui.service';
+import { NgModelNameDirective } from './ng-model-name.directive';
 
 /**
  * Pick champions by name instead of typing a comma-separated list. Used
@@ -11,7 +12,7 @@ import { UiService } from '../services/ui.service';
  */
 @Component({
   selector: 'app-champion-picker',
-  imports: [FormsModule],
+  imports: [FormsModule, NgModelNameDirective],
   template: `
     <div class="champ-picker">
       <div class="champ-picker-chips">

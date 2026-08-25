@@ -15,12 +15,12 @@
     </div>
     @if (viewMode() === 'groups') {
       <label class="field compact-field"><span>Group size</span>
-        <select [value]="groupFilter()" (change)="groupFilter.set($any($event.target).value)">
+        <select name="synergyGroupSize" [value]="groupFilter()" (change)="groupFilter.set($any($event.target).value)">
           <option value="all">All groups</option><option value="duos">Duos</option><option value="trios">Trios</option><option value="full">4-5 players</option>
         </select>
       </label>
       <label class="field compact-field"><span>Sort by</span>
-        <select [value]="sortMode()" (change)="sortMode.set($any($event.target).value)">
+        <select name="synergySort" [value]="sortMode()" (change)="sortMode.set($any($event.target).value)">
           <option value="games">Most games</option><option value="winRate">Win rate</option>
         </select>
       </label>

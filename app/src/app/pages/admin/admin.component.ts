@@ -10,6 +10,7 @@ import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 import { BUILD_SHA } from '../../build-info';
+import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 
 interface PlayerDraft {
   uid: string;
@@ -92,7 +93,7 @@ function emptyPicks(): CompPicks {
 
 @Component({
   selector: 'app-admin',
-  imports: [FormsModule, PlayerAvatarComponent, OverflowMenuComponent, ChampionPickerComponent],
+  imports: [FormsModule, PlayerAvatarComponent, OverflowMenuComponent, ChampionPickerComponent, NgModelNameDirective],
   templateUrl: './admin.component.html'
 })
 export class AdminComponent {

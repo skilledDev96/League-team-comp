@@ -11,6 +11,7 @@ import { ChampionPickerComponent } from '../../shared/champion-picker.component'
 import { ExternalProfilesComponent } from '../../shared/external-profiles.component';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
+import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 
 interface PainRow extends PainPoint {
   playerName: string;
@@ -18,15 +19,13 @@ interface PainRow extends PainPoint {
 
 @Component({
   selector: 'app-player-intel',
-  imports: [
-    FormsModule,
+  imports: [FormsModule,
     RouterLink,
     PlayerAvatarComponent,
     ChampionChipComponent,
     ChampionPickerComponent,
     ExternalProfilesComponent,
-    OverflowMenuComponent
-  ],
+    OverflowMenuComponent, NgModelNameDirective],
   templateUrl: './player-intel.component.html'
 })
 export class PlayerIntelComponent {

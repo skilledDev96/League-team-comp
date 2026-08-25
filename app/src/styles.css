@@ -1562,8 +1562,9 @@ a.profiles-row:focus-visible {
 /* Prevent grid siblings from stretching to match an expanded card's height. */
 .clickable-card,
 .player-intel-card,
-.comp-panel {
+.comp-card {
   align-self: start;
+  position: relative;
 }
 
 .clickable-card {
@@ -2097,9 +2098,21 @@ a.profiles-row:focus-visible {
   margin: 0;
 }
 
-.comp-panel:has(.overflow-panel) {
-  position: relative;
+/* Lift the whole card while its menu is open, so the dropdown is not covered
+   by the neighbouring card. */
+.comp-card:has(.overflow-panel) {
   z-index: 10;
+}
+
+/* The menu sits on the header row but outside <summary>, which is the
+   disclosure toggle and must not contain other controls. */
+.comp-card-menu {
+  position: absolute;
+  top: 1.05rem;
+  right: calc(1.05rem + 24px + 0.6rem);
+  height: 34px;
+  display: flex;
+  align-items: center;
 }
 
 .comp-summary {
@@ -2112,6 +2125,10 @@ a.profiles-row:focus-visible {
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.page.edit-active .comp-chevron {
+  margin-left: 3rem;
 }
 
 .comp-summary::-webkit-details-marker {
@@ -3356,6 +3373,19 @@ a.profiles-row:focus-visible {
   gap: 0.5rem;
 }
 
+.game-entry {
+  position: relative;
+}
+
+.game-entry-note {
+  position: absolute;
+  top: 0;
+  right: 2.9rem;
+  height: 3.3rem;
+  display: flex;
+  align-items: center;
+}
+
 .game-panel {
   border-radius: 10px;
   border: 1px solid var(--card-border);
@@ -3501,6 +3531,8 @@ a.profiles-row:focus-visible {
   flex: 0 0 auto;
   color: var(--accent-2);
   transition: transform 160ms ease;
+  /* Clears the note control, which sits on this row but outside <summary>. */
+  margin-left: 6.3rem;
 }
 
 .game-panel[open] .game-chevron {
