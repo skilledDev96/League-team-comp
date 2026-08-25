@@ -3,7 +3,16 @@
   <p>Series planning and live Fearless Draft tracking.</p>
 </section>
 
-@if (tournaments().length > 1) {
+<section class="view-controls" aria-label="View">
+  <button type="button" class="view-btn" [class.active]="view() === 'plan'" (click)="view.set('plan')">
+    <span class="material-symbols-rounded" aria-hidden="true">calendar_month</span> Plan
+  </button>
+  <button type="button" class="view-btn" [class.active]="view() === 'draft'" (click)="view.set('draft')">
+    <span class="material-symbols-rounded" aria-hidden="true">swords</span> Draft
+  </button>
+</section>
+
+@if (view() === 'plan' && tournaments().length > 1) {
   <section class="view-controls" aria-label="Tournament picker">
     @for (t of tournaments(); track t.id) {
       <button type="button" class="view-btn" [class.active]="currentTournament()?.id === t.id"
@@ -12,7 +21,7 @@
   </section>
 }
 
-@if (currentTournament(); as tournament) {
+@if (view() === 'plan' && currentTournament(); as tournament) {
   <section class="card tournament-head" aria-label="Tournament details">
     <h2 class="title-with-icon">
       <span class="section-icon material-symbols-rounded">trophy</span>{{ tournament.name }}
@@ -228,62 +237,6 @@
                     <app-champion-picker [champions]="game.theirChampions || []" [max]="5"
                                          [inputName]="'their-' + game.id" placeholder="Add a pick…"
                                          (championsChange)="setGameChamps(game, 'their', $event)" /></div>
-                  <div class="field"><span>Bans this game</span>
-                    <app-champion-picker [champions]="game.bans || []" [max]="10"
-                                         [inputName]="'bans-' + game.id" placeholder="Add a ban…"
-                                         (championsChange)="setGameBans(game, $event)" /></div>
-
-                  <!-- What is still on the table, given this game so far. -->
-                  <details class="draft-board" [open]="isLiveGame(game)">
-                    <summary class="draft-board-summary">
-                      <span class="material-symbols-rounded" aria-hidden="true">swords</span>
-                      <span class="draft-board-label">Draft board</span>
-                      <span class="draft-board-count is-ok">{{ draftPlayable(game).length }} playable</span>
-                      <span class="draft-board-count is-broken">{{ draftBroken(game).length }} broken</span>
-                      @if (burnedBeforeCount(game); as burned) {
-                        <span class="draft-board-burned" [appTip]="burned + ' champions burned in earlier games of this series'">{{ burned }} burned</span>
-                      }
-                      <span class="draft-board-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
-                    </summary>
-
-                    <div class="draft-board-body">
-                      <div class="draft-col">
-                        <span class="draft-col-head is-ok">Still playable</span>
-                        @for (row of draftPlayable(game); track row.id) {
-                          <span class="draft-comp is-ok">{{ row.name }}</span>
-                        } @empty {
-                          <span class="muted">Nothing survives this board.</span>
-                        }
-                      </div>
-
-                      <div class="draft-col">
-                        <span class="draft-col-head is-broken">Broken</span>
-                        @for (row of draftBroken(game); track row.id) {
-                          <span class="draft-comp is-broken"
-                                [appTip]="'Gone: ' + row.blocked.join(', ')">
-                            {{ row.name }}
-                            <em>&minus;{{ row.blocked.length }}</em>
-                          </span>
-                        } @empty {
-                          <span class="muted">Every comp is intact.</span>
-                        }
-                      </div>
-
-                      <div class="draft-col draft-col-pools">
-                        <span class="draft-col-head">Pool left</span>
-                        @for (row of draftPools(game); track row.name) {
-                          <span class="draft-pool" [class.is-critical]="row.critical"
-                                [appTip]="row.left.length ? row.left.join(', ') : 'Nothing left in this pool'">
-                            {{ row.name }}
-                            <em>{{ row.left.length }}</em>
-                            @if (row.critical) {
-                              <span class="material-symbols-rounded" aria-hidden="true">warning</span>
-                            }
-                          </span>
-                        }
-                      </div>
-                    </div>
-                  </details>
                   @if (game.matchId) {
                     <p class="game-linked">
                       <span class="material-symbols-rounded" aria-hidden="true">link</span>
@@ -455,8 +408,121 @@
       <p class="muted">No analysed games yet. Refresh from Riot on the Analysis page.</p>
     }
   </details>
-} @else {
+} @else if (view() === 'plan') {
   <p class="muted">No tournaments yet.</p>
+}
+
+<!-- Draft view: one game, full width, for use while the draft is happening. -->
+@if (view() === 'draft') {
+  @if (draftSeries(); as series) {
+    @if (seriesList().length > 1) {
+      <section class="view-controls" aria-label="Series">
+        @for (s of seriesList(); track s.id) {
+          <button type="button" class="view-btn" [class.active]="s.id === series.id"
+                  (click)="selectDraftSeries(s.id)">vs {{ s.opponent }}</button>
+        }
+      </section>
+    }
+
+    <section class="card draft-page" aria-label="Live draft">
+      <header class="draft-page-head">
+        <h2 class="title-with-icon">
+          <span class="section-icon material-symbols-rounded">swords</span>
+          vs {{ series.opponent }}
+        </h2>
+        <span class="draft-page-bo">Bo{{ series.bestOf }}</span>
+        @if (seriesScore(series.id); as sc) {
+          @if (sc.wins + sc.losses) {
+            <span class="series-score" [class.is-positive]="sc.wins > sc.losses"
+                  [class.is-negative]="sc.wins < sc.losses">{{ sc.wins }}&ndash;{{ sc.losses }}</span>
+          }
+        }
+      </header>
+
+      @if (gamesFor(series.id).length) {
+        <div class="view-controls draft-game-picker" aria-label="Game">
+          @for (g of gamesFor(series.id); track g.id) {
+            <button type="button" class="view-btn" [class.active]="isDraftGame(g)"
+                    (click)="selectDraftGame(g.id)">
+              Game {{ g.gameNumber }}
+              @if (g.win !== undefined) {
+                <span class="draft-game-result" [class.is-win]="g.win">{{ g.win ? 'W' : 'L' }}</span>
+              }
+            </button>
+          }
+        </div>
+      }
+
+      @if (draftGame(); as game) {
+        @if (auth.editing()) {
+          <div class="draft-inputs">
+            <div class="field"><span>Bans this game</span>
+              <app-champion-picker [champions]="game.bans || []" [max]="10"
+                                   [inputName]="'dbans-' + game.id" placeholder="Add a ban…"
+                                   (championsChange)="setGameBans(game, $event)" /></div>
+            <div class="field"><span>{{ teamName() }} picks</span>
+              <app-champion-picker [champions]="game.ourChampions || []" [max]="5"
+                                   [inputName]="'dour-' + game.id" placeholder="Add a pick…"
+                                   (championsChange)="setGameChamps(game, 'our', $event)" /></div>
+            <div class="field"><span>{{ series.opponent }} picks</span>
+              <app-champion-picker [champions]="game.theirChampions || []" [max]="5"
+                                   [inputName]="'dtheir-' + game.id" placeholder="Add a pick…"
+                                   (championsChange)="setGameChamps(game, 'their', $event)" /></div>
+          </div>
+        }
+
+        <div class="draft-status">
+          <span class="draft-board-count is-ok">{{ draftPlayable(game).length }} playable</span>
+          <span class="draft-board-count is-broken">{{ draftBroken(game).length }} broken</span>
+          @if (burnedBeforeCount(game); as burned) {
+            <span class="draft-board-burned"
+                  [appTip]="burned + ' champions burned in earlier games of this series'">{{ burned }} burned</span>
+          }
+        </div>
+
+        <div class="draft-board-body is-page">
+          <div class="draft-col">
+            <span class="draft-col-head is-ok">Still playable</span>
+            @for (row of draftPlayable(game); track row.id) {
+              <span class="draft-comp is-ok">{{ row.name }}</span>
+            } @empty {
+              <span class="muted">Nothing survives this board.</span>
+            }
+          </div>
+
+          <div class="draft-col">
+            <span class="draft-col-head is-broken">Broken</span>
+            @for (row of draftBroken(game); track row.id) {
+              <span class="draft-comp is-broken" [appTip]="'Gone: ' + row.blocked.join(', ')">
+                {{ row.name }}
+                <em>&minus;{{ row.blocked.length }}</em>
+              </span>
+            } @empty {
+              <span class="muted">Every comp is intact.</span>
+            }
+          </div>
+
+          <div class="draft-col">
+            <span class="draft-col-head">Pool left</span>
+            @for (row of draftPools(game); track row.name) {
+              <span class="draft-pool" [class.is-critical]="row.critical"
+                    [appTip]="row.left.length ? row.left.join(', ') : 'Nothing left in this pool'">
+                {{ row.name }}
+                <em>{{ row.left.length }}</em>
+                @if (row.critical) {
+                  <span class="material-symbols-rounded" aria-hidden="true">warning</span>
+                }
+              </span>
+            }
+          </div>
+        </div>
+      } @else {
+        <p class="muted">No games in this series yet. Add game 1 on the Plan view.</p>
+      }
+    </section>
+  } @else {
+    <p class="muted">No series to draft. Add one on the Plan view.</p>
+  }
 }
 
 <datalist id="champlist">

@@ -182,6 +182,46 @@ export class TournamentsComponent {
     return Math.max(1, (series?.bestOf ?? 3) - played);
   }
 
+  // ---- Page view ---------------------------------------------------------
+  //
+  // Planning and drafting are different jobs: one is read at leisure, the other
+  // mid-draft with the clock running. They get their own views rather than the
+  // board being buried three levels down inside a series.
+
+  protected readonly view = signal<'plan' | 'draft'>('plan');
+  private readonly pickedSeriesId = signal<string>('');
+  private readonly pickedGameId = signal<string>('');
+
+  /** The series being drafted: whatever was picked, else the first live one. */
+  protected draftSeries(): TournamentSeries | undefined {
+    const list = this.seriesList();
+    return (
+      list.find((s) => s.id === this.pickedSeriesId()) ??
+      list.find((s) => this.gamesFor(s.id).some((g) => g.win === undefined)) ??
+      list[0]
+    );
+  }
+
+  protected draftGame(): SeriesGame | undefined {
+    const series = this.draftSeries();
+    if (!series) return undefined;
+    const games = this.gamesFor(series.id);
+    return games.find((g) => g.id === this.pickedGameId()) ?? games.find((g) => g.win === undefined) ?? games.at(-1);
+  }
+
+  protected selectDraftSeries(seriesId: string): void {
+    this.pickedSeriesId.set(seriesId);
+    this.pickedGameId.set('');
+  }
+
+  protected selectDraftGame(gameId: string): void {
+    this.pickedGameId.set(gameId);
+  }
+
+  protected isDraftGame(game: SeriesGame): boolean {
+    return this.draftGame()?.id === game.id;
+  }
+
   // ---- Live draft --------------------------------------------------------
   //
   // Mid-draft the board keeps moving: bans land, the enemy takes something. The
@@ -406,9 +446,15 @@ export class TournamentsComponent {
     this.reconcilingGameId.set('');
   }
 
+  /**
+   * Undo everything linking filled in — champions and result, not just the id.
+   * Leaving them behind reads as hand-entered data and quietly keeps the wrong
+   * champions in the fearless burn. Bans are ours, so they stay.
+   */
   protected unlinkMatch(game: SeriesGame): void {
-    const next = { ...game };
+    const next = { ...game, ourChampions: [], theirChampions: [] };
     delete next.matchId;
+    delete next.win;
     void this.data.updateSeriesGame(next);
   }
 

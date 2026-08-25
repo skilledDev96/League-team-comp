@@ -6477,6 +6477,22 @@ app-match-note {
   padding: 0 0.6rem 0.6rem;
 }
 
+.draft-board-body.is-page {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  padding: 0;
+}
+
+.draft-board-body.is-page .draft-col-head {
+  font-size: 0.78rem;
+}
+
+.draft-board-body.is-page .draft-comp,
+.draft-board-body.is-page .draft-pool {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.9rem;
+}
+
 .draft-col {
   display: flex;
   flex-direction: column;
@@ -6542,4 +6558,59 @@ app-match-note {
 
 .draft-pool .material-symbols-rounded {
   font-size: 0.95rem;
+}
+
+/* ---- Draft view -------------------------------------------------------- */
+
+.draft-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.draft-page-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.draft-page-head h2 {
+  margin: 0;
+}
+
+.draft-page-bo {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  font-size: 0.75rem;
+  color: var(--text-1);
+}
+
+.draft-game-picker {
+  margin: 0;
+}
+
+.draft-game-result {
+  margin-left: 0.35rem;
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: var(--warn);
+}
+
+.draft-game-result.is-win {
+  color: var(--ok);
+}
+
+.draft-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.7rem;
+}
+
+.draft-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
