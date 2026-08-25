@@ -139,4 +139,23 @@ export class PlayerEnrichmentService {
     const region = environment.functions?.region || DEFAULT_REGION;
     return `https://${region}-${projectId}.cloudfunctions.net/enrichPlayer`;
   }
+
+  /**
+   * Fold Riot's champion list into the one already on the player instead of
+   * replacing it. A hand-curated pool is deliberate — and the first entry is
+   * shown as the Main Champion — so existing picks keep their place and their
+   * order, and anything new is appended.
+   */
+  mergeChampionPool(existing: string[] | undefined, incoming: string[] | undefined): string[] {
+    const norm = (name: string) => (name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const merged = [...(existing ?? [])];
+    const seen = new Set(merged.map(norm));
+    for (const champ of incoming ?? []) {
+      if (champ && !seen.has(norm(champ))) {
+        merged.push(champ);
+        seen.add(norm(champ));
+      }
+    }
+    return merged;
+  }
 }

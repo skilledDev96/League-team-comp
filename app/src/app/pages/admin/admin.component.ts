@@ -491,7 +491,7 @@ export class AdminComponent {
         draft.role = enriched.role;
       }
       if (enriched.top3?.length) {
-        draft.top3 = enriched.top3.join(', ');
+        draft.top3 = this.enrichment.mergeChampionPool(this.listOf(draft.top3), enriched.top3).join(', ');
       }
       if (enriched.bans?.length) {
         draft.bans = enriched.bans.join(', ');

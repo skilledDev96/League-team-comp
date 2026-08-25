@@ -94,7 +94,7 @@ export class TeamProfilesComponent {
           playstyle: enriched.playstyle || p.playstyle,
           strengths: enriched.strengths.length ? enriched.strengths : p.strengths,
           weaknesses: enriched.weaknesses.length ? enriched.weaknesses : p.weaknesses,
-          top3: enriched.top3?.length ? enriched.top3 : p.top3,
+          top3: this.enrichment.mergeChampionPool(p.top3, enriched.top3),
           bans: enriched.bans?.length ? enriched.bans : p.bans,
           queueStats: enriched.queueStats ?? p.queueStats
         });
