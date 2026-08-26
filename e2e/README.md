@@ -4,9 +4,12 @@ These run against the **deployed** system, not a local build.
 
 ```bash
 npm --prefix e2e install
-npx --prefix e2e playwright install chromium   # once
 npm --prefix e2e test
 ```
+
+The browser download happens automatically before each run — it is separate
+from `npm install`, and a partial one fails at launch rather than at install,
+which is confusing enough to be worth the second it costs to check.
 
 Run these from the repo root. `--prefix` rather than `cd e2e && …` because
 PowerShell 5.1 rejects `&&` as a statement separator.
