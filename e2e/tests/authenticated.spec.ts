@@ -79,15 +79,18 @@ test('the draft board loads', async ({ page }) => {
 test('no console errors while moving around signed in', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (msg) => {
-    if (msg.type() !== 'error') return;
-    const text = msg.text();
-    // Pages serves deep links as 404 by design; the app boots from that body.
-    if (/404/.test(text) && /League-team-comp/.test(text)) return;
-    // The message alone doesn't name what failed; the location does.
-    const location = msg.location().url;
-    errors.push(location ? `${text} @ ${location}` : text);
+    // Resource-load failures surface here with no usable location; the
+    // response listener below reports those with a URL instead.
+    if (msg.type() !== 'error' || /Failed to load resource/.test(msg.text())) return;
+    errors.push(msg.text());
   });
   page.on('pageerror', (err) => errors.push(String(err)));
+  page.on('response', (response) => {
+    if (response.status() !== 404) return;
+    // Pages serves deep links as 404 by design; the app boots from that body.
+    if (response.request().resourceType() === 'document') return;
+    errors.push(`404: ${response.url()}`);
+  });
 
   for (const path of ['./', './comps', './analysis', './tournaments']) {
     await page.goto(path);
