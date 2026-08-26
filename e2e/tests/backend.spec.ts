@@ -45,24 +45,47 @@ test('the backend reports the commit it was built from', async ({ request }) => 
   expect(body.backendSha).toMatch(/^[0-9a-f]{7,40}$/);
 });
 
-test('the deployed backend matches this checkout', async ({ request }) => {
+test('the deployed backend is running the current api code', async ({ request }) => {
   // Pages publishes the frontend on every push; the functions only move when
-  // someone deploys them. This is the drift that gap produces, and the reason
-  // the SHA is stamped in at all.
-  let localSha: string;
+  // someone deploys them. This is the drift that gap produces.
+  //
+  // Not a SHA equality check: the stamp is whatever HEAD was at deploy time, so
+  // any later commit that leaves api/ alone would fail one — and a check that
+  // cries wolf on every frontend commit is one people learn to ignore. What
+  // matters is whether api/ itself has moved since that commit.
+  const body = await health(request);
+  const deployed = body.backendSha;
+  expect(deployed, 'backend does not report a SHA').toBeTruthy();
+
+  let head: string;
   try {
-    localSha = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+    head = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+    // Not `<sha>^{commit}`: on Windows execSync goes through cmd.exe, where the
+    // caret is the escape character and quietly eats the rest.
+    execSync(`git rev-parse --verify --quiet ${deployed}`, { stdio: 'ignore' });
   } catch {
-    test.skip(true, 'not a git checkout');
+    test.skip(true, `deployed commit ${deployed} is not in this checkout`);
     return;
   }
 
-  const body = await health(request);
+  let apiDiff = '';
+  try {
+    // build-info.ts is stamped at build time and differs by design, so it is
+    // not evidence that the backend code moved.
+    apiDiff = execSync(
+      `git diff --name-only ${deployed} ${head} -- ../api ":(exclude)../api/src/build-info.ts"`,
+      { encoding: 'utf8' }
+    ).trim();
+  } catch {
+    test.skip(true, 'could not diff against the deployed commit');
+    return;
+  }
+
   expect(
-    body.backendSha,
-    `deployed backend is ${body.backendSha}, this checkout is ${localSha} — ` +
+    apiDiff,
+    `api/ has changed since the deployed commit ${deployed}:\n${apiDiff}\n\n` +
       'run `npm run deploy:functions` from the repo root'
-  ).toBe(localSha);
+  ).toBe('');
 });
 
 test('the endpoint answers CORS preflight, which the browser needs', async ({ request }) => {
