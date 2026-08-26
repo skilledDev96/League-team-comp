@@ -1249,6 +1249,9 @@ export const riotKeyHealth = onRequest(
     }
     const health = await probeRiotKey(RIOT_API_KEY.value());
     await writeKeyHealth(health);
-    res.status(200).json(health);
+    // The commit the running backend was built from. Pages deploys the frontend
+    // by itself and the functions do not, so without this there is no way to
+    // ask an unauthenticated question as basic as "did my deploy land?".
+    res.status(200).json({ ...health, backendSha: BUILD_SHA });
   }
 );
