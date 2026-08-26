@@ -4,30 +4,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo layout
 
-The product is a single **Angular app** in `app/` (**Bom Squad Draft Hub**). GitHub
-Pages deploys only `app/` (see `.github/workflows/deploy.yml`). The original
-JSON-driven static prototype that used to live at the repo root has been removed —
-everything is the Angular app now. "The app" means `app/`.
+Frontend and backend are separate packages, with the Firebase project at the repo root:
 
-## Commands (run from `app/`)
+- **`frontend/`** — the Angular app (**Bom Squad Draft Hub**). GitHub Pages deploys
+  only this (see `.github/workflows/deploy.yml`, which filters on `frontend/**`).
+- **`api/`** — the Cloud Functions. Its own `package.json`, `tsconfig` and build.
+- **root** — `firebase.json`, `.firebaserc`, `firestore.rules`, and `scripts/`,
+  which both packages share.
+
+`firebase.json` points at `api/` via `"source": "api"`, so the folder name is ours
+to choose. The `firebase deploy --only functions` command is *not* — "functions"
+there is the Firebase product, not the directory.
+
+## Commands
 
 ```bash
+# from frontend/
 npm start            # ng serve — dev server on http://localhost:4200
 npm run build        # production build to dist/bom-squad
 npm test             # vitest via @angular/build:unit-test
 npm run watch        # dev build in watch mode
 
-# Firebase Cloud Functions (in app/functions)
-npm run functions:build    # tsc build of functions
-npm run functions:test     # vitest run (Riot logic unit tests)
-npm run functions:deploy   # firebase deploy --only functions:enrichPlayer
+# from api/
+npm test             # vitest run (Riot logic unit tests)
+npm run build        # tsc build of the functions
+
+# from the repo root, where firebase.json is
+npm run deploy:functions   # firebase deploy --only functions (all five)
+npm run deploy:rules       # firestore rules only
+npm run key:check          # probe the Riot API key
 ```
+
+Both packages install and build independently; there is no workspace linking them.
+Each build stamps the current git SHA into its own `build-info.ts` via
+`scripts/gen-build-info.mjs`, so a deployed frontend can be compared against a
+deployed backend — Pages deploys itself, the functions do not.
 
 Run the suite once (CI-style) with `npm test -- --no-watch`; filter with `npx ng test --include='**/ui.service.spec.ts'` or by test name. `src/test-setup.ts` (wired via `angular.json` `test.options.setupFiles`) polyfills `window.matchMedia` and stubs `fetch` so services that fetch on construction (e.g. `ChampionDataService`) stay offline in tests. Specs live next to their targets and cover pure logic rather than components: permissions (`core/access`), persistence (`services/team-data.service`, `core/strip-undefined`), the fearless draft maths (`pages/tournaments/draft.util`), the admin draft conversions (`pages/admin/admin-drafts`), and the shared utilities. The Cloud Functions have their own vitest suite covering the logic lifted out of `index.ts` — request validation, Riot error classification, match aggregation, player insights, cache trust and champion-overlap matching; run it with `npm run functions:test`. CI runs both suites before the builds.
 
 ## Local vs Firebase mode — the core runtime switch
 
-`app/src/app/core/firebase.ts` `isFirebaseConfigured()` returns true when `environment.firebase.apiKey` **and** `projectId` are set. This single flag drives the whole app:
+`frontend/src/app/core/firebase.ts` `isFirebaseConfigured()` returns true when `environment.firebase.apiKey` **and** `projectId` are set. This single flag drives the whole app:
 
 - **Firebase mode**: Firestore is the source of truth; login is Google sign-in gated by `access/{email}` role docs.
 - **Local mode**: no backend. `TeamDataService` seeds from `SEED_DATA` into `localStorage` (`bom-team-data`), and `AuthService` treats *any* email/password as an admin session (`sessionStorage` flag `bom-local-auth`).
@@ -36,24 +53,24 @@ Run the suite once (CI-style) with `npm test -- --no-watch`; filter with `npx ng
 
 ## Architecture
 
-**`TeamDataService` (`app/src/app/services/team-data.service.ts`) is the single source of truth.** Every page reads from its signals (`players`, `comps`, `compResults`, `fillIns`, `accessEntries`, `teamIdentity`, `macroSummary`, `resourceLinks`, `settings`). All writes go through `persistUpsert`/`persistRemove`, which branch on `this.mode`:
+**`TeamDataService` (`frontend/src/app/services/team-data.service.ts`) is the single source of truth.** Every page reads from its signals (`players`, `comps`, `compResults`, `fillIns`, `accessEntries`, `teamIdentity`, `macroSummary`, `resourceLinks`, `settings`). All writes go through `persistUpsert`/`persistRemove`, which branch on `this.mode`:
 - Firebase mode → Firestore `setDoc`/`deleteDoc`, with `stripUndefined()` first (Firestore rejects `undefined` fields).
 - Local mode → mutate the signal + `persistLocal()` to `localStorage`.
 
 In Firebase mode the signals are kept live by `onSnapshot` listeners set up in `initFirebase()`. When adding a new persisted entity, wire **all** of: the model in `team.models.ts` + `TeamData`, a signal, an `onSnapshot` listener, `EntityKey`, `pushLocalToSignals`/`persistLocal`, `seedFirestore`, and CRUD methods — mirror how `compResults` is done.
 
-**Firestore layout**: list collections `players`, `fillIns`, `comps`, `compResults`, `access`; singleton docs under `meta/` (`teamIdentity`, `macro`, `resourceLinks`, `settings`). `SEED_DATA` (`app/src/app/data/seed-data.ts`) is the one-time migration source and the local-mode seed; its shape must stay in sync with the `TeamData` interface.
+**Firestore layout**: list collections `players`, `fillIns`, `comps`, `compResults`, `access`; singleton docs under `meta/` (`teamIdentity`, `macro`, `resourceLinks`, `settings`). `SEED_DATA` (`frontend/src/app/data/seed-data.ts`) is the one-time migration source and the local-mode seed; its shape must stay in sync with the `TeamData` interface.
 
-**Auth & roles** (`app/src/app/services/auth.service.ts`): roles are `admin` / `contributor` / `viewer`. `canEdit()` is true for local mode, `admin`, or `contributor`; `canManageUsers()` for local mode or `admin`. A bootstrap admin email is hardcoded (`ruanhart7@gmail.com`) in both the service and `firestore.rules`. Content routes are gated by `viewerGuard` (`app/src/app/app.routes.ts`); `AuthService.ready`/`waitUntilReady()` prevents guard-redirect races on refresh.
+**Auth & roles** (`frontend/src/app/services/auth.service.ts`): roles are `admin` / `contributor` / `viewer`. `canEdit()` is true for local mode, `admin`, or `contributor`; `canManageUsers()` for local mode or `admin`. A bootstrap admin email is hardcoded (`ruanhart7@gmail.com`) in both the service and `firestore.rules`. Content routes are gated by `viewerGuard` (`frontend/src/app/app.routes.ts`); `AuthService.ready`/`waitUntilReady()` prevents guard-redirect races on refresh.
 
-**Firestore security** (`app/firestore.rules`): public read on everything; writes require `canEdit()` via the catch-all `match /{document=**}`, so a new collection is automatically covered (public read, editor write) — no rules change needed. `access` and `meta/settings` have their own stricter rules.
+**Firestore security** (`firestore.rules`, at the repo root): public read on everything; writes require `canEdit()` via the catch-all `match /{document=**}`, so a new collection is automatically covered (public read, editor write) — no rules change needed. `access` and `meta/settings` have their own stricter rules.
 
-**Cloud Functions** (`app/functions/src/`): `enrichPlayer`, `getTeamSynergy`, `getCompAnalysis` and `riotKeyHealth` are `onRequest` with `cors: true`; `checkRiotKey` is a scheduled probe. All use the `RIOT_API_KEY` secret and deploy to region `europe-west1` (see `SynergyService.functionUrl()`). `index.ts` holds the handlers and the Riot I/O; the logic they call sits in tested modules beside it (`parse-request`, `riot-errors`, `match-stats`, `insights`, `analysis-cache`, `comp-match`). Deploy **all** of them — `npm run functions:deploy` only covers `enrichPlayer`.
+**Cloud Functions** (`api/src/`): `enrichPlayer`, `getTeamSynergy`, `getCompAnalysis` and `riotKeyHealth` are `onRequest` with `cors: true`; `checkRiotKey` is a scheduled probe. All use the `RIOT_API_KEY` secret and deploy to region `europe-west1` (see `SynergyService.functionUrl()`). `index.ts` holds the handlers and the Riot I/O; the logic they call sits in tested modules beside it (`parse-request`, `riot-errors`, `match-stats`, `insights`, `analysis-cache`, `comp-match`). Deploy **all** of them with `npm run deploy:functions` from the repo root.
 
 ## Conventions
 
 - **Angular 22, standalone components, signals throughout.** No NgModules; components declare their own `imports`. State is signals + `computed`; prefer this over RxJS for view state.
 - Forms use `[ngModel]` + `(ngModelChange)` with `FormsModule` (template-driven, one-way bound to signals), not reactive forms — see `admin.component.html`.
-- Styling is one global `app/src/styles.css` (no per-component styles) built on CSS custom properties. Theme is switched via `body[data-theme="..."]` (`dark`, `dark-blue`, `dark-red`, `light`); **always style through tokens** (`--accent`, `--text-0/1`, `--ok` for wins/positive, `--warn` for losses/negative, `--card-border`, `--surface-*`) so all four themes work.
-- Shared UI lives in `app/src/app/shared/` (e.g. `overflow-menu.component.ts`, `champion-chip.component.ts`, `external-profiles.component.ts`); reuse these rather than re-rolling menus/chips.
+- Styling is one global `frontend/src/styles.css` (no per-component styles) built on CSS custom properties. Theme is switched via `body[data-theme="..."]` (`dark`, `dark-blue`, `dark-red`, `light`); **always style through tokens** (`--accent`, `--text-0/1`, `--ok` for wins/positive, `--warn` for losses/negative, `--card-border`, `--surface-*`) so all four themes work.
+- Shared UI lives in `frontend/src/app/shared/` (e.g. `overflow-menu.component.ts`, `champion-chip.component.ts`, `external-profiles.component.ts`); reuse these rather than re-rolling menus/chips.
 - Commit messages in this repo are a single imperative summary line describing the user-facing change, often with a short rationale after a semicolon.

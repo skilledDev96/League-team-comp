@@ -3,10 +3,10 @@
     "rules": "firestore.rules"
   },
   "functions": {
-    "source": "functions",
+    "source": "api",
     "runtime": "nodejs22",
     "predeploy": [
-      "npm --prefix functions run build"
+      "npm --prefix api run build"
     ]
   }
 }

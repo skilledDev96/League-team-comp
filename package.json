@@ -1,0 +1,11 @@
+{
+  "name": "league-team-comp",
+  "private": true,
+  "description": "Repo-level commands. The Angular app lives in frontend/, the Cloud Functions in api/; each has its own package.json and is built independently. These are the commands that act on the Firebase project as a whole, so they run from here, where firebase.json is.",
+  "scripts": {
+    "key:check": "node scripts/riot-key.mjs",
+    "key:update": "node scripts/riot-key.mjs --deploy",
+    "deploy:functions": "firebase deploy --only functions",
+    "deploy:rules": "firebase deploy --only firestore:rules"
+  }
+}

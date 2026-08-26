@@ -1,4 +1,4 @@
-# Deploys the Angular app in app/ to GitHub Pages.
+# Deploys the Angular app in frontend/ to GitHub Pages.
 # Before enabling: set Settings -> Pages -> Source to "GitHub Actions".
 # Note: this replaces the current static site served from the repo root.
 # Re-trigger: Pages source switched to GitHub Actions (2026-08-20).
@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'app/**'
+      - 'frontend/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
@@ -26,21 +26,21 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: app
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: app/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run build -- --base-href=/League-team-comp/
       # GitHub Pages has no server-side routing; serve index.html for deep links.
       - run: cp dist/bom-squad/browser/index.html dist/bom-squad/browser/404.html
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: app/dist/bom-squad/browser
+          path: frontend/dist/bom-squad/browser
 
   deploy:
     needs: build

@@ -1,9 +1,9 @@
 
 # Riot API key handoff file (never commit a key)
 riot-key.txt
-app/riot-key.txt
+frontend/riot-key.txt
 
 # Firebase CLI debug output
 firebase-debug.log
-app/firebase-debug.log
+api/firebase-debug.log
 *.log

@@ -11,26 +11,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  frontend:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: app
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: app/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - name: Unit tests
         run: npm test -- --no-watch
       - name: Build Angular app
         run: npm run build
-      - name: Install functions deps
-        run: npm run functions:install
-      - name: Functions unit tests
-        run: npm run functions:test
+
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - name: Unit tests
+        run: npm test
       - name: Build Cloud Functions
-        run: npm run functions:build
+        run: npm run build
