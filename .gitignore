@@ -3,6 +3,12 @@
 riot-key.txt
 frontend/riot-key.txt
 
+# Local secrets for the end-to-end tests (test account credentials).
+# The password manager is the source of truth; this is only a convenience copy.
+.env
+.env.*
+!.env.example
+
 # Firebase CLI debug output
 firebase-debug.log
 api/firebase-debug.log
