@@ -1,0 +1,28 @@
+<section aria-label="Comps">
+<div class="view-controls edit-toolbar">
+  <h2 class="title-with-icon"><span class="section-icon">CP</span>Team Comps</h2>
+  <p class="muted edit-hint">Build a comp by naming it and assigning a champion and note per role.</p>
+  <button class="view-btn active btn-cta" type="button" (click)="ctx.addComp()">+ Add comp</button>
+</div>
+
+<div class="grid two">
+  @for (draft of ctx.compDrafts(); track draft) {
+    <article class="card" [id]="'comp-draft-' + $index">
+      <label class="field"><span>Comp name</span>
+        <input type="text" [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'cname' + $index" /></label>
+      @for (role of ctx.roles; track role) {
+        <label class="field"><span>{{ role }} (Champion - note)</span>
+          <input type="text" [ngModel]="draft.picks[role]" (ngModelChange)="draft.picks[role] = $event" [name]="'cpick' + $index + role" /></label>
+      }
+      <div class="links action-row">
+        <button class="view-btn active" type="button" (click)="ctx.saveComp(draft)">Save</button>
+        @if (auth.canManageUsers()) {
+          <app-overflow-menu>
+            <button class="overflow-item danger" type="button" (click)="ctx.deleteComp(draft)">Delete comp</button>
+          </app-overflow-menu>
+        }
+      </div>
+    </article>
+  }
+</div>
+</section>

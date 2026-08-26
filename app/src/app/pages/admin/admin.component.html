@@ -4,394 +4,42 @@
     {{ data.mode === 'firebase' ? 'the shared database' : 'this browser' }}.</p>
 </section>
 
-@if (status()) {
-  <p class="tag good" role="status">{{ status() }}</p>
-}
-
-@if (showAddPlayerDialog()) {
-  <div class="modal-backdrop" (click)="closeAddPlayerDialog()">
-    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Add player" (click)="$event.stopPropagation()">
-      @if (addPlayerMode() === 'choose') {
-        <h2 class="title-with-icon"><span class="section-icon">PL</span>Add player</h2>
-        <p class="muted">How do you want to add this player?</p>
-        <div class="links">
-          <button class="view-btn active" type="button" (click)="chooseAutofillAdd()">Autofill with Summoner name</button>
-          <button class="view-btn" type="button" (click)="addPlayerManually()">Add manually</button>
-        </div>
-        <div class="links" style="margin-top: 12px;">
-          <button class="view-btn" type="button" (click)="closeAddPlayerDialog()">Cancel</button>
-        </div>
-      } @else {
-        <h2 class="title-with-icon"><span class="section-icon">PL</span>Autofill with Summoner name</h2>
-        <label class="field"><span>Summoner name</span>
-          <input type="text" [ngModel]="newPlayerSummoner()" (ngModelChange)="newPlayerSummoner.set($event)" name="newPlayerSummoner" placeholder="e.g. DaWhiteHammer" /></label>
-        <div class="grid two">
-          <label class="field"><span>Riot tag</span>
-            <input type="text" [ngModel]="newPlayerTag()" (ngModelChange)="newPlayerTag.set($event)" name="newPlayerTag" /></label>
-          <label class="field"><span>Region</span>
-            <input type="text" [ngModel]="newPlayerRegion()" (ngModelChange)="newPlayerRegion.set($event)" name="newPlayerRegion" /></label>
-        </div>
-        <div class="links">
-          <button class="view-btn active" type="button" (click)="confirmAutofillAdd()">Add and autofill</button>
-          <button class="view-btn" type="button" (click)="closeAddPlayerDialog()">Cancel</button>
-        </div>
-      }
-    </div>
-  </div>
+@if (ctx.status()) {
+  <p class="tag good" role="ctx.status">{{ ctx.status() }}</p>
 }
 
 <section class="view-controls" aria-label="Editor tabs">
   @if (auth.canManageUsers()) {
-    <button class="view-btn" [class.active]="activeTab() === 'settings'" type="button" (click)="openTab('settings')">Settings</button>
+    <button class="view-btn" [class.active]="ctx.activeTab() === 'settings'" type="button" (click)="ctx.openTab('settings')">Settings</button>
   }
-  <button class="view-btn" [class.active]="activeTab() === 'players'" type="button" (click)="openTab('players')">Players</button>
-  <button class="view-btn" [class.active]="activeTab() === 'fillins'" type="button" (click)="openTab('fillins')">Fill-ins</button>
-  <button class="view-btn" [class.active]="activeTab() === 'comps'" type="button" (click)="openTab('comps')">Comps</button>
-  <button class="view-btn" [class.active]="activeTab() === 'tournaments'" type="button" (click)="openTab('tournaments')">Tournaments</button>
+  <button class="view-btn" [class.active]="ctx.activeTab() === 'players'" type="button" (click)="ctx.openTab('players')">Players</button>
+  <button class="view-btn" [class.active]="ctx.activeTab() === 'fillins'" type="button" (click)="ctx.openTab('fillins')">Fill-ins</button>
+  <button class="view-btn" [class.active]="ctx.activeTab() === 'comps'" type="button" (click)="ctx.openTab('comps')">Comps</button>
+  <button class="view-btn" [class.active]="ctx.activeTab() === 'tournaments'" type="button" (click)="ctx.openTab('tournaments')">Tournaments</button>
   @if (auth.canManageUsers()) {
-    <button class="view-btn" [class.active]="activeTab() === 'access'" type="button" (click)="openTab('access')">Access</button>
-    <button class="view-btn" [class.active]="activeTab() === 'diagnostics'" type="button" (click)="openTab('diagnostics')">Diagnostics</button>
+    <button class="view-btn" [class.active]="ctx.activeTab() === 'access'" type="button" (click)="ctx.openTab('access')">Access</button>
+    <button class="view-btn" [class.active]="ctx.activeTab() === 'diagnostics'" type="button" (click)="ctx.openTab('diagnostics')">Diagnostics</button>
   }
 </section>
 
-@if (auth.canManageUsers() && activeTab() === 'settings') {
-  <section class="card">
-    <h2 class="title-with-icon"><span class="section-icon">ST</span>Settings</h2>
-    <label class="field">
-      <span>Team name</span>
-      <input type="text" [ngModel]="teamName()" (ngModelChange)="teamName.set($event)" name="teamName" />
-    </label>
-    <button class="view-btn active" type="button" (click)="saveSettings()">Save settings</button>
-
-    <div class="links" style="margin-top: 12px;">
-      @if (data.mode === 'firebase') {
-        <button class="view-btn" type="button" (click)="seed()">Seed database from starter data</button>
-      } @else {
-        <button class="view-btn" type="button" (click)="resetLocal()">Reset local data</button>
-      }
-    </div>
-  </section>
+@if (auth.canManageUsers() && ctx.activeTab() === 'settings') {
+  <app-admin-settings />
 }
-
-@if (activeTab() === 'players') {
-<section aria-label="Players">
-  <div class="view-controls edit-toolbar">
-    <h2 class="title-with-icon"><span class="section-icon">PL</span>Players</h2>
-    <p class="muted edit-hint">Tip: use <strong>Add player</strong> to autofill a profile from a Riot Summoner name, or add one manually.</p>
-    <button class="view-btn active btn-cta" type="button" (click)="openAddPlayerDialog()">+ Add player</button>
-  </div>
-
-  @for (group of playersByRole(); track group.role) {
-  <div class="role-group">
-    <h3 class="role-group-heading"><span class="tag good">{{ group.role }}</span> {{ group.drafts.length }}</h3>
-    <div class="grid player-panel-list">
-      @for (draft of group.drafts; track draft.uid) {
-      <article
-        class="card card-loadable player-panel"
-        [class.player-panel-open]="isPlayerOpen(draft)"
-        [class.player-panel-highlight]="isPlayerHighlighted(draft)"
-        [id]="'player-' + draft.uid">
-        @if (enrichingPlayerId() === enrichmentKey(draft)) {
-          <div class="card-loading-overlay" role="status" aria-live="polite">
-            <span class="app-loading-spinner" aria-hidden="true"></span>
-            <p>Fetching Riot data…</p>
-          </div>
-        }
-
-        <button type="button" class="player-panel-header" (click)="togglePlayer(draft)"
-                [attr.aria-expanded]="isPlayerOpen(draft)">
-          <app-player-avatar [name]="draft.name" [icon]="draft.icon" [role]="draft.role" />
-          <span class="player-panel-title">
-            <span class="pp-name">{{ draft.name || 'New player' }}</span>
-            <span class="pp-role">{{ draft.role }}</span>
-          </span>
-          <span class="player-panel-chevron material-symbols-rounded" aria-hidden="true">
-            {{ isPlayerOpen(draft) ? 'expand_less' : 'expand_more' }}
-          </span>
-        </button>
-
-        @if (isPlayerOpen(draft)) {
-        <div class="player-panel-body">
-        <label class="field"><span>Summoner name</span>
-          <input type="text" required [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname-' + draft.uid" placeholder="e.g. DaWhiteHammer" /></label>
-        <label class="field"><span>Role</span>
-          <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'prole-' + draft.uid">
-            @for (role of roles; track role) { <option [value]="role">{{ role }}</option> }
-          </select></label>
-        <div class="field"><span>Can also play</span>
-          <div class="role-flex-group">
-            @for (role of roles; track role) {
-              @if (role !== draft.role) {
-                <button
-                  type="button"
-                  class="role-flex-toggle"
-                  [class.on]="draft.secondaryRoles.includes(role)"
-                  (click)="toggleSecondaryRole(draft, role)">{{ role }}</button>
-              }
-            }
-          </div>
-        </div>
-        <label class="field"><span>Icon file</span>
-          <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event" [name]="'picon-' + draft.uid" placeholder="name.webp" /></label>
-        <label class="field"><span>Playstyle</span>
-          <input type="text" [ngModel]="draft.playstyle" (ngModelChange)="draft.playstyle = $event" [name]="'pstyle-' + draft.uid" /></label>
-        <label class="field"><span>Strengths (comma separated)</span>
-          <input type="text" [ngModel]="draft.strengths" (ngModelChange)="draft.strengths = $event" [name]="'pstr-' + draft.uid" /></label>
-        <label class="field"><span>Weaknesses (comma separated)</span>
-          <input type="text" [ngModel]="draft.weaknesses" (ngModelChange)="draft.weaknesses = $event" [name]="'pweak-' + draft.uid" /></label>
-        <div class="field"><span>Champion pool</span>
-          <app-champion-picker [champions]="listOf(draft.top3)" [role]="draft.role"
-                               [inputName]="'ptop-' + draft.uid" placeholder="Add a champion…"
-                               (championsChange)="draft.top3 = $event.join(', ')" /></div>
-        <div class="field"><span>Bans</span>
-          <app-champion-picker [champions]="listOf(draft.bans)"
-                               [inputName]="'pbans-' + draft.uid" placeholder="Add a ban…"
-                               (championsChange)="draft.bans = $event.join(', ')" /></div>
-
-        <div class="grid two">
-          <label class="field"><span>Region</span>
-            <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event" [name]="'preg-' + draft.uid" /></label>
-          <label class="field"><span>OP.GG slug</span>
-            <input type="text" [ngModel]="draft.opggSlug" (ngModelChange)="draft.opggSlug = $event" [name]="'popgg-' + draft.uid" /></label>
-          <label class="field"><span>Riot tag</span>
-            <input type="text" [ngModel]="draft.riotTag" (ngModelChange)="draft.riotTag = $event" [name]="'ptag-' + draft.uid" /></label>
-          <label class="field"><span>Mobalytics slug</span>
-            <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event" [name]="'pmoba-' + draft.uid" /></label>
-        </div>
-
-          <div class="links">
-            <button
-              class="view-btn"
-              type="button"
-              [disabled]="enrichingPlayerId() === enrichmentKey(draft)"
-              (click)="autoFillPlayerInsights(draft)">
-              @if (enrichingPlayerId() === enrichmentKey(draft)) {
-                <span class="btn-spinner" aria-hidden="true"></span>
-                Refreshing...
-              } @else {
-              Refresh from Summoner
-              }
-            </button>
-          </div>
-
-        <div class="links action-row">
-          <button class="view-btn active" type="button" (click)="savePlayer(draft)">Save</button>
-          @if (auth.canManageUsers()) {
-            <app-overflow-menu>
-              <button class="overflow-item danger" type="button" (click)="deletePlayer(draft)">Delete player</button>
-            </app-overflow-menu>
-          }
-        </div>
-        </div>
-        }
-      </article>
-      }
-    </div>
-  </div>
-  }
-</section>
+@if (ctx.activeTab() === 'players') {
+  <app-admin-players />
 }
-
-@if (activeTab() === 'fillins') {
-<section aria-label="Fill-ins">
-  <div class="view-controls edit-toolbar">
-    <h2 class="title-with-icon"><span class="section-icon">FI</span>Fill-ins</h2>
-    <p class="muted edit-hint">Add substitute players who can step in, with their preferred roles and availability.</p>
-    <button class="view-btn active btn-cta" type="button" (click)="addFillIn()">+ Add fill-in</button>
-  </div>
-
-  <div class="grid two">
-    @for (draft of fillInDrafts(); track draft) {
-      <article class="card" [id]="'fillin-draft-' + $index">
-        <label class="field"><span>Summoner</span>
-          <input type="text" [ngModel]="draft.summoner" (ngModelChange)="draft.summoner = $event" [name]="'fname' + $index" /></label>
-        <label class="field"><span>Status</span>
-          <input type="text" [ngModel]="draft.status" (ngModelChange)="draft.status = $event" [name]="'fstatus' + $index" /></label>
-        <label class="field"><span>Preferred roles (comma separated)</span>
-          <input type="text" [ngModel]="draft.preferredRoles" (ngModelChange)="draft.preferredRoles = $event" [name]="'froles' + $index" /></label>
-        <label class="field"><span>Note</span>
-          <input type="text" [ngModel]="draft.note" (ngModelChange)="draft.note = $event" [name]="'fnote' + $index" /></label>
-        <label class="field"><span>Icon file</span>
-          <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event" [name]="'ficon' + $index" /></label>
-        <div class="grid two">
-          <label class="field"><span>Region</span>
-            <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event" [name]="'freg' + $index" /></label>
-          <label class="field"><span>Mobalytics slug</span>
-            <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event" [name]="'fmoba' + $index" /></label>
-        </div>
-        <div class="links action-row">
-          <button class="view-btn active" type="button" (click)="saveFillIn(draft)">Save</button>
-          @if (auth.canManageUsers()) {
-            <app-overflow-menu>
-              <button class="overflow-item danger" type="button" (click)="deleteFillIn(draft)">Delete fill-in</button>
-            </app-overflow-menu>
-          }
-        </div>
-      </article>
-    }
-  </div>
-</section>
+@if (ctx.activeTab() === 'fillins') {
+  <app-admin-fill-ins />
 }
-
-@if (activeTab() === 'comps') {
-<section aria-label="Comps">
-  <div class="view-controls edit-toolbar">
-    <h2 class="title-with-icon"><span class="section-icon">CP</span>Team Comps</h2>
-    <p class="muted edit-hint">Build a comp by naming it and assigning a champion and note per role.</p>
-    <button class="view-btn active btn-cta" type="button" (click)="addComp()">+ Add comp</button>
-  </div>
-
-  <div class="grid two">
-    @for (draft of compDrafts(); track draft) {
-      <article class="card" [id]="'comp-draft-' + $index">
-        <label class="field"><span>Comp name</span>
-          <input type="text" [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'cname' + $index" /></label>
-        @for (role of roles; track role) {
-          <label class="field"><span>{{ role }} (Champion - note)</span>
-            <input type="text" [ngModel]="draft.picks[role]" (ngModelChange)="draft.picks[role] = $event" [name]="'cpick' + $index + role" /></label>
-        }
-        <div class="links action-row">
-          <button class="view-btn active" type="button" (click)="saveComp(draft)">Save</button>
-          @if (auth.canManageUsers()) {
-            <app-overflow-menu>
-              <button class="overflow-item danger" type="button" (click)="deleteComp(draft)">Delete comp</button>
-            </app-overflow-menu>
-          }
-        </div>
-      </article>
-    }
-  </div>
-</section>
+@if (ctx.activeTab() === 'comps') {
+  <app-admin-comps />
 }
-
-@if (auth.canManageUsers() && activeTab() === 'access') {
-  <section aria-label="Team access">
-    <div class="view-controls edit-toolbar">
-      <h2 class="title-with-icon"><span class="section-icon">AC</span>Team Access</h2>
-      <p class="muted edit-hint">Grant access by email and role. Admins manage; user accounts/passwords are created in the Firebase console.</p>
-      <button class="view-btn active btn-cta" type="button" (click)="addAccessEntry()">+ Add member</button>
-    </div>
-
-    <div class="grid two">
-      @for (draft of accessDrafts(); track draft.email + $index) {
-        <article class="card">
-          <label class="field"><span>Email</span>
-            <input type="email" [ngModel]="draft.email" (ngModelChange)="draft.email = $event" [name]="'aemail' + $index" /></label>
-          <label class="field"><span>Role</span>
-            <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'arole' + $index">
-              @for (role of accessRoles; track role) { <option [value]="role">{{ role }}</option> }
-            </select></label>
-          <label class="field">
-            <span>Active</span>
-            <input type="checkbox" [ngModel]="draft.active" (ngModelChange)="draft.active = $event" [name]="'aactive' + $index" />
-          </label>
-          <div class="links action-row">
-            <button class="view-btn active" type="button" (click)="saveAccessEntry(draft)">Save</button>
-            @if (auth.canManageUsers()) {
-              <app-overflow-menu>
-                <button class="overflow-item danger" type="button" (click)="deleteAccessEntry(draft)">Delete member</button>
-              </app-overflow-menu>
-            }
-          </div>
-        </article>
-      }
-    </div>
-  </section>
+@if (ctx.activeTab() === 'tournaments') {
+  <app-admin-tournaments />
 }
-
-
-@if (auth.canManageUsers() && activeTab() === 'diagnostics') {
-  <section class="card" aria-label="Diagnostics">
-    <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">monitor_heart</span>Diagnostics</h2>
-    <p class="muted edit-hint">
-      Health of the match-analysis pipeline. Admin only — the team doesn't need to see this.
-    </p>
-
-    <div class="build-sha" [class.is-mismatch]="shaMismatch()">
-      <span class="material-symbols-rounded" aria-hidden="true">{{ shaMismatch() ? 'sync_problem' : 'commit' }}</span>
-      <span>frontend <code>{{ frontendSha }}</code></span>
-      <span>backend <code>{{ backendSha() || 'unknown' }}</code></span>
-      @if (shaMismatch()) {
-        <span class="build-sha-note">versions differ — redeploy functions</span>
-      }
-    </div>
-
-    @if (data.keyHealth(); as k) {
-      <p class="key-health" [class.is-bad]="!k.ok">
-        <span class="material-symbols-rounded" aria-hidden="true">{{ k.ok ? 'key' : 'key_off' }}</span>
-        {{ k.message }}
-      </p>
-    }
-
-    @if (funnelStages().length) {
-      <h3>Last analysis pass</h3>
-      <dl class="funnel-list">
-        @for (stage of funnelStages(); track stage.label) {
-          <div class="funnel-row">
-            <dt>{{ stage.label }}</dt>
-            <dd>{{ stage.value }}</dd>
-          </div>
-        }
-      </dl>
-      @if (funnelDrops().length) {
-        <dl class="funnel-list funnel-dropped">
-          @for (d of funnelDrops(); track d.label) {
-            <div class="funnel-row">
-              <dt>{{ d.label }}</dt>
-              <dd>{{ d.value }}</dd>
-            </div>
-          }
-        </dl>
-      } @else {
-        <p class="muted funnel-clean">No games dropped on the last pass.</p>
-      }
-    } @else {
-      <p class="muted">No analysis has run yet. Refresh from Riot on the Analysis page.</p>
-    }
-  </section>
+@if (auth.canManageUsers() && ctx.activeTab() === 'access') {
+  <app-admin-access />
 }
-
-@if (activeTab() === 'tournaments') {
-  <section aria-label="Tournaments">
-    <div class="view-controls edit-toolbar">
-      <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">trophy</span>Tournaments</h2>
-      <p class="muted edit-hint">Series and games are managed on the Tournaments page; this is the tournament itself.</p>
-      <button class="view-btn active btn-cta" type="button" (click)="addTournamentDraft()">+ Add tournament</button>
-    </div>
-
-    <div class="grid">
-      @for (draft of tournamentDrafts(); track $index) {
-        <article class="card">
-          <label class="field"><span>Name</span>
-            <input type="text" required [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'tname' + $index" placeholder="e.g. Oryx Fearless League 2026 — Split 2" /></label>
-          <div class="grid two">
-            <label class="field"><span>Organiser</span>
-              <input type="text" [ngModel]="draft.organiser" (ngModelChange)="draft.organiser = $event" [name]="'torg' + $index" /></label>
-            <label class="field"><span>Division</span>
-              <input type="text" [ngModel]="draft.division" (ngModelChange)="draft.division = $event" [name]="'tdiv' + $index" placeholder="First / Second Division" /></label>
-          </div>
-          <label class="field"><span>Format</span>
-            <input type="text" [ngModel]="draft.format" (ngModelChange)="draft.format = $event" [name]="'tfmt' + $index" placeholder="Bo3 Fearless Draft — Swiss stage" /></label>
-          <div class="grid two">
-            <label class="field"><span>Start date</span>
-              <input type="date" [ngModel]="draft.startDate" (ngModelChange)="draft.startDate = $event" [name]="'tstart' + $index" /></label>
-            <label class="field"><span>End date</span>
-              <input type="date" [ngModel]="draft.endDate" (ngModelChange)="draft.endDate = $event" [name]="'tend' + $index" /></label>
-          </div>
-          <label class="field"><span>Notes / key rules</span>
-            <textarea rows="3" [ngModel]="draft.notes" (ngModelChange)="draft.notes = $event" [name]="'tnotes' + $index"></textarea></label>
-          <label class="field checkbox-field">
-            <input type="checkbox" [ngModel]="draft.active" (ngModelChange)="draft.active = $event" [name]="'tactive' + $index" />
-            <span>Current tournament (opens by default on the Tournaments page)</span>
-          </label>
-          <div class="links">
-            <button class="view-btn active" type="button" [disabled]="savingTournament()" (click)="saveTournament(draft)">Save</button>
-            <button class="view-btn" type="button" (click)="deleteTournament(draft)">Delete</button>
-          </div>
-        </article>
-      } @empty {
-        <p class="muted">No tournaments yet. Add one above.</p>
-      }
-    </div>
-  </section>
+@if (auth.canManageUsers() && ctx.activeTab() === 'diagnostics') {
+  <app-admin-diagnostics />
 }

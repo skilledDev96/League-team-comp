@@ -1,0 +1,48 @@
+<section class="card" aria-label="Diagnostics">
+  <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">monitor_heart</span>Diagnostics</h2>
+  <p class="muted edit-hint">
+    Health of the match-analysis pipeline. Admin only — the team doesn't need to see this.
+  </p>
+
+  <div class="build-sha" [class.is-mismatch]="ctx.shaMismatch()">
+    <span class="material-symbols-rounded" aria-hidden="true">{{ ctx.shaMismatch() ? 'sync_problem' : 'commit' }}</span>
+    <span>frontend <code>{{ ctx.frontendSha }}</code></span>
+    <span>backend <code>{{ ctx.backendSha() || 'unknown' }}</code></span>
+    @if (ctx.shaMismatch()) {
+      <span class="build-sha-note">versions differ — redeploy functions</span>
+    }
+  </div>
+
+  @if (data.keyHealth(); as k) {
+    <p class="key-health" [class.is-bad]="!k.ok">
+      <span class="material-symbols-rounded" aria-hidden="true">{{ k.ok ? 'key' : 'key_off' }}</span>
+      {{ k.message }}
+    </p>
+  }
+
+  @if (ctx.funnelStages().length) {
+    <h3>Last analysis pass</h3>
+    <dl class="funnel-list">
+      @for (stage of ctx.funnelStages(); track stage.label) {
+        <div class="funnel-row">
+          <dt>{{ stage.label }}</dt>
+          <dd>{{ stage.value }}</dd>
+        </div>
+      }
+    </dl>
+    @if (ctx.funnelDrops().length) {
+      <dl class="funnel-list funnel-dropped">
+        @for (d of ctx.funnelDrops(); track d.label) {
+          <div class="funnel-row">
+            <dt>{{ d.label }}</dt>
+            <dd>{{ d.value }}</dd>
+          </div>
+        }
+      </dl>
+    } @else {
+      <p class="muted funnel-clean">No games dropped on the last pass.</p>
+    }
+  } @else {
+    <p class="muted">No analysis has run yet. Refresh from Riot on the Analysis page.</p>
+  }
+</section>

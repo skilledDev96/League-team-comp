@@ -1,0 +1,16 @@
+<section class="card">
+  <h2 class="title-with-icon"><span class="section-icon">ST</span>Settings</h2>
+  <label class="field">
+    <span>Team name</span>
+    <input type="text" [ngModel]="ctx.teamName()" (ngModelChange)="ctx.teamName.set($event)" name="ctx.teamName" />
+  </label>
+  <button class="view-btn active" type="button" (click)="ctx.saveSettings()">Save settings</button>
+
+  <div class="links" style="margin-top: 12px;">
+    @if (data.mode === 'firebase') {
+      <button class="view-btn" type="button" (click)="ctx.seed()">Seed database from starter data</button>
+    } @else {
+      <button class="view-btn" type="button" (click)="ctx.resetLocal()">Reset local data</button>
+    }
+  </div>
+</section>

@@ -1,0 +1,38 @@
+<section aria-label="Fill-ins">
+<div class="view-controls edit-toolbar">
+  <h2 class="title-with-icon"><span class="section-icon">FI</span>Fill-ins</h2>
+  <p class="muted edit-hint">Add substitute players who can step in, with their preferred ctx.roles and availability.</p>
+  <button class="view-btn active btn-cta" type="button" (click)="ctx.addFillIn()">+ Add fill-in</button>
+</div>
+
+<div class="grid two">
+  @for (draft of ctx.fillInDrafts(); track draft) {
+    <article class="card" [id]="'fillin-draft-' + $index">
+      <label class="field"><span>Summoner</span>
+        <input type="text" [ngModel]="draft.summoner" (ngModelChange)="draft.summoner = $event" [name]="'fname' + $index" /></label>
+      <label class="field"><span>Status</span>
+        <input type="text" [ngModel]="draft.status" (ngModelChange)="draft.status = $event" [name]="'fstatus' + $index" /></label>
+      <label class="field"><span>Preferred ctx.roles (comma separated)</span>
+        <input type="text" [ngModel]="draft.preferredRoles" (ngModelChange)="draft.preferredRoles = $event" [name]="'froles' + $index" /></label>
+      <label class="field"><span>Note</span>
+        <input type="text" [ngModel]="draft.note" (ngModelChange)="draft.note = $event" [name]="'fnote' + $index" /></label>
+      <label class="field"><span>Icon file</span>
+        <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event" [name]="'ficon' + $index" /></label>
+      <div class="grid two">
+        <label class="field"><span>Region</span>
+          <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event" [name]="'freg' + $index" /></label>
+        <label class="field"><span>Mobalytics slug</span>
+          <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event" [name]="'fmoba' + $index" /></label>
+      </div>
+      <div class="links action-row">
+        <button class="view-btn active" type="button" (click)="ctx.saveFillIn(draft)">Save</button>
+        @if (auth.canManageUsers()) {
+          <app-overflow-menu>
+            <button class="overflow-item danger" type="button" (click)="ctx.deleteFillIn(draft)">Delete fill-in</button>
+          </app-overflow-menu>
+        }
+      </div>
+    </article>
+  }
+</div>
+</section>

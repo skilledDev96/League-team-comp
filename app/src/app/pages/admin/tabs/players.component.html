@@ -1,0 +1,148 @@
+@if (ctx.showAddPlayerDialog()) {
+  <div class="modal-backdrop" (click)="ctx.closeAddPlayerDialog()">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Add player" (click)="$event.stopPropagation()">
+      @if (ctx.addPlayerMode() === 'choose') {
+        <h2 class="title-with-icon"><span class="section-icon">PL</span>Add player</h2>
+        <p class="muted">How do you want to add this player?</p>
+        <div class="links">
+          <button class="view-btn active" type="button" (click)="ctx.chooseAutofillAdd()">Autofill with Summoner name</button>
+          <button class="view-btn" type="button" (click)="ctx.addPlayerManually()">Add manually</button>
+        </div>
+        <div class="links" style="margin-top: 12px;">
+          <button class="view-btn" type="button" (click)="ctx.closeAddPlayerDialog()">Cancel</button>
+        </div>
+      } @else {
+        <h2 class="title-with-icon"><span class="section-icon">PL</span>Autofill with Summoner name</h2>
+        <label class="field"><span>Summoner name</span>
+          <input type="text" [ngModel]="ctx.newPlayerSummoner()" (ngModelChange)="ctx.newPlayerSummoner.set($event)" name="ctx.newPlayerSummoner" placeholder="e.g. DaWhiteHammer" /></label>
+        <div class="grid two">
+          <label class="field"><span>Riot tag</span>
+            <input type="text" [ngModel]="ctx.newPlayerTag()" (ngModelChange)="ctx.newPlayerTag.set($event)" name="ctx.newPlayerTag" /></label>
+          <label class="field"><span>Region</span>
+            <input type="text" [ngModel]="ctx.newPlayerRegion()" (ngModelChange)="ctx.newPlayerRegion.set($event)" name="ctx.newPlayerRegion" /></label>
+        </div>
+        <div class="links">
+          <button class="view-btn active" type="button" (click)="ctx.confirmAutofillAdd()">Add and autofill</button>
+          <button class="view-btn" type="button" (click)="ctx.closeAddPlayerDialog()">Cancel</button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<section aria-label="Players">
+<div class="view-controls edit-toolbar">
+  <h2 class="title-with-icon"><span class="section-icon">PL</span>Players</h2>
+  <p class="muted edit-hint">Tip: use <strong>Add player</strong> to autofill a profile from a Riot Summoner name, or add one manually.</p>
+  <button class="view-btn active btn-cta" type="button" (click)="ctx.openAddPlayerDialog()">+ Add player</button>
+</div>
+
+@for (group of ctx.playersByRole(); track group.role) {
+<div class="role-group">
+  <h3 class="role-group-heading"><span class="tag good">{{ group.role }}</span> {{ group.drafts.length }}</h3>
+  <div class="grid player-panel-list">
+    @for (draft of group.drafts; track draft.uid) {
+    <article
+      class="card card-loadable player-panel"
+      [class.player-panel-open]="ctx.isPlayerOpen(draft)"
+      [class.player-panel-highlight]="ctx.isPlayerHighlighted(draft)"
+      [id]="'player-' + draft.uid">
+      @if (ctx.enrichingPlayerId() === ctx.enrichmentKey(draft)) {
+        <div class="card-loading-overlay" role="ctx.status" aria-live="polite">
+          <span class="app-loading-spinner" aria-hidden="true"></span>
+          <p>Fetching Riot data…</p>
+        </div>
+      }
+
+      <button type="button" class="player-panel-header" (click)="ctx.togglePlayer(draft)"
+              [attr.aria-expanded]="ctx.isPlayerOpen(draft)">
+        <app-player-avatar [name]="draft.name" [icon]="draft.icon" [role]="draft.role" />
+        <span class="player-panel-title">
+          <span class="pp-name">{{ draft.name || 'New player' }}</span>
+          <span class="pp-role">{{ draft.role }}</span>
+        </span>
+        <span class="player-panel-chevron material-symbols-rounded" aria-hidden="true">
+          {{ ctx.isPlayerOpen(draft) ? 'expand_less' : 'expand_more' }}
+        </span>
+      </button>
+
+      @if (ctx.isPlayerOpen(draft)) {
+      <div class="player-panel-body">
+      <label class="field"><span>Summoner name</span>
+        <input type="text" required [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname-' + draft.uid" placeholder="e.g. DaWhiteHammer" /></label>
+      <label class="field"><span>Role</span>
+        <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'prole-' + draft.uid">
+          @for (role of ctx.roles; track role) { <option [value]="role">{{ role }}</option> }
+        </select></label>
+      <div class="field"><span>Can also play</span>
+        <div class="role-flex-group">
+          @for (role of ctx.roles; track role) {
+            @if (role !== draft.role) {
+              <button
+                type="button"
+                class="role-flex-toggle"
+                [class.on]="draft.secondaryRoles.includes(role)"
+                (click)="ctx.toggleSecondaryRole(draft, role)">{{ role }}</button>
+            }
+          }
+        </div>
+      </div>
+      <label class="field"><span>Icon file</span>
+        <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event" [name]="'picon-' + draft.uid" placeholder="name.webp" /></label>
+      <label class="field"><span>Playstyle</span>
+        <input type="text" [ngModel]="draft.playstyle" (ngModelChange)="draft.playstyle = $event" [name]="'pstyle-' + draft.uid" /></label>
+      <label class="field"><span>Strengths (comma separated)</span>
+        <input type="text" [ngModel]="draft.strengths" (ngModelChange)="draft.strengths = $event" [name]="'pstr-' + draft.uid" /></label>
+      <label class="field"><span>Weaknesses (comma separated)</span>
+        <input type="text" [ngModel]="draft.weaknesses" (ngModelChange)="draft.weaknesses = $event" [name]="'pweak-' + draft.uid" /></label>
+      <div class="field"><span>Champion pool</span>
+        <app-champion-picker [champions]="ctx.listOf(draft.top3)" [role]="draft.role"
+                             [inputName]="'ptop-' + draft.uid" placeholder="Add a champion…"
+                             (championsChange)="draft.top3 = $event.join(', ')" /></div>
+      <div class="field"><span>Bans</span>
+        <app-champion-picker [champions]="ctx.listOf(draft.bans)"
+                             [inputName]="'pbans-' + draft.uid" placeholder="Add a ban…"
+                             (championsChange)="draft.bans = $event.join(', ')" /></div>
+
+      <div class="grid two">
+        <label class="field"><span>Region</span>
+          <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event" [name]="'preg-' + draft.uid" /></label>
+        <label class="field"><span>OP.GG slug</span>
+          <input type="text" [ngModel]="draft.opggSlug" (ngModelChange)="draft.opggSlug = $event" [name]="'popgg-' + draft.uid" /></label>
+        <label class="field"><span>Riot tag</span>
+          <input type="text" [ngModel]="draft.riotTag" (ngModelChange)="draft.riotTag = $event" [name]="'ptag-' + draft.uid" /></label>
+        <label class="field"><span>Mobalytics slug</span>
+          <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event" [name]="'pmoba-' + draft.uid" /></label>
+      </div>
+
+        <div class="links">
+          <button
+            class="view-btn"
+            type="button"
+            [disabled]="ctx.enrichingPlayerId() === ctx.enrichmentKey(draft)"
+            (click)="ctx.autoFillPlayerInsights(draft)">
+            @if (ctx.enrichingPlayerId() === ctx.enrichmentKey(draft)) {
+              <span class="btn-spinner" aria-hidden="true"></span>
+              Refreshing...
+            } @else {
+            Refresh from Summoner
+            }
+          </button>
+        </div>
+
+      <div class="links action-row">
+        <button class="view-btn active" type="button" (click)="ctx.savePlayer(draft)">Save</button>
+        @if (auth.canManageUsers()) {
+          <app-overflow-menu>
+            <button class="overflow-item danger" type="button" (click)="ctx.deletePlayer(draft)">Delete player</button>
+          </app-overflow-menu>
+        }
+      </div>
+      </div>
+      }
+    </article>
+    }
+  </div>
+</div>
+}
+</section>

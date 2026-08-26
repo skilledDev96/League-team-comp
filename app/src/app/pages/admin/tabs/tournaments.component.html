@@ -1,0 +1,42 @@
+<section aria-label="Tournaments">
+  <div class="view-controls edit-toolbar">
+    <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">trophy</span>Tournaments</h2>
+    <p class="muted edit-hint">Series and games are managed on the Tournaments page; this is the tournament itself.</p>
+    <button class="view-btn active btn-cta" type="button" (click)="ctx.addTournamentDraft()">+ Add tournament</button>
+  </div>
+
+  <div class="grid">
+    @for (draft of ctx.tournamentDrafts(); track $index) {
+      <article class="card">
+        <label class="field"><span>Name</span>
+          <input type="text" required [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'tname' + $index" placeholder="e.g. Oryx Fearless League 2026 — Split 2" /></label>
+        <div class="grid two">
+          <label class="field"><span>Organiser</span>
+            <input type="text" [ngModel]="draft.organiser" (ngModelChange)="draft.organiser = $event" [name]="'torg' + $index" /></label>
+          <label class="field"><span>Division</span>
+            <input type="text" [ngModel]="draft.division" (ngModelChange)="draft.division = $event" [name]="'tdiv' + $index" placeholder="First / Second Division" /></label>
+        </div>
+        <label class="field"><span>Format</span>
+          <input type="text" [ngModel]="draft.format" (ngModelChange)="draft.format = $event" [name]="'tfmt' + $index" placeholder="Bo3 Fearless Draft — Swiss stage" /></label>
+        <div class="grid two">
+          <label class="field"><span>Start date</span>
+            <input type="date" [ngModel]="draft.startDate" (ngModelChange)="draft.startDate = $event" [name]="'tstart' + $index" /></label>
+          <label class="field"><span>End date</span>
+            <input type="date" [ngModel]="draft.endDate" (ngModelChange)="draft.endDate = $event" [name]="'tend' + $index" /></label>
+        </div>
+        <label class="field"><span>Notes / key rules</span>
+          <textarea rows="3" [ngModel]="draft.notes" (ngModelChange)="draft.notes = $event" [name]="'tnotes' + $index"></textarea></label>
+        <label class="field checkbox-field">
+          <input type="checkbox" [ngModel]="draft.active" (ngModelChange)="draft.active = $event" [name]="'tactive' + $index" />
+          <span>Current tournament (opens by default on the Tournaments page)</span>
+        </label>
+        <div class="links">
+          <button class="view-btn active" type="button" [disabled]="ctx.savingTournament()" (click)="ctx.saveTournament(draft)">Save</button>
+          <button class="view-btn" type="button" (click)="ctx.deleteTournament(draft)">Delete</button>
+        </div>
+      </article>
+    } @empty {
+      <p class="muted">No tournaments yet. Add one above.</p>
+    }
+  </div>
+</section>
