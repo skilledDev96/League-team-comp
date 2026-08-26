@@ -83,7 +83,9 @@ test('no console errors while moving around signed in', async ({ page }) => {
     const text = msg.text();
     // Pages serves deep links as 404 by design; the app boots from that body.
     if (/404/.test(text) && /League-team-comp/.test(text)) return;
-    errors.push(text);
+    // The message alone doesn't name what failed; the location does.
+    const location = msg.location().url;
+    errors.push(location ? `${text} @ ${location}` : text);
   });
   page.on('pageerror', (err) => errors.push(String(err)));
 
