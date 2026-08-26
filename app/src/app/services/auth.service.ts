@@ -8,7 +8,7 @@ import {
   signOut
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { isBootstrapAdminEmail, normalizeEmail } from '../core/access';
+import { canEditWith, canManageUsersWith, isBootstrapAdminEmail, normalizeEmail } from '../core/access';
 import { getAuthInstance, getDb, isFirebaseConfigured } from '../core/firebase';
 import { AccessRole } from '../models/team.models';
 
@@ -22,13 +22,11 @@ export class AuthService {
   readonly role = signal<AccessRole | null>(null);
   readonly isAuthed = computed(() => this.userEmail() !== null);
 
-  // Editing requires admin or contributor access in firebase mode; local mode is unrestricted.
-  readonly canEdit = computed(() => {
-    const role = this.role();
-    return this.mode === 'local' || role === 'admin' || role === 'contributor';
-  });
+  // The rules themselves live in core/access, where they can be tested without
+  // standing up Firebase — and where firestore.rules can be read alongside them.
+  readonly canEdit = computed(() => canEditWith(this.mode, this.role()));
 
-  readonly canManageUsers = computed(() => this.mode === 'local' || this.role() === 'admin');
+  readonly canManageUsers = computed(() => canManageUsersWith(this.mode, this.role()));
 
   // Edit mode is an explicit opt-in so viewing stays calm; inline edit controls
   // only appear when a user who can edit has also switched editing on.
