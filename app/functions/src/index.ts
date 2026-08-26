@@ -9,6 +9,8 @@ import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
 import { summarizeMatches } from './match-stats';
+import { classifyArchetype, describePlayer } from './insights';
+import { CACHE_VERSION, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
 import { BUILD_SHA } from './build-info';
 
 initializeApp();
@@ -418,53 +420,22 @@ async function fetchRiotQueueEnrichment(
   const bans = summary.banCandidates.filter((champ) => !top3.includes(champ)).slice(0, 3);
 
 
-  const strengths: string[] = [];
-  const weaknesses: string[] = [];
-
-  if (winRate >= 50) {
-    strengths.push(`Positive win rate over last ${games} games (${winRate}%)`);
-  } else {
-    weaknesses.push(`Below 50% win rate over last ${games} games (${winRate}%)`);
-  }
-
-  if (avgKda >= 3) {
-    strengths.push(`Strong average KDA (${avgKda.toFixed(1)})`);
-  } else {
-    weaknesses.push(`Average KDA needs work (${avgKda.toFixed(1)})`);
-  }
-
-  if (avgCsPerMin >= 6.5) {
-    strengths.push(`Efficient farming (${avgCsPerMin.toFixed(1)} CS/min)`);
-  } else {
-    weaknesses.push(`Farming pace below target (${avgCsPerMin.toFixed(1)} CS/min)`);
-  }
-
-  if (top3.length > 0) {
-    strengths.push(`Consistent champion pool led by ${top3[0]}`);
-  }
-  if (avgDeaths >= 5) {
-    weaknesses.push(`High average deaths (${avgDeaths.toFixed(1)}) — focus on positioning`);
-  }
-
-  // Classify a GPI-style archetype from real match aggregates (ordered by specificity).
-  let archetype: string;
-  if (role === 'Support' || (avgVisionScore >= 40 && avgDamageShare < 0.18)) {
-    archetype = 'Utility';
-  } else if (avgTankShare >= 0.28 && avgDamageShare < 0.22) {
-    archetype = 'Tank / Frontline';
-  } else if (avgBuildingDamage >= 2200 && avgKillParticipation < 0.5) {
-    archetype = 'Split Pusher';
-  } else if (avgDamageShare >= 0.28 && avgKillParticipation >= 0.5) {
-    archetype = 'Carry';
-  } else if (avgCsPerMin >= 7.5) {
-    archetype = 'Farm-focused';
-  } else if (avgAssists >= avgKills * 1.3 && avgAssists >= 5) {
-    archetype = 'Playmaker';
-  } else if (avgKda >= 4) {
-    archetype = 'Duelist';
-  } else {
-    archetype = `${role} Generalist`;
-  }
+  const averages = {
+    games,
+    winRate,
+    avgKills,
+    avgDeaths,
+    avgAssists,
+    avgKda,
+    avgCsPerMin,
+    avgKillParticipation,
+    avgDamageShare,
+    avgTankShare,
+    avgBuildingDamage,
+    avgVisionScore
+  };
+  const { strengths, weaknesses } = describePlayer(averages, top3);
+  const archetype = classifyArchetype(averages, role);
 
   return {
     playstyle: archetype,
@@ -847,29 +818,6 @@ interface CachedMatch {
   participants: CachedParticipant[];
 }
 
-// Bump when the cached shape changes; entries below this are re-fetched once.
-const CACHE_VERSION = 1;
-
-/**
- * Whether a cached match can be trusted.
- *
- * Entries stamped with the current version are trusted outright — we wrote them,
- * so a re-fetch would only produce the same bytes. That guarantee is what stops a
- * match Riot returns oddly (a missing puuid, say) from being re-fetched forever.
- * Unversioned legacy entries get a structural check instead: a 5v5 match has ten
- * participants and every one of them has a puuid.
- */
-function isCacheUsable(cached: CachedMatch | undefined): boolean {
-  if (!cached) return false;
-  if (cached.cacheVersion === CACHE_VERSION) return true;
-  const parts = cached.participants;
-  return (
-    Array.isArray(parts) &&
-    parts.length === 10 &&
-    parts.every((p) => typeof p?.puuid === 'string' && p.puuid.length > 0)
-  );
-}
-
 async function getCachedMatch(
   matchId: string,
   regional: string,
@@ -961,43 +909,6 @@ interface CompAnalysisResponse {
   /** Git SHA the backend was deployed from, to spot frontend/backend drift. */
   backendSha?: string;
   generatedAt: string;
-}
-
-function parseCompAnalysisRequest(body: unknown): CompAnalysisRequest {
-  if (!body || typeof body !== 'object') {
-    throw new Error('Invalid payload. Expected a JSON object.');
-  }
-  const candidate = body as { players?: unknown; comps?: unknown };
-  if (!Array.isArray(candidate.players) || candidate.players.length < 5 || candidate.players.length > 10) {
-    throw new Error('players must contain between 5 and 10 roster members.');
-  }
-  const players = candidate.players.map((value) => {
-    const player = value as Record<string, unknown>;
-    const id = typeof player.id === 'string' ? player.id.trim() : '';
-    const name = typeof player.name === 'string' ? player.name.trim() : '';
-    if (!id || !name) {
-      throw new Error('Each roster player requires an id and name.');
-    }
-    return {
-      id,
-      name,
-      riotTag: typeof player.riotTag === 'string' ? player.riotTag.trim() : undefined,
-      region: typeof player.region === 'string' ? player.region.trim().toLowerCase() : undefined
-    };
-  });
-  const comps = Array.isArray(candidate.comps)
-    ? candidate.comps.map((value) => {
-        const comp = value as Record<string, unknown>;
-        return {
-          id: typeof comp.id === 'string' ? comp.id : '',
-          name: typeof comp.name === 'string' ? comp.name : 'Comp',
-          champions: Array.isArray(comp.champions)
-            ? comp.champions.filter((c): c is string => typeof c === 'string')
-            : []
-        };
-      })
-    : [];
-  return { players, comps };
 }
 
 async function computeCompAnalysis(

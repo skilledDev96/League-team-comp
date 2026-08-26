@@ -19,11 +19,11 @@ npm run watch        # dev build in watch mode
 
 # Firebase Cloud Functions (in app/functions)
 npm run functions:build    # tsc build of functions
-npm run functions:test     # vitest run (comp-match unit tests)
+npm run functions:test     # vitest run (Riot logic unit tests)
 npm run functions:deploy   # firebase deploy --only functions:enrichPlayer
 ```
 
-Run the suite once (CI-style) with `npm test -- --no-watch`; filter with `npx ng test --include='**/ui.service.spec.ts'` or by test name. `src/test-setup.ts` (wired via `angular.json` `test.options.setupFiles`) polyfills `window.matchMedia` and stubs `fetch` so services that fetch on construction (e.g. `ChampionDataService`) stay offline in tests. Specs live next to their targets and focus on pure logic (`core/access`, `UiService`, `ChampionDataService`, `pages/comps/comp-stats.util`). The Cloud Functions have their own vitest suite (`app/functions` — `comp-match.spec.ts` covering the champion-overlap matching); run it with `npm run functions:test`. CI runs both suites before the builds.
+Run the suite once (CI-style) with `npm test -- --no-watch`; filter with `npx ng test --include='**/ui.service.spec.ts'` or by test name. `src/test-setup.ts` (wired via `angular.json` `test.options.setupFiles`) polyfills `window.matchMedia` and stubs `fetch` so services that fetch on construction (e.g. `ChampionDataService`) stay offline in tests. Specs live next to their targets and cover pure logic rather than components: permissions (`core/access`), persistence (`services/team-data.service`, `core/strip-undefined`), the fearless draft maths (`pages/tournaments/draft.util`), the admin draft conversions (`pages/admin/admin-drafts`), and the shared utilities. The Cloud Functions have their own vitest suite covering the logic lifted out of `index.ts` — request validation, Riot error classification, match aggregation, player insights, cache trust and champion-overlap matching; run it with `npm run functions:test`. CI runs both suites before the builds.
 
 ## Local vs Firebase mode — the core runtime switch
 
@@ -48,7 +48,7 @@ In Firebase mode the signals are kept live by `onSnapshot` listeners set up in `
 
 **Firestore security** (`app/firestore.rules`): public read on everything; writes require `canEdit()` via the catch-all `match /{document=**}`, so a new collection is automatically covered (public read, editor write) — no rules change needed. `access` and `meta/settings` have their own stricter rules.
 
-**Cloud Functions** (`app/functions/src/index.ts`): `enrichPlayer` and `getTeamSynergy`, both `onRequest` with `cors: true`, using the `RIOT_API_KEY` secret, deployed to region `europe-west1` (see `SynergyService.functionUrl()`). They enrich player/team stats from the Riot API.
+**Cloud Functions** (`app/functions/src/`): `enrichPlayer`, `getTeamSynergy`, `getCompAnalysis` and `riotKeyHealth` are `onRequest` with `cors: true`; `checkRiotKey` is a scheduled probe. All use the `RIOT_API_KEY` secret and deploy to region `europe-west1` (see `SynergyService.functionUrl()`). `index.ts` holds the handlers and the Riot I/O; the logic they call sits in tested modules beside it (`parse-request`, `riot-errors`, `match-stats`, `insights`, `analysis-cache`, `comp-match`). Deploy **all** of them — `npm run functions:deploy` only covers `enrichPlayer`.
 
 ## Conventions
 
