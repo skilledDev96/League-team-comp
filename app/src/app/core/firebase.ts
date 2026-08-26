@@ -11,7 +11,7 @@ let app: FirebaseApp | null = null;
 let firestore: Firestore | null = null;
 let auth: Auth | null = null;
 
-export function getFirebaseApp(): FirebaseApp | null {
+function getFirebaseApp(): FirebaseApp | null {
   if (!isFirebaseConfigured()) {
     return null;
   }
