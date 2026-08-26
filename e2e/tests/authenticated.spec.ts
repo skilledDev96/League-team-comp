@@ -46,7 +46,7 @@ test('the account is a viewer, so the tests cannot change anything', async ({ pa
 
 test('the roster page renders players', async ({ page }) => {
   await page.goto('./players');
-  await expect(page.locator('.intel-card, .player-card').first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.player-intel-card').first()).toBeVisible({ timeout: 30_000 });
 });
 
 test('the comps page renders comps', async ({ page }) => {
