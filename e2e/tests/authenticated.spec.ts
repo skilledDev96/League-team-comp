@@ -72,8 +72,11 @@ test('the draft board loads', async ({ page }) => {
   await page.goto('./tournaments');
   await page.getByRole('button', { name: /^Draft$/ }).click();
   // A series with games, or the message saying there are none — either is the
-  // page working; which one depends on where the split happens to be.
-  await expect(page.locator('.draft-page, .muted').first()).toBeVisible({ timeout: 30_000 });
+  // page working; which one depends on where the split happens to be. Match
+  // that message exactly rather than any .muted, which every page has.
+  await expect(
+    page.locator('.draft-page').or(page.getByText(/No series to draft/i)).first()
+  ).toBeVisible({ timeout: 30_000 });
 });
 
 test('no console errors while moving around signed in', async ({ page }) => {
