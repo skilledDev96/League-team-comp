@@ -1,89 +1,27 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { Comp, CompPicks, FillIn, Player, ROLES, Role, AccessRole, AccessEntry, Tournament } from '../../models/team.models';
+import { AccessEntry, AccessRole, Comp, CompPicks, FillIn, Player, ROLES, Role, Tournament } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { BUILD_SHA } from '../../build-info';
-
-export interface PlayerDraft {
-  uid: string;
-  id: string;
-  name: string;
-  role: Role;
-  secondaryRoles: Role[];
-  icon: string;
-  playstyle: string;
-  strengths: string;
-  weaknesses: string;
-  top3: string;
-  bans: string;
-  region: string;
-  opggSlug: string;
-  riotTag: string;
-  mobalyticsSlug: string;
-  queueStats?: Player['queueStats'];
-}
-
-export interface FillInDraft {
-  id: string;
-  summoner: string;
-  status: string;
-  preferredRoles: string;
-  note: string;
-  icon: string;
-  region: string;
-  mobalyticsSlug: string;
-}
-
-export interface CompDraft {
-  id: string;
-  name: string;
-  picks: CompPicks;
-}
-
-export interface TournamentDraft {
-  id: string;
-  name: string;
-  organiser: string;
-  division: string;
-  format: string;
-  startDate: string;
-  endDate: string;
-  notes: string;
-  active: boolean;
-}
-
-export interface AccessDraft {
-  email: string;
-  role: AccessRole;
-  active: boolean;
-}
-
-export type EditorTab = 'settings' | 'players' | 'fillins' | 'comps' | 'tournaments' | 'access' | 'diagnostics';
-
-function splitList(value: string): string[] {
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
-}
-
-function normalizeEmailValue(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-function slugifyName(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-function emptyPicks(): CompPicks {
-  return { Top: '', Jungle: '', Mid: '', ADC: '', Support: '' };
-}
+import {
+  AccessDraft,
+  CompDraft,
+  EditorTab,
+  emptyPicks,
+  FillInDraft,
+  newUid,
+  normalizeEmailValue,
+  PlayerDraft,
+  slugifyName,
+  splitList,
+  toFillInDraft,
+  toPlayerDraft,
+  TournamentDraft,
+  toTournamentDraft
+} from './admin-drafts';
 
 /**
  * Everything the admin tabs share: the working drafts, the CRUD that saves
@@ -145,11 +83,11 @@ export class AdminContextService {
       }
       this.initialized = true;
       this.teamName.set(this.data.settings().teamName);
-      this.playerDrafts.set(players.map((p) => this.toPlayerDraft(p)));
-      this.fillInDrafts.set(fillIns.map((f) => this.toFillInDraft(f)));
+      this.playerDrafts.set(players.map((p) => toPlayerDraft(p)));
+      this.fillInDrafts.set(fillIns.map((f) => toFillInDraft(f)));
       this.compDrafts.set(comps.map((c) => ({ id: c.id, name: c.name, picks: { ...c.picks } })));
       this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry })));
-      this.tournamentDrafts.set(this.data.tournaments().map((t) => this.toTournamentDraft(t)));
+      this.tournamentDrafts.set(this.data.tournaments().map((t) => toTournamentDraft(t)));
       this.applyRouteFocus();
     });
 
@@ -219,45 +157,6 @@ export class AdminContextService {
   });
 
   readonly analysisGeneratedAt = computed(() => this.data.compAnalysis()?.generatedAt ?? '');
-  private toPlayerDraft(p: Player): PlayerDraft {
-    return {
-      uid: this.newUid(),
-      id: p.id,
-      name: p.name,
-      role: p.role,
-      secondaryRoles: (p.secondaryRoles ?? []).filter((r) => r !== p.role),
-      icon: p.icon ?? '',
-      playstyle: p.playstyle ?? '',
-      strengths: p.strengths.join(', '),
-      weaknesses: p.weaknesses.join(', '),
-      top3: p.top3.join(', '),
-      bans: p.bans.join(', '),
-      region: p.profile?.region ?? 'euw',
-      opggSlug: p.profile?.opggSlug ?? '',
-      riotTag: p.profile?.riotTag ?? '',
-      mobalyticsSlug: p.profile?.mobalyticsSlug ?? '',
-      queueStats: p.queueStats
-    };
-  }
-
-  private newUid(): string {
-    return (crypto as Crypto).randomUUID?.() ?? `uid-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  }
-
-  private toTournamentDraft(t: Tournament): TournamentDraft {
-    return {
-      id: t.id,
-      name: t.name,
-      organiser: t.organiser ?? '',
-      division: t.division ?? '',
-      format: t.format ?? '',
-      startDate: t.startDate ?? '',
-      endDate: t.endDate ?? '',
-      notes: t.notes ?? '',
-      active: t.active ?? false
-    };
-  }
-
   addTournamentDraft(): void {
     this.tournamentDrafts.update((list) => [
       ...list,
@@ -332,19 +231,6 @@ export class AdminContextService {
     await this.data.deleteTournament(draft.id);
     this.tournamentDrafts.update((list) => list.filter((d) => d.id !== draft.id));
     this.flash('Deleted ' + draft.name + '.');
-  }
-
-  private toFillInDraft(f: FillIn): FillInDraft {
-    return {
-      id: f.id,
-      summoner: f.summoner,
-      status: f.status,
-      preferredRoles: f.preferredRoles.join(', '),
-      note: f.note ?? '',
-      icon: f.icon ?? '',
-      region: f.profile?.region ?? 'euw',
-      mobalyticsSlug: f.profile?.mobalyticsSlug ?? ''
-    };
   }
 
   /** Comma-separated draft text -> list, for the champion picker. */
@@ -549,7 +435,7 @@ export class AdminContextService {
   private insertPlayerDraft(overrides: Partial<PlayerDraft>): PlayerDraft {
     this.openTab('players');
     const draft: PlayerDraft = {
-      uid: this.newUid(),
+      uid: newUid(),
       id: '',
       name: '',
       role: 'Top',
