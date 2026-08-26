@@ -12,6 +12,20 @@ import { expect, test } from '@playwright/test';
  * and "Poke" breaks when someone renames one, which teaches people to ignore it.
  */
 
+/**
+ * The setup step dismisses the welcome tour, but a fresh account or a lost
+ * userPrefs write would bring it back over the page. Cheap to absorb here
+ * rather than have every test fail on an overlay.
+ */
+test.beforeEach(async ({ page }) => {
+  page.on('load', () => {
+    void page
+      .getByRole('button', { name: /^Got it$/ })
+      .click({ timeout: 2_000 })
+      .catch(() => undefined);
+  });
+});
+
 test('the session gets past the login gate', async ({ page }) => {
   await page.goto('./');
   await expect(page.getByText(/Team Login/i)).toBeHidden();

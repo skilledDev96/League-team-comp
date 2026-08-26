@@ -36,5 +36,14 @@ setup('sign in', async ({ page, context }) => {
   // The nav only renders once a session with a role is established.
   await expect(page.getByRole('link', { name: 'Comps' })).toBeVisible({ timeout: 30_000 });
 
+  // A new account is met by the welcome tour, which covers the page. Dismissing
+  // it here writes userPrefs/{email} — a rule every signed-in user may write,
+  // viewer included — so it stays dismissed rather than reappearing per test.
+  const gotIt = page.getByRole('button', { name: /^Got it$/ });
+  if (await gotIt.isVisible().catch(() => false)) {
+    await gotIt.click();
+    await expect(gotIt).toBeHidden();
+  }
+
   await context.storageState({ path: AUTH_STATE, indexedDB: true });
 });
