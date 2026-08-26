@@ -3,11 +3,13 @@
 These run against the **deployed** system, not a local build.
 
 ```bash
-cd e2e
-npm install
-npx playwright install chromium   # once
-npm test
+npm --prefix e2e install
+npx --prefix e2e playwright install chromium   # once
+npm --prefix e2e test
 ```
+
+Run these from the repo root. `--prefix` rather than `cd e2e && …` because
+PowerShell 5.1 rejects `&&` as a statement separator.
 
 ## Why they exist
 
@@ -17,9 +19,12 @@ push to `main`, the Cloud Functions only move when someone runs
 drift apart, and the symptom is a feature that quietly stops working rather than
 an error anyone sees.
 
-So the test that earns its place here is **`the deployed backend matches this
-checkout`**: it compares the `backendSha` the health endpoint reports against
-your current `git HEAD`. When it fails, the functions need deploying.
+So the test that earns its place here is **`the deployed backend is running the
+current api code`**. It does not compare SHAs for equality — the stamp is
+whatever HEAD was at deploy time, so any later frontend-only commit would fail
+that, and a check which cries wolf is one people learn to ignore. It asks git
+whether anything under `api/` has changed since the deployed commit, ignoring
+the generated build stamp. When it fails, the functions need deploying.
 
 The Riot key check matters for the same reason — the key expires, and when it
 does, enrichment and analysis stop while the UI simply shows nothing.
