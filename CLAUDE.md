@@ -9,6 +9,8 @@ Frontend and backend are separate packages, with the Firebase project at the rep
 - **`frontend/`** — the Angular app (**Bom Squad Draft Hub**). GitHub Pages deploys
   only this (see `.github/workflows/deploy.yml`, which filters on `frontend/**`).
 - **`api/`** — the Cloud Functions. Its own `package.json`, `tsconfig` and build.
+- **`e2e/`** — Playwright checks against the **deployed** system, not a local
+  build. Its own package again; see `e2e/README.md`.
 - **root** — `firebase.json`, `.firebaserc`, `firestore.rules`, and `scripts/`,
   which both packages share.
 
@@ -29,6 +31,9 @@ npm run watch        # dev build in watch mode
 npm test             # vitest run (Riot logic unit tests)
 npm run build        # tsc build of the functions
 
+# from e2e/ — runs against the live site and functions
+npm test             # 10 public checks, +9 more if a test account is configured
+
 # from the repo root, where firebase.json is
 npm run deploy:functions   # firebase deploy --only functions (all five)
 npm run deploy:rules       # firestore rules only
@@ -40,7 +45,16 @@ Each build stamps the current git SHA into its own `build-info.ts` via
 `scripts/gen-build-info.mjs`, so a deployed frontend can be compared against a
 deployed backend — Pages deploys itself, the functions do not.
 
-Run the suite once (CI-style) with `npm test -- --no-watch`; filter with `npx ng test --include='**/ui.service.spec.ts'` or by test name. `src/test-setup.ts` (wired via `angular.json` `test.options.setupFiles`) polyfills `window.matchMedia` and stubs `fetch` so services that fetch on construction (e.g. `ChampionDataService`) stay offline in tests. Specs live next to their targets and cover pure logic rather than components: permissions (`core/access`), persistence (`services/team-data.service`, `core/strip-undefined`), the fearless draft maths (`pages/tournaments/draft.util`), the admin draft conversions (`pages/admin/admin-drafts`), and the shared utilities. The Cloud Functions have their own vitest suite covering the logic lifted out of `index.ts` — request validation, Riot error classification, match aggregation, player insights, cache trust and champion-overlap matching; run it with `npm run functions:test`. CI runs both suites before the builds.
+Run the suite once (CI-style) with `npm test -- --no-watch`; filter with `npx ng test --include='**/ui.service.spec.ts'` or by test name. `src/test-setup.ts` (wired via `angular.json` `test.options.setupFiles`) polyfills `window.matchMedia` and stubs `fetch` so services that fetch on construction (e.g. `ChampionDataService`) stay offline in tests. Specs live next to their targets and cover pure logic rather than components: permissions (`core/access`), persistence (`services/team-data.service`, `core/strip-undefined`), the fearless draft maths (`pages/tournaments/draft.util`), the admin draft conversions (`pages/admin/admin-drafts`), and the shared utilities. The Cloud Functions have their own vitest suite covering the logic lifted out of `index.ts` — request validation, Riot error classification, match aggregation, player insights, cache trust and champion-overlap matching; run it with `npm run functions:test`. CI runs both unit suites before the builds, as separate jobs — `api` failing no
+longer hides the frontend result.
+
+The `e2e/` suite is deliberately **not** a pull-request gate: it exercises what
+is deployed, so on a PR it would report on `main`. It runs after a Pages deploy
+(`deploy.yml`, the `verify` job) and daily at 07:00 UTC
+(`e2e-scheduled.yml`). Its most useful check asks whether `api/` has changed
+since the commit the deployed backend reports — Pages publishes itself, the
+functions do not, and that gap is how a broken enrichment endpoint once survived
+until a user noticed.
 
 ## Local vs Firebase mode — the core runtime switch
 
