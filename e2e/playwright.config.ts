@@ -6,13 +6,25 @@ import { defineConfig, devices } from '@playwright/test';
  * push, the functions need a deliberate deploy — so the only way to know they
  * are both live and agree with each other is to ask them.
  *
- * Nothing here signs in. The app is gated by Google sign-in and these tests
- * hold no credentials, so they cover the public surface: that the site is
- * served, that deep links resolve, that unauthenticated visitors are gated, and
- * that the backend is answering with the build we think it is.
+ * Most of it does not sign in: the public surface is that the site is served,
+ * that deep links resolve, that unauthenticated visitors are gated, and that
+ * the backend is answering with the build we think it is.
+ *
+ * The authenticated half runs only when a test account is configured, and is
+ * read-only by design — see the README for why the account should be a viewer.
  */
 export const SITE = process.env.E2E_SITE ?? 'https://skilleddev96.github.io/League-team-comp/';
 export const API = process.env.E2E_API ?? 'https://europe-west1-lol-bom-squad.cloudfunctions.net';
+
+/** Where the signed-in session is cached between the setup step and the tests. */
+export const AUTH_STATE = '.auth/state.json';
+
+/**
+ * The authenticated tests need a test account. Without one they are not
+ * registered at all, rather than reported as skipped — a suite that is always
+ * partly yellow stops meaning anything.
+ */
+const CREDENTIALS = Boolean(process.env.E2E_EMAIL && process.env.E2E_PASSWORD);
 
 export default defineConfig({
   testDir: './tests',
@@ -28,5 +40,22 @@ export default defineConfig({
     // A cold Cloud Run instance can take a while to answer.
     actionTimeout: 20_000
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }]
+  projects: [
+    {
+      name: 'public',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: [/authenticated\.spec\.ts/, /auth\.setup\.ts/]
+    },
+    ...(CREDENTIALS
+      ? [
+          { name: 'sign-in', testMatch: /auth\.setup\.ts/, use: { ...devices['Desktop Chrome'] } },
+          {
+            name: 'authenticated',
+            testMatch: /authenticated\.spec\.ts/,
+            dependencies: ['sign-in'],
+            use: { ...devices['Desktop Chrome'], storageState: AUTH_STATE }
+          }
+        ]
+      : [])
+  ]
 });

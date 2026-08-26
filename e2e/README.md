@@ -32,17 +32,37 @@ the generated build stamp. When it fails, the functions need deploying.
 The Riot key check matters for the same reason — the key expires, and when it
 does, enrichment and analysis stop while the UI simply shows nothing.
 
-## What they do not cover
+## The authenticated half
 
-Nothing here signs in. The app is gated by Google sign-in and these tests hold
-no credentials, so they cover the public surface only: that the site is served,
-that deep links resolve through the Pages 404 fallback, that unauthenticated
-visitors are gated, and that the backend answers with the build we expect.
+Ten of the tests need no account. Nine more run only when a test account is
+configured, and they are **not registered at all** without one — a suite that is
+permanently part-yellow stops meaning anything.
 
-Anything behind the login — drafting, the analysis refresh, the admin editors —
-is covered by the unit tests in `frontend/` and `api/`, and by using the app.
-Adding authenticated coverage would mean giving these tests a real account,
-which is a deliberate decision rather than an oversight.
+```
+E2E_EMAIL=e2e@bomsquad.test
+E2E_PASSWORD=…
+```
+
+Set them as environment variables, or copy `.env.example` to `.env` (ignored).
+In CI they are repository secrets.
+
+They sign in through the **email/password** form rather than Google. Nobody on
+the team signs in that way, which is exactly what makes it a clean door for
+automation: an OAuth popup fights bot detection and can demand a second factor.
+
+### The account must be a viewer
+
+One test asserts that Edit mode is **absent**. If it fails, the account has been
+over-granted and every other test is a stray click away from editing live data.
+Read-only is what makes it safe to point these at production; testing writes
+honestly needs a second Firebase project, not careful writes against the real
+one.
+
+### What is still not covered
+
+Drafting, the analysis refresh and the admin editors — everything that writes.
+Those stay covered by the unit tests in `frontend/` and `api/`, and by using
+the app.
 
 ## Pointing somewhere else
 
