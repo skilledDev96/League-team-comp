@@ -1,0 +1,51 @@
+# Health check against the live system, on a schedule.
+#
+# The deploy workflow already verifies a publish. This is for the failures that
+# arrive with no push at all: the Riot API key expiring, someone changing api/
+# without deploying it, or Pages quietly serving something broken. Nothing else
+# notices those until a person does.
+name: Live health check
+
+on:
+  schedule:
+    # 07:00 UTC daily — before anyone is likely to need the app, so a broken
+    # key is known about rather than discovered mid-draft.
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-health
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The drift check compares the deployed backend against api/ history,
+          # so it needs more than the single commit a shallow clone gives it.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - run: npm --prefix e2e ci
+      - run: npx --prefix e2e playwright install --with-deps chromium
+      - name: End-to-end checks
+        run: npm --prefix e2e test
+        env:
+          # Present only if the test account has been configured. Without them
+          # the authenticated tests are not registered at all.
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-report-scheduled
+          path: e2e/playwright-report/
+          retention-days: 14

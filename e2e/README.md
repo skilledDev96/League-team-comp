@@ -64,6 +64,23 @@ Drafting, the analysis refresh and the admin editors — everything that writes.
 Those stay covered by the unit tests in `frontend/` and `api/`, and by using
 the app.
 
+## In CI
+
+They run in two places, neither of them on a pull request — these check what is
+*deployed*, so on a PR they would report on `main` and tell you nothing about
+the change under review.
+
+- **After a deploy** (`deploy.yml`, the `verify` job) — a green build that
+  publishes a broken page fails here rather than in front of the team.
+- **Daily at 07:00 UTC** (`e2e-scheduled.yml`) — for the failures that arrive
+  with no push at all: the Riot key expiring, or someone changing `api/` and
+  not deploying it. Also runnable on demand from the Actions tab.
+
+Both check out with `fetch-depth: 0`, because the drift check needs `api/`
+history rather than the single commit a shallow clone gives it. Both pass
+`E2E_EMAIL`/`E2E_PASSWORD` from repository secrets; without them the
+authenticated tests simply are not registered.
+
 ## Pointing somewhere else
 
 ```bash
