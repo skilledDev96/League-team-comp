@@ -3,9 +3,12 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { retryDelayMs, riotError } from './riot-errors';
+import { combinations, normalizeEmail, parseBearerToken, parseEnrichRequest, parseSynergyRequest } from './parse-request';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
+import { summarizeMatches } from './match-stats';
 import { BUILD_SHA } from './build-info';
 
 initializeApp();
@@ -139,68 +142,6 @@ const ROLE_TEMPLATES: Record<KnownRole, Omit<EnrichResponse, 'generatedAt'>> = {
   }
 };
 
-function normalizeEmail(value: string | undefined | null): string {
-  return (value ?? '').trim().toLowerCase();
-}
-
-function parseBearerToken(authorization: string | undefined): string | null {
-  if (!authorization) {
-    return null;
-  }
-  const match = authorization.match(/^Bearer\s+(.+)$/i);
-  return match ? match[1] : null;
-}
-
-function parseRequest(body: unknown): EnrichRequest {
-  if (!body || typeof body !== 'object') {
-    throw new Error('Invalid payload. Expected a JSON object.');
-  }
-
-  const candidate = body as Record<string, unknown>;
-  const summonerName = typeof candidate.summonerName === 'string' ? candidate.summonerName.trim() : '';
-  if (!summonerName) {
-    throw new Error('summonerName is required.');
-  }
-
-  const role = typeof candidate.role === 'string' ? candidate.role.trim() : '';
-  if (role && !Object.keys(ROLE_TEMPLATES).includes(role)) {
-    throw new Error('role must be one of Top, Jungle, Mid, ADC, Support.');
-  }
-
-  return {
-    summonerName,
-    riotTag: typeof candidate.riotTag === 'string' ? candidate.riotTag.trim() : undefined,
-    region: typeof candidate.region === 'string' ? candidate.region.trim().toLowerCase() : undefined,
-    role: role ? (role as KnownRole) : undefined,
-    mobalyticsSlug: typeof candidate.mobalyticsSlug === 'string' ? candidate.mobalyticsSlug.trim() : undefined
-  };
-}
-
-function parseSynergyRequest(body: unknown): SynergyRequest {
-  if (!body || typeof body !== 'object') {
-    throw new Error('Invalid payload. Expected a JSON object.');
-  }
-  const candidate = body as { players?: unknown };
-  if (!Array.isArray(candidate.players) || candidate.players.length < 2 || candidate.players.length > 5) {
-    throw new Error('players must contain between 2 and 5 roster players.');
-  }
-  const players = candidate.players.map((value) => {
-    const player = value as Record<string, unknown>;
-    const id = typeof player.id === 'string' ? player.id.trim() : '';
-    const name = typeof player.name === 'string' ? player.name.trim() : '';
-    if (!id || !name) {
-      throw new Error('Each synergy player requires an id and name.');
-    }
-    return {
-      id,
-      name,
-      riotTag: typeof player.riotTag === 'string' ? player.riotTag.trim() : undefined,
-      region: typeof player.region === 'string' ? player.region.trim().toLowerCase() : undefined
-    };
-  });
-  return { players };
-}
-
 async function getAccessRoleByEmail(email: string): Promise<AccessRole | null> {
   if (BOOTSTRAP_ADMIN_EMAILS.has(email)) {
     return 'admin';
@@ -272,38 +213,16 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Short API name from a Riot URL, for error messages. */
-function riotEndpointLabel(url: string): string {
-  const match = /\/(?:lol|riot)\/([a-z-]+)\/(v\d+)/.exec(url);
-  if (match) {
-    return `${match[1]}-${match[2]}`;
-  }
-  return 'the Riot API';
-}
-
 async function riotFetch<T>(url: string, apiKey: string, retries = 6): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
     const response = await fetch(url, { headers: { 'X-Riot-Token': apiKey } });
     // On rate limit, wait the server-provided window and retry a few times.
     if (response.status === 429 && attempt < retries) {
-      const retryAfter = Number(response.headers.get('Retry-After')) || 2;
-      await sleep((retryAfter + 0.5) * 1000);
+      await sleep(retryDelayMs(response.headers.get('Retry-After')));
       continue;
     }
     if (!response.ok) {
-      // 401 and 403 are different problems and need different fixes, so don't
-      // collapse them into one message. Name the endpoint too: "the key is
-      // broken" is useless when only one API is actually being refused.
-      const endpoint = riotEndpointLabel(url);
-      if (response.status === 401) {
-        throw new Error(`Riot API key rejected (401) on ${endpoint} — the key is invalid or expired.`);
-      }
-      if (response.status === 403) {
-        throw new Error(
-          `Riot API forbidden (403) on ${endpoint} — the key is valid but not authorised for this API.`
-        );
-      }
-      throw new Error(`Riot API request failed (${response.status}) on ${endpoint}.`);
+      throw riotError(response.status, url);
     }
     return (await response.json()) as T;
   }
@@ -470,102 +389,34 @@ async function fetchRiotQueueEnrichment(
     throw new Error('No recent ranked/normal match history found for this Riot ID.');
   }
 
-  const champGames = new Map<string, number>();
-  const champWins = new Map<string, number>();
-  const roleCounts = new Map<string, number>();
-  const banCandidateCounts = new Map<string, number>();
-  let totalWins = 0;
-  let totalKills = 0;
-  let totalDeaths = 0;
-  let totalAssists = 0;
-  let totalCsPerMin = 0;
-  let totalKillParticipation = 0;
-  let killParticipationSamples = 0;
-  let totalDamageShare = 0;
-  let damageShareSamples = 0;
-  let totalTankShare = 0;
-  let tankShareSamples = 0;
-  let totalBuildingDamage = 0;
-  let totalVisionScore = 0;
-
-  for (const match of matches) {
-    const me = match.info.participants.find((p) => p.puuid === account.puuid);
-    if (!me) continue;
-
-    const champ = me.championName;
-    champGames.set(champ, (champGames.get(champ) ?? 0) + 1);
-    if (me.win) {
-      champWins.set(champ, (champWins.get(champ) ?? 0) + 1);
-      totalWins += 1;
-    }
-    if (me.teamPosition) {
-      roleCounts.set(me.teamPosition, (roleCounts.get(me.teamPosition) ?? 0) + 1);
-    }
-
-    totalKills += me.kills;
-    totalDeaths += me.deaths;
-    totalAssists += me.assists;
-    const minutes = Math.max(match.info.gameDuration / 60, 1);
-    totalCsPerMin += (me.totalMinionsKilled + me.neutralMinionsKilled) / minutes;
-    totalBuildingDamage += me.damageDealtToBuildings ?? 0;
-    totalVisionScore += me.visionScore ?? 0;
-
-    const teammates = match.info.participants.filter((p) => p.teamId === me.teamId);
-    const teamKills = teammates.reduce((sum, p) => sum + p.kills, 0);
-    if (teamKills > 0) {
-      totalKillParticipation += (me.kills + me.assists) / teamKills;
-      killParticipationSamples += 1;
-    }
-
-    const teamDamage = teammates.reduce((sum, p) => sum + (p.totalDamageDealtToChampions ?? 0), 0);
-    if (teamDamage > 0) {
-      totalDamageShare += (me.totalDamageDealtToChampions ?? 0) / teamDamage;
-      damageShareSamples += 1;
-    }
-
-    const teamTaken = teammates.reduce((sum, p) => sum + (p.totalDamageTaken ?? 0), 0);
-    if (teamTaken > 0) {
-      totalTankShare += (me.totalDamageTaken ?? 0) / teamTaken;
-      tankShareSamples += 1;
-    }
-
-    if (!me.win && me.teamPosition) {
-      const opponent = match.info.participants.find(
-        (p) => p.teamId !== me.teamId && p.teamPosition === me.teamPosition
-      );
-      if (opponent) {
-        banCandidateCounts.set(opponent.championName, (banCandidateCounts.get(opponent.championName) ?? 0) + 1);
-      }
-    }
+  const summary = summarizeMatches(matches, account.puuid, displayChampionName);
+  if (!summary) {
+    throw new Error('No recent ranked/normal match history found for this Riot ID.');
   }
 
-  const games = matches.length;
-  const winRate = Math.round((totalWins / games) * 100);
-  const avgKills = totalKills / games;
-  const avgDeaths = totalDeaths / games;
-  const avgAssists = totalAssists / games;
-  const avgCsPerMin = totalCsPerMin / games;
-  const avgKda = avgDeaths > 0 ? (avgKills + avgAssists) / avgDeaths : avgKills + avgAssists;
-  const avgKillParticipation = killParticipationSamples > 0 ? totalKillParticipation / killParticipationSamples : 0;
-  const avgDamageShare = damageShareSamples > 0 ? totalDamageShare / damageShareSamples : 0;
-  const avgTankShare = tankShareSamples > 0 ? totalTankShare / tankShareSamples : 0;
-  const avgBuildingDamage = totalBuildingDamage / games;
-  const avgVisionScore = totalVisionScore / games;
+  const {
+    games,
+    winRate,
+    avgKills,
+    avgDeaths,
+    avgAssists,
+    avgKda,
+    avgCsPerMin,
+    avgKillParticipation,
+    avgDamageShare,
+    avgTankShare,
+    avgBuildingDamage,
+    avgVisionScore
+  } = summary;
+  const totalWins = summary.wins;
 
-  const sortedChamps = [...champGames.entries()].sort((a, b) => b[1] - a[1]);
-  // Champion pool: the player's most-played (comfort) champions from recent
-  // ranked/flex games. Up to 5 so the pool reflects their real spread of picks.
-  const top3 = sortedChamps.slice(0, 5).map(([champ]) => displayChampionName(champ));
-
-  const topRoleEntry = [...roleCounts.entries()].sort((a, b) => b[1] - a[1])[0];
-  const detectedRole = topRoleEntry ? TEAM_POSITION_TO_ROLE[topRoleEntry[0]] : undefined;
+  const top3 = summary.topChampions;
+  const detectedRole = summary.mainPosition ? TEAM_POSITION_TO_ROLE[summary.mainPosition] : undefined;
   const role = detectedRole ?? payload.role ?? 'Mid';
 
-  const bans = [...banCandidateCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([champ]) => displayChampionName(champ))
-    .filter((champ) => !top3.includes(champ))
-    .slice(0, 3);
+  // A champion we already play is a pick, not a ban.
+  const bans = summary.banCandidates.filter((champ) => !top3.includes(champ)).slice(0, 3);
+
 
   const strengths: string[] = [];
   const weaknesses: string[] = [];
@@ -767,7 +618,7 @@ export const enrichPlayer = onRequest({ cors: true, secrets: [RIOT_API_KEY] }, a
       return;
     }
 
-    const payload = parseRequest(req.body);
+    const payload = parseEnrichRequest(req.body);
     const enriched = await enrichPlayerProfile(payload, RIOT_API_KEY.value());
     res.status(200).json(enriched);
   } catch (error) {
@@ -775,18 +626,6 @@ export const enrichPlayer = onRequest({ cors: true, secrets: [RIOT_API_KEY] }, a
     res.status(400).json({ error: message });
   }
 });
-
-function combinations<T>(items: T[], size: number): T[][] {
-  if (size === 0) return [[]];
-  if (items.length < size) return [];
-  const result: T[][] = [];
-  for (let index = 0; index <= items.length - size; index += 1) {
-    for (const rest of combinations(items.slice(index + 1), size - 1)) {
-      result.push([items[index], ...rest]);
-    }
-  }
-  return result;
-}
 
 async function getSynergyGroups(payload: SynergyRequest, apiKey: string): Promise<PremadeGroupResponse[]> {
   const firstRegion = payload.players[0].region ?? 'euw';
