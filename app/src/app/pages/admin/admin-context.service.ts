@@ -3,6 +3,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { AccessEntry, AccessRole, Comp, CompPicks, FillIn, Player, ROLES, Role, Tournament } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
+import { AdminPlayersService } from './state/admin-players.service';
+import { AdminShellService } from './state/admin-shell.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { BUILD_SHA } from '../../build-info';
@@ -41,36 +43,49 @@ export class AdminContextService {
   readonly accessRoles: AccessRole[] = ['admin', 'contributor', 'viewer'];
 
   readonly teamName = signal('');
-  readonly playerDrafts = signal<PlayerDraft[]>([]);
   readonly fillInDrafts = signal<FillInDraft[]>([]);
   readonly compDrafts = signal<CompDraft[]>([]);
   readonly accessDrafts = signal<AccessDraft[]>([]);
   readonly tournamentDrafts = signal<TournamentDraft[]>([]);
   /** Guards against a second Save landing before the created id comes back. */
   readonly savingTournament = signal(false);
-  readonly activeTab = signal<EditorTab>('players');
-  readonly enrichingPlayerId = signal<string | null>(null);
-  readonly status = signal('');
+  private readonly shell = inject(AdminShellService);
+  private readonly players = inject(AdminPlayersService);
+
+  readonly activeTab = this.shell.activeTab;
+
+  readonly status = this.shell.status;
+
+  // The player editor, re-exposed so the tab templates read unchanged.
+  readonly playerDrafts = this.players.playerDrafts;
+  readonly enrichingPlayerId = this.players.enrichingPlayerId;
+  readonly openPlayer = this.players.openPlayer;
+  readonly highlightedPlayer = this.players.highlightedPlayer;
+  readonly playersByRole = this.players.playersByRole;
+  readonly showAddPlayerDialog = this.players.showAddPlayerDialog;
+  readonly addPlayerMode = this.players.addPlayerMode;
+  readonly newPlayerSummoner = this.players.newPlayerSummoner;
+  readonly newPlayerTag = this.players.newPlayerTag;
+  readonly newPlayerRegion = this.players.newPlayerRegion;
+  readonly isPlayerOpen = (d: PlayerDraft) => this.players.isPlayerOpen(d);
+  readonly togglePlayer = (d: PlayerDraft) => this.players.togglePlayer(d);
+  readonly toggleSecondaryRole = (d: PlayerDraft, r: Role) => this.players.toggleSecondaryRole(d, r);
+  readonly isPlayerHighlighted = (d: PlayerDraft) => this.players.isPlayerHighlighted(d);
+  readonly autoFillPlayerSlugs = (d: PlayerDraft) => this.players.autoFillPlayerSlugs(d);
+  readonly enrichmentKey = (d: PlayerDraft) => this.players.enrichmentKey(d);
+  readonly autoFillPlayerInsights = (d: PlayerDraft) => this.players.autoFillPlayerInsights(d);
+  readonly openAddPlayerDialog = () => this.players.openAddPlayerDialog();
+  readonly closeAddPlayerDialog = () => this.players.closeAddPlayerDialog();
+  readonly chooseAutofillAdd = () => this.players.chooseAutofillAdd();
+  readonly addPlayerManually = () => this.players.addPlayerManually();
+  readonly confirmAutofillAdd = () => this.players.confirmAutofillAdd();
+  readonly savePlayer = (d: PlayerDraft) => this.players.savePlayer(d);
+  readonly deletePlayer = (d: PlayerDraft) => this.players.deletePlayer(d);
 
   // Accordion: only one player panel open at a time to reduce clutter.
-  readonly openPlayer = signal<PlayerDraft | null>(null);
-  readonly highlightedPlayer = signal<PlayerDraft | null>(null);
-
-  // Group player drafts by role for the editor (Top, Jungle, Mid, ADC, Support).
-  readonly playersByRole = computed(() => {
-    const drafts = this.playerDrafts();
-    return ROLES.map((role) => ({ role, drafts: drafts.filter((d) => d.role === role) })).filter(
-      (group) => group.drafts.length > 0
-    );
-  });
-
-  readonly showAddPlayerDialog = signal(false);
-  readonly addPlayerMode = signal<'choose' | 'summoner'>('choose');
-  readonly newPlayerSummoner = signal('');
-  readonly newPlayerTag = signal('EUW');
-  readonly newPlayerRegion = signal('euw');
 
   private initialized = false;
+  private lastResync = 0;
 
   constructor() {
     effect(() => {
@@ -78,12 +93,14 @@ export class AdminContextService {
       const fillIns = this.data.fillIns();
       const comps = this.data.comps();
       const accessEntries = this.data.accessEntries();
-      if (!this.data.ready() || this.initialized) {
+      const resync = this.shell.resyncToken();
+      if (!this.data.ready() || (this.initialized && resync === this.lastResync)) {
         return;
       }
       this.initialized = true;
+      this.lastResync = resync;
       this.teamName.set(this.data.settings().teamName);
-      this.playerDrafts.set(players.map((p) => toPlayerDraft(p)));
+      this.players.load(players);
       this.fillInDrafts.set(fillIns.map((f) => toFillInDraft(f)));
       this.compDrafts.set(comps.map((c) => ({ id: c.id, name: c.name, picks: { ...c.picks } })));
       this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry })));
@@ -242,8 +259,7 @@ export class AdminContextService {
   }
 
   private flash(message: string): void {
-    this.status.set(message);
-    setTimeout(() => this.status.set(''), 2500);
+    this.shell.flash(message);
   }
 
   // ---- Settings ---------------------------------------------------------
@@ -257,32 +273,10 @@ export class AdminContextService {
   }
 
   private scrollToCard(id: string): void {
-    setTimeout(() => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 0);
+    this.shell.scrollToCard(id);
   }
 
-  isPlayerOpen(draft: PlayerDraft): boolean {
-    return this.openPlayer() === draft;
-  }
-
-  togglePlayer(draft: PlayerDraft): void {
-    this.openPlayer.set(this.openPlayer() === draft ? null : draft);
-  }
-
-  toggleSecondaryRole(draft: PlayerDraft, role: Role): void {
-    draft.secondaryRoles = draft.secondaryRoles.includes(role)
-      ? draft.secondaryRoles.filter((r) => r !== role)
-      : [...draft.secondaryRoles, role];
-  }
-
-  isPlayerHighlighted(draft: PlayerDraft): boolean {
-    return this.highlightedPlayer() === draft;
-  }
-
+  /** Deep links from elsewhere in the app open a tab and focus one row. */
   private applyRouteFocus(): void {
     const params = this.route.snapshot.queryParamMap;
     const tab = params.get('tab');
@@ -321,193 +315,6 @@ export class AdminContextService {
     }
     await this.data.updateSettings({ teamName: this.teamName().trim() || 'Bom Squad' });
     this.flash('Team name saved.');
-  }
-
-  autoFillPlayerSlugs(draft: PlayerDraft): void {
-    const baseName = slugifyName(draft.name);
-    const tag = draft.riotTag.trim();
-    const normalizedTag = tag ? tag.toLowerCase() : '';
-
-    if (!baseName) {
-      return;
-    }
-
-    if (!draft.opggSlug.trim()) {
-      draft.opggSlug = tag ? `${draft.name.trim()}-${tag}` : draft.name.trim();
-    }
-
-    if (!draft.mobalyticsSlug.trim()) {
-      draft.mobalyticsSlug = normalizedTag ? `${baseName}-${normalizedTag}` : baseName;
-    }
-  }
-
-  enrichmentKey(draft: PlayerDraft): string {
-    const name = draft.name.trim().toLowerCase();
-    return draft.id || (name ? `new-${name}` : `new-${this.playerDrafts().indexOf(draft)}`);
-  }
-
-  async autoFillPlayerInsights(draft: PlayerDraft): Promise<void> {
-    const playerName = draft.name.trim();
-    if (!playerName) {
-      this.flash('Add a player name first.');
-      return;
-    }
-
-    this.autoFillPlayerSlugs(draft);
-
-    const loadingKey = this.enrichmentKey(draft);
-    if (this.enrichingPlayerId() === loadingKey) {
-      return;
-    }
-    this.enrichingPlayerId.set(loadingKey);
-    try {
-      const enriched = await this.enrichment.enrichPlayer({
-        summonerName: playerName,
-        riotTag: draft.riotTag,
-        region: draft.region,
-        role: draft.role,
-        mobalyticsSlug: draft.mobalyticsSlug
-      });
-
-      draft.playstyle = enriched.playstyle;
-      draft.strengths = enriched.strengths.join(', ');
-      draft.weaknesses = enriched.weaknesses.join(', ');
-      if (enriched.role) {
-        draft.role = enriched.role;
-      }
-      if (enriched.top3?.length) {
-        draft.top3 = this.enrichment.mergeChampionPool(this.listOf(draft.top3), enriched.top3).join(', ');
-      }
-      if (enriched.bans?.length) {
-        draft.bans = enriched.bans.join(', ');
-      }
-      if (enriched.iconUrl) {
-        draft.icon = enriched.iconUrl;
-      }
-      draft.queueStats = enriched.queueStats;
-      this.flash(enriched.source === 'provider'
-        ? `Profile filled from ${enriched.provider}.`
-        : `Couldn't fetch live Riot data: ${enriched.provider.replace(/^template-fallback:\s*/, '')}`);
-    } catch (err) {
-      this.flash(err instanceof Error ? err.message : 'Failed to enrich profile.');
-    } finally {
-      this.enrichingPlayerId.set(null);
-    }
-  }
-
-  // ---- Players ----------------------------------------------------------
-
-  openAddPlayerDialog(): void {
-    this.addPlayerMode.set('choose');
-    this.newPlayerSummoner.set('');
-    this.newPlayerTag.set('EUW');
-    this.newPlayerRegion.set('euw');
-    this.showAddPlayerDialog.set(true);
-  }
-
-  closeAddPlayerDialog(): void {
-    this.showAddPlayerDialog.set(false);
-  }
-
-  chooseAutofillAdd(): void {
-    this.addPlayerMode.set('summoner');
-  }
-
-  addPlayerManually(): void {
-    this.showAddPlayerDialog.set(false);
-    this.insertPlayerDraft({});
-  }
-
-  async confirmAutofillAdd(): Promise<void> {
-    const summonerName = this.newPlayerSummoner().trim();
-    if (!summonerName) {
-      this.flash('Enter a summoner name to autofill.');
-      return;
-    }
-    const riotTag = this.newPlayerTag().trim() || 'EUW';
-    const region = this.newPlayerRegion().trim() || 'euw';
-
-    this.showAddPlayerDialog.set(false);
-    const draft = this.insertPlayerDraft({ name: summonerName, riotTag, region });
-    await this.autoFillPlayerInsights(draft);
-  }
-
-  private insertPlayerDraft(overrides: Partial<PlayerDraft>): PlayerDraft {
-    this.openTab('players');
-    const draft: PlayerDraft = {
-      uid: newUid(),
-      id: '',
-      name: '',
-      role: 'Top',
-      secondaryRoles: [],
-      icon: '',
-      playstyle: '',
-      strengths: '',
-      weaknesses: '',
-      top3: '',
-      bans: '',
-      region: 'euw',
-      opggSlug: '',
-      riotTag: 'EUW',
-      mobalyticsSlug: '',
-      ...overrides
-    };
-    this.playerDrafts.update((list) => [...list, draft]);
-    this.openPlayer.set(draft);
-    this.scrollToCard(`player-${draft.uid}`);
-    return draft;
-  }
-
-  async savePlayer(draft: PlayerDraft): Promise<void> {
-    const profile = {
-      region: draft.region.trim() || 'euw',
-      opggSlug: draft.opggSlug.trim(),
-      riotTag: draft.riotTag.trim(),
-      mobalyticsSlug: draft.mobalyticsSlug.trim()
-    };
-    const secondaryRoles = draft.secondaryRoles.filter((r) => r !== draft.role);
-    const base = {
-      name: draft.name.trim(),
-      role: draft.role,
-      secondaryRoles: secondaryRoles.length ? secondaryRoles : undefined,
-      icon: draft.icon.trim() || undefined,
-      playstyle: draft.playstyle.trim() || undefined,
-      strengths: splitList(draft.strengths),
-      weaknesses: splitList(draft.weaknesses),
-      top3: splitList(draft.top3),
-      bans: splitList(draft.bans),
-      queueStats: draft.queueStats,
-      profile
-    };
-    if (!base.name) {
-      this.flash('Player name is required.');
-      return;
-    }
-    if (draft.id) {
-      const existing = this.data.players().find((p) => p.id === draft.id);
-      await this.data.updatePlayer({ ...base, id: draft.id, order: existing?.order ?? 0 });
-    } else {
-      await this.data.createPlayer(base);
-      this.initialized = false;
-    }
-    this.flash(`Saved ${base.name}.`);
-  }
-
-  async deletePlayer(draft: PlayerDraft): Promise<void> {
-    if (!this.auth.canManageUsers()) {
-      this.flash('Only admins can delete players.');
-      return;
-    }
-    if (!draft.id) {
-      this.playerDrafts.update((list) => list.filter((d) => d !== draft));
-      return;
-    }
-    if (!confirm(`Delete player ${draft.name}?`)) {
-      return;
-    }
-    await this.data.deletePlayer(draft.id);
-    this.playerDrafts.update((list) => list.filter((d) => d.id !== draft.id));
-    this.flash(`Deleted ${draft.name}.`);
   }
 
   // ---- Fill-ins ---------------------------------------------------------

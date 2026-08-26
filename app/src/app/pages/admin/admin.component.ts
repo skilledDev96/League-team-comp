@@ -2,6 +2,8 @@ import { Component, inject } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { AdminContextService } from './admin-context.service';
+import { AdminPlayersService } from './state/admin-players.service';
+import { AdminShellService } from './state/admin-shell.service';
 import { AdminAccessComponent } from './tabs/access.component';
 import { AdminCompsComponent } from './tabs/comps.component';
 import { AdminDiagnosticsComponent } from './tabs/diagnostics.component';
@@ -18,7 +20,7 @@ import { AdminTournamentsComponent } from './tabs/tournaments.component';
  */
 @Component({
   selector: 'app-admin',
-  providers: [AdminContextService],
+  providers: [AdminShellService, AdminPlayersService, AdminContextService],
   imports: [
     AdminSettingsComponent,
     AdminPlayersComponent,
