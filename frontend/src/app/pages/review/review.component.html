@@ -70,13 +70,23 @@
         }
       </p>
     } @else {
+      <!-- The conclusion first, the bars as the evidence for it. Reads both
+           sides at once, which is the sentence the toggle cannot give. -->
+      @if (hasReadout()) {
+        <div class="readout">
+          @if (readout().winning) { <p class="readout-line is-win">{{ readout().winning }}</p> }
+          @if (readout().losing) { <p class="readout-line is-loss">{{ readout().losing }}</p> }
+          @if (readout().gap) { <p class="readout-line is-gap">{{ readout().gap }}</p> }
+        </div>
+      }
+
       <p class="muted">
         Across {{ summary().analysed }} analysed
         {{ outcome() === 'win' ? (summary().analysed === 1 ? 'win' : 'wins') : (summary().analysed === 1 ? 'loss' : 'losses') }}.
       </p>
       @for (pattern of summary().patterns; track pattern.code) {
         <div class="pattern-row">
-          <span class="pattern-label">{{ pattern.label }}</span>
+          <span class="pattern-label" [appTip]="factorHint(pattern.code)">{{ pattern.label }}</span>
           <span class="pattern-bar" [attr.aria-label]="pattern.share + '% of ' + (outcome() === 'win' ? 'wins' : 'losses')">
             <span class="pattern-fill" [class.is-win]="outcome() === 'win'" [style.width.%]="pattern.share"></span>
           </span>

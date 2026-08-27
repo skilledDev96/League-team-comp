@@ -7797,3 +7797,25 @@ app-overflow-menu {
   color: var(--accent-2);
   min-width: 3.5rem;
 }
+
+/* The conclusion above the bars. Three short lines at most, tinted by what they
+   are saying, and no box of its own — it is a lead paragraph, not a panel. */
+.readout {
+  margin: 0 0 0.85rem;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--card-border);
+}
+
+.readout-line {
+  margin: 0.2rem 0;
+  font-size: 0.9rem;
+  color: var(--text-0);
+}
+
+.readout-line.is-win {
+  border-left-color: var(--ok);
+}
+
+.readout-line.is-gap {
+  color: var(--text-1);
+}

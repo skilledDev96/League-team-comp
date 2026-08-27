@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, GameObjectives, LossFactor } from '../../models/team.models';
-import { commonestFactor, formatDuration, summariseLosses, summariseWins } from './loss-patterns.util';
+import { commonestFactor, formatDuration, reviewReadout, summariseLosses, summariseWins } from './loss-patterns.util';
 
 const OBJECTIVES: GameObjectives = {
   ours: { firstBlood: false, firstTower: false, dragons: 1, barons: 0, heralds: 0, grubs: 0, towers: 2, inhibitors: 0 },
@@ -142,5 +142,53 @@ describe('summariseWins', () => {
   it('leaves summariseLosses looking at the other side', () => {
     const games = [win({ winFactors: [{ code: 'comeback', label: 'Won from behind', detail: '' }] })];
     expect(summariseLosses(games).analysed).toBe(0);
+  });
+});
+
+describe('reviewReadout', () => {
+  const lossWith = (...codes: string[]) =>
+    game({ lossFactors: codes.map((c) => factor(c as never, label(c))) });
+  const winWith = (...codes: string[]) =>
+    game({ win: true, winFactors: codes.map((c) => ({ code: c as never, label: label(c), detail: '' })) });
+
+  function label(code: string): string {
+    return code === 'map_control'
+      ? 'Lost the map'
+      : code === 'lost_fights'
+        ? 'Lost the fights'
+        : code === 'won_fights'
+          ? 'Won the fights'
+          : 'Controlled the map';
+  }
+
+  const many = (n: number, make: () => ReturnType<typeof game>) =>
+    Array.from({ length: n }, make);
+
+  it('states what wins and what loses, in prose', () => {
+    const out = reviewReadout([
+      ...many(10, () => winWith('won_fights')),
+      ...many(10, () => lossWith('map_control'))
+    ]);
+    expect(out.winning).toContain('winning the fights');
+    expect(out.losing).toContain('losing the map');
+  });
+
+  it('names the conversion gap: losses where the fights were not the problem', () => {
+    // The reading no single bar gives, and the one that changes what a team
+    // should practise.
+    const out = reviewReadout(many(10, () => lossWith('map_control')));
+    expect(out.gap).toContain('10 of them');
+    expect(out.gap).toContain('conversion problem');
+  });
+
+  it('stays silent when the fights were the problem too', () => {
+    const out = reviewReadout(many(10, () => lossWith('map_control', 'lost_fights')));
+    expect(out.gap).toBeNull();
+  });
+
+  it('says nothing at all on a sample too thin to mean anything', () => {
+    // Three of four losses is 75% and worth no sentence.
+    const out = reviewReadout(many(4, () => lossWith('map_control')));
+    expect(out).toEqual({ winning: null, losing: null, gap: null });
   });
 });

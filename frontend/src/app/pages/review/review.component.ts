@@ -6,14 +6,17 @@ import { AuthService } from '../../services/auth.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
+import { TooltipDirective } from '../../shared/tooltip.directive';
 import { effectiveComp } from '../../core/comp-alias';
 import {
   commonestFactor,
   formatDuration,
   LossGroup,
   OFF_BOOK,
+  FACTOR_GUIDE,
   factorsOf,
   Outcome,
+  reviewReadout,
   summarise
 } from './loss-patterns.util';
 
@@ -33,7 +36,7 @@ import {
  */
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, RouterLink, TooltipDirective],
   templateUrl: './review.component.html'
 })
 export class ReviewComponent {
@@ -82,6 +85,25 @@ export class ReviewComponent {
   protected readonly outcome = signal<Outcome>('loss');
 
   protected readonly summary = computed(() => summarise(this.filteredGames(), this.outcome()));
+
+  /**
+   * The bars stated as a conclusion, reading both sides at once.
+   *
+   * Not tied to the toggle on purpose: the useful sentence compares wins
+   * against losses, and having to flip tabs to assemble it is the work this is
+   * meant to remove.
+   */
+  protected readonly readout = computed(() => reviewReadout(this.filteredGames()));
+
+  protected readonly hasReadout = computed(() => {
+    const r = this.readout();
+    return !!(r.winning || r.losing || r.gap);
+  });
+
+  /** One line per factor, shown on hover rather than taking up layout. */
+  protected factorHint(code: string): string {
+    return FACTOR_GUIDE[code] ?? '';
+  }
 
   private readonly allLosses = computed(() =>
     this.filteredGames()

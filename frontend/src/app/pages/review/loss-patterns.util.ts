@@ -77,6 +77,110 @@ export function summariseWins(games: AnalysisGame[]): ReviewSummary {
   return summarise(games, 'win');
 }
 
+/**
+ * What each factor actually means, for a tooltip on its label.
+ *
+ * Kept to one line each and out of the layout: the bars already take the space,
+ * and a permanent paragraph under every row would bury the numbers it explains.
+ */
+export const FACTOR_GUIDE: Record<string, string> = {
+  early_game: 'Conceded both first blood and first tower — behind before the map opened up.',
+  lost_fights: 'Took clearly fewer kills than the enemy. Lost on fighting, not on rotations.',
+  dragon_control: 'Two or more dragons behind. Usually vision and timers rather than the fights themselves.',
+  baron_control: 'The enemy took more barons. Often a late-game vision or reset problem.',
+  map_control: 'Four or more towers behind. Rotations and side-lane pressure, not teamfights.',
+  threw_lead: 'Ahead on objectives past 30 minutes and still lost — a closing problem.',
+  won_fights: 'Took clearly more kills than the enemy. The fights were the win condition.',
+  early_lead: 'Took both first blood and first tower — ahead before the map opened up.',
+  closed_fast: 'Won inside 25 minutes. Never gave the game a chance to turn.',
+  comeback: 'Behind on objectives past 30 minutes and still won.'
+};
+
+/** A short read of what the numbers add up to, or null where they say nothing. */
+export interface ReviewReadout {
+  winning: string | null;
+  losing: string | null;
+  gap: string | null;
+}
+
+/**
+ * Below this many analysed games on a side, a share is not worth a sentence.
+ * Three of four losses is 75% and means nothing.
+ */
+const MIN_FOR_A_CLAIM = 8;
+
+/**
+ * The bars in prose: what wins, what loses, and the one place they disagree.
+ *
+ * Deliberately three short lines and no more. The point is to state the
+ * conclusion a reader would otherwise have to assemble from two tabs of
+ * percentages — not to narrate every factor, which is what the bars are for.
+ */
+export function reviewReadout(games: AnalysisGame[]): ReviewReadout {
+  const wins = summarise(games, 'win');
+  const losses = summarise(games, 'loss');
+
+  const winning =
+    wins.analysed >= MIN_FOR_A_CLAIM && wins.patterns.length
+      ? `Your wins come from ${phrase(wins.patterns[0].code, 'win')}${
+          wins.patterns[1] ? `, then ${phrase(wins.patterns[1].code, 'win')}` : ''
+        } — ${wins.patterns[0].share}% of them.`
+      : null;
+
+  const losing =
+    losses.analysed >= MIN_FOR_A_CLAIM && losses.patterns.length
+      ? `Your losses come from ${phrase(losses.patterns[0].code, 'loss')} — ${
+          losses.patterns[0].share
+        }% of them.`
+      : null;
+
+  // The reading no single bar gives: games where the fighting went our way and
+  // the map still did not. It separates a conversion problem from a fighting
+  // one, and those need opposite work.
+  const analysedLosses = games.filter((g) => !g.win && g.objectives);
+  const wonFightsLost = analysedLosses.filter((g) => {
+    const codes = (g.lossFactors ?? []).map((f) => f.code);
+    return codes.includes('map_control') && !codes.includes('lost_fights');
+  }).length;
+
+  const gap =
+    analysedLosses.length >= MIN_FOR_A_CLAIM && wonFightsLost > 0
+      ? `In ${wonFightsLost} of them you were not losing the fights and lost the map anyway — that is a conversion problem, not a fighting one.`
+      : null;
+
+  return { winning, losing, gap };
+}
+
+/**
+ * Factor labels are past-tense headings — "Lost the map" — which do not fit a
+ * sentence frame: lowercasing one gives "you lose to lost the map". These are
+ * the same facts as verb phrases. Keyed by side as well as code, because three
+ * codes are shared and mean opposite things on each.
+ */
+const PHRASES: Record<Outcome, Record<string, string>> = {
+  win: {
+    early_lead: 'winning the early game',
+    won_fights: 'winning the fights',
+    dragon_control: 'controlling dragons',
+    baron_control: 'controlling baron',
+    map_control: 'controlling the map',
+    closed_fast: 'closing games out early',
+    comeback: 'coming back from behind'
+  },
+  loss: {
+    early_game: 'losing the early game',
+    lost_fights: 'losing the fights',
+    dragon_control: 'conceding dragons',
+    baron_control: 'conceding baron',
+    map_control: 'losing the map',
+    threw_lead: 'losing from ahead'
+  }
+};
+
+function phrase(code: string, side: Outcome): string {
+  return PHRASES[side][code] ?? code.replace(/_/g, ' ');
+}
+
 /** Bucket id for games that matched no comp. Not a comp id, so it cannot collide. */
 export const OFF_BOOK = '__offbook';
 
