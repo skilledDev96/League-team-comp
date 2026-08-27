@@ -7577,3 +7577,62 @@ app-match-note {
 .comp-group-summary:hover .comp-group-chevron {
   color: var(--accent);
 }
+
+/* Each game opens to its objective table, so it needs the same hint the group
+   header has — one gesture, one affordance, at both levels. */
+.loss-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.loss-chevron {
+  font-size: 1.15rem;
+  color: var(--accent-2);
+  transition: transform 160ms ease;
+}
+
+.loss-card.expanded .loss-chevron {
+  transform: rotate(180deg);
+}
+
+.loss-head:hover .loss-chevron {
+  color: var(--accent);
+}
+
+/* The draft, lane by lane. Shares the objective table's shape so the expanded
+   card reads as one thing rather than two competing layouts. */
+.draft-table {
+  margin-bottom: 0.9rem;
+}
+
+.draft-row {
+  align-items: center;
+}
+
+.draft-role {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+/* Wider than the objective columns: a champion name needs the room a number
+   does not. */
+.draft-table .objective-row {
+  grid-template-columns: 4.5rem 1fr 1fr;
+}
+
+.draft-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.draft-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

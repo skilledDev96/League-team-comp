@@ -145,28 +145,12 @@
             }
             <span class="tag">{{ game.queue }}</span>
             <span class="tag">{{ game.side === 'blue' ? 'Blue' : 'Red' }} side</span>
-            @if (ourChampions(game).length || game.enemyChampions?.length) {
-              <span class="matchup" aria-label="Our draft against theirs">
-                <span class="champ-strip">
-                  @for (champ of ourChampions(game); track champ) {
-                    <img class="champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ"
-                         [title]="champ" loading="lazy" />
-                  }
-                </span>
-                @if (game.enemyChampions?.length) {
-                  <span class="matchup-vs" aria-hidden="true">vs</span>
-                  <span class="champ-strip is-enemy">
-                    @for (champ of game.enemyChampions; track champ) {
-                      <img class="champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ"
-                           [title]="champ" loading="lazy" />
-                    }
-                  </span>
-                }
-              </span>
-            }
+            <!-- The draft moved into the expanded detail, where it can be shown
+                 lane by lane instead of as two anonymous rows of icons. -->
           </span>
           <span class="loss-meta">
             {{ game.date | date: 'd MMM' }} · {{ formatDuration(game.durationSec) }}
+            <span class="loss-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
           </span>
         </button>
 
@@ -183,6 +167,43 @@
         }
 
         @if (expandedId() === game.matchId) {
+          @if (draftRows(game).length) {
+            <div class="objective-table draft-table">
+              <div class="objective-row objective-head"><span></span><span>Us</span><span>Them</span></div>
+              @for (row of draftRows(game); track row.position) {
+                <div class="objective-row draft-row">
+                  <span class="draft-role">{{ row.position }}</span>
+                  <span class="draft-pick">
+                    <img class="champ-icon" [src]="ui.championIconUrl(row.ours)" [alt]="row.ours"
+                         [title]="row.ours" loading="lazy" />
+                    <span class="draft-name">{{ row.ours }}</span>
+                  </span>
+                  <span class="draft-pick">
+                    @if (row.theirs) {
+                      <img class="champ-icon" [src]="ui.championIconUrl(row.theirs)" [alt]="row.theirs"
+                           [title]="row.theirs" loading="lazy" />
+                      <span class="draft-name">{{ row.theirs }}</span>
+                    } @else {
+                      <span class="draft-name muted">—</span>
+                    }
+                  </span>
+                </div>
+              }
+            </div>
+          } @else if (game.enemyChampions?.length) {
+            <!-- Older analysis has no roles on the enemy side; show the flat
+                 list rather than pretending to know who played where. -->
+            <p class="meta-line">
+              <span class="meta-label">Faced</span>
+              <span class="champ-strip is-enemy">
+                @for (champ of game.enemyChampions; track champ) {
+                  <img class="champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ"
+                       [title]="champ" loading="lazy" />
+                }
+              </span>
+            </p>
+          }
+
           @if (objectiveRows(game).length) {
             <div class="objective-table">
               <div class="objective-row objective-head"><span></span><span>Us</span><span>Them</span></div>

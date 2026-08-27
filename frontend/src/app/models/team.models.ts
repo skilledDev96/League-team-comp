@@ -270,6 +270,12 @@ export interface AnalysisGame {
   /** The fight scoreline: our kills against theirs. */
   kills?: { ours: number; theirs: number };
   /**
+   * The enemy five with their roles, sorted, for a lane-by-lane comparison.
+   * Absent until the analysis is re-run; `enemyChampions` is the flat list the
+   * ban suggestions and the tournament planner still read.
+   */
+  enemies?: { position: string; champion: string }[];
+  /**
    * Set when a person placed this game rather than the champion matcher —
    * `manual` for an override on this match, `alias` for a comp's `countsUnder`.
    * Absent means the matcher's own answer.

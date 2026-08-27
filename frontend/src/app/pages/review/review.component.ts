@@ -204,6 +204,28 @@ export class ReviewComponent {
     return game.players.map((p) => p.champion).filter(Boolean);
   }
 
+  /**
+   * The draft lane by lane: our pick against theirs, per role.
+   *
+   * Rows are driven by our side, which the backend sorts by role. The enemy is
+   * matched by role rather than by list position — pairing two arrays by index
+   * would silently mislabel a matchup whenever Riot returns them in a different
+   * order, and a wrong lane matchup is worse than none.
+   *
+   * Empty when the analysis predates `enemies`, so the caller can fall back.
+   */
+  protected draftRows(
+    game: AnalysisGame
+  ): { position: string; ours: string; theirs: string | null }[] {
+    if (!game.enemies?.length) return [];
+    const theirs = new Map(game.enemies.map((e) => [e.position, e.champion]));
+    return game.players.map((p) => ({
+      position: p.position,
+      ours: p.champion,
+      theirs: theirs.get(p.position) ?? null
+    }));
+  }
+
   protected toggle(matchId: string): void {
     this.expandedId.update((open) => (open === matchId ? null : matchId));
   }

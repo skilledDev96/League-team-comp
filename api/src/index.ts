@@ -823,6 +823,8 @@ interface AnalysisGameResponse {
   win: boolean;
   side: 'blue' | 'red';
   enemyChampions: string[];
+  /** The enemy five with their roles, sorted, for a lane-by-lane comparison. */
+  enemies?: { position: string; champion: string }[];
   queue: string;
   date: number;
   players: AnalysisPlayerResponse[];
@@ -1159,9 +1161,18 @@ async function computeCompAnalysis(
     // Read from participants we already cache, so this needed no re-fetch and
     // applies to every game rather than only the freshly cached ones.
     const fights = tallyKills(match.participants, rosterTeamId);
-    const enemyChampions = match.participants
-      .filter((p) => p.teamId !== rosterTeamId)
-      .map((p) => displayChampionName(p.championName));
+    const enemyParts = match.participants.filter((p) => p.teamId !== rosterTeamId);
+    const enemyChampions = enemyParts.map((p) => displayChampionName(p.championName));
+    // The same five again, carrying their role, so the review page can line a
+    // draft up against ours lane by lane. Kept beside `enemyChampions` rather
+    // than replacing it: the ban suggestions and the tournament planner read
+    // that flat list and do not care who played what.
+    const enemies = enemyParts
+      .map((p) => ({
+        position: TEAM_POSITION_TO_ROLE[p.teamPosition] ?? p.teamPosition ?? '',
+        champion: displayChampionName(p.championName)
+      }))
+      .sort((a, b) => (roleOrder[a.position] ?? 9) - (roleOrder[b.position] ?? 9));
     const players: AnalysisPlayerResponse[] = teamParts
       .map((p) => ({
         name: nameByPuuid.get(p.puuid) ?? 'Unknown',
@@ -1218,6 +1229,7 @@ async function computeCompAnalysis(
       win,
       side,
       enemyChampions,
+      enemies,
       queue: QUEUE_LABEL[match.queueId] ?? 'Team',
       date: match.gameCreation,
       players,
