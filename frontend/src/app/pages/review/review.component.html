@@ -14,11 +14,17 @@
 } @else {
   <section class="card review-toolbar" aria-label="Review controls">
     <div class="view-controls">
-      <div class="outcome-switch" role="group" aria-label="Which games to review">
-        <button type="button" class="view-btn" [class.active]="outcome() === 'loss'"
-                (click)="outcome.set('loss')">Losses</button>
-        <button type="button" class="view-btn" [class.active]="outcome() === 'win'"
-                (click)="outcome.set('win')">Wins</button>
+      <div class="field"><span id="reviewShowing">Showing</span>
+        <div class="segmented" role="group" aria-labelledby="reviewShowing">
+          <button type="button" class="segment is-loss" [class.active]="outcome() === 'loss'"
+                  [attr.aria-pressed]="outcome() === 'loss'" (click)="outcome.set('loss')">
+            Losses <em>{{ record().losses }}</em>
+          </button>
+          <button type="button" class="segment is-win" [class.active]="outcome() === 'win'"
+                  [attr.aria-pressed]="outcome() === 'win'" (click)="outcome.set('win')">
+            Wins <em>{{ record().wins }}</em>
+          </button>
+        </div>
       </div>
       <label class="field compact-field"><span>Comp</span>
         <select name="reviewComp" [value]="compFilter()" (change)="compFilter.set($any($event.target).value)">
@@ -33,8 +39,19 @@
         <span class="meta-value">{{ record().wins }}W / {{ record().losses }}L over {{ record().games }} games</span>
       </p>
     </div>
-    @if (analysis()?.generatedAt; as generated) {
-      <p class="meta-line"><span class="meta-label">Last refreshed</span><span class="meta-value">{{ generated | date: 'medium' }}</span></p>
+    <div class="review-refresh">
+      @if (analysis()?.generatedAt; as generated) {
+        <p class="meta-line"><span class="meta-label">Last refreshed</span><span class="meta-value">{{ generated | date: 'medium' }}</span></p>
+      }
+      @if (auth.editing()) {
+        <button type="button" class="view-btn" [disabled]="refreshing()" (click)="refresh()">
+          <span class="material-symbols-rounded" aria-hidden="true">sync</span>
+          {{ refreshing() ? 'Analyzing…' : 'Refresh from Riot' }}
+        </button>
+      }
+    </div>
+    @if (refreshError()) {
+      <p class="analysis-error">{{ refreshError() }}</p>
     }
   </section>
 
@@ -44,7 +61,7 @@
       <p class="empty-state">
         @if (summary().pending > 0) {
           {{ summary().pending }} {{ outcome() === 'win' ? 'wins are' : 'losses are' }} waiting on
-          objective data. Refresh on the <a routerLink="/analysis">Analysis</a> page to pull it —
+          objective data. Hit <strong>Refresh from Riot</strong> above to pull it —
           older cached matches fill in a batch at a time.
         } @else if (outcome() === 'win') {
           No wins in this selection yet.
@@ -108,9 +125,9 @@
 
         @if (group.losses.length === 0) {
           <p class="muted">
-            No objective data for {{ group.pending === 1 ? 'this game' : 'these games' }} yet — they
-            fill in over the next few refreshes on the
-            <a routerLink="/analysis">Analysis</a> page.
+            No objective data for {{ group.pending === 1 ? 'this game' : 'these games' }} yet — they fill
+            in over the next few refreshes.
+
           </p>
         }
 

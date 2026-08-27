@@ -430,7 +430,6 @@ export class AnalysisComponent {
     // Drop the deep-link highlight; the refresh is a fresh look at everything.
     this.focusMatch.set(null);
     this.focusComp.set(null);
-    this.analysisLoading.set(true);
     this.analysisError.set('');
     try {
       const result = await this.analysis.refresh(
@@ -443,8 +442,6 @@ export class AnalysisComponent {
       this.data.compAnalysis.set(result);
     } catch (err) {
       this.analysisError.set(err instanceof Error ? err.message : 'Analysis failed.');
-    } finally {
-      this.analysisLoading.set(false);
     }
   }
 

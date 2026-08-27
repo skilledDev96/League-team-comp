@@ -7392,7 +7392,80 @@ app-match-note {
   background: var(--ok);
 }
 
-.outcome-switch {
+
+/* Wins/losses switch: one control rather than two loose buttons, sharing the
+   labelled-field treatment of the select beside it so the two line up. The
+   counts sit in the control because the split is the first thing you want to
+   know, and reading it off the record line is a second stop. */
+.segmented {
   display: inline-flex;
-  gap: 0.3rem;
+  align-items: stretch;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--surface-btn);
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.32rem 0.85rem;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-1);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.segment:hover:not(.active) {
+  color: var(--text-0);
+}
+
+.segment em {
+  font-style: normal;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.18);
+  color: inherit;
+}
+
+/* The active side carries its own meaning, so it is tinted rather than a
+   neutral highlight — the same red/green used for results everywhere else. */
+.segment.active {
+  color: var(--text-0);
+}
+
+.segment.is-loss.active {
+  background: rgba(255, 110, 89, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 110, 89, 0.45);
+}
+
+.segment.is-win.active {
+  background: rgba(126, 217, 87, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(126, 217, 87, 0.45);
+}
+
+.segment.active em {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.review-toolbar .field {
+  margin: 0;
+}
+
+.review-refresh {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.6rem;
 }

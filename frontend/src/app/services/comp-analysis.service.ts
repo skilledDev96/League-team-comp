@@ -20,11 +20,29 @@ export class CompAnalysisService {
    */
   readonly running = signal(false);
 
-  /** Trigger a fresh analysis on the backend. Returns the computed result. */
+  /**
+   * Trigger a fresh analysis on the backend. Returns the computed result.
+   *
+   * `running` is managed here rather than by the caller, so every page that can
+   * start a run reports it the same way and none can forget to clear it.
+   */
   async refresh(
     players: Player[],
     comps: Comp[],
     overrides: Record<string, string> = {}
+  ): Promise<CompAnalysis> {
+    this.running.set(true);
+    try {
+      return await this.run(players, comps, overrides);
+    } finally {
+      this.running.set(false);
+    }
+  }
+
+  private async run(
+    players: Player[],
+    comps: Comp[],
+    overrides: Record<string, string>
   ): Promise<CompAnalysis> {
     if (!isFirebaseConfigured()) {
       throw new Error('Match analysis runs on the deployed app — sign in there to refresh.');

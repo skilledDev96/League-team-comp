@@ -2,6 +2,8 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AnalysisGame } from '../../models/team.models';
+import { AuthService } from '../../services/auth.service';
+import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { effectiveComp } from '../../core/comp-alias';
 import {
@@ -23,9 +25,10 @@ import {
  * keeps happening", which is a different question asked at a different time —
  * usually the evening after a series, not during drafting.
  *
- * It reads the same cached `compAnalysis` payload and never calls Riot itself,
- * so opening it costs nothing against the rate limit. Refresh still lives on
- * the Analysis page, and this page points there rather than duplicating it.
+ * It reads the same cached `compAnalysis` payload, so opening it costs nothing
+ * against the rate limit. Refreshing is offered here as well as on Analysis —
+ * the page kept telling people to go elsewhere for it — but both go through the
+ * one service, so a run started on either shows as running on both.
  */
 @Component({
   selector: 'app-review',
@@ -34,8 +37,14 @@ import {
 })
 export class ReviewComponent {
   protected readonly data = inject(TeamDataService);
+  protected readonly auth = inject(AuthService);
+  private readonly analysisService = inject(CompAnalysisService);
   protected readonly formatDuration = formatDuration;
   protected readonly factorsOf = factorsOf;
+
+  /** Shared with the Analysis page, so a run started on either shows on both. */
+  protected readonly refreshing = this.analysisService.running;
+  protected readonly refreshError = signal('');
 
   protected readonly offBook = OFF_BOOK;
 
@@ -147,6 +156,28 @@ export class ReviewComponent {
     const wins = games.filter((game) => game.win).length;
     return { games: games.length, wins, losses: games.length - wins };
   });
+
+  /**
+   * Refresh from here rather than sending people to Analysis for it.
+   *
+   * The flag lives on the service, so a run started on either page shows as
+   * running on both, and returning mid-run still says so. Edit-gated to match
+   * the Analysis button — a refresh writes `meta/compAnalysis` and spends Riot
+   * budget, so it is not a viewer's to trigger.
+   */
+  protected async refresh(): Promise<void> {
+    if (this.refreshing()) return;
+    this.refreshError.set('');
+    try {
+      await this.analysisService.refresh(
+        this.data.players(),
+        this.data.comps(),
+        this.data.compOverrideMap()
+      );
+    } catch (err) {
+      this.refreshError.set(err instanceof Error ? err.message : 'Analysis failed.');
+    }
+  }
 
   protected toggle(matchId: string): void {
     this.expandedId.update((open) => (open === matchId ? null : matchId));
