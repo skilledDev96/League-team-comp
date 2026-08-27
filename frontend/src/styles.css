@@ -7454,8 +7454,14 @@ app-match-note {
 
 /* The active side carries its own meaning, so it is tinted rather than a
    neutral highlight — the same red/green used for results everywhere else. */
+/* The base active state has to stand on its own: only Review's segments carry a
+   result colour, so a control without one was left showing its selection as a
+   slightly brighter word. The loss/win variants below override the tint by
+   specificity and inherit the rest. */
 .segment.active {
   color: var(--text-0);
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .segment.is-loss.active {
@@ -7741,4 +7747,42 @@ app-match-note {
 .loss-head .no-factor {
   flex: 1 1 100%;
   margin-top: 0.55rem;
+}
+
+/* A labelled control is taller than a bare meta line, and centring the row
+   left the count floating between the label and the control it belongs
+   beside. Align to the bottom so they share a baseline. */
+.review-toolbar .view-controls {
+  align-items: flex-end;
+}
+
+.review-toolbar .view-controls > .meta-line {
+  margin: 0 0 0.4rem;
+}
+
+/* `.links` sets `display: grid` and is declared far later in this file, so it
+   silently beat `.action-row`'s flex on source order: the refresh button and
+   the overflow trigger stacked and stretched instead of sitting side by side.
+   Two classes rather than one so it wins on specificity, not position. */
+.links.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* The host is a block element by default, which made it a full-width row item
+   with a 34px button adrift at one end. */
+app-overflow-menu {
+  display: inline-flex;
+}
+
+/* The sample behind a win rate, so a 17% next to a Platinum badge reads as
+   "two of the last twelve" rather than a contradiction. */
+.sample-size {
+  margin-left: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-1);
+  opacity: 0.8;
 }

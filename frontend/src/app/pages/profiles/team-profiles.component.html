@@ -33,7 +33,11 @@
     <div class="profiles-row profiles-head" role="row">
       <span role="columnheader">Player</span>
       <span role="columnheader">Rank</span>
-      <span role="columnheader" class="num">Win rate</span>
+      <!-- Sits next to Rank, which is the season. This is the last handful of
+           games, and reading it as a ladder record makes a Platinum player on a
+           bad run look impossible. -->
+      <span role="columnheader" class="num"
+            appTip="Win rate over the recent games scanned in this queue — not the season ladder record beside it">Recent</span>
       <span role="columnheader" class="num">KDA</span>
       <span role="columnheader" class="num">CS/min</span>
       <span role="columnheader" class="num">Vision</span>
@@ -57,7 +61,10 @@
 
         @if (row.matches; as m) {
           <span class="profiles-rank" role="cell">{{ selectedQueue() === 'clash' ? '—' : rankLabel(row.rank) }}</span>
-          <span class="num" role="cell" [class.pos]="m.winRate >= 50" [class.neg]="m.winRate < 50">{{ m.winRate }}%</span>
+          <span class="num" role="cell" [class.pos]="m.winRate >= 50" [class.neg]="m.winRate < 50"
+                [appTip]="m.wins + 'W-' + m.losses + 'L over the last ' + m.games + ' games'">
+            {{ m.winRate }}%<small class="sample-size">{{ m.games }}g</small>
+          </span>
           <span class="num" role="cell">{{ m.avgKda | number: '1.1-1' }}</span>
           <span class="num" role="cell">{{ m.avgCsPerMin | number: '1.1-1' }}</span>
           <span class="num" role="cell">{{ m.avgVisionScore | number: '1.0-0' }}</span>
