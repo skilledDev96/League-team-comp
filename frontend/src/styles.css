@@ -7660,3 +7660,42 @@ app-match-note {
   margin-top: 0;
   margin-bottom: 0;
 }
+
+/* A chevron alone was not enough of a signal — it sat dim at the far edge while
+   the row it belonged to looked like static text. The row itself now behaves
+   like the target it is: it lights on hover, and the chevron is a real control
+   rather than a hint. */
+.loss-card {
+  border-radius: 8px;
+  /* Bleed the padding outwards so the hover panel has room without shifting
+     the text out of line with the group header above it. */
+  padding-inline: 0.6rem;
+  margin-inline: -0.6rem;
+  transition: background 140ms ease;
+}
+
+.loss-card:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.loss-card.expanded {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.loss-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.loss-chevron {
+  font-size: 1.25rem;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-radius: 50%;
+  padding: 1px;
+}
+
+.loss-head:hover .loss-chevron {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
