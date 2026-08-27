@@ -152,19 +152,23 @@
             {{ game.date | date: 'd MMM' }} · {{ formatDuration(game.durationSec) }}
             <span class="loss-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
           </span>
-        </button>
 
-        @if (factorsOf(game).length) {
-          <div class="tag-row">
-            @for (factor of factorsOf(game); track factor.code) {
-              <span class="tag" [class.loss-tag]="!game.win" [class.win-tag]="game.win">
-                {{ factor.label }}<em>{{ factor.detail }}</em>
-              </span>
-            }
-          </div>
-        } @else {
-          <p class="muted">{{ noFactorLine(game) }}</p>
-        }
+          <!-- Inside the button, so the whole collapsed panel toggles. Clicking
+               a factor tag used to do nothing, which made the row feel half
+               dead. Spans rather than div/p: a button may only contain
+               phrasing content. -->
+          @if (factorsOf(game).length) {
+            <span class="tag-row">
+              @for (factor of factorsOf(game); track factor.code) {
+                <span class="tag" [class.loss-tag]="!game.win" [class.win-tag]="game.win">
+                  {{ factor.label }}<em>{{ factor.detail }}</em>
+                </span>
+              }
+            </span>
+          } @else {
+            <span class="muted no-factor">{{ noFactorLine(game) }}</span>
+          }
+        </button>
 
         @if (expandedId() === game.matchId) {
           <div class="expanded-tables">

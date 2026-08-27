@@ -7730,3 +7730,15 @@ app-match-note {
   vertical-align: middle;
   gap: 0.35rem;
 }
+
+/* The factors now live inside the toggle button, so they take their own line
+   under the header row rather than competing with it. */
+.loss-head .tag-row {
+  flex: 1 1 100%;
+  margin-top: 0.55rem;
+}
+
+.loss-head .no-factor {
+  flex: 1 1 100%;
+  margin-top: 0.55rem;
+}

@@ -61,7 +61,7 @@
                contradiction rather than two facts. -->
           @if (stats.top3.length) {
             <p class="meta-line">
-              <span class="meta-label" [appTip]="'Most played in ' + selectedQueueLabel() + ', from match history'">Most played</span>
+              <span class="meta-label" [appTip]="'The champions actually played in recent ' + selectedQueueLabel() + ' games'">Most played recently</span>
               <span class="champ-chip-row is-inline">
                 @for (champ of stats.top3; track champ) {
                   <app-champion-chip [champion]="champ" />
@@ -69,7 +69,7 @@
               </span>
             </p>
           } @else {
-            <p class="meta-line"><span class="meta-label">Most played</span><span class="meta-value">Unknown</span></p>
+            <p class="meta-line"><span class="meta-label">Most played recently</span><span class="meta-value">Unknown</span></p>
           }
         } @else {
           <p class="empty-state">No {{ selectedQueueLabel() }} data is available yet. Refresh this player from Riot.</p>

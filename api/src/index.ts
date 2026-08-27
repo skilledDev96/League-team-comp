@@ -598,7 +598,7 @@ async function enrichPlayerProfile(payload: EnrichRequest, apiKey: string | unde
   }
 }
 
-export const enrichPlayer = onRequest({ cors: true, secrets: [RIOT_API_KEY] }, async (req, res) => {
+export const enrichPlayer = onRequest({ cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 300 }, async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.status(204).send('');
     return;
@@ -730,7 +730,7 @@ async function getSynergyGroups(payload: SynergyRequest, apiKey: string): Promis
     .sort((a, b) => b.games - a.games);
 }
 
-export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY] }, async (req, res) => {
+export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 300 }, async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.status(204).send('');
     return;
