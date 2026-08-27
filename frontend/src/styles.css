@@ -7722,3 +7722,11 @@ app-match-note {
     transform: translateY(-1px);
   }
 }
+
+/* Champion chips sitting inside a meta line, beside their label rather than
+   wrapping onto their own block. */
+.champ-chip-row.is-inline {
+  display: inline-flex;
+  vertical-align: middle;
+  gap: 0.35rem;
+}

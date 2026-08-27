@@ -10,10 +10,11 @@ import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ExternalProfilesComponent } from '../../shared/external-profiles.component';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
+import { TooltipDirective } from '../../shared/tooltip.directive';
 
 @Component({
   selector: 'app-player-profile',
-  imports: [RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, OverflowMenuComponent],
+  imports: [RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, OverflowMenuComponent, TooltipDirective],
   templateUrl: './player-profile.component.html'
 })
 export class PlayerProfileComponent {

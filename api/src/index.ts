@@ -555,7 +555,20 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
 
   return {
     ...primary,
-    top3: masteryPool.length ? masteryPool : primary.top3,
+    /**
+     * Recent play first, mastery only as a fallback.
+     *
+     * This used to prefer mastery, which is an all-time total and so answers
+     * "what have they ever played" — a support who spent a season on ADC still
+     * reads as Kai'Sa, Jinx, Miss Fortune years later. For drafting, what they
+     * have been playing lately is the question, and it was already computed.
+     * The bans depend on this too: they are ban candidates *not* in the pool,
+     * so a stale pool quietly suggests banning champions the player mains.
+     *
+     * Mastery still covers the case the match scan cannot: a player with no
+     * recent games in the queues we look at.
+     */
+    top3: primary.top3?.length ? primary.top3 : masteryPool,
     queueStats: {
       solo: soloStats?.queueStats?.solo,
       flex: flexStats?.queueStats?.flex,
