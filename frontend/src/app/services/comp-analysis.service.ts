@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { getAuthInstance, isFirebaseConfigured } from '../core/firebase';
 import { CompAnalysis, Comp, Player, ROLES } from '../models/team.models';
@@ -7,6 +7,18 @@ import { UiService } from './ui.service';
 @Injectable({ providedIn: 'root' })
 export class CompAnalysisService {
   private readonly ui = inject(UiService);
+
+  /**
+   * Whether a run is in flight, held here rather than on the Analysis page.
+   *
+   * A run is not tied to the page that started it: the function writes
+   * `meta/compAnalysis` itself, so the result arrives over the snapshot
+   * listener whether or not anyone is looking. Keeping this on the component
+   * meant navigating away destroyed the only sign it was still going, and it
+   * read as a cancelled refresh. It is not cancelled — nothing aborts the
+   * fetch, and the write lands regardless.
+   */
+  readonly running = signal(false);
 
   /** Trigger a fresh analysis on the backend. Returns the computed result. */
   async refresh(

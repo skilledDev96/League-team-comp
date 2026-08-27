@@ -116,10 +116,18 @@ by the champion matcher alone. Two human corrections sit on top of `matchComp`:
   panel on Analysis.
 
 Precedence is explicit-beats-rule: an override names the comp, then that comp's
-own `countsUnder` applies. Both travel to the backend with the analysis request,
-so every win rate on the site agrees — which also means **a change only shows up
-after a Refresh on Analysis**, and both controls say so. `resolveAlias` guards
-against `countsUnder` cycles; two separate edits can create one.
+own `countsUnder` applies. `resolveAlias` guards against `countsUnder` cycles;
+two separate edits can create one.
+
+**The rules are applied twice, and both are needed.** The backend applies them so
+the stored analysis and `perComp` are right. The browser applies them again in
+`core/comp-alias.ts`, because the Analysis page re-derives comp membership from
+`nearCompName` on every render so the strictness slider can respond without a
+Riot call — and that re-derivation ignores `game.compId` entirely. Wiring only
+the backend leaves an override visibly doing nothing: the game stays off the
+books and the win rate never moves, which is exactly what shipped on 27 Aug 2026.
+Anything that decides which comp a game belongs to must go through
+`effectiveComp`, never `game.compId` alone.
 
 Two questions are asked of a cached entry, and conflating them makes a
 `CACHE_VERSION` bump silently do nothing:

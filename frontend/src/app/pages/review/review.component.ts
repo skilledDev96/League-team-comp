@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AnalysisGame } from '../../models/team.models';
 import { TeamDataService } from '../../services/team-data.service';
+import { effectiveComp } from '../../core/comp-alias';
 import {
   commonestFactor,
   formatDuration,
@@ -40,10 +41,19 @@ export class ReviewComponent {
 
   protected readonly analysis = computed(() => this.data.compAnalysis());
 
+  /**
+   * The comp a game counts as, including corrections made since the last
+   * refresh. Reading `game.compId` alone would show a game under its old comp
+   * until someone refreshed, disagreeing with the Analysis page in the meantime.
+   */
+  private compFor(game: AnalysisGame): { id: string; name: string } | null {
+    return effectiveComp(game.compId, this.data.compOverride(game.matchId), this.data.comps());
+  }
+
   private readonly filteredGames = computed<AnalysisGame[]>(() => {
     const comp = this.compFilter();
     const games = this.analysis()?.games ?? [];
-    return comp === 'all' ? games : games.filter((game) => game.compId === comp);
+    return comp === 'all' ? games : games.filter((game) => this.compFor(game)?.id === comp);
   });
 
   protected readonly summary = computed(() => summariseLosses(this.filteredGames()));
@@ -76,12 +86,13 @@ export class ReviewComponent {
   protected readonly lossGroups = computed<LossGroup[]>(() => {
     const groups = new Map<string, LossGroup>();
     for (const game of this.allLosses()) {
-      const id = game.compId || OFF_BOOK;
+      const comp = this.compFor(game);
+      const id = comp?.id ?? OFF_BOOK;
       let group = groups.get(id);
       if (!group) {
         group = {
           compId: id,
-          name: game.compId ? game.compName || 'Comp' : 'Off-book comps',
+          name: comp?.name ?? 'Off-book comps',
           losses: [],
           pending: 0,
           topFactor: null
@@ -111,7 +122,8 @@ export class ReviewComponent {
   protected readonly compOptions = computed(() => {
     const seen = new Map<string, string>();
     for (const game of this.analysis()?.games ?? []) {
-      if (game.compId) seen.set(game.compId, game.compName ?? 'Comp');
+      const comp = this.compFor(game);
+      if (comp) seen.set(comp.id, comp.name);
     }
     return [...seen.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   });

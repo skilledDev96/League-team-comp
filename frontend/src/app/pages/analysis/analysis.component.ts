@@ -13,6 +13,7 @@ import { MatchNoteComponent } from '../../shared/match-note.component';
 import { compVerdict, formatDamage, winLossRecord } from '../comps/comp-stats.util';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
+import { effectiveComp } from '../../core/comp-alias';
 
 interface LogRow {
   id: string;
@@ -105,7 +106,8 @@ export class AnalysisComponent {
 
   // ---- Riot match analysis ---------------------------------------------
 
-  protected readonly analysisLoading = signal(false);
+  /** Lives on the service so it survives navigating away mid-run. */
+  protected readonly analysisLoading = this.analysis.running;
   protected readonly analysisError = signal('');
   protected readonly showOffBook = signal(false);
 
@@ -211,11 +213,24 @@ export class AnalysisComponent {
 
   // The comp a game is credited to at the current strictness, or null (off the
   // books). Uses the closest comp + overlap the backend already computed.
+  /**
+   * The comp this game counts as, live.
+   *
+   * The champion match is re-derived here rather than read from `game.compId`
+   * so the strictness slider responds without a Riot call. That must not
+   * discard the two human corrections, which is exactly what it used to do: a
+   * game placed by hand stayed off the books and its win rate never moved.
+   * `effectiveComp` applies the override and `countsUnder` on top, so both land
+   * immediately instead of waiting for the next refresh.
+   */
   protected gameComp(game: AnalysisGame): { id: string; name: string } | null {
+    const comps = this.data.comps();
     const name = game.nearCompName;
-    if (!name || (game.nearOverlap ?? 0) < this.compStrictness()) return null;
-    const comp = this.data.comps().find((c) => c.name === name);
-    return comp ? { id: comp.id, name: comp.name } : null;
+    const matched =
+      name && (game.nearOverlap ?? 0) >= this.compStrictness()
+        ? (comps.find((c) => c.name === name)?.id ?? null)
+        : null;
+    return effectiveComp(matched, this.data.compOverride(game.matchId), comps);
   }
 
   // Per-comp performance aggregated from the filtered games at the current
