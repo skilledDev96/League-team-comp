@@ -3,7 +3,13 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AnalysisGame } from '../../models/team.models';
 import { TeamDataService } from '../../services/team-data.service';
-import { formatDuration, summariseLosses } from './loss-patterns.util';
+import {
+  commonestFactor,
+  formatDuration,
+  LossGroup,
+  OFF_BOOK,
+  summariseLosses
+} from './loss-patterns.util';
 
 /**
  * The losses, and what they have in common.
@@ -26,6 +32,8 @@ export class ReviewComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly formatDuration = formatDuration;
 
+  protected readonly offBook = OFF_BOOK;
+
   protected readonly compFilter = signal<string>('all');
   /** Match id of the game whose objective detail is open, or null for none. */
   protected readonly expandedId = signal<string | null>(null);
@@ -40,11 +48,6 @@ export class ReviewComponent {
 
   protected readonly summary = computed(() => summariseLosses(this.filteredGames()));
 
-  /** How many losses to show before asking. A season's losses do not fit on a screen. */
-  private static readonly PAGE = 8;
-
-  protected readonly showAll = signal(false);
-
   private readonly allLosses = computed(() =>
     this.filteredGames()
       .filter((game) => !game.win)
@@ -52,22 +55,57 @@ export class ReviewComponent {
   );
 
   /**
-   * Losses that can actually be reviewed. The rest are held back deliberately:
-   * a card reading "objective data not cached" says nothing a reader can act
-   * on, and eighty of them bury the two that can.
+   * Losses that can actually be reviewed. The rest are counted, never listed: a
+   * row reading "objective data not cached" says nothing a reader can act on,
+   * and eighty of them bury the ones that can.
    */
   protected readonly losses = computed(() => this.allLosses().filter((game) => game.objectives));
 
-  /** Listed compactly and collapsed, so they are accounted for without dominating. */
   protected readonly pendingLosses = computed(() =>
     this.allLosses().filter((game) => !game.objectives)
   );
 
-  protected readonly visibleLosses = computed(() =>
-    this.showAll() ? this.losses() : this.losses().slice(0, ReviewComponent.PAGE)
-  );
+  /**
+   * Losses grouped under the comp that was played.
+   *
+   * A flat list by date answers "what happened last Tuesday", which nobody
+   * asks. Grouped, the page answers the question it exists for — whether a comp
+   * keeps losing the same way — and collapses to a screen of comp names rather
+   * than a hundred cards.
+   */
+  protected readonly lossGroups = computed<LossGroup[]>(() => {
+    const groups = new Map<string, LossGroup>();
+    for (const game of this.allLosses()) {
+      const id = game.compId || OFF_BOOK;
+      let group = groups.get(id);
+      if (!group) {
+        group = {
+          compId: id,
+          name: game.compId ? game.compName || 'Comp' : 'Off-book comps',
+          losses: [],
+          pending: 0,
+          topFactor: null
+        };
+        groups.set(id, group);
+      }
+      if (game.objectives) group.losses.push(game);
+      else group.pending += 1;
+    }
 
-  protected readonly hiddenCount = computed(() => this.losses().length - this.visibleLosses().length);
+    for (const group of groups.values()) {
+      group.topFactor = commonestFactor(group.losses);
+    }
+
+    // Most losses first — the comp costing the most games is the one to read.
+    // Off-book games are a bucket rather than a comp, so they sink to the end
+    // however many there are.
+    return [...groups.values()].sort((a, b) => {
+      if ((a.compId === OFF_BOOK) !== (b.compId === OFF_BOOK)) return a.compId === OFF_BOOK ? 1 : -1;
+      return (
+        b.losses.length - a.losses.length || b.pending - a.pending || a.name.localeCompare(b.name)
+      );
+    });
+  });
 
   /** Comps that actually appear in the analysed games, so the filter has no dead options. */
   protected readonly compOptions = computed(() => {
@@ -83,12 +121,6 @@ export class ReviewComponent {
     const wins = games.filter((game) => game.win).length;
     return { games: games.length, wins, losses: games.length - wins };
   });
-
-  /** Changing comp starts a new, shorter list; carrying "show all" over would surprise. */
-  protected setComp(value: string): void {
-    this.compFilter.set(value);
-    this.showAll.set(false);
-  }
 
   protected toggle(matchId: string): void {
     this.expandedId.update((open) => (open === matchId ? null : matchId));

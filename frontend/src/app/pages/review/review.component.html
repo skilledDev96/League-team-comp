@@ -15,7 +15,7 @@
   <section class="card review-toolbar" aria-label="Review controls">
     <div class="view-controls">
       <label class="field compact-field"><span>Comp</span>
-        <select name="reviewComp" [value]="compFilter()" (change)="setComp($any($event.target).value)">
+        <select name="reviewComp" [value]="compFilter()" (change)="compFilter.set($any($event.target).value)">
           <option value="all">All comps</option>
           @for (comp of compOptions(); track comp.id) {
             <option [value]="comp.id">{{ comp.name }}</option>
@@ -76,12 +76,44 @@
         }
       </p>
     }
-    @for (game of visibleLosses(); track game.matchId) {
-      <article class="card loss-card" [class.expanded]="expandedId() === game.matchId">
+    @for (group of lossGroups(); track group.compId; let first = $first) {
+      <details class="card comp-group" [open]="first && group.losses.length > 0">
+        <summary class="comp-group-summary">
+          <span class="comp-group-name">{{ group.name }}</span>
+          <span class="comp-group-counts">
+            @if (group.losses.length > 0) {
+              <span class="tag">{{ group.losses.length }} {{ group.losses.length === 1 ? 'loss' : 'losses' }}</span>
+            }
+            @if (group.pending > 0) {
+              <span class="tag pending-tag" title="Waiting on an objective backfill">
+                {{ group.pending }} waiting
+              </span>
+            }
+            @if (group.topFactor) {
+              <span class="comp-group-factor">Usually: {{ group.topFactor }}</span>
+            }
+          </span>
+        </summary>
+
+        @if (group.losses.length === 0) {
+          <p class="muted">
+            No objective data for {{ group.pending === 1 ? 'this loss' : 'these losses' }} yet — they
+            fill in over the next few refreshes on the
+            <a routerLink="/analysis">Analysis</a> page.
+          </p>
+        }
+
+        @for (game of group.losses; track game.matchId) {
+      <article class="loss-card" [class.expanded]="expandedId() === game.matchId">
         <button class="loss-head" type="button" (click)="toggle(game.matchId)"
                 [attr.aria-expanded]="expandedId() === game.matchId">
           <span class="loss-title">
-            <strong>{{ game.compName || game.nearCompName || 'Off-book comp' }}</strong>
+            <!-- The comp is the group heading; repeating it on every card in the
+                 group is noise. Off-book games have no shared name, so those
+                 keep the nearest match as their own label. -->
+            @if (group.compId === offBook) {
+              <strong>{{ game.nearCompName || 'Off-book' }}</strong>
+            }
             <span class="tag">{{ game.queue }}</span>
             <span class="tag">{{ game.side === 'blue' ? 'Blue' : 'Red' }} side</span>
           </span>
@@ -128,33 +160,7 @@
           }
         }
       </article>
-    }
-
-    @if (hiddenCount() > 0) {
-      <button class="offbook-toggle show-more" type="button" (click)="showAll.set(true)">
-        Show {{ hiddenCount() }} older {{ hiddenCount() === 1 ? 'loss' : 'losses' }}
-      </button>
-    }
-
-    @if (pendingLosses().length > 0) {
-      <details class="card pending-panel">
-        <summary class="pending-summary">
-          {{ pendingLosses().length }} {{ pendingLosses().length === 1 ? 'loss has' : 'losses have' }}
-          no objective data yet
-        </summary>
-        <p class="muted">
-          These were cached before objectives were stored. Each refresh on the
-          <a routerLink="/analysis">Analysis</a> page backfills a batch, so they move
-          into the list above over the next few runs.
-        </p>
-        <ul class="pending-list">
-          @for (game of pendingLosses(); track game.matchId) {
-            <li>
-              <span>{{ game.compName || game.nearCompName || 'Off-book comp' }}</span>
-              <span class="muted">{{ game.date | date: 'd MMM' }}</span>
-            </li>
-          }
-        </ul>
+        }
       </details>
     }
   </section>

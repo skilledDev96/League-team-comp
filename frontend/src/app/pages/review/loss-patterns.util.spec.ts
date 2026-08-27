@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, GameObjectives, LossFactor } from '../../models/team.models';
-import { formatDuration, summariseLosses } from './loss-patterns.util';
+import { commonestFactor, formatDuration, summariseLosses } from './loss-patterns.util';
 
 const OBJECTIVES: GameObjectives = {
   ours: { firstBlood: false, firstTower: false, dragons: 1, barons: 0, heralds: 0, grubs: 0, towers: 2, inhibitors: 0 },
@@ -77,5 +77,32 @@ describe('formatDuration', () => {
   it('shows a dash rather than 0:00 for a match with no duration cached', () => {
     expect(formatDuration(undefined)).toBe('--');
     expect(formatDuration(0)).toBe('--');
+  });
+});
+
+describe('commonestFactor', () => {
+  it('names the problem that recurs across a comp losses', () => {
+    expect(
+      commonestFactor([
+        game({ lossFactors: [factor('map_control', 'Lost the map')] }),
+        game({ lossFactors: [factor('map_control', 'Lost the map')] }),
+        game({ lossFactors: [factor('early_game', 'Lost the early game')] })
+      ])
+    ).toBe('Lost the map');
+  });
+
+  it('stays silent when nothing has happened twice', () => {
+    // One occurrence is an anecdote. Billing it as the comp's problem would
+    // put a confident label on a single game.
+    expect(
+      commonestFactor([
+        game({ lossFactors: [factor('map_control', 'Lost the map')] }),
+        game({ lossFactors: [factor('early_game', 'Lost the early game')] })
+      ])
+    ).toBeNull();
+  });
+
+  it('has nothing to say about no losses at all', () => {
+    expect(commonestFactor([])).toBeNull();
   });
 });
