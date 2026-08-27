@@ -7481,3 +7481,21 @@ app-match-note {
     display: none;
   }
 }
+
+/* Champion icons on a review card: the draft is the first thing you recognise
+   a game by, faster than a date or a side. */
+.champ-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.champ-strip .champ-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.loss-title .champ-strip {
+  margin-left: 0.35rem;
+}

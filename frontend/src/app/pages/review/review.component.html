@@ -144,6 +144,14 @@
             }
             <span class="tag">{{ game.queue }}</span>
             <span class="tag">{{ game.side === 'blue' ? 'Blue' : 'Red' }} side</span>
+            @if (ourChampions(game).length) {
+              <span class="champ-strip" aria-label="Champions played">
+                @for (champ of ourChampions(game); track champ) {
+                  <img class="champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ"
+                       [title]="champ" loading="lazy" />
+                }
+              </span>
+            }
           </span>
           <span class="loss-meta">
             {{ game.date | date: 'd MMM' }} · {{ formatDuration(game.durationSec) }}
@@ -158,10 +166,8 @@
               </span>
             }
           </div>
-        } @else if (game.win) {
-          <p class="muted">No objective story here — this one was won in the fights, not on the map.</p>
         } @else {
-          <p class="muted">No objective story here — this one was lost in the fights, not on the map.</p>
+          <p class="muted">{{ noFactorLine(game) }}</p>
         }
 
         @if (expandedId() === game.matchId) {
@@ -188,7 +194,15 @@
             </div>
           }
           @if (game.enemyChampions?.length) {
-            <p class="meta-line"><span class="meta-label">Faced</span><span class="meta-value">{{ game.enemyChampions?.join(', ') }}</span></p>
+            <p class="meta-line">
+              <span class="meta-label">Faced</span>
+              <span class="champ-strip">
+                @for (champ of game.enemyChampions; track champ) {
+                  <img class="champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ"
+                       [title]="champ" loading="lazy" />
+                }
+              </span>
+            </p>
           }
         }
       </article>

@@ -5,6 +5,7 @@ import { AnalysisGame } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { UiService } from '../../services/ui.service';
 import { effectiveComp } from '../../core/comp-alias';
 import {
   commonestFactor,
@@ -38,6 +39,7 @@ import {
 export class ReviewComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly auth = inject(AuthService);
+  protected readonly ui = inject(UiService);
   private readonly analysisService = inject(CompAnalysisService);
   protected readonly formatDuration = formatDuration;
   protected readonly factorsOf = factorsOf;
@@ -177,6 +179,29 @@ export class ReviewComponent {
     } catch (err) {
       this.refreshError.set(err instanceof Error ? err.message : 'Analysis failed.');
     }
+  }
+
+  /**
+   * What to say about a game no factor claimed.
+   *
+   * It used to assert the game "was won in the fights", which was a guess
+   * dressed as a finding — and now a checkable one: if the fights had been won
+   * decisively, `won_fights` would have fired. With the tally in hand the
+   * honest answer is the scoreline itself.
+   */
+  protected noFactorLine(game: AnalysisGame): string {
+    const kills = game.kills;
+    if (!kills) {
+      return game.win
+        ? 'No standout factor — the objectives stayed close.'
+        : 'No standout factor — the objectives stayed close.';
+    }
+    return `Nothing decided it on the map, and the fights were traded — kills ${kills.ours}-${kills.theirs}.`;
+  }
+
+  /** Our five, in role order, for the icon strip on each card. */
+  protected ourChampions(game: AnalysisGame): string[] {
+    return game.players.map((p) => p.champion).filter(Boolean);
   }
 
   protected toggle(matchId: string): void {
