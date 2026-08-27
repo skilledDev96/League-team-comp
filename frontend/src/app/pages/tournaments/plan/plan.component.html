@@ -117,50 +117,29 @@
               <span class="fearless-count is-ok">{{ playableComps(series.id).length }} playable</span>
               <span class="fearless-count is-broken">{{ brokenComps(series.id).length }} broken</span>
             </summary>
-          <div class="fearless-split">
-            <div class="fearless-col">
-              <h4 class="fearless-col-head is-ok">
-                Still playable
-                <span class="fearless-count">{{ playableComps(series.id).length }}</span>
-              </h4>
-              @if (playableComps(series.id).length) {
-                <ul class="list-clean fearless-comp-list">
-                  @for (row of playableComps(series.id); track row.id) {
-                    <li class="fearless-comp">
-                      <span class="fearless-comp-name">{{ row.name }}</span>
-                      @if (row.category) {
-                        <span class="comp-cat-chip">{{ row.category }}</span>
-                      }
-                    </li>
-                  }
-                </ul>
-              } @else {
-                <p class="muted">No comp survives intact — draft fresh from the pool below.</p>
-              }
-            </div>
-
-            <div class="fearless-col">
-              <h4 class="fearless-col-head is-broken">
-                Broken by fearless
-                <span class="fearless-count">{{ brokenComps(series.id).length }}</span>
-              </h4>
+          <!-- Trimmed to what you can still draft. The broken list, with each
+               comp's dead champions spelled out, was the bulk of this panel and
+               said the same thing as the pools below: what is gone. -->
+          <div class="fearless-playable">
+            @if (playableComps(series.id).length) {
+              <div class="chip-row">
+                @for (row of playableComps(series.id); track row.id) {
+                  <span class="tag comp-playable">
+                    {{ row.name }}
+                    @if (row.category) { <em>{{ row.category }}</em> }
+                  </span>
+                }
+              </div>
               @if (brokenComps(series.id).length) {
-                <ul class="list-clean fearless-comp-list">
-                  @for (row of brokenComps(series.id); track row.id) {
-                    <li class="fearless-comp">
-                      <span class="fearless-comp-name">{{ row.name }}</span>
-                      <span class="fearless-blocked">
-                        @for (champ of row.blocked; track champ) {
-                          <span class="fearless-blocked-name">{{ champ }}</span>
-                        }
-                      </span>
-                    </li>
-                  }
-                </ul>
-              } @else {
-                <p class="muted">Nothing broken yet.</p>
+                <p class="muted fearless-broken-note">
+                  {{ brokenComps(series.id).length }} more
+                  {{ brokenComps(series.id).length === 1 ? 'comp is' : 'comps are' }} broken by
+                  champions already burned — see Player pools for what is left per player.
+                </p>
               }
-            </div>
+            } @else {
+              <p class="muted">No comp survives intact — draft fresh from the pools below.</p>
+            }
           </div>
 
           </details>

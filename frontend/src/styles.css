@@ -7983,3 +7983,80 @@ body[data-theme="void"] {
   color: var(--text-1);
   opacity: 0.85;
 }
+
+/* ---- Section polish -----------------------------------------------------
+   Off the books is a real slice of the record — 130 of 155 games at one point
+   — and was set smaller than the rows above it. */
+.offbook-title {
+  font-size: 1.02rem;
+}
+
+.offbook-record {
+  font-size: 0.9rem;
+  padding: 0.2rem 0.7rem;
+}
+
+.offbook-note {
+  font-size: 0.85rem;
+}
+
+/* A line under a section heading saying what the section is, where the title
+   alone leaves it to be guessed. */
+.section-blurb {
+  margin: 0.15rem 0 0.9rem;
+  font-size: 0.88rem;
+  color: var(--text-1);
+}
+
+/* The record, given room. The count leads and the scan detail sits under it
+   rather than running on in the same sentence. */
+.stat-callout {
+  align-items: center;
+}
+
+.stat-headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 1.02rem;
+}
+
+.stat-headline strong {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-0);
+  line-height: 1.1;
+}
+
+.stat-extra {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-0);
+}
+
+.stat-sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.76rem;
+  color: var(--text-1);
+}
+
+/* Trimmed fearless panel: playable comps as chips rather than two columns. */
+.fearless-playable .chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.comp-playable em {
+  font-style: normal;
+  font-size: 0.72rem;
+  opacity: 0.75;
+  margin-left: 0.3rem;
+}
+
+.fearless-broken-note {
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+}

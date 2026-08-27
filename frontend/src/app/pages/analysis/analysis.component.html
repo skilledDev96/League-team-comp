@@ -13,8 +13,6 @@
       </button>
     }
   </div>
-  <p class="muted">Real win rates from your 4-5 stack Flex and Clash games (auto-matched to your comps). Games with a sub are flagged.</p>
-
   @if (analysisError()) {
     <p class="analysis-error">{{ analysisError() }}</p>
   }
@@ -32,17 +30,30 @@
   }
 
   @if (data.compAnalysis(); as a) {
-    <p class="analysis-meta">
-      <strong>{{ a.totalTeamGames }} stacked game{{ a.totalTeamGames === 1 ? '' : 's' }}</strong>
-      @if (teamRecord(); as r) {
-        @if (r.games) {
-          <span class="analysis-total-record" [class.is-positive]="r.winRate >= 50" [class.is-negative]="r.winRate < 50">{{ r.wins }}W&#8211;{{ r.losses }}L · {{ r.winRate }}%</span>
+    <!-- The record given room to be read, with the scan detail demoted to a
+         line under it: the sentence and the counts used to run together and the
+         numbers that matter were the hardest part to find. -->
+    <aside class="callout stat-callout" aria-label="Match analysis summary">
+      <span class="callout-icon material-symbols-rounded" aria-hidden="true">query_stats</span>
+      <div class="callout-body">
+        <p class="stat-headline">
+          <strong>{{ a.totalTeamGames }}</strong> stacked game{{ a.totalTeamGames === 1 ? '' : 's' }}
+          @if (teamRecord(); as r) {
+            @if (r.games) {
+              <span class="analysis-total-record" [class.is-positive]="r.winRate >= 50" [class.is-negative]="r.winRate < 50">{{ r.wins }}W&#8211;{{ r.losses }}L · {{ r.winRate }}%</span>
+            }
+          }
+        </p>
+        @if (headlineStat(); as stat) {
+          <p class="stat-extra">{{ stat }}</p>
         }
-      }
-      · {{ a.scannedMatches }} scanned ·
-      @if (a.newMatches) { {{ a.newMatches }} newly fetched · }
-      updated {{ a.generatedAt | date: 'MMM d, HH:mm' }}
-    </p>
+        <p class="stat-sub">
+          {{ a.scannedMatches }} scanned@if (a.newMatches) {, {{ a.newMatches }} newly fetched} ·
+          updated {{ a.generatedAt | date: 'MMM d, HH:mm' }} ·
+          4–5 stack Flex and Clash, auto-matched to your comps
+        </p>
+      </div>
+    </aside>
     @if (a.pendingMatches) {
       <aside class="callout is-warn">
         <span class="callout-icon material-symbols-rounded" aria-hidden="true">hourglass_top</span>
@@ -342,6 +353,9 @@
       </span>
     }
   </div>
+  <p class="section-blurb">
+    Every game we know about — the ones detected from Riot and any you logged by hand — newest first.
+  </p>
 
   <div class="log-filters">
     <label class="log-filter">

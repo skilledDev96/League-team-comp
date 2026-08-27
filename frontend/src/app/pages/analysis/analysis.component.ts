@@ -336,6 +336,36 @@ export class AnalysisComponent {
   // Most recent games (already newest-first) for a W/L form strip.
   protected readonly recentForm = computed(() => this.filteredGames().slice(0, 12));
 
+  /**
+   * One thing worth knowing beyond the record, for the header.
+   *
+   * Side first, because it is actionable at draft and nothing else on this page
+   * says it; recent form second, because a hot or cold run changes how much the
+   * lifetime number is worth. Silent when neither has enough games to mean
+   * anything rather than filling the space with noise.
+   */
+  protected readonly headlineStat = computed<string | null>(() => {
+    const { blue, red } = this.sideSplit();
+    const MIN_PER_SIDE = 8;
+    if (blue.games >= MIN_PER_SIDE && red.games >= MIN_PER_SIDE) {
+      const gap = blue.winRate - red.winRate;
+      if (Math.abs(gap) >= 10) {
+        const better = gap > 0 ? 'blue' : 'red';
+        const worse = gap > 0 ? 'red' : 'blue';
+        return `You are ${Math.abs(gap)} points better on ${better} side (${
+          gap > 0 ? blue.winRate : red.winRate
+        }% vs ${gap > 0 ? red.winRate : blue.winRate}% on ${worse}).`;
+      }
+    }
+
+    const recent = this.recentForm();
+    if (recent.length >= 8) {
+      const wins = recent.filter((g) => g.win).length;
+      return `Last ${recent.length}: ${wins}W–${recent.length - wins}L.`;
+    }
+    return null;
+  });
+
   // Win rate against each enemy champion, split into toughest and best (min 2 games).
   protected readonly matchups = computed(() => {
     const byChamp = new Map<string, { champion: string; games: number; wins: number }>();
