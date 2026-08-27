@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { LearnEntry, LearnPriority, PainPoint, Player } from '../../models/team.models';
@@ -31,6 +31,9 @@ interface PainRow extends PainPoint {
   templateUrl: './player-intel.component.html'
 })
 export class PlayerIntelComponent {
+  /** Hosted inside the Roster page, which supplies the heading and the mode switch. */
+  readonly embedded = input(false);
+
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);

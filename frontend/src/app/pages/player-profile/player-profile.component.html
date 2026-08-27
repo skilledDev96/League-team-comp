@@ -150,8 +150,7 @@
           @if (auth.editing()) {
             <a class="overflow-item" [routerLink]="['/admin']" [queryParams]="{ tab: 'players', playerId: p.id }">Edit this player</a>
           }
-          <a class="overflow-item" routerLink="/players">Back to Player Intel</a>
-          <a class="overflow-item" routerLink="/overview">Back to Overview</a>
+          <a class="overflow-item" routerLink="/roster">Back to Roster</a>
           <a class="overflow-item" routerLink="/comps">Open team comps</a>
         </app-overflow-menu>
       </div>
@@ -160,6 +159,6 @@
 } @else {
   <section class="hero">
     <h1>Player not found</h1>
-    <p><a routerLink="/players">Back to Player Intel</a></p>
+    <p><a routerLink="/roster">Back to Roster</a></p>
   </section>
 }

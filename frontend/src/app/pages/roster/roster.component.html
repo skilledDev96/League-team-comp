@@ -1,0 +1,44 @@
+<section class="hero">
+  <h1>{{ heading().title }}</h1>
+  <p>{{ heading().blurb }}</p>
+</section>
+
+<section class="card review-toolbar" aria-label="Roster views">
+  <div class="view-controls">
+    <div class="field"><span id="rosterView">Showing</span>
+      <div class="segmented" role="group" aria-labelledby="rosterView">
+        <button type="button" class="segment" [class.active]="view() === 'cards'"
+                [attr.aria-pressed]="view() === 'cards'" (click)="setView('cards')">
+          Cards
+        </button>
+        <button type="button" class="segment" [class.active]="view() === 'table'"
+                [attr.aria-pressed]="view() === 'table'" (click)="setView('table')">
+          Table
+        </button>
+        <button type="button" class="segment" [class.active]="view() === 'scouting'"
+                [attr.aria-pressed]="view() === 'scouting'" (click)="setView('scouting')">
+          Scouting
+        </button>
+      </div>
+    </div>
+    <p class="meta-line">
+      <span class="meta-label">Roster</span>
+      <span class="meta-value">{{ data.players().length }} players</span>
+    </p>
+  </div>
+</section>
+
+<!-- Only the selected mode is rendered. Each brings its own controls and its
+     own state; keeping all three alive would run three sets of computeds over
+     the same roster for no benefit. -->
+@switch (view()) {
+  @case ('table') {
+    <app-team-profiles [embedded]="true" />
+  }
+  @case ('scouting') {
+    <app-player-intel [embedded]="true" />
+  }
+  @default {
+    <app-overview [embedded]="true" />
+  }
+}

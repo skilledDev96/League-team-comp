@@ -1,7 +1,9 @@
-<section class="hero">
+@if (!embedded()) {
+  <section class="hero">
   <h1>{{ data.settings().teamName || 'Bom Squad' }} Scouting Board: Role Profiles and Champion Links</h1>
   <p>Deep-dive mode with full role scouting cards, matchup prep links, and expandable pick intel.</p>
-</section>
+  </section>
+}
 
 <section class="view-controls" aria-label="View controls">
   <div class="view-segment" role="group" aria-label="Detail level">

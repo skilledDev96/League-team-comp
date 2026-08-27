@@ -6,20 +6,31 @@ export const routes: Routes = [
     path: '',
     loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent)
   },
+  // One page, three modes. The old paths still resolve rather than redirecting:
+  // links and bookmarks keep working, and each names the mode it used to be, so
+  // /profiles still opens the table.
+  {
+    path: 'roster',
+    canActivate: [viewerGuard],
+    loadComponent: () => import('./pages/roster/roster.component').then((m) => m.RosterComponent)
+  },
   {
     path: 'overview',
     canActivate: [viewerGuard],
-    loadComponent: () => import('./pages/overview/overview.component').then((m) => m.OverviewComponent)
+    data: { view: 'cards' },
+    loadComponent: () => import('./pages/roster/roster.component').then((m) => m.RosterComponent)
   },
   {
     path: 'players',
     canActivate: [viewerGuard],
-    loadComponent: () => import('./pages/player-intel/player-intel.component').then((m) => m.PlayerIntelComponent)
+    data: { view: 'scouting' },
+    loadComponent: () => import('./pages/roster/roster.component').then((m) => m.RosterComponent)
   },
   {
     path: 'profiles',
     canActivate: [viewerGuard],
-    loadComponent: () => import('./pages/profiles/team-profiles.component').then((m) => m.TeamProfilesComponent)
+    data: { view: 'table' },
+    loadComponent: () => import('./pages/roster/roster.component').then((m) => m.RosterComponent)
   },
   {
     path: 'player/:id',

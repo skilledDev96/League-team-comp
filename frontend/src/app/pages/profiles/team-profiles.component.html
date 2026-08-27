@@ -1,7 +1,9 @@
-<section class="hero">
+@if (!embedded()) {
+  <section class="hero">
   <h1>{{ data.settings().teamName || 'Bom Squad' }} Player Profiles</h1>
   <p>Roster stats at a glance — click a player for their full profile.</p>
-</section>
+  </section>
+}
 
 <section class="view-controls profiles-controls" aria-label="Queue">
   <div class="view-segment" role="group" aria-label="Queue">

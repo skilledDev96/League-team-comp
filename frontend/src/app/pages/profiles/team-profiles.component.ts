@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Player, QueueMatchStats, RankedQueueStats } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
@@ -23,6 +23,9 @@ interface ProfileRow {
   templateUrl: './team-profiles.component.html'
 })
 export class TeamProfilesComponent {
+  /** Hosted inside the Roster page, which supplies the heading and the mode switch. */
+  readonly embedded = input(false);
+
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);

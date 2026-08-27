@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
@@ -12,6 +12,9 @@ import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
   templateUrl: './overview.component.html'
 })
 export class OverviewComponent {
+  /** Hosted inside the Roster page, which supplies the heading and the mode switch. */
+  readonly embedded = input(false);
+
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
 

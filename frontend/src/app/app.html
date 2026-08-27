@@ -4,7 +4,7 @@
   }
   <header class="topbar">
     @if (auth.isAuthed()) {
-      <a class="brand brand-link" routerLink="/overview">
+      <a class="brand brand-link" routerLink="/roster">
         {{ data.settings().teamName || 'Bom Squad' }}
         <small>Draft Hub</small>
       </a>
@@ -16,13 +16,13 @@
     }
     @if (auth.isAuthed()) {
       <nav class="nav-links" aria-label="Main navigation">
-        <a routerLink="/overview" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Overview</a>
-        <a routerLink="/players" routerLinkActive="active">Player Intel</a>
+        <!-- Overview, Player Intel and Profiles are modes of /roster now. The
+             old paths still resolve, so this stays highlighted on all of them. -->
+        <a routerLink="/roster" routerLinkActive="active">Roster</a>
         <a routerLink="/comps" routerLinkActive="active">Comps</a>
         <a routerLink="/analysis" routerLinkActive="active">Analysis</a>
         <a routerLink="/review" routerLinkActive="active">Review</a>
         <a routerLink="/tournaments" routerLinkActive="active">Tournaments</a>
-        <a routerLink="/profiles" routerLinkActive="active">Profiles</a>
       </nav>
       <div class="user-bar">
         @if (auth.canEdit()) {
@@ -99,9 +99,9 @@
       <h2 class="title-with-icon"><span class="section-icon">Hi</span>Welcome to {{ data.settings().teamName || 'Bom Squad' }}</h2>
       <p class="muted">A quick tour of your draft hub:</p>
       <ul class="list-clean">
-        <li><strong>Overview</strong> — roster, playstyles, and champ pools at a glance.</li>
-        <li><strong>Player Intel</strong> — deep-dive scouting cards per player.</li>
+        <li><strong>Roster</strong> — your players as cards, as a stat table, or as deep-dive scouting cards.</li>
         <li><strong>Comps</strong> — team comps, bans, and the game plan. <strong>Analysis</strong> — real win rates from your games.</li>
+        <li><strong>Review</strong> — what keeps happening in the games you win and lose.</li>
         @if (auth.canEdit()) {
           <li><strong>Edit mode</strong> — flip the top-right switch to reveal editing controls and the roster editor.</li>
         }

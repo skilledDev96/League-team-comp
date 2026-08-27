@@ -1,7 +1,9 @@
-<section class="hero">
-  <h1>{{ data.settings().teamName || 'Bom Squad' }} Ready Room</h1>
-  <p>Everything in one place: team identity, role ownership, champ pools, and game plan links.</p>
-</section>
+@if (!embedded()) {
+  <section class="hero">
+    <h1>{{ data.settings().teamName || 'Bom Squad' }} Ready Room</h1>
+    <p>Everything in one place: team identity, role ownership, champ pools, and game plan links.</p>
+  </section>
+}
 
 <section class="view-controls" aria-label="View controls">
   <div class="view-segment" role="group" aria-label="Detail level">
@@ -31,7 +33,7 @@
     <article class="card">
       <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">bolt</span>Quick Access</h2>
       <div class="links">
-        <a routerLink="/players"><span class="link-icon material-symbols-rounded" aria-hidden="true">groups</span>Open full player profiles</a>
+        <a routerLink="/roster" [queryParams]="{ view: 'scouting' }"><span class="link-icon material-symbols-rounded" aria-hidden="true">groups</span>Open scouting view</a>
         <a routerLink="/comps"><span class="link-icon material-symbols-rounded" aria-hidden="true">menu_book</span>Open comp cheat sheets</a>
         <a routerLink="/comps"><span class="link-icon material-symbols-rounded" aria-hidden="true">block</span>Open ban recommendations</a>
         <a routerLink="/synergy"><span class="link-icon material-symbols-rounded" aria-hidden="true">hub</span>Open team synergy stats</a>

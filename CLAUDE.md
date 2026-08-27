@@ -84,9 +84,22 @@ In Firebase mode the signals are kept live by `onSnapshot` listeners set up in `
 **Pages and routes** (`frontend/src/app/app.routes.ts`, nav in `app/app.html`): every
 route is lazy via `loadComponent`, and every content route is behind `viewerGuard`
 (`/admin` uses `authGuard`). `/` and `/login` are the login page; the rest are
-`/overview`, `/players` (player-intel), `/profiles`, `/player/:id`, `/comps`,
-`/analysis`, `/review`, `/tournaments`, `/synergy`, `/admin`. Adding a page means
-touching both files — the route alone leaves it unreachable.
+`/roster`, `/player/:id`, `/comps`, `/analysis`, `/review`, `/tournaments`,
+`/synergy`, `/admin`. Adding a page means touching both files — the route alone
+leaves it unreachable.
+
+**`/roster` is one page with three modes**, in `pages/roster/`: Cards
+(`OverviewComponent`), Table (`TeamProfilesComponent`) and Scouting
+(`PlayerIntelComponent`). They were three nav entries answering the same
+question at different depths. The shell hosts the three existing components
+rather than replacing them — each keeps its own state and controls, and passes
+`embedded` so only the shell renders a heading. `@switch` means only the
+selected one is alive.
+
+`/overview`, `/players` and `/profiles` **still resolve**, each carrying
+`data: { view }` naming the mode it used to be, so old links and the `e2e`
+suite land where they always did. Do not turn them into redirects without
+checking `e2e/tests/authenticated.spec.ts`, which navigates to `./players`.
 
 **The analysis data flow** is worth knowing before touching either analysis page:
 
