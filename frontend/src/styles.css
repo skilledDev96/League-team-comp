@@ -7699,3 +7699,26 @@ app-match-note {
 .loss-head:hover .loss-chevron {
   background: color-mix(in srgb, var(--accent) 30%, transparent);
 }
+
+/* Height and elevation on the row, so hovering feels like picking a card up
+   rather than tinting a line of text. */
+.loss-card {
+  padding-bottom: 0.85rem;
+  transition: background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.loss-card:hover {
+  box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.45);
+}
+
+.loss-card.expanded {
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.4);
+}
+
+/* The lift is the one part that is motion for its own sake, so it follows the
+   same reduced-motion rule the card entrance animations do. */
+@media (prefers-reduced-motion: no-preference) {
+  .loss-card:hover {
+    transform: translateY(-1px);
+  }
+}
