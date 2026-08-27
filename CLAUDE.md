@@ -32,7 +32,7 @@ npm test             # vitest run (Riot logic unit tests)
 npm run build        # tsc build of the functions
 
 # from e2e/ — runs against the live site and functions
-npm test             # 10 public checks, +9 more if a test account is configured
+npm test             # 10 public checks, +10 more if a test account is configured
 
 # from the repo root, where firebase.json is
 npm run deploy:functions   # firebase deploy --only functions (all five)

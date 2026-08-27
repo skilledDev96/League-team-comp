@@ -79,6 +79,17 @@ test('the draft board loads', async ({ page }) => {
   ).toBeVisible({ timeout: 30_000 });
 });
 
+test('the review page renders', async ({ page }) => {
+  await page.goto('./review');
+  // The toolbar means there are games to review; the empty state means nobody
+  // has refreshed on Analysis yet. Both are the page working, and which one
+  // shows is not this test's business. Deliberately not asserting on loss
+  // cards: a week with no losses is a real outcome, not a broken page.
+  await expect(
+    page.locator('.review-toolbar').or(page.getByText(/No match data yet/i)).first()
+  ).toBeVisible({ timeout: 30_000 });
+});
+
 test('no console errors while moving around signed in', async ({ page }) => {
   const errors: string[] = [];
   page.on('console', (msg) => {
@@ -95,7 +106,7 @@ test('no console errors while moving around signed in', async ({ page }) => {
     errors.push(`404: ${response.url()}`);
   });
 
-  for (const path of ['./', './comps', './analysis', './tournaments']) {
+  for (const path of ['./', './comps', './analysis', './review', './tournaments']) {
     await page.goto(path);
     await expect(page.getByRole('link', { name: 'Comps' })).toBeVisible({ timeout: 30_000 });
   }
