@@ -7219,7 +7219,7 @@ app-match-note {
 }
 
 .loss-card {
-  margin-top: 0.7rem;
+  margin-top: 1.1rem;
 }
 
 .loss-head {
@@ -7342,11 +7342,11 @@ app-match-note {
    line — they are no longer separate .card boxes. */
 .comp-group .loss-card + .loss-card {
   border-top: 1px solid var(--card-border);
-  padding-top: 0.7rem;
+  padding-top: 1.1rem;
 }
 
 .comp-group .loss-card:first-of-type {
-  margin-top: 0.85rem;
+  margin-top: 1.1rem;
 }
 
 /* Small explanatory line under a control, where the effect of changing it is
@@ -7498,4 +7498,42 @@ app-match-note {
 
 .loss-title .champ-strip {
   margin-left: 0.35rem;
+}
+
+/* Our draft against theirs, on one line: the matchup is what identifies a game,
+   and splitting it across the header and an expanded row meant reading the same
+   icons twice to answer one question. */
+.matchup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-left: 0.5rem;
+}
+
+.matchup-vs {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  opacity: 0.75;
+}
+
+/* The enemy side is dimmed so a glance lands on our own draft first. */
+.champ-strip.is-enemy .champ-icon {
+  opacity: 0.75;
+}
+
+.champ-strip.is-enemy .champ-icon:hover {
+  opacity: 1;
+}
+
+/* Breathing room between the head, the factors and the table. */
+.loss-card .tag-row {
+  margin-top: 0.55rem;
+}
+
+.loss-card > p.muted {
+  margin: 0.55rem 0 0;
 }

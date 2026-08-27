@@ -144,11 +144,22 @@
             }
             <span class="tag">{{ game.queue }}</span>
             <span class="tag">{{ game.side === 'blue' ? 'Blue' : 'Red' }} side</span>
-            @if (ourChampions(game).length) {
-              <span class="champ-strip" aria-label="Champions played">
-                @for (champ of ourChampions(game); track champ) {
-                  <img class="champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ"
-                       [title]="champ" loading="lazy" />
+            @if (ourChampions(game).length || game.enemyChampions?.length) {
+              <span class="matchup" aria-label="Our draft against theirs">
+                <span class="champ-strip">
+                  @for (champ of ourChampions(game); track champ) {
+                    <img class="champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ"
+                         [title]="champ" loading="lazy" />
+                  }
+                </span>
+                @if (game.enemyChampions?.length) {
+                  <span class="matchup-vs" aria-hidden="true">vs</span>
+                  <span class="champ-strip is-enemy">
+                    @for (champ of game.enemyChampions; track champ) {
+                      <img class="champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ"
+                           [title]="champ" loading="lazy" />
+                    }
+                  </span>
                 }
               </span>
             }
@@ -193,17 +204,8 @@
               </div>
             </div>
           }
-          @if (game.enemyChampions?.length) {
-            <p class="meta-line">
-              <span class="meta-label">Faced</span>
-              <span class="champ-strip">
-                @for (champ of game.enemyChampions; track champ) {
-                  <img class="champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ"
-                       [title]="champ" loading="lazy" />
-                }
-              </span>
-            </p>
-          }
+          <!-- The matchup lives on the card head now, so repeating it here
+               would just be the same five icons twice. -->
         }
       </article>
         }
