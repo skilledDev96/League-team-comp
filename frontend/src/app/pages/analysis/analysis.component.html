@@ -4,8 +4,9 @@
 </section>
 
 <section id="analysisSection" class="card" aria-label="Match analysis">
-  <div class="analysis-head">
-    <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">query_stats</span>Match Analysis</h2>
+  <!-- No heading here: the page hero above already says Match Analysis, and
+       repeating it put the same words twice on one screen. -->
+  <div class="analysis-head is-bare">
     @if (auth.editing()) {
       <button type="button" class="view-btn analysis-refresh" [disabled]="analysisLoading()" (click)="refreshAnalysis()">
         <span class="material-symbols-rounded" aria-hidden="true">sync</span>

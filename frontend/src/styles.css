@@ -8060,3 +8060,18 @@ body[data-theme="void"] {
   margin-top: 0.6rem;
   font-size: 0.82rem;
 }
+
+/* With the duplicate heading gone the row holds only the refresh button, so it
+   sits to the right rather than floating alone on the left. */
+.analysis-head.is-bare {
+  justify-content: flex-end;
+  margin-bottom: 0.6rem;
+}
+
+/* Padding-top used to come from `+ .loss-card`, which by definition skips the
+   first card — so the first row sat flush against its own border while every
+   other row had breathing room, and read as a different border. Set on every
+   card instead. */
+.loss-card {
+  padding-top: 0.85rem;
+}
