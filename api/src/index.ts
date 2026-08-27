@@ -12,7 +12,7 @@ import { attributeComp } from './comp-attribution';
 import { summarizeMatches } from './match-stats';
 import { classifyArchetype, describePlayer } from './insights';
 import { CACHE_VERSION, isCacheCurrent, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
-import { describeLoss, GameObjectives, LossFactor } from './objectives';
+import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
 import { BUILD_SHA } from './build-info';
 
 initializeApp();
@@ -821,6 +821,8 @@ interface AnalysisGameResponse {
   attribution?: 'manual' | 'alias';
   /** Why this game was lost. Empty for a win, and for a loss with no story. */
   lossFactors?: LossFactor[];
+  /** Why this game was won. Empty for a loss, and for a win with no story. */
+  winFactors?: WinFactor[];
 }
 
 /**
@@ -1192,7 +1194,8 @@ async function computeCompAnalysis(
       ...(objectives && {
         objectives,
         durationSec,
-        lossFactors: win ? [] : describeLoss(objectives, durationSec)
+        lossFactors: win ? [] : describeLoss(objectives, durationSec),
+        winFactors: win ? describeWin(objectives, durationSec) : []
       })
     });
   }

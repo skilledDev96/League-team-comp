@@ -218,6 +218,24 @@ export interface LossFactor {
   detail: string;
 }
 
+export type WinCode =
+  | 'early_lead'
+  | 'dragon_control'
+  | 'baron_control'
+  | 'map_control'
+  | 'closed_fast'
+  | 'comeback';
+
+/** One reason a game was won. Mirrors `LossFactor`; see `api/src/objectives.ts`. */
+export interface WinFactor {
+  code: WinCode;
+  label: string;
+  detail: string;
+}
+
+/** Either side of the same shape, for code that handles wins and losses alike. */
+export type OutcomeFactor = LossFactor | WinFactor;
+
 export interface AnalysisGame {
   matchId: string;
   compId: string | null;
@@ -239,6 +257,8 @@ export interface AnalysisGame {
   durationSec?: number;
   /** Empty for a win, and for a loss with no objective story to tell. */
   lossFactors?: LossFactor[];
+  /** Empty for a loss, and for a win with no objective story to tell. */
+  winFactors?: WinFactor[];
   /**
    * Set when a person placed this game rather than the champion matcher —
    * `manual` for an override on this match, `alias` for a comp's `countsUnder`.

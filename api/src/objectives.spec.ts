@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeLoss, GameObjectives, summariseLosses, TeamObjectives } from './objectives';
+import { describeLoss, describeWin, GameObjectives, summariseLosses, TeamObjectives } from './objectives';
 
 function team(over: Partial<TeamObjectives> = {}): TeamObjectives {
   return {
@@ -110,5 +110,51 @@ describe('summariseLosses', () => {
 
     const patterns = summariseLosses([early, early, baron]);
     expect(patterns.map((p) => p.code)).toEqual(['early_game', 'baron_control']);
+  });
+});
+
+describe('describeWin', () => {
+  const codes = (o: GameObjectives, secs: number) => describeWin(o, secs).map((f) => f.code);
+
+  it('credits taking the early game', () => {
+    expect(
+      codes(game({ firstBlood: true, firstTower: true }, {}), LONG)
+    ).toContain('early_lead');
+  });
+
+  it('wants both first blood and first tower before calling it', () => {
+    expect(codes(game({ firstBlood: true }, {}), LONG)).not.toContain('early_lead');
+  });
+
+  it('credits dragon and baron control on the same thresholds as the loss side', () => {
+    const c = codes(game({ dragons: 3, barons: 1 }, { dragons: 1, barons: 0 }), LONG);
+    expect(c).toContain('dragon_control');
+    expect(c).toContain('baron_control');
+  });
+
+  it('ignores a one-dragon lead, which is variance rather than control', () => {
+    expect(codes(game({ dragons: 2 }, { dragons: 1 }), LONG)).not.toContain('dragon_control');
+  });
+
+  it('calls a quick win a quick win', () => {
+    expect(codes(game({}, {}), SHORT)).toContain('closed_fast');
+  });
+
+  it('reads a long win from behind as a comeback', () => {
+    const c = codes(game({ dragons: 1, towers: 4 }, { dragons: 3, barons: 1, towers: 6 }), LONG);
+    expect(c).toContain('comeback');
+  });
+
+  it('never claims both a fast close and a comeback', () => {
+    // They read opposite ends of the clock, so a game claiming both would mean
+    // the thresholds had drifted into overlapping.
+    for (const secs of [10 * 60, SHORT, 26 * 60, LONG, 50 * 60]) {
+      const c = codes(game({ dragons: 1 }, { dragons: 3, barons: 1, towers: 9 }), secs);
+      expect(c.includes('closed_fast') && c.includes('comeback')).toBe(false);
+    }
+  });
+
+  it('says nothing about a long, even win rather than inventing a cause', () => {
+    expect(codes(game({ dragons: 2, towers: 5 }, { dragons: 2, towers: 5 }), LONG)).toEqual([]);
   });
 });

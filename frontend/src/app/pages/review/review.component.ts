@@ -9,15 +9,18 @@ import {
   formatDuration,
   LossGroup,
   OFF_BOOK,
-  summariseLosses
+  factorsOf,
+  Outcome,
+  summarise
 } from './loss-patterns.util';
 
 /**
- * The losses, and what they have in common.
+ * The games, and what they have in common — losses by default, wins on the
+ * other side of the toggle.
  *
  * Deliberately a separate page from Analysis rather than another panel on it.
  * Analysis answers "which comps win" and is already dense; this answers "what
- * keeps going wrong", which is a different question asked at a different time —
+ * keeps happening", which is a different question asked at a different time —
  * usually the evening after a series, not during drafting.
  *
  * It reads the same cached `compAnalysis` payload and never calls Riot itself,
@@ -32,6 +35,7 @@ import {
 export class ReviewComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly formatDuration = formatDuration;
+  protected readonly factorsOf = factorsOf;
 
   protected readonly offBook = OFF_BOOK;
 
@@ -56,11 +60,21 @@ export class ReviewComponent {
     return comp === 'all' ? games : games.filter((game) => this.compFor(game)?.id === comp);
   });
 
-  protected readonly summary = computed(() => summariseLosses(this.filteredGames()));
+  /**
+   * Which side of the result the page is showing.
+   *
+   * A toggle rather than two stacked sections: the losses alone already ran to
+   * a hundred cards before they were grouped, and showing both at once would
+   * undo that. Losses lead because that is the question people open this page
+   * with; the wins are there to answer "what were we doing when it worked".
+   */
+  protected readonly outcome = signal<Outcome>('loss');
+
+  protected readonly summary = computed(() => summarise(this.filteredGames(), this.outcome()));
 
   private readonly allLosses = computed(() =>
     this.filteredGames()
-      .filter((game) => !game.win)
+      .filter((game) => game.win === (this.outcome() === 'win'))
       .sort((a, b) => b.date - a.date)
   );
 

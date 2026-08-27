@@ -119,6 +119,101 @@ export function describeLoss(
   return factors;
 }
 
+export type WinCode =
+  | 'early_lead'
+  | 'dragon_control'
+  | 'baron_control'
+  | 'map_control'
+  | 'closed_fast'
+  | 'comeback';
+
+/** A single reason a game was won, with the numbers that justify it. */
+export interface WinFactor {
+  code: WinCode;
+  label: string;
+  detail: string;
+}
+
+/** Under this, a win was a stomp rather than a game that was worked for. */
+const FAST_WIN_SECONDS = 25 * 60;
+
+/**
+ * Ranked reasons a win happened, most explanatory first.
+ *
+ * The deliberate mirror of `describeLoss`, on the same thresholds, walking the
+ * game forward in time. Kept as its own function rather than a sign-flipped
+ * version of the loss one: "lost from ahead" and "won from behind" are the same
+ * arithmetic but not the same fact, and a team reads them differently.
+ *
+ * A win with no story is common and worth leaving empty — plenty of games are
+ * won in the fights with the objectives roughly even, and inventing a cause for
+ * those would bury the wins that do follow a pattern.
+ */
+export function describeWin(
+  objectives: GameObjectives,
+  durationSec: number
+): WinFactor[] {
+  const { ours, theirs } = objectives;
+  const factors: WinFactor[] = [];
+
+  if (ours.firstBlood && ours.firstTower) {
+    factors.push({
+      code: 'early_lead',
+      label: 'Won the early game',
+      detail: 'Took both first blood and first tower'
+    });
+  }
+
+  const dragonLead = ours.dragons - theirs.dragons;
+  if (dragonLead >= DRAGON_DEFICIT) {
+    factors.push({
+      code: 'dragon_control',
+      label: 'Controlled dragons',
+      detail: `Dragons ${ours.dragons}-${theirs.dragons}`
+    });
+  }
+
+  if (ours.barons > theirs.barons) {
+    factors.push({
+      code: 'baron_control',
+      label: 'Controlled baron',
+      detail: `Barons ${ours.barons}-${theirs.barons}`
+    });
+  }
+
+  const towerLead = ours.towers - theirs.towers;
+  if (towerLead >= TOWER_DEFICIT) {
+    factors.push({
+      code: 'map_control',
+      label: 'Controlled the map',
+      detail: `Towers ${ours.towers}-${theirs.towers}`
+    });
+  }
+
+  // The two ways a win is worth remembering: it was never close, or it was.
+  // Mutually exclusive by construction, since they read opposite ends of the
+  // clock, so a game can never claim both.
+  if (durationSec > 0 && durationSec <= FAST_WIN_SECONDS) {
+    factors.push({
+      code: 'closed_fast',
+      label: 'Closed it out early',
+      detail: `Won in ${Math.round(durationSec / 60)} minutes`
+    });
+  } else {
+    const behindOnObjectives =
+      ours.dragons + ours.barons < theirs.dragons + theirs.barons && ours.towers <= theirs.towers;
+    if (behindOnObjectives && durationSec >= LONG_GAME_SECONDS) {
+      factors.push({
+        code: 'comeback',
+        label: 'Won from behind',
+        detail: `Behind on objectives at ${Math.round(durationSec / 60)} minutes and still won`
+      });
+    }
+  }
+
+  return factors;
+}
+
 /** How often one reason appeared across a set of losses. */
 export interface LossPattern {
   code: LossCode;

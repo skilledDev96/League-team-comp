@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, GameObjectives, LossFactor } from '../../models/team.models';
-import { commonestFactor, formatDuration, summariseLosses } from './loss-patterns.util';
+import { commonestFactor, formatDuration, summariseLosses, summariseWins } from './loss-patterns.util';
 
 const OBJECTIVES: GameObjectives = {
   ours: { firstBlood: false, firstTower: false, dragons: 1, barons: 0, heralds: 0, grubs: 0, towers: 2, inhibitors: 0 },
@@ -104,5 +104,43 @@ describe('commonestFactor', () => {
 
   it('has nothing to say about no losses at all', () => {
     expect(commonestFactor([])).toBeNull();
+  });
+});
+
+describe('summariseWins', () => {
+  const win = (over: Partial<AnalysisGame> = {}) => game({ win: true, ...over });
+
+  it('counts what the wins had in common', () => {
+    const summary = summariseWins([
+      win({ winFactors: [{ code: 'early_lead', label: 'Won the early game', detail: '' }] }),
+      win({ winFactors: [{ code: 'early_lead', label: 'Won the early game', detail: '' }] }),
+      win({ winFactors: [{ code: 'comeback', label: 'Won from behind', detail: '' }] })
+    ]);
+    expect(summary.analysed).toBe(3);
+    expect(summary.patterns[0]).toMatchObject({ code: 'early_lead', games: 2, share: 67 });
+  });
+
+  it('ignores the losses entirely', () => {
+    // The two sides share one implementation, so the risk is a filter that
+    // leaks: a loss counted into the wins would quietly inflate every share.
+    const summary = summariseWins([
+      win({ winFactors: [{ code: 'closed_fast', label: 'Closed it out early', detail: '' }] }),
+      game({ lossFactors: [factor('map_control', 'Lost the map')] })
+    ]);
+    expect(summary.analysed).toBe(1);
+    expect(summary.patterns).toHaveLength(1);
+  });
+
+  it('reports wins still waiting on objective data separately', () => {
+    const summary = summariseWins([
+      win({ winFactors: [{ code: 'closed_fast', label: 'Closed it out early', detail: '' }] }),
+      win({ objectives: undefined })
+    ]);
+    expect(summary).toMatchObject({ analysed: 1, pending: 1 });
+  });
+
+  it('leaves summariseLosses looking at the other side', () => {
+    const games = [win({ winFactors: [{ code: 'comeback', label: 'Won from behind', detail: '' }] })];
+    expect(summariseLosses(games).analysed).toBe(0);
   });
 });

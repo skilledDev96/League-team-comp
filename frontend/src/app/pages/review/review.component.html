@@ -1,6 +1,6 @@
 <section class="hero">
   <h1>Match Review</h1>
-  <p>What went wrong in the games you lost, read from the objectives both teams took.</p>
+  <p>What keeps happening in your games, read from the objectives both teams took.</p>
 </section>
 
 @if (!analysis()) {
@@ -14,6 +14,12 @@
 } @else {
   <section class="card review-toolbar" aria-label="Review controls">
     <div class="view-controls">
+      <div class="outcome-switch" role="group" aria-label="Which games to review">
+        <button type="button" class="view-btn" [class.active]="outcome() === 'loss'"
+                (click)="outcome.set('loss')">Losses</button>
+        <button type="button" class="view-btn" [class.active]="outcome() === 'win'"
+                (click)="outcome.set('win')">Wins</button>
+      </div>
       <label class="field compact-field"><span>Comp</span>
         <select name="reviewComp" [value]="compFilter()" (change)="compFilter.set($any($event.target).value)">
           <option value="all">All comps</option>
@@ -32,47 +38,52 @@
     }
   </section>
 
-  <section class="card" aria-label="Recurring problems">
-    <h2>Recurring problems</h2>
+  <section class="card" [attr.aria-label]="outcome() === 'win' ? 'What keeps working' : 'Recurring problems'">
+    <h2>{{ outcome() === 'win' ? 'What keeps working' : 'Recurring problems' }}</h2>
     @if (summary().analysed === 0) {
       <p class="empty-state">
         @if (summary().pending > 0) {
-          {{ summary().pending }} losses are waiting on objective data. Refresh on the
-          <a routerLink="/analysis">Analysis</a> page to pull it — older cached matches
-          fill in a batch at a time.
+          {{ summary().pending }} {{ outcome() === 'win' ? 'wins are' : 'losses are' }} waiting on
+          objective data. Refresh on the <a routerLink="/analysis">Analysis</a> page to pull it —
+          older cached matches fill in a batch at a time.
+        } @else if (outcome() === 'win') {
+          No wins in this selection yet.
         } @else {
           No losses in this selection. Nothing to review, which is the good outcome.
         }
       </p>
     } @else {
-      <p class="muted">Across {{ summary().analysed }} analysed {{ summary().analysed === 1 ? 'loss' : 'losses' }}.</p>
+      <p class="muted">
+        Across {{ summary().analysed }} analysed
+        {{ outcome() === 'win' ? (summary().analysed === 1 ? 'win' : 'wins') : (summary().analysed === 1 ? 'loss' : 'losses') }}.
+      </p>
       @for (pattern of summary().patterns; track pattern.code) {
         <div class="pattern-row">
           <span class="pattern-label">{{ pattern.label }}</span>
-          <span class="pattern-bar" [attr.aria-label]="pattern.share + '% of losses'">
-            <span class="pattern-fill" [style.width.%]="pattern.share"></span>
+          <span class="pattern-bar" [attr.aria-label]="pattern.share + '% of ' + (outcome() === 'win' ? 'wins' : 'losses')">
+            <span class="pattern-fill" [class.is-win]="outcome() === 'win'" [style.width.%]="pattern.share"></span>
           </span>
           <span class="pattern-count">{{ pattern.games }} of {{ summary().analysed }} ({{ pattern.share }}%)</span>
         </div>
       }
       @if (summary().pending > 0) {
         <p class="meta-line pattern-pending">
-          {{ summary().pending }} further {{ summary().pending === 1 ? 'loss is' : 'losses are' }} not counted yet —
+          {{ summary().pending }} further {{ outcome() === 'win' ? (summary().pending === 1 ? 'win is' : 'wins are') : (summary().pending === 1 ? 'loss is' : 'losses are') }} not counted yet —
           those matches were cached before objectives were stored and fill in on refresh.
         </p>
       }
     }
   </section>
 
-  <section aria-label="Losses">
-    <h2 class="section-title">Losses</h2>
+  <section [attr.aria-label]="outcome() === 'win' ? 'Wins' : 'Losses'">
+    <h2 class="section-title">{{ outcome() === 'win' ? 'Wins' : 'Losses' }}</h2>
     @if (losses().length === 0) {
       <p class="empty-state">
         @if (pendingLosses().length > 0) {
-          None of these losses have objective data yet — there is nothing to read
+          None of these {{ outcome() === 'win' ? 'wins' : 'losses' }} have objective data yet — there is nothing to read
           into until they fill in.
         } @else {
-          No losses in this selection.
+          No {{ outcome() === 'win' ? 'wins' : 'losses' }} in this selection.
         }
       </p>
     }
@@ -82,7 +93,7 @@
           <span class="comp-group-name">{{ group.name }}</span>
           <span class="comp-group-counts">
             @if (group.losses.length > 0) {
-              <span class="tag">{{ group.losses.length }} {{ group.losses.length === 1 ? 'loss' : 'losses' }}</span>
+              <span class="tag">{{ group.losses.length }} {{ outcome() === 'win' ? (group.losses.length === 1 ? 'win' : 'wins') : (group.losses.length === 1 ? 'loss' : 'losses') }}</span>
             }
             @if (group.pending > 0) {
               <span class="tag pending-tag" title="Waiting on an objective backfill">
@@ -97,7 +108,7 @@
 
         @if (group.losses.length === 0) {
           <p class="muted">
-            No objective data for {{ group.pending === 1 ? 'this loss' : 'these losses' }} yet — they
+            No objective data for {{ group.pending === 1 ? 'this game' : 'these games' }} yet — they
             fill in over the next few refreshes on the
             <a routerLink="/analysis">Analysis</a> page.
           </p>
@@ -122,12 +133,16 @@
           </span>
         </button>
 
-        @if (game.lossFactors?.length) {
+        @if (factorsOf(game).length) {
           <div class="tag-row">
-            @for (factor of game.lossFactors; track factor.code) {
-              <span class="tag loss-tag">{{ factor.label }}<em>{{ factor.detail }}</em></span>
+            @for (factor of factorsOf(game); track factor.code) {
+              <span class="tag" [class.loss-tag]="!game.win" [class.win-tag]="game.win">
+                {{ factor.label }}<em>{{ factor.detail }}</em>
+              </span>
             }
           </div>
+        } @else if (game.win) {
+          <p class="muted">No objective story here — this one was won in the fights, not on the map.</p>
         } @else {
           <p class="muted">No objective story here — this one was lost in the fights, not on the map.</p>
         }

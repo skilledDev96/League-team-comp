@@ -97,8 +97,11 @@ touching both files — the route alone leaves it unreachable.
 3. That result is persisted into `TeamData.compAnalysis`, so pages read it from
    `TeamDataService.compAnalysis()` — **no page calls Riot directly.**
 4. `/analysis` owns the Refresh button. `/review` is read-only over the same
-   payload and answers a different question (why the losses happened), which is
-   why it is a separate page rather than another panel.
+   payload and answers a different question (why the games went the way they
+   did), which is why it is a separate page rather than another panel. It
+   toggles between losses and wins; `describeLoss` and `describeWin` in
+   `api/src/objectives.ts` are deliberate mirrors on shared thresholds, and the
+   page counts both through one `summarise` so the two cannot drift.
 
 Adding a field to a cached match means **bumping `CACHE_VERSION`** in
 `analysis-cache.ts`. Old entries then re-fetch once, inside `MAX_NEW_FETCHES` per

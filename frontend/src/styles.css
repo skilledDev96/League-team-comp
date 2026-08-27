@@ -7372,3 +7372,27 @@ app-match-note {
   flex: 1 1 100%;
   margin: 0;
 }
+
+/* Wins read in the positive colour; the same bar in loss-red would say the
+   opposite of what it means. */
+.win-tag {
+  background: rgba(126, 217, 87, 0.14);
+  border-color: rgba(126, 217, 87, 0.4);
+  color: var(--text-0);
+  gap: 0.4rem;
+}
+
+.win-tag em {
+  color: var(--text-1);
+  font-size: 0.72rem;
+  font-style: normal;
+}
+
+.pattern-fill.is-win {
+  background: var(--ok);
+}
+
+.outcome-switch {
+  display: inline-flex;
+  gap: 0.3rem;
+}
