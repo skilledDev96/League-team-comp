@@ -167,6 +167,7 @@
         }
 
         @if (expandedId() === game.matchId) {
+          <div class="expanded-tables">
           @if (draftRows(game).length) {
             <div class="objective-table draft-table">
               <div class="objective-row objective-head"><span></span><span>Us</span><span>Them</span></div>
@@ -174,15 +175,14 @@
                 <div class="objective-row draft-row">
                   <span class="draft-role">{{ row.position }}</span>
                   <span class="draft-pick">
-                    <img class="champ-icon" [src]="ui.championIconUrl(row.ours)" [alt]="row.ours"
-                         [title]="row.ours" loading="lazy" />
-                    <span class="draft-name">{{ row.ours }}</span>
+                    <img class="champ-icon" [src]="ui.championIconUrl(row.champion)" [alt]="row.champion"
+                         [title]="row.champion" loading="lazy" />
+                    <span class="draft-name">{{ row.player }}</span>
                   </span>
                   <span class="draft-pick">
                     @if (row.theirs) {
                       <img class="champ-icon" [src]="ui.championIconUrl(row.theirs)" [alt]="row.theirs"
                            [title]="row.theirs" loading="lazy" />
-                      <span class="draft-name">{{ row.theirs }}</span>
                     } @else {
                       <span class="draft-name muted">—</span>
                     }
@@ -226,8 +226,7 @@
               </div>
             </div>
           }
-          <!-- The matchup lives on the card head now, so repeating it here
-               would just be the same five icons twice. -->
+          </div>
         }
       </article>
         }

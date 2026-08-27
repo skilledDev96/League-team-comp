@@ -216,12 +216,16 @@ export class ReviewComponent {
    */
   protected draftRows(
     game: AnalysisGame
-  ): { position: string; ours: string; theirs: string | null }[] {
+  ): { position: string; champion: string; player: string; theirs: string | null }[] {
     if (!game.enemies?.length) return [];
     const theirs = new Map(game.enemies.map((e) => [e.position, e.champion]));
     return game.players.map((p) => ({
       position: p.position,
-      ours: p.champion,
+      champion: p.champion,
+      // Our side names the player; the enemy side cannot. Resolving their
+      // puuids would be a Riot call per player per game, and the icon already
+      // says who they were.
+      player: p.name,
       theirs: theirs.get(p.position) ?? null
     }));
   }

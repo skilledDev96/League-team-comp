@@ -7636,3 +7636,27 @@ app-match-note {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* The draft and the objectives side by side: both are narrow by design, and
+   stacking them made the card twice as tall for no reason on a wide screen.
+   They fall back to stacked when there is not room for two. */
+.expanded-tables {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.25rem 2.5rem;
+  margin-top: 0.75rem;
+}
+
+.expanded-tables > * {
+  flex: 1 1 19rem;
+  max-width: 26rem;
+  min-width: 0;
+}
+
+/* The wrapper owns the spacing now that they sit in a row. */
+.expanded-tables .objective-table,
+.expanded-tables .draft-table {
+  margin-top: 0;
+  margin-bottom: 0;
+}
