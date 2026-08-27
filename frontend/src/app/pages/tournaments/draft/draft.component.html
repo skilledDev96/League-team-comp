@@ -260,6 +260,9 @@
               <button type="button" class="draft-pool" [class.is-critical]="row.critical"
                       [class.open]="isPoolOpen(row.name)" [attr.aria-expanded]="isPoolOpen(row.name)"
                       (click)="togglePool(row.name)">
+                @if (row.role) {
+                  <span class="draft-pool-role">{{ row.role }}</span>
+                }
                 <span class="draft-comp-name">{{ row.name }}</span>
                 <em>{{ row.left.length }}</em>
                 @if (row.critical) {

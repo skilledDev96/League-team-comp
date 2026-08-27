@@ -82,20 +82,30 @@ describe('compAvailability', () => {
 
 describe('poolPressure', () => {
   const players = [
-    { name: 'Go10x', pool: ['Vi', 'Sejuani', 'Nidalee'] },
-    { name: 'Rulukuku', pool: ['Yorick', 'Maokai', 'Camille', 'Ornn'] }
+    { name: 'Go10x', role: 'Jungle', pool: ['Vi', 'Sejuani', 'Nidalee'] },
+    { name: 'Rulukuku', role: 'Top', pool: ['Yorick', 'Maokai', 'Camille', 'Ornn'] }
   ];
 
   it('splits each pool into what is left and what is gone', () => {
-    const [thinnest] = poolPressure(players, blockedSet(['Vi', 'Sejuani']));
-    expect(thinnest.name).toBe('Go10x');
-    expect(thinnest.left).toEqual(['Nidalee']);
-    expect(thinnest.gone).toEqual(['Vi', 'Sejuani']);
+    const jungler = poolPressure(players, blockedSet(['Vi', 'Sejuani'])).find(
+      (r) => r.name === 'Go10x'
+    );
+    expect(jungler?.left).toEqual(['Nidalee']);
+    expect(jungler?.gone).toEqual(['Vi', 'Sejuani']);
   });
 
-  it('lists the thinnest pool first, since that is who to plan around', () => {
+  it('lists players in draft order rather than by how thin their pool is', () => {
+    // Sorting by pressure reordered the list between picks, which moves a row
+    // out from under the cursor in the middle of a draft. Go10x has the thinner
+    // pool here and still comes second, because Top is drafted before Jungle.
     const rows = poolPressure(players, blockedSet(['Vi']));
-    expect(rows.map((r) => r.name)).toEqual(['Go10x', 'Rulukuku']);
+    expect(rows.map((r) => r.name)).toEqual(['Rulukuku', 'Go10x']);
+  });
+
+  it('still flags a thin pool wherever it sits in the order', () => {
+    const rows = poolPressure(players, blockedSet(['Vi', 'Sejuani']));
+    expect(rows.find((r) => r.name === 'Go10x')?.critical).toBe(true);
+    expect(rows.find((r) => r.name === 'Rulukuku')?.critical).toBe(false);
   });
 
   it('flags a pool down to two champions', () => {

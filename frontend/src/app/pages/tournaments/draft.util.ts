@@ -81,11 +81,15 @@ export function compAvailability(
 
 export interface PoolPressure {
   name: string;
+  role: string;
   left: string[];
   gone: string[];
   /** Two or fewer left: one ban away from having no choice at all. */
   critical: boolean;
 }
+
+/** Draft order, so the list reads top to bottom the way a draft is discussed. */
+const ROLE_ORDER: Record<string, number> = { Top: 0, Jungle: 1, Mid: 2, ADC: 3, Support: 4 };
 
 /** Champions left at or below which a pool is worth flagging. */
 export const CRITICAL_POOL = 2;
@@ -94,15 +98,33 @@ export const CRITICAL_POOL = 2;
  * How much pool each player has left, thinnest first — that is who the draft
  * has to be planned around.
  */
+/**
+ * Ordered by role, not by how thin each pool is.
+ *
+ * Sorting by pressure put whoever was closest to running out on top, which
+ * moved rows around between picks: the list reordered itself in the middle of a
+ * draft, exactly when someone is trying to find one player. Role order is
+ * stable and matches how a draft is talked through, and the `critical` flag
+ * still marks urgency in place rather than by position.
+ */
 export function poolPressure(
-  players: readonly { name: string; pool: readonly string[] }[],
+  players: readonly { name: string; role?: string; pool: readonly string[] }[],
   blocked: ReadonlySet<string>
 ): PoolPressure[] {
   return players
     .map((player) => {
       const left = player.pool.filter((c) => c && !blocked.has(normalizeChampion(c)));
       const gone = player.pool.filter((c) => c && blocked.has(normalizeChampion(c)));
-      return { name: player.name, left, gone, critical: left.length <= CRITICAL_POOL };
+      return {
+        name: player.name,
+        role: player.role ?? '',
+        left,
+        gone,
+        critical: left.length <= CRITICAL_POOL
+      };
     })
-    .sort((a, b) => a.left.length - b.left.length);
+    .sort(
+      (a, b) =>
+        (ROLE_ORDER[a.role] ?? 9) - (ROLE_ORDER[b.role] ?? 9) || a.name.localeCompare(b.name)
+    );
 }

@@ -344,7 +344,7 @@ export class TournamentDraftComponent {
       game.ourChampions
     );
     return poolPressure(
-      this.data.players().map((p) => ({ name: p.name, pool: p.top3 ?? [] })),
+      this.data.players().map((p) => ({ name: p.name, role: p.role, pool: p.top3 ?? [] })),
       blocked
     );
   }

@@ -7786,3 +7786,14 @@ app-overflow-menu {
   color: var(--text-1);
   opacity: 0.8;
 }
+
+/* Role badge on a pool row, so the list reads as a draft order rather than a
+   list of names. */
+.draft-pool-role {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  min-width: 3.5rem;
+}
