@@ -7266,18 +7266,33 @@ app-match-note {
   font-style: normal;
 }
 
+/* Capped rather than full width: at 1fr the label sat at the far left and the
+   numbers at the far right of a wide card, so reading one row meant crossing
+   the whole page. Kept narrow enough that a label and its two numbers land in
+   one glance. */
 .objective-table {
   margin-top: 0.75rem;
   border-top: 1px solid var(--card-border);
+  max-width: 26rem;
 }
 
 .objective-row {
   display: grid;
-  grid-template-columns: 1fr 4rem 4rem;
+  grid-template-columns: 1fr 3.5rem 3.5rem;
   gap: 0.5rem;
-  padding: 0.3rem 0;
+  padding: 0.34rem 0.5rem;
   font-size: 0.82rem;
   color: var(--text-0);
+  border-radius: 6px;
+}
+
+/* Banding gives the eye a rail to follow across the row. */
+.objective-row:nth-of-type(even) {
+  background: color-mix(in srgb, var(--card-border) 22%, transparent);
+}
+
+.objective-row:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .objective-row span:not(:first-child) {
@@ -7536,4 +7551,29 @@ app-match-note {
 
 .loss-card > p.muted {
   margin: 0.55rem 0 0;
+}
+
+/* Nothing on the group header said it opened. Mirrors the comp panels on the
+   Comps page rather than inventing a second affordance for the same gesture. */
+.comp-group-summary {
+  list-style: none;
+}
+
+.comp-group-summary::-webkit-details-marker {
+  display: none;
+}
+
+.comp-group-chevron {
+  margin-left: auto;
+  color: var(--accent-2);
+  transition: transform 160ms ease;
+  flex: 0 0 auto;
+}
+
+.comp-group[open] > .comp-group-summary .comp-group-chevron {
+  transform: rotate(180deg);
+}
+
+.comp-group-summary:hover .comp-group-chevron {
+  color: var(--accent);
 }
