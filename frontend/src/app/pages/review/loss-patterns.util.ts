@@ -96,12 +96,22 @@ export const FACTOR_GUIDE: Record<string, string> = {
   comeback: 'Behind on objectives past 30 minutes and still won.'
 };
 
-/** A short read of what the numbers add up to, or null where they say nothing. */
-export interface ReviewReadout {
-  winning: string | null;
-  losing: string | null;
-  gap: string | null;
+/**
+ * One line of the read, split so the number can carry the emphasis.
+ *
+ * Structured rather than a finished sentence because the figure is the point:
+ * as one string it sat at the same weight as everything else on the page and
+ * read as prose to skim past.
+ */
+export interface ReadoutLine {
+  /** The figure, set apart and emphasised. */
+  strong: string;
+  /** The rest of the sentence. */
+  rest: string;
+  tone: 'win' | 'loss' | 'gap';
 }
+
+export type ReviewReadout = ReadoutLine[];
 
 /**
  * Below this many analysed games on a side, a share is not worth a sentence.
@@ -119,20 +129,28 @@ const MIN_FOR_A_CLAIM = 8;
 export function reviewReadout(games: AnalysisGame[]): ReviewReadout {
   const wins = summarise(games, 'win');
   const losses = summarise(games, 'loss');
+  const lines: ReadoutLine[] = [];
 
-  const winning =
-    wins.analysed >= MIN_FOR_A_CLAIM && wins.patterns.length
-      ? `Your wins come from ${phrase(wins.patterns[0].code, 'win')}${
-          wins.patterns[1] ? `, then ${phrase(wins.patterns[1].code, 'win')}` : ''
-        } — ${wins.patterns[0].share}% of them.`
-      : null;
+  // Number first in each line: it is the finding, and leading with it means the
+  // eye lands on the figure rather than on "Your wins come from…" three times.
+  if (wins.analysed >= MIN_FOR_A_CLAIM && wins.patterns.length) {
+    const also = wins.patterns[1]
+      ? ` and ${dropSharedVerb(phrase(wins.patterns[0].code, 'win'), phrase(wins.patterns[1].code, 'win'))}`
+      : '';
+    lines.push({
+      strong: `${wins.patterns[0].share}% of your wins`,
+      rest: `come from ${phrase(wins.patterns[0].code, 'win')}${also}.`,
+      tone: 'win'
+    });
+  }
 
-  const losing =
-    losses.analysed >= MIN_FOR_A_CLAIM && losses.patterns.length
-      ? `Your losses come from ${phrase(losses.patterns[0].code, 'loss')} — ${
-          losses.patterns[0].share
-        }% of them.`
-      : null;
+  if (losses.analysed >= MIN_FOR_A_CLAIM && losses.patterns.length) {
+    lines.push({
+      strong: `${losses.patterns[0].share}% of your losses`,
+      rest: `come from ${phrase(losses.patterns[0].code, 'loss')}.`,
+      tone: 'loss'
+    });
+  }
 
   // The reading no single bar gives: games where the fighting went our way and
   // the map still did not. It separates a conversion problem from a fighting
@@ -143,12 +161,15 @@ export function reviewReadout(games: AnalysisGame[]): ReviewReadout {
     return codes.includes('map_control') && !codes.includes('lost_fights');
   }).length;
 
-  const gap =
-    analysedLosses.length >= MIN_FOR_A_CLAIM && wonFightsLost > 0
-      ? `In ${wonFightsLost} of them you were not losing the fights and lost the map anyway — that is a conversion problem, not a fighting one.`
-      : null;
+  if (analysedLosses.length >= MIN_FOR_A_CLAIM && wonFightsLost > 0) {
+    lines.push({
+      strong: `${wonFightsLost} of those losses`,
+      rest: "weren't about the fights — you lost the map anyway. That's a conversion problem, not a fighting one.",
+      tone: 'gap'
+    });
+  }
 
-  return { winning, losing, gap };
+  return lines;
 }
 
 /**
@@ -179,6 +200,17 @@ const PHRASES: Record<Outcome, Record<string, string>> = {
 
 function phrase(code: string, side: Outcome): string {
   return PHRASES[side][code] ?? code.replace(/_/g, ' ');
+}
+
+/**
+ * "controlling the map and controlling baron" -> "controlling the map and baron".
+ *
+ * Both phrases are verb-first by construction, so when the verb repeats the
+ * second one can shed it and the sentence stops sounding like a form.
+ */
+function dropSharedVerb(first: string, second: string): string {
+  const verb = first.split(' ')[0];
+  return second.startsWith(`${verb} `) ? second.slice(verb.length + 1) : second;
 }
 
 /** Bucket id for games that matched no comp. Not a comp id, so it cannot collide. */

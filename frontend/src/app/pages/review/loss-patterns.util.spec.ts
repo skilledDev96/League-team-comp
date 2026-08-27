@@ -164,31 +164,39 @@ describe('reviewReadout', () => {
   const many = (n: number, make: () => ReturnType<typeof game>) =>
     Array.from({ length: n }, make);
 
+  const lineFor = (out: ReturnType<typeof reviewReadout>, tone: string) =>
+    out.find((l) => l.tone === tone);
+
   it('states what wins and what loses, in prose', () => {
     const out = reviewReadout([
       ...many(10, () => winWith('won_fights')),
       ...many(10, () => lossWith('map_control'))
     ]);
-    expect(out.winning).toContain('winning the fights');
-    expect(out.losing).toContain('losing the map');
+    expect(lineFor(out, 'win')?.rest).toContain('winning the fights');
+    expect(lineFor(out, 'loss')?.rest).toContain('losing the map');
+  });
+
+  it('leads each line with the figure, so the number carries the emphasis', () => {
+    const out = reviewReadout(many(10, () => lossWith('map_control')));
+    expect(lineFor(out, 'loss')?.strong).toBe('100% of your losses');
   });
 
   it('names the conversion gap: losses where the fights were not the problem', () => {
     // The reading no single bar gives, and the one that changes what a team
     // should practise.
     const out = reviewReadout(many(10, () => lossWith('map_control')));
-    expect(out.gap).toContain('10 of them');
-    expect(out.gap).toContain('conversion problem');
+    expect(lineFor(out, 'gap')?.strong).toContain('10 of those losses');
+    expect(lineFor(out, 'gap')?.rest).toContain('conversion problem');
   });
 
   it('stays silent when the fights were the problem too', () => {
     const out = reviewReadout(many(10, () => lossWith('map_control', 'lost_fights')));
-    expect(out.gap).toBeNull();
+    expect(lineFor(out, 'gap')).toBeUndefined();
   });
 
   it('says nothing at all on a sample too thin to mean anything', () => {
     // Three of four losses is 75% and worth no sentence.
     const out = reviewReadout(many(4, () => lossWith('map_control')));
-    expect(out).toEqual({ winning: null, losing: null, gap: null });
+    expect(out).toEqual([]);
   });
 });

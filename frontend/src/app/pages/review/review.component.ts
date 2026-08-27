@@ -95,11 +95,6 @@ export class ReviewComponent {
    */
   protected readonly readout = computed(() => reviewReadout(this.filteredGames()));
 
-  protected readonly hasReadout = computed(() => {
-    const r = this.readout();
-    return !!(r.winning || r.losing || r.gap);
-  });
-
   /** One line per factor, shown on hover rather than taking up layout. */
   protected factorHint(code: string): string {
     return FACTOR_GUIDE[code] ?? '';

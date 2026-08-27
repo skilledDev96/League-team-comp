@@ -1,8 +1,8 @@
 import { Injectable, signal } from '@angular/core';
 
-export type Theme = 'dark' | 'dark-blue' | 'dark-red' | 'light';
+export type Theme = 'dark' | 'dark-blue' | 'dark-red' | 'hextech' | 'void' | 'light';
 
-const THEMES: Theme[] = ['dark', 'dark-blue', 'dark-red', 'light'];
+const THEMES: Theme[] = ['dark', 'dark-blue', 'dark-red', 'hextech', 'void', 'light'];
 const STORAGE_KEY = 'bom-theme';
 
 @Injectable({ providedIn: 'root' })
@@ -21,6 +21,8 @@ export class ThemeService {
   themeLabel(theme: Theme): string {
     if (theme === 'dark') return 'Dark';
     if (theme === 'dark-red') return 'Red';
+    if (theme === 'hextech') return 'Hextech';
+    if (theme === 'void') return 'Void';
     if (theme === 'light') return 'Light';
     return 'Blue';
   }

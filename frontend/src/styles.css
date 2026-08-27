@@ -7798,24 +7798,128 @@ app-overflow-menu {
   min-width: 3.5rem;
 }
 
-/* The conclusion above the bars. Three short lines at most, tinted by what they
-   are saying, and no box of its own — it is a lead paragraph, not a panel. */
-.readout {
-  margin: 0 0 0.85rem;
-  padding-left: 0.7rem;
-  border-left: 2px solid var(--card-border);
+/* ---- Callout ------------------------------------------------------------
+   A finding or an instruction that must not read as body copy. Everything on
+   these pages is the same weight of text, so a conclusion sat among the stats
+   and got skimmed past. Shared rather than a one-off: anywhere the app is
+   telling you something rather than listing something can use it. */
+.callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin: 0 0 1rem;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-left-width: 3px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
 }
 
-.readout-line {
-  margin: 0.2rem 0;
-  font-size: 0.9rem;
+.callout-icon {
+  flex: 0 0 auto;
+  font-size: 1.25rem;
+  color: var(--accent);
+  line-height: 1.4;
+}
+
+.callout-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.callout p {
+  margin: 0.15rem 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
   color: var(--text-0);
 }
 
-.readout-line.is-win {
-  border-left-color: var(--ok);
+/* The figure leads the line and carries the emphasis: it is the finding, and
+   the sentence around it is the explanation. */
+.readout-line strong {
+  font-weight: 700;
+  font-size: 1rem;
 }
 
-.readout-line.is-gap {
-  color: var(--text-1);
+.readout-line.tone-win strong {
+  color: var(--ok);
+}
+
+.readout-line.tone-loss strong {
+  color: var(--warn);
+}
+
+.readout-line.tone-gap strong {
+  color: var(--accent);
+}
+
+/* Variants for the other things the app says rather than lists. */
+.callout.is-warn {
+  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
+  background: color-mix(in srgb, var(--warn) 9%, transparent);
+}
+
+.callout.is-warn .callout-icon {
+  color: var(--warn);
+}
+
+.callout.is-good {
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
+  background: color-mix(in srgb, var(--ok) 9%, transparent);
+}
+
+.callout.is-good .callout-icon {
+  color: var(--ok);
+}
+
+/* ---- Hextech ------------------------------------------------------------
+   Piltover: the gold-on-deep-blue the client itself uses. Gold carries the
+   accents, hextech teal the secondary, and the off-white text is warm rather
+   than blue so the whole thing reads like parchment under glass. */
+body[data-theme="hextech"] {
+  --bg-0: #010a13;
+  --bg-1: #0a1a24;
+  --bg-2: #123040;
+  --card: rgba(9, 26, 35, 0.9);
+  --card-border: rgba(200, 170, 110, 0.34);
+  --text-0: #f0e6d2;
+  --text-1: #a09b8c;
+  --accent: #c8aa6e;
+  --accent-2: #0ac8b9;
+  --ok: #0ac8b9;
+  --warn: #e0603f;
+  --glow-a: rgba(200, 170, 110, 0.22);
+  --glow-b: rgba(10, 200, 185, 0.18);
+  --surface-nav: rgba(3, 16, 23, 0.86);
+  --surface-hero-a: rgba(6, 20, 28, 0.96);
+  --surface-hero-b: rgba(16, 44, 56, 0.9);
+  --surface-controls: rgba(8, 24, 32, 0.7);
+  --surface-btn: rgba(14, 36, 46, 0.85);
+  --shadow-elev: rgba(0, 0, 0, 0.32);
+}
+
+/* ---- Void ---------------------------------------------------------------
+   The other side of the map: near-black shot through with violet and magenta.
+   Mint stands in for the usual green because a yellow-green dies against
+   purple, and the warning pink keeps its bite without turning brown. */
+body[data-theme="void"] {
+  --bg-0: #0b0714;
+  --bg-1: #150d24;
+  --bg-2: #221639;
+  --card: rgba(21, 13, 36, 0.9);
+  --card-border: rgba(168, 108, 255, 0.32);
+  --text-0: #ece4ff;
+  --text-1: #b3a3d4;
+  --accent: #a86cff;
+  --accent-2: #ff7ae0;
+  --ok: #6fe3b4;
+  --warn: #ff5f8f;
+  --glow-a: rgba(168, 108, 255, 0.26);
+  --glow-b: rgba(255, 122, 224, 0.18);
+  --surface-nav: rgba(15, 9, 26, 0.86);
+  --surface-hero-a: rgba(16, 10, 28, 0.96);
+  --surface-hero-b: rgba(34, 20, 58, 0.9);
+  --surface-controls: rgba(19, 12, 32, 0.7);
+  --surface-btn: rgba(28, 18, 46, 0.85);
+  --shadow-elev: rgba(0, 0, 0, 0.4);
 }

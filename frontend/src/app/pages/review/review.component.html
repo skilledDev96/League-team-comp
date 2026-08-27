@@ -72,12 +72,17 @@
     } @else {
       <!-- The conclusion first, the bars as the evidence for it. Reads both
            sides at once, which is the sentence the toggle cannot give. -->
-      @if (hasReadout()) {
-        <div class="readout">
-          @if (readout().winning) { <p class="readout-line is-win">{{ readout().winning }}</p> }
-          @if (readout().losing) { <p class="readout-line is-loss">{{ readout().losing }}</p> }
-          @if (readout().gap) { <p class="readout-line is-gap">{{ readout().gap }}</p> }
-        </div>
+      @if (readout().length) {
+        <aside class="callout" aria-label="What these numbers say">
+          <span class="callout-icon material-symbols-rounded" aria-hidden="true">lightbulb</span>
+          <div class="callout-body">
+            @for (line of readout(); track line.strong) {
+              <p class="readout-line" [class]="'tone-' + line.tone">
+                <strong>{{ line.strong }}</strong> {{ line.rest }}
+              </p>
+            }
+          </div>
+        </aside>
       }
 
       <p class="muted">
@@ -94,10 +99,16 @@
         </div>
       }
       @if (summary().pending > 0) {
-        <p class="meta-line pattern-pending">
-          {{ summary().pending }} further {{ outcome() === 'win' ? (summary().pending === 1 ? 'win is' : 'wins are') : (summary().pending === 1 ? 'loss is' : 'losses are') }} not counted yet —
-          those matches were cached before objectives were stored and fill in on refresh.
-        </p>
+        <aside class="callout is-warn">
+          <span class="callout-icon material-symbols-rounded" aria-hidden="true">hourglass_top</span>
+          <div class="callout-body">
+            <p>
+              <strong>{{ summary().pending }} further {{ outcome() === 'win' ? (summary().pending === 1 ? 'win' : 'wins') : (summary().pending === 1 ? 'loss' : 'losses') }}</strong>
+              not counted yet — those matches were cached before objectives were stored, and fill in
+              over the next few refreshes.
+            </p>
+          </div>
+        </aside>
       }
     }
   </section>

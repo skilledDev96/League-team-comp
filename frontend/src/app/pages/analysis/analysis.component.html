@@ -44,12 +44,16 @@
       updated {{ a.generatedAt | date: 'MMM d, HH:mm' }}
     </p>
     @if (a.pendingMatches) {
-      <p class="analysis-pending">
-        <span class="material-symbols-rounded" aria-hidden="true">hourglass_top</span>
-        {{ a.pendingMatches }} more game{{ a.pendingMatches === 1 ? '' : 's' }} still to fetch —
-        @if (auth.editing()) { hit <strong>Refresh match data</strong> again to continue. }
-        @else { an editor can Refresh again to continue. }
-      </p>
+      <aside class="callout is-warn">
+        <span class="callout-icon material-symbols-rounded" aria-hidden="true">hourglass_top</span>
+        <div class="callout-body">
+          <p>
+            <strong>{{ a.pendingMatches }} more game{{ a.pendingMatches === 1 ? '' : 's' }}</strong> still to fetch —
+            @if (auth.editing()) { hit <strong>Refresh match data</strong> again to continue. }
+            @else { an editor can refresh again to continue. }
+          </p>
+        </div>
+      </aside>
     }
 
 
