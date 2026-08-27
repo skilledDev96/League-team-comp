@@ -106,6 +106,21 @@ run — so the field is *absent* on some matches for several refreshes, and any 
 over it has to say so rather than render a zero. Riot rate limits hard; that
 budget is the reason the cache exists at all.
 
+**Which comp a game counts as** is decided in `api/src/comp-attribution.ts`, not
+by the champion matcher alone. Two human corrections sit on top of `matchComp`:
+
+- `Comp.countsUnder` — a standing rule folding one comp's games into another,
+  for near-duplicate drafts kept separate to play from. Edited on the Comps page.
+- `compOverrides/{matchId}` — one game placed by hand, for an off-book game that
+  really was a known comp, or one the matcher read wrongly. Edited in the game
+  panel on Analysis.
+
+Precedence is explicit-beats-rule: an override names the comp, then that comp's
+own `countsUnder` applies. Both travel to the backend with the analysis request,
+so every win rate on the site agrees — which also means **a change only shows up
+after a Refresh on Analysis**, and both controls say so. `resolveAlias` guards
+against `countsUnder` cycles; two separate edits can create one.
+
 Two questions are asked of a cached entry, and conflating them makes a
 `CACHE_VERSION` bump silently do nothing:
 

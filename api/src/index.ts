@@ -8,6 +8,7 @@ import { combinations, normalizeEmail, parseBearerToken, parseEnrichRequest, par
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
+import { attributeComp } from './comp-attribution';
 import { summarizeMatches } from './match-stats';
 import { classifyArchetype, describePlayer } from './insights';
 import { CACHE_VERSION, isCacheCurrent, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
@@ -764,11 +765,15 @@ interface CompInput {
   id: string;
   name: string;
   champions: string[];
+  /** Id of the comp this one folds into, for near-duplicates kept as separate drafts. */
+  countsUnder?: string | null;
 }
 
 interface CompAnalysisRequest {
   players: SynergyPlayerRequest[];
   comps: CompInput[];
+  /** matchId -> compId, for games a person has placed by hand. */
+  overrides: Record<string, string>;
 }
 
 interface CompPerformanceResponse {
@@ -812,6 +817,8 @@ interface AnalysisGameResponse {
   objectives?: GameObjectives;
   /** Seconds; pairs with `objectives` and shares its absence. */
   durationSec?: number;
+  /** Set when a person placed this game rather than the matcher. */
+  attribution?: 'manual' | 'alias';
   /** Why this game was lost. Empty for a win, and for a loss with no story. */
   lossFactors?: LossFactor[];
 }
@@ -1147,22 +1154,29 @@ async function computeCompAnalysis(
       payload.comps,
       COMP_MATCH_THRESHOLD
     );
-    if (compMatch.compId) {
+    // The matcher reads champions; this applies what people have said about
+    // comps folding together and about individual games.
+    const attributed = attributeComp(compMatch, matchId, payload.overrides, payload.comps);
+
+    if (attributed.compId) {
       funnel.attributedToComp += 1;
-      const acc = perComp.get(compMatch.compId) ?? {
-        compId: compMatch.compId,
-        compName: compMatch.compName ?? '',
+      const acc = perComp.get(attributed.compId) ?? {
+        compId: attributed.compId,
+        compName: attributed.compName ?? '',
         games: 0,
         wins: 0
       };
       acc.games += 1;
       if (win) acc.wins += 1;
-      perComp.set(compMatch.compId, acc);
+      perComp.set(attributed.compId, acc);
     }
     games.push({
       matchId,
-      compId: compMatch.compId,
-      compName: compMatch.compName,
+      compId: attributed.compId,
+      compName: attributed.compName,
+      // Only worth saying when a person is responsible for it; 'auto' is the
+      // default everywhere and would just be noise on every game.
+      ...(attributed.source !== 'auto' && { attribution: attributed.source }),
       nearCompName: compMatch.nearName,
       nearOverlap: compMatch.overlap,
       // Conditional spread, not `: undefined` — Firestore rejects undefined values.

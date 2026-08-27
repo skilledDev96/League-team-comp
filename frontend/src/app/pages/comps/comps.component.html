@@ -75,6 +75,26 @@
                  (ngModelChange)="setCategoryDraft(comp, $event)" (blur)="saveCompMeta(comp)"
                  [name]="'compcat-' + comp.id" placeholder="Short label (e.g. Meta, For Fun)" />
         </div>
+
+        <div class="comp-notes comp-category-edit">
+          <div class="comp-record-head">
+            <span class="comp-record-title material-symbols-rounded" aria-hidden="true">merge</span>
+            <span class="comp-record-label">Counts under</span>
+          </div>
+          <select class="comp-cat-input" [name]="'compunder-' + comp.id"
+                  [ngModel]="comp.countsUnder ?? ''"
+                  (ngModelChange)="setCountsUnder(comp, $event)">
+            <option value="">Stands on its own</option>
+            @for (other of compsExcept(comp); track other.id) {
+              <option [value]="other.id">{{ other.name }}</option>
+            }
+          </select>
+          <p class="field-hint">
+            Fold this comp's games into another for stats — for near-duplicate drafts you
+            keep separate. Takes effect on the next
+            <strong>Refresh from Riot</strong> on the Analysis page.
+          </p>
+        </div>
       }
 
       @if (comp.notes || auth.editing()) {

@@ -359,6 +359,17 @@ export class AnalysisComponent {
     this.compDrafts.update((state) => ({ ...state, [matchId]: name }));
   }
 
+  /**
+   * Place one game under a comp, overriding the champion matcher.
+   *
+   * The win rates are computed on the backend, so this write on its own moves
+   * nothing on screen — the next Refresh is what applies it. The control says
+   * so rather than leaving someone waiting for a number that will not change.
+   */
+  protected setGameComp(matchId: string, compId: string): void {
+    void this.data.saveCompOverride(matchId, compId);
+  }
+
   protected isSavedAsComp(matchId: string): boolean {
     return this.savedComps().has(matchId);
   }
@@ -407,7 +418,11 @@ export class AnalysisComponent {
     this.analysisLoading.set(true);
     this.analysisError.set('');
     try {
-      const result = await this.analysis.refresh(this.data.players(), this.data.comps());
+      const result = await this.analysis.refresh(
+        this.data.players(),
+        this.data.comps(),
+        this.data.compOverrideMap()
+      );
       // In Firebase mode the cache doc updates via onSnapshot; set directly as a
       // fallback so the UI reflects the fresh result immediately.
       this.data.compAnalysis.set(result);

@@ -83,6 +83,23 @@ export class CompsComponent {
     this.catDrafts.update((s) => ({ ...s, [comp.id]: value }));
   }
 
+  /**
+   * Every other comp, as targets for "counts under".
+   *
+   * A comp cannot fold into itself, and offering it would create a cycle the
+   * backend then has to defend against. Deeper cycles (A→B→A) are still
+   * possible from two separate edits, which is why `resolveAlias` guards too.
+   */
+  protected compsExcept(comp: Comp): Comp[] {
+    return this.data.comps().filter((other) => other.id !== comp.id);
+  }
+
+  protected setCountsUnder(comp: Comp, value: string): void {
+    const countsUnder = value || null;
+    if ((comp.countsUnder ?? null) === countsUnder) return;
+    void this.data.updateComp({ ...comp, countsUnder });
+  }
+
   protected setNotesDraft(comp: Comp, value: string): void {
     this.noteDrafts.update((s) => ({ ...s, [comp.id]: value }));
   }

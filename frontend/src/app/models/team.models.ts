@@ -116,6 +116,11 @@ export interface Comp {
   category?: string;
   notes?: string;
   gamePlan?: CompGamePlan;
+  /**
+   * Id of another comp this one folds into for stats. Near-duplicate drafts
+   * are kept as separate comps to play from, but their games count together.
+   */
+  countsUnder?: string | null;
   // Champions to ban when running this comp (counters / hard matchups).
   bans?: string[];
   order: number;
@@ -234,6 +239,12 @@ export interface AnalysisGame {
   durationSec?: number;
   /** Empty for a win, and for a loss with no objective story to tell. */
   lossFactors?: LossFactor[];
+  /**
+   * Set when a person placed this game rather than the champion matcher —
+   * `manual` for an override on this match, `alias` for a comp's `countsUnder`.
+   * Absent means the matcher's own answer.
+   */
+  attribution?: 'manual' | 'alias';
 }
 
 /** Stage-by-stage audit of one analysis pass, so silent drops are visible. */
@@ -353,6 +364,7 @@ export interface TeamData {
   tournamentSeries: TournamentSeries[];
   seriesGames: SeriesGame[];
   matchNotes: MatchNote[];
+  compOverrides: CompOverride[];
 }
 
 /** Result of the scheduled Riot API key probe (Firestore `meta/keyHealth`). */
@@ -438,6 +450,21 @@ export interface SeriesGame {
  * Analysis games are recomputed from Riot on every refresh, so notes cannot
  * live on the game itself — they are stored separately and looked up by id.
  */
+/**
+ * A game placed under a comp by hand, overriding the champion matcher.
+ *
+ * Keyed by match so a game has exactly one, the same shape as [MatchNote].
+ * Used for off-book games that really were a known comp with a swap, and for
+ * the occasional game the matcher reads wrongly.
+ */
+export interface CompOverride {
+  /** Same value as `matchId`, so a match has exactly one override document. */
+  id: string;
+  matchId: string;
+  compId: string;
+  order: number;
+}
+
 export interface MatchNote {
   /** Same value as `matchId`, so a match has exactly one note document. */
   id: string;

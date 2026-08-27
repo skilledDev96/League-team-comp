@@ -76,11 +76,15 @@ export interface AnalysisCompInput {
   id: string;
   name: string;
   champions: string[];
+  /** Id of the comp this one folds into, for near-duplicates kept as separate drafts. */
+  countsUnder?: string | null;
 }
 
 export interface CompAnalysisRequestInput {
   players: AnalysisPlayerInput[];
   comps: AnalysisCompInput[];
+  /** matchId -> compId, for games a person has placed by hand. */
+  overrides: Record<string, string>;
 }
 
 /**
@@ -122,10 +126,21 @@ export function parseCompAnalysisRequest(body: unknown): CompAnalysisRequestInpu
           name: typeof comp.name === 'string' ? comp.name : 'Comp',
           champions: Array.isArray(comp.champions)
             ? comp.champions.filter((c): c is string => typeof c === 'string')
-            : []
+            : [],
+          countsUnder: typeof comp.countsUnder === 'string' ? comp.countsUnder : null
         };
       })
     : [];
 
-  return { players, comps };
+  // Overrides are advisory, so a malformed entry is dropped rather than failing
+  // the run: losing one hand-placed game beats losing the whole analysis.
+  const overrides: Record<string, string> = {};
+  const rawOverrides = (candidate as { overrides?: unknown }).overrides;
+  if (rawOverrides && typeof rawOverrides === 'object' && !Array.isArray(rawOverrides)) {
+    for (const [matchId, compId] of Object.entries(rawOverrides as Record<string, unknown>)) {
+      if (matchId && typeof compId === 'string' && compId) overrides[matchId] = compId;
+    }
+  }
+
+  return { players, comps, overrides };
 }

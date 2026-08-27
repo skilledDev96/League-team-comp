@@ -292,6 +292,30 @@
             }
           </div>
         }
+
+        @if (auth.editing() && data.comps().length) {
+          <div class="game-attribution">
+            <label class="field compact-field"><span>Counts as</span>
+              <select [name]="'compfor-' + game.matchId"
+                      [ngModel]="data.compOverride(game.matchId)"
+                      (ngModelChange)="setGameComp(game.matchId, $event)">
+                <option value="">Auto — {{ game.compName || 'off the books' }}</option>
+                @for (comp of data.comps(); track comp.id) {
+                  <option [value]="comp.id">{{ comp.name }}</option>
+                }
+              </select>
+            </label>
+            @if (game.attribution === 'manual') {
+              <span class="tag">Placed by hand</span>
+            } @else if (game.attribution === 'alias') {
+              <span class="tag">Folded into another comp</span>
+            }
+            <p class="field-hint">
+              Put this game under a comp for stats, whichever champions were picked.
+              Applies on the next <strong>Refresh from Riot</strong>.
+            </p>
+          </div>
+        }
       </details>
       <app-match-note-button class="game-entry-note" [matchId]="game.matchId" />
     </div>

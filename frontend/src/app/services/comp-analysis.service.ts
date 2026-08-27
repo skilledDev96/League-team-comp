@@ -9,7 +9,11 @@ export class CompAnalysisService {
   private readonly ui = inject(UiService);
 
   /** Trigger a fresh analysis on the backend. Returns the computed result. */
-  async refresh(players: Player[], comps: Comp[]): Promise<CompAnalysis> {
+  async refresh(
+    players: Player[],
+    comps: Comp[],
+    overrides: Record<string, string> = {}
+  ): Promise<CompAnalysis> {
     if (!isFirebaseConfigured()) {
       throw new Error('Match analysis runs on the deployed app — sign in there to refresh.');
     }
@@ -35,9 +39,13 @@ export class CompAnalysisService {
         comps: comps.map((comp) => ({
           id: comp.id,
           name: comp.name,
+          countsUnder: comp.countsUnder ?? null,
           // Pull the champion out of each "Champion - note" pick line.
           champions: ROLES.map((role) => this.ui.parseCompLine(comp.picks[role] ?? '').champion).filter(Boolean)
-        }))
+        })),
+        // Games placed by hand. The backend applies these over its own champion
+        // matching, so the win rates it returns already account for them.
+        overrides
       })
     });
     const data = (await response.json()) as CompAnalysis & { error?: string };

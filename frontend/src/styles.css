@@ -7348,3 +7348,27 @@ app-match-note {
 .comp-group .loss-card:first-of-type {
   margin-top: 0.85rem;
 }
+
+/* Small explanatory line under a control, where the effect of changing it is
+   not obvious from the control alone. */
+.field-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.74rem;
+  color: var(--text-1);
+}
+
+/* Per-game comp override, in the expanded game panel. */
+.game-attribution {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.game-attribution .field-hint {
+  flex: 1 1 100%;
+  margin: 0;
+}

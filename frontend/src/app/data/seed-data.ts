@@ -208,6 +208,7 @@ export const SEED_DATA: TeamData = {
   tournamentSeries: [],
   seriesGames: [],
   matchNotes: [],
+  compOverrides: [],
   resourceLinks: {
     DraftTools: [
       { label: 'U.GG Tier Lists', url: 'https://u.gg/lol/tier-list' },

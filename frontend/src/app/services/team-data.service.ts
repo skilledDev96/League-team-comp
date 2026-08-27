@@ -22,6 +22,7 @@ import {
   Tournament,
   TournamentSeries,
   SeriesGame,
+  CompOverride,
   MatchNote,
   AccessEntry,
   FillIn,
@@ -43,6 +44,7 @@ type EntityKey =
   | 'tournamentSeries'
   | 'seriesGames'
   | 'matchNotes'
+  | 'compOverrides'
   | 'compResults'
   | 'plays'
   | 'painPoints'
@@ -66,6 +68,8 @@ export class TeamDataService {
   readonly tournamentSeries = signal<TournamentSeries[]>([]);
   readonly seriesGames = signal<SeriesGame[]>([]);
   readonly matchNotes = signal<MatchNote[]>([]);
+  /** Games placed under a comp by hand, keyed by match. */
+  readonly compOverrides = signal<CompOverride[]>([]);
   /** Last Riot API key probe (written by the scheduled health check). */
   readonly keyHealth = signal<KeyHealth | null>(null);
   readonly resourceLinks = signal<ResourceLinks>({});
@@ -112,6 +116,7 @@ export class TeamDataService {
     this.tournamentSeries.set([...(data.tournamentSeries ?? [])].sort((a, b) => a.order - b.order));
     this.seriesGames.set([...(data.seriesGames ?? [])].sort((a, b) => a.order - b.order));
     this.matchNotes.set([...(data.matchNotes ?? [])]);
+    this.compOverrides.set([...(data.compOverrides ?? [])]);
     this.compAnalysis.set(data.compAnalysis ?? null);
     this.resourceLinks.set(data.resourceLinks);
     this.settings.set(data.settings);
@@ -137,6 +142,7 @@ export class TeamDataService {
       tournamentSeries: this.tournamentSeries(),
       seriesGames: this.seriesGames(),
       matchNotes: this.matchNotes(),
+      compOverrides: this.compOverrides(),
       compAnalysis: this.compAnalysis() ?? undefined,
       resourceLinks: this.resourceLinks()
     };
@@ -195,6 +201,11 @@ export class TeamDataService {
     });
     onSnapshot(collection(db, 'matchNotes'), (snap) => {
       this.matchNotes.set(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<MatchNote, 'id'>) })));
+    });
+    onSnapshot(collection(db, 'compOverrides'), (snap) => {
+      this.compOverrides.set(
+        snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CompOverride, 'id'>) }))
+      );
     });
     onSnapshot(collection(db, 'access'), (snap) => {
       const list = snap.docs.map((d) => ({
@@ -369,6 +380,39 @@ export class TeamDataService {
 
   matchNote(matchId: string): string {
     return this.matchNotes().find((note) => note.matchId === matchId)?.text ?? '';
+  }
+
+  /**
+   * Place a game under a comp by hand, or clear the override with an empty id.
+   *
+   * The stats it feeds are computed on the backend, so this write alone changes
+   * nothing on screen — the next Refresh on the Analysis page is what applies
+   * it. Callers say so rather than leaving the number looking stuck.
+   */
+  saveCompOverride(matchId: string, compId: string): Promise<void> {
+    if (!compId) {
+      return this.clearCompOverride(matchId);
+    }
+    const override: CompOverride = { id: matchId, matchId, compId, order: 0 };
+    return this.persistUpsert('compOverrides', this.compOverrides, override);
+  }
+
+  clearCompOverride(matchId: string): Promise<void> {
+    if (!this.compOverrides().some((entry) => entry.id === matchId)) {
+      return Promise.resolve();
+    }
+    return this.persistRemove('compOverrides', this.compOverrides, matchId);
+  }
+
+  compOverride(matchId: string): string {
+    return this.compOverrides().find((entry) => entry.matchId === matchId)?.compId ?? '';
+  }
+
+  /** The shape the analysis request wants: matchId -> compId. */
+  compOverrideMap(): Record<string, string> {
+    const map: Record<string, string> = {};
+    for (const entry of this.compOverrides()) map[entry.matchId] = entry.compId;
+    return map;
   }
 
   createTournament(data: Omit<Tournament, 'id' | 'order'>): Promise<void> {
