@@ -106,6 +106,18 @@ run — so the field is *absent* on some matches for several refreshes, and any 
 over it has to say so rather than render a zero. Riot rate limits hard; that
 budget is the reason the cache exists at all.
 
+Two questions are asked of a cached entry, and conflating them makes a
+`CACHE_VERSION` bump silently do nothing:
+
+- **`isCacheCurrent`** — has it got everything today's code reads? Only the
+  current stamp counts. **Unversioned entries are stale, not fine**: versioning
+  arrived on 23 Aug 2026, so the oldest entries carry no stamp at all and are
+  exactly the ones most likely to be missing a new field.
+- **`isCacheUsable`** — is it sound enough to serve when the budget is spent?
+  A structural check. A stale entry still carries the roster and the result, so
+  it is served rather than dropped; otherwise every match past the per-run budget
+  would fall out of the win rates until the backfill caught up.
+
 ## Conventions
 
 - **Angular 22, standalone components, signals throughout.** No NgModules; components declare their own `imports`. State is signals + `computed`; prefer this over RxJS for view state.

@@ -10,7 +10,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
 import { summarizeMatches } from './match-stats';
 import { classifyArchetype, describePlayer } from './insights';
-import { CACHE_VERSION, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
+import { CACHE_VERSION, isCacheCurrent, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
 import { describeLoss, GameObjectives, LossFactor } from './objectives';
 import { BUILD_SHA } from './build-info';
 
@@ -904,12 +904,19 @@ async function getCachedMatch(
   if (snap.exists) {
     const cached = snap.data() as CachedMatch;
     healed = true; // an entry existed; if we fall through we are repairing it
-    if (isCacheUsable(cached)) {
+    if (isCacheCurrent(cached)) {
       return { match: cached, fromCache: true, healed: false };
     }
-    // fall through to re-fetch (counts against the fetch budget like a new match)
-  }
-  if (!allowFetch) {
+    // Out of date: re-fetch it if there is budget (counts like a new match), so
+    // the fields added since it was written fill in.
+    if (!allowFetch) {
+      // Out of budget this run. Serve the stale entry anyway if it is sound —
+      // it still carries the roster and the result, and dropping it would take
+      // the game out of every win rate to gain nothing this run. It is picked
+      // up by a later run instead.
+      return isCacheUsable(cached) ? { match: cached, fromCache: true, healed: false } : null;
+    }
+  } else if (!allowFetch) {
     return null;
   }
   const raw = await riotFetch<RiotMatch>(

@@ -15,7 +15,7 @@
   <section class="card review-toolbar" aria-label="Review controls">
     <div class="view-controls">
       <label class="field compact-field"><span>Comp</span>
-        <select name="reviewComp" [value]="compFilter()" (change)="compFilter.set($any($event.target).value)">
+        <select name="reviewComp" [value]="compFilter()" (change)="setComp($any($event.target).value)">
           <option value="all">All comps</option>
           @for (comp of compOptions(); track comp.id) {
             <option [value]="comp.id">{{ comp.name }}</option>
@@ -67,9 +67,16 @@
   <section aria-label="Losses">
     <h2 class="section-title">Losses</h2>
     @if (losses().length === 0) {
-      <p class="empty-state">No losses in this selection.</p>
+      <p class="empty-state">
+        @if (pendingLosses().length > 0) {
+          None of these losses have objective data yet — there is nothing to read
+          into until they fill in.
+        } @else {
+          No losses in this selection.
+        }
+      </p>
     }
-    @for (game of losses(); track game.matchId) {
+    @for (game of visibleLosses(); track game.matchId) {
       <article class="card loss-card" [class.expanded]="expandedId() === game.matchId">
         <button class="loss-head" type="button" (click)="toggle(game.matchId)"
                 [attr.aria-expanded]="expandedId() === game.matchId">
@@ -89,10 +96,8 @@
               <span class="tag loss-tag">{{ factor.label }}<em>{{ factor.detail }}</em></span>
             }
           </div>
-        } @else if (game.objectives) {
-          <p class="muted">No objective story here — this one was lost in the fights, not on the map.</p>
         } @else {
-          <p class="muted">Objective data not cached for this match yet.</p>
+          <p class="muted">No objective story here — this one was lost in the fights, not on the map.</p>
         }
 
         @if (expandedId() === game.matchId) {
@@ -123,6 +128,34 @@
           }
         }
       </article>
+    }
+
+    @if (hiddenCount() > 0) {
+      <button class="offbook-toggle show-more" type="button" (click)="showAll.set(true)">
+        Show {{ hiddenCount() }} older {{ hiddenCount() === 1 ? 'loss' : 'losses' }}
+      </button>
+    }
+
+    @if (pendingLosses().length > 0) {
+      <details class="card pending-panel">
+        <summary class="pending-summary">
+          {{ pendingLosses().length }} {{ pendingLosses().length === 1 ? 'loss has' : 'losses have' }}
+          no objective data yet
+        </summary>
+        <p class="muted">
+          These were cached before objectives were stored. Each refresh on the
+          <a routerLink="/analysis">Analysis</a> page backfills a batch, so they move
+          into the list above over the next few runs.
+        </p>
+        <ul class="pending-list">
+          @for (game of pendingLosses(); track game.matchId) {
+            <li>
+              <span>{{ game.compName || game.nearCompName || 'Off-book comp' }}</span>
+              <span class="muted">{{ game.date | date: 'd MMM' }}</span>
+            </li>
+          }
+        </ul>
+      </details>
     }
   </section>
 }

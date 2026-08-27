@@ -28,14 +28,34 @@ export const CACHE_VERSION = 2;
 const FULL_LOBBY = 10;
 
 /**
+ * Whether an entry has everything the current code wants to read from it.
+ *
  * Entries stamped with the current version are trusted outright — we wrote
  * them, so a re-fetch would only produce the same bytes. That guarantee is what
  * stops a match Riot returns oddly, a missing puuid say, from being re-fetched
- * forever. Unversioned legacy entries get a structural check instead.
+ * forever: once re-fetched it carries the current stamp and is trusted.
+ *
+ * Anything else is out of date *by definition*, whether it carries an older
+ * stamp or none at all. Versioning only arrived on 23 Aug 2026, so the entries
+ * most likely to be missing a new field are precisely the unversioned ones —
+ * treating those as fine is how a `CACHE_VERSION` bump silently does nothing.
+ */
+export function isCacheCurrent(cached: CachedMatch | undefined): boolean {
+  return cached?.cacheVersion === CACHE_VERSION;
+}
+
+/**
+ * Whether an entry is sound enough to use when we *cannot* re-fetch it.
+ *
+ * Separate from `isCacheCurrent` on purpose. A stale entry still answers who
+ * played what and who won, so dropping it would cost a game from every win rate
+ * on the site to gain a field the page already knows how to say it is missing.
+ * The re-fetch budget is per-run and the backfill takes several runs; nobody
+ * should watch their sample size collapse while it works through.
  */
 export function isCacheUsable(cached: CachedMatch | undefined): boolean {
   if (!cached) return false;
-  if (cached.cacheVersion === CACHE_VERSION) return true;
+  if (isCacheCurrent(cached)) return true;
 
   const parts = cached.participants;
   return (

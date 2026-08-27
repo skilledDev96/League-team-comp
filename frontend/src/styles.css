@@ -7299,3 +7299,43 @@ app-match-note {
 .objective-row .behind {
   color: var(--warn);
 }
+
+/* The losses that cannot be read yet: accounted for, but folded away so they
+   do not bury the ones that can. */
+.show-more {
+  display: block;
+  margin: 0.75rem auto 0;
+}
+
+.pending-panel {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+}
+
+.pending-summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.pending-summary:hover {
+  color: var(--text-0);
+}
+
+.pending-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.35rem 1rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.pending-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--card-border);
+}

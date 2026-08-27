@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CACHE_VERSION,
   CachedMatch,
+  isCacheCurrent,
   isCacheUsable,
   parseCompAnalysisRequest
 } from './analysis-cache';
@@ -45,11 +46,34 @@ describe('isCacheUsable', () => {
     expect(isCacheUsable(cached({ participants: undefined as never }))).toBe(false);
   });
 
-  it('re-fetches an entry stamped with an older version', () => {
-    // An old stamp falls through to the structural check rather than being
-    // trusted, so a shape change is picked up once and then re-stamped.
-    const stale = { ...cached(), cacheVersion: CACHE_VERSION - 1, participants: [] };
-    expect(isCacheUsable(stale)).toBe(false);
+  it('still accepts a structurally sound entry with an older stamp', () => {
+    // Usable is the "can we serve this if we cannot re-fetch it" question, and
+    // a stale entry still carries the roster and the result. Whether it is
+    // up to date is isCacheCurrent's business, not this one.
+    expect(isCacheUsable({ ...cached(), cacheVersion: CACHE_VERSION - 1 })).toBe(true);
+  });
+});
+
+describe('isCacheCurrent', () => {
+  it('rejects a missing entry', () => {
+    expect(isCacheCurrent(undefined)).toBe(false);
+  });
+
+  it('accepts an entry stamped with the current version', () => {
+    expect(isCacheCurrent({ ...cached(), cacheVersion: CACHE_VERSION })).toBe(true);
+  });
+
+  it('rejects an entry stamped with an older version', () => {
+    expect(isCacheCurrent({ ...cached(), cacheVersion: CACHE_VERSION - 1 })).toBe(false);
+  });
+
+  it('rejects an unversioned entry even when it looks structurally perfect', () => {
+    // The regression this exists for. Versioning only arrived on 23 Aug 2026,
+    // so unversioned entries are the *oldest* ones and the most likely to be
+    // missing a field added since. Judging them by shape alone let a
+    // CACHE_VERSION bump pass silently over 82 of them.
+    expect(isCacheUsable(cached())).toBe(true);
+    expect(isCacheCurrent(cached())).toBe(false);
   });
 });
 
