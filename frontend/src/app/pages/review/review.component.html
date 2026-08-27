@@ -251,6 +251,22 @@
               </div>
             </div>
           }
+            @if (adviceFor(game).length) {
+              <aside class="callout is-advice" aria-label="What to work on">
+                <span class="callout-icon material-symbols-rounded" aria-hidden="true">target</span>
+                <div class="callout-body">
+                  <p class="advice-head">What to work on</p>
+                  <ul class="advice-list">
+                    @for (item of adviceFor(game); track item) {
+                      <li>{{ item }}</li>
+                    }
+                  </ul>
+                  <!-- Said plainly: these are coaching opinions keyed off the
+                       factors, not findings pulled out of the match data. -->
+                  <p class="advice-note">General advice for these patterns, not read from this game.</p>
+                </div>
+              </aside>
+            }
           </div>
         }
       </article>

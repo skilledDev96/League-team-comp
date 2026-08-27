@@ -83,6 +83,33 @@ export function summariseWins(games: AnalysisGame[]): ReviewSummary {
  * Kept to one line each and out of the layout: the bars already take the space,
  * and a permanent paragraph under every row would bury the numbers it explains.
  */
+/**
+ * What to actually practise, per factor.
+ *
+ * The factors name what went wrong; these say what to do about it, which is
+ * the question a review is for. Written as an action rather than a diagnosis —
+ * "lost the map" is already on the screen, and repeating it as advice helps
+ * nobody.
+ *
+ * These are opinions about League, not conclusions from the data, and the UI
+ * says so. They live here so that changing one is a deliberate edit in a single
+ * place rather than a string buried in a template.
+ */
+export const FACTOR_ADVICE: Record<string, string> = {
+  early_game:
+    'Rewatch the first 8 minutes. Where was the jungler when first blood happened, and did anyone have vision on it?',
+  lost_fights:
+    'Rewatch the first fight you lost. Check who started it, and whether the other four were close enough to follow.',
+  dragon_control:
+    'Set vision 30 seconds before each dragon spawns. If contesting looks bad, take herald or a tower rather than trading nothing.',
+  baron_control:
+    'Track their summoners and reset timings past 20 minutes. Do not start baron without knowing where three of them are.',
+  map_control:
+    'After winning a fight, take towers instead of looking for the next one. Call the objective out loud before the fight ends.',
+  threw_lead:
+    'Close on objectives, not kills. With a lead, take an inhibitor and reset rather than re-engaging into their base.'
+};
+
 export const FACTOR_GUIDE: Record<string, string> = {
   early_game: 'Conceded both first blood and first tower — behind before the map opened up.',
   lost_fights: 'Took clearly fewer kills than the enemy. Lost on fighting, not on rotations.',

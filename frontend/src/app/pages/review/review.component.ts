@@ -13,6 +13,7 @@ import {
   formatDuration,
   LossGroup,
   OFF_BOOK,
+  FACTOR_ADVICE,
   FACTOR_GUIDE,
   factorsOf,
   Outcome,
@@ -98,6 +99,18 @@ export class ReviewComponent {
   /** One line per factor, shown on hover rather than taking up layout. */
   protected factorHint(code: string): string {
     return FACTOR_GUIDE[code] ?? '';
+  }
+
+  /**
+   * What to work on after this specific game, from the factors it actually
+   * carries. Capped at three: a review with six action points is a review
+   * nobody does.
+   */
+  protected adviceFor(game: AnalysisGame): string[] {
+    return factorsOf(game)
+      .map((factor) => FACTOR_ADVICE[factor.code])
+      .filter((advice): advice is string => !!advice)
+      .slice(0, 3);
   }
 
   private readonly allLosses = computed(() =>
