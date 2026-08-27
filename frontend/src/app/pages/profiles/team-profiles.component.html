@@ -19,7 +19,7 @@
   @if (auth.editing()) {
     <button type="button" class="view-btn profiles-refresh-all" [disabled]="refreshingAll()" (click)="refreshAll()">
       <span class="material-symbols-rounded" aria-hidden="true">sync</span>
-      {{ refreshingAll() ? 'Refreshing ' + refreshProgress() + '…' : 'Refresh all from Riot' }}
+      {{ refreshingAll() ? 'Refreshing ' + refreshProgress() + '…' : 'Refresh player data (all)' }}
     </button>
   }
 </section>

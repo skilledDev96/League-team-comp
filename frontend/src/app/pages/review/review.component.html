@@ -6,9 +6,9 @@
 @if (!analysis()) {
   <section class="card">
     <p class="empty-state">
-      No match data yet. Run <strong>Refresh</strong> on the
-      <a routerLink="/analysis">Analysis</a> page first — this page reads the same
-      results and never calls Riot on its own.
+      No match data yet. Run <strong>Refresh match data</strong> on the
+      <a routerLink="/analysis">Analysis</a> page first — it is the same scan this
+      page reads, and the button here appears once there are games to review.
     </p>
   </section>
 } @else {
@@ -46,7 +46,7 @@
       @if (auth.editing()) {
         <button type="button" class="view-btn" [disabled]="refreshing()" (click)="refresh()">
           <span class="material-symbols-rounded" aria-hidden="true">sync</span>
-          {{ refreshing() ? 'Analyzing…' : 'Refresh from Riot' }}
+          {{ refreshing() ? 'Analyzing…' : 'Refresh match data' }}
         </button>
       }
     </div>
@@ -61,7 +61,7 @@
       <p class="empty-state">
         @if (summary().pending > 0) {
           {{ summary().pending }} {{ outcome() === 'win' ? 'wins are' : 'losses are' }} waiting on
-          objective data. Hit <strong>Refresh from Riot</strong> above to pull it —
+          objective data. Hit <strong>Refresh match data</strong> above to pull it —
           older cached matches fill in a batch at a time.
         } @else if (outcome() === 'win') {
           No wins in this selection yet.

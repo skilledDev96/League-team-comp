@@ -9,7 +9,7 @@
     @if (auth.editing()) {
       <button type="button" class="view-btn analysis-refresh" [disabled]="analysisLoading()" (click)="refreshAnalysis()">
         <span class="material-symbols-rounded" aria-hidden="true">sync</span>
-        {{ analysisLoading() ? 'Analyzing…' : 'Refresh from Riot' }}
+        {{ analysisLoading() ? 'Analyzing…' : 'Refresh match data' }}
       </button>
     }
   </div>
@@ -47,7 +47,7 @@
       <p class="analysis-pending">
         <span class="material-symbols-rounded" aria-hidden="true">hourglass_top</span>
         {{ a.pendingMatches }} more game{{ a.pendingMatches === 1 ? '' : 's' }} still to fetch —
-        @if (auth.editing()) { hit <strong>Refresh from Riot</strong> again to continue. }
+        @if (auth.editing()) { hit <strong>Refresh match data</strong> again to continue. }
         @else { an editor can Refresh again to continue. }
       </p>
     }
@@ -204,7 +204,7 @@
   } @else if (!analysisLoading()) {
     <p class="muted analysis-empty">
       No analysis yet.
-      @if (auth.editing()) { Hit <strong>Refresh from Riot</strong> to pull your recent 5-stack games. }
+      @if (auth.editing()) { Hit <strong>Refresh match data</strong> to pull your recent 5-stack games. }
       @else { An editor can refresh it from Riot in edit mode. }
     </p>
   }
