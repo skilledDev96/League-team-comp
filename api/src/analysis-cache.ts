@@ -22,7 +22,7 @@ export interface CachedMatch {
 }
 
 /** Bump when the cached shape changes; entries below this are re-fetched once. */
-export const CACHE_VERSION = 1;
+export const CACHE_VERSION = 2;
 
 /** A Summoner's Rift match has ten participants, and always exactly ten. */
 const FULL_LOBBY = 10;

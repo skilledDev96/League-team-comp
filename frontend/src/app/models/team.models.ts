@@ -182,6 +182,37 @@ export interface AnalysisPlayer {
   damage: number;
 }
 
+/** One side's objective haul in a game. Mirrors `api/src/objectives.ts`. */
+export interface TeamObjectives {
+  firstBlood: boolean;
+  firstTower: boolean;
+  dragons: number;
+  barons: number;
+  heralds: number;
+  grubs: number;
+  towers: number;
+  inhibitors: number;
+}
+
+export interface GameObjectives {
+  ours: TeamObjectives;
+  theirs: TeamObjectives;
+}
+
+export type LossCode =
+  | 'early_game'
+  | 'dragon_control'
+  | 'baron_control'
+  | 'map_control'
+  | 'threw_lead';
+
+/** One reason a game was lost, with the numbers behind it. */
+export interface LossFactor {
+  code: LossCode;
+  label: string;
+  detail: string;
+}
+
 export interface AnalysisGame {
   matchId: string;
   compId: string | null;
@@ -198,6 +229,11 @@ export interface AnalysisGame {
   queue: string;
   date: number;
   players: AnalysisPlayer[];
+  /** Absent until the match is re-cached at schema v2; the review page says so. */
+  objectives?: GameObjectives;
+  durationSec?: number;
+  /** Empty for a win, and for a loss with no objective story to tell. */
+  lossFactors?: LossFactor[];
 }
 
 /** Stage-by-stage audit of one analysis pass, so silent drops are visible. */

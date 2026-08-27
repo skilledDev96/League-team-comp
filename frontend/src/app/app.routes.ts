@@ -37,6 +37,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/analysis/analysis.component').then((m) => m.AnalysisComponent)
   },
   {
+    path: 'review',
+    canActivate: [viewerGuard],
+    loadComponent: () => import('./pages/review/review.component').then((m) => m.ReviewComponent)
+  },
+  {
     path: 'tournaments',
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/tournaments/tournaments.component').then((m) => m.TournamentsComponent)

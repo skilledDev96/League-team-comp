@@ -1,0 +1,128 @@
+<section class="hero">
+  <h1>Match Review</h1>
+  <p>What went wrong in the games you lost, read from the objectives both teams took.</p>
+</section>
+
+@if (!analysis()) {
+  <section class="card">
+    <p class="empty-state">
+      No match data yet. Run <strong>Refresh</strong> on the
+      <a routerLink="/analysis">Analysis</a> page first — this page reads the same
+      results and never calls Riot on its own.
+    </p>
+  </section>
+} @else {
+  <section class="card review-toolbar" aria-label="Review controls">
+    <div class="view-controls">
+      <label class="field compact-field"><span>Comp</span>
+        <select name="reviewComp" [value]="compFilter()" (change)="compFilter.set($any($event.target).value)">
+          <option value="all">All comps</option>
+          @for (comp of compOptions(); track comp.id) {
+            <option [value]="comp.id">{{ comp.name }}</option>
+          }
+        </select>
+      </label>
+      <p class="meta-line">
+        <span class="meta-label">Record</span>
+        <span class="meta-value">{{ record().wins }}W / {{ record().losses }}L over {{ record().games }} games</span>
+      </p>
+    </div>
+    @if (analysis()?.generatedAt; as generated) {
+      <p class="meta-line"><span class="meta-label">Last refreshed</span><span class="meta-value">{{ generated | date: 'medium' }}</span></p>
+    }
+  </section>
+
+  <section class="card" aria-label="Recurring problems">
+    <h2>Recurring problems</h2>
+    @if (summary().analysed === 0) {
+      <p class="empty-state">
+        @if (summary().pending > 0) {
+          {{ summary().pending }} losses are waiting on objective data. Refresh on the
+          <a routerLink="/analysis">Analysis</a> page to pull it — older cached matches
+          fill in a batch at a time.
+        } @else {
+          No losses in this selection. Nothing to review, which is the good outcome.
+        }
+      </p>
+    } @else {
+      <p class="muted">Across {{ summary().analysed }} analysed {{ summary().analysed === 1 ? 'loss' : 'losses' }}.</p>
+      @for (pattern of summary().patterns; track pattern.code) {
+        <div class="pattern-row">
+          <span class="pattern-label">{{ pattern.label }}</span>
+          <span class="pattern-bar" [attr.aria-label]="pattern.share + '% of losses'">
+            <span class="pattern-fill" [style.width.%]="pattern.share"></span>
+          </span>
+          <span class="pattern-count">{{ pattern.games }} of {{ summary().analysed }} ({{ pattern.share }}%)</span>
+        </div>
+      }
+      @if (summary().pending > 0) {
+        <p class="meta-line pattern-pending">
+          {{ summary().pending }} further {{ summary().pending === 1 ? 'loss is' : 'losses are' }} not counted yet —
+          those matches were cached before objectives were stored and fill in on refresh.
+        </p>
+      }
+    }
+  </section>
+
+  <section aria-label="Losses">
+    <h2 class="section-title">Losses</h2>
+    @if (losses().length === 0) {
+      <p class="empty-state">No losses in this selection.</p>
+    }
+    @for (game of losses(); track game.matchId) {
+      <article class="card loss-card" [class.expanded]="expandedId() === game.matchId">
+        <button class="loss-head" type="button" (click)="toggle(game.matchId)"
+                [attr.aria-expanded]="expandedId() === game.matchId">
+          <span class="loss-title">
+            <strong>{{ game.compName || game.nearCompName || 'Off-book comp' }}</strong>
+            <span class="tag">{{ game.queue }}</span>
+            <span class="tag">{{ game.side === 'blue' ? 'Blue' : 'Red' }} side</span>
+          </span>
+          <span class="loss-meta">
+            {{ game.date | date: 'd MMM' }} · {{ formatDuration(game.durationSec) }}
+          </span>
+        </button>
+
+        @if (game.lossFactors?.length) {
+          <div class="tag-row">
+            @for (factor of game.lossFactors; track factor.code) {
+              <span class="tag loss-tag">{{ factor.label }}<em>{{ factor.detail }}</em></span>
+            }
+          </div>
+        } @else if (game.objectives) {
+          <p class="muted">No objective story here — this one was lost in the fights, not on the map.</p>
+        } @else {
+          <p class="muted">Objective data not cached for this match yet.</p>
+        }
+
+        @if (expandedId() === game.matchId) {
+          @if (objectiveRows(game).length) {
+            <div class="objective-table">
+              <div class="objective-row objective-head"><span></span><span>Us</span><span>Them</span></div>
+              @for (row of objectiveRows(game); track row.label) {
+                <div class="objective-row">
+                  <span>{{ row.label }}</span>
+                  <span [class.behind]="row.ours < row.theirs">{{ row.ours }}</span>
+                  <span [class.behind]="row.theirs < row.ours">{{ row.theirs }}</span>
+                </div>
+              }
+              <div class="objective-row">
+                <span>First blood</span>
+                <span [class.behind]="!game.objectives?.ours?.firstBlood">{{ game.objectives?.ours?.firstBlood ? 'Yes' : 'No' }}</span>
+                <span [class.behind]="!game.objectives?.theirs?.firstBlood">{{ game.objectives?.theirs?.firstBlood ? 'Yes' : 'No' }}</span>
+              </div>
+              <div class="objective-row">
+                <span>First tower</span>
+                <span [class.behind]="!game.objectives?.ours?.firstTower">{{ game.objectives?.ours?.firstTower ? 'Yes' : 'No' }}</span>
+                <span [class.behind]="!game.objectives?.theirs?.firstTower">{{ game.objectives?.theirs?.firstTower ? 'Yes' : 'No' }}</span>
+              </div>
+            </div>
+          }
+          @if (game.enemyChampions?.length) {
+            <p class="meta-line"><span class="meta-label">Faced</span><span class="meta-value">{{ game.enemyChampions?.join(', ') }}</span></p>
+          }
+        }
+      </article>
+    }
+  </section>
+}

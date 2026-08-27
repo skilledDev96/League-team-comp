@@ -81,6 +81,31 @@ In Firebase mode the signals are kept live by `onSnapshot` listeners set up in `
 
 **Cloud Functions** (`api/src/`): `enrichPlayer`, `getTeamSynergy`, `getCompAnalysis` and `riotKeyHealth` are `onRequest` with `cors: true`; `checkRiotKey` is a scheduled probe. All use the `RIOT_API_KEY` secret and deploy to region `europe-west1` (see `SynergyService.functionUrl()`). `index.ts` holds the handlers and the Riot I/O; the logic they call sits in tested modules beside it (`parse-request`, `riot-errors`, `match-stats`, `insights`, `analysis-cache`, `comp-match`). Deploy **all** of them with `npm run deploy:functions` from the repo root.
 
+**Pages and routes** (`frontend/src/app/app.routes.ts`, nav in `app/app.html`): every
+route is lazy via `loadComponent`, and every content route is behind `viewerGuard`
+(`/admin` uses `authGuard`). `/` and `/login` are the login page; the rest are
+`/overview`, `/players` (player-intel), `/profiles`, `/player/:id`, `/comps`,
+`/analysis`, `/review`, `/tournaments`, `/synergy`, `/admin`. Adding a page means
+touching both files — the route alone leaves it unreachable.
+
+**The analysis data flow** is worth knowing before touching either analysis page:
+
+1. `CompAnalysisService.refresh()` POSTs the roster and comps to `getCompAnalysis`.
+2. The function scans `match/v5/.../by-puuid/{puuid}/ids` for `TEAM_QUEUES`, caches
+   each match at Firestore `matchCache/{matchId}` as a `CachedMatch` stamped with
+   `CACHE_VERSION`, attributes games to comps, and returns a `CompAnalysis`.
+3. That result is persisted into `TeamData.compAnalysis`, so pages read it from
+   `TeamDataService.compAnalysis()` — **no page calls Riot directly.**
+4. `/analysis` owns the Refresh button. `/review` is read-only over the same
+   payload and answers a different question (why the losses happened), which is
+   why it is a separate page rather than another panel.
+
+Adding a field to a cached match means **bumping `CACHE_VERSION`** in
+`analysis-cache.ts`. Old entries then re-fetch once, inside `MAX_NEW_FETCHES` per
+run — so the field is *absent* on some matches for several refreshes, and any UI
+over it has to say so rather than render a zero. Riot rate limits hard; that
+budget is the reason the cache exists at all.
+
 ## Conventions
 
 - **Angular 22, standalone components, signals throughout.** No NgModules; components declare their own `imports`. State is signals + `computed`; prefer this over RxJS for view state.

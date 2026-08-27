@@ -11,6 +11,7 @@ import { matchComp } from './comp-match';
 import { summarizeMatches } from './match-stats';
 import { classifyArchetype, describePlayer } from './insights';
 import { CACHE_VERSION, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
+import { describeLoss, GameObjectives, LossFactor } from './objectives';
 import { BUILD_SHA } from './build-info';
 
 initializeApp();
@@ -327,12 +328,35 @@ interface RiotMatchParticipant {
   visionScore: number;
 }
 
+/** One objective type in a match's team block: who took it first, and how many. */
+interface RiotObjective {
+  first: boolean;
+  kills: number;
+}
+
+interface RiotTeam {
+  teamId: number;
+  win: boolean;
+  objectives: {
+    champion: RiotObjective;
+    tower: RiotObjective;
+    dragon: RiotObjective;
+    baron: RiotObjective;
+    riftHerald: RiotObjective;
+    inhibitor: RiotObjective;
+    /** Voidgrubs, absent from matches played before they were added. */
+    horde?: RiotObjective;
+  };
+}
+
 interface RiotMatch {
   info: {
     gameDuration: number;
     gameCreation: number;
     queueId: number;
     participants: RiotMatchParticipant[];
+    /** Optional only defensively; every real Summoner's Rift match has two. */
+    teams?: RiotTeam[];
   };
 }
 
@@ -784,6 +808,23 @@ interface AnalysisGameResponse {
   queue: string;
   date: number;
   players: AnalysisPlayerResponse[];
+  /** Objective split. Absent while a match is still on a pre-v2 cache entry. */
+  objectives?: GameObjectives;
+  /** Seconds; pairs with `objectives` and shares its absence. */
+  durationSec?: number;
+  /** Why this game was lost. Empty for a win, and for a loss with no story. */
+  lossFactors?: LossFactor[];
+}
+
+/**
+ * Our side and theirs, or null for a cached match written before objectives
+ * were stored — those heal on their next refresh rather than being re-fetched
+ * eagerly, so the review page fills in over a few passes.
+ */
+function gameObjectives(match: CachedMatch, rosterTeamId: number): GameObjectives | null {
+  const ours = match.teams?.find((t) => t.teamId === rosterTeamId);
+  const theirs = match.teams?.find((t) => t.teamId !== rosterTeamId);
+  return ours && theirs ? { ours, theirs } : null;
 }
 
 // Human labels for match queues (a few extras in case a cached match has them).
@@ -810,12 +851,45 @@ interface CachedParticipant {
   damage: number;
 }
 
+/** One side's objective haul, cached so a loss can be explained without a re-fetch. */
+interface CachedTeam {
+  teamId: number;
+  firstBlood: boolean;
+  firstTower: boolean;
+  dragons: number;
+  barons: number;
+  heralds: number;
+  grubs: number;
+  towers: number;
+  inhibitors: number;
+}
+
 interface CachedMatch {
   /** Schema stamp. Absent means a legacy entry written before versioning. */
   cacheVersion?: number;
   queueId: number;
   gameCreation: number;
   participants: CachedParticipant[];
+  /** Seconds. Separates an early collapse from a long game that got away. */
+  durationSec?: number;
+  /** Both sides, by teamId (100 blue, 200 red). Absent on v1 entries. */
+  teams?: CachedTeam[];
+}
+
+/** Riot reports every objective the same way, so read them the same way. */
+function cacheTeam(team: RiotTeam): CachedTeam {
+  const o = team.objectives;
+  return {
+    teamId: team.teamId,
+    firstBlood: o.champion?.first ?? false,
+    firstTower: o.tower?.first ?? false,
+    dragons: o.dragon?.kills ?? 0,
+    barons: o.baron?.kills ?? 0,
+    heralds: o.riftHerald?.kills ?? 0,
+    grubs: o.horde?.kills ?? 0,
+    towers: o.tower?.kills ?? 0,
+    inhibitors: o.inhibitor?.kills ?? 0
+  };
 }
 
 async function getCachedMatch(
@@ -846,6 +920,8 @@ async function getCachedMatch(
     cacheVersion: CACHE_VERSION,
     queueId: raw.info.queueId,
     gameCreation: raw.info.gameCreation,
+    durationSec: raw.info.gameDuration,
+    teams: (raw.info.teams ?? []).map(cacheTeam),
     participants: raw.info.participants.map((p) => ({
       puuid: p.puuid,
       championName: p.championName,
@@ -1041,6 +1117,8 @@ async function computeCompAnalysis(
     const win = teamParts[0].win;
     const rosterTeamId = teamParts[0].teamId;
     const side: 'blue' | 'red' = rosterTeamId === 100 ? 'blue' : 'red';
+    const objectives = gameObjectives(match, rosterTeamId);
+    const durationSec = match.durationSec ?? 0;
     const enemyChampions = match.participants
       .filter((p) => p.teamId !== rosterTeamId)
       .map((p) => displayChampionName(p.championName));
@@ -1088,7 +1166,13 @@ async function computeCompAnalysis(
       enemyChampions,
       queue: QUEUE_LABEL[match.queueId] ?? 'Team',
       date: match.gameCreation,
-      players
+      players,
+      // Conditional spread throughout — Firestore rejects undefined values.
+      ...(objectives && {
+        objectives,
+        durationSec,
+        lossFactors: win ? [] : describeLoss(objectives, durationSec)
+      })
     });
   }
 
