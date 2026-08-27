@@ -158,3 +158,55 @@ describe('describeWin', () => {
     expect(codes(game({ dragons: 2, towers: 5 }, { dragons: 2, towers: 5 }), LONG)).toEqual([]);
   });
 });
+
+describe('fight factors', () => {
+  const even = game({ dragons: 2, towers: 5 }, { dragons: 2, towers: 5 });
+
+  it('names a loss where the team was being killed', () => {
+    const codes = describeLoss(even, LONG, { ours: 12, theirs: 31 }).map((f) => f.code);
+    expect(codes).toContain('lost_fights');
+  });
+
+  it('names a win where the team was winning fights', () => {
+    const codes = describeWin(even, LONG, { ours: 31, theirs: 12 }).map((f) => f.code);
+    expect(codes).toContain('won_fights');
+  });
+
+  it('says nothing about a game that was traded evenly', () => {
+    expect(describeLoss(even, LONG, { ours: 18, theirs: 20 }).map((f) => f.code)).not.toContain(
+      'lost_fights'
+    );
+    expect(describeWin(even, LONG, { ours: 20, theirs: 18 }).map((f) => f.code)).not.toContain(
+      'won_fights'
+    );
+  });
+
+  it('ignores a lopsided share across too few kills', () => {
+    expect(describeLoss(even, LONG, { ours: 1, theirs: 5 }).map((f) => f.code)).not.toContain(
+      'lost_fights'
+    );
+  });
+
+  it('carries the scoreline so the claim can be checked', () => {
+    const factor = describeLoss(even, LONG, { ours: 12, theirs: 31 }).find(
+      (f) => f.code === 'lost_fights'
+    );
+    expect(factor?.detail).toBe('Kills 12-31');
+  });
+
+  it('leaves every other factor alone when no tally is passed', () => {
+    // Games cached before the tally existed still describe themselves; they
+    // just say nothing about the fights.
+    const codes = describeLoss(even, LONG).map((f) => f.code);
+    expect(codes).not.toContain('lost_fights');
+  });
+
+  it('reads a loss where the fights were won as a conversion problem', () => {
+    // The pair this exists for: winning fights and still losing is a different
+    // problem from losing them, and they used to look identical.
+    const behind = game({ dragons: 1, towers: 3 }, { dragons: 4, towers: 9 });
+    const codes = describeLoss(behind, LONG, { ours: 30, theirs: 12 }).map((f) => f.code);
+    expect(codes).toContain('map_control');
+    expect(codes).not.toContain('lost_fights');
+  });
+});

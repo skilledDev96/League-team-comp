@@ -9,6 +9,7 @@ import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
 import { attributeComp } from './comp-attribution';
+import { killParticipation, tallyKills } from './fights';
 import { summarizeMatches } from './match-stats';
 import { classifyArchetype, describePlayer } from './insights';
 import { CACHE_VERSION, isCacheCurrent, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
@@ -327,6 +328,8 @@ interface RiotMatchParticipant {
   damageDealtToBuildings: number;
   totalDamageTaken: number;
   visionScore: number;
+  /** Seconds spent crowd-controlling opponents. */
+  timeCCingOthers: number;
 }
 
 /** One objective type in a match's team block: who took it first, and how many. */
@@ -794,6 +797,16 @@ interface AnalysisPlayerResponse {
   assists: number;
   cs: number;
   damage: number;
+  /**
+   * Share of the team's kills this player was in on, 0-1. Computed from cached
+   * kills and assists rather than Riot's `challenges.killParticipation`, which
+   * is absent on older matches — so this works on every game.
+   */
+  killParticipation?: number;
+  /** Damage taken. Absent until the match is re-cached at schema v3. */
+  damageTaken?: number;
+  /** Seconds spent crowd-controlling opponents. Absent below cache v3. */
+  ccTime?: number;
 }
 
 interface AnalysisGameResponse {
@@ -823,6 +836,8 @@ interface AnalysisGameResponse {
   lossFactors?: LossFactor[];
   /** Why this game was won. Empty for a loss, and for a win with no story. */
   winFactors?: WinFactor[];
+  /** The fight scoreline: our kills against theirs. */
+  kills?: { ours: number; theirs: number };
 }
 
 /**
@@ -858,6 +873,10 @@ interface CachedParticipant {
   assists: number;
   cs: number;
   damage: number;
+  /** Damage taken. Absent below cache v3; the UI shows a dash rather than a zero. */
+  damageTaken?: number;
+  /** Seconds spent crowd-controlling opponents. Absent below cache v3. */
+  ccTime?: number;
 }
 
 /** One side's objective haul, cached so a loss can be explained without a re-fetch. */
@@ -948,7 +967,9 @@ async function getCachedMatch(
       deaths: p.deaths,
       assists: p.assists,
       cs: p.totalMinionsKilled + p.neutralMinionsKilled,
-      damage: p.totalDamageDealtToChampions
+      damage: p.totalDamageDealtToChampions,
+      damageTaken: p.totalDamageTaken ?? 0,
+      ccTime: p.timeCCingOthers ?? 0
     }))
   };
   await ref.set(match);
@@ -1135,6 +1156,9 @@ async function computeCompAnalysis(
     const side: 'blue' | 'red' = rosterTeamId === 100 ? 'blue' : 'red';
     const objectives = gameObjectives(match, rosterTeamId);
     const durationSec = match.durationSec ?? 0;
+    // Read from participants we already cache, so this needed no re-fetch and
+    // applies to every game rather than only the freshly cached ones.
+    const fights = tallyKills(match.participants, rosterTeamId);
     const enemyChampions = match.participants
       .filter((p) => p.teamId !== rosterTeamId)
       .map((p) => displayChampionName(p.championName));
@@ -1147,7 +1171,14 @@ async function computeCompAnalysis(
         deaths: p.deaths,
         assists: p.assists,
         cs: p.cs,
-        damage: p.damage
+        damage: p.damage,
+        // Conditional spread throughout — Firestore rejects undefined values,
+        // and these are absent until the match is re-cached at schema v3.
+        ...(killParticipation(p.kills, p.assists, fights.ours) !== null && {
+          killParticipation: killParticipation(p.kills, p.assists, fights.ours) as number
+        }),
+        ...(p.damageTaken !== undefined && { damageTaken: p.damageTaken }),
+        ...(p.ccTime !== undefined && { ccTime: p.ccTime })
       }))
       .sort((a, b) => (roleOrder[a.position] ?? 9) - (roleOrder[b.position] ?? 9));
 
@@ -1194,8 +1225,9 @@ async function computeCompAnalysis(
       ...(objectives && {
         objectives,
         durationSec,
-        lossFactors: win ? [] : describeLoss(objectives, durationSec),
-        winFactors: win ? describeWin(objectives, durationSec) : []
+        lossFactors: win ? [] : describeLoss(objectives, durationSec, fights),
+        winFactors: win ? describeWin(objectives, durationSec, fights) : [],
+        kills: fights
       })
     });
   }

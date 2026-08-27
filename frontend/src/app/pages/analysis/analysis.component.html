@@ -254,6 +254,8 @@
             <span class="game-col">KDA</span>
             <span class="game-col">CS</span>
             <span class="game-col">DMG</span>
+            <span class="game-col fight-col" appTip="Kill participation — share of the team's kills this player was in on">KP</span>
+            <span class="game-col fight-col" appTip="Damage taken — who was absorbing it">TAKEN</span>
           </li>
           @for (p of game.players; track p.name) {
             <li class="game-player" [class.in-comp]="champInComp(game, p.champion)">
@@ -270,6 +272,10 @@
               <span class="game-kda">{{ p.kills }}/{{ p.deaths }}/{{ p.assists }}</span>
               <span class="game-cs">{{ p.cs }}</span>
               <span class="game-dmg">{{ fmtDamage(p.damage) }}</span>
+              <!-- Absent on matches not yet re-cached at v3: a dash, never a
+                   zero, which would read as "took no damage". -->
+              <span class="game-dmg fight-col">{{ fmtPercent(p.killParticipation) }}</span>
+              <span class="game-dmg fight-col">{{ p.damageTaken === undefined ? '—' : fmtDamage(p.damageTaken) }}</span>
             </li>
           }
         </ul>

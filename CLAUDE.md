@@ -102,6 +102,11 @@ touching both files — the route alone leaves it unreachable.
    toggles between losses and wins; `describeLoss` and `describeWin` in
    `api/src/objectives.ts` are deliberate mirrors on shared thresholds, and the
    page counts both through one `summarise` so the two cannot drift.
+   `api/src/fights.ts` adds the kill tally on top, which is what separates a
+   game lost *in the fights* from one lost *on the map* — two losses that read
+   identically without it and need opposite work. It costs no Riot calls: every
+   participant is already cached, so it applies to every game, not just the
+   freshly fetched ones.
 
 Adding a field to a cached match means **bumping `CACHE_VERSION`** in
 `analysis-cache.ts`. Old entries then re-fetch once, inside `MAX_NEW_FETCHES` per

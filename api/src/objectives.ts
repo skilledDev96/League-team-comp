@@ -4,12 +4,15 @@
  * The comp analysis already answers "which comps win". It cannot answer "what
  * went wrong", because a scoreline says nothing about *where* the game was
  * lost: a 20-minute stomp and a 40-minute throw both land in the loss column.
- * The objective deltas separate them.
+ * The objective deltas separate them, and the kill tally separates the games
+ * that were lost in the fights from the ones lost on the map.
  *
  * Like `insights.ts`, these are thresholds, and thresholds drift. They live
  * here with tests so that changing what counts as "conceded dragon control"
  * has to be deliberate.
  */
+
+import { FightTally, killShare } from './fights';
 
 export interface TeamObjectives {
   firstBlood: boolean;
@@ -38,10 +41,20 @@ export interface LossFactor {
 
 export type LossCode =
   | 'early_game'
+  | 'lost_fights'
   | 'dragon_control'
   | 'baron_control'
   | 'map_control'
   | 'threw_lead';
+
+/**
+ * Share of a game's kills that counts as winning or losing the fights.
+ *
+ * 0.58 is roughly a 3:2 scoreline. Deliberately not a hair over half: teams
+ * trade, and calling 51% "won the fights" would put a label on every game and
+ * so on none of them.
+ */
+const FIGHT_EDGE = 0.58;
 
 /** Dragons behind before it is worth mentioning — one is variance, two is a pattern. */
 const DRAGON_DEFICIT = 2;
@@ -64,7 +77,8 @@ const LONG_GAME_SECONDS = 30 * 60;
  */
 export function describeLoss(
   objectives: GameObjectives,
-  durationSec: number
+  durationSec: number,
+  fights?: FightTally
 ): LossFactor[] {
   const { ours, theirs } = objectives;
   const factors: LossFactor[] = [];
@@ -74,6 +88,18 @@ export function describeLoss(
       code: 'early_game',
       label: 'Lost the early game',
       detail: 'Conceded both first blood and first tower'
+    });
+  }
+
+  // Read before the objectives, because it is usually the cause and they are
+  // usually the consequence: a team losing every fight loses the map for
+  // reasons that have nothing to do with rotations.
+  const share = fights ? killShare(fights) : null;
+  if (fights && share !== null && share <= 1 - FIGHT_EDGE) {
+    factors.push({
+      code: 'lost_fights',
+      label: 'Lost the fights',
+      detail: `Kills ${fights.ours}-${fights.theirs}`
     });
   }
 
@@ -121,6 +147,7 @@ export function describeLoss(
 
 export type WinCode =
   | 'early_lead'
+  | 'won_fights'
   | 'dragon_control'
   | 'baron_control'
   | 'map_control'
@@ -151,7 +178,8 @@ const FAST_WIN_SECONDS = 25 * 60;
  */
 export function describeWin(
   objectives: GameObjectives,
-  durationSec: number
+  durationSec: number,
+  fights?: FightTally
 ): WinFactor[] {
   const { ours, theirs } = objectives;
   const factors: WinFactor[] = [];
@@ -161,6 +189,15 @@ export function describeWin(
       code: 'early_lead',
       label: 'Won the early game',
       detail: 'Took both first blood and first tower'
+    });
+  }
+
+  const share = fights ? killShare(fights) : null;
+  if (fights && share !== null && share >= FIGHT_EDGE) {
+    factors.push({
+      code: 'won_fights',
+      label: 'Won the fights',
+      detail: `Kills ${fights.ours}-${fights.theirs}`
     });
   }
 

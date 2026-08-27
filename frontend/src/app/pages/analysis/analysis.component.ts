@@ -359,6 +359,17 @@ export class AnalysisComponent {
   // Compact damage label, e.g. 24312 -> "24.3k".
   protected fmtDamage = formatDamage;
 
+  /**
+   * A 0-1 share as a percentage, or a dash when it is genuinely absent.
+   *
+   * The dash matters: kill participation is missing on a game with no kills at
+   * all, and rendering that as 0% would read as "was never there" rather than
+   * "there was nothing to be there for".
+   */
+  protected fmtPercent(share: number | undefined): string {
+    return share === undefined ? '—' : `${Math.round(share * 100)}%`;
+  }
+
   // ---- Define a comp from an off-book game ------------------------------
 
   // matchId -> draft comp name being typed.

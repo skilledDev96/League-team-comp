@@ -185,6 +185,12 @@ export interface AnalysisPlayer {
   assists: number;
   cs: number;
   damage: number;
+  /** Share of the team's kills this player was in on, 0-1. */
+  killParticipation?: number;
+  /** Damage taken. Absent until the match is re-cached at schema v3. */
+  damageTaken?: number;
+  /** Seconds spent crowd-controlling opponents. Absent below cache v3. */
+  ccTime?: number;
 }
 
 /** One side's objective haul in a game. Mirrors `api/src/objectives.ts`. */
@@ -205,6 +211,7 @@ export interface GameObjectives {
 }
 
 export type LossCode =
+  | 'lost_fights'
   | 'early_game'
   | 'dragon_control'
   | 'baron_control'
@@ -219,6 +226,7 @@ export interface LossFactor {
 }
 
 export type WinCode =
+  | 'won_fights'
   | 'early_lead'
   | 'dragon_control'
   | 'baron_control'
@@ -259,6 +267,8 @@ export interface AnalysisGame {
   lossFactors?: LossFactor[];
   /** Empty for a loss, and for a win with no objective story to tell. */
   winFactors?: WinFactor[];
+  /** The fight scoreline: our kills against theirs. */
+  kills?: { ours: number; theirs: number };
   /**
    * Set when a person placed this game rather than the champion matcher —
    * `manual` for an override on this match, `alias` for a comp's `countsUnder`.

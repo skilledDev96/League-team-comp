@@ -3573,7 +3573,7 @@ a.profiles-row:focus-visible {
 
 .game-player {
   display: grid;
-  grid-template-columns: 40px 4.75rem minmax(6rem, 1fr) 4.25rem 3rem 3.5rem;
+  grid-template-columns: 40px 4.75rem minmax(6rem, 1fr) 4.25rem 3rem 3.5rem 3rem 3.75rem;
   align-items: center;
   gap: 0.9rem;
   padding: 0.32rem 0;
@@ -7468,4 +7468,16 @@ app-match-note {
   justify-content: space-between;
   gap: 0.5rem 0.75rem;
   margin-top: 0.6rem;
+}
+
+/* The fight columns are the first thing to go when there is no room: KDA, CS
+   and damage are what people scan for, and an overflowing row helps nobody. */
+@media (max-width: 900px) {
+  .game-player {
+    grid-template-columns: 40px 4.75rem minmax(6rem, 1fr) 4.25rem 3rem 3.5rem;
+  }
+
+  .fight-col {
+    display: none;
+  }
 }
