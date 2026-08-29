@@ -2,6 +2,8 @@ import { Component, computed, inject, input, output, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { ChampionDataService } from '../services/champion-data.service';
 import { UiService } from '../services/ui.service';
+import { Role } from '../models/team.models';
+import { playsRole } from '../core/champion-lanes';
 import { filterChampions } from './comp-board.util';
 
 /** The class chips above the grid, in the order they read as a comp. */
@@ -32,6 +34,18 @@ export class ChampionGridComponent {
   readonly unavailable = input<readonly string[]>([]);
   /** Champions already placed by this caller, shown with a tick. */
   readonly taken = input<ReadonlySet<string>>(new Set<string>());
+  /**
+   * Narrow the wall to champions played in this lane.
+   *
+   * Set from the seat being drafted, so aiming at Jungle shows junglers without
+   * anyone reaching for a filter. A champion with no pro games survives every
+   * lane filter — see `playsRole` — because hiding one entirely is worse than
+   * offering it in the wrong lane.
+   */
+  readonly lane = input<Role | null>(null);
+  /** Escape hatch: some drafts want the off-meta pick the lane filter hides. */
+  readonly showAllLanes = signal(false);
+
   readonly pick = output<string>();
 
   protected readonly classTags = CLASS_TAGS;
@@ -42,9 +56,20 @@ export class ChampionGridComponent {
     () => new Set(this.unavailable().map((c) => c.toLowerCase()))
   );
 
-  protected readonly grid = computed(() =>
-    filterChampions(this.champs.champions(), this.query(), this.tag())
-  );
+  protected readonly grid = computed(() => {
+    const found = filterChampions(this.champs.champions(), this.query(), this.tag());
+    const lane = this.lane();
+    if (!lane || this.showAllLanes()) return found;
+    return found.filter((c) => playsRole(c.name, lane));
+  });
+
+  /** How many the lane filter is holding back, so the escape hatch is honest. */
+  protected readonly hiddenByLane = computed(() => {
+    const lane = this.lane();
+    if (!lane || this.showAllLanes()) return 0;
+    const found = filterChampions(this.champs.champions(), this.query(), this.tag());
+    return found.length - found.filter((c) => playsRole(c.name, lane)).length;
+  });
 
   protected isBlocked(name: string): boolean {
     return this.blocked().has(name.toLowerCase());

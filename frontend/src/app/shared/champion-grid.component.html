@@ -12,6 +12,25 @@
   </div>
 </div>
 
+<!-- The lane filter is doing something invisible — narrowing 170 champions to
+     the ones played in this seat — so it says so, and offers the way out in
+     the same breath. Off-meta picks are a real part of drafting. -->
+@if (hiddenByLane() > 0) {
+  <p class="board-lane-note">
+    Showing {{ lane() }} champions.
+    <button type="button" class="link-btn" (click)="showAllLanes.set(true)">
+      Show all {{ hiddenByLane() }} others
+    </button>
+  </p>
+} @else if (lane() && showAllLanes()) {
+  <p class="board-lane-note">
+    Showing every champion.
+    <button type="button" class="link-btn" (click)="showAllLanes.set(false)">
+      Back to {{ lane() }} only
+    </button>
+  </p>
+}
+
 @if (champs.ready() && grid().length === 0) {
   <p class="muted">No champion matches that.</p>
 }

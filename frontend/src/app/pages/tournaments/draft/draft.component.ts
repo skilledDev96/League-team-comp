@@ -450,6 +450,12 @@ export class TournamentDraftComponent {
     if (next >= 0) this.aimAtPick(aimed.side, next);
   }
 
+  /** The seat's lane, so the grid narrows itself without anyone filtering. */
+  protected gridLane(): Role | null {
+    const aimed = this.target();
+    return aimed.kind === 'pick' ? this.roles[aimed.index] : null;
+  }
+
   /** What the grid is currently pointed at, for the hint above it. */
   protected targetLabel(game: SeriesGame): string {
     const aimed = this.target();

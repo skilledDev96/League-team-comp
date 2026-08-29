@@ -198,6 +198,7 @@
           </p>
           <app-champion-grid [unavailable]="gridUnavailable(game)"
                              [taken]="gridTaken(game)"
+                             [lane]="gridLane()"
                              (pick)="gridPick(game, $event)" />
         </div>
       }

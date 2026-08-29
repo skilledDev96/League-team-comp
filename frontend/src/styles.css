@@ -8554,3 +8554,21 @@ body[data-theme="void"] {
   width: 100%;
   font-size: 0.72rem;
 }
+
+/* The lane filter narrows 170 champions down to a seat's own pool, which is a
+   large invisible change — so it says what it did and offers the way out. */
+.board-lane-note {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-1);
+}
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-2);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
