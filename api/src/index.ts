@@ -1448,8 +1448,13 @@ async function fetchChampionTraits(): Promise<Record<string, ChampionTraits>> {
     | CdragonSummaryEntry[]
     | undefined;
 
-  // id -1 is the "None" placeholder the client uses for an empty slot.
-  const ids = (summary ?? []).map((c) => c.id).filter((id) => id > 0);
+  // id -1 is the "None" placeholder the client uses for an empty slot, and the
+  // Jade_* aliases are another mode's variants of champions already listed —
+  // 63 of them, none pickable on Summoner's Rift. Dropping them here is 63
+  // fewer requests to someone else's CDN for entries nothing can ever read.
+  const ids = (summary ?? [])
+    .filter((c) => c.id > 0 && !c.alias?.startsWith('Jade_'))
+    .map((c) => c.id);
   const traits: Record<string, ChampionTraits> = {};
 
   for (let i = 0; i < ids.length; i += TRAIT_FETCH_CONCURRENCY) {
