@@ -8333,3 +8333,22 @@ body[data-theme="void"] {
 .board-damage-warn {
   font-size: 0.74rem;
 }
+
+/* The Riot attribution notice. Deliberately quiet — it is a legal requirement
+   on every page, not a piece of the interface, so it sits below the content
+   with a rule separating it and never competes for attention. */
+.site-footer {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.site-footer .footer-note {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  color: var(--text-1);
+  opacity: 0.75;
+  text-align: center;
+  text-wrap: balance;
+}

@@ -79,6 +79,19 @@
 
   <router-outlet />
 
+  <!-- Required by Riot's "Legal Jibber Jabber" policy, which permits a project
+       to use their art assets (the champion icons this app is built on) only
+       while this notice is displayed. Wording is theirs, not ours — do not
+       reword it. It sits outside the auth check because the policy asks for it
+       wherever the project is shown, and the login page is public. -->
+  <footer class="site-footer">
+    <p class="footer-note">
+      {{ data.settings().teamName || 'Bom Squad' }} Draft Hub was created under Riot Games'
+      "Legal Jibber Jabber" policy using assets owned by Riot Games.
+      Riot Games does not endorse or sponsor this project.
+    </p>
+  </footer>
+
   @if (auth.canEdit() && auth.editMode()) {
     <div class="edit-mode-frame" aria-hidden="true"></div>
     <button type="button" class="edit-mode-banner" (click)="auth.editMode.set(false)"
