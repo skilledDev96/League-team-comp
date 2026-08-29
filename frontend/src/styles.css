@@ -8672,3 +8672,81 @@ body[data-theme="void"] {
   font-size: 0.82rem;
   color: var(--warn);
 }
+
+/* ---- Live draft: give the grid the room it deserves ----------------------
+   Mid-draft this wall *is* the screen — you are scanning it under a clock, not
+   glancing at it. Everything here is scoped to .draft-grid so the comp board,
+   which is browsed rather than raced, keeps its denser layout.
+
+   Heights are viewport-relative so a 32" monitor shows more rows rather than
+   the same rows with more empty page beneath them. */
+
+.draft-grid .board-grid {
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.55rem;
+  max-height: min(38rem, 56vh);
+  padding: 0.55rem;
+}
+
+.draft-grid .board-champ {
+  gap: 0.3rem;
+  padding: 0.45rem 0.2rem;
+  border-radius: 0.6rem;
+}
+
+.draft-grid .board-champ img {
+  width: 3.9rem;
+  height: 3.9rem;
+}
+
+.draft-grid .board-champ-label {
+  font-size: 0.74rem;
+}
+
+/* Hover has to read instantly when the cursor is moving fast. */
+.draft-grid .board-champ:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.draft-grid .board-search {
+  padding: 0.6rem 0.8rem;
+  font-size: 1rem;
+}
+
+/* The turn indicator is the one thing that must be readable from a lean-back
+   distance, so it is the largest text in the panel. */
+.draft-step-bar {
+  padding: 0.75rem 1rem;
+  font-size: 1.05rem;
+}
+
+.draft-step-turn {
+  font-size: 1.15rem;
+  letter-spacing: 0.01em;
+}
+
+.draft-step-progress {
+  height: 0.55rem;
+}
+
+.draft-confirm {
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+}
+
+.draft-confirm .pool-champ-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.draft-confirm-name {
+  font-size: 1.15rem;
+}
+
+/* Once the sequence is running the seats are a reference, not a workspace —
+   the grid below is where the clicking happens — so they give back some room. */
+.draft-grid ~ .draft-status,
+.draft-inputs:has(~ .draft-grid .draft-step-bar) .pick-slots {
+  gap: 0.35rem;
+}
