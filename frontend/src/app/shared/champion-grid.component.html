@@ -1,32 +1,24 @@
 <div class="board-filters">
   <input type="text" class="board-search" [ngModel]="query()" (ngModelChange)="query.set($event)"
-         name="boardSearch" placeholder="Search champions…" autocomplete="off"
+         name="boardSearch" placeholder="Search…" autocomplete="off"
          [attr.aria-label]="'Search champions'" />
-  <div class="board-tags" role="group" aria-label="Filter by class">
-    <button type="button" class="tag board-tag" [class.active]="tag() === null"
-            (click)="tag.set(null)">All</button>
-    @for (t of classTags; track t) {
-      <button type="button" class="tag board-tag" [class.active]="tag() === t"
-              (click)="tag.set(tag() === t ? null : t)">{{ t }}</button>
+  <!-- Lanes, not Riot's class tags. The chips answer "who can go here", which
+       is the only question being asked with a champion in hand. -->
+  <div class="board-tags" role="group" aria-label="Filter by lane">
+    <button type="button" class="tag board-tag" [class.active]="roleFilter() === null"
+            (click)="roleFilter.set(null)">All</button>
+    @for (role of roles; track role) {
+      <button type="button" class="tag board-tag" [class.active]="roleFilter() === role"
+              (click)="roleFilter.set(roleFilter() === role ? null : role)">{{ role }}</button>
     }
   </div>
 </div>
 
-<!-- The lane filter is doing something invisible — narrowing 170 champions to
-     the ones played in this seat — so it says so, and offers the way out in
-     the same breath. Off-meta picks are a real part of drafting. -->
 @if (hiddenByLane() > 0) {
   <p class="board-lane-note">
-    Showing {{ lane() }} champions.
-    <button type="button" class="link-btn" (click)="showAllLanes.set(true)">
+    {{ grid().length }} {{ roleFilter() }} champions.
+    <button type="button" class="link-btn" (click)="roleFilter.set(null)">
       Show all {{ hiddenByLane() }} others
-    </button>
-  </p>
-} @else if (lane() && showAllLanes()) {
-  <p class="board-lane-note">
-    Showing every champion.
-    <button type="button" class="link-btn" (click)="showAllLanes.set(false)">
-      Back to {{ lane() }} only
     </button>
   </p>
 }

@@ -8750,3 +8750,81 @@ body[data-theme="void"] {
 .draft-inputs:has(~ .draft-grid .draft-step-bar) .pick-slots {
   gap: 0.35rem;
 }
+
+/* ---- Draft seats as blocks ----------------------------------------------
+   A team's five picks are a comp, and a comp is a shape. Read as five stacked
+   rows they look like five unrelated champions, which is the same reason the
+   comps page moved to blocks. Only used in the draft, where .pick-slots lives. */
+
+.draft-inputs .pick-slots {
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  gap: 0.45rem;
+}
+
+.draft-inputs .pick-slot {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 0.3rem;
+  padding: 0.5rem 0.4rem 0.6rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-controls);
+  text-align: center;
+}
+
+.draft-inputs .pick-slot-role {
+  flex: none;
+  width: 100%;
+  justify-content: center;
+  font-size: 0.66rem;
+}
+
+.draft-inputs .pick-target {
+  flex: none;
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.25rem;
+  background: none;
+  border-color: transparent;
+}
+
+/* The aimed seat is a ring on the block rather than a filled button, so the
+   champion inside it stays legible. */
+.draft-inputs .pick-slot:has(.pick-target.is-aimed) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-controls));
+}
+
+.draft-inputs .pick-target.is-aimed {
+  background: none;
+  box-shadow: none;
+}
+
+.draft-inputs .pick-target .pool-champ-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+}
+
+.draft-inputs .pick-target-name {
+  white-space: normal;
+  line-height: 1.2;
+  font-size: 0.82rem;
+}
+
+/* Out of the flow entirely, so an empty seat is not taller than a full one. */
+.draft-inputs .pick-target-clear {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.2rem;
+}
+
+.ban-clear-all {
+  margin-left: 0.5rem;
+  font-size: 0.78rem;
+}

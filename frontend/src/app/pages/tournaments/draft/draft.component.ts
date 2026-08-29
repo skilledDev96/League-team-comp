@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
@@ -50,7 +50,16 @@ const MAX_BANS = 10;
   ],
   templateUrl: './draft.component.html'
 })
-export class TournamentDraftComponent {
+export class TournamentDraftComponent implements OnInit {
+  /**
+   * Open in edit mode. This screen exists to be used while a draft is running —
+   * arriving to a read-only board and having to find the toggle first is a step
+   * nobody wants with a pick timer going. Leaving is still one click.
+   */
+  ngOnInit(): void {
+    if (this.auth.canEdit()) this.auth.editMode.set(true);
+  }
+
   protected readonly data = inject(TeamDataService);
   protected readonly auth = inject(AuthService);
   protected readonly ui = inject(UiService);

@@ -1,13 +1,10 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChampionDataService } from '../services/champion-data.service';
 import { UiService } from '../services/ui.service';
-import { Role } from '../models/team.models';
+import { Role, ROLES } from '../models/team.models';
 import { playsRole } from '../core/champion-lanes';
 import { filterChampions } from './comp-board.util';
-
-/** The class chips above the grid, in the order they read as a comp. */
-const CLASS_TAGS = ['Tank', 'Fighter', 'Assassin', 'Mage', 'Marksman', 'Support'];
 
 /**
  * A searchable wall of champions that reports what was clicked.
@@ -16,6 +13,12 @@ const CLASS_TAGS = ['Tank', 'Fighter', 'Assassin', 'Mage', 'Marksman', 'Support'
  * It deliberately owns no idea of *where* a pick lands — the comp board sends
  * it to a role slot, the draft screen sends it to a ban or to either team —
  * so the only thing it emits is a champion name.
+ *
+ * Filtering is by **lane**, not by Riot's class tags. The tags were a poor
+ * proxy — "Support" appeared as both a class and a lane, and Fighter and Mage
+ * spanned every seat on the map — so they told you almost nothing about where a
+ * champion can go. Lanes come from pro match data and answer the question that
+ * is actually being asked mid-draft.
  *
  * `unavailable` greys a champion out and refuses the click; `taken` marks one
  * that is already placed but can still be clicked, which is how both callers
@@ -35,40 +38,45 @@ export class ChampionGridComponent {
   /** Champions already placed by this caller, shown with a tick. */
   readonly taken = input<ReadonlySet<string>>(new Set<string>());
   /**
-   * Narrow the wall to champions played in this lane.
-   *
-   * Set from the seat being drafted, so aiming at Jungle shows junglers without
-   * anyone reaching for a filter. A champion with no pro games survives every
-   * lane filter — see `playsRole` — because hiding one entirely is worse than
-   * offering it in the wrong lane.
+   * The lane the caller is aiming at, which seeds the filter — aiming a seat
+   * shows that seat's champions without anyone reaching for a chip. Whatever
+   * is chosen here can still be overridden by clicking a chip.
    */
   readonly lane = input<Role | null>(null);
-  /** Escape hatch: some drafts want the off-meta pick the lane filter hides. */
-  readonly showAllLanes = signal(false);
 
   readonly pick = output<string>();
 
-  protected readonly classTags = CLASS_TAGS;
+  protected readonly roles = ROLES;
   protected readonly query = signal('');
-  protected readonly tag = signal<string | null>(null);
+
+  /** The chip in force. Null is "every lane". */
+  protected readonly roleFilter = signal<Role | null>(null);
+
+  constructor() {
+    // Follow the aimed seat, but only when it actually changes — otherwise a
+    // chip chosen by hand would be overwritten on the next change detection.
+    effect(() => {
+      const aimed = this.lane();
+      this.roleFilter.set(aimed);
+    });
+  }
 
   private readonly blocked = computed(
     () => new Set(this.unavailable().map((c) => c.toLowerCase()))
   );
 
   protected readonly grid = computed(() => {
-    const found = filterChampions(this.champs.champions(), this.query(), this.tag());
-    const lane = this.lane();
-    if (!lane || this.showAllLanes()) return found;
-    return found.filter((c) => playsRole(c.name, lane));
+    const found = filterChampions(this.champs.champions(), this.query(), null);
+    const role = this.roleFilter();
+    return role ? found.filter((c) => playsRole(c.name, role)) : found;
   });
 
-  /** How many the lane filter is holding back, so the escape hatch is honest. */
+  /** How many the lane filter is holding back, so the chip is honest. */
   protected readonly hiddenByLane = computed(() => {
-    const lane = this.lane();
-    if (!lane || this.showAllLanes()) return 0;
-    const found = filterChampions(this.champs.champions(), this.query(), this.tag());
-    return found.length - found.filter((c) => playsRole(c.name, lane)).length;
+    const role = this.roleFilter();
+    if (!role) return 0;
+    const found = filterChampions(this.champs.champions(), this.query(), null);
+    return found.length - found.filter((c) => playsRole(c.name, role)).length;
   });
 
   protected isBlocked(name: string): boolean {

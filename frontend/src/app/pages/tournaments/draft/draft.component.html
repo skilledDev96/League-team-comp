@@ -63,7 +63,13 @@
 
       <div class="draft-inputs">
           <div class="field">
-            <span>Bans this game <small class="pick-count">{{ (game.bans || []).length }}</small></span>
+            <span>
+              Bans this game <small class="pick-count">{{ (game.bans || []).length }}</small>
+              @if (auth.editing() && (game.bans || []).length) {
+                <button type="button" class="link-btn ban-clear-all"
+                        (click)="setGameBans(game, [])">Clear all</button>
+              }
+            </span>
             @if (auth.editing()) {
               <button type="button" class="pick-target is-bans"
                       [class.is-aimed]="isTargeted('ban')"
@@ -249,13 +255,12 @@
           }
 
           @if (ourSide(game) && !sequenceDone(game)) {
-            <!-- No lane filter here on purpose. In sequence order a pick is
-                 not tied to a seat yet — that is the point of picking in draft
-                 order and assigning lanes after — so narrowing to one lane
-                 would hide the flex pick the draft is actually about. The seat
-                 is proposed once a champion is held, on the confirm row. -->
+            <!-- The seat only filters the wall here; the sequence still decides
+                 where the pick lands. Clicking a seat mid-draft is a way of
+                 asking "who can go here", not a way of choosing a target. -->
             <app-champion-grid [unavailable]="sequenceUnavailable(game)"
                                [taken]="gridTaken(game)"
+                               [lane]="gridLane()"
                                (pick)="proposeFromSequence($event)" />
           } @else {
           <p class="draft-grid-aim">
