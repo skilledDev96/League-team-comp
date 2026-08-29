@@ -192,6 +192,72 @@
            is the only way to keep pace with a draft happening live. -->
       @if (auth.editing()) {
         <div class="draft-grid">
+          <!-- Side first. Until it is known there is no such thing as "whose
+               turn", so the sequence cannot start and the board stays in the
+               free-form mode older games were drafted in. -->
+          @if (!ourSide(game)) {
+            <div class="draft-side-pick">
+              <span class="draft-side-ask">Which side are we on?</span>
+              <button type="button" class="view-btn is-blue" (click)="setOurSide(game, 'blue')">
+                Blue &mdash; we ban and pick first
+              </button>
+              <button type="button" class="view-btn is-red" (click)="setOurSide(game, 'red')">
+                Red &mdash; they go first
+              </button>
+              <span class="muted draft-side-note">
+                Or keep filling seats in any order below.
+              </span>
+            </div>
+          } @else if (sequenceDone(game)) {
+            <p class="draft-step-bar is-done">
+              <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
+              <strong>Draft complete.</strong>
+              <button type="button" class="link-btn" (click)="undoStep(game)">Undo last</button>
+            </p>
+          } @else {
+            <div class="draft-step-bar" [class.is-ours]="isOurTurn(game)">
+              <span class="draft-step-turn">{{ stepLabel(game) }}</span>
+              <span class="draft-step-progress" aria-hidden="true">
+                <span class="draft-step-fill" [style.width.%]="progress(game)"></span>
+              </span>
+              @if ((game.draftStep ?? 0) > 0) {
+                <button type="button" class="link-btn" (click)="undoStep(game)">Undo last</button>
+              }
+            </div>
+
+            <!-- Held, not committed. A draft is confirmed out loud before it is
+                 locked, and seeing the seat before confirming is what catches a
+                 flex pick landing in the wrong lane. -->
+            @if (pending(); as champ) {
+              <div class="draft-confirm">
+                <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                <span class="draft-confirm-name">{{ champ }}</span>
+                @if (pendingSeat(game); as seat) {
+                  <span class="draft-confirm-seat">into {{ seat }}</span>
+                }
+                <button type="button" class="view-btn active"
+                        [disabled]="!!confirmBlockedReason(game)"
+                        (click)="confirmPending(game)">
+                  Confirm {{ step(game)?.action }}
+                </button>
+                <button type="button" class="link-btn" (click)="cancelPending()">Cancel</button>
+                @if (confirmBlockedReason(game); as why) {
+                  <span class="draft-confirm-blocked">{{ why }}</span>
+                }
+              </div>
+            }
+          }
+
+          @if (ourSide(game) && !sequenceDone(game)) {
+            <!-- No lane filter here on purpose. In sequence order a pick is
+                 not tied to a seat yet — that is the point of picking in draft
+                 order and assigning lanes after — so narrowing to one lane
+                 would hide the flex pick the draft is actually about. The seat
+                 is proposed once a champion is held, on the confirm row. -->
+            <app-champion-grid [unavailable]="sequenceUnavailable(game)"
+                               [taken]="gridTaken(game)"
+                               (pick)="proposeFromSequence($event)" />
+          } @else {
           <p class="draft-grid-aim">
             <span class="muted">Clicking a champion fills</span>
             <strong>{{ targetLabel(game) }}</strong>
@@ -200,6 +266,7 @@
                              [taken]="gridTaken(game)"
                              [lane]="gridLane()"
                              (pick)="gridPick(game, $event)" />
+          }
         </div>
       }
 

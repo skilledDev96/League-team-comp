@@ -15,6 +15,14 @@ import {
   PoolPressure,
   poolPressure
 } from '../draft.util';
+import {
+  describeStep,
+  DraftStep,
+  draftProgress,
+  isComplete,
+  seatFor,
+  stepAt
+} from '../draft-sequence';
 import { TournamentContextService } from '../tournament-context.service';
 
 /** Which team a draft slot belongs to. */
@@ -448,6 +456,162 @@ export class TournamentDraftComponent {
     const slots = this.pickSlots(game, aimed.side);
     const next = slots.findIndex((s, i) => i > aimed.index && !s.champion);
     if (next >= 0) this.aimAtPick(aimed.side, next);
+  }
+
+  // ---- The draft sequence -------------------------------------------------
+  //
+  // With a side chosen, the draft stops being eleven fields to fill in any
+  // order and becomes twenty steps with exactly one legal move each. The screen
+  // then only has to answer "whose turn, ban or pick" — which is a lookup — and
+  // a pick is confirmed rather than typed, the way it happens at the table.
+
+  protected readonly pending = signal<string | null>(null);
+
+  protected ourSide(game: SeriesGame): 'blue' | 'red' | null {
+    return game.ourSide ?? null;
+  }
+
+  protected async setOurSide(game: SeriesGame, side: 'blue' | 'red'): Promise<void> {
+    await this.data.updateSeriesGame({ ...game, ourSide: side, draftStep: 0 });
+    this.pending.set(null);
+  }
+
+  protected step(game: SeriesGame): DraftStep | null {
+    return stepAt(game.draftStep ?? 0);
+  }
+
+  protected sequenceDone(game: SeriesGame): boolean {
+    return isComplete(game.draftStep ?? 0);
+  }
+
+  protected progress(game: SeriesGame): number {
+    return draftProgress(game.draftStep ?? 0);
+  }
+
+  /** Whether the side on turn is us, so the screen can say "your pick". */
+  protected isOurTurn(game: SeriesGame): boolean {
+    const step = this.step(game);
+    return !!step && !!game.ourSide && step.team === game.ourSide;
+  }
+
+  protected stepLabel(game: SeriesGame): string {
+    const step = this.step(game);
+    if (!step) return 'Draft complete';
+    const us = this.teamName();
+    const them = this.draftSeries()?.opponent ?? 'Opponent';
+    const blue = game.ourSide === 'blue' ? us : them;
+    const red = game.ourSide === 'blue' ? them : us;
+    return describeStep(step, blue, red);
+  }
+
+  /** Which side of the board the step belongs to, in our own terms. */
+  private sideOfStep(game: SeriesGame): DraftSide {
+    return this.isOurTurn(game) ? 'our' : 'their';
+  }
+
+  /**
+   * The seat a pending pick would land in. Shown before confirming so a wrong
+   * lane can be seen and corrected rather than discovered afterwards.
+   */
+  protected pendingSeat(game: SeriesGame): Role | null {
+    const champ = this.pending();
+    const step = this.step(game);
+    if (!champ || !step || step.action !== 'pick') return null;
+    return seatFor(champ, this.pickSlots(game, this.sideOfStep(game)).map((s) => s.champion));
+  }
+
+  /** Hold a champion for confirmation rather than committing it immediately. */
+  protected proposeFromSequence(name: string): void {
+    this.pending.set(name);
+  }
+
+  protected cancelPending(): void {
+    this.pending.set(null);
+  }
+
+  /** Commit the held champion and advance one step. */
+  protected async confirmPending(game: SeriesGame): Promise<void> {
+    const champ = this.pending();
+    const step = this.step(game);
+    if (!champ || !step) return;
+    // Refuse rather than advance with nothing stored.
+    if (this.confirmBlockedReason(game)) return;
+
+    const next = (game.draftStep ?? 0) + 1;
+
+    if (step.action === 'ban') {
+      const bans = [...(game.bans ?? []), champ];
+      await this.data.updateSeriesGame({ ...game, bans, draftStep: next });
+    } else {
+      const side = this.sideOfStep(game);
+      const seat = this.pendingSeat(game);
+      const picks = [...((side === 'our' ? game.ourChampions : game.theirChampions) ?? [])];
+      const at = seat ? this.roles.indexOf(seat) : picks.findIndex((c) => !c);
+      if (at >= 0) {
+        while (picks.length <= at) picks.push('');
+        picks[at] = champ;
+      }
+      await this.data.updateSeriesGame({
+        ...game,
+        ...(side === 'our' ? { ourChampions: picks } : { theirChampions: picks }),
+        draftStep: next
+      });
+    }
+    this.pending.set(null);
+  }
+
+  /** Step back one, for a misclick that was already confirmed. */
+  protected async undoStep(game: SeriesGame): Promise<void> {
+    const position = game.draftStep ?? 0;
+    if (position <= 0) return;
+    const previous = stepAt(position - 1);
+    if (!previous) return;
+
+    const patch: Partial<SeriesGame> = { draftStep: position - 1 };
+    if (previous.action === 'ban') {
+      patch.bans = (game.bans ?? []).slice(0, -1);
+    } else {
+      const side = previous.team === game.ourSide ? 'our' : 'their';
+      const picks = [...((side === 'our' ? game.ourChampions : game.theirChampions) ?? [])];
+      // Undo the last filled seat rather than the last index: seats are keyed by
+      // role, so the most recent pick is not necessarily the highest index.
+      for (let i = picks.length - 1; i >= 0; i--) {
+        if (picks[i]) { picks[i] = ''; break; }
+      }
+      Object.assign(patch, side === 'our' ? { ourChampions: picks } : { theirChampions: picks });
+    }
+    await this.data.updateSeriesGame({ ...game, ...patch });
+    this.pending.set(null);
+  }
+
+  /**
+   * Unavailable set for whichever action the sequence is on.
+   *
+   * Bans already made are included here, unlike in the free-form board. There
+   * the ban picker owns its own list and clicking a banned champion takes it
+   * back off; in sequence order there is no taking off — a confirmed ban is
+   * spent — so leaving them clickable let the same champion be banned ten
+   * times over, which is exactly what happened the first time this ran.
+   */
+  protected sequenceUnavailable(game: SeriesGame): string[] {
+    const step = this.step(game);
+    const base = this.unavailableFor(game, step?.action === 'ban' ? 'ban' : 'pick');
+    return step?.action === 'ban' ? [...base, ...(game.bans ?? [])] : base;
+  }
+
+  /**
+   * Why the held pick cannot be confirmed, or null when it can.
+   *
+   * The only real case is a side whose five seats are already full — from an
+   * earlier free-form edit, say. Advancing anyway would drop the pick silently
+   * and leave the draft a step further on with nothing to show for it.
+   */
+  protected confirmBlockedReason(game: SeriesGame): string | null {
+    const step = this.step(game);
+    if (!this.pending() || !step || step.action !== 'pick') return null;
+    if (this.pendingSeat(game)) return null;
+    const side = this.sideOfStep(game) === 'our' ? this.teamName() : (this.draftSeries()?.opponent ?? 'They');
+    return `${side} already have five champions — clear a seat first.`;
   }
 
   /** The seat's lane, so the grid narrows itself without anyone filtering. */

@@ -474,6 +474,18 @@ export interface SeriesGame {
   theirChampions: string[];
   /** Every champion banned in this game, both sides — order is not meaningful. */
   bans?: string[];
+  /**
+   * Which side we are on, which decides whether we ban and pick first. Set
+   * before the draft — by the 1v1 for game 1, by the previous loser after.
+   * Absent means it has not been chosen yet.
+   */
+  ourSide?: 'blue' | 'red';
+  /**
+   * How far through the twenty-step draft this game is. Absent on games saved
+   * before the sequence existed, which open at the start rather than appearing
+   * finished — see `stepAt`.
+   */
+  draftStep?: number;
   win?: boolean;
   /** Set when reconciled against Riot match history after the fact. */
   matchId?: string;

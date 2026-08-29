@@ -8572,3 +8572,103 @@ body[data-theme="void"] {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* ---- Draft sequence ------------------------------------------------------
+   With a side chosen the draft has exactly one legal move at a time, so the
+   screen leads with whose turn it is and what they are doing. */
+
+.draft-side-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-controls);
+}
+
+.draft-side-ask {
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+
+.draft-side-note {
+  flex-basis: 100%;
+  font-size: 0.8rem;
+}
+
+/* Blue and red are the sides' real names, so the buttons carry them. These two
+   are not theme tokens on purpose — a red side is red in every theme. */
+.view-btn.is-blue { border-color: #4c86d8; color: #9dc4f5; }
+.view-btn.is-red  { border-color: #d8544c; color: #f5a49d; }
+
+.draft-step-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-controls);
+}
+
+/* Our turn has to be obvious from across a room mid-draft. */
+.draft-step-bar.is-ours {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-controls));
+}
+
+.draft-step-bar.is-done {
+  color: var(--ok);
+}
+
+.draft-step-turn {
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.draft-step-progress {
+  flex: 1 1 auto;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--surface-btn);
+  overflow: hidden;
+}
+
+.draft-step-fill {
+  display: block;
+  height: 100%;
+  background: var(--bar-accent);
+  transition: width 200ms ease;
+}
+
+/* The held pick. Deliberately loud: it is the one thing on screen that has not
+   happened yet, and confirming is what advances the draft. */
+.draft-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-btn));
+}
+
+.draft-confirm-name {
+  font-weight: 700;
+}
+
+.draft-confirm-seat {
+  color: var(--text-1);
+  font-size: 0.86rem;
+}
+
+.draft-confirm-blocked {
+  flex-basis: 100%;
+  font-size: 0.82rem;
+  color: var(--warn);
+}
