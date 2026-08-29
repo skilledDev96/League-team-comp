@@ -8,7 +8,38 @@
  */
 
 import { ChampionInfo } from '../services/champion-data.service';
-import { CompPicks, Role, ROLES } from '../models/team.models';
+import { ChampionTraits, CompPicks, Role, ROLES } from '../models/team.models';
+
+/**
+ * Champion traits, re-keyed so they can be read with a Data Dragon id.
+ *
+ * The stored map is keyed on CommunityDragon's `alias`; every lookup uses the
+ * Data Dragon id. Those are two namespaces that agree on 172 of 173 champions
+ * and disagree on exactly one: CommunityDragon spells it `FiddleSticks`, Data
+ * Dragon `Fiddlesticks`. A case-sensitive read therefore drops Fiddlesticks and
+ * nothing else — and because the identity label needs all five champions, one
+ * missing champion hides the label for the whole comp rather than for one slot.
+ *
+ * Lowercasing both sides is the fix, and it also absorbs the next such drift
+ * without anyone having to notice it happened.
+ */
+export function indexTraits(
+  map: Record<string, ChampionTraits>
+): Record<string, ChampionTraits> {
+  const out: Record<string, ChampionTraits> = {};
+  for (const key of Object.keys(map)) {
+    out[key.toLowerCase()] = map[key];
+  }
+  return out;
+}
+
+/** Traits for a Data Dragon id, against an index from `indexTraits`. */
+export function traitsFor(
+  index: Record<string, ChampionTraits>,
+  id: string | undefined
+): ChampionTraits | undefined {
+  return id ? index[id.toLowerCase()] : undefined;
+}
 
 /**
  * Picks are stored as "Champion - note" lines, so setting a champion must not

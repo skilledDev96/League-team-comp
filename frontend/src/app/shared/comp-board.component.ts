@@ -9,9 +9,11 @@ import {
   championOf,
   championsInComp,
   filterChampions,
+  indexTraits,
   nextEmptySlot,
   noteOf,
-  setChampionInLine
+  setChampionInLine,
+  traitsFor
 } from './comp-board.util';
 
 /** The class chips above the grid, in the order they read as a comp. */
@@ -73,19 +75,21 @@ export class CompBoardComponent implements OnInit {
 
   protected readonly taken = computed(() => championsInComp(this.picks()));
 
+  /** Traits re-keyed once per change, so every slot reads the same index. */
+  private readonly traitIndex = computed(() => indexTraits(this.data.championTraits()));
+
   /**
    * Traits for the five picked champions, joined on the Data Dragon id rather
    * than the display name — "Wukong" and "MonkeyKing" are the same champion and
    * only one of them is a key.
    */
   private readonly compTraits = computed(() => {
-    const map = this.data.championTraits();
+    const index = this.traitIndex();
     const out: ChampionTraits[] = [];
     for (const role of ROLES) {
       const name = championOf(this.picks()[role]);
       if (!name) continue;
-      const id = this.champs.resolve(name)?.id;
-      const traits = id ? map[id] : undefined;
+      const traits = traitsFor(index, this.champs.resolve(name)?.id);
       if (traits) out.push(traits);
     }
     return out;
@@ -104,8 +108,7 @@ export class CompBoardComponent implements OnInit {
   protected damageOf(role: Role): DamageType | null {
     const name = championOf(this.picks()[role]);
     if (!name) return null;
-    const id = this.champs.resolve(name)?.id;
-    return id ? (this.data.championTraits()[id]?.damage ?? null) : null;
+    return traitsFor(this.traitIndex(), this.champs.resolve(name)?.id)?.damage ?? null;
   }
 
   protected readonly grid = computed(() =>

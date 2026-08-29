@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { ChampionInfo } from '../services/champion-data.service';
-import { CompPicks } from '../models/team.models';
+import { ChampionTraits, CompPicks } from '../models/team.models';
 import {
   championOf,
   championsInComp,
   filterChampions,
+  indexTraits,
   nextEmptySlot,
   noteOf,
-  setChampionInLine
+  setChampionInLine,
+  traitsFor
 } from './comp-board.util';
 
 const empty: CompPicks = { Top: '', Jungle: '', Mid: '', ADC: '', Support: '' };
@@ -124,5 +126,37 @@ describe('filterChampions', () => {
 
   it('returns everything when nothing is asked of it', () => {
     expect(filterChampions(list, '', null)).toHaveLength(4);
+  });
+});
+
+describe('indexTraits / traitsFor', () => {
+  const traits = (id: string): ChampionTraits => ({
+    id,
+    name: id,
+    damage: 'magic',
+    attack: 'ranged',
+    roles: ['mage'],
+    cc: 2,
+    mobility: 1,
+    durability: 1,
+    utility: 1
+  });
+
+  it('reads a champion whose two sources disagree only on case', () => {
+    // CommunityDragon stores the alias "FiddleSticks"; every lookup arrives as
+    // the Data Dragon id "Fiddlesticks". This is the whole reason the index
+    // exists — a direct read returns undefined and the comp loses its label.
+    const index = indexTraits({ FiddleSticks: traits('FiddleSticks') });
+    expect(traitsFor(index, 'Fiddlesticks')?.id).toBe('FiddleSticks');
+  });
+
+  it('still reads the champions that already agreed', () => {
+    const index = indexTraits({ MonkeyKing: traits('MonkeyKing') });
+    expect(traitsFor(index, 'MonkeyKing')?.id).toBe('MonkeyKing');
+  });
+
+  it('returns nothing for an unresolved champion rather than throwing', () => {
+    expect(traitsFor(indexTraits({}), undefined)).toBeUndefined();
+    expect(traitsFor(indexTraits({}), 'Ahri')).toBeUndefined();
   });
 });
