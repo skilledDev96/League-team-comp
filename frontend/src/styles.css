@@ -8075,3 +8075,220 @@ body[data-theme="void"] {
 .loss-card {
   padding-top: 0.85rem;
 }
+
+/* ---- Comp board ---------------------------------------------------------
+   Five role slots over a champion grid: the interaction everyone already knows
+   from the League client, replacing five separate typeahead fields. */
+.comp-board {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.board-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-slot {
+  position: relative;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.5rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: var(--surface-btn);
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+/* The focused slot is where the next click lands, so it has to be obvious. */
+.board-slot.is-focused {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.board-slot-main {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.board-role {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+}
+
+.board-champ-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+}
+
+.board-champ-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.board-empty {
+  font-size: 0.8rem;
+  color: var(--text-1);
+  opacity: 0.7;
+  padding: 0.9rem 0;
+}
+
+.board-clear {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  display: inline-flex;
+  padding: 1px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.board-clear:hover {
+  color: var(--warn);
+}
+
+.board-note {
+  width: 100%;
+  padding: 0.22rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--card-border) 18%, transparent);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.74rem;
+}
+
+.board-note:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.board-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.board-search {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+}
+
+.board-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.board-tag {
+  cursor: pointer;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 0.76rem;
+}
+
+.board-tag.active {
+  color: var(--text-0);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* Fixed-height scroller: the grid is ~170 champions and must not push the
+   slots off the screen, which would defeat the point of clicking between them. */
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 0.4rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  padding: 0.2rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+}
+
+.board-champ {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  padding: 0.25rem 0.1rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-1);
+  font: inherit;
+  cursor: pointer;
+}
+
+.board-champ img {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+}
+
+.board-champ-label {
+  font-size: 0.62rem;
+  line-height: 1.1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.board-champ:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+
+.board-champ.is-taken {
+  border-color: color-mix(in srgb, var(--ok) 55%, transparent);
+  color: var(--text-0);
+}
+
+/* Unavailable rather than merely unpicked — burned by fearless, or banned. */
+.board-champ.is-blocked {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.board-champ.is-blocked img {
+  filter: grayscale(1);
+}
+
+.board-check {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.2rem;
+  font-size: 0.9rem;
+  color: var(--ok);
+}

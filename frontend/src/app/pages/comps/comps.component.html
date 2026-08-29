@@ -46,9 +46,17 @@
         }
         <span class="comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
       </summary>
+      <!-- In edit mode the comp is built on the board: slots plus a grid, one
+           click per pick. Read-only keeps the compact row list, which is what
+           you want when scanning a comp rather than changing it. -->
+      @if (auth.editing()) {
+        <app-comp-board [picks]="comp.picks" [unavailable]="compBanList(comp)"
+                        (picksChange)="savePicks(comp, $event)" />
+      }
+
       <div class="comp-rows">
         @for (role of roles; track role) {
-          @if (comp.picks[role]; as line) {
+          @if (!auth.editing() && comp.picks[role]; as line) {
             <div class="comp-row">
               <span class="comp-role">{{ role }}</span>
               <app-champion-chip [champion]="ui.parseCompLine(line).champion" />

@@ -2,13 +2,14 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Comp, CompOutcome, CompPerformance, CompRecord, CompResult, Play, Role, ROLES } from '../../models/team.models';
+import { Comp, CompOutcome, CompPerformance, CompPicks, CompRecord, CompResult, Play, Role, ROLES } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
+import { CompBoardComponent } from '../../shared/comp-board.component';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { TacticalBoardComponent } from './tactical-board.component';
 import { NoteRollup, rollupNotes } from './note-insights.util';
@@ -24,7 +25,7 @@ interface ResultDraft {
 
 @Component({
   selector: 'app-comps',
-  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective, NgModelNameDirective],
+  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective, NgModelNameDirective],
   templateUrl: './comps.component.html'
 })
 export class CompsComponent {
@@ -92,6 +93,15 @@ export class CompsComponent {
    */
   protected compsExcept(comp: Comp): Comp[] {
     return this.data.comps().filter((other) => other.id !== comp.id);
+  }
+
+  /**
+   * The board emits the whole picks object, so this is a straight write. No
+   * draft state in between: a pick lands as soon as it is clicked, which is
+   * how the rest of edit mode already behaves.
+   */
+  protected savePicks(comp: Comp, picks: CompPicks): void {
+    void this.data.updateComp({ ...comp, picks });
   }
 
   protected setCountsUnder(comp: Comp, value: string): void {

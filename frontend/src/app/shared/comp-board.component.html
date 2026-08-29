@@ -1,0 +1,74 @@
+<div class="comp-board">
+  <!-- The five slots. Clicking one aims the grid at it; the highlighted slot is
+       where the next champion lands. -->
+  <ol class="board-slots" aria-label="Comp by role">
+    @for (role of roles; track role) {
+      <li class="board-slot" [class.is-focused]="focused() === role"
+          [class.is-filled]="championOf(picks()[role])"
+          draggable="true"
+          (dragstart)="$event.dataTransfer?.setData('text/plain', role)"
+          (dragover)="$event.preventDefault()"
+          (drop)="$event.preventDefault(); drop($any($event.dataTransfer?.getData('text/plain')), role)">
+        <button type="button" class="board-slot-main" (click)="focused.set(role)"
+                [attr.aria-pressed]="focused() === role">
+          <span class="board-role">{{ role }}</span>
+          @if (championOf(picks()[role]); as champ) {
+            <img class="board-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
+            <span class="board-champ-name">{{ champ }}</span>
+          } @else {
+            <span class="board-empty">Empty</span>
+          }
+        </button>
+
+        @if (championOf(picks()[role])) {
+          <button type="button" class="board-clear" [attr.aria-label]="'Clear ' + role"
+                  (click)="clear(role)">
+            <span class="material-symbols-rounded" aria-hidden="true">close</span>
+          </button>
+        }
+
+        <input type="text" class="board-note" [ngModel]="noteOf(picks()[role])"
+               (ngModelChange)="setNote(role, $event)"
+               [name]="'boardnote-' + role"
+               placeholder="why this pick…" autocomplete="off" />
+      </li>
+    }
+  </ol>
+
+  <div class="board-filters">
+    <input type="text" class="board-search" [ngModel]="query()" (ngModelChange)="query.set($event)"
+           name="boardSearch" placeholder="Search champions…" autocomplete="off"
+           [attr.aria-label]="'Search champions'" />
+    <div class="board-tags" role="group" aria-label="Filter by class">
+      <button type="button" class="tag board-tag" [class.active]="tag() === null"
+              (click)="tag.set(null)">All</button>
+      @for (t of classTags; track t) {
+        <button type="button" class="tag board-tag" [class.active]="tag() === t"
+                (click)="tag.set(tag() === t ? null : t)">{{ t }}</button>
+      }
+    </div>
+  </div>
+
+  @if (champs.ready() && grid().length === 0) {
+    <p class="muted">No champion matches that.</p>
+  }
+
+  <!-- Clicking a champion already in the comp takes it out again, so the grid
+       is both the way in and the way out. -->
+  <div class="board-grid" role="listbox" aria-label="Champions">
+    @for (champ of grid(); track champ.id) {
+      <button type="button" class="board-champ"
+              [class.is-taken]="isTaken(champ.name)"
+              [class.is-blocked]="isBlocked(champ.name)"
+              [disabled]="isBlocked(champ.name)"
+              [title]="isBlocked(champ.name) ? champ.name + ' is unavailable' : champ.name"
+              (click)="choose(champ.name)">
+        <img [src]="ui.championIconUrl(champ.name)" [alt]="" loading="lazy" />
+        <span class="board-champ-label">{{ champ.name }}</span>
+        @if (isTaken(champ.name)) {
+          <span class="board-check material-symbols-rounded" aria-hidden="true">check</span>
+        }
+      </button>
+    }
+  </div>
+</div>
