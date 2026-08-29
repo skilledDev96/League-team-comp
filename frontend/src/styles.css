@@ -606,6 +606,31 @@ body {
   min-height: 100%;
 }
 
+/* Softened fills for progress bars.
+   --ok and --warn are tuned for small marks — a word of text, a pill, a dot —
+   where they have to carry at a glance. A bar is a large solid block of the
+   same colour, and at that size the saturation reads as harsh. Mixing toward
+   the page background keeps the meaning and drops the shout.
+
+   Declared on `body` rather than `:root` deliberately: the theme blocks are
+   `body[data-theme=...]`, so a custom property defined on `:root` would resolve
+   var(--ok) against the *default* palette and every theme would get the same
+   bars. On `body` it resolves against whichever theme is active. */
+body {
+  --bar-ok: color-mix(in oklab, var(--ok) 70%, var(--bg-1));
+  --bar-warn: color-mix(in oklab, var(--warn) 70%, var(--bg-1));
+  --bar-accent: color-mix(in oklab, var(--accent-2) 70%, var(--bg-1));
+}
+
+/* The light theme's --ok/--warn are already dark, low-saturation colours
+   chosen to sit on a pale page. Mixing those toward a pale --bg-1 would wash
+   them out rather than soften them, so they are left alone. */
+body[data-theme="light"] {
+  --bar-ok: var(--ok);
+  --bar-warn: var(--warn);
+  --bar-accent: var(--accent-2);
+}
+
 body {
   font-family: "Sora", sans-serif;
   color: var(--text-0);
@@ -2331,7 +2356,7 @@ a.profiles-row:focus-visible {
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: 999px;
-  background: var(--ok);
+  background: var(--bar-ok);
   transition: width 260ms ease;
 }
 
@@ -3137,16 +3162,16 @@ a.profiles-row:focus-visible {
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: 999px;
-  background: var(--accent-2);
+  background: var(--bar-accent);
   transition: width 260ms ease;
 }
 
 .analysis-bar-fill.high {
-  background: var(--ok);
+  background: var(--bar-ok);
 }
 
 .analysis-bar-fill.low {
-  background: var(--warn);
+  background: var(--bar-warn);
 }
 
 .analysis-rate {
@@ -7226,7 +7251,7 @@ app-match-note {
 .pattern-fill {
   display: block;
   height: 100%;
-  background: var(--warn);
+  background: var(--bar-warn);
   border-radius: 999px;
 }
 
@@ -7427,7 +7452,7 @@ app-match-note {
 }
 
 .pattern-fill.is-win {
-  background: var(--ok);
+  background: var(--bar-ok);
 }
 
 

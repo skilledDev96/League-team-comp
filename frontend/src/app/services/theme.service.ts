@@ -8,7 +8,7 @@ const STORAGE_KEY = 'bom-theme';
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   readonly themes = THEMES;
-  readonly current = signal<Theme>('dark-blue');
+  readonly current = signal<Theme>('hextech');
 
   constructor() {
     this.applyTheme(this.preferredTheme());
@@ -37,11 +37,11 @@ export class ThemeService {
     if (stored) {
       return stored;
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark-blue' : 'light';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'hextech' : 'light';
   }
 
   applyTheme(theme: Theme): void {
-    const selected = this.isValid(theme) ? theme : 'dark';
+    const selected = this.isValid(theme) ? theme : 'hextech';
     document.body.setAttribute('data-theme', selected);
     localStorage.setItem(STORAGE_KEY, selected);
     this.current.set(selected);
