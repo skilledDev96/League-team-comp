@@ -14,7 +14,17 @@
           <span class="board-role">{{ role }}</span>
           @if (championOf(picks()[role]); as champ) {
             <img class="board-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
-            <span class="board-champ-name">{{ champ }}</span>
+            <span class="board-champ-name">
+              {{ champ }}
+              <!-- Damage type as a dot, so a comp that is entirely one type is
+                   visible without opening anything. Absent until the traits
+                   have been synced, and absent is shown as nothing. -->
+              @if (damageOf(role); as dmg) {
+                @if (dmg !== 'unknown') {
+                  <span class="dmg-dot" [class]="'is-' + dmg" [title]="dmg + ' damage'"></span>
+                }
+              }
+            </span>
           } @else {
             <span class="board-empty">Empty</span>
           }
@@ -34,6 +44,22 @@
       </li>
     }
   </ol>
+
+  <!-- The comp reading itself back: what shape it is, and whether its damage is
+       so one-sided that a single item line answers it. Only once all five are
+       in — a label on three champions would be read as a finding. -->
+  @if (identity(); as shape) {
+    <p class="board-identity">
+      <span class="board-identity-label">{{ shape }}</span>
+      <span class="board-damage">
+        {{ damage().physical }} AD · {{ damage().magic }} AP
+        @if (damage().mixed) { · {{ damage().mixed }} mixed }
+      </span>
+      @if (damage().lopsided) {
+        <span class="tag loss-tag board-damage-warn">One damage type — easily itemised against</span>
+      }
+    </p>
+  }
 
   <div class="board-filters">
     <input type="text" class="board-search" [ngModel]="query()" (ngModelChange)="query.set($event)"

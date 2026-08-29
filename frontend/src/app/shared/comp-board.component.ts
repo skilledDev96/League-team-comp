@@ -1,8 +1,10 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChampionDataService } from '../services/champion-data.service';
 import { UiService } from '../services/ui.service';
-import { CompPicks, Role, ROLES } from '../models/team.models';
+import { ChampionTraits, CompPicks, DamageType, Role, ROLES } from '../models/team.models';
+import { TeamDataService } from '../services/team-data.service';
+import { classifyComp, damageProfile, IDENTITY_LABEL } from '../core/comp-identity';
 import {
   championOf,
   championsInComp,
@@ -33,9 +35,10 @@ const CLASS_TAGS = ['Tank', 'Fighter', 'Assassin', 'Mage', 'Marksman', 'Support'
   imports: [FormsModule],
   templateUrl: './comp-board.component.html'
 })
-export class CompBoardComponent {
+export class CompBoardComponent implements OnInit {
   protected readonly champs = inject(ChampionDataService);
   protected readonly ui = inject(UiService);
+  private readonly data = inject(TeamDataService);
 
   readonly picks = input.required<CompPicks>();
   /** Champions unavailable here — burned in a fearless series, or already banned. */
@@ -45,7 +48,19 @@ export class CompBoardComponent {
   protected readonly roles = ROLES;
   protected readonly classTags = CLASS_TAGS;
 
+  /**
+   * Starts on the first empty slot, not on Top.
+   *
+   * Defaulting to Top meant opening a half-built comp and having the first
+   * click silently overwrite the top laner — the one slot most likely to be
+   * already filled. Aiming at the gap is what someone opening a comp intends.
+   */
   protected readonly focused = signal<Role>('Top');
+
+  ngOnInit(): void {
+    const firstEmpty = ROLES.find((role) => !championOf(this.picks()[role]));
+    if (firstEmpty) this.focused.set(firstEmpty);
+  }
   protected readonly query = signal('');
   protected readonly tag = signal<string | null>(null);
 
@@ -57,6 +72,41 @@ export class CompBoardComponent {
   );
 
   protected readonly taken = computed(() => championsInComp(this.picks()));
+
+  /**
+   * Traits for the five picked champions, joined on the Data Dragon id rather
+   * than the display name — "Wukong" and "MonkeyKing" are the same champion and
+   * only one of them is a key.
+   */
+  private readonly compTraits = computed(() => {
+    const map = this.data.championTraits();
+    const out: ChampionTraits[] = [];
+    for (const role of ROLES) {
+      const name = championOf(this.picks()[role]);
+      if (!name) continue;
+      const id = this.champs.resolve(name)?.id;
+      const traits = id ? map[id] : undefined;
+      if (traits) out.push(traits);
+    }
+    return out;
+  });
+
+  /** The comp's shape, once all five are in. Blank while it is being built. */
+  protected readonly identity = computed(() => {
+    const traits = this.compTraits();
+    if (traits.length < 5) return null;
+    return IDENTITY_LABEL[classifyComp(traits)];
+  });
+
+  protected readonly damage = computed(() => damageProfile(this.compTraits()));
+
+  /** Per-slot damage type, for the dot on a filled slot. */
+  protected damageOf(role: Role): DamageType | null {
+    const name = championOf(this.picks()[role]);
+    if (!name) return null;
+    const id = this.champs.resolve(name)?.id;
+    return id ? (this.data.championTraits()[id]?.damage ?? null) : null;
+  }
 
   protected readonly grid = computed(() =>
     filterChampions(this.champs.champions(), this.query(), this.tag())

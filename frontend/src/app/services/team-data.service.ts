@@ -22,6 +22,8 @@ import {
   Tournament,
   TournamentSeries,
   SeriesGame,
+  ChampionTraitMap,
+  ChampionTraits,
   CompOverride,
   MatchNote,
   AccessEntry,
@@ -70,6 +72,13 @@ export class TeamDataService {
   readonly matchNotes = signal<MatchNote[]>([]);
   /** Games placed under a comp by hand, keyed by match. */
   readonly compOverrides = signal<CompOverride[]>([]);
+  /**
+   * What each champion is, refreshed weekly by `refreshChampionTraits`.
+   * Empty until that has run once; every reader treats absence as "unknown"
+   * rather than as a finding.
+   */
+  readonly championTraits = signal<Record<string, ChampionTraits>>({});
+
   /** Last Riot API key probe (written by the scheduled health check). */
   readonly keyHealth = signal<KeyHealth | null>(null);
   readonly resourceLinks = signal<ResourceLinks>({});
@@ -222,6 +231,9 @@ export class TeamDataService {
     });
     onSnapshot(doc(db, 'meta', 'compAnalysis'), (d) => {
       this.compAnalysis.set((d.data() as CompAnalysis) ?? null);
+    });
+    onSnapshot(doc(db, 'meta', 'championTraits'), (d) => {
+      this.championTraits.set((d.data() as ChampionTraitMap)?.traits ?? {});
     });
     onSnapshot(doc(db, 'meta', 'resourceLinks'), (d) => {
       const data = d.data() as { groups?: ResourceLinks } | undefined;

@@ -8292,3 +8292,44 @@ body[data-theme="void"] {
   font-size: 0.9rem;
   color: var(--ok);
 }
+
+/* Damage type as a dot on a filled slot: a comp that is entirely one type is
+   the classic itemisation problem, and it should be visible without opening a
+   panel to find out. */
+.dmg-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 0.3rem;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.dmg-dot.is-physical { background: #e8a33d; }
+.dmg-dot.is-magic { background: #4ea7e9; }
+.dmg-dot.is-mixed {
+  background: linear-gradient(90deg, #e8a33d 50%, #4ea7e9 50%);
+}
+
+.board-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.board-identity-label {
+  font-weight: 700;
+  color: var(--text-0);
+}
+
+.board-damage {
+  color: var(--text-1);
+  font-size: 0.8rem;
+}
+
+.board-damage-warn {
+  font-size: 0.74rem;
+}

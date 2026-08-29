@@ -14,6 +14,7 @@ import { summarizeMatches } from './match-stats';
 import { classifyArchetype, describePlayer } from './insights';
 import { CACHE_VERSION, isCacheCurrent, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
+import { ChampionTraits, toTraits } from './champion-traits';
 import { BUILD_SHA } from './build-info';
 
 initializeApp();
@@ -1418,5 +1419,92 @@ export const riotKeyHealth = onRequest(
     // by itself and the functions do not, so without this there is no way to
     // ask an unauthenticated question as basic as "did my deploy land?".
     res.status(200).json({ ...health, backendSha: BUILD_SHA });
+  }
+);
+
+// ---- Champion traits ------------------------------------------------------
+//
+// Riot's champion list has class tags but no damage type. The file that does
+// carry it is one request per champion — fine on a weekly schedule, absurd from
+// a browser on every page load. So it is assembled here and stored as a single
+// small document the client reads like any other.
+//
+// CommunityDragon is a CDN over unpacked game files: no key, no rate limit, and
+// nothing here touches the Riot API or its budget.
+
+const CDRAGON_BASE =
+  'https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1';
+
+/** Kept low deliberately: this is someone else's CDN and there is no hurry. */
+const TRAIT_FETCH_CONCURRENCY = 8;
+
+interface CdragonSummaryEntry {
+  id: number;
+  alias?: string;
+}
+
+async function fetchChampionTraits(): Promise<Record<string, ChampionTraits>> {
+  const summary = (await (await fetch(`${CDRAGON_BASE}/champion-summary.json`)).json()) as
+    | CdragonSummaryEntry[]
+    | undefined;
+
+  // id -1 is the "None" placeholder the client uses for an empty slot.
+  const ids = (summary ?? []).map((c) => c.id).filter((id) => id > 0);
+  const traits: Record<string, ChampionTraits> = {};
+
+  for (let i = 0; i < ids.length; i += TRAIT_FETCH_CONCURRENCY) {
+    const batch = ids.slice(i, i + TRAIT_FETCH_CONCURRENCY);
+    const results = await Promise.all(
+      batch.map(async (id) => {
+        try {
+          const raw = await (await fetch(`${CDRAGON_BASE}/champions/${id}.json`)).json();
+          return toTraits(raw);
+        } catch {
+          // One champion missing is a gap in a tooltip, not a reason to throw
+          // the whole refresh away and leave the stored map stale.
+          return null;
+        }
+      })
+    );
+    for (const entry of results) {
+      if (entry) traits[entry.id] = entry;
+    }
+  }
+
+  return traits;
+}
+
+async function writeChampionTraits(): Promise<number> {
+  const traits = await fetchChampionTraits();
+  // A partial fetch would quietly delete champions from the stored map, so a
+  // run that came back with almost nothing is treated as a failed run.
+  if (Object.keys(traits).length < 100) {
+    throw new Error(`Champion traits fetch returned only ${Object.keys(traits).length} entries.`);
+  }
+  await getFirestore()
+    .doc('meta/championTraits')
+    .set({ traits, updatedAt: new Date().toISOString(), source: 'communitydragon' });
+  return Object.keys(traits).length;
+}
+
+/** Weekly: these change on patch days, and a patch is never more than that. */
+export const refreshChampionTraits = onSchedule(
+  { schedule: 'every monday 06:00', timeZone: 'Europe/Amsterdam', timeoutSeconds: 300 },
+  async () => {
+    const count = await writeChampionTraits();
+    console.log(`Champion traits refreshed: ${count} champions.`);
+  }
+);
+
+/** Manual trigger, so the map can be filled without waiting for Monday. */
+export const syncChampionTraits = onRequest(
+  { cors: true, timeoutSeconds: 300 },
+  async (req, res) => {
+    try {
+      const count = await writeChampionTraits();
+      res.json({ ok: true, champions: count });
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Sync failed.' });
+    }
   }
 );

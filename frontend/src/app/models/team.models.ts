@@ -508,3 +508,29 @@ export interface MatchNote {
   text: string;
   order: number;
 }
+
+/**
+ * What a champion is, assembled server-side from CommunityDragon and stored as
+ * one document. Mirrors `api/src/champion-traits.ts`.
+ */
+export type DamageType = 'physical' | 'magic' | 'mixed' | 'unknown';
+
+export interface ChampionTraits {
+  /** Data Dragon id, e.g. "MonkeyKing" — the key everything joins on. */
+  id: string;
+  name: string;
+  damage: DamageType;
+  attack: 'melee' | 'ranged' | 'unknown';
+  roles: string[];
+  cc: number;
+  mobility: number;
+  durability: number;
+  utility: number;
+}
+
+/** The stored map, refreshed weekly by `refreshChampionTraits`. */
+export interface ChampionTraitMap {
+  traits: Record<string, ChampionTraits>;
+  updatedAt: string;
+  source: string;
+}
