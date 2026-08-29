@@ -8488,3 +8488,69 @@ body[data-theme="void"] {
 .draft-grid-aim strong {
   color: var(--accent-2);
 }
+
+/* ---- Comp lineup, read-only ---------------------------------------------
+   Deliberately the same five blocks as the editor's board. Opening a comp is
+   how you check its shape, and a shape does not survive being listed as five
+   stacked rows. Matching the editor also means the page does not appear to
+   redraw itself when edit mode goes on. */
+
+.comp-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comp-slot {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  padding: 0.6rem 0.5rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-controls);
+  text-align: center;
+}
+
+.comp-slot-role {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+}
+
+.comp-slot-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+}
+
+.comp-slot-champ {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.comp-slot-note {
+  font-size: 0.76rem;
+  color: var(--text-1);
+  line-height: 1.35;
+}
+
+/* Who covers this seat. Quiet, and last, because it answers a question you ask
+   after the champion — but it is the one thing the editor cannot show. */
+.comp-slot-cover {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 0.4rem;
+  margin-top: 0.15rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 60%, transparent);
+  width: 100%;
+  font-size: 0.72rem;
+}

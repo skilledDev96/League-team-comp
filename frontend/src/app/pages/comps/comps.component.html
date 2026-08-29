@@ -54,24 +54,36 @@
                         (picksChange)="savePicks(comp, $event)" />
       }
 
-      <div class="comp-rows">
-        @for (role of roles; track role) {
-          @if (!auth.editing() && comp.picks[role]; as line) {
-            <div class="comp-row">
-              <span class="comp-role">{{ role }}</span>
-              <app-champion-chip [champion]="ui.parseCompLine(line).champion" />
-              <span class="comp-note">{{ ui.parseCompLine(line).note }}</span>
-              @if (rolePlayers(role).length) {
-                <span class="comp-cover" [appTip]="'Who can play ' + role">
-                  @for (pl of rolePlayers(role); track pl.name) {
-                    <span class="comp-cover-name" [class.flex]="pl.flex">{{ pl.name }}</span>
-                  }
-                </span>
-              }
-            </div>
+      <!-- Read-only lineup, laid out as the same five blocks the editor uses.
+           A comp is a shape, and the shape is what you are checking when you
+           open one — a stack of rows reads as a list of five unrelated picks.
+           The one thing the editor has no room for is who covers each seat, so
+           that stays, inside the block it belongs to. -->
+      @if (!auth.editing()) {
+        <ol class="comp-slots" aria-label="Comp by role">
+          @for (role of roles; track role) {
+            @if (comp.picks[role]; as line) {
+              <li class="comp-slot">
+                <span class="comp-slot-role">{{ role }}</span>
+                <img class="comp-slot-icon"
+                     [src]="ui.championIconUrl(ui.parseCompLine(line).champion)"
+                     [alt]="" loading="lazy" />
+                <span class="comp-slot-champ">{{ ui.parseCompLine(line).champion }}</span>
+                @if (ui.parseCompLine(line).note) {
+                  <span class="comp-slot-note">{{ ui.parseCompLine(line).note }}</span>
+                }
+                @if (rolePlayers(role).length) {
+                  <span class="comp-slot-cover" [appTip]="'Who can play ' + role">
+                    @for (pl of rolePlayers(role); track pl.name) {
+                      <span class="comp-cover-name" [class.flex]="pl.flex">{{ pl.name }}</span>
+                    }
+                  </span>
+                }
+              </li>
+            }
           }
-        }
-      </div>
+        </ol>
+      }
 
       @if (auth.editing()) {
         <div class="comp-notes comp-category-edit">
