@@ -8400,3 +8400,91 @@ body[data-theme="void"] {
   text-align: center;
   text-wrap: balance;
 }
+
+/* ---- Live draft: aimed picks and the shared champion grid ---------------- */
+
+/* A seat in the draft. It is a target rather than a field: clicking aims the
+   grid below at it, and the grid does the picking. Eleven typeaheads could not
+   keep up with a draft happening in real time. */
+.pick-target {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.pick-target:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--card-border));
+}
+
+/* The aimed seat has to be findable at a glance while looking at the grid, not
+   at the seat — hence a filled accent rather than only a brighter border. */
+.pick-target.is-aimed {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface-btn));
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.pick-target-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pick-target-empty {
+  color: var(--text-1);
+  opacity: 0.75;
+}
+
+.pick-target.is-bans {
+  flex: 0 0 auto;
+  margin-bottom: 0.5rem;
+}
+
+.pick-target-clear {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.pick-target-clear:hover {
+  color: var(--warn);
+}
+
+.pick-target-clear .material-symbols-rounded {
+  font-size: 1.1rem;
+}
+
+.draft-grid {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.draft-grid-aim {
+  margin: 0 0 0.6rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.86rem;
+}
+
+.draft-grid-aim strong {
+  color: var(--accent-2);
+}

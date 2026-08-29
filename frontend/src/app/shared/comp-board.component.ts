@@ -1,5 +1,6 @@
 import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ChampionGridComponent } from './champion-grid.component';
 import { ChampionDataService } from '../services/champion-data.service';
 import { UiService } from '../services/ui.service';
 import { ChampionTraits, CompPicks, DamageType, Role, ROLES } from '../models/team.models';
@@ -8,16 +9,12 @@ import { classifyComp, damageProfile, IDENTITY_LABEL } from '../core/comp-identi
 import {
   championOf,
   championsInComp,
-  filterChampions,
   indexTraits,
   nextEmptySlot,
   noteOf,
   setChampionInLine,
   traitsFor
 } from './comp-board.util';
-
-/** The class chips above the grid, in the order they read as a comp. */
-const CLASS_TAGS = ['Tank', 'Fighter', 'Assassin', 'Mage', 'Marksman', 'Support'];
 
 /**
  * Build a comp by clicking, the way the League client and every draft tool
@@ -34,7 +31,7 @@ const CLASS_TAGS = ['Tank', 'Fighter', 'Assassin', 'Mage', 'Marksman', 'Support'
  */
 @Component({
   selector: 'app-comp-board',
-  imports: [FormsModule],
+  imports: [FormsModule, ChampionGridComponent],
   templateUrl: './comp-board.component.html'
 })
 export class CompBoardComponent implements OnInit {
@@ -48,7 +45,6 @@ export class CompBoardComponent implements OnInit {
   readonly picksChange = output<CompPicks>();
 
   protected readonly roles = ROLES;
-  protected readonly classTags = CLASS_TAGS;
 
   /**
    * Starts on the first empty slot, not on Top.
@@ -63,15 +59,9 @@ export class CompBoardComponent implements OnInit {
     const firstEmpty = ROLES.find((role) => !championOf(this.picks()[role]));
     if (firstEmpty) this.focused.set(firstEmpty);
   }
-  protected readonly query = signal('');
-  protected readonly tag = signal<string | null>(null);
 
   protected readonly championOf = championOf;
   protected readonly noteOf = noteOf;
-
-  private readonly blocked = computed(
-    () => new Set(this.unavailable().map((c) => c.toLowerCase()))
-  );
 
   protected readonly taken = computed(() => championsInComp(this.picks()));
 
@@ -111,26 +101,14 @@ export class CompBoardComponent implements OnInit {
     return traitsFor(this.traitIndex(), this.champs.resolve(name)?.id)?.damage ?? null;
   }
 
-  protected readonly grid = computed(() =>
-    filterChampions(this.champs.champions(), this.query(), this.tag())
-  );
-
-  protected isBlocked(name: string): boolean {
-    return this.blocked().has(name.toLowerCase());
-  }
-
-  protected isTaken(name: string): boolean {
-    return this.taken().has(name.toLowerCase());
-  }
-
   /**
    * Clicking a champion fills the focused slot and moves on. Clicking one
    * already in the comp removes it instead, so the grid is both the way in and
    * the way out and nothing needs a separate delete control.
    */
   protected choose(name: string): void {
-    if (this.isBlocked(name)) return;
-
+    // No blocked check here: the grid refuses an unavailable champion before it
+    // ever emits, so anything arriving has already been cleared.
     const picks = { ...this.picks() };
     const existing = ROLES.find((role) => championOf(picks[role]).toLowerCase() === name.toLowerCase());
     if (existing) {

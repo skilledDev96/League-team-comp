@@ -65,6 +65,15 @@
           <div class="field">
             <span>Bans this game <small class="pick-count">{{ (game.bans || []).length }}</small></span>
             @if (auth.editing()) {
+              <button type="button" class="pick-target is-bans"
+                      [class.is-aimed]="isTargeted('ban')"
+                      [attr.aria-pressed]="isTargeted('ban')"
+                      (click)="aimAtBans()">
+                <span class="material-symbols-rounded" aria-hidden="true">block</span>
+                <span class="pick-target-name">Ban from the grid</span>
+              </button>
+            }
+            @if (auth.editing()) {
               <app-champion-picker [champions]="game.bans || []" [max]="10"
                                    [unavailable]="unavailableFor(game, 'ban')"
                                    [inputName]="'dbans-' + game.id" placeholder="Add a ban…"
@@ -107,12 +116,23 @@
                       }
                     </span>
                   } @else {
-                  <app-champion-picker [champions]="slot.champion ? [slot.champion] : []" [max]="1"
-                                       [role]="slot.role"
-                                       [unavailable]="unavailableFor(game, 'pick')"
-                                       [inputName]="'pick-' + slot.role + '-' + game.id"
-                                       placeholder="Pick…"
-                                       (championsChange)="setPickFromPicker(game, 'our', i, $event)" />
+                  <button type="button" class="pick-target"
+                          [class.is-aimed]="isTargeted('pick', 'our', i)"
+                          [attr.aria-pressed]="isTargeted('pick', 'our', i)"
+                          (click)="aimAtPick('our', i)">
+                    @if (slot.champion) {
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(slot.champion)" [alt]="" loading="lazy" />
+                      <span class="pick-target-name">{{ slot.champion }}</span>
+                    } @else {
+                      <span class="pick-target-empty">Pick&hellip;</span>
+                    }
+                  </button>
+                  @if (slot.champion) {
+                    <button type="button" class="pick-target-clear" [attr.aria-label]="'Clear ' + slot.role"
+                            (click)="setPickAt(game, 'our', i, '')">
+                      <span class="material-symbols-rounded" aria-hidden="true">close</span>
+                    </button>
+                  }
                   }
                 </li>
               }
@@ -143,18 +163,44 @@
                       }
                     </span>
                   } @else {
-                  <app-champion-picker [champions]="slot.champion ? [slot.champion] : []" [max]="1"
-                                       [role]="slot.role"
-                                       [unavailable]="unavailableFor(game, 'pick')"
-                                       [inputName]="'epick-' + slot.role + '-' + game.id"
-                                       placeholder="Pick…"
-                                       (championsChange)="setPickFromPicker(game, 'their', i, $event)" />
+                  <button type="button" class="pick-target"
+                          [class.is-aimed]="isTargeted('pick', 'their', i)"
+                          [attr.aria-pressed]="isTargeted('pick', 'their', i)"
+                          (click)="aimAtPick('their', i)">
+                    @if (slot.champion) {
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(slot.champion)" [alt]="" loading="lazy" />
+                      <span class="pick-target-name">{{ slot.champion }}</span>
+                    } @else {
+                      <span class="pick-target-empty">Pick&hellip;</span>
+                    }
+                  </button>
+                  @if (slot.champion) {
+                    <button type="button" class="pick-target-clear" [attr.aria-label]="'Clear ' + slot.role"
+                            (click)="setPickAt(game, 'their', i, '')">
+                      <span class="material-symbols-rounded" aria-hidden="true">close</span>
+                    </button>
+                  }
                   }
                 </li>
               }
             </ul>
           </div>
       </div>
+
+      <!-- One wall of champions for the whole draft. A target is aimed above —
+           a ban, or a seat on either team — and every click lands there, which
+           is the only way to keep pace with a draft happening live. -->
+      @if (auth.editing()) {
+        <div class="draft-grid">
+          <p class="draft-grid-aim">
+            <span class="muted">Clicking a champion fills</span>
+            <strong>{{ targetLabel(game) }}</strong>
+          </p>
+          <app-champion-grid [unavailable]="gridUnavailable(game)"
+                             [taken]="gridTaken(game)"
+                             (pick)="gridPick(game, $event)" />
+        </div>
+      }
 
       <div class="draft-status">
         <span class="draft-board-count is-ok">{{ draftPlayable(game).length }} playable</span>

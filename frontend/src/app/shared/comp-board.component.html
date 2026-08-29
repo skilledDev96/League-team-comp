@@ -61,40 +61,5 @@
     </p>
   }
 
-  <div class="board-filters">
-    <input type="text" class="board-search" [ngModel]="query()" (ngModelChange)="query.set($event)"
-           name="boardSearch" placeholder="Search champions…" autocomplete="off"
-           [attr.aria-label]="'Search champions'" />
-    <div class="board-tags" role="group" aria-label="Filter by class">
-      <button type="button" class="tag board-tag" [class.active]="tag() === null"
-              (click)="tag.set(null)">All</button>
-      @for (t of classTags; track t) {
-        <button type="button" class="tag board-tag" [class.active]="tag() === t"
-                (click)="tag.set(tag() === t ? null : t)">{{ t }}</button>
-      }
-    </div>
-  </div>
-
-  @if (champs.ready() && grid().length === 0) {
-    <p class="muted">No champion matches that.</p>
-  }
-
-  <!-- Clicking a champion already in the comp takes it out again, so the grid
-       is both the way in and the way out. -->
-  <div class="board-grid" role="listbox" aria-label="Champions">
-    @for (champ of grid(); track champ.id) {
-      <button type="button" class="board-champ"
-              [class.is-taken]="isTaken(champ.name)"
-              [class.is-blocked]="isBlocked(champ.name)"
-              [disabled]="isBlocked(champ.name)"
-              [title]="isBlocked(champ.name) ? champ.name + ' is unavailable' : champ.name"
-              (click)="choose(champ.name)">
-        <img [src]="ui.championIconUrl(champ.name)" [alt]="" loading="lazy" />
-        <span class="board-champ-label">{{ champ.name }}</span>
-        @if (isTaken(champ.name)) {
-          <span class="board-check material-symbols-rounded" aria-hidden="true">check</span>
-        }
-      </button>
-    }
-  </div>
+  <app-champion-grid [unavailable]="unavailable()" [taken]="taken()" (pick)="choose($event)" />
 </div>

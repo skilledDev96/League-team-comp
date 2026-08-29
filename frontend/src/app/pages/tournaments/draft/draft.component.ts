@@ -4,6 +4,7 @@ import { Role, SeriesGame, TournamentSeries } from '../../../models/team.models'
 import { AuthService } from '../../../services/auth.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { UiService } from '../../../services/ui.service';
+import { ChampionGridComponent } from '../../../shared/champion-grid.component';
 import { ChampionPickerComponent } from '../../../shared/champion-picker.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import {
@@ -19,6 +20,14 @@ import { TournamentContextService } from '../tournament-context.service';
 /** Which team a draft slot belongs to. */
 type DraftSide = 'our' | 'their';
 
+/** Where the next champion clicked in the grid lands. */
+type DraftTarget =
+  | { kind: 'ban' }
+  | { kind: 'pick'; side: DraftSide; index: number };
+
+/** Fearless series run ten bans a game, same as the client. */
+const MAX_BANS = 10;
+
 /**
  * One game, full width, for use while the draft is actually happening: bans and
  * picks as they land, and what still survives the fearless burn.
@@ -27,6 +36,7 @@ type DraftSide = 'our' | 'their';
   selector: 'app-tournament-draft',
   imports: [
     FormsModule,
+    ChampionGridComponent,
     ChampionPickerComponent,
     TooltipDirective
   ],
@@ -370,6 +380,84 @@ export class TournamentDraftComponent {
 
   protected setGameBans(game: SeriesGame, bans: string[]): void {
     void this.data.updateSeriesGame({ ...game, bans: bans.length ? bans : undefined });
+  }
+
+  // ---- The shared champion grid -------------------------------------------
+  //
+  // One wall of champions for the whole draft rather than a typeahead in each
+  // of the eleven fields. A target is aimed first — a ban, or a seat on either
+  // team — and every click lands there, which is the only way to keep up with a
+  // draft happening in real time.
+  //
+  // The enemy side gets the same treatment because under fearless their picks
+  // burn our pool too: entering what they took is not bookkeeping, it is how
+  // the "still playable" list stays true.
+
+  protected readonly target = signal<DraftTarget>({ kind: 'ban' });
+
+  protected isTargeted(kind: 'ban'): boolean;
+  protected isTargeted(kind: 'pick', side: DraftSide, index: number): boolean;
+  protected isTargeted(kind: 'ban' | 'pick', side?: DraftSide, index?: number): boolean {
+    const t = this.target();
+    if (t.kind !== kind) return false;
+    return t.kind === 'ban' || (t.side === side && t.index === index);
+  }
+
+  protected aimAtBans(): void {
+    this.target.set({ kind: 'ban' });
+  }
+
+  protected aimAtPick(side: DraftSide, index: number): void {
+    this.target.set({ kind: 'pick', side, index });
+  }
+
+  /**
+   * What the grid refuses, which depends on what is aimed at. A ban may still
+   * land on a champion nobody has drafted, so bans and picks ask different
+   * questions — `unavailableFor` already draws that line.
+   */
+  protected gridUnavailable(game: SeriesGame): string[] {
+    return this.unavailableFor(game, this.target().kind === 'ban' ? 'ban' : 'pick');
+  }
+
+  /**
+   * Ticked, and clickable again to undo. Only bans: a drafted champion is
+   * blocked rather than ticked, and comes off through its seat's own control.
+   */
+  protected gridTaken(game: SeriesGame): Set<string> {
+    if (this.target().kind !== 'ban') return new Set<string>();
+    return new Set((game.bans ?? []).filter(Boolean).map((c) => normalizeChampion(c)));
+  }
+
+  protected gridPick(game: SeriesGame, name: string): void {
+    const aimed = this.target();
+
+    if (aimed.kind === 'ban') {
+      const bans = [...(game.bans ?? [])];
+      const at = bans.findIndex((b) => normalizeChampion(b) === normalizeChampion(name));
+      if (at >= 0) bans.splice(at, 1);
+      else if (bans.length < MAX_BANS) bans.push(name);
+      this.setGameBans(game, bans);
+      return;
+    }
+
+    this.setPickAt(game, aimed.side, aimed.index, name);
+
+    // Advance to the next empty seat on the same side, so five picks are five
+    // clicks. Staying put would mean the next click overwrote what was just set.
+    const slots = this.pickSlots(game, aimed.side);
+    const next = slots.findIndex((s, i) => i > aimed.index && !s.champion);
+    if (next >= 0) this.aimAtPick(aimed.side, next);
+  }
+
+  /** What the grid is currently pointed at, for the hint above it. */
+  protected targetLabel(game: SeriesGame): string {
+    const aimed = this.target();
+    if (aimed.kind === 'ban') {
+      return `Bans — ${(game.bans ?? []).length} of ${MAX_BANS}`;
+    }
+    const side = aimed.side === 'our' ? this.teamName() : this.draftSeries()?.opponent ?? 'Opponent';
+    return `${side} — ${this.roles[aimed.index]}`;
   }
 
   /** The game being drafted or played: the first without a result yet. */
