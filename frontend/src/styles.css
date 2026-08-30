@@ -9662,3 +9662,32 @@ body:has(.draft-stage) .edit-mode-frame {
     grid-template-columns: 19rem minmax(0, 1fr) 19rem;
   }
 }
+
+/* ---- Draft: all ten picks on one screen ---------------------------------
+   Sizing the card from the column width made it as large as the width allowed
+   and the column 1331px tall — taller than the window, so the bottom picks fell
+   off the screen. During a draft you need all ten in one glance more than you
+   need any of them big.
+
+   So the height comes from the viewport and the width follows the art's ratio;
+   the columns size themselves to whatever that yields. */
+
+.draft-stage {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.draft-stage .pick-slot {
+  height: min(12rem, 17.4vh);
+  aspect-ratio: 1215 / 717;
+  width: auto;
+}
+
+.draft-stage .pick-slots {
+  justify-items: stretch;
+}
+
+@media (max-width: 1500px) {
+  .draft-stage {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+}
