@@ -9411,3 +9411,15 @@ body[data-theme="void"] {
   from { transform: translateY(0.5rem); }
   to   { transform: none; }
 }
+
+/* The pick target fills its card.
+   The card inherits `align-content: start`, so the target was only as tall as
+   its own content and sat at the top of a taller card. The name's gradient runs
+   dark at its bottom and fades upward, so where that block ended it cut hard
+   against the raw art below — a horizontal line across every filled card. With
+   the target stretched, the name sits on the real bottom edge and the gradient
+   reads as a floor. */
+.draft-stage .pick-slot {
+  align-content: stretch;
+  grid-template-rows: 1fr;
+}
