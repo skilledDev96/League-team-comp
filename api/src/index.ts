@@ -1700,7 +1700,14 @@ async function crawlTick(apiKey: string | undefined): Promise<string> {
     ? { ...emptyCrawlState(), ...(snap.data() as Partial<CrawlState>) }
     : emptyCrawlState();
 
-  if (!state.enabled) return 'disabled — set crawlState/championStats.enabled to true to start';
+  if (!state.enabled) {
+    // Write the document on first sight even though nothing else runs. The
+    // switch has to exist somewhere a person can flip it, and expecting anyone
+    // to hand-create a collection, a document id and a typed boolean in the
+    // Firestore console is a worse first step than one wasted write.
+    if (!snap.exists) await stateRef.set(state);
+    return 'disabled — set crawlState/championStats.enabled to true to start';
+  }
 
   const plan = planRun(state.pending.length, state.pool.length);
   const routing = REGION_ROUTING[CRAWL_REGION];
