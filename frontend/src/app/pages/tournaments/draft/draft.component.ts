@@ -1,9 +1,10 @@
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
+import { ChampionTraits, Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { UiService } from '../../../services/ui.service';
+import { ChampionDataService } from '../../../services/champion-data.service';
 import { ChampionGridComponent } from '../../../shared/champion-grid.component';
 import { ChampionPickerComponent } from '../../../shared/champion-picker.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
@@ -25,6 +26,16 @@ import {
   seatFor,
   stepAt
 } from '../draft-sequence';
+import {
+  ChampionSuggestion,
+  CompGaps,
+  compGaps,
+  currentStanding,
+  DraftRead,
+  enemyRead,
+  suggestForLane
+} from '../draft-advice';
+import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
 import { TournamentContextService } from '../tournament-context.service';
 
 /** Which team a draft slot belongs to. */
@@ -119,6 +130,7 @@ export class TournamentDraftComponent implements OnInit {
   protected readonly data = inject(TeamDataService);
   protected readonly auth = inject(AuthService);
   protected readonly ui = inject(UiService);
+  private readonly champs = inject(ChampionDataService);
 
   private readonly ctx = inject(TournamentContextService);
 
@@ -780,6 +792,119 @@ export class TournamentDraftComponent implements OnInit {
     if (this.pendingSeat(game)) return null;
     const side = this.sideOfStep(game) === 'our' ? this.teamName() : (this.draftSeries()?.opponent ?? 'They');
     return `${side} already have five champions — clear a seat first.`;
+  }
+
+  // ---- What to pick next -------------------------------------------------
+  //
+  // Not a win rate. Ours would come from 159 games where a draft tool's comes
+  // from millions, so a synthesised percentage would be noise with a decimal
+  // point. These answer from our own record instead: which comps a champion
+  // keeps reachable, and what the picks so far are short of.
+
+  /** Traits for one side's picks, joined on the Data Dragon id. */
+  private traitsForSide(game: SeriesGame, side: DraftSide): ChampionTraits[] {
+    const index = indexTraits(this.data.championTraits());
+    const out: ChampionTraits[] = [];
+    for (const slot of this.pickSlots(game, side)) {
+      if (!slot.champion) continue;
+      const traits = traitsFor(index, this.champs.resolve(slot.champion)?.id);
+      if (traits) out.push(traits);
+    }
+    return out;
+  }
+
+  /**
+   * What their draft is telling us. The only enemy-aware thing on this panel:
+   * the win rates above are blind to their picks, because our record against
+   * any one champion is three or four games.
+   */
+  protected theirRead(game: SeriesGame): DraftRead[] {
+    return enemyRead(this.traitsForSide(game, 'their'));
+  }
+  /**
+   * What the held champion would do, for the confirm row.
+   *
+   * The moment before committing is when the number is worth reading — after
+   * it, the pick is made and the figure is history. Reuses the same weighting
+   * as the panel so the two can never disagree.
+   */
+  protected pendingAdvice(game: SeriesGame): ChampionSuggestion | null {
+    const champ = this.pending();
+    const seat = this.pendingSeat(game);
+    if (!champ || !seat) return null;
+    const found = suggestForLane(seat, [champ], this.compAvailability(game.seriesId), (comp, lane) => {
+      const source = this.data.comps().find((c) => c.id === comp.id);
+      return source ? this.ui.parseCompLine(source.picks[lane] ?? '').champion : '';
+    });
+    return found[0] ?? null;
+  }
+  /** Where we stand now, across every comp still reachable. */
+  protected standing(game: SeriesGame) {
+    return currentStanding(this.compAvailability(game.seriesId));
+  }
+
+  /**
+   * A win rate as one of seven bands either side of even.
+   *
+   * Bands rather than a continuous colour: a draft is read at a glance, and a
+   * smooth ramp makes 54% and 58% indistinguishable when the difference is the
+   * whole point. Even sits at 50 and the tint grows from there.
+   */
+  protected winRateBand(rate: number | undefined): string {
+    if (rate === undefined) return '';
+    if (rate >= 80) return 'wr-good-3';
+    if (rate >= 65) return 'wr-good-2';
+    if (rate > 50) return 'wr-good-1';
+    if (rate === 50) return 'wr-even';
+    if (rate > 35) return 'wr-poor-1';
+    if (rate > 20) return 'wr-poor-2';
+    return 'wr-poor-3';
+  }
+
+  /** How a pick would move us, in points, against where we stand. */
+  protected swing(game: SeriesGame, projected: number | undefined): number | undefined {
+    const now = this.standing(game).rate;
+    if (projected === undefined || now === undefined) return undefined;
+    return projected - now;
+  }
+  /** What our picks are short of. Empty while there is too little to judge. */
+  protected gaps(game: SeriesGame): CompGaps {
+    return compGaps(this.traitsForSide(game, 'our'));
+  }
+
+  /**
+   * Champions worth the seat being drafted, from the comps still reachable.
+   * Capped at six: a longer list is read as a ranking rather than a shortlist.
+   */
+  protected suggestions(game: SeriesGame): ChampionSuggestion[] {
+    const lane = this.suggestLane(game);
+    if (!lane) return [];
+    const blocked = blockedSet(this.unavailableFor(game, 'pick'));
+    const candidates = this.champs.champions()
+      .map((c) => c.name)
+      .filter((name) => !blocked.has(normalizeChampion(name)));
+    return suggestForLane(lane, candidates, this.compAvailability(game.seriesId), (comp, seat) => {
+      const source = this.data.comps().find((c) => c.id === comp.id);
+      return source ? this.ui.parseCompLine(source.picks[seat] ?? '').champion : '';
+    }).slice(0, 6);
+  }
+
+  /**
+   * The lane the wall is currently showing. The advice follows the chips rather
+   * than the aimed seat: being told about Jungle while looking at a wall of
+   * mid laners is worse than being told nothing.
+   */
+  protected readonly shownLane = signal<Role | null>(null);
+
+  /** The seat the advice is about. */
+  protected suggestLane(game: SeriesGame): Role | null {
+    const chip = this.shownLane();
+    if (chip) return chip;
+    const aimed = this.target();
+    if (aimed.kind === 'pick') return this.roles[aimed.index];
+    // Nothing filtered and nothing aimed: advise on the first seat still empty.
+    const empty = this.pickSlots(game, 'our').find((s) => !s.champion);
+    return empty ? empty.role : null;
   }
 
   /** The seat's lane, so the grid narrows itself without anyone filtering. */

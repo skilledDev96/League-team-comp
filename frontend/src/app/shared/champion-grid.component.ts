@@ -46,11 +46,25 @@ export class ChampionGridComponent {
 
   readonly pick = output<string>();
 
+  /**
+   * The lane chip in force, so a caller can follow it.
+   *
+   * The draft uses this to keep its advice on the same seat the wall is
+   * showing: clicking Mid and being told about Jungle is worse than silence.
+   */
+  readonly laneChange = output<Role | null>();
+
   protected readonly roles = ROLES;
   protected readonly query = signal('');
 
   /** The chip in force. Null is "every lane". */
-  protected readonly roleFilter = signal<Role | null>(null);
+  readonly roleFilter = signal<Role | null>(null);
+
+  /** Set the chip and tell the caller, so both stay on the same seat. */
+  protected chooseLane(role: Role | null): void {
+    this.roleFilter.set(role);
+    this.laneChange.emit(role);
+  }
 
   constructor() {
     // Follow the aimed seat, but only when it actually changes — otherwise a
@@ -58,6 +72,7 @@ export class ChampionGridComponent {
     effect(() => {
       const aimed = this.lane();
       this.roleFilter.set(aimed);
+      this.laneChange.emit(aimed);
     });
   }
 

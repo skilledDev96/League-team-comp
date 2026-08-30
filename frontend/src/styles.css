@@ -9880,3 +9880,191 @@ body:has(.draft-stage) .edit-mode-frame {
 .ban-card .pick-art {
   object-position: 50% 50%;
 }
+
+/* ---- Draft advice: what to pick next, from our own record ----------------
+   Sits under the wall in the middle column, where the eye already is. Quiet by
+   design — it is a prompt, not a verdict, and every figure carries the games
+   behind it so a 100% from two games cannot pass as a strong one. */
+
+.draft-stage .draft-advice {
+  grid-column: 2;
+  grid-row: 3;
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.draft-stage .draft-status     { grid-row: 4; }
+.draft-stage .draft-board-body { grid-row: 5; }
+
+.draft-stage .draft-inputs > .field:nth-child(2),
+.draft-stage .draft-inputs > .field:nth-child(3) {
+  grid-row: 1 / span 5;
+}
+
+.advice-block {
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-controls);
+}
+
+.advice-head {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+}
+
+.advice-list { display: grid; gap: 0.25rem; margin: 0; }
+
+.advice-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.advice-icon {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 0.3rem;
+  flex: 0 0 auto;
+}
+
+.advice-champ { font-weight: 700; flex: 0 0 7rem; }
+
+.advice-comps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.6rem;
+  color: var(--text-1);
+  font-size: 0.76rem;
+}
+
+.advice-comp b  { color: var(--text-0); margin-left: 0.2rem; }
+.advice-comp b.is-good { color: var(--ok); }
+.advice-comp b.is-poor { color: var(--warn); }
+/* The sample size rides with every percentage, never separated from it. */
+.advice-comp em { font-style: normal; opacity: 0.65; margin-left: 0.2rem; }
+
+.advice-empty { margin: 0; font-size: 0.8rem; }
+
+/* Gaps are read off champion traits, so they need no sample-size caveat. */
+.advice-block.is-gaps { border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border)); }
+.advice-block.is-gaps .advice-head { color: var(--warn); }
+.advice-gaps { display: grid; gap: 0.2rem; margin: 0; font-size: 0.82rem; }
+
+/* ---- Win rate bands ------------------------------------------------------
+   Seven steps either side of even, not a smooth ramp. A draft is read at a
+   glance, and a continuous gradient makes 54% and 58% look identical when the
+   difference between them is the whole point. Even is deliberately neutral —
+   50% is neither good news nor bad. */
+
+.wr-even   { color: var(--text-1); }
+.wr-good-1 { color: color-mix(in oklab, var(--ok) 55%, var(--text-1)); }
+.wr-good-2 { color: color-mix(in oklab, var(--ok) 80%, var(--text-1)); }
+.wr-good-3 { color: var(--ok); font-weight: 800; }
+.wr-poor-1 { color: color-mix(in oklab, var(--warn) 55%, var(--text-1)); }
+.wr-poor-2 { color: color-mix(in oklab, var(--warn) 80%, var(--text-1)); }
+.wr-poor-3 { color: var(--warn); font-weight: 800; }
+
+/* Where we stand, on the panel's own header. */
+.advice-now {
+  margin-left: 0.5rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-1);
+}
+
+.advice-now b { margin-left: 0.15rem; }
+.advice-now em { font-style: normal; opacity: 0.6; margin-left: 0.3rem; font-weight: 400; }
+
+/* The projected figure leads each row, with the swing beside it. */
+.advice-proj {
+  flex: 0 0 5.6rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.advice-proj b { font-size: 0.92rem; }
+.advice-proj.is-none { color: var(--text-1); opacity: 0.5; }
+
+/* The swing is the number people will actually act on, so it is legible on its
+   own rather than only as a colour. */
+.advice-proj i {
+  font-style: normal;
+  font-size: 0.72rem;
+  padding: 0.05rem 0.25rem;
+  border-radius: 0.3rem;
+  color: var(--text-1);
+}
+
+.advice-proj i.is-up {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+}
+
+.advice-proj i.is-down {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+}
+
+.advice-champ { flex: 0 0 6.5rem; }
+
+/* The enemy read borrows the Review page's callout wholesale — same kind of
+   statement, so it should look the same. Only the margin differs: inside the
+   advice panel it sits between blocks rather than above a page section. */
+.advice-callout {
+  margin: 0;
+}
+
+/* ---- Advice, moved into the focused view ---------------------------------
+   It was below the bans, which on most windows is past the fold — advice you
+   have to scroll to is advice nobody reads mid-draft. It now sits directly
+   under the wall, and the bans take the row beneath. Bans are reference; the
+   advice is the thing being acted on. */
+.draft-stage .draft-advice          { grid-row: 2; }
+.draft-stage .draft-inputs > .field:nth-child(1) { grid-row: 3; }
+.draft-stage .draft-status          { grid-row: 4; }
+.draft-stage .draft-board-body      { grid-row: 5; }
+
+/* What the held champion does, on the confirm row itself. */
+.draft-confirm-read {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.draft-confirm-read b { font-size: 1rem; }
+
+.draft-confirm-read i {
+  font-style: normal;
+  font-size: 0.75rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.3rem;
+  color: var(--text-1);
+}
+
+.draft-confirm-read i.is-up   { color: var(--ok);   background: color-mix(in srgb, var(--ok) 16%, transparent); }
+.draft-confirm-read i.is-down { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+
+.draft-confirm-read em {
+  font-style: normal;
+  font-size: 0.78rem;
+  color: var(--text-1);
+  opacity: 0.8;
+}
+
+.draft-confirm-read.is-none {
+  font-size: 0.8rem;
+  color: var(--text-1);
+  opacity: 0.7;
+}

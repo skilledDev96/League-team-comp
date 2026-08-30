@@ -6,10 +6,10 @@
        is the only question being asked with a champion in hand. -->
   <div class="board-tags" role="group" aria-label="Filter by lane">
     <button type="button" class="tag board-tag" [class.active]="roleFilter() === null"
-            (click)="roleFilter.set(null)">All</button>
+            (click)="chooseLane(null)">All</button>
     @for (role of roles; track role) {
       <button type="button" class="tag board-tag" [class.active]="roleFilter() === role"
-              (click)="roleFilter.set(roleFilter() === role ? null : role)">{{ role }}</button>
+              (click)="chooseLane(roleFilter() === role ? null : role)">{{ role }}</button>
     }
   </div>
 </div>
@@ -20,7 +20,7 @@
 <p class="board-lane-note">
   @if (hiddenByLane() > 0) {
     {{ grid().length }} {{ roleFilter() }} champions.
-    <button type="button" class="link-btn" (click)="roleFilter.set(null)">
+    <button type="button" class="link-btn" (click)="chooseLane(null)">
       Show all {{ hiddenByLane() }} others
     </button>
   } @else {

@@ -285,6 +285,20 @@
                 @if (pendingSeat(game); as seat) {
                   <span class="draft-confirm-seat">into {{ seat }}</span>
                 }
+                <!-- What this pick does, at the moment it is worth reading. -->
+                @if (pendingAdvice(game); as a) {
+                  @if (a.projected !== undefined) {
+                    <span class="draft-confirm-read">
+                      <b [class]="winRateBand(a.projected)">{{ a.projected }}%</b>
+                      @if (swing(game, a.projected); as d) {
+                        <i [class.is-up]="d > 0" [class.is-down]="d < 0">{{ d > 0 ? '+' : '' }}{{ d }}</i>
+                      }
+                      <em>{{ a.comps[0].name }} {{ a.comps[0].winRate }}% · {{ a.comps[0].games }}g</em>
+                    </span>
+                  } @else {
+                    <span class="draft-confirm-read is-none">in no comp of ours</span>
+                  }
+                }
                 <button type="button" class="view-btn active"
                         [disabled]="!!confirmBlockedReason(game) || isCommitting()"
                         (click)="confirmPending(game)">
@@ -307,6 +321,7 @@
             <app-champion-grid [unavailable]="sequenceUnavailable(game)"
                                [taken]="gridTaken(game)"
                                [lane]="gridLane()"
+                               (laneChange)="shownLane.set($event)"
                                (pick)="proposeFromSequence($event)" />
           } @else {
           <p class="draft-grid-aim">
@@ -316,7 +331,99 @@
           <app-champion-grid [unavailable]="gridUnavailable(game)"
                              [taken]="gridTaken(game)"
                              [lane]="gridLane()"
+                             (laneChange)="shownLane.set($event)"
                              (pick)="gridPick(game, $event)" />
+          }
+        </div>
+      }
+
+      <!-- What to pick next, answered from our own record. Deliberately not a
+           win rate: ours would come from 159 games where a draft tool's comes
+           from millions, so every number here carries the games behind it. -->
+      @if (auth.editing() && draftGame(); as g) {
+        <div class="draft-advice">
+          @if (suggestLane(g); as lane) {
+            <div class="advice-block">
+              <span class="advice-head">
+                Worth taking at {{ lane }}
+                @if (standing(g); as now) {
+                  @if (now.rate !== undefined) {
+                    <span class="advice-now">
+                      now <b [class]="winRateBand(now.rate)">{{ now.rate }}%</b>
+                      <em>across {{ now.games }} games</em>
+                    </span>
+                  }
+                }
+              </span>
+              @if (suggestions(g); as picks) {
+                @if (picks.length) {
+                  <ul class="list-clean advice-list">
+                    @for (s of picks; track s.champion) {
+                      <li class="advice-row">
+                        <img class="advice-icon" [src]="ui.championIconUrl(s.champion)" [alt]="" loading="lazy" />
+                        <span class="advice-champ">{{ s.champion }}</span>
+                        @if (s.projected !== undefined) {
+                          <span class="advice-proj">
+                            <b [class]="winRateBand(s.projected)">{{ s.projected }}%</b>
+                            @if (swing(g, s.projected); as d) {
+                              <i [class.is-up]="d > 0" [class.is-down]="d < 0">
+                                {{ d > 0 ? '+' : '' }}{{ d }}
+                              </i>
+                            }
+                          </span>
+                        } @else {
+                          <span class="advice-proj is-none">&mdash;</span>
+                        }
+                        <span class="advice-comps">
+                          @for (c of s.comps; track c.id) {
+                            <span class="advice-comp">
+                              {{ c.name }}
+                              @if (c.games) {
+                                <b [class]="winRateBand(c.winRate)">{{ c.winRate }}%</b>
+                                <em>{{ c.games }}g</em>
+                              } @else {
+                                <em>unplayed</em>
+                              }
+                            </span>
+                          }
+                        </span>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p class="muted advice-empty">No comp of ours still needs a {{ lane }}.</p>
+                }
+              }
+            </div>
+          }
+
+          <!-- Their draft, read off champion traits. Same callout the Review
+               page uses, because it is the same kind of statement: a short
+               conclusion with the reason attached. -->
+          @if (theirRead(g); as read) {
+            @if (read.length) {
+              <aside class="callout advice-callout" aria-label="What their draft says">
+                <span class="callout-icon material-symbols-rounded" aria-hidden="true">lightbulb</span>
+                <div class="callout-body">
+                  @for (line of read; track line.strong) {
+                    <p class="readout-line" [class]="'tone-' + line.tone">
+                      <strong>{{ line.strong }}</strong> {{ line.rest }}
+                    </p>
+                  }
+                </div>
+              </aside>
+            }
+          }
+
+          @if (gaps(g); as gap) {
+            @if (gap.missing.length) {
+              <div class="advice-block is-gaps">
+                <span class="advice-head">Our comp is short of</span>
+                <ul class="list-clean advice-gaps">
+                  @for (m of gap.missing; track m) { <li>{{ m }}</li> }
+                </ul>
+              </div>
+            }
           }
         </div>
       }
