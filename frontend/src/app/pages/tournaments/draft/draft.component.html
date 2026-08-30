@@ -94,14 +94,17 @@
                                    [inputName]="'dbans-' + game.id" placeholder="Add a ban…"
                                    (championsChange)="setGameBans(game, $event)" />
             } @else if (game.bans?.length) {
-              <div class="draft-static-bans">
+              <!-- Bans as cards, same as the picks. Ten of them is most of a
+                   champion pool gone, and a row of small chips does not read as
+                   that; desaturated because they are what is *not* available. -->
+              <ol class="list-clean ban-cards" aria-label="Bans this game">
                 @for (champ of game.bans; track champ) {
-                  <span class="pool-champ">
-                    <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
-                    {{ champ }}
-                  </span>
+                  <li class="ban-card">
+                    <img class="pick-art" [src]="ui.championArtUrl(champ)" [alt]="" />
+                    <span class="ban-card-name">{{ champ }}</span>
+                  </li>
                 }
-              </div>
+              </ol>
             } @else {
               <span class="muted">No bans recorded.</span>
             }
@@ -211,17 +214,14 @@
                turn", so the sequence cannot start and the board stays in the
                free-form mode older games were drafted in. -->
           @if (!ourSide(game)) {
+            <!-- One line. This is a question asked once before the draft, so it
+                 must not hold the space the turn indicator needs for the next
+                 twenty steps. -->
             <div class="draft-side-pick">
-              <span class="draft-side-ask">Which side are we on?</span>
-              <button type="button" class="view-btn is-blue" (click)="setOurSide(game, 'blue')">
-                Blue &mdash; we ban and pick first
-              </button>
-              <button type="button" class="view-btn is-red" (click)="setOurSide(game, 'red')">
-                Red &mdash; they go first
-              </button>
-              <span class="muted draft-side-note">
-                Or keep filling seats in any order below.
-              </span>
+              <span class="draft-side-ask">Our side</span>
+              <button type="button" class="view-btn is-blue" (click)="setOurSide(game, 'blue')">Blue</button>
+              <button type="button" class="view-btn is-red" (click)="setOurSide(game, 'red')">Red</button>
+              <span class="muted draft-side-note">Blue bans and picks first &mdash; or fill seats in any order below.</span>
             </div>
           } @else if (sequenceDone(game)) {
             <p class="draft-step-bar is-done">
@@ -232,7 +232,23 @@
             </p>
           } @else {
             <div class="draft-step-bar" [class.is-ours]="isOurTurn(game)">
+              <!-- Ban or pick, and whose. The one thing that must be readable
+                   across the room while the draft is running. -->
+              <span class="draft-phase" [class.is-ban]="step(game)?.action === 'ban'">
+                {{ step(game)?.action }}
+              </span>
               <span class="draft-step-turn">{{ stepLabel(game) }}</span>
+
+              <!-- A reminder, not a referee: it never advances the draft or
+                   discards a pick, because the real clock is in the client and
+                   disagreeing with it would be worse than having none. -->
+              <span class="draft-clock" [class.is-low]="secondsLeft() <= 10"
+                    [class.is-out]="secondsLeft() === 0"
+                    [appTip]="'Tournament shot clock — a reminder only, nothing expires'">
+                <span class="draft-clock-ring" [style.--clock]="clockPercent() + '%'" aria-hidden="true"></span>
+                <span class="draft-clock-num">{{ secondsLeft() }}</span>
+              </span>
+
               <span class="draft-step-progress" aria-hidden="true">
                 <span class="draft-step-fill" [style.width.%]="progress(game)"></span>
               </span>

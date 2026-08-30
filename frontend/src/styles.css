@@ -8961,3 +8961,124 @@ body[data-theme="void"] {
     grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
   }
 }
+
+/* ---- Draft: phase, clock, bigger cards, ban cards ------------------------ */
+
+/* Ban or pick, said plainly. The turn line says who; this says what. */
+.draft-phase {
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  color: var(--accent-2);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.draft-phase.is-ban {
+  background: color-mix(in srgb, var(--warn) 24%, transparent);
+  color: var(--warn);
+}
+
+/* The shot clock. A ring rather than a bar so it reads as a countdown at a
+   glance and takes almost no width. */
+.draft-clock {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
+.draft-clock-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--clock, 100%), transparent 0);
+  -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%);
+  mask: radial-gradient(circle, transparent 58%, #000 60%);
+  transition: none;
+}
+
+.draft-clock-num {
+  position: relative;
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.draft-clock.is-low .draft-clock-ring { background: conic-gradient(var(--warn) var(--clock, 100%), transparent 0); }
+.draft-clock.is-low .draft-clock-num { color: var(--warn); }
+.draft-clock.is-out { opacity: 0.55; }
+
+/* The side question is asked once; it must not hold the turn indicator's room. */
+.draft-side-pick {
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.draft-side-note {
+  flex-basis: auto;
+}
+
+/* Cards big enough to read the art rather than guess at it. */
+.draft-stage .pick-slot {
+  min-height: 6.5rem;
+}
+
+.draft-stage .pick-target {
+  min-height: 6.5rem;
+}
+
+.draft-stage .pick-target-name {
+  font-size: 0.92rem;
+  padding: 1.6rem 0.5rem 0.45rem;
+}
+
+.draft-stage .pick-slot-role {
+  font-size: 0.64rem;
+}
+
+/* Bans, as cards. Desaturated: these are what is gone, not what is chosen. */
+.ban-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.35rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+}
+
+.ban-card {
+  position: relative;
+  min-height: 3.4rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--card-border);
+  overflow: hidden;
+  display: grid;
+  align-content: end;
+}
+
+.ban-card .pick-art {
+  filter: grayscale(0.85) brightness(0.55);
+}
+
+.ban-card-name {
+  position: relative;
+  z-index: 2;
+  padding: 0.9rem 0.35rem 0.25rem;
+  background: linear-gradient(to top, color-mix(in srgb, var(--bg-0) 88%, transparent), transparent);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+/* A struck-through feel without drawing a line over the art. */
+.ban-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 47%, color-mix(in srgb, var(--warn) 55%, transparent) 49%, color-mix(in srgb, var(--warn) 55%, transparent) 51%, transparent 53%);
+  pointer-events: none;
+}

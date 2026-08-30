@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
@@ -58,6 +58,60 @@ export class TournamentDraftComponent implements OnInit {
    */
   ngOnInit(): void {
     if (this.auth.canEdit()) this.auth.editMode.set(true);
+
+    // Put the stage on screen. Opening Draft means drafting, and the page
+    // header above it is not what anyone came here to read.
+    //
+    // Polled rather than fired once: the stage sits behind the series and game
+    // being resolved from stored data, so on a cold open it does not exist yet
+    // and a single deferred call finds nothing. Gives up after two seconds.
+    const started = Date.now();
+    const findStage = setInterval(() => {
+      const stage = document.querySelector('.draft-stage');
+      if (stage) {
+        // Instant, not smooth. Smooth scrolling needs animation frames, so it
+        // silently does nothing wherever they are throttled — and for "put me
+        // on the draft" you want to be there, not watch the journey.
+        stage.scrollIntoView({ block: 'start', behavior: 'auto' });
+        clearInterval(findStage);
+      } else if (Date.now() - started > 2000) {
+        clearInterval(findStage);
+      }
+    }, 80);
+    this.destroyRef.onDestroy(() => clearInterval(findStage));
+
+    // Drives the pick clock. 250ms rather than a second so the countdown does
+    // not visibly stutter; it only ever reads whole seconds.
+    const timer = setInterval(() => this.now.set(Date.now()), 250);
+    this.destroyRef.onDestroy(() => clearInterval(timer));
+  }
+
+  private readonly destroyRef = inject(DestroyRef);
+
+  // ---- The pick clock -----------------------------------------------------
+  //
+  // Tournament drafts run a 30-second shot clock per action. This one is a
+  // reminder, not a referee: it never advances the draft or discards a pick,
+  // because the real clock is in the client and disagreeing with it would be
+  // worse than not having one.
+
+  protected readonly PICK_SECONDS = 30;
+  private readonly now = signal(Date.now());
+  private readonly stepStartedAt = signal(Date.now());
+
+  /** Restart the clock. Called wherever the step moves. */
+  private restartClock(): void {
+    this.stepStartedAt.set(Date.now());
+    this.now.set(Date.now());
+  }
+
+  protected readonly secondsLeft = computed(() => {
+    const elapsed = Math.floor((this.now() - this.stepStartedAt()) / 1000);
+    return Math.max(0, this.PICK_SECONDS - elapsed);
+  });
+
+  protected clockPercent(): number {
+    return (this.secondsLeft() / this.PICK_SECONDS) * 100;
   }
 
   protected readonly data = inject(TeamDataService);
@@ -503,6 +557,7 @@ export class TournamentDraftComponent implements OnInit {
   protected async setOurSide(game: SeriesGame, side: 'blue' | 'red'): Promise<void> {
     await this.data.updateSeriesGame({ ...game, ourSide: side, draftStep: 0 });
     this.pending.set(null);
+    this.restartClock();
   }
 
   protected step(game: SeriesGame): DraftStep | null {
@@ -593,6 +648,7 @@ export class TournamentDraftComponent implements OnInit {
         });
       }
       this.pending.set(null);
+      this.restartClock();
     } finally {
       this.committing.set(false);
     }
@@ -646,6 +702,7 @@ export class TournamentDraftComponent implements OnInit {
     }
     await this.data.updateSeriesGame({ ...live, ...patch });
     this.pending.set(null);
+    this.restartClock();
   }
 
   /**
