@@ -61,6 +61,11 @@
         </p>
       }
 
+      <!-- The stage: our picks, the wall, their picks. Three columns because a
+           draft is two teams facing each other across a champion pool, and a
+           stacked layout spends the width on nothing while pushing the grid
+           below the fold. -->
+      <div class="draft-stage">
       <div class="draft-inputs">
           <div class="field">
             <span>
@@ -131,7 +136,7 @@
                           [attr.aria-pressed]="isTargeted('pick', 'our', i)"
                           (click)="aimAtPick('our', i)">
                     @if (slot.champion) {
-                      <img class="pool-champ-icon" [src]="ui.championIconUrl(slot.champion)" [alt]="" loading="lazy" />
+                      <img class="pick-art" [src]="ui.championArtUrl(slot.champion)" [alt]="" />
                       <span class="pick-target-name">{{ slot.champion }}</span>
                     } @else {
                       <span class="pick-target-empty">Pick&hellip;</span>
@@ -178,7 +183,7 @@
                           [attr.aria-pressed]="isTargeted('pick', 'their', i)"
                           (click)="aimAtPick('their', i)">
                     @if (slot.champion) {
-                      <img class="pool-champ-icon" [src]="ui.championIconUrl(slot.champion)" [alt]="" loading="lazy" />
+                      <img class="pick-art" [src]="ui.championArtUrl(slot.champion)" [alt]="" />
                       <span class="pick-target-name">{{ slot.champion }}</span>
                     } @else {
                       <span class="pick-target-empty">Pick&hellip;</span>
@@ -280,6 +285,7 @@
           }
         </div>
       }
+      </div>
 
       <div class="draft-status">
         <span class="draft-board-count is-ok">{{ draftPlayable(game).length }} playable</span>

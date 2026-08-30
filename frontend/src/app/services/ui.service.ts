@@ -110,6 +110,18 @@ export class UiService {
     return `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${this.championDDragonName(championName)}.png`;
   }
 
+  /**
+   * Loading-screen art for the default skin — the tall portrait crop, which is
+   * what a draft card wants. Splash art is 1215×717 and mostly background;
+   * loading art is 308×560 and framed on the champion.
+   *
+   * Deliberately unversioned: Data Dragon serves these from a path with no
+   * version in it, so this keeps working across patches on its own.
+   */
+  championArtUrl(championName: string): string {
+    return `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${this.championDDragonName(championName)}_0.jpg`;
+  }
+
   /** Riot class tags (Fighter, Mage, …) once the champion index has loaded. */
   championTags(championName: string): string[] {
     return this.champions.tags(championName);
