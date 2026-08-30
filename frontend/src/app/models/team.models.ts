@@ -42,6 +42,14 @@ export interface QueueMatchStats {
   avgTankShare: number;
   avgBuildingDamage: number;
   avgVisionScore: number;
+  /**
+   * Games actually behind the vision average. Below `games` while cache v4
+   * backfills, and absent entirely on stats enriched before it existed — so
+   * read a missing value as "unknown", not as zero.
+   */
+  visionSamples?: number;
+  /** Games behind the building-damage average, likewise. */
+  buildingSamples?: number;
   playstyle: string;
   strengths: string[];
   weaknesses: string[];

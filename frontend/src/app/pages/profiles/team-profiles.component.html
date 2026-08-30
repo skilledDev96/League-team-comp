@@ -67,7 +67,12 @@
           </span>
           <span class="num" role="cell">{{ m.avgKda | number: '1.1-1' }}</span>
           <span class="num" role="cell">{{ m.avgCsPerMin | number: '1.1-1' }}</span>
-          <span class="num" role="cell">{{ m.avgVisionScore | number: '1.0-0' }}</span>
+          <span class="num" role="cell" [appTip]="visionNote(m)">
+            @if (visionSample(m); as n) {
+              {{ m.avgVisionScore | number: '1.0-0' }}
+              @if (n < m.games) { <small class="sample-size">{{ n }}g</small> }
+            } @else { — }
+          </span>
           <span class="profiles-main" role="cell">
             @if (row.player.top3[0]; as champ) {
               <img class="profiles-champ" [src]="ui.championIconUrl(champ)" [alt]="champ" [appTip]="champ" loading="lazy" />

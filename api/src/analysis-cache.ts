@@ -21,8 +21,16 @@ export interface CachedMatch {
   participants: CachedParticipant[];
 }
 
-/** Bump when the cached shape changes; entries below this are re-fetched once. */
-export const CACHE_VERSION = 3;
+/**
+ * Bump when the cached shape changes; entries below this are re-fetched once.
+ *
+ * v4 added `visionScore` and `buildingDamage` per participant, so player
+ * enrichment can read its sample from here instead of spending a Riot call per
+ * match. Both are absent on v3 entries until the backfill works through, and
+ * every average over them counts its own sample rather than treating a missing
+ * number as a zero.
+ */
+export const CACHE_VERSION = 4;
 
 /** A Summoner's Rift match has ten participants, and always exactly ten. */
 const FULL_LOBBY = 10;

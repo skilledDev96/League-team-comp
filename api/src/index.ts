@@ -13,6 +13,7 @@ import { killParticipation, tallyKills } from './fights';
 import { summarizeMatches } from './match-stats';
 import { classifyArchetype, describePlayer } from './insights';
 import { CACHE_VERSION, isCacheCurrent, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
+import { cachedToMatch, planSample } from './enrich-sample';
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
 import { ChampionTraits, toTraits } from './champion-traits';
 import { BUILD_SHA } from './build-info';
@@ -278,6 +279,10 @@ interface MatchStats {
   avgTankShare: number;
   avgBuildingDamage: number;
   avgVisionScore: number;
+  /** Games behind the vision average — below `games` while cache v4 backfills. */
+  visionSamples?: number;
+  /** Games behind the building-damage average, likewise. */
+  buildingSamples?: number;
   playstyle: string;
   strengths: string[];
   weaknesses: string[];
@@ -365,6 +370,40 @@ interface RiotMatch {
   };
 }
 
+/**
+ * How far back enrichment looks per queue.
+ *
+ * The old sample was twelve, because twelve was twelve Riot calls. Reading
+ * the cache first decouples the two: the id list costs one call at any
+ * length, and every id already cached is free. Forty is about a season of
+ * flex for this team without reaching so far back that old form dominates.
+ */
+const ENRICH_SAMPLE_SIZE = 40;
+
+/**
+ * Read many cache entries at once.
+ *
+ * One `getAll` rather than a read per id: the whole point of going to the
+ * cache is that it is cheaper than Riot, and forty sequential document reads
+ * would give most of that back in latency.
+ */
+async function readCachedMatches(ids: readonly string[]): Promise<Map<string, CachedMatch | undefined>> {
+  const found = new Map<string, CachedMatch | undefined>();
+  if (ids.length === 0) return found;
+
+  const db = getFirestore();
+  try {
+    const snaps = await db.getAll(...ids.map((id) => db.doc(`matchCache/${id}`)));
+    for (const snap of snaps) {
+      if (snap.exists) found.set(snap.id, snap.data() as CachedMatch);
+    }
+  } catch {
+    // A cache read failing is not a reason to fail enrichment — it just means
+    // every id looks uncached, and the Riot budget covers the sample instead.
+  }
+  return found;
+}
+
 async function fetchRiotQueueEnrichment(
   payload: EnrichRequest,
   apiKey: string,
@@ -398,29 +437,33 @@ async function fetchRiotQueueEnrichment(
     ? rankedEntries.find((entry) => entry.queueType === rankedQueueType)
     : undefined;
 
+  // Ask for a wide window: the id list is one call whatever its length, and
+  // most of what comes back may already be in the cache.
   const matchIds = await riotFetch<string[]>(
-    `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${account.puuid}/ids?queue=${queueId}&start=0&count=15`,
+    `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${account.puuid}/ids?queue=${queueId}&start=0&count=${ENRICH_SAMPLE_SIZE}`,
     apiKey
   );
 
-  const matches: RiotMatch[] = [];
-  for (const matchId of matchIds.slice(0, 12)) {
+  // Everything the comp analysis has already paid for, read in one batch.
+  const plan = planSample(matchIds, await readCachedMatches(matchIds));
+  const gathered: CachedMatch[] = [...plan.usable];
+
+  for (const matchId of plan.toFetch) {
     try {
-      const match = await riotFetch<RiotMatch>(
-        `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/${matchId}`,
-        apiKey
-      );
-      matches.push(match);
+      // Writes through to matchCache, so the next run over this player — and
+      // the comp analysis, if it is a team game — gets it for nothing.
+      const result = await getCachedMatch(matchId, routing.regional, apiKey, true);
+      if (result) gathered.push(result.match);
     } catch {
       // Skip individual match failures (e.g. remake/rate limit) without failing the whole request.
     }
   }
 
-  if (matches.length === 0) {
+  if (gathered.length === 0) {
     throw new Error('No recent ranked/normal match history found for this Riot ID.');
   }
 
-  const summary = summarizeMatches(matches, account.puuid, displayChampionName);
+  const summary = summarizeMatches(gathered.map(cachedToMatch), account.puuid, displayChampionName);
   if (!summary) {
     throw new Error('No recent ranked/normal match history found for this Riot ID.');
   }
@@ -437,7 +480,9 @@ async function fetchRiotQueueEnrichment(
     avgDamageShare,
     avgTankShare,
     avgBuildingDamage,
-    avgVisionScore
+    avgVisionScore,
+    visionSamples,
+    buildingSamples
   } = summary;
   const totalWins = summary.wins;
 
@@ -501,6 +546,8 @@ async function fetchRiotQueueEnrichment(
         avgTankShare,
         avgBuildingDamage,
         avgVisionScore,
+        visionSamples,
+        buildingSamples,
         playstyle: archetype,
         strengths: strengths.slice(0, 3),
         weaknesses: weaknesses.slice(0, 3),
@@ -821,6 +868,14 @@ interface AnalysisPlayerResponse {
   damageTaken?: number;
   /** Seconds spent crowd-controlling opponents. Absent below cache v3. */
   ccTime?: number;
+  /**
+   * Absent below cache v4. Stored so player enrichment can read its sample
+   * from here rather than spending a Riot call per match; anything averaging
+   * it must count its own sample, because missing is not zero.
+   */
+  visionScore?: number;
+  /** Absent below cache v4, and for the same reason. */
+  buildingDamage?: number;
 }
 
 interface AnalysisGameResponse {
@@ -985,7 +1040,9 @@ async function getCachedMatch(
       cs: p.totalMinionsKilled + p.neutralMinionsKilled,
       damage: p.totalDamageDealtToChampions,
       damageTaken: p.totalDamageTaken ?? 0,
-      ccTime: p.timeCCingOthers ?? 0
+      ccTime: p.timeCCingOthers ?? 0,
+      visionScore: p.visionScore ?? 0,
+      buildingDamage: p.damageDealtToBuildings ?? 0
     }))
   };
   await ref.set(match);
