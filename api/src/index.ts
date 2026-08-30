@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { retryDelayMs, riotError } from './riot-errors';
@@ -14,6 +14,19 @@ import { summarizeMatches } from './match-stats';
 import { classifyArchetype, describePlayer } from './insights';
 import { CACHE_VERSION, isCacheCurrent, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
 import { cachedToMatch, planSample } from './enrich-sample';
+import {
+  CRAWL_QUEUE,
+  CrawledMatch,
+  FIRST_CURSOR,
+  IDS_PER_PLAYER,
+  LadderCursor,
+  MatchTally,
+  Tier,
+  nextCursor,
+  planRun,
+  statsDocPath,
+  tallyMatch
+} from './crawler';
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
 import { ChampionTraits, toTraits } from './champion-traits';
 import { BUILD_SHA } from './build-info';
@@ -1573,6 +1586,214 @@ export const syncChampionTraits = onRequest(
       res.json({ ok: true, champions: count });
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Sync failed.' });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Champion win rates by rank, collected two minutes at a time.
+//
+// A proof of concept for a Production key application, and useful on its own:
+// the draft room currently cannot quote an external win rate at all, because
+// 159 games do not support one. See `crawler.ts` for the reasoning and the
+// approved-use-case clause this is built against.
+// ---------------------------------------------------------------------------
+
+/** The one region we collect. Their meta is ours; other regions would dilute it. */
+const CRAWL_REGION = 'euw';
+
+interface CrawlState {
+  /**
+   * Off until switched on by hand.
+   *
+   * Deploying this must not start a perpetual job against the Riot key. The
+   * crawler shares its rate limit with every interactive refresh on the site,
+   * and on a Personal key the approved use is a proof of concept, not a
+   * pipeline left running — so starting it is a decision, taken once, with
+   * somebody watching.
+   */
+  enabled?: boolean;
+  cursor: LadderCursor;
+  /** Players we know of, with the rank of the page they came from. */
+  pool: { puuid: string; tier: Tier }[];
+  /** Match ids waiting to be fetched, with the tier to file them under. */
+  pending: { id: string; tier: Tier }[];
+  matchesTallied: number;
+  lastRunAt: string;
+  lastNote: string;
+}
+
+const CRAWL_STATE_DOC = 'crawlState/championStats';
+/** Caps on the two queues, so the state document cannot grow without bound. */
+const MAX_POOL = 4000;
+const MAX_PENDING = 4000;
+
+function emptyCrawlState(): CrawlState {
+  return {
+    cursor: FIRST_CURSOR,
+    pool: [],
+    pending: [],
+    matchesTallied: 0,
+    lastRunAt: '',
+    lastNote: 'not started'
+  };
+}
+
+/**
+ * One page of a ranked ladder, as players we can crawl.
+ *
+ * Riot has been moving every endpoint from summoner ids to puuids, and this one
+ * has carried both at different times, so take whichever is present rather than
+ * assuming. An entry with neither is skipped: resolving it would cost a request
+ * each, which is the budget this whole design exists to protect.
+ */
+async function fetchLadderPage(
+  cursor: LadderCursor,
+  apiKey: string
+): Promise<{ puuid: string; tier: Tier }[]> {
+  const routing = REGION_ROUTING[CRAWL_REGION];
+  const entries = await riotFetch<{ puuid?: string; summonerId?: string }[]>(
+    `https://${routing.platform}.api.riotgames.com/lol/league/v4/entries/RANKED_SOLO_5x5/${cursor.tier}/${cursor.division}?page=${cursor.page}`,
+    apiKey
+  );
+  return (Array.isArray(entries) ? entries : [])
+    .map((e) => e?.puuid)
+    .filter((p): p is string => typeof p === 'string' && p.length > 0)
+    .map((puuid) => ({ puuid, tier: cursor.tier }));
+}
+
+/**
+ * Add a match's champions to its patch-and-tier bucket.
+ *
+ * `FieldValue.increment` rather than read-modify-write: the counters are the
+ * only thing this crawler produces, and a lost update is a game that silently
+ * never happened.
+ */
+async function applyTally(tally: MatchTally): Promise<void> {
+  const updates: Record<string, FieldValue> = {};
+  for (const [champion, counts] of tally.champions) {
+    // Champion names can carry an apostrophe (Kai'Sa); dots would nest them.
+    const key = champion.replace(/[^A-Za-z0-9]/g, '');
+    updates[`champions.${key}.games`] = FieldValue.increment(counts.games);
+    updates[`champions.${key}.wins`] = FieldValue.increment(counts.wins);
+  }
+  updates['matches'] = FieldValue.increment(1);
+  await getFirestore()
+    .doc(statsDocPath(tally.patch, tally.tier))
+    .set({ patch: tally.patch, tier: tally.tier, ...updates }, { merge: true });
+}
+
+/**
+ * One crawl tick.
+ *
+ * Deliberately not transactional across the whole run: a run that fails halfway
+ * has still banked the matches it tallied, and the seen-marker means the next
+ * run does not recount them. Losing a few queued ids costs one request each.
+ */
+async function crawlTick(apiKey: string | undefined): Promise<string> {
+  if (!apiKey) return 'no key configured';
+
+  const db = getFirestore();
+  const stateRef = db.doc(CRAWL_STATE_DOC);
+  const snap = await stateRef.get();
+  const state: CrawlState = snap.exists
+    ? { ...emptyCrawlState(), ...(snap.data() as Partial<CrawlState>) }
+    : emptyCrawlState();
+
+  if (!state.enabled) return 'disabled — set crawlState/championStats.enabled to true to start';
+
+  const plan = planRun(state.pending.length, state.pool.length);
+  const routing = REGION_ROUTING[CRAWL_REGION];
+  let tallied = 0;
+  let skipped = 0;
+
+  // 1. Players, when we are short of them.
+  for (let i = 0; i < plan.ladderPages; i += 1) {
+    try {
+      const page = await fetchLadderPage(state.cursor, apiKey);
+      state.pool = [...state.pool, ...page].slice(-MAX_POOL);
+    } catch {
+      // A bad page should not stall the walk; move past it.
+    }
+    state.cursor = nextCursor(state.cursor);
+  }
+
+  // 2. Match ids, when the queue is running dry.
+  for (let i = 0; i < plan.idLookups && state.pool.length > 0; i += 1) {
+    const player = state.pool.shift()!;
+    try {
+      const ids = await riotFetch<string[]>(
+        `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${player.puuid}/ids?queue=${CRAWL_QUEUE}&start=0&count=${IDS_PER_PLAYER}`,
+        apiKey
+      );
+      const fresh = (Array.isArray(ids) ? ids : []).map((id) => ({ id, tier: player.tier }));
+      state.pending = [...state.pending, ...fresh].slice(0, MAX_PENDING);
+    } catch {
+      // Drop this player rather than retrying; there are millions more.
+    }
+  }
+
+  // 3. Matches, which is the only stage that produces data.
+  for (let i = 0; i < plan.matchFetches && state.pending.length > 0; i += 1) {
+    const next = state.pending.shift()!;
+    const seenRef = db.doc(`crawlSeen/${next.id}`);
+    try {
+      // A five-stack appears in five players' histories; without this marker
+      // its champions would be counted five times over.
+      if ((await seenRef.get()).exists) {
+        skipped += 1;
+        continue;
+      }
+      const raw = await riotFetch<CrawledMatch>(
+        `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/${next.id}`,
+        apiKey
+      );
+      const tally = tallyMatch(raw, next.tier);
+      if (tally) {
+        await applyTally(tally);
+        tallied += 1;
+      }
+      // Marked either way: a remake stays a remake, and re-fetching one to
+      // reject it again is a wasted request every run forever.
+      await seenRef.set({ patch: tally?.patch ?? 'skipped', at: Date.now() });
+    } catch {
+      // Leave it unmarked so a later run can retry it.
+    }
+  }
+
+  state.matchesTallied += tallied;
+  state.lastRunAt = new Date().toISOString();
+  state.lastNote = `+${tallied} tallied, ${skipped} already seen, ${state.pending.length} queued, ${state.pool.length} players`;
+  await stateRef.set(state);
+  return state.lastNote;
+}
+
+/**
+ * Runs on a schedule rather than on demand, because the point is the slow
+ * accumulation. Two minutes matches the rate-limit window, so each run gets a
+ * fresh allowance and never borrows from the next.
+ */
+export const crawlChampionStats = onSchedule(
+  { schedule: 'every 2 minutes', secrets: [RIOT_API_KEY], timeoutSeconds: 110 },
+  async () => {
+    const note = await crawlTick(RIOT_API_KEY.value());
+    console.log(`crawlChampionStats: ${note}`);
+  }
+);
+
+/**
+ * Manual tick, for watching one run without waiting for the schedule.
+ *
+ * Honours the same flag, so this cannot be used to sidestep it — the point of
+ * the switch is that collection starts deliberately.
+ */
+export const crawlOnce = onRequest(
+  { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 120 },
+  async (_req, res) => {
+    try {
+      res.json({ ok: true, note: await crawlTick(RIOT_API_KEY.value()) });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'crawl failed' });
     }
   }
 );
