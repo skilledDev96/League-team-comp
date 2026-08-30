@@ -9870,3 +9870,42 @@ body:has(.draft-stage) .edit-mode-frame {
   width: 4.4rem;
   height: 4.4rem;
 }
+
+/* ---- Draft: the card's shape is not negotiable ---------------------------
+   Letting the card fill its column meant the column's width and the viewport's
+   height fought each other: on a wide, short screen the height cap bound at
+   153px while the width ran to 431, a ratio of 2.8 against the art's 1.7 —
+   forty per cent of every champion cropped away.
+
+   So the card is sized from its height alone and the width follows the ratio.
+   It can now never crop, whatever shape the window is. The wall takes the
+   leftover instead, its eight columns stretching rather than leaving a gap. */
+
+.draft-stage {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.draft-stage .pick-slot {
+  width: auto;
+  height: min(12rem, 17vh);
+  max-height: none;
+  max-width: none;
+  aspect-ratio: 1215 / 717;
+  justify-self: center;
+}
+
+/* The wall spreads into whatever the cards did not need, rather than sitting
+   at a fixed width with air either side of it. */
+.draft-grid .board-grid {
+  width: 100%;
+  max-width: calc(
+    var(--tile-cols) * 9rem + (var(--tile-cols) - 1) * var(--tile-gap)
+    + 2 * var(--tile-pad) + 2px + 1rem
+  );
+  grid-template-columns: repeat(var(--tile-cols), minmax(0, 1fr));
+}
+
+.draft-grid .board-filters,
+.draft-grid .board-lane-note {
+  max-width: calc(8 * 9rem + 7 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
+}
