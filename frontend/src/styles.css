@@ -9283,3 +9283,56 @@ body[data-theme="void"] {
 .ban-card .pick-art {
   object-position: 50% 38%;
 }
+
+/* ---- Draft: a head that does not resize ---------------------------------
+   Choosing a side swaps a one-line question for a turn bar plus a confirm
+   slot. Those are different heights, so the entire page jumped upward at the
+   exact moment the draft began. The head is now a fixed block and only its
+   contents change. */
+.draft-head {
+  min-height: 8.2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.draft-head .draft-side-pick,
+.draft-head .draft-step-bar {
+  margin-bottom: 0;
+}
+
+/* Reclaim the gap the pick cards wanted: the head is centred in its own space,
+   the grid follows immediately, and the bans sit up against it. */
+.draft-grid .board-grid {
+  margin-bottom: 0;
+}
+
+.draft-stage {
+  gap: 0.6rem 1rem;
+}
+
+.draft-stage .draft-inputs > .field:nth-child(1) {
+  margin-top: 0;
+}
+
+/* The sheen is gone. It sat on a pseudo-element over the art, and wherever
+   animation frames are throttled it holds its start state instead of sweeping
+   away — a bright band frozen across the card, which read as the image being
+   broken. A pick already announces itself by appearing. */
+.draft-stage .pick-slot:not(.is-empty)::before {
+  content: none;
+}
+
+/* The wall is a fixed height, not a maximum.
+   With max-height it shrank to fit whatever was showing, so filtering to the
+   39 ADCs made the panel short and every row below it — bans, comps, pools —
+   jumped up the page. A draft filters constantly; the board cannot move each
+   time. Short lists now scroll within a constant frame instead of resizing it,
+   and the pick columns stretch to match, which is where their extra height
+   comes from. */
+.draft-grid .board-grid {
+  height: min(40rem, 58vh);
+  max-height: none;
+  align-content: start;
+}

@@ -223,6 +223,10 @@
            is the only way to keep pace with a draft happening live. -->
       @if (auth.editing()) {
         <div class="draft-grid">
+          <!-- Fixed height. Choosing a side swaps a one-line question for a
+               turn bar and a confirm slot, and without a reserved head the
+               whole page jumped the moment the draft started. -->
+          <div class="draft-head">
           <!-- Side first. Until it is known there is no such thing as "whose
                turn", so the sequence cannot start and the board stays in the
                free-form mode older games were drafted in. -->
@@ -295,6 +299,7 @@
             }
             </div>
           }
+          </div>
 
           @if (ourSide(game) && !sequenceDone(game)) {
             <!-- The seat only filters the wall here; the sequence still decides

@@ -14,14 +14,19 @@
   </div>
 </div>
 
-@if (hiddenByLane() > 0) {
-  <p class="board-lane-note">
+<!-- Always rendered, even unfiltered. Showing it only when a lane is chosen
+     made the line appear and disappear on every filter, moving everything
+     below it — and in a draft you filter constantly. -->
+<p class="board-lane-note">
+  @if (hiddenByLane() > 0) {
     {{ grid().length }} {{ roleFilter() }} champions.
     <button type="button" class="link-btn" (click)="roleFilter.set(null)">
       Show all {{ hiddenByLane() }} others
     </button>
-  </p>
-}
+  } @else {
+    {{ grid().length }} champions.
+  }
+</p>
 
 @if (champs.ready() && grid().length === 0) {
   <p class="muted">No champion matches that.</p>
