@@ -1809,3 +1809,45 @@ export const crawlOnce = onRequest(
     }
   }
 );
+
+/**
+ * What the ladder endpoints actually return, so seeding is not guessed at twice.
+ *
+ * Riot has been migrating endpoints from summoner ids to puuids for two years
+ * and the apex tiers have always had their own route, so both halves of the
+ * seeding are assumptions until measured. This reports **field names only** —
+ * never a puuid, summoner id or name — which is enough to wire the crawler and
+ * carries no player data out of the API.
+ *
+ * Temporary. Delete once the crawler is seeding.
+ */
+export const crawlProbe = onRequest(
+  { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 60 },
+  async (_req, res) => {
+    const apiKey = RIOT_API_KEY.value();
+    const platform = REGION_ROUTING[CRAWL_REGION].platform;
+    const base = `https://${platform}.api.riotgames.com/lol/league/v4`;
+    const attempts: [string, string][] = [
+      ['entries_DIAMOND_I', `${base}/entries/RANKED_SOLO_5x5/DIAMOND/I?page=1`],
+      ['entries_CHALLENGER_I', `${base}/entries/RANKED_SOLO_5x5/CHALLENGER/I?page=1`],
+      ['challengerleagues', `${base}/challengerleagues/by-queue/RANKED_SOLO_5x5`]
+    ];
+
+    const out: Record<string, unknown> = {};
+    for (const [name, url] of attempts) {
+      try {
+        const data = await riotFetch<unknown>(url, apiKey);
+        const list = Array.isArray(data) ? data : (data as { entries?: unknown[] })?.entries;
+        const first = Array.isArray(list) ? list[0] : undefined;
+        out[name] = {
+          ok: true,
+          count: Array.isArray(list) ? list.length : 0,
+          fields: first && typeof first === 'object' ? Object.keys(first).sort() : []
+        };
+      } catch (err) {
+        out[name] = { ok: false, error: err instanceof Error ? err.message : 'failed' };
+      }
+    }
+    res.json(out);
+  }
+);
