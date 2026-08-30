@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BAN_TEAMS,
+  bansForTeam,
   banTeamAt,
   DRAFT_LENGTH,
   DRAFT_SEQUENCE,
@@ -135,5 +136,46 @@ describe('BAN_TEAMS / banTeamAt', () => {
 
   it('gives nothing past the tenth ban rather than guessing', () => {
     expect(banTeamAt(10)).toBeNull();
+  });
+});
+
+describe('bansForTeam', () => {
+  // Ban order is blue red blue red blue red | red blue red blue.
+  const ten = ['b1', 'r1', 'b2', 'r2', 'b3', 'r3', 'r4', 'b4', 'r5', 'b5'];
+
+  it('splits a full ban list down the two sides', () => {
+    expect(bansForTeam(ten, 'our', 'blue')).toEqual(['b1', 'b2', 'b3', 'b4', 'b5']);
+    expect(bansForTeam(ten, 'their', 'blue')).toEqual(['r1', 'r2', 'r3', 'r4', 'r5']);
+  });
+
+  it('swaps with the side, since blue is not always us', () => {
+    expect(bansForTeam(ten, 'our', 'red')).toEqual(['r1', 'r2', 'r3', 'r4', 'r5']);
+    expect(bansForTeam(ten, 'their', 'red')).toEqual(['b1', 'b2', 'b3', 'b4', 'b5']);
+  });
+
+  it('pads to five with gaps, so the count reads without counting', () => {
+    // Three bans in: blue has two, red has one.
+    expect(bansForTeam(['b1', 'r1', 'b2'], 'our', 'blue')).toEqual(['b1', 'b2', null, null, null]);
+    expect(bansForTeam(['b1', 'r1', 'b2'], 'their', 'blue')).toEqual(['r1', null, null, null, null]);
+  });
+
+  it('gives five empty slots before anything is banned', () => {
+    expect(bansForTeam([], 'our', 'blue')).toEqual([null, null, null, null, null]);
+  });
+
+  it('keeps everything on one side when the game was filled in freely', () => {
+    // No side chosen means no ban order to read, so it must not be split on a
+    // guess — half the bans would be attributed to the wrong team.
+    expect(bansForTeam(['x', 'y'], 'our', undefined)).toEqual(['x', 'y', null, null, null]);
+    expect(bansForTeam(['x', 'y'], 'their', undefined)).toEqual([null, null, null, null, null]);
+  });
+
+  it('grows past five for a free-form game that collected more', () => {
+    const many = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+    expect(bansForTeam(many, 'our', undefined)).toHaveLength(7);
+  });
+
+  it('ignores blank entries rather than counting them as bans', () => {
+    expect(bansForTeam(['b1', '', 'r1'], 'our', 'blue')).toEqual(['b1', null, null, null, null]);
   });
 });

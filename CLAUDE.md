@@ -101,6 +101,49 @@ selected one is alive.
 suite land where they always did. Do not turn them into redirects without
 checking `e2e/tests/authenticated.spec.ts`, which navigates to `./players`.
 
+**`/tournaments` → Draft is a live draft room**, used while a draft is actually
+happening, and that constraint drives its design. `pages/tournaments/draft/`
+holds the component; the rules it obeys are pure and tested next door in
+`pages/tournaments/draft-sequence.ts`.
+
+- **The sequence is data, not branching.** `DRAFT_SEQUENCE` is the twenty
+  competitive steps — 3 bans each, 6 picks, 2 bans each, 4 picks — so "whose
+  turn", "ban or pick" and "are we done" are lookups. `SeriesGame.ourSide` and
+  `SeriesGame.draftStep` persist where a game is; both are absent on games saved
+  before this existed, which open at step one rather than appearing finished.
+- **A champion is held, then confirmed.** Confirming advances the step and
+  restarts the 30s clock. `seatFor` proposes the seat from the champion's real
+  lane, shown before confirming — picks land in *draft* order, not role order.
+- **`bansForTeam` recovers who banned what.** Bans are one flat list because
+  under fearless a ban is a ban whoever made it; the sequence appends in turn
+  order, so `BAN_TEAMS` reads the team back off the position without storing it.
+  A game filled in freely has no such order and is not split on a guess.
+- **The free-form controls must stand down while a sequence runs.** The seat ×,
+  the ban chip ×, Clear all and the ban typeahead all edit the board *without*
+  moving `draftStep`; clearing one pick once left a draft a step ahead of its own
+  board, reaching the second ban phase showing five picks instead of six. Undo
+  moves both together; Reset wipes the game.
+- **Nothing on this screen may change layout height when its state changes.**
+  Three separate causes of the page jumping were found and fixed — the champion
+  wall had a `max-height` so filtering shrank it, the champion-count line only
+  rendered when filtered, and the confirm row appeared conditionally. All now
+  occupy reserved space (`.draft-head`, `.draft-confirm-slot`, a fixed grid
+  height). Verify a change here by measuring an element's `top` across every
+  filter and state, not by eye.
+- **The clock is a reminder, not a referee** — it never advances the draft or
+  discards a pick. The real clock is in the League client.
+
+**Champion lanes come from pro match data, not from Riot.** Riot's champion tags
+are *classes*: Gragas is a Fighter in all three of his lanes, and "Support" is
+both a tag and a lane. Data Dragon and CommunityDragon carry no position data at
+all. `scripts/gen-champion-lanes.mjs` derives
+`frontend/src/app/data/champion-lanes.ts` from an Oracle's Elixir export (that
+dataset is published for analysts, which is what makes it the compliant source);
+read it through `core/champion-lanes.ts`. The CSV is ~64 MB and deliberately not
+committed — re-download and re-run to refresh. Flex picks keep **every** lane
+they are genuinely played in, and a champion with no pro games passes every lane
+filter rather than none, so it can never become unpickable.
+
 **The analysis data flow** is worth knowing before touching either analysis page:
 
 1. `CompAnalysisService.refresh()` POSTs the roster and comps to `getCompAnalysis`.
@@ -167,5 +210,7 @@ Two questions are asked of a cached entry, and conflating them makes a
 - **Angular 22, standalone components, signals throughout.** No NgModules; components declare their own `imports`. State is signals + `computed`; prefer this over RxJS for view state.
 - Forms use `[ngModel]` + `(ngModelChange)` with `FormsModule` (template-driven, one-way bound to signals), not reactive forms — see `admin.component.html`.
 - Styling is one global `frontend/src/styles.css` (no per-component styles) built on CSS custom properties. Theme is switched via `body[data-theme="..."]` (`dark`, `dark-blue`, `dark-red`, `light`); **always style through tokens** (`--accent`, `--text-0/1`, `--ok` for wins/positive, `--warn` for losses/negative, `--card-border`, `--surface-*`) so all four themes work.
-- Shared UI lives in `frontend/src/app/shared/` (e.g. `overflow-menu.component.ts`, `champion-chip.component.ts`, `external-profiles.component.ts`); reuse these rather than re-rolling menus/chips.
+- Shared UI lives in `frontend/src/app/shared/` (e.g. `overflow-menu.component.ts`, `champion-chip.component.ts`, `external-profiles.component.ts`); reuse these rather than re-rolling menus/chips. `champion-grid.component.ts` is the searchable wall of champions used by both the comp board and the live draft — it owns no idea of *where* a pick lands, and only emits a name.
+- **Sizing is in `rem`, not `px`.** The root font size is a `clamp()` on `html`, so the whole interface scales with the monitor: unchanged below ~1600px, about 31% larger at 2560px. A `px` width or height silently opts out of that and will look wrong on a large screen. Borders, radii and shadows are the exception and should stay in `px`. Material Symbols carry an explicit `1.5rem` because Google's stylesheet pins them at 24px.
+- Champion art: `ui.championIconUrl()` for the square icon, `ui.championArtUrl()` for **splash** art on wide cards. Splash is 1215×717 landscape; the loading art at 308×560 is portrait and crops badly into anything wide.
 - Commit messages in this repo are a single imperative summary line describing the user-facing change, often with a short rationale after a semicolon.

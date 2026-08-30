@@ -31,6 +31,23 @@ describe('UiService', () => {
     });
   });
 
+  describe('championArtUrl', () => {
+    it('asks for splash art, which is landscape like the cards it fills', () => {
+      // Loading art is 308x560 portrait; in a 2:1 draft card it crops three
+      // quarters away and upscales the rest.
+      expect(ui.championArtUrl('Aatrox')).toContain('/champion/splash/Aatrox_0.jpg');
+    });
+
+    it('carries no patch version, so it survives a patch on its own', () => {
+      expect(ui.championArtUrl('Aatrox')).not.toMatch(/cdn\/\d+\.\d+\.\d+\//);
+    });
+
+    it('uses the Data Dragon id, not the display name', () => {
+      expect(ui.championArtUrl('Wukong')).toContain('MonkeyKing_0.jpg');
+      expect(ui.championArtUrl("Kai'Sa")).toContain('Kaisa_0.jpg');
+    });
+  });
+
   describe('championDDragonName', () => {
     it('maps known irregular names via the static map', () => {
       expect(ui.championDDragonName('Miss Fortune')).toBe('MissFortune');

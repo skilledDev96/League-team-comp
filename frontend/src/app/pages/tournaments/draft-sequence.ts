@@ -108,6 +108,38 @@ export function banTeamAt(position: number): DraftTeam | null {
   return BAN_TEAMS[position] ?? null;
 }
 
+/** How many bans each side makes in a game. */
+export const BANS_PER_TEAM = 5;
+
+/**
+ * One side's bans, padded to five, with `null` where a ban has not happened.
+ *
+ * The gaps are the point: a draft screen shows five empty slots per side and
+ * fills them, so the count reads without being counted.
+ *
+ * `ourSide` absent means the game was filled in freely rather than drafted
+ * through the sequence. There is no ban order to read in that case, so
+ * everything is returned as ours rather than split down the middle on a guess.
+ */
+export function bansForTeam(
+  bans: readonly string[],
+  side: 'our' | 'their',
+  ourSide: DraftTeam | undefined
+): (string | null)[] {
+  const made = bans.filter(Boolean);
+
+  if (!ourSide) {
+    const mine = side === 'our' ? made : [];
+    const size = Math.max(BANS_PER_TEAM, mine.length);
+    return Array.from({ length: size }, (_, i) => mine[i] ?? null);
+  }
+
+  const want: DraftTeam =
+    side === 'our' ? ourSide : ourSide === 'blue' ? 'red' : 'blue';
+  const mine = made.filter((_, i) => banTeamAt(i) === want);
+  return Array.from({ length: BANS_PER_TEAM }, (_, i) => mine[i] ?? null);
+}
+
 /** "Blue ban 2", "Red pick 4" — with the teams named, since sides swap. */
 export function describeStep(step: DraftStep, blueName: string, redName: string): string {
   const who = step.team === 'blue' ? blueName : redName;
