@@ -476,6 +476,26 @@ export class TournamentDraftComponent implements OnInit {
 
   protected readonly pending = signal<string | null>(null);
 
+  /**
+   * A write is in flight. Confirming is one click and a draft is drafted fast,
+   * so two clicks can land inside one round trip; without this the second reads
+   * the state the first has not finished writing.
+   */
+  private readonly committing = signal(false);
+
+  /**
+   * The freshest copy of a game.
+   *
+   * The template hands components the `game` object it rendered with, which is
+   * a snapshot. Every confirm builds the next state from the current one, so
+   * confirming twice quickly had both build from the same snapshot and the
+   * second silently overwrote the first — a pick simply vanished from the
+   * board. Re-reading by id is what makes each step build on the last.
+   */
+  private current(game: SeriesGame): SeriesGame {
+    return this.data.seriesGames().find((g) => g.id === game.id) ?? game;
+  }
+
   protected ourSide(game: SeriesGame): 'blue' | 'red' | null {
     return game.ourSide ?? null;
   }
@@ -541,47 +561,58 @@ export class TournamentDraftComponent implements OnInit {
   /** Commit the held champion and advance one step. */
   protected async confirmPending(game: SeriesGame): Promise<void> {
     const champ = this.pending();
-    const step = this.step(game);
-    if (!champ || !step) return;
+    if (!champ || this.committing()) return;
+
+    // Everything below reads the live game, never the template's snapshot.
+    const live = this.current(game);
+    const step = this.step(live);
+    if (!step) return;
     // Refuse rather than advance with nothing stored.
-    if (this.confirmBlockedReason(game)) return;
+    if (this.confirmBlockedReason(live)) return;
 
-    const next = (game.draftStep ?? 0) + 1;
+    this.committing.set(true);
+    try {
+      const next = (live.draftStep ?? 0) + 1;
 
-    if (step.action === 'ban') {
-      const bans = [...(game.bans ?? []), champ];
-      await this.data.updateSeriesGame({ ...game, bans, draftStep: next });
-    } else {
-      const side = this.sideOfStep(game);
-      const seat = this.pendingSeat(game);
-      const picks = [...((side === 'our' ? game.ourChampions : game.theirChampions) ?? [])];
-      const at = seat ? this.roles.indexOf(seat) : picks.findIndex((c) => !c);
-      if (at >= 0) {
-        while (picks.length <= at) picks.push('');
-        picks[at] = champ;
+      if (step.action === 'ban') {
+        const bans = [...(live.bans ?? []), champ];
+        await this.data.updateSeriesGame({ ...live, bans, draftStep: next });
+      } else {
+        const side = this.sideOfStep(live);
+        const seat = this.pendingSeat(live);
+        const picks = [...((side === 'our' ? live.ourChampions : live.theirChampions) ?? [])];
+        const at = seat ? this.roles.indexOf(seat) : picks.findIndex((c) => !c);
+        if (at >= 0) {
+          while (picks.length <= at) picks.push('');
+          picks[at] = champ;
+        }
+        await this.data.updateSeriesGame({
+          ...live,
+          ...(side === 'our' ? { ourChampions: picks } : { theirChampions: picks }),
+          draftStep: next
+        });
       }
-      await this.data.updateSeriesGame({
-        ...game,
-        ...(side === 'our' ? { ourChampions: picks } : { theirChampions: picks }),
-        draftStep: next
-      });
+      this.pending.set(null);
+    } finally {
+      this.committing.set(false);
     }
-    this.pending.set(null);
   }
 
   /** Step back one, for a misclick that was already confirmed. */
   protected async undoStep(game: SeriesGame): Promise<void> {
-    const position = game.draftStep ?? 0;
+    if (this.committing()) return;
+    const live = this.current(game);
+    const position = live.draftStep ?? 0;
     if (position <= 0) return;
     const previous = stepAt(position - 1);
     if (!previous) return;
 
     const patch: Partial<SeriesGame> = { draftStep: position - 1 };
     if (previous.action === 'ban') {
-      patch.bans = (game.bans ?? []).slice(0, -1);
+      patch.bans = (live.bans ?? []).slice(0, -1);
     } else {
-      const side = previous.team === game.ourSide ? 'our' : 'their';
-      const picks = [...((side === 'our' ? game.ourChampions : game.theirChampions) ?? [])];
+      const side = previous.team === live.ourSide ? 'our' : 'their';
+      const picks = [...((side === 'our' ? live.ourChampions : live.theirChampions) ?? [])];
       // Undo the last filled seat rather than the last index: seats are keyed by
       // role, so the most recent pick is not necessarily the highest index.
       for (let i = picks.length - 1; i >= 0; i--) {
@@ -589,7 +620,7 @@ export class TournamentDraftComponent implements OnInit {
       }
       Object.assign(patch, side === 'our' ? { ourChampions: picks } : { theirChampions: picks });
     }
-    await this.data.updateSeriesGame({ ...game, ...patch });
+    await this.data.updateSeriesGame({ ...live, ...patch });
     this.pending.set(null);
   }
 
@@ -615,6 +646,23 @@ export class TournamentDraftComponent implements OnInit {
    * earlier free-form edit, say. Advancing anyway would drop the pick silently
    * and leave the draft a step further on with nothing to show for it.
    */
+  protected isCommitting(): boolean {
+    return this.committing();
+  }
+
+  /**
+   * Whether the twenty-step sequence is running this game.
+   *
+   * While it is, the free-form controls have to stand down. They edit picks and
+   * bans without touching `draftStep`, so clearing a seat mid-draft removed a
+   * champion and left the sequence a step further on than the board — which is
+   * how a game reached the second ban phase showing five picks instead of six.
+   * Undo is the way back, because it moves both together.
+   */
+  protected sequenceActive(game: SeriesGame): boolean {
+    return !!game.ourSide && !isComplete(game.draftStep ?? 0);
+  }
+
   protected confirmBlockedReason(game: SeriesGame): string | null {
     const step = this.step(game);
     if (!this.pending() || !step || step.action !== 'pick') return null;

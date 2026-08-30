@@ -65,7 +65,7 @@
           <div class="field">
             <span>
               Bans this game <small class="pick-count">{{ (game.bans || []).length }}</small>
-              @if (auth.editing() && (game.bans || []).length) {
+              @if (auth.editing() && !sequenceActive(game) && (game.bans || []).length) {
                 <button type="button" class="link-btn ban-clear-all"
                         (click)="setGameBans(game, [])">Clear all</button>
               }
@@ -79,7 +79,11 @@
                 <span class="pick-target-name">Ban from the grid</span>
               </button>
             }
-            @if (auth.editing()) {
+            <!-- The typeahead is for filling a board in any order. During the
+                 sequence bans come from the grid and come off with Undo, so it
+                 stands down — its per-chip × removed a ban without moving the
+                 step, which desynchronised the draft from the board. -->
+            @if (auth.editing() && !sequenceActive(game)) {
               <app-champion-picker [champions]="game.bans || []" [max]="10"
                                    [unavailable]="unavailableFor(game, 'ban')"
                                    [inputName]="'dbans-' + game.id" placeholder="Add a ban…"
@@ -133,7 +137,7 @@
                       <span class="pick-target-empty">Pick&hellip;</span>
                     }
                   </button>
-                  @if (slot.champion) {
+                  @if (slot.champion && !sequenceActive(game)) {
                     <button type="button" class="pick-target-clear" [attr.aria-label]="'Clear ' + slot.role"
                             (click)="setPickAt(game, 'our', i, '')">
                       <span class="material-symbols-rounded" aria-hidden="true">close</span>
@@ -180,7 +184,7 @@
                       <span class="pick-target-empty">Pick&hellip;</span>
                     }
                   </button>
-                  @if (slot.champion) {
+                  @if (slot.champion && !sequenceActive(game)) {
                     <button type="button" class="pick-target-clear" [attr.aria-label]="'Clear ' + slot.role"
                             (click)="setPickAt(game, 'their', i, '')">
                       <span class="material-symbols-rounded" aria-hidden="true">close</span>
@@ -242,7 +246,7 @@
                   <span class="draft-confirm-seat">into {{ seat }}</span>
                 }
                 <button type="button" class="view-btn active"
-                        [disabled]="!!confirmBlockedReason(game)"
+                        [disabled]="!!confirmBlockedReason(game) || isCommitting()"
                         (click)="confirmPending(game)">
                   Confirm {{ step(game)?.action }}
                 </button>
