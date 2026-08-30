@@ -9531,3 +9531,88 @@ body:has(.draft-stage) .edit-mode-frame {
     grid-template-columns: 12.5rem minmax(0, 1fr) 12.5rem;
   }
 }
+
+/* ---- Draft: the picks are the point -------------------------------------
+   The cards were sized by whatever the wall left over — the wall set the
+   stage's height, the cards got a fifth of it, and the columns had to be
+   narrowed to keep the art's shape. That had it backwards. The picks are what
+   the draft is about; the wall is a list you scan and then forget.
+
+   So the card now states its own shape and the stage grows to fit five of
+   them, and the wall fills whatever height that leaves. Wider columns make the
+   cards bigger rather than making the art crop. */
+
+.draft-stage {
+  grid-template-columns: 21rem minmax(0, 1fr) 21rem;
+}
+
+/* Splash art is 1215x717. Saying so once means the card can never crop. */
+.draft-stage .pick-slots {
+  grid-template-rows: repeat(5, auto);
+  align-content: start;
+}
+
+.draft-stage .pick-slot {
+  aspect-ratio: 1215 / 717;
+}
+
+/* The wall takes the height the cards leave, rather than setting it. */
+.draft-stage .draft-grid {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.draft-grid .board-grid {
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 14rem;
+}
+
+@media (max-width: 1400px) {
+  .draft-stage {
+    grid-template-columns: 16rem minmax(0, 1fr) 16rem;
+  }
+}
+
+/* The wall needs a definite height, not a flexible one.
+   Letting it flex-fill meant its own content decided the row: all 173
+   champions unwrapped, so the row became 1883px tall and the page with it.
+   A fixed height makes it scroll inside a frame the cards' column roughly
+   matches — five cards at the art's ratio come to about the same. */
+.draft-grid .board-grid {
+  flex: 0 0 auto;
+  height: min(46rem, 68vh);
+  min-height: 14rem;
+}
+
+/* The wall fills exactly the height the cards define.
+   A fixed height left a few hundred pixels of dead centre column; flex-filling
+   with `height: auto` let its own content set the row instead. `flex-basis: 0`
+   is the pair that does neither — the item contributes no intrinsic height and
+   then grows into whatever the cards leave. */
+.draft-stage .draft-grid {
+  height: 100%;
+}
+
+.draft-grid .board-grid {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 14rem;
+}
+
+/* Back to a definite height for the wall, tuned to the cards.
+   `flex: 1 1 0` did not help: the stage row is `1fr`, which with no definite
+   stage height resolves to max-content — so the wall's own 173-champion list
+   set the row regardless of how the flex item was told to behave. The only
+   thing that keeps the row honest is a height the wall cannot argue with.
+   54rem is roughly five cards minus the head and the ban strip. */
+.draft-stage .draft-grid {
+  height: auto;
+}
+
+.draft-grid .board-grid {
+  flex: 0 0 auto;
+  height: min(54rem, 76vh);
+  min-height: 14rem;
+}
