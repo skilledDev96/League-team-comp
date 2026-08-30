@@ -9814,3 +9814,59 @@ body:has(.draft-stage) .edit-mode-frame {
 .draft-grid .board-lane-note {
   max-width: calc(8 * 6rem + 7 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
 }
+
+/* ---- Draft: the cards take the leftover width ---------------------------
+   The columns were sized to the card and the centre took the rest, which left
+   a strip of dead space either side of the wall. Flipped: the wall is now the
+   fixed one — it already knows its own width from its tile counts — and the
+   card columns share whatever is left.
+
+   A card fills its column and its height follows the art's ratio, so widening
+   the columns makes the pictures bigger rather than cropping them. The vh cap
+   is a floor for short windows only: it keeps all ten picks on screen, which
+   matters more than any one of them being large. */
+.draft-stage {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.draft-stage .pick-slot {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1215 / 717;
+  max-height: 18vh;
+}
+
+/* Two pixels decided whether the fifth card was on screen.
+   The column starts 35px down (its own label) and the cards sit 16px apart, so
+   five at 18vh landed exactly on the fold. A slightly tighter cap and a
+   slightly tighter gap put the last card comfortably inside it.
+
+   The cap binding means the card is a touch wider than the art's ratio — about
+   5% cropped top and bottom. That is the trade for filling the width, which is
+   what the empty strips either side were costing. */
+.draft-stage .pick-slot {
+  max-height: 17vh;
+}
+
+.draft-stage .pick-slots {
+  gap: 0.6rem;
+}
+
+/* Wider tiles, so the columns land on the width the ratio wants.
+   Filling the leftover width made the cards 322 wide against a 170 height —
+   11% of the art cropped. The lever is the wall, not the card: widening it
+   narrows the columns, and at 6.5rem a tile the leftover comes out at very
+   nearly card-height x 1.695. Full width and full picture, no slack. */
+.draft-grid .board-grid {
+  --tile-w: 6.5rem;
+}
+
+.draft-grid .board-filters,
+.draft-grid .board-lane-note {
+  max-width: calc(8 * 6.5rem + 7 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
+}
+
+.draft-grid .board-champ img {
+  width: 4.4rem;
+  height: 4.4rem;
+}
