@@ -70,25 +70,16 @@
           <div class="field">
             <span>
               Bans this game <small class="pick-count">{{ (game.bans || []).length }}</small>
-              @if (auth.editing() && !sequenceActive(game) && (game.bans || []).length) {
+              @if (auth.editing() && !game.ourSide && (game.bans || []).length) {
                 <button type="button" class="link-btn ban-clear-all"
                         (click)="setGameBans(game, [])">Clear all</button>
               }
             </span>
-            @if (auth.editing() && !sequenceActive(game)) {
-              <button type="button" class="pick-target is-bans"
-                      [class.is-aimed]="isTargeted('ban')"
-                      [attr.aria-pressed]="isTargeted('ban')"
-                      (click)="aimAtBans()">
-                <span class="material-symbols-rounded" aria-hidden="true">block</span>
-                <span class="pick-target-name">Ban from the grid</span>
-              </button>
-            }
             <!-- The typeahead is for filling a board in any order. During the
                  sequence bans come from the grid and come off with Undo, so it
                  stands down — its per-chip × removed a ban without moving the
                  step, which desynchronised the draft from the board. -->
-            @if (auth.editing() && !sequenceActive(game)) {
+            @if (auth.editing() && !game.ourSide) {
               <app-champion-picker [champions]="game.bans || []" [max]="10"
                                    [unavailable]="unavailableFor(game, 'ban')"
                                    [inputName]="'dbans-' + game.id" placeholder="Add a ban…"

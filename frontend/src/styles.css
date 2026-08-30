@@ -9423,3 +9423,52 @@ body[data-theme="void"] {
   align-content: stretch;
   grid-template-rows: 1fr;
 }
+
+/* ---- Draft: bigger cards, quieter chrome --------------------------------- */
+
+/* The edit-mode banner floats over the bottom of the page, which on the draft
+   is the ban strip. The draft turns edit mode on for you and says so in its own
+   header, so the reminder is both redundant and in the way here. */
+body:has(.draft-stage) .edit-mode-banner,
+body:has(.draft-stage) .edit-mode-frame {
+  display: none;
+}
+
+/* More of the width to the cards, less to the wall. The wall is a scrolling
+   list — it loses nothing by being narrower — while a card is a fixed picture
+   that only gets better with room. */
+.draft-stage {
+  grid-template-columns: minmax(11rem, 1.15fr) minmax(0, 2.3fr) minmax(11rem, 1.15fr);
+}
+
+/* Splash art is 1215x717, near enough 1.7:1. Cards were 2:1, so cover was
+   throwing away the top and bottom of every one. Taller rows bring the card
+   closer to the art's own shape and less is cropped. */
+.draft-stage .pick-slots {
+  grid-template-rows: repeat(5, minmax(7rem, 1fr));
+}
+
+.draft-grid .board-grid {
+  height: min(48rem, 70vh);
+}
+
+/* With the crop shallower there is no need to bias upward as hard. */
+.draft-stage .pick-art {
+  object-position: 50% 32%;
+}
+
+/* Fixed side columns, fluid wall.
+   Widening the sides made the cards *wider*, not better-proportioned — a card's
+   height is set by the wall's height divided by five, so more width only pushed
+   the ratio further from the art's 1.69:1 and cropped more away. Pinning the
+   columns instead brings the card back toward the art's own shape, and a taller
+   wall on a bigger screen now improves the fit rather than making it worse. */
+.draft-stage {
+  grid-template-columns: 17.5rem minmax(0, 1fr) 17.5rem;
+}
+
+@media (max-width: 1400px) {
+  .draft-stage {
+    grid-template-columns: 14rem minmax(0, 1fr) 14rem;
+  }
+}
