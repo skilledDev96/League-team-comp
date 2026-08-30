@@ -9757,3 +9757,60 @@ body:has(.draft-stage) .edit-mode-frame {
 .draft-grid .board-grid {
   height: calc(5 * var(--tile-h) + 4 * var(--tile-gap) + 2 * var(--tile-pad) + 2px);
 }
+
+/* ---- Draft: an 8 x 4 wall that fits its own frame ------------------------
+   Eight across and four down. Wider tiles too, so the block absorbs more of
+   the width and leaves less dead space beside the cards.
+
+   The frame now accounts for its own border. It did not, so the content was
+   two pixels wider than the box and the wall grew a horizontal scrollbar with
+   the last column clipped behind it. */
+.draft-grid .board-grid {
+  --tile-w: 6rem;
+  --tile-h: 6.4rem;
+  --tile-gap: 0.3rem;
+  --tile-pad: 0.4rem;
+  --tile-cols: 8;
+  --tile-rows: 4;
+
+  box-sizing: border-box;
+  grid-template-columns: repeat(var(--tile-cols), var(--tile-w));
+  grid-auto-rows: var(--tile-h);
+  width: calc(var(--tile-cols) * var(--tile-w) + (var(--tile-cols) - 1) * var(--tile-gap) + 2 * var(--tile-pad) + 2px);
+  height: calc(var(--tile-rows) * var(--tile-h) + (var(--tile-rows) - 1) * var(--tile-gap) + 2 * var(--tile-pad) + 2px);
+  overflow-x: hidden;
+}
+
+.draft-grid .board-champ {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.draft-grid .board-champ img {
+  width: 4rem;
+  height: 4rem;
+}
+
+.draft-grid .board-filters,
+.draft-grid .board-lane-note {
+  max-width: calc(8 * 6rem + 7 * 0.3rem + 2 * 0.4rem + 2px);
+}
+
+/* Room for the scrollbar the wall always has.
+   173 champions in a 32-tile frame means it always scrolls vertically, and that
+   bar comes out of the content width — so eight fixed columns no longer fitted
+   and the last one sat behind a horizontal scrollbar. The gutter is reserved
+   and paid for in the width. */
+.draft-grid .board-grid {
+  scrollbar-gutter: stable;
+  width: calc(
+    var(--tile-cols) * var(--tile-w) + (var(--tile-cols) - 1) * var(--tile-gap)
+    + 2 * var(--tile-pad) + 2px + 1rem
+  );
+  overflow-x: hidden;
+}
+
+.draft-grid .board-filters,
+.draft-grid .board-lane-note {
+  max-width: calc(8 * 6rem + 7 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
+}
