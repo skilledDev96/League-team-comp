@@ -375,10 +375,16 @@ interface RiotMatch {
  *
  * The old sample was twelve, because twelve was twelve Riot calls. Reading
  * the cache first decouples the two: the id list costs one call at any
- * length, and every id already cached is free. Forty is about a season of
- * flex for this team without reaching so far back that old form dominates.
+ * length, and every id already cached is free.
+ *
+ * A hundred is Riot's own ceiling for a single ids request — 'Valid values: 0
+ * to 100' — so this is as wide as one call reaches. Going further would mean
+ * paging, another call per hundred, for games old enough that they describe a
+ * different player. What it does *not* change is the Riot budget: misses are
+ * capped separately by MAX_ENRICH_FETCHES, so a wider window costs Firestore
+ * reads and nothing else.
  */
-const ENRICH_SAMPLE_SIZE = 40;
+const ENRICH_SAMPLE_SIZE = 100;
 
 /**
  * Read many cache entries at once.
