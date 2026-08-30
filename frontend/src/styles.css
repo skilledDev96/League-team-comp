@@ -9721,3 +9721,39 @@ body:has(.draft-stage) .edit-mode-frame {
 .draft-grid .board-champ {
   justify-content: center;
 }
+
+/* A compact 7 x 5, sized by its tiles rather than by the column.
+   With `1fr` columns the seven cells stretched to whatever width the centre
+   had, so each champion sat in a wide cell with air around it and the wall
+   stayed large however small the portraits got. Fixed tile widths make the
+   block size itself: seven tiles, six gaps, and the padding. */
+.draft-grid .board-grid {
+  --tile-w: 5rem;
+  --tile-h: 5.9rem;
+  --tile-gap: 0.25rem;
+  --tile-pad: 0.35rem;
+
+  grid-template-columns: repeat(7, var(--tile-w));
+  grid-auto-rows: var(--tile-h);
+  width: calc(7 * var(--tile-w) + 6 * var(--tile-gap) + 2 * var(--tile-pad));
+  height: calc(5 * var(--tile-h) + 4 * var(--tile-gap) + 2 * var(--tile-pad));
+  margin-inline: auto;
+}
+
+.draft-grid .board-champ img {
+  width: 3.6rem;
+  height: 3.6rem;
+}
+
+/* The controls above it line up with the block rather than the whole column. */
+.draft-grid .board-filters,
+.draft-grid .board-lane-note {
+  max-width: calc(7 * 5rem + 6 * 0.25rem + 2 * 0.35rem);
+  margin-inline: auto;
+}
+
+/* Two pixels of slack. The fifth row lands within a pixel of the frame's edge,
+   which sub-pixel rounding at another zoom level would turn into a clipped row. */
+.draft-grid .board-grid {
+  height: calc(5 * var(--tile-h) + 4 * var(--tile-gap) + 2 * var(--tile-pad) + 2px);
+}
