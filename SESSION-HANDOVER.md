@@ -3,13 +3,13 @@
 Paste this into a new session for context. Everything below is committed,
 pushed and live at https://skilleddev96.github.io/League-team-comp/
 
-**State:** working tree clean, `main` at `8352b4a`, 222 frontend tests + 155 api
-tests passing, both builds clean. Deployed backend reports `c0e1b69` and `api/`
+**State:** working tree clean, `main` at `d6a923c`, **232 frontend tests + 155 api
+tests** passing, both builds clean. Deployed backend reports `c0e1b69` and `api/`
 has not changed since — the e2e drift check passes.
 
 ---
 
-## What shipped this session (18 commits)
+## What shipped this session (19 commits)
 
 ### The live draft room — the bulk of the work
 
