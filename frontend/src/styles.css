@@ -9616,3 +9616,49 @@ body:has(.draft-stage) .edit-mode-frame {
   height: min(54rem, 76vh);
   min-height: 14rem;
 }
+
+/* ---- Draft: the centre carries the detail, the sides carry the picks ------
+   Five cards at the art's own ratio make a tall column, and a short wall left
+   most of that height empty. Rather than fight it, the fearless read-out —
+   what is still playable, what broke, whose pool is thinning — moves up into
+   the middle column beneath the bans. It fills the space, and it is what you
+   want in front of you mid-draft anyway.
+
+   That frees the wall to be genuinely small: it is a list you scan and forget,
+   and it no longer has to prop up the layout. */
+
+.draft-stage {
+  grid-template-columns: 25rem minmax(0, 1fr) 25rem;
+  grid-template-rows: auto auto 1fr;
+}
+
+.draft-stage .draft-grid          { grid-column: 2; grid-row: 1; }
+.draft-stage .draft-inputs > .field:nth-child(1) { grid-column: 2; grid-row: 2; }
+.draft-stage .draft-status        { grid-column: 2; grid-row: 3; }
+.draft-stage .draft-board-body    { grid-column: 2; grid-row: 4; }
+
+.draft-stage .draft-inputs > .field:nth-child(2),
+.draft-stage .draft-inputs > .field:nth-child(3) {
+  grid-row: 1 / span 4;
+}
+
+.draft-stage {
+  grid-template-rows: auto auto auto 1fr;
+}
+
+/* Smaller wall. It was carrying the layout; now it only has to be scannable. */
+.draft-grid .board-grid {
+  height: min(30rem, 44vh);
+}
+
+/* The lists are in a narrower column now, so they stack rather than crush. */
+.draft-stage .draft-board-body {
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 1500px) {
+  .draft-stage {
+    grid-template-columns: 19rem minmax(0, 1fr) 19rem;
+  }
+}
