@@ -9870,3 +9870,13 @@ body:has(.draft-stage) .edit-mode-frame {
   width: 4.4rem;
   height: 4.4rem;
 }
+
+/* Centre the crop, now that the art is centred.
+   The 40%/32% bias existed to drag Data Dragon's off-centre splash up so faces
+   stayed in frame. The centered splash already puts the champion in the middle
+   of a 1280x720 frame, so anything other than dead centre reintroduces exactly
+   the clipping it was meant to cure. */
+.draft-stage .pick-art,
+.ban-card .pick-art {
+  object-position: 50% 50%;
+}
