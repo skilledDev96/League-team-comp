@@ -2,11 +2,11 @@
 
 Written 30 Aug 2026. Paste into a new session for context.
 
-Covers **49 commits, 27–30 Aug 2026**, which is one continuous stretch of work
+Covers **51 commits, 27–30 Aug 2026**, which is one continuous stretch of work
 that added the Review page, the analysis truth-layer, the Roster merge, the comp
 board and identity, and the live draft room.
 
-**State:** `main` at `dddad62`, working tree clean, **232 frontend + 155 api
+**State:** `main` at `c33867c`, working tree clean, **232 frontend + 155 api
 tests** passing, both builds clean. Live at
 https://skilleddev96.github.io/League-team-comp/ — deployed backend reports
 `c0e1b69`, `api/` unchanged since, so the e2e drift check passes.
@@ -80,6 +80,8 @@ in brief:
 - **The competitive sequence as data** (`pages/tournaments/draft-sequence.ts`):
   3 bans each, 6 picks, 2 bans each, 4 picks. Twenty steps, one legal move each.
 - **Held-then-confirmed picks**, a 30-second clock, Undo and Reset.
+- **Seats move two ways** — click the role badge to lift then click a target, or
+  drag one seat onto another. Both swap rather than overwrite.
 - **Seats auto-assign from real lane data**, shown before you confirm.
 - Splash-art cards, lane filter, opens in edit mode, scrolls straight to itself.
 
@@ -172,6 +174,11 @@ lists 63 `Jade_*` variants that are not Summoner's Rift champions —
 
 **Splash art, not loading art**, for wide cards: loading art is 308×560 portrait
 and crops three quarters away in a 2:1 card.
+
+**Never animate an element up from `opacity: 0` on this screen.** A
+running-but-frozen animation holds its current value whatever the fill-mode
+says, so a throttled tab shows an empty card. Animate transform only, so the
+resting state is always the correct one.
 
 **Verify UI in the running app.** A clean build is not evidence. Several bugs
 this stretch — the inert cache version, the override that did nothing, the
