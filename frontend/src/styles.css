@@ -9472,3 +9472,62 @@ body:has(.draft-stage) .edit-mode-frame {
     grid-template-columns: 14rem minmax(0, 1fr) 14rem;
   }
 }
+
+/* ---- Draft: the wall stops dominating ------------------------------------
+   The champion wall was the biggest thing on screen and pulled the eye away
+   from the draft itself. It is a scrolling list — it loses nothing by showing
+   fewer rows — so it shrinks, and the bans move up beneath it in the middle
+   column instead of running the full width along the bottom.
+
+   The pick columns span both rows, so a card's height is still the whole stage
+   divided by five. Narrowing them in step keeps the card at the art's own
+   ratio: shrink one without the other and the pictures crop again. */
+
+.draft-stage {
+  grid-template-columns: 13rem minmax(0, 1fr) 13rem;
+  grid-template-rows: 1fr auto;
+}
+
+.draft-stage .draft-inputs > .field:nth-child(1) {   /* bans */
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.draft-stage .draft-inputs > .field:nth-child(2),    /* our picks */
+.draft-stage .draft-inputs > .field:nth-child(3) {   /* their picks */
+  grid-row: 1 / span 2;
+}
+
+.draft-stage .draft-grid {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.draft-grid .board-grid {
+  height: min(34rem, 50vh);
+}
+
+/* Five a side still, just in a narrower strip now. */
+.ban-strip {
+  gap: 0.6rem;
+}
+
+@media (max-width: 1400px) {
+  .draft-stage {
+    grid-template-columns: 11rem minmax(0, 1fr) 11rem;
+  }
+}
+
+/* Column width follows the card height.
+   Shrinking the wall made the stage shorter but the columns stayed put, so the
+   cards went from too wide to too tall and started cropping the other way.
+   14.75rem is what pairs with the height five cards get here. */
+.draft-stage {
+  grid-template-columns: 14.75rem minmax(0, 1fr) 14.75rem;
+}
+
+@media (max-width: 1400px) {
+  .draft-stage {
+    grid-template-columns: 12.5rem minmax(0, 1fr) 12.5rem;
+  }
+}
