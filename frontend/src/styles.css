@@ -9082,3 +9082,75 @@ body[data-theme="void"] {
   background: linear-gradient(135deg, transparent 47%, color-mix(in srgb, var(--warn) 55%, transparent) 49%, color-mix(in srgb, var(--warn) 55%, transparent) 51%, transparent 53%);
   pointer-events: none;
 }
+
+/* ---- Live draft: full width ---------------------------------------------
+   The draft breaks out of the page column. Everywhere else a measured column
+   is right — you are reading. Here you are scanning 170 champions against ten
+   cards under a clock, and the width is the whole point.
+
+   100% - 100vw rather than 100vw so a vertical scrollbar cannot push the page
+   sideways; the container is already the page width. */
+.draft-page {
+  margin-inline: calc(50% - 50vw + var(--sbw, 0px) / 2);
+  padding-inline: 1.5rem;
+}
+
+/* Bans span the full stage under both teams, five a side, the way a draft
+   screen shows them. They were stacked under our column, which read as ours. */
+.draft-stage .draft-inputs > .field:nth-child(1) {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.draft-stage .draft-inputs > .field:nth-child(3) {
+  grid-row: 1;
+}
+
+.draft-stage .draft-grid {
+  grid-row: 1;
+}
+
+.ban-strip {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.4rem;
+}
+
+.ban-cards {
+  flex: 1 1 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+}
+
+/* A line down the middle, so five-and-five reads as two sides rather than ten. */
+.ban-strip-split {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 1px;
+  background: var(--card-border);
+}
+
+/* An unused ban slot is left visible: the gap is the count. */
+.ban-card.is-empty {
+  background: color-mix(in srgb, var(--surface-controls) 60%, transparent);
+  border-style: dashed;
+  min-height: 3.4rem;
+}
+
+.ban-card.is-empty::after {
+  content: none;
+}
+
+@media (max-width: 1100px) {
+  .draft-page {
+    margin-inline: 0;
+    padding-inline: 1rem;
+  }
+  .ban-strip {
+    flex-wrap: wrap;
+  }
+  .ban-strip-split {
+    display: none;
+  }
+}

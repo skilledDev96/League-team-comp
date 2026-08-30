@@ -93,20 +93,33 @@
                                    [unavailable]="unavailableFor(game, 'ban')"
                                    [inputName]="'dbans-' + game.id" placeholder="Add a ban…"
                                    (championsChange)="setGameBans(game, $event)" />
-            } @else if (game.bans?.length) {
-              <!-- Bans as cards, same as the picks. Ten of them is most of a
-                   champion pool gone, and a row of small chips does not read as
-                   that; desaturated because they are what is *not* available. -->
-              <ol class="list-clean ban-cards" aria-label="Bans this game">
-                @for (champ of game.bans; track champ) {
-                  <li class="ban-card">
-                    <img class="pick-art" [src]="ui.championArtUrl(champ)" [alt]="" />
-                    <span class="ban-card-name">{{ champ }}</span>
-                  </li>
-                }
-              </ol>
             } @else {
-              <span class="muted">No bans recorded.</span>
+              <!-- Five a side, the way a draft screen shows them, with the gaps
+                   left visible so the count reads at a glance. Which side made
+                   a ban comes from its position — see bansOf. -->
+              <div class="ban-strip">
+                <ol class="list-clean ban-cards is-ours" [attr.aria-label]="teamName() + ' bans'">
+                  @for (champ of bansOf(game, 'our'); track $index) {
+                    <li class="ban-card" [class.is-empty]="!champ">
+                      @if (champ) {
+                        <img class="pick-art" [src]="ui.championArtUrl(champ)" [alt]="" />
+                        <span class="ban-card-name">{{ champ }}</span>
+                      }
+                    </li>
+                  }
+                </ol>
+                <span class="ban-strip-split" aria-hidden="true"></span>
+                <ol class="list-clean ban-cards is-theirs" [attr.aria-label]="series.opponent + ' bans'">
+                  @for (champ of bansOf(game, 'their'); track $index) {
+                    <li class="ban-card" [class.is-empty]="!champ">
+                      @if (champ) {
+                        <img class="pick-art" [src]="ui.championArtUrl(champ)" [alt]="" />
+                        <span class="ban-card-name">{{ champ }}</span>
+                      }
+                    </li>
+                  }
+                </ol>
+              </div>
             }
           </div>
           <div class="field">

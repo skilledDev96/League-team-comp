@@ -88,6 +88,26 @@ export function seatFor(champion: string, seats: readonly string[]): Role | null
   return firstFree >= 0 ? ROLES[firstFree] : null;
 }
 
+/**
+ * Which team made each ban, in the order the bans were stored.
+ *
+ * Bans live as one flat list — under fearless a ban is a ban whoever made it —
+ * but the sequence appends them in turn order, so the nth ban's team is fixed
+ * by the sequence rather than needing to be stored alongside it. Blue takes
+ * positions 0, 2, 4, 7 and 9; red the rest.
+ *
+ * Only meaningful for a game drafted through the sequence. A game filled in
+ * freely has no ban order at all, so callers must not split one.
+ */
+export const BAN_TEAMS: readonly DraftTeam[] = Object.freeze(
+  DRAFT_SEQUENCE.filter((s) => s.action === 'ban').map((s) => s.team)
+);
+
+/** The team that made the ban at this position, or null past the tenth. */
+export function banTeamAt(position: number): DraftTeam | null {
+  return BAN_TEAMS[position] ?? null;
+}
+
 /** "Blue ban 2", "Red pick 4" — with the teams named, since sides swap. */
 export function describeStep(step: DraftStep, blueName: string, redName: string): string {
   const who = step.team === 'blue' ? blueName : redName;

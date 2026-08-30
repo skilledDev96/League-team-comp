@@ -16,6 +16,7 @@ import {
   poolPressure
 } from '../draft.util';
 import {
+  banTeamAt,
   describeStep,
   DraftStep,
   draftProgress,
@@ -740,6 +741,31 @@ export class TournamentDraftComponent implements OnInit {
    * how a game reached the second ban phase showing five picks instead of six.
    * Undo is the way back, because it moves both together.
    */
+  /**
+   * A side's five bans, with empty slots for the ones not yet made.
+   *
+   * Bans are stored as one flat list because under fearless a ban is a ban
+   * whoever made it. The sequence appends them in turn order, so the team can
+   * be read back off the position — see banTeamAt. A game filled in freely has
+   * no order to read, so everything falls into our side rather than being
+   * split down the middle on a guess.
+   */
+  protected bansOf(game: SeriesGame, side: DraftSide): (string | null)[] {
+    const bans = (game.bans ?? []).filter(Boolean);
+    const slots: (string | null)[] = [];
+
+    if (!game.ourSide) {
+      const mine = side === 'our' ? bans : [];
+      for (let i = 0; i < Math.max(5, mine.length); i++) slots.push(mine[i] ?? null);
+      return slots;
+    }
+
+    const want = side === 'our' ? game.ourSide : (game.ourSide === 'blue' ? 'red' : 'blue');
+    const mine = bans.filter((_, i) => banTeamAt(i) === want);
+    for (let i = 0; i < 5; i++) slots.push(mine[i] ?? null);
+    return slots;
+  }
+
   protected sequenceActive(game: SeriesGame): boolean {
     return !!game.ourSide && !isComplete(game.draftStep ?? 0);
   }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BAN_TEAMS,
+  banTeamAt,
   DRAFT_LENGTH,
   DRAFT_SEQUENCE,
   describeStep,
@@ -109,5 +111,29 @@ describe('describeStep', () => {
   it('names the team, because sides swap between games', () => {
     expect(describeStep(DRAFT_SEQUENCE[0], 'Bom Squad', 'Noname')).toBe('Bom Squad ban 1');
     expect(describeStep(DRAFT_SEQUENCE[7], 'Bom Squad', 'Noname')).toBe('Noname pick 1');
+  });
+});
+
+describe('BAN_TEAMS / banTeamAt', () => {
+  it('gives each side five bans', () => {
+    expect(BAN_TEAMS).toHaveLength(10);
+    expect(BAN_TEAMS.filter((t) => t === 'blue')).toHaveLength(5);
+    expect(BAN_TEAMS.filter((t) => t === 'red')).toHaveLength(5);
+  });
+
+  it('alternates in phase one and swaps who leads in phase two', () => {
+    // Blue leads the first six; red leads the last four.
+    expect(BAN_TEAMS.join(' ')).toBe('blue red blue red blue red red blue red blue');
+  });
+
+  it('reads the team for a stored ban position', () => {
+    expect(banTeamAt(0)).toBe('blue');
+    expect(banTeamAt(1)).toBe('red');
+    expect(banTeamAt(6)).toBe('red');
+    expect(banTeamAt(9)).toBe('blue');
+  });
+
+  it('gives nothing past the tenth ban rather than guessing', () => {
+    expect(banTeamAt(10)).toBeNull();
   });
 });

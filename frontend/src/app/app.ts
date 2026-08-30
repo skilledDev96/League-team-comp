@@ -63,6 +63,23 @@ export class App {
   }
 
   constructor() {
+    // Publish the scrollbar width so a full-bleed section can break out of the
+    // page column without overshooting into a horizontal scrollbar: 100vw
+    // counts the scrollbar, the page's own width does not, and the difference
+    // is exactly what a `calc(50% - 50vw)` breakout gets wrong.
+    const publishScrollbarWidth = () => {
+      const width = window.innerWidth - document.documentElement.clientWidth;
+      document.documentElement.style.setProperty('--sbw', `${Math.max(0, width)}px`);
+    };
+    publishScrollbarWidth();
+    window.addEventListener('resize', publishScrollbarWidth);
+    // A scrollbar appears when the content grows, not when the window changes,
+    // so measuring once at startup reads zero and the breakout overshoots by
+    // exactly a scrollbar. Watch the body instead.
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(publishScrollbarWidth).observe(document.body);
+    }
+
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart) {
         this.navigating.set(true);
