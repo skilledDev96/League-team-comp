@@ -1630,6 +1630,9 @@ const MAX_PENDING = 4000;
 
 function emptyCrawlState(): CrawlState {
   return {
+    // Written explicitly, never left undefined. A state document that omits
+    // the one field it exists to hold is a switch with no switch on it.
+    enabled: false,
     cursor: FIRST_CURSOR,
     pool: [],
     pending: [],
@@ -1705,7 +1708,9 @@ async function crawlTick(apiKey: string | undefined): Promise<string> {
     // switch has to exist somewhere a person can flip it, and expecting anyone
     // to hand-create a collection, a document id and a typed boolean in the
     // Firestore console is a worse first step than one wasted write.
-    if (!snap.exists) await stateRef.set(state);
+    if (!snap.exists || typeof (snap.data() as CrawlState).enabled !== 'boolean') {
+      await stateRef.set({ enabled: false }, { merge: true });
+    }
     return 'disabled — set crawlState/championStats.enabled to true to start';
   }
 
