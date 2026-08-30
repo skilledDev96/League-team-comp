@@ -90,5 +90,8 @@ export class ChampionGridComponent {
   protected choose(name: string): void {
     if (this.isBlocked(name)) return;
     this.pick.emit(name);
+    // The search was for *that* champion. Leaving "ek" in the box means the
+    // next pick starts by clearing it, which is a step nobody wants mid-draft.
+    this.query.set('');
   }
 }

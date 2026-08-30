@@ -8828,3 +8828,10 @@ body[data-theme="void"] {
   margin-left: 0.5rem;
   font-size: 0.78rem;
 }
+
+/* Reset throws the whole draft away, so it sits apart from Undo and reads as
+   the heavier of the two. Confirmed before it fires. */
+.draft-reset {
+  margin-left: 0.75rem;
+  color: var(--warn);
+}

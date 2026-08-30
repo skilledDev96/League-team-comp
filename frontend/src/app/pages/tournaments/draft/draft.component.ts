@@ -598,6 +598,30 @@ export class TournamentDraftComponent implements OnInit {
     }
   }
 
+  /**
+   * Wipe the draft and start again, side included.
+   *
+   * Undo walks back one step at a time, which is right for a misclick and
+   * wrong for "we set this up against the wrong opponent" or a scrim restart.
+   * Confirmed because it throws away every ban and pick in the game.
+   */
+  protected async resetDraft(game: SeriesGame): Promise<void> {
+    const live = this.current(game);
+    const drafted = (live.bans ?? []).length
+      + [...(live.ourChampions ?? []), ...(live.theirChampions ?? [])].filter(Boolean).length;
+    if (drafted && !confirm(`Clear all ${drafted} bans and picks from game ${live.gameNumber}?`)) return;
+
+    await this.data.updateSeriesGame({
+      ...live,
+      bans: undefined,
+      ourChampions: [],
+      theirChampions: [],
+      ourSide: undefined,
+      draftStep: undefined
+    });
+    this.pending.set(null);
+  }
+
   /** Step back one, for a misclick that was already confirmed. */
   protected async undoStep(game: SeriesGame): Promise<void> {
     if (this.committing()) return;

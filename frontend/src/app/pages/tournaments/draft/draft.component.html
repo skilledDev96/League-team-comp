@@ -223,6 +223,7 @@
               <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
               <strong>Draft complete.</strong>
               <button type="button" class="link-btn" (click)="undoStep(game)">Undo last</button>
+              <button type="button" class="link-btn draft-reset" (click)="resetDraft(game)">Reset</button>
             </p>
           } @else {
             <div class="draft-step-bar" [class.is-ours]="isOurTurn(game)">
@@ -233,6 +234,7 @@
               @if ((game.draftStep ?? 0) > 0) {
                 <button type="button" class="link-btn" (click)="undoStep(game)">Undo last</button>
               }
+              <button type="button" class="link-btn draft-reset" (click)="resetDraft(game)">Reset</button>
             </div>
 
             <!-- Held, not committed. A draft is confirmed out loud before it is
