@@ -9691,3 +9691,33 @@ body:has(.draft-stage) .edit-mode-frame {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
 }
+
+/* ---- Draft: the wall is exactly 7 x 5 ------------------------------------
+   Fixed rather than auto-filled. auto-fill gave a different column count at
+   every width, so the wall never looked the same twice and its height drifted
+   with it. Seven across and five down is one shape everywhere, and the height
+   is derived from that rather than guessed: five rows, four gaps, and the
+   container's own padding. */
+.draft-grid .board-grid {
+  --tile-h: 6.7rem;
+  --tile-gap: 0.25rem;
+  --tile-pad: 0.35rem;
+
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: var(--tile-h);
+  gap: var(--tile-gap);
+  padding: var(--tile-pad);
+  height: calc(5 * var(--tile-h) + 4 * var(--tile-gap) + 2 * var(--tile-pad));
+  min-height: 0;
+}
+
+/* Seven across is a wider cell than fourteen was, so the portrait grows into
+   it rather than floating in the middle of empty space. */
+.draft-grid .board-champ img {
+  width: 4.6rem;
+  height: 4.6rem;
+}
+
+.draft-grid .board-champ {
+  justify-content: center;
+}
