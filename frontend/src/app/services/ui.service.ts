@@ -113,16 +113,22 @@ export class UiService {
   /**
    * Splash art for the default skin, for the wide cards on the draft board.
    *
-   * Splash is 1215×717 — landscape, like the cards. Loading art is 308×560 and
-   * was the obvious choice until you see it: fitting a portrait into a 2:1 card
-   * crops about three quarters of it away and upscales the sliver that is left,
-   * so every card came out blurry and framed on an ear or a shoulder.
+   * The **centered** splash, not Data Dragon's. Both are landscape and the same
+   * scene, but Riot composes the centered one with the champion in the middle
+   * precisely so it can be cropped to a wide strip — which is what a draft card
+   * is. Data Dragon's splash places the champion wherever the art wants them,
+   * so a wide crop of it clipped Darius at the forehead and left Brand as
+   * mostly fire.
    *
-   * Deliberately unversioned: Data Dragon serves these from a path with no
-   * version in it, so this keeps working across patches on its own.
+   * The id is the Data Dragon one lowercased, which handles the awkward cases
+   * on its own: MonkeyKing, Fiddlesticks, Bel'Veth and Kai'Sa all resolve.
+   *
+   * Deliberately unversioned — CommunityDragon serves `latest`, so this keeps
+   * working across patches by itself.
    */
   championArtUrl(championName: string): string {
-    return `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${this.championDDragonName(championName)}_0.jpg`;
+    const id = this.championDDragonName(championName).toLowerCase();
+    return `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/assets/characters/${id}/skins/base/images/${id}_splash_centered_0.jpg`;
   }
 
   /** Riot class tags (Fighter, Mage, …) once the champion index has loaded. */
