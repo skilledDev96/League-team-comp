@@ -9336,3 +9336,78 @@ body[data-theme="void"] {
   max-height: none;
   align-content: start;
 }
+
+/* ---- Draft cards: robust art, reachable controls, more height ------------ */
+
+/* The art animation no longer holds a state.
+   With fill-mode `both` the art sits at the keyframe's start — opacity 0,
+   scaled up — until the animation actually runs, so anywhere frames are
+   throttled the card shows a half-scaled ghost or nothing at all. Without a
+   fill mode the resting style is simply the correct one, and the animation is
+   pure decoration on top of it. */
+.draft-stage .pick-target .pick-art,
+.draft-stage .pick-target-name,
+.ban-card .pick-art {
+  animation-fill-mode: none;
+}
+
+/* The name's gradient box reaches up over the role badge, so it was swallowing
+   every click meant for the lift control. Neither it nor the art is
+   interactive; the button underneath is. */
+.draft-stage .pick-target-name,
+.draft-stage .pick-target-empty,
+.pick-art {
+  pointer-events: none;
+}
+
+/* A lifted seat has to be obvious — its old cue pointed at a picker element
+   that no longer exists here, so the move looked like it did nothing. */
+.draft-stage .pick-slot.is-held {
+  outline: 2px solid var(--accent-2);
+  outline-offset: -2px;
+}
+
+.draft-stage .pick-slot.is-held .pick-art {
+  filter: brightness(1.25) saturate(1.1);
+}
+
+.draft-stage .pick-slots.is-moving .pick-slot:not(.is-held) .pick-art {
+  filter: brightness(0.55);
+}
+
+.draft-stage .pick-slot[draggable="true"] {
+  cursor: grab;
+}
+
+/* Taller cards, and the wall grows with them. The bottom of the stage was
+   empty space doing nothing while the art was cropped to a letterbox. */
+.draft-grid .board-grid {
+  height: min(46rem, 66vh);
+}
+
+.draft-stage .pick-slots {
+  grid-template-rows: repeat(5, minmax(5.5rem, 1fr));
+}
+
+.draft-stage .draft-inputs > .field:nth-child(1) {
+  margin-top: 0.2rem;
+}
+
+.draft-status {
+  margin-top: 0.4rem;
+}
+
+/* The reveal never touches opacity on the art.
+   A running-but-frozen animation holds its current value regardless of
+   fill-mode, so animating from opacity 0 means a throttled tab shows an empty
+   card. Scale alone degrades to "very slightly zoomed", which nobody notices,
+   and the card is always visible. */
+@keyframes pick-land {
+  from { transform: scale(1.14); }
+  to   { transform: none; }
+}
+
+@keyframes pick-name-rise {
+  from { transform: translateY(0.5rem); }
+  to   { transform: none; }
+}

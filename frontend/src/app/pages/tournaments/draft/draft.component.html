@@ -126,7 +126,11 @@
             <span>{{ teamName() }} picks <small class="pick-count">{{ pickedCount(game, 'our') }}/5</small></span>
             <ul class="list-clean pick-slots" [class.is-moving]="isMovingPick('our')">
               @for (slot of pickSlots(game, 'our'); track slot.role; let i = $index) {
-                <li class="pick-slot" [class.is-empty]="!slot.champion" [class.is-held]="isHeld('our', i)">
+                <li class="pick-slot" [class.is-empty]="!slot.champion" [class.is-held]="isHeld('our', i)"
+                    [draggable]="auth.editing() && !!slot.champion"
+                    (dragstart)="$event.dataTransfer?.setData('text/plain', 'our:' + i)"
+                    (dragover)="$event.preventDefault()"
+                    (drop)="$event.preventDefault(); dropSeat(game, 'our', i, $any($event.dataTransfer?.getData('text/plain')))">
                   <button type="button" class="pick-slot-role"
                           [class.can-drop]="isMovingPick('our') && !isHeld('our', i)"
                           [disabled]="!auth.editing() || (!slot.champion && !isMovingPick('our'))"
@@ -173,7 +177,11 @@
             <span>{{ series.opponent }} picks <small class="pick-count">{{ pickedCount(game, 'their') }}/5</small></span>
             <ul class="list-clean pick-slots" [class.is-moving]="isMovingPick('their')">
               @for (slot of pickSlots(game, 'their'); track slot.role; let i = $index) {
-                <li class="pick-slot" [class.is-empty]="!slot.champion" [class.is-held]="isHeld('their', i)">
+                <li class="pick-slot" [class.is-empty]="!slot.champion" [class.is-held]="isHeld('their', i)"
+                    [draggable]="auth.editing() && !!slot.champion"
+                    (dragstart)="$event.dataTransfer?.setData('text/plain', 'their:' + i)"
+                    (dragover)="$event.preventDefault()"
+                    (drop)="$event.preventDefault(); dropSeat(game, 'their', i, $any($event.dataTransfer?.getData('text/plain')))">
                   <button type="button" class="pick-slot-role"
                           [class.can-drop]="isMovingPick('their') && !isHeld('their', i)"
                           [disabled]="!auth.editing() || (!slot.champion && !isMovingPick('their'))"

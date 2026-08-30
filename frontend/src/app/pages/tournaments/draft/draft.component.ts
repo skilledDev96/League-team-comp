@@ -271,6 +271,29 @@ export class TournamentDraftComponent implements OnInit {
     return this.heldPick()?.side === side;
   }
 
+  /**
+   * Drag a seat onto another to swap them — the same move as lift-and-place,
+   * for people who reach for a drag first. Both stay: a drag is quicker when
+   * you know where a pick is going, two clicks are steadier mid-draft.
+   *
+   * Dragging across teams is refused rather than silently ignored: seats are
+   * per-side and a champion cannot move to the other team.
+   */
+  protected dropSeat(game: SeriesGame, side: DraftSide, to: number, payload: string): void {
+    const [fromSide, fromIndex] = (payload || '').split(':');
+    const from = Number(fromIndex);
+    if (fromSide !== side || !Number.isInteger(from) || from === to) return;
+
+    const live = this.current(game);
+    const next = this.pickSlots(live, side).map((sl) => sl.champion);
+    [next[from], next[to]] = [next[to], next[from]];
+    void this.data.updateSeriesGame({
+      ...live,
+      ...(side === 'our' ? { ourChampions: next } : { theirChampions: next })
+    });
+    this.heldPick.set(null);
+  }
+
   protected liftOrPlace(game: SeriesGame, side: DraftSide, index: number): void {
     const held = this.heldPick();
 
