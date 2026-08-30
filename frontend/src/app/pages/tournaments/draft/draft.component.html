@@ -75,7 +75,7 @@
                         (click)="setGameBans(game, [])">Clear all</button>
               }
             </span>
-            @if (auth.editing()) {
+            @if (auth.editing() && !sequenceActive(game)) {
               <button type="button" class="pick-target is-bans"
                       [class.is-aimed]="isTargeted('ban')"
                       [attr.aria-pressed]="isTargeted('ban')"
@@ -274,6 +274,7 @@
             <!-- Held, not committed. A draft is confirmed out loud before it is
                  locked, and seeing the seat before confirming is what catches a
                  flex pick landing in the wrong lane. -->
+            <div class="draft-confirm-slot">
             @if (pending(); as champ) {
               <div class="draft-confirm">
                 <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
@@ -292,6 +293,7 @@
                 }
               </div>
             }
+            </div>
           }
 
           @if (ourSide(game) && !sequenceDone(game)) {
