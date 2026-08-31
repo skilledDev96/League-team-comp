@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { retryDelayMs, riotError } from './riot-errors';
@@ -1626,6 +1626,16 @@ interface CrawlState {
 }
 
 const CRAWL_STATE_DOC = 'crawlState/championStats';
+/**
+ * How long a seen-marker has to live.
+ *
+ * It only has to outlast its own patch, because the counters it protects are
+ * bucketed per patch and a duplicate counted into a later bucket is a new
+ * game as far as that bucket is concerned. Three weeks covers a two-week
+ * patch with room either side. Without a TTL this collection grows by about
+ * 33,000 documents a day and never stops.
+ */
+const SEEN_TTL_DAYS = 21;
 /** Caps on the two queues, so the state document cannot grow without bound. */
 const MAX_POOL = 4000;
 const MAX_PENDING = 4000;
@@ -1754,9 +1764,20 @@ async function crawlTick(apiKey: string | undefined): Promise<string> {
   }
 
   // 3. Matches, which is the only stage that produces data.
-  for (let i = 0; i < plan.matchFetches && state.pending.length > 0; i += 1) {
+  //
+  // The budget counts *Riot* requests, so an id already seen does not spend
+  // one — it costs a Firestore read and moves on. Counting skips against the
+  // budget meant a run could return having used a fraction of its rate-limit
+  // allowance, and the more matches we collect the more often that happens,
+  // because duplicates rise as the crawl deepens. `reads` caps the Firestore
+  // side so a queue full of duplicates cannot spin the whole timeout away.
+  let fetches = 0;
+  let reads = 0;
+  const maxReads = plan.matchFetches * 8;
+  while (fetches < plan.matchFetches && reads < maxReads && state.pending.length > 0) {
     const next = state.pending.shift()!;
     const seenRef = db.doc(`crawlSeen/${next.id}`);
+    reads += 1;
     try {
       // A five-stack appears in five players' histories; without this marker
       // its champions would be counted five times over.
@@ -1768,14 +1789,20 @@ async function crawlTick(apiKey: string | undefined): Promise<string> {
         `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/${next.id}`,
         apiKey
       );
+      fetches += 1;
       const tally = tallyMatch(raw, next.tier);
       if (tally) {
         await applyTally(tally);
         tallied += 1;
       }
       // Marked either way: a remake stays a remake, and re-fetching one to
-      // reject it again is a wasted request every run forever.
-      await seenRef.set({ patch: tally?.patch ?? 'skipped', at: Date.now() });
+      // reject it again is a wasted request every run forever. `expireAt` is
+      // what the TTL policy deletes on — a marker only has to outlive its own
+      // patch, since the counters it protects are bucketed per patch.
+      await seenRef.set({
+        patch: tally?.patch ?? 'skipped',
+        expireAt: Timestamp.fromMillis(Date.now() + SEEN_TTL_DAYS * 24 * 60 * 60 * 1000)
+      });
     } catch {
       // Leave it unmarked so a later run can retry it.
     }
