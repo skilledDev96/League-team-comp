@@ -6,6 +6,8 @@ import {
   LadderCursor,
   TIERS,
   divisionsFor,
+  isApex,
+  ladderPath,
   nextCursor,
   patchOf,
   planRun,
@@ -32,6 +34,45 @@ describe('divisionsFor', () => {
 
   it('splits the rest four ways', () => {
     expect(divisionsFor('EMERALD')).toEqual(['I', 'II', 'III', 'IV']);
+  });
+});
+
+describe('ladderPath', () => {
+  it('sends the divisioned tiers to the entries endpoint', () => {
+    expect(ladderPath({ tier: 'DIAMOND', division: 'I', page: 1 })).toBe(
+      '/lol/league/v4/entries/RANKED_SOLO_5x5/DIAMOND/I?page=1'
+    );
+  });
+
+  it('sends the apex tiers to their own endpoints', () => {
+    // Measured: /entries/RANKED_SOLO_5x5/CHALLENGER/I answers 400, and every
+    // tick that asked for it burned its one ladder request on the error.
+    expect(ladderPath({ tier: 'CHALLENGER', division: 'I', page: 1 })).toBe(
+      '/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5'
+    );
+    expect(ladderPath({ tier: 'GRANDMASTER', division: 'I', page: 1 })).toBe(
+      '/lol/league/v4/grandmasterleagues/by-queue/RANKED_SOLO_5x5'
+    );
+    expect(ladderPath({ tier: 'MASTER', division: 'I', page: 1 })).toBe(
+      '/lol/league/v4/masterleagues/by-queue/RANKED_SOLO_5x5'
+    );
+  });
+
+  it('has nothing to ask for on a second apex page', () => {
+    // The apex ladder arrives whole, so page 2 would be the same 300 players.
+    for (const tier of ['CHALLENGER', 'GRANDMASTER', 'MASTER'] as const) {
+      expect(ladderPath({ tier, division: 'I', page: 2 })).toBeNull();
+    }
+  });
+
+  it('keeps paging the divisioned tiers, which do not arrive whole', () => {
+    expect(ladderPath({ tier: 'GOLD', division: 'IV', page: 7 })).toContain('page=7');
+  });
+
+  it('agrees with isApex about which tiers are which', () => {
+    for (const tier of TIERS) {
+      expect(ladderPath({ tier, division: 'I', page: 2 }) === null).toBe(isApex(tier));
+    }
   });
 });
 

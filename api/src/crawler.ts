@@ -41,6 +41,33 @@ export function divisionsFor(tier: Tier): readonly string[] {
 }
 
 /**
+ * The apex tiers are served by their own endpoints, not by /entries.
+ *
+ * Measured 31 Aug 2026, not assumed: /entries/RANKED_SOLO_5x5/CHALLENGER/I
+ * answers **400**, while /challengerleagues/by-queue returns the whole ladder —
+ * 300 entries, puuid included — in a single request. The divisioned tiers do
+ * work through /entries and also carry a puuid, so only the apex route differs.
+ */
+export function isApex(tier: Tier): boolean {
+  return tier === 'CHALLENGER' || tier === 'GRANDMASTER' || tier === 'MASTER';
+}
+
+/**
+ * The path for one cursor, or null when there is nothing there to ask for.
+ *
+ * An apex ladder arrives whole on page 1, so page 2 would be the same three
+ * hundred players again — re-adding them would spend requests to over-weight
+ * the thinnest tier on the ladder.
+ */
+export function ladderPath(cursor: LadderCursor): string | null {
+  if (isApex(cursor.tier)) {
+    if (cursor.page > 1) return null;
+    return `/lol/league/v4/${cursor.tier.toLowerCase()}leagues/by-queue/RANKED_SOLO_5x5`;
+  }
+  return `/lol/league/v4/entries/RANKED_SOLO_5x5/${cursor.tier}/${cursor.division}?page=${cursor.page}`;
+}
+
+/**
  * Where the ladder walk is up to.
  *
  * Round-robin across tiers rather than draining one at a time: a crawler that

@@ -22,6 +22,7 @@ import {
   LadderCursor,
   MatchTally,
   Tier,
+  ladderPath,
   nextCursor,
   planRun,
   statsDocPath,
@@ -1654,13 +1655,18 @@ async function fetchLadderPage(
   cursor: LadderCursor,
   apiKey: string
 ): Promise<{ puuid: string; tier: Tier }[]> {
+  const path = ladderPath(cursor);
+  if (!path) return []; // Apex ladder already taken whole; nothing here to ask for.
+
   const routing = REGION_ROUTING[CRAWL_REGION];
-  const entries = await riotFetch<{ puuid?: string; summonerId?: string }[]>(
-    `https://${routing.platform}.api.riotgames.com/lol/league/v4/entries/RANKED_SOLO_5x5/${cursor.tier}/${cursor.division}?page=${cursor.page}`,
-    apiKey
-  );
+  const body = await riotFetch<unknown>(`https://${routing.platform}.api.riotgames.com${path}`, apiKey);
+
+  // /entries answers with a bare array; the apex ladders wrap theirs in a
+  // league object. Both carry a puuid per entry, which is the only field used.
+  const entries = Array.isArray(body) ? body : (body as { entries?: unknown[] })?.entries;
+
   return (Array.isArray(entries) ? entries : [])
-    .map((e) => e?.puuid)
+    .map((e) => (e as { puuid?: string })?.puuid)
     .filter((p): p is string => typeof p === 'string' && p.length > 0)
     .map((puuid) => ({ puuid, tier: cursor.tier }));
 }
@@ -1721,6 +1727,13 @@ async function crawlTick(apiKey: string | undefined): Promise<string> {
 
   // 1. Players, when we are short of them.
   for (let i = 0; i < plan.ladderPages; i += 1) {
+    // Step over cursors with nothing to ask for — an apex ladder past page 1 —
+    // rather than spending the tick's single ladder slot arriving at one. The
+    // guard is larger than a full round of the ladder, so it can only stop a
+    // loop, never a legitimate walk.
+    for (let skips = 0; skips < 64 && !ladderPath(state.cursor); skips += 1) {
+      state.cursor = nextCursor(state.cursor);
+    }
     try {
       const page = await fetchLadderPage(state.cursor, apiKey);
       state.pool = [...state.pool, ...page].slice(-MAX_POOL);
