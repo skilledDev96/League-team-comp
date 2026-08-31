@@ -10305,7 +10305,7 @@ body:has(.draft-stage) .edit-mode-frame {
 
 .opp-row {
   display: grid;
-  grid-template-columns: 4.5rem minmax(6rem, 1fr) auto auto;
+  grid-template-columns: 4.5rem minmax(6rem, 1fr) auto auto auto;
   align-items: center;
   gap: 0.55rem;
   padding: 0.35rem 0.5rem;
@@ -10526,4 +10526,43 @@ body:has(.draft-stage) .edit-mode-frame {
   margin: 0 !important;
   font-size: 0.75rem;
   line-height: 1.45;
+}
+
+/* Both ladders, labelled, and the two seats they actually play. Solo and flex
+   differ by a tier or more often enough that an unlabelled number is a guess,
+   and it is flex a team plays together. */
+.opp-ranks,
+.opp-positions {
+  display: inline-flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.opp-rank,
+.opp-position {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.22rem;
+  padding: 0.08rem 0.36rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.opp-rank em,
+.opp-position em {
+  font-style: normal;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  opacity: 0.8;
+}
+
+@media (max-width: 900px) {
+  .opp-row { grid-template-columns: 4.5rem 1fr; }
+  .opp-ranks, .opp-positions, .opp-pool { grid-column: 1 / -1; }
 }

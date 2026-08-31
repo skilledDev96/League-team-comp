@@ -16,6 +16,8 @@ interface EnrichResponse {
   strengths: string[];
   weaknesses: string[];
   role?: Role;
+  /** Positions played, most often first, with the games behind each. */
+  positions?: { role: Role; games: number }[];
   top3?: string[];
   bans?: string[];
   queueStats?: {

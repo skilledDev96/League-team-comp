@@ -62,6 +62,15 @@ export interface MatchSummary {
   banCandidates: string[];
   /** The position played most often, or empty if none was reported. */
   mainPosition: string;
+  /**
+   * Every position played, most often first, with the games behind each.
+   *
+   * One position is not enough to scout by. Plenty of players have a main and
+   * a comfortable secondary, and the counts are what separate the two — "Mid
+   * 34, Top 12" is a different player from "Mid 24, Top 22", and only the
+   * second is a genuine flex worth drafting around.
+   */
+  positions: { position: string; games: number }[];
 }
 
 /** How many champions count as the player's pool. */
@@ -205,6 +214,10 @@ export function summarizeMatches(
     csSamples,
     topChampions: rankedByCount(champGames).slice(0, POOL_SIZE).map(renameChampion),
     banCandidates: rankedByCount(banCandidateCounts).map(renameChampion),
-    mainPosition: rankedByCount(roleCounts)[0] ?? ''
+    mainPosition: rankedByCount(roleCounts)[0] ?? '',
+    positions: rankedByCount(roleCounts).map((position) => ({
+      position,
+      games: roleCounts.get(position) ?? 0
+    }))
   };
 }

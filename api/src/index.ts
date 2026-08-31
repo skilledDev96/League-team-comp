@@ -69,6 +69,13 @@ interface EnrichResponse {
   strengths: string[];
   weaknesses: string[];
   role?: KnownRole;
+  /**
+   * Positions played, most often first, with the games behind each.
+   *
+   * The counts are the point: "Mid 34, Top 12" is a different player from
+   * "Mid 24, Top 22", and only the second is a flex worth drafting around.
+   */
+  positions?: { role: KnownRole; games: number }[];
   top3?: string[];
   bans?: string[];
   queueStats?: {
@@ -513,6 +520,12 @@ async function fetchRiotQueueEnrichment(
 
   const top3 = summary.topChampions;
   const detectedRole = summary.mainPosition ? TEAM_POSITION_TO_ROLE[summary.mainPosition] : undefined;
+
+  // Riot labels positions TOP/JUNGLE/MIDDLE/BOTTOM/UTILITY; the app speaks in
+  // roles. Anything that does not map is dropped rather than guessed into a seat.
+  const positions = summary.positions
+    .map((p) => ({ role: TEAM_POSITION_TO_ROLE[p.position], games: p.games }))
+    .filter((p): p is { role: KnownRole; games: number } => !!p.role);
   const role = detectedRole ?? payload.role ?? 'Mid';
 
   // A champion we already play is a pick, not a ban.
@@ -541,6 +554,7 @@ async function fetchRiotQueueEnrichment(
     strengths: strengths.slice(0, 3),
     weaknesses: weaknesses.slice(0, 3),
     role,
+    positions,
     top3,
     bans,
     queueStats: {

@@ -470,8 +470,29 @@ export interface OpponentPlayer {
   bans?: string[];
   /** A sentence on how they play, from the same enrichment our own roster uses. */
   playstyle?: string;
-  /** Ranked solo tier, for a sense of who we are reading. */
+  /**
+   * Whichever rank was found, solo preferred. Kept for rows scouted before the
+   * two were told apart, so an existing roster does not go blank.
+   */
   rank?: string;
+  /**
+   * Ranked solo/duo and flex, separately.
+   *
+   * They are different ladders and routinely differ by a tier or more — and it
+   * is flex a team plays together, so reading a flex rank as "their solo rank"
+   * flatters or maligns the player. Showing one unlabelled number could not say
+   * which it was.
+   */
+  soloRank?: string;
+  flexRank?: string;
+  /**
+   * The two positions they actually play, most often first, with the games.
+   *
+   * The counts carry the meaning: "Mid 34, Top 12" is a main with a fallback,
+   * "Mid 24, Top 22" is a genuine flex, and only the second changes how you
+   * draft against them. Two, because a draft cannot act on a long tail.
+   */
+  positions?: { role: Role; games: number }[];
   /** ISO timestamp of the last successful scout, so staleness is visible. */
   scoutedAt?: string;
   /** Why the last scout failed, when it did. Shown rather than swallowed. */

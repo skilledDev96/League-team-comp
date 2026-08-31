@@ -377,7 +377,36 @@
                     <span class="opp-name">
                       {{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
                     </span>
-                    @if (opp.rank) { <span class="opp-rank">{{ opp.rank }}</span> }
+                    <!-- Both ladders, labelled. They routinely differ by a tier
+                         or more, and it is flex a team plays together — so one
+                         unlabelled number could be either and misjudge them. -->
+                    <span class="opp-ranks">
+                      @if (opp.soloRank) {
+                        <span class="opp-rank" [appTip]="'Ranked solo/duo'">
+                          <em>Solo</em> {{ opp.soloRank }}
+                        </span>
+                      }
+                      @if (opp.flexRank) {
+                        <span class="opp-rank" [appTip]="'Ranked flex — the queue a team plays together'">
+                          <em>Flex</em> {{ opp.flexRank }}
+                        </span>
+                      }
+                      @if (!opp.soloRank && !opp.flexRank && opp.rank) {
+                        <span class="opp-rank">{{ opp.rank }}</span>
+                      }
+                    </span>
+                    <!-- Where they actually play, with the games behind it: a
+                         main with a fallback reads differently from a real flex. -->
+                    @if (opp.positions?.length) {
+                      <span class="opp-positions">
+                        @for (p of opp.positions ?? []; track p.role) {
+                          <span class="opp-position"
+                                [appTip]="p.games + ' games as ' + p.role + ' in the scouted sample'">
+                            {{ p.role }} <em>{{ p.games }}</em>
+                          </span>
+                        }
+                      </span>
+                    }
                     @if (opp.top3?.length) {
                       <span class="opp-pool">
                         @for (champ of opp.top3 ?? []; track champ) {

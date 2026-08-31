@@ -120,13 +120,23 @@ export class OpponentScoutService {
         return { ...player, scoutError: 'No ranked history found', scoutedAt: undefined };
       }
 
-      const ranked = found.queueStats?.solo?.rank ?? found.queueStats?.flex?.rank;
+      // Solo and flex are separate ladders and routinely differ by a tier or
+      // more. A team plays flex together, so labelling matters: an unlabelled
+      // number could be either, and reading one as the other misjudges them.
+      const solo = found.queueStats?.solo?.rank;
+      const flex = found.queueStats?.flex?.rank;
+      const label = (r?: { tier: string; rank: string }) => (r ? `${r.tier} ${r.rank}` : undefined);
+
       return {
         ...player,
         top3: found.top3 ?? [],
         bans: found.bans ?? [],
         playstyle: found.playstyle,
-        rank: ranked ? `${ranked.tier} ${ranked.rank}` : undefined,
+        soloRank: label(solo),
+        flexRank: label(flex),
+        rank: label(solo) ?? label(flex),
+        // Two is what a draft can act on; the rest is a long tail of one-offs.
+        positions: (found.positions ?? []).slice(0, 2),
         scoutedAt: new Date().toISOString(),
         scoutError: undefined
       };
