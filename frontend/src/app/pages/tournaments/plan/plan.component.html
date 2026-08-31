@@ -408,7 +408,20 @@
                 }
                 @for (opp of series.opponentPlayers ?? []; track $index) {
                   <div class="opp-row">
-                    <span class="opp-role">{{ opp.role }}</span>
+                    <!-- Set by hand, never from history. A team that has just
+                         swapped roles looks exactly like a roster pasted in the
+                         wrong order, and only somebody watching them knows
+                         which it is. -->
+                    @if (auth.editing()) {
+                      <select class="opp-role-pick" [ngModel]="opp.role"
+                              (ngModelChange)="setOpponentRole(series, $index, $event)"
+                              [name]="'opprole-' + series.id + '-' + $index"
+                              [attr.aria-label]="'Role for ' + opp.name">
+                        @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }
+                      </select>
+                    } @else {
+                      <span class="opp-role">{{ opp.role }}</span>
+                    }
                     <span class="opp-name">
                       {{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
                     </span>
@@ -446,9 +459,31 @@
                       <span class="opp-pool">
                         @for (champ of opp.top3 ?? []; track champ) {
                           <img class="opp-champ" [src]="ui.championIconUrl(champ)" [alt]="champ"
-                               [appTip]="champ" loading="lazy" />
+                               [appTip]="champ + ' — one of their most played'" loading="lazy" />
                         }
                       </span>
+                      <!-- Who beat them in their own lane, in games they lost.
+                           A record of this player losing to this champion, not
+                           a meta guess — which is what makes it a ban list. -->
+                      @if (opp.bans?.length) {
+                        <span class="opp-counters" [appTip]="'Champions that beat ' + opp.name + ' in lane'">
+                          <em class="opp-counters-label">Loses to</em>
+                          @for (champ of opp.bans ?? []; track champ) {
+                            <img class="opp-champ is-counter" [src]="ui.championIconUrl(champ)"
+                                 [alt]="champ" [appTip]="champ + ' beat them in lane'" loading="lazy" />
+                          }
+                        </span>
+                      }
+                      <!-- The pool describes whatever role they were playing
+                           then. A career ADC seated at top still lists ADCs:
+                           true, and no longer a prediction. -->
+                      @if (playedElsewhere(opp); as was) {
+                        <span class="opp-swapped"
+                              [appTip]="'Everything scouted here — pool and counters — comes from their games as ' + was.role">
+                          <span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span>
+                          scouted as {{ was.role }} ({{ was.games }}g)
+                        </span>
+                      }
                     } @else if (opp.scoutError) {
                       <span class="opp-error">{{ opp.scoutError }}</span>
                     } @else {

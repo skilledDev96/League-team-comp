@@ -10622,3 +10622,55 @@ body:has(.draft-stage) .edit-mode-frame {
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   color: var(--accent);
 }
+
+/* Their seat, set by hand. History says where they used to play, which is a
+   different question from where they are playing on Saturday. */
+.opp-role-pick {
+  padding: 0.15rem 0.3rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Who beat them in their own lane, in games they lost. */
+.opp-counters {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.opp-counters-label {
+  font-style: normal;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--warn);
+  opacity: 0.85;
+}
+
+.opp-champ.is-counter { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+
+/* The pool describes the role they played then, not the seat they hold now. */
+.opp-swapped {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.68rem;
+  color: var(--warn);
+  white-space: nowrap;
+}
+
+.opp-swapped .material-symbols-rounded { font-size: 0.95rem; }
+
+.opp-row { grid-template-columns: 5.5rem minmax(6rem, 1fr) auto auto auto auto; }
+
+@media (max-width: 1100px) {
+  .opp-row { grid-template-columns: 5.5rem 1fr; }
+  .opp-ranks, .opp-positions, .opp-pool, .opp-counters, .opp-swapped { grid-column: 1 / -1; }
+}

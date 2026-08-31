@@ -1,7 +1,7 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AnalysisGame, SeriesGame, TournamentSeries } from '../../../models/team.models';
+import { AnalysisGame, OpponentPlayer, Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
 import { ChampionDataService } from '../../../services/champion-data.service';
 import { NgModelNameDirective } from '../../../shared/ng-model-name.directive';
@@ -13,6 +13,7 @@ import { MatchNoteButtonComponent } from '../../../shared/match-note-button.comp
 import { MatchNoteComponent } from '../../../shared/match-note.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { OpponentScoutService } from '../../../services/opponent-scout.service';
+import { playedElsewhere } from '../../../core/opponent-roles';
 import { TournamentContextService } from '../tournament-context.service';
 
 /**
@@ -311,6 +312,34 @@ export class TournamentPlanComponent {
     if (!roster.length) return; // Nothing readable; leave what is there.
     this.rosterPaste.set('');
     this.patchSeries(series, { opponentPlayers: roster });
+  }
+
+  /**
+   * Move one of their players to a different seat.
+   *
+   * Set by hand, never inferred. A team that has just swapped roles looks
+   * identical to a roster pasted in the wrong order, and their match history
+   * describes where they used to play — so the only reliable source is
+   * somebody who has watched them.
+   *
+   * Swaps rather than overwrites: five players hold five seats, so giving one
+   * away has to hand the old seat to whoever had the new one.
+   */
+  protected setOpponentRole(series: TournamentSeries, index: number, role: Role): void {
+    const roster = [...(series.opponentPlayers ?? [])];
+    const current = roster[index];
+    if (!current || current.role === role) return;
+
+    const holder = roster.findIndex((p, i) => i !== index && p.role === role);
+    if (holder >= 0) roster[holder] = { ...roster[holder], role: current.role };
+    roster[index] = { ...current, role };
+
+    this.patchSeries(series, { opponentPlayers: roster });
+  }
+
+  /** The seat their scouted history is about, when it is not the seat they hold. */
+  protected playedElsewhere(player: OpponentPlayer) {
+    return playedElsewhere(player);
   }
 
   protected async scoutOpponents(series: TournamentSeries): Promise<void> {
