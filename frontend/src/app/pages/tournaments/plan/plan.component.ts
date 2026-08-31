@@ -72,10 +72,40 @@ export class TournamentPlanComponent {
     return this.openPrepIds().has(id);
   }
 
-  /** Open the series and its scouting panel together, from one click. */
+  /**
+   * Open the series, open its scouting panel, and go there.
+   *
+   * The scroll is the part that was missing: opening two panels several
+   * screens below the button looks, from where the button is, exactly like
+   * nothing happening.
+   */
   protected openPrepPanel(id: string): void {
     this.openSeriesId.set(id);
     this.openPrepIds.set(new Set([...this.openPrepIds(), id]));
+    this.scrollToPrep(id);
+  }
+
+  /**
+   * Put a scouting panel on screen once it exists.
+   *
+   * Polled rather than deferred once: the panel is inside a series that has
+   * only just been told to open, so at call time it is not in the document
+   * yet and a single lookup finds nothing. Gives up after two seconds.
+   */
+  private scrollToPrep(id: string): void {
+    const started = Date.now();
+    const find = setInterval(() => {
+      const el = document.querySelector(`[data-prep="${id}"]`);
+      if (el) {
+        // Instant, not smooth: smooth scrolling needs animation frames and
+        // silently does nothing wherever they are throttled.
+        el.scrollIntoView({ block: 'center', behavior: 'auto' });
+        clearInterval(find);
+      } else if (Date.now() - started > 2000) {
+        clearInterval(find);
+      }
+    }, 60);
+    this.destroyRef.onDestroy(() => clearInterval(find));
   }
 
   protected togglePrepPanel(id: string): void {
@@ -92,23 +122,10 @@ export class TournamentPlanComponent {
       const wanted = this.ctx.prepRequest();
       if (!wanted) return;
 
-      this.openSeriesId.set(wanted);
-      this.openPrepIds.set(new Set([...this.openPrepIds(), wanted]));
+      // Same three steps the Scout button takes; the request just comes from
+      // the other view.
       this.ctx.prepRequest.set('');
-
-      const started = Date.now();
-      const find = setInterval(() => {
-        const el = document.querySelector(`[data-prep="${wanted}"]`);
-        if (el) {
-          // Instant, not smooth: smooth scrolling needs animation frames and
-          // silently does nothing wherever they are throttled.
-          el.scrollIntoView({ block: 'center', behavior: 'auto' });
-          clearInterval(find);
-        } else if (Date.now() - started > 2000) {
-          clearInterval(find);
-        }
-      }, 60);
-      this.destroyRef.onDestroy(() => clearInterval(find));
+      this.openPrepPanel(wanted);
     });
   }
 
