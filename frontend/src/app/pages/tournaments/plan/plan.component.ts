@@ -12,6 +12,7 @@ import { ChampionPickerComponent } from '../../../shared/champion-picker.compone
 import { MatchNoteButtonComponent } from '../../../shared/match-note-button.component';
 import { MatchNoteComponent } from '../../../shared/match-note.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
+import { OpponentScoutService } from '../../../services/opponent-scout.service';
 import { TournamentContextService } from '../tournament-context.service';
 
 /**
@@ -201,6 +202,47 @@ export class TournamentPlanComponent {
 
   protected setSeriesBans(series: TournamentSeries, bans: string[]): void {
     this.patchSeries(series, { bans: bans.length ? bans : undefined });
+  }
+
+  // ---- Their roster -------------------------------------------------------
+  //
+  // The league rulebook already makes every team publish an op.gg multi-link,
+  // so pasting one is the whole setup. Only the text of that URL is read — the
+  // site is never requested, because fetching it would be scraping a source
+  // outside Riot's endpoints and the stated penalty is losing the API key.
+
+  protected readonly scout = inject(OpponentScoutService);
+  protected readonly rosterPaste = signal('');
+
+  protected applyRoster(series: TournamentSeries): void {
+    const roster = this.scout.fromPaste(this.rosterPaste(), series.opponentPlayers ?? []);
+    if (!roster.length) return; // Nothing readable; leave what is there.
+    this.rosterPaste.set('');
+    this.patchSeries(series, { opponentPlayers: roster });
+  }
+
+  protected async scoutOpponents(series: TournamentSeries): Promise<void> {
+    await this.scout.scoutSeries(series);
+  }
+
+  /**
+   * When the roster was last read, in words.
+   *
+   * Shown because scouting goes stale silently: a champion pool from three
+   * weeks ago describes a player who has since moved on, and nothing about the
+   * row would say so.
+   */
+  protected scoutedAt(series: TournamentSeries): string {
+    const stamps = (series.opponentPlayers ?? [])
+      .map((p) => p.scoutedAt)
+      .filter((at): at is string => !!at)
+      .sort();
+    if (!stamps.length) return '';
+
+    const days = Math.floor((Date.now() - Date.parse(stamps[stamps.length - 1])) / 86_400_000);
+    if (days <= 0) return 'today';
+    if (days === 1) return 'yesterday';
+    return `${days} days ago`;
   }
 
   protected setGameResult(game: SeriesGame, win: boolean | undefined): void {

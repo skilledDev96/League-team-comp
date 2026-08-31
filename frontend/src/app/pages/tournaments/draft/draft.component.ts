@@ -1,6 +1,6 @@
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ChampionTraits, Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
+import { ChampionTraits, OpponentPlayer, Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { UiService } from '../../../services/ui.service';
@@ -665,6 +665,37 @@ export class TournamentDraftComponent implements OnInit {
       },
       this.roles
     );
+  }
+
+  /**
+   * The opponent whose seat is on the clock, if we have scouted them.
+   *
+   * Only shown on their pick, which is the one moment it answers a live
+   * question — the rest of the time it is a dossier nobody asked to read. The
+   * seat comes from the role recorded on their roster, since the draft itself
+   * never says which of them is picking.
+   */
+  protected pickingOpponent(game: SeriesGame): OpponentPlayer | null {
+    const step = this.step(game);
+    if (!step || step.action !== 'pick' || this.isOurTurn(game)) return null;
+
+    const roster = this.draftSeries()?.opponentPlayers ?? [];
+    if (!roster.length) return null;
+
+    // Which of their seats is still empty: that is who is about to pick. With
+    // several open it is a guess, so only the unambiguous case is shown.
+    const open = this.pickSlots(game, 'their')
+      .map((slot, index) => (slot.champion ? null : this.roles[index]))
+      .filter((role): role is Role => !!role);
+    if (open.length !== 1) return null;
+
+    return roster.find((p) => p.role === open[0]) ?? null;
+  }
+
+  /** Their pool minus what is already gone — the burn applies to them too. */
+  protected opponentPool(game: SeriesGame, player: OpponentPlayer): string[] {
+    const blocked = blockedSet(this.unavailableFor(game, 'pick'));
+    return (player.top3 ?? []).filter((champ) => !blocked.has(normalizeChampion(champ)));
   }
 
   protected step(game: SeriesGame): DraftStep | null {

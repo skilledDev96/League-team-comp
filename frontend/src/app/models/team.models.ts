@@ -447,6 +447,38 @@ export interface Tournament {
 }
 
 /**
+ * One player on the other team, scouted from their public Riot ID.
+ *
+ * Only what a draft needs: what they play and what beats them. Deliberately not
+ * a `Player` — nothing here is edited by the person it describes, none of it is
+ * ours to keep beyond the fixture, and Riot's policy is explicit that a product
+ * "cannot de-anonymize players who cannot reasonably be identified from visible
+ * information". These are identified by a Riot ID somebody typed in, taken from
+ * a roster their own league publishes.
+ */
+export interface OpponentPlayer {
+  /** The seat we expect them in. Their pool is shown when that seat is picking. */
+  role: Role;
+  /** Riot game name, without the tag. */
+  name: string;
+  /** Riot tag line, without the hash. */
+  riotTag?: string;
+  region?: string;
+  /** Most-played champions, newest scout first. Absent until scouted. */
+  top3?: string[];
+  /** Champions that beat them in lane — ban candidates that are actually theirs. */
+  bans?: string[];
+  /** A sentence on how they play, from the same enrichment our own roster uses. */
+  playstyle?: string;
+  /** Ranked solo tier, for a sense of who we are reading. */
+  rank?: string;
+  /** ISO timestamp of the last successful scout, so staleness is visible. */
+  scoutedAt?: string;
+  /** Why the last scout failed, when it did. Shown rather than swallowed. */
+  scoutError?: string;
+}
+
+/**
  * One weekly match-up against an opponent. Scheduling itself happens on Discord
  * per the rulebook — this just records what was agreed so it isn't lost.
  */
@@ -466,6 +498,14 @@ export interface TournamentSeries {
   notes?: string;
   /** Target bans for this opponent, kept separate from per-comp bans. */
   bans?: string[];
+  /**
+   * Their five, once someone has pasted the roster.
+   *
+   * Kept on the series rather than as players in their own right: an opponent
+   * is a fixture, not a member of anything, and a roster that outlives the
+   * match it was scouted for goes stale without anyone noticing.
+   */
+  opponentPlayers?: OpponentPlayer[];
   status?: 'scheduled' | 'played';
   order: number;
 }

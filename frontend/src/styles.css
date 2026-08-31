@@ -10277,3 +10277,74 @@ body:has(.draft-stage) .edit-mode-frame {
   font-size: 0.78rem;
   color: var(--warn);
 }
+
+/* ---- Their roster --------------------------------------------------------
+   Read from a Riot ID somebody typed in, taken from the roster their own
+   league publishes. Only what a draft can use: what they play and what beats
+   them. Collecting more than a draft can use is how a scouting tool turns
+   into a dossier. */
+.opp-roster {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.opp-roster-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.opp-scouted { font-size: 0.75rem; }
+
+.opp-row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(6rem, 1fr) auto auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.5rem;
+  background: var(--surface-2);
+}
+
+.opp-role {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.opp-name { font-weight: 600; }
+.opp-tag { font-style: normal; opacity: 0.55; font-size: 0.8rem; }
+.opp-rank { font-size: 0.75rem; color: var(--text-1); white-space: nowrap; }
+
+.opp-pool { display: inline-flex; gap: 0.25rem; }
+
+.opp-champ {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 0.3rem;
+  border: 1px solid var(--card-border);
+}
+
+.opp-error { font-size: 0.75rem; color: var(--text-1); }
+
+/* Their pool, during their pick. The one moment it answers a live question. */
+.draft-oppo {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.draft-oppo-name { font-weight: 600; }
+.draft-oppo-champ {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.3rem;
+  border: 1px solid var(--card-border);
+}

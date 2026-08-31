@@ -279,6 +279,62 @@
                 <span class="comp-record-label">Prep for this opponent</span>
                 <span class="series-prep-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
               </summary>
+              <!-- Their five. The rulebook makes every team publish an op.gg
+                   multi-link, so pasting one is the whole setup — and only the
+                   text of that URL is read, never the site itself. -->
+              <div class="opp-roster">
+                <div class="opp-roster-head">
+                  <span class="comp-record-title material-symbols-rounded" aria-hidden="true">groups</span>
+                  <span class="comp-record-label">Their roster</span>
+                  @if (scoutedAt(series); as when) {
+                    <span class="muted opp-scouted">scouted {{ when }}</span>
+                  }
+                  @if (auth.editing() && series.opponentPlayers?.length) {
+                    <button type="button" class="tag" [disabled]="scout.scouting() === series.id"
+                            [appTip]="'Look each of them up through Riot. Costs a few API calls.'"
+                            (click)="scoutOpponents(series)">
+                      {{ scout.scouting() === series.id ? 'Scouting…' : 'Scout from Riot' }}
+                    </button>
+                  }
+                </div>
+
+                @if (scout.scouting() === series.id) {
+                  <p class="muted">{{ scout.progress() }}</p>
+                }
+
+                @if (auth.editing()) {
+                  <label class="field"><span>Paste their op.gg multi-link or Riot IDs</span>
+                    <textarea rows="2" [ngModel]="rosterPaste()"
+                              (ngModelChange)="rosterPaste.set($event)"
+                              [name]="'roster-' + series.id"
+                              placeholder="https://op.gg/multisearch/euw?summoners=… — or Name#TAG, one per line"></textarea></label>
+                  <button type="button" class="tag" [disabled]="!rosterPaste().trim()"
+                          (click)="applyRoster(series)">Read roster</button>
+                }
+
+                @for (opp of series.opponentPlayers ?? []; track $index) {
+                  <div class="opp-row">
+                    <span class="opp-role">{{ opp.role }}</span>
+                    <span class="opp-name">
+                      {{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
+                    </span>
+                    @if (opp.rank) { <span class="opp-rank">{{ opp.rank }}</span> }
+                    @if (opp.top3?.length) {
+                      <span class="opp-pool">
+                        @for (champ of opp.top3 ?? []; track champ) {
+                          <img class="opp-champ" [src]="ui.championIconUrl(champ)" [alt]="champ"
+                               [appTip]="champ" loading="lazy" />
+                        }
+                      </span>
+                    } @else if (opp.scoutError) {
+                      <span class="opp-error">{{ opp.scoutError }}</span>
+                    } @else {
+                      <span class="muted opp-error">not scouted yet</span>
+                    }
+                  </div>
+                }
+              </div>
+
               @if (auth.editing()) {
                 <div class="field"><span>Target bans</span>
                   <app-champion-picker [champions]="series.bans || []"
