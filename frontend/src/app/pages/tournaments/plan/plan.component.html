@@ -289,11 +289,13 @@
                   @if (scoutedAt(series); as when) {
                     <span class="muted opp-scouted">scouted {{ when }}</span>
                   }
-                  @if (auth.editing() && series.opponentPlayers?.length) {
+                  @if (auth.editing() && series.opponentPlayers?.length && scoutedAt(series)) {
+                    <!-- Once there is data the button is a refresh, so it steps
+                         back down to a chip. -->
                     <button type="button" class="tag" [disabled]="scout.scouting() === series.id"
-                            [appTip]="'Look each of them up through Riot. Costs a few API calls.'"
+                            [appTip]="'Look each of them up through Riot again. Costs a few API calls.'"
                             (click)="scoutOpponents(series)">
-                      {{ scout.scouting() === series.id ? 'Scouting…' : 'Scout from Riot' }}
+                      {{ scout.scouting() === series.id ? 'Scouting…' : 'Re-scout' }}
                     </button>
                   }
                 </div>
@@ -302,16 +304,52 @@
                   <p class="muted">{{ scout.progress() }}</p>
                 }
 
+                <!-- Two buttons with no explanation of which does what was the
+                     confusing part: one turns a link into rows, the other goes
+                     to Riot for what those rows play. Numbering them says that
+                     without a paragraph of help text, and step two only appears
+                     once step one has produced something to scout. -->
                 @if (auth.editing()) {
-                  <label class="field"><span>Paste their op.gg multi-link or Riot IDs</span>
+                  <label class="field opp-step">
+                    <span>
+                      <em class="opp-step-n">1</em>
+                      Paste their op.gg multi-link
+                      <small class="opp-step-hint">
+                        Turns the link into the five rows below. Nothing is looked up yet.
+                      </small>
+                    </span>
                     <textarea rows="2" [ngModel]="rosterPaste()"
                               (ngModelChange)="rosterPaste.set($event)"
                               [name]="'roster-' + series.id"
                               placeholder="https://op.gg/multisearch/euw?summoners=… — or Name#TAG, one per line"></textarea></label>
-                  <button type="button" class="tag" [disabled]="!rosterPaste().trim()"
-                          (click)="applyRoster(series)">Read roster</button>
+                  <button type="button" class="opp-read-cta" [disabled]="!rosterPaste().trim()"
+                          (click)="applyRoster(series)">
+                    <span class="material-symbols-rounded" aria-hidden="true">playlist_add</span>
+                    Add these players
+                  </button>
                 }
 
+                <!-- The roster is only half the feature: without this the rows
+                     are five names. It was a chip beside the heading and got
+                     missed, so once there is a roster and nothing scouted it
+                     is the loudest thing in the block. -->
+                @if (auth.editing() && series.opponentPlayers?.length && !scoutedAt(series)) {
+                  <button type="button" class="opp-scout-cta"
+                          [disabled]="scout.scouting() === series.id"
+                          (click)="scoutOpponents(series)">
+                    <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
+                    <span>
+                      <em class="opp-step-n">2</em>
+                      {{ scout.scouting() === series.id
+                          ? 'Scouting…'
+                          : 'Scout all ' + (series.opponentPlayers?.length ?? 0) + ' from Riot' }}
+                      <small class="opp-step-hint">
+                        Looks up what each of them plays. About a minute per player &mdash;
+                        Riot rate-limits, so it waits rather than failing.
+                      </small>
+                    </span>
+                  </button>
+                }
                 @for (opp of series.opponentPlayers ?? []; track $index) {
                   <div class="opp-row">
                     <span class="opp-role">{{ opp.role }}</span>

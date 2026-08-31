@@ -10400,3 +10400,76 @@ body:has(.draft-stage) .edit-mode-frame {
 .draft-ban-idea.is-costly {
   border-color: color-mix(in srgb, var(--warn) 55%, transparent);
 }
+
+/* The scout button, while there is nothing scouted yet. A roster without it is
+   five names, so until it has been used once it is the loudest thing here. */
+.opp-scout-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border-radius: 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.opp-scout-cta:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.opp-scout-cta:disabled { opacity: 0.5; cursor: default; }
+
+/* Numbered steps. Two buttons with no explanation of which does what was the
+   confusing part: one turns a link into rows, the other goes to Riot for what
+   those rows play. */
+.opp-step-n {
+  display: inline-grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.4rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--accent);
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.opp-step-hint {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--text-1);
+  opacity: 0.85;
+}
+
+.opp-read-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-2);
+  color: var(--text-0);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.opp-read-cta:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.opp-read-cta:disabled { opacity: 0.45; cursor: default; }
+
+/* Step two is the one that was missed, so it stays the loudest thing here
+   until it has been used once. */
+.opp-scout-cta { text-align: left; }
+.opp-scout-cta .opp-step-hint { color: var(--text-1); }
