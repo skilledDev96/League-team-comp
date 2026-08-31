@@ -19,12 +19,14 @@ import {
   CrawledMatch,
   FIRST_CURSOR,
   ALL_TIERS,
+  BucketUpdate,
   IDS_PER_PLAYER,
   LadderCursor,
   collectSince,
   MatchTally,
   Tier,
   ladderPath,
+  mergeTallies,
   nextCursor,
   sampleLadder,
   planRun,
@@ -1692,40 +1694,45 @@ async function fetchLadderPage(
  * only thing this crawler produces, and a lost update is a game that silently
  * never happened.
  */
-async function applyTally(tally: MatchTally): Promise<void> {
-  // Built as a real nested map, not as dotted keys.
-  //
-  // `set()` does not interpret a dotted key as a field path — only `update()`
-  // does — so `{'champions.Ahri.games': …}` wrote a *literal field named*
-  // "champions.Ahri.games" and no `champions` map ever existed. Every counter
-  // was landing correctly and was unreadable by anything expecting the shape
-  // the code describes. Nested objects merge and increment exactly as intended.
-  const champions: Record<string, { games: FieldValue; wins: FieldValue }> = {};
-  for (const [champion, counts] of tally.champions) {
-    // Champion names carry apostrophes and spaces (Kai'Sa, Dr. Mundo); a dot
-    // would split the path, so keys are letters and digits only.
-    const key = champion.replace(/[^A-Za-z0-9]/g, '');
-    champions[key] = {
-      games: FieldValue.increment(counts.games),
-      wins: FieldValue.increment(counts.wins)
-    };
-  }
-  const updates: Record<string, unknown> = { champions };
-  updates['matches'] = FieldValue.increment(1);
-
-  // Both buckets, from one tally. The tier split answers "is this champion
-  // better in Diamond than in Gold", which needs far more games than we will
-  // have soon; the rollup is what the draft room reads, and costs the browser
-  // one document instead of ten.
+/**
+ * Write a whole run's counters, one document per bucket.
+ *
+ * Two things had to be right here and neither was obvious.
+ *
+ * The counters are a **nested map**, not dotted keys: `set()` does not read a
+ * dotted key as a field path — only `update()` does — so
+ * `{'champions.Ahri.games': …}` wrote a literal field *named*
+ * "champions.Ahri.games" and no `champions` map ever existed.
+ *
+ * And it takes the run's tallies together rather than one at a time. Fifty
+ * matches used to mean a hundred counter writes into the same two or three
+ * documents; Firestore bills every one of them.
+ */
+async function applyBuckets(buckets: readonly BucketUpdate[]): Promise<void> {
   const db = getFirestore();
-  await Promise.all([
-    db
-      .doc(statsDocPath(tally.patch, tally.tier))
-      .set({ patch: tally.patch, tier: tally.tier, ...updates }, { merge: true }),
-    db
-      .doc(statsDocPath(tally.patch, ALL_TIERS as Tier))
-      .set({ patch: tally.patch, tier: ALL_TIERS, ...updates }, { merge: true })
-  ]);
+  await Promise.all(
+    buckets.map((bucket) => {
+      const champions: Record<string, { games: FieldValue; wins: FieldValue }> = {};
+      for (const [champion, counts] of bucket.champions) {
+        // Champion names carry apostrophes and spaces (Kai'Sa, Dr. Mundo); a
+        // dot would split the path, so keys are letters and digits only.
+        const key = champion.replace(/[^A-Za-z0-9]/g, '');
+        champions[key] = {
+          games: FieldValue.increment(counts.games),
+          wins: FieldValue.increment(counts.wins)
+        };
+      }
+      return db.doc(statsDocPath(bucket.patch, bucket.tier)).set(
+        {
+          patch: bucket.patch,
+          tier: bucket.tier,
+          matches: FieldValue.increment(bucket.matches),
+          champions
+        },
+        { merge: true }
+      );
+    })
+  );
 }
 
 /**
@@ -1795,6 +1802,7 @@ async function crawlTick(apiKey: string | undefined): Promise<string> {
   // allowance, and the more matches we collect the more often that happens,
   // because duplicates rise as the crawl deepens. `reads` caps the Firestore
   // side so a queue full of duplicates cannot spin the whole timeout away.
+  const collected: MatchTally[] = [];
   let fetches = 0;
   let reads = 0;
   const maxReads = plan.matchFetches * 8;
@@ -1816,7 +1824,9 @@ async function crawlTick(apiKey: string | undefined): Promise<string> {
       fetches += 1;
       const tally = tallyMatch(raw, next.tier);
       if (tally) {
-        await applyTally(tally);
+        // Held, not written. The whole run folds into one document per bucket
+        // at the end; see applyBuckets.
+        collected.push(tally);
         tallied += 1;
       }
       // Marked either way: a remake stays a remake, and re-fetching one to
@@ -1831,6 +1841,9 @@ async function crawlTick(apiKey: string | undefined): Promise<string> {
       // Leave it unmarked so a later run can retry it.
     }
   }
+
+  // One document per bucket for the whole run, rather than three per match.
+  await applyBuckets(mergeTallies(collected));
 
   state.matchesTallied += tallied;
   state.lastRunAt = new Date().toISOString();

@@ -11,6 +11,7 @@ import {
   divisionsFor,
   isApex,
   ladderPath,
+  mergeTallies,
   sampleLadder,
   nextCursor,
   patchOf,
@@ -281,5 +282,53 @@ describe('winRateOf', () => {
     expect(winRateOf({ games: 12, wins: 9 })).toBeUndefined();
     expect(winRateOf({ games: 199, wins: 100 })).toBeUndefined();
     expect(winRateOf({ games: 200, wins: 100 })).toBe(50);
+  });
+});
+
+describe('mergeTallies', () => {
+  const tally = (patch: string, tier: Tier, champs: Record<string, [number, number]>) => ({
+    patch,
+    tier,
+    champions: new Map(Object.entries(champs).map(([k, [g, w]]) => [k, { games: g, wins: w }]))
+  });
+
+  it('folds a run into one update per bucket instead of one per match', () => {
+    // Fifty matches used to mean a hundred writes into the same few documents,
+    // and Firestore bills every one of them.
+    const runs = Array.from({ length: 50 }, () => tally('16.17', 'GOLD', { Ahri: [1, 1] }));
+    expect(mergeTallies(runs)).toHaveLength(2); // GOLD and ALL
+  });
+
+  it('sums the matches and the champion counters', () => {
+    const merged = mergeTallies([
+      tally('16.17', 'GOLD', { Ahri: [1, 1], Jinx: [1, 0] }),
+      tally('16.17', 'GOLD', { Ahri: [2, 1] })
+    ]);
+    const gold = merged.find((b) => b.tier === 'GOLD')!;
+    expect(gold.matches).toBe(2);
+    expect(gold.champions.get('Ahri')).toEqual({ games: 3, wins: 2 });
+    expect(gold.champions.get('Jinx')).toEqual({ games: 1, wins: 0 });
+  });
+
+  it('puts every match in the rollup as well as its own tier', () => {
+    const merged = mergeTallies([
+      tally('16.17', 'GOLD', { Ahri: [1, 1] }),
+      tally('16.17', 'IRON', { Ahri: [1, 0] })
+    ]);
+    const all = merged.find((b) => b.tier === 'ALL')!;
+    expect(all.matches).toBe(2);
+    expect(all.champions.get('Ahri')).toEqual({ games: 2, wins: 1 });
+  });
+
+  it('never merges two patches into one bucket', () => {
+    const merged = mergeTallies([
+      tally('16.17', 'GOLD', { Ahri: [1, 1] }),
+      tally('16.16', 'GOLD', { Ahri: [1, 0] })
+    ]);
+    expect(merged.filter((b) => b.tier === 'ALL').map((b) => b.patch).sort()).toEqual(['16.16', '16.17']);
+  });
+
+  it('has nothing to write for a run that tallied nothing', () => {
+    expect(mergeTallies([])).toEqual([]);
   });
 });

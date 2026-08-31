@@ -312,6 +312,55 @@ export function tallyMatch(match: CrawledMatch, tier: Tier): MatchTally | null {
   return { patch: patchOf(info.gameVersion), tier, champions };
 }
 
+/** One bucket's worth of increments, ready to write in a single call. */
+export interface BucketUpdate {
+  readonly patch: string;
+  readonly tier: string;
+  /** Matches to add to the bucket total. */
+  readonly matches: number;
+  readonly champions: ReadonlyMap<string, ChampionTally>;
+}
+
+/**
+ * Fold a whole run's tallies into one update per bucket.
+ *
+ * Writing per match cost three documents each — a seen marker plus a tier
+ * bucket and a rollup — so a fifty-match run spent a hundred writes on counters
+ * that all land in the same two or three documents. Firestore bills per write,
+ * and at 28,000 matches a day that was around 58,000 writes a day buying
+ * nothing that one write per bucket would not.
+ *
+ * Increments commute, so summing here and writing once is exactly equivalent.
+ * The only thing given up is a partial result if a run dies mid-flush, and the
+ * seen markers already make those matches cheap to collect again.
+ */
+export function mergeTallies(tallies: readonly MatchTally[]): BucketUpdate[] {
+  const buckets = new Map<
+    string,
+    { patch: string; tier: string; matches: number; champions: Map<string, ChampionTally> }
+  >();
+
+  const into = (tier: string, tally: MatchTally) => {
+    const path = `${tally.patch}_${tier}`;
+    const bucket = buckets.get(path) ?? { patch: tally.patch, tier, matches: 0, champions: new Map() };
+    bucket.matches += 1;
+    for (const [champion, counts] of tally.champions) {
+      const running = bucket.champions.get(champion) ?? { games: 0, wins: 0 };
+      running.games += counts.games;
+      running.wins += counts.wins;
+      bucket.champions.set(champion, running);
+    }
+    buckets.set(path, bucket);
+  };
+
+  for (const tally of tallies) {
+    into(tally.tier, tally);
+    into(ALL_TIERS, tally);
+  }
+
+  return [...buckets.values()];
+}
+
 /**
  * Firestore path for one bucket.
  *
@@ -319,7 +368,7 @@ export function tallyMatch(match: CrawledMatch, tier: Tier): MatchTally | null {
  * limit, and a single writer so the increments never contend. Splitting finer
  * would multiply reads for no benefit; coarser would eventually overflow.
  */
-export function statsDocPath(patch: string, tier: Tier): string {
+export function statsDocPath(patch: string, tier: string): string {
   return `championStats/${patch}_${tier}`;
 }
 
