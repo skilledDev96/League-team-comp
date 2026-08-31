@@ -10133,3 +10133,37 @@ body:has(.draft-stage) .edit-mode-frame {
 }
 
 .advice-solo b { font-size: 0.85rem; }
+
+/* ---- Comp pills ---------------------------------------------------------
+   Comps have no icon of their own, so the compact form is the number itself
+   with the name on hover. Spelling four names out ran the row past the edge
+   and pushed the win rate — the thing actually being read — out of view. */
+.advice-comp {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.22rem;
+  padding: 0.08rem 0.36rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  border: 1px solid var(--card-border);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+
+.advice-comp em {
+  font-style: normal;
+  opacity: 0.65;
+  font-size: 0.66rem;
+}
+
+/* An unplayed comp is a possibility, not a result; it should not read as one. */
+.advice-comp.is-unplayed {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.advice-comp.is-more {
+  opacity: 0.7;
+  font-weight: 600;
+}

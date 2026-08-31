@@ -28,6 +28,7 @@ import {
 } from '../draft-sequence';
 import {
   ChampionSuggestion,
+  CompFit,
   CompGaps,
   compGaps,
   currentStanding,
@@ -664,7 +665,23 @@ export class TournamentDraftComponent implements OnInit {
     const champ = this.pending();
     const step = this.step(game);
     if (!champ || !step || step.action !== 'pick') return null;
-    return seatFor(champ, this.pickSlots(game, this.sideOfStep(game)).map((s) => s.champion));
+
+    const taken = this.pickSlots(game, this.sideOfStep(game)).map((s) => s.champion);
+
+    // A lane chip beats the champion's usual lane.
+    //
+    // `seatFor` reads pro play, so filtering to Top and clicking Dr. Mundo
+    // proposed Jungle — right about him in general, wrong about what was just
+    // asked for. Choosing the chip is an explicit statement of intent; the lane
+    // data is only a guess at one, so the guess does not get to overrule it.
+    // Only when that seat is still open: a chip cannot displace a made pick.
+    const chip = this.shownLane();
+    if (chip) {
+      const index = this.roles.indexOf(chip);
+      if (index >= 0 && !taken[index]) return chip;
+    }
+
+    return seatFor(champ, taken);
   }
 
   /** Hold a champion for confirmation rather than committing it immediately. */
@@ -916,6 +933,36 @@ export class TournamentDraftComponent implements OnInit {
     const r = this.stats.rate(champion);
     if (!r) return 'Not enough solo queue games collected yet.';
     return `${r.winRate}% over ${r.games.toLocaleString()} solo queue games on patch ${this.stats.patch()}.`;
+  }
+
+  /**
+   * Comps shown as pills on a suggestion row.
+   *
+   * Capped, because a champion in six of our comps produced a row six comps
+   * wide and pushed the win rate — the thing being read — off the edge. Best
+   * record first, so the ones cut are the ones least worth the space.
+   */
+  private readonly COMPS_SHOWN = 3;
+
+  protected shownComps(s: ChampionSuggestion): readonly CompFit[] {
+    return s.comps.slice(0, this.COMPS_SHOWN);
+  }
+
+  protected moreComps(s: ChampionSuggestion): number {
+    return Math.max(s.comps.length - this.COMPS_SHOWN, 0);
+  }
+
+  /** The name lives here now that the pill carries only the number. */
+  protected compNote(c: CompFit): string {
+    if (!c.games) return `${c.name} — never played`;
+    return `${c.name} — ${c.winRate}% over ${c.games} ${c.games === 1 ? 'game' : 'games'}`;
+  }
+
+  protected moreNote(s: ChampionSuggestion): string {
+    return s.comps
+      .slice(this.COMPS_SHOWN)
+      .map((c) => this.compNote(c))
+      .join('\n');
   }
 
   /** What our picks are short of. Empty while there is too little to judge. */
