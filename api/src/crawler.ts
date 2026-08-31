@@ -52,19 +52,39 @@ export function isApex(tier: Tier): boolean {
   return tier === 'CHALLENGER' || tier === 'GRANDMASTER' || tier === 'MASTER';
 }
 
-/**
- * The path for one cursor, or null when there is nothing there to ask for.
- *
- * An apex ladder arrives whole on page 1, so page 2 would be the same three
- * hundred players again — re-adding them would spend requests to over-weight
- * the thinnest tier on the ladder.
- */
-export function ladderPath(cursor: LadderCursor): string | null {
+/** The path for one cursor. Every cursor has one; apex tiers just differ in route. */
+export function ladderPath(cursor: LadderCursor): string {
   if (isApex(cursor.tier)) {
-    if (cursor.page > 1) return null;
     return `/lol/league/v4/${cursor.tier.toLowerCase()}leagues/by-queue/RANKED_SOLO_5x5`;
   }
   return `/lol/league/v4/entries/RANKED_SOLO_5x5/${cursor.tier}/${cursor.division}?page=${cursor.page}`;
+}
+
+/** A divisioned ladder page holds about this many, which sets the fair share. */
+export const ENTRIES_PER_PAGE = 205;
+
+/**
+ * How much of a ladder response to actually seed from.
+ *
+ * An apex ladder has no pages — it arrives whole, all 300 or 4,000 of them —
+ * so taking it entire would seed one Challenger request as heavily as twenty
+ * Gold pages, and the crawl would end up describing the top 0.02% of players.
+ * Taking a page-sized slice makes apex weigh the same as any other page, and
+ * rotating the offset by page number means successive rounds walk through the
+ * ladder rather than re-seeding the same players forever.
+ *
+ * An earlier version returned nothing for apex past page 1. That looked like
+ * restraint and was actually a hole: the cursor passes each apex page-1 exactly
+ * once, so those three tiers would never have been collected again.
+ */
+export function sampleLadder<T>(entries: readonly T[], cursor: LadderCursor): T[] {
+  if (!isApex(cursor.tier) || entries.length <= ENTRIES_PER_PAGE) return [...entries];
+  const offset = ((cursor.page - 1) * ENTRIES_PER_PAGE) % entries.length;
+  const slice = entries.slice(offset, offset + ENTRIES_PER_PAGE);
+  // Wrap around the end rather than returning a short page.
+  return slice.length === ENTRIES_PER_PAGE
+    ? slice
+    : [...slice, ...entries.slice(0, ENTRIES_PER_PAGE - slice.length)];
 }
 
 /**

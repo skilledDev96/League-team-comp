@@ -5,9 +5,11 @@ import {
   FIRST_CURSOR,
   LadderCursor,
   TIERS,
+  ENTRIES_PER_PAGE,
   divisionsFor,
   isApex,
   ladderPath,
+  sampleLadder,
   nextCursor,
   patchOf,
   planRun,
@@ -58,21 +60,57 @@ describe('ladderPath', () => {
     );
   });
 
-  it('has nothing to ask for on a second apex page', () => {
-    // The apex ladder arrives whole, so page 2 would be the same 300 players.
-    for (const tier of ['CHALLENGER', 'GRANDMASTER', 'MASTER'] as const) {
-      expect(ladderPath({ tier, division: 'I', page: 2 })).toBeNull();
-    }
+  it('still routes an apex tier on a later page', () => {
+    // It must not go quiet after page 1: the cursor passes each apex page-1
+    // exactly once, so skipping the rest meant never collecting those tiers.
+    expect(ladderPath({ tier: 'CHALLENGER', division: 'I', page: 4 })).toContain('challengerleagues');
   });
 
   it('keeps paging the divisioned tiers, which do not arrive whole', () => {
     expect(ladderPath({ tier: 'GOLD', division: 'IV', page: 7 })).toContain('page=7');
   });
 
-  it('agrees with isApex about which tiers are which', () => {
+  it('has a route for every tier', () => {
     for (const tier of TIERS) {
-      expect(ladderPath({ tier, division: 'I', page: 2 }) === null).toBe(isApex(tier));
+      expect(ladderPath({ tier, division: 'I', page: 1 })).toContain('/lol/league/v4/');
     }
+  });
+});
+
+describe('sampleLadder', () => {
+  const apex = (n: number) => Array.from({ length: n }, (_, i) => i);
+
+  it('takes a divisioned page whole', () => {
+    expect(sampleLadder([1, 2, 3], { tier: 'GOLD', division: 'I', page: 1 })).toEqual([1, 2, 3]);
+  });
+
+  it('cuts a big apex ladder down to one page', () => {
+    // 4,000 Master players seeded at once would weigh as much as twenty Gold
+    // pages, and the crawl would describe the top of the ladder.
+    const out = sampleLadder(apex(4000), { tier: 'MASTER', division: 'I', page: 1 });
+    expect(out).toHaveLength(ENTRIES_PER_PAGE);
+  });
+
+  it('cuts Challenger too — 300 is still more than a page', () => {
+    expect(sampleLadder(apex(300), { tier: 'CHALLENGER', division: 'I', page: 1 })).toHaveLength(
+      ENTRIES_PER_PAGE
+    );
+  });
+
+  it('leaves an apex ladder smaller than a page alone', () => {
+    expect(sampleLadder(apex(150), { tier: 'CHALLENGER', division: 'I', page: 1 })).toHaveLength(150);
+  });
+
+  it('walks further into the ladder on later pages', () => {
+    const first = sampleLadder(apex(4000), { tier: 'MASTER', division: 'I', page: 1 });
+    const second = sampleLadder(apex(4000), { tier: 'MASTER', division: 'I', page: 2 });
+    expect(second[0]).not.toBe(first[0]);
+    expect(new Set([...first, ...second]).size).toBe(ENTRIES_PER_PAGE * 2);
+  });
+
+  it('wraps around the end rather than returning a short page', () => {
+    const out = sampleLadder(apex(300), { tier: 'MASTER', division: 'I', page: 2 });
+    expect(out).toHaveLength(ENTRIES_PER_PAGE);
   });
 });
 

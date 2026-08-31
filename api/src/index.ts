@@ -24,6 +24,7 @@ import {
   Tier,
   ladderPath,
   nextCursor,
+  sampleLadder,
   planRun,
   statsDocPath,
   tallyMatch
@@ -1655,17 +1656,18 @@ async function fetchLadderPage(
   cursor: LadderCursor,
   apiKey: string
 ): Promise<{ puuid: string; tier: Tier }[]> {
-  const path = ladderPath(cursor);
-  if (!path) return []; // Apex ladder already taken whole; nothing here to ask for.
-
   const routing = REGION_ROUTING[CRAWL_REGION];
-  const body = await riotFetch<unknown>(`https://${routing.platform}.api.riotgames.com${path}`, apiKey);
+  const body = await riotFetch<unknown>(
+    `https://${routing.platform}.api.riotgames.com${ladderPath(cursor)}`,
+    apiKey
+  );
 
   // /entries answers with a bare array; the apex ladders wrap theirs in a
   // league object. Both carry a puuid per entry, which is the only field used.
   const entries = Array.isArray(body) ? body : (body as { entries?: unknown[] })?.entries;
 
-  return (Array.isArray(entries) ? entries : [])
+  // An apex ladder arrives whole, so it is cut to a page's worth before seeding.
+  return sampleLadder(Array.isArray(entries) ? entries : [], cursor)
     .map((e) => (e as { puuid?: string })?.puuid)
     .filter((p): p is string => typeof p === 'string' && p.length > 0)
     .map((puuid) => ({ puuid, tier: cursor.tier }));
@@ -1727,13 +1729,6 @@ async function crawlTick(apiKey: string | undefined): Promise<string> {
 
   // 1. Players, when we are short of them.
   for (let i = 0; i < plan.ladderPages; i += 1) {
-    // Step over cursors with nothing to ask for — an apex ladder past page 1 —
-    // rather than spending the tick's single ladder slot arriving at one. The
-    // guard is larger than a full round of the ladder, so it can only stop a
-    // loop, never a legitimate walk.
-    for (let skips = 0; skips < 64 && !ladderPath(state.cursor); skips += 1) {
-      state.cursor = nextCursor(state.cursor);
-    }
     try {
       const page = await fetchLadderPage(state.cursor, apiKey);
       state.pool = [...state.pool, ...page].slice(-MAX_POOL);
@@ -1820,47 +1815,5 @@ export const crawlOnce = onRequest(
     } catch (err) {
       res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'crawl failed' });
     }
-  }
-);
-
-/**
- * What the ladder endpoints actually return, so seeding is not guessed at twice.
- *
- * Riot has been migrating endpoints from summoner ids to puuids for two years
- * and the apex tiers have always had their own route, so both halves of the
- * seeding are assumptions until measured. This reports **field names only** —
- * never a puuid, summoner id or name — which is enough to wire the crawler and
- * carries no player data out of the API.
- *
- * Temporary. Delete once the crawler is seeding.
- */
-export const crawlProbe = onRequest(
-  { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 60 },
-  async (_req, res) => {
-    const apiKey = RIOT_API_KEY.value();
-    const platform = REGION_ROUTING[CRAWL_REGION].platform;
-    const base = `https://${platform}.api.riotgames.com/lol/league/v4`;
-    const attempts: [string, string][] = [
-      ['entries_DIAMOND_I', `${base}/entries/RANKED_SOLO_5x5/DIAMOND/I?page=1`],
-      ['entries_CHALLENGER_I', `${base}/entries/RANKED_SOLO_5x5/CHALLENGER/I?page=1`],
-      ['challengerleagues', `${base}/challengerleagues/by-queue/RANKED_SOLO_5x5`]
-    ];
-
-    const out: Record<string, unknown> = {};
-    for (const [name, url] of attempts) {
-      try {
-        const data = await riotFetch<unknown>(url, apiKey);
-        const list = Array.isArray(data) ? data : (data as { entries?: unknown[] })?.entries;
-        const first = Array.isArray(list) ? list[0] : undefined;
-        out[name] = {
-          ok: true,
-          count: Array.isArray(list) ? list.length : 0,
-          fields: first && typeof first === 'object' ? Object.keys(first).sort() : []
-        };
-      } catch (err) {
-        out[name] = { ok: false, error: err instanceof Error ? err.message : 'failed' };
-      }
-    }
-    res.json(out);
   }
 );
