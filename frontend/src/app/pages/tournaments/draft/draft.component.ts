@@ -38,6 +38,7 @@ import {
   swingOf
 } from '../draft-advice';
 import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
+import { CompIdentity, IDENTITY_ICON, IDENTITY_LABEL, classifyComp } from '../../../core/comp-identity';
 import { ChampionRate, ChampionStatsService, previousPatch } from '../../../services/champion-stats.service';
 import { TournamentContextService } from '../tournament-context.service';
 
@@ -955,10 +956,43 @@ export class TournamentDraftComponent implements OnInit {
     return Math.max(s.comps.length - this.COMPS_SHOWN, 0);
   }
 
-  /** The name lives here now that the pill carries only the number. */
+  /**
+   * The comp's shape as a glyph.
+   *
+   * Derived from its five champions rather than stored, so every comp has one
+   * without anybody choosing it, and two comps that play alike look alike —
+   * which is the only thing an icon on a pill can usefully say. A comp too
+   * incomplete to classify gets the neutral mark, not a guess.
+   */
+  protected compIcon(c: CompFit): string {
+    return IDENTITY_ICON[this.compIdentity(c)];
+  }
+
+  /** The name lives here now that the pill carries an icon and a number. */
   protected compNote(c: CompFit): string {
-    if (!c.games) return `${c.name} — never played`;
-    return `${c.name} — ${c.winRate}% over ${c.games} ${c.games === 1 ? 'game' : 'games'}`;
+    const shape = IDENTITY_LABEL[this.compIdentity(c)];
+    const record = c.games
+      ? `${c.winRate}% over ${c.games} ${c.games === 1 ? 'game' : 'games'}`
+      : 'never played';
+    return `${c.name} — ${shape} — ${record}`;
+  }
+
+  private compIdentity(c: CompFit): CompIdentity {
+    const source = this.data.comps().find((comp) => comp.id === c.id);
+    if (!source) return 'unclear';
+
+    // Joined on the Data Dragon id, the same way traitsForSide does it — the
+    // traits are keyed by id and the comp lines carry display names, and the
+    // two differ for exactly the champions that break silently (FiddleSticks).
+    const index = indexTraits(this.data.championTraits());
+    const traits: ChampionTraits[] = [];
+    for (const role of this.roles) {
+      const champion = this.ui.parseCompLine(source.picks[role] ?? '').champion;
+      if (!champion) continue;
+      const found = traitsFor(index, this.champs.resolve(champion)?.id);
+      if (found) traits.push(found);
+    }
+    return classifyComp(traits);
   }
 
   protected moreNote(s: ChampionSuggestion): string {

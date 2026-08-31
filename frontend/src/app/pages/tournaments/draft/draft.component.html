@@ -393,6 +393,8 @@
                           @for (c of shownComps(s); track c.id) {
                             <span class="advice-comp" [class.is-unplayed]="!c.games"
                                   [appTip]="compNote(c)">
+                              <span class="advice-comp-icon material-symbols-rounded"
+                                    aria-hidden="true">{{ compIcon(c) }}</span>
                               @if (c.games) {
                                 <b [class]="winRateBand(c.winRate)">{{ c.winRate }}%</b>
                                 <em>{{ c.games }}g</em>

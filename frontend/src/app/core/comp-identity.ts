@@ -102,3 +102,25 @@ export const IDENTITY_LABEL: Record<CompIdentity, string> = {
   protect: 'Protect the carry',
   unclear: 'No clear identity'
 };
+
+/**
+ * A glyph per comp shape, so a comp can be recognised without reading its name.
+ *
+ * Material Symbols, which the app already loads — not emoji, which render as a
+ * different picture on every platform and would not sit on the text baseline.
+ * These are deliberately about *how the comp is played* rather than decoration:
+ * the icon comes from `classifyComp`, so a comp nobody has named still gets a
+ * meaningful one, and two comps that play alike look alike.
+ *
+ * `unclear` gets a deliberately neutral mark rather than a guess. On a comp of
+ * three champions the classifier abstains, and the icon has to abstain with it.
+ */
+export const IDENTITY_ICON: Record<CompIdentity, string> = {
+  poke: 'my_location',
+  dive: 'flight_land',
+  teamfight: 'groups',
+  pick: 'trap',
+  split: 'call_split',
+  protect: 'shield_person',
+  unclear: 'help'
+};
