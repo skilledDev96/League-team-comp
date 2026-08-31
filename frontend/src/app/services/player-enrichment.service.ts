@@ -18,6 +18,8 @@ interface EnrichResponse {
   role?: Role;
   /** Positions played, most often first, with the games behind each. */
   positions?: { role: Role; games: number }[];
+  /** Their pool in each seat, for a player who has changed role. */
+  poolByRole?: Partial<Record<Role, string[]>>;
   top3?: string[];
   bans?: string[];
   queueStats?: {
@@ -126,6 +128,11 @@ export class PlayerEnrichmentService {
       strengths: data.strengths ?? [],
       weaknesses: data.weaknesses ?? [],
       role: data.role,
+      // Rebuilt field by field rather than spread, so anything added to the
+      // response has to be added here too or it is silently dropped on the way
+      // in. These two were, and the positions never reached the screen.
+      positions: data.positions,
+      poolByRole: data.poolByRole,
       top3: data.top3,
       bans: data.bans,
       queueStats: data.queueStats,

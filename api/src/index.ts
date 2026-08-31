@@ -76,6 +76,14 @@ interface EnrichResponse {
    * "Mid 24, Top 22", and only the second is a flex worth drafting around.
    */
   positions?: { role: KnownRole; games: number }[];
+  /**
+   * Their pool in each seat.
+   *
+   * So a player who has changed role can be read by the seat they now hold
+   * rather than by the one their history is about. Often thin, sometimes
+   * absent — which is the honest state of knowledge about a fresh swap.
+   */
+  poolByRole?: Partial<Record<KnownRole, string[]>>;
   top3?: string[];
   bans?: string[];
   queueStats?: {
@@ -526,6 +534,14 @@ async function fetchRiotQueueEnrichment(
   const positions = summary.positions
     .map((p) => ({ role: TEAM_POSITION_TO_ROLE[p.position], games: p.games }))
     .filter((p): p is { role: KnownRole; games: number } => !!p.role);
+
+  // Their pool per seat, so a player who has changed role can be read by the
+  // seat they now hold rather than the one their history happens to be about.
+  const poolByRole: Partial<Record<KnownRole, string[]>> = {};
+  for (const [position, champions] of Object.entries(summary.championsByPosition)) {
+    const role = TEAM_POSITION_TO_ROLE[position];
+    if (role) poolByRole[role] = champions;
+  }
   const role = detectedRole ?? payload.role ?? 'Mid';
 
   // A champion we already play is a pick, not a ban.
@@ -555,6 +571,7 @@ async function fetchRiotQueueEnrichment(
     weaknesses: weaknesses.slice(0, 3),
     role,
     positions,
+    poolByRole,
     top3,
     bans,
     queueStats: {

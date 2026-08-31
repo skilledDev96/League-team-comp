@@ -10674,3 +10674,7 @@ body:has(.draft-stage) .edit-mode-frame {
   .opp-row { grid-template-columns: 5.5rem 1fr; }
   .opp-ranks, .opp-positions, .opp-pool, .opp-counters, .opp-swapped { grid-column: 1 / -1; }
 }
+
+/* A pool that is actually about the seat they hold, rather than their history
+   at large. Thinner and far more useful, so it is marked as the better answer. */
+.opp-champ.is-seat { border-color: color-mix(in srgb, var(--ok) 50%, transparent); }

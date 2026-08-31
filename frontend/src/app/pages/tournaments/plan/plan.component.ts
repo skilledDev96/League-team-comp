@@ -337,6 +337,36 @@ export class TournamentPlanComponent {
     this.patchSeries(series, { opponentPlayers: roster });
   }
 
+  /**
+   * Their five, in seat order rather than the order the link was pasted in.
+   *
+   * Once seats are set by hand the paste order means nothing, and a roster
+   * read top-to-support is the one shape everybody already knows how to scan.
+   */
+  protected orderedRoster(series: TournamentSeries): OpponentPlayer[] {
+    return [...(series.opponentPlayers ?? [])].sort(
+      (a, b) => this.roles.indexOf(a.role) - this.roles.indexOf(b.role)
+    );
+  }
+
+  /**
+   * What they play in the seat they hold, falling back to everything.
+   *
+   * A player moved to a new lane still has a pool full of their old one, so
+   * the seat-specific list is the honest answer where it exists — even at two
+   * or three champions. Where it does not, the overall pool is shown with the
+   * swap warning beside it rather than pretending.
+   */
+  protected poolFor(player: OpponentPlayer): string[] {
+    const seat = player.role ? player.poolByRole?.[player.role] : undefined;
+    return seat?.length ? seat : player.top3 ?? [];
+  }
+
+  /** Whether the pool shown is the seat they hold, or their history at large. */
+  protected poolIsForSeat(player: OpponentPlayer): boolean {
+    return !!(player.role && player.poolByRole?.[player.role]?.length);
+  }
+
   /** The seat their scouted history is about, when it is not the seat they hold. */
   protected playedElsewhere(player: OpponentPlayer) {
     return playedElsewhere(player);

@@ -71,6 +71,16 @@ export interface MatchSummary {
    * second is a genuine flex worth drafting around.
    */
   positions: { position: string; games: number }[];
+  /**
+   * Champions played in each position, most played first.
+   *
+   * The overall pool answers "what do they play", which stops being the right
+   * question the moment somebody changes seat: a career ADC moved to top still
+   * lists ADCs — truthfully, and uselessly. This answers "what do they play *at
+   * top*", which is thinner and sometimes empty. Empty is the honest answer
+   * there, because until they play the seat there is nothing to know.
+   */
+  championsByPosition: Record<string, string[]>;
 }
 
 /** How many champions count as the player's pool. */
@@ -99,6 +109,7 @@ export function summarizeMatches(
   }
 
   const champGames = new Map<string, number>();
+  const champByPosition = new Map<string, Map<string, number>>();
   const roleCounts = new Map<string, number>();
   const banCandidateCounts = new Map<string, number>();
 
@@ -124,6 +135,11 @@ export function summarizeMatches(
     const me = match.info.participants.find((p) => p.puuid === puuid)!;
 
     champGames.set(me.championName, (champGames.get(me.championName) ?? 0) + 1);
+    if (me.teamPosition) {
+      const seat = champByPosition.get(me.teamPosition) ?? new Map<string, number>();
+      seat.set(me.championName, (seat.get(me.championName) ?? 0) + 1);
+      champByPosition.set(me.teamPosition, seat);
+    }
     if (me.win) wins += 1;
     if (me.teamPosition) {
       roleCounts.set(me.teamPosition, (roleCounts.get(me.teamPosition) ?? 0) + 1);
@@ -215,6 +231,12 @@ export function summarizeMatches(
     topChampions: rankedByCount(champGames).slice(0, POOL_SIZE).map(renameChampion),
     banCandidates: rankedByCount(banCandidateCounts).map(renameChampion),
     mainPosition: rankedByCount(roleCounts)[0] ?? '',
+    championsByPosition: Object.fromEntries(
+      [...champByPosition.entries()].map(([position, counts]) => [
+        position,
+        rankedByCount(counts).slice(0, POOL_SIZE).map(renameChampion)
+      ])
+    ),
     positions: rankedByCount(roleCounts).map((position) => ({
       position,
       games: roleCounts.get(position) ?? 0

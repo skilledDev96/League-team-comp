@@ -406,7 +406,7 @@
                     </span>
                   </button>
                 }
-                @for (opp of series.opponentPlayers ?? []; track $index) {
+                @for (opp of orderedRoster(series); track $index) {
                   <div class="opp-row">
                     <!-- Set by hand, never from history. A team that has just
                          swapped roles looks exactly like a roster pasted in the
@@ -455,11 +455,12 @@
                         }
                       </span>
                     }
-                    @if (opp.top3?.length) {
+                    @if (poolFor(opp).length) {
                       <span class="opp-pool">
-                        @for (champ of opp.top3 ?? []; track champ) {
-                          <img class="opp-champ" [src]="ui.championIconUrl(champ)" [alt]="champ"
-                               [appTip]="champ + ' — one of their most played'" loading="lazy" />
+                        @for (champ of poolFor(opp); track champ) {
+                          <img class="opp-champ" [class.is-seat]="poolIsForSeat(opp)"
+                               [src]="ui.championIconUrl(champ)" [alt]="champ"
+                               [appTip]="champ + (poolIsForSeat(opp) ? ' — plays this at ' + opp.role : ' — one of their most played')" loading="lazy" />
                         }
                       </span>
                       <!-- Who beat them in their own lane, in games they lost.
@@ -477,7 +478,7 @@
                       <!-- The pool describes whatever role they were playing
                            then. A career ADC seated at top still lists ADCs:
                            true, and no longer a prediction. -->
-                      @if (playedElsewhere(opp); as was) {
+                      @if (!poolIsForSeat(opp) && playedElsewhere(opp); as was) {
                         <span class="opp-swapped"
                               [appTip]="'Everything scouted here — pool and counters — comes from their games as ' + was.role">
                           <span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span>

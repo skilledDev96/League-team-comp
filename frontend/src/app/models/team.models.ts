@@ -493,6 +493,15 @@ export interface OpponentPlayer {
    * draft against them. Two, because a draft cannot act on a long tail.
    */
   positions?: { role: Role; games: number }[];
+  /**
+   * What they play in each seat.
+   *
+   * The seat they hold is set by hand and can differ from the one their
+   * history is about, so the row reads this first and falls back to the
+   * overall pool — saying which it got, because a career ADC seated at top
+   * still lists ADCs and that is true rather than useful.
+   */
+  poolByRole?: Partial<Record<Role, string[]>>;
   /** ISO timestamp of the last successful scout, so staleness is visible. */
   scoutedAt?: string;
   /** Why the last scout failed, when it did. Shown rather than swallowed. */
