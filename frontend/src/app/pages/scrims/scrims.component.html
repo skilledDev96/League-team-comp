@@ -72,6 +72,9 @@
           <span class="scrim-when">{{ ui.formatDay(scrim.playedOn) }}</span>
           <span class="scrim-vs">{{ scrim.opponent || 'Unnamed opponent' }}</span>
           <span class="scrim-duration">{{ duration(scrim.durationSec) }}</span>
+          <span class="scrim-score" [appTip]="'Kills, blue to red'">
+            {{ teamKills(scrim, 100) }}&ndash;{{ teamKills(scrim, 200) }}
+          </span>
           @if (ourSide(scrim); as side) {
             <span class="scrim-side" [class.is-blue]="side === 'blue'">{{ side }}</span>
           }
@@ -86,9 +89,23 @@
             <div class="scrim-team-head">
               <span>{{ teamLabel(scrim, $any(team)) }}</span>
               <span class="muted">{{ (team === 100) === scrim.blueWon ? 'won' : 'lost' }}</span>
+              <!-- What they actually took. The scoreboard says who farmed;
+                   this says who won the map, which is usually the answer. -->
+              @for (o of objectives(scrim, $any(team)); track o.label) {
+                <span class="scrim-obj" [appTip]="o.count + ' ' + o.label">
+                  <span class="material-symbols-rounded" aria-hidden="true">{{ o.icon }}</span>{{ o.count }}
+                </span>
+              }
+              @if (goldDiff(scrim, $any(team)); as diff) {
+                <span class="scrim-gold" [class.is-ahead]="diff > 0"
+                      [appTip]="'Gold difference at the end of the game'">
+                  {{ diff > 0 ? '+' : '' }}{{ k(diff) }}
+                </span>
+              }
             </div>
             <div class="scrim-board" role="table">
               <div class="scrim-board-head" role="row">
+                <span role="columnheader"></span>
                 <span role="columnheader">Player</span>
                 <span role="columnheader">KDA</span>
                 <span role="columnheader" [appTip]="'Damage to champions'">Dmg</span>
@@ -99,6 +116,7 @@
               </div>
               @for (p of side(scrim, $any(team)); track p.name + p.champion) {
                 <div class="scrim-line" [class.is-ours]="isOurs(p)" role="row">
+                  <span class="scrim-lane" role="cell">{{ lane(p.position) }}</span>
                   <span class="scrim-player" role="cell">
                     <img class="scrim-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion"
                          [appTip]="p.champion + (p.position ? ' — ' + p.position : '')" loading="lazy" />

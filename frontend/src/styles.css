@@ -10934,10 +10934,14 @@ body:has(.draft-stage) .edit-mode-frame {
 /* Header and rows share one grid, so the columns actually line up. */
 .scrim-board {
   display: grid;
-  grid-template-columns: minmax(9rem, 1fr) repeat(6, minmax(3rem, auto));
-  gap: 0.1rem 0.7rem;
+  /* Lane, player, then the counters. The counters are capped rather than
+     stretched: strung across a wide card the eye travels half a screen
+     between a champion and its damage. */
+  grid-template-columns: 2.5rem minmax(9rem, 1.2fr) repeat(6, minmax(3rem, 4.5rem));
+  gap: 0.1rem 0.6rem;
   align-items: center;
   margin-top: 0.3rem;
+  justify-content: start;
 }
 
 .scrim-board-head,
@@ -10996,3 +11000,48 @@ body:has(.draft-stage) .edit-mode-frame {
 }
 
 .scrim-refresh-hint .material-symbols-rounded { font-size: 1.1rem; color: var(--accent); }
+
+/* Lane down the left, so the two boards line up row for row and a scoreboard
+   reads top-to-support the way everyone already reads one. */
+.scrim-lane {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-1);
+  opacity: 0.7;
+}
+
+/* What each side actually took. The scoreboard says who farmed; this says who
+   won the map, which is usually the answer to why. */
+.scrim-obj {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-1);
+  cursor: default;
+}
+
+.scrim-obj .material-symbols-rounded { font-size: 0.95rem; opacity: 0.8; }
+
+.scrim-gold {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--warn);
+  cursor: default;
+}
+
+.scrim-gold.is-ahead { color: var(--ok); }
+
+.scrim-score {
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+  cursor: default;
+}
+
+.scrim-team-head { flex-wrap: wrap; }

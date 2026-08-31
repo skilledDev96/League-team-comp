@@ -107,8 +107,66 @@ export class ScrimsComponent {
     return side === 'blue' ? scrim.blueWon : !scrim.blueWon;
   }
 
+  /**
+   * One side, in lane order rather than the order the replay listed them.
+   *
+   * A scoreboard is read top-to-support; replay order is arbitrary, so the
+   * two teams did not even line up with each other row by row.
+   */
   protected side(scrim: Scrim, team: 100 | 200): ScrimPlayer[] {
-    return scrim.players.filter((p) => p.team === team);
+    const order = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
+    return scrim.players
+      .filter((p) => p.team === team)
+      .sort((a, b) => order.indexOf(a.position) - order.indexOf(b.position));
+  }
+
+  /** Riot names the lanes; the app speaks in roles, and so does everyone. */
+  protected lane(position: string): string {
+    return (
+      { TOP: 'TOP', JUNGLE: 'JGL', MIDDLE: 'MID', BOTTOM: 'ADC', UTILITY: 'SUP' }[position] ?? '—'
+    );
+  }
+
+  /** The fight scoreline. The one number that says how the game went. */
+  protected teamKills(scrim: Scrim, team: 100 | 200): number {
+    return this.side(scrim, team).reduce((n, p) => n + p.kills, 0);
+  }
+
+  private teamGold(scrim: Scrim, team: 100 | 200): number {
+    return this.side(scrim, team).reduce((n, p) => n + p.gold, 0);
+  }
+
+  /**
+   * Gold difference from one side's point of view.
+   *
+   * End-of-game only — the replay carries no timeline — so it says how far
+   * apart the teams finished, not when the gap opened. Still the quickest read
+   * on whether a loss was close or not.
+   */
+  protected goldDiff(scrim: Scrim, team: 100 | 200): number {
+    const other = team === 100 ? 200 : 100;
+    return this.teamGold(scrim, team) - this.teamGold(scrim, other);
+  }
+
+  /**
+   * The objectives one side took, as chips worth showing.
+   *
+   * Only what happened: a side with no barons says nothing about barons rather
+   * than showing a zero, because five zeroes on a row hide the one number that
+   * matters. firstBlood and firstTower are never included — the replay does
+   * not record them, so a false there means unknown, not no.
+   */
+  protected objectives(scrim: Scrim, team: 100 | 200): { icon: string; count: number; label: string }[] {
+    const side = team === 100 ? scrim.objectives?.blue : scrim.objectives?.red;
+    if (!side) return [];
+    return [
+      { icon: 'local_fire_department', count: side.dragons, label: 'dragons' },
+      { icon: 'pest_control', count: side.barons, label: 'barons' },
+      { icon: 'flutter_dash', count: side.heralds, label: 'heralds' },
+      { icon: 'bug_report', count: side.grubs, label: 'voidgrubs' },
+      { icon: 'castle', count: side.towers, label: 'towers' },
+      { icon: 'door_front', count: side.inhibitors, label: 'inhibitors' }
+    ].filter((o) => o.count > 0);
   }
 
   protected isOurs(player: ScrimPlayer): boolean {
@@ -123,9 +181,17 @@ export class ScrimsComponent {
     return `${p.kills}/${p.deaths}/${p.assists}`;
   }
 
-  /** Thousands, since raw damage numbers are five digits and unreadable. */
+  /**
+   * Thousands, since raw damage numbers are five digits and unreadable.
+   *
+   * Measured on magnitude, not on the value: a gold difference is signed, and
+   * testing `value >= 1000` left every deficit as a raw "-12200" beside a
+   * tidy "+12.2k" on the other side of the same game.
+   */
   protected k(value: number): string {
-    return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value);
+    const size = Math.abs(value);
+    if (size < 1000) return String(value);
+    return `${value < 0 ? '-' : ''}${(size / 1000).toFixed(1)}k`;
   }
 
   protected setOpponent(scrim: Scrim, opponent: string): void {
