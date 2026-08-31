@@ -86,6 +86,13 @@ interface EnrichResponse {
   poolByRole?: Partial<Record<KnownRole, string[]>>;
   /** Who beats them in each seat, for the same reason as poolByRole. */
   bansByRole?: Partial<Record<KnownRole, string[]>>;
+  /**
+   * Champions played in the last two months, newest first, from mastery.
+   *
+   * Sees far past the match window — the scan reads a hundred games at most,
+   * this reads their whole history — at the cost of carrying no position.
+   */
+  recentChampions?: string[];
   top3?: string[];
   bans?: string[];
   queueStats?: {
@@ -211,6 +218,8 @@ function displayChampionName(riotChampionName: string): string {
 interface RiotChampionMastery {
   championId: number;
   championPoints: number;
+  /** Epoch ms of their last game on it. What makes "recently played" possible. */
+  lastPlayTime?: number;
 }
 
 // DDragon numeric champion id -> display name, fetched once and cached for the
@@ -235,6 +244,41 @@ async function getChampionIdToName(): Promise<Map<number, string>> {
 }
 
 // Top all-time champion-mastery picks for a player, as display names.
+/**
+ * Champions they have been playing lately, from mastery rather than matches.
+ *
+ * The match scan sees a hundred games at most and usually far fewer, so a
+ * champion last played six weeks ago is invisible to it. Mastery covers their
+ * whole history and carries `lastPlayTime` per champion, so sorting on that
+ * answers "what have they been on recently" across everything they own — for a
+ * single request. It is what op.gg shows under Mastery filtered by recently
+ * played.
+ *
+ * Carries no position data, so it cannot replace a seat-specific pool. A wider
+ * net, not a sharper one.
+ */
+async function fetchRecentMasteryChampions(
+  puuid: string,
+  platform: string,
+  apiKey: string,
+  count: number,
+  withinDays = 60
+): Promise<string[]> {
+  const masteries = await riotFetch<RiotChampionMastery[]>(
+    `https://${platform}.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/${puuid}`,
+    apiKey
+  );
+  const idToName = await getChampionIdToName();
+  const since = Date.now() - withinDays * 24 * 60 * 60 * 1000;
+
+  return masteries
+    .filter((m) => (m.lastPlayTime ?? 0) >= since)
+    .sort((a, b) => (b.lastPlayTime ?? 0) - (a.lastPlayTime ?? 0))
+    .map((m) => idToName.get(m.championId))
+    .filter((name): name is string => Boolean(name))
+    .slice(0, count);
+}
+
 async function fetchTopMasteryChampions(
   puuid: string,
   platform: string,
@@ -655,6 +699,7 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
   // last dozen games). Falls back to recent most-played if mastery is
   // unavailable (new champ not yet in the cached DDragon version, API hiccup…).
   let masteryPool: string[] = [];
+  let recentPool: string[] = [];
   try {
     const region = payload.region ?? 'euw';
     const routing = REGION_ROUTING[region] ?? REGION_ROUTING['euw'];
@@ -665,6 +710,10 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
       apiKey
     );
     masteryPool = await fetchTopMasteryChampions(account.puuid, routing.platform, apiKey, 5);
+    // Everything they have touched in the last two months, newest first. One
+    // request, and it sees far past the hundred-game match window — a champion
+    // played six weeks ago is invisible to the scan but obvious here.
+    recentPool = await fetchRecentMasteryChampions(account.puuid, routing.platform, apiKey, 8);
   } catch {
     // Keep the recent most-played pool from `primary`.
   }
@@ -685,6 +734,7 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
      * recent games in the queues we look at.
      */
     top3: primary.top3?.length ? primary.top3 : masteryPool,
+    recentChampions: recentPool,
     queueStats: {
       solo: soloStats?.queueStats?.solo,
       flex: flexStats?.queueStats?.flex,

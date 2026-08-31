@@ -10689,3 +10689,24 @@ body:has(.draft-stage) .edit-mode-frame {
 /* A pool that is actually about the seat they hold, rather than their history
    at large. Thinner and far more useful, so it is marked as the better answer. */
 .opp-champ.is-seat { border-color: color-mix(in srgb, var(--ok) 50%, transparent); }
+
+/* Champions from mastery rather than the match scan: their whole history,
+   newest first, so a pickup from six weeks ago is visible at all. No position
+   attached, so it reads quieter than the seat pool it sits beside. */
+.opp-recent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.opp-recent-label {
+  font-style: normal;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  opacity: 0.75;
+}
+
+.opp-champ.is-recent { opacity: 0.85; }

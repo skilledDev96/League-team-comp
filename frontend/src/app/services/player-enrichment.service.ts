@@ -22,6 +22,8 @@ interface EnrichResponse {
   poolByRole?: Partial<Record<Role, string[]>>;
   /** Who beats them in each seat. */
   bansByRole?: Partial<Record<Role, string[]>>;
+  /** Champions played in the last two months, newest first, from mastery. */
+  recentChampions?: string[];
   top3?: string[];
   bans?: string[];
   queueStats?: {
@@ -136,6 +138,7 @@ export class PlayerEnrichmentService {
       positions: data.positions,
       poolByRole: data.poolByRole,
       bansByRole: data.bansByRole,
+      recentChampions: data.recentChampions,
       top3: data.top3,
       bans: data.bans,
       queueStats: data.queueStats,

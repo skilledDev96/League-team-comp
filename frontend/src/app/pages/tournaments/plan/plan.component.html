@@ -430,12 +430,12 @@
                          unlabelled number could be either and misjudge them. -->
                     <span class="opp-ranks">
                       @if (opp.soloRank) {
-                        <span class="opp-rank" [appTip]="'Ranked solo/duo'">
+                        <span class="opp-rank" [appTip]="'Ranked solo/duo' + (opp.soloRecord ? ' — ' + opp.soloRecord : '')">
                           <em>Solo</em> {{ opp.soloRank }}
                         </span>
                       }
                       @if (opp.flexRank) {
-                        <span class="opp-rank" [appTip]="'Ranked flex — the queue a team plays together'">
+                        <span class="opp-rank" [appTip]="'Ranked flex, the queue a team plays together' + (opp.flexRecord ? ' — ' + opp.flexRecord : '')">
                           <em>Flex</em> {{ opp.flexRank }}
                         </span>
                       }
@@ -479,6 +479,19 @@
                       <!-- The pool describes whatever role they were playing
                            then. A career ADC seated at top still lists ADCs:
                            true, and no longer a prediction. -->
+                      <!-- Everything they have touched in two months, newest
+                           first. The match scan sees a hundred games at most,
+                           so a champion picked up six weeks ago is invisible
+                           to it and obvious here. No position attached. -->
+                      @if (opp.recentChampions?.length) {
+                        <span class="opp-recent" [appTip]="'Played in the last two months, newest first — across all roles'">
+                          <em class="opp-recent-label">Lately</em>
+                          @for (champ of opp.recentChampions ?? []; track champ) {
+                            <img class="opp-champ is-recent" [src]="ui.championIconUrl(champ)"
+                                 [alt]="champ" [appTip]="champ" loading="lazy" />
+                          }
+                        </span>
+                      }
                       @if (!poolIsForSeat(opp) && playedElsewhere(opp); as was) {
                         <span class="opp-swapped"
                               [appTip]="'Everything scouted here — pool and counters — comes from their games as ' + was.role">

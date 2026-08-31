@@ -126,6 +126,8 @@ export class OpponentScoutService {
       const solo = found.queueStats?.solo?.rank;
       const flex = found.queueStats?.flex?.rank;
       const label = (r?: { tier: string; rank: string }) => (r ? `${r.tier} ${r.rank}` : undefined);
+      const record = (r?: { wins: number; losses: number; winRate: number }) =>
+        r && r.wins + r.losses > 0 ? `${r.wins}W ${r.losses}L (${r.winRate}%)` : undefined;
 
       return {
         ...player,
@@ -139,6 +141,11 @@ export class OpponentScoutService {
         positions: (found.positions ?? []).slice(0, 2),
         poolByRole: found.poolByRole ?? {},
         bansByRole: found.bansByRole ?? {},
+        recentChampions: found.recentChampions ?? [],
+        // The season record was already being fetched and thrown away. It is
+        // the honest scale of a rank: 425-439 is a different player from 12-6.
+        soloRecord: record(solo),
+        flexRecord: record(flex),
         scoutedAt: new Date().toISOString(),
         scoutError: undefined
       };

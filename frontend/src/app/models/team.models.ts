@@ -504,6 +504,18 @@ export interface OpponentPlayer {
   poolByRole?: Partial<Record<Role, string[]>>;
   /** Who beats them in each seat, read the same way as poolByRole. */
   bansByRole?: Partial<Record<Role, string[]>>;
+  /**
+   * Champions played in the last two months, newest first.
+   *
+   * From mastery rather than the match scan, so it sees their whole history
+   * instead of a hundred-game window — which is how a champion picked up six
+   * weeks ago shows up at all. Carries no position, so it widens the net
+   * rather than sharpening it.
+   */
+  recentChampions?: string[];
+  /** Ranked season record, e.g. "425W 439L (49%)". */
+  soloRecord?: string;
+  flexRecord?: string;
   /** ISO timestamp of the last successful scout, so staleness is visible. */
   scoutedAt?: string;
   /** Why the last scout failed, when it did. Shown rather than swallowed. */
