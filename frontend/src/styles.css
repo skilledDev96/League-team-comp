@@ -10176,3 +10176,16 @@ body:has(.draft-stage) .edit-mode-frame {
   opacity: 0.75;
   transform: translateY(0.1em);
 }
+
+/* Test aids, marked as such. Quieter than Undo and Reset, which are part of
+   drafting; these only exist so the screen can be exercised without clicking
+   through ten bans first. */
+.draft-auto {
+  opacity: 0.7;
+  font-size: 0.8rem;
+}
+
+.draft-auto:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

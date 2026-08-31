@@ -272,6 +272,19 @@
               <span class="draft-step-progress" aria-hidden="true">
                 <span class="draft-step-fill" [style.width.%]="progress(game)"></span>
               </span>
+              <!-- Test aids. Reaching the interesting part of this screen means
+                   clicking through ten bans first, and doing that by hand every
+                   time is how a layout bug survives to match night. -->
+              @if (auth.editing()) {
+                @if (step(game)?.action === 'ban') {
+                  <button type="button" class="link-btn draft-auto" [disabled]="autoFilling()"
+                          [appTip]="'Ban at random through to the first pick. For testing.'"
+                          (click)="autoAdvance(game, 'bans')">Skip bans</button>
+                }
+                <button type="button" class="link-btn draft-auto" [disabled]="autoFilling()"
+                        [appTip]="'Fill every remaining ban and pick at random. For testing.'"
+                        (click)="autoAdvance(game, 'end')">Fill draft</button>
+              }
               @if ((game.draftStep ?? 0) > 0) {
                 <button type="button" class="link-btn" (click)="undoStep(game)">Undo last</button>
               }

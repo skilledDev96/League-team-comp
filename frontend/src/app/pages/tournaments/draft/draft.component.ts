@@ -695,6 +695,74 @@ export class TournamentDraftComponent implements OnInit {
   }
 
   /** Commit the held champion and advance one step. */
+  // ---- Filling the draft automatically ------------------------------------
+  //
+  // Test aids, not shortcuts for a real draft. Reaching the interesting part of
+  // this screen means clicking through ten bans first, and doing that by hand
+  // every time is the reason a layout bug survives to a match night.
+  //
+  // Both drive `confirmPending` rather than writing the board themselves. The
+  // free-form controls once edited the board without moving `draftStep` and
+  // left the draft a step ahead of itself; anything that fills the board has to
+  // go through the same door a person does.
+
+  protected readonly autoFilling = signal(false);
+
+  /**
+   * A champion to put in the next slot.
+   *
+   * Prefers one that fits a seat still open, so an auto-filled board looks like
+   * a draft rather than five supports. Falls back to anything legal, because
+   * for a test the point is to arrive at a full board.
+   */
+  private autoChoice(game: SeriesGame, action: 'ban' | 'pick'): string | null {
+    const blocked = blockedSet(this.unavailableFor(game, action));
+    const pool = this.champs
+      .champions()
+      .map((c) => c.name)
+      .filter((name) => !blocked.has(normalizeChampion(name)));
+    if (!pool.length) return null;
+
+    if (action === 'pick') {
+      const taken = this.pickSlots(game, this.sideOfStep(game)).map((s) => s.champion);
+      const fits = pool.filter((name) => seatFor(name, taken));
+      if (fits.length) return fits[Math.floor(Math.random() * fits.length)];
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  /**
+   * Run the sequence forward on its own.
+   *
+   * `'bans'` stops at the first pick, which is the one that matters: bans are
+   * the slow part and the part nobody is testing. `'end'` fills the rest.
+   */
+  protected async autoAdvance(game: SeriesGame, until: 'bans' | 'end'): Promise<void> {
+    if (this.autoFilling()) return;
+    this.autoFilling.set(true);
+    try {
+      // Bounded by the sequence length: a step that refuses to advance would
+      // otherwise spin here forever with the board half filled.
+      for (let guard = 0; guard < 40; guard += 1) {
+        const live = this.current(game);
+        const step = this.step(live);
+        if (!step) break;
+        if (until === 'bans' && step.action !== 'ban') break;
+
+        const champ = this.autoChoice(live, step.action);
+        if (!champ) break;
+
+        const before = live.draftStep ?? 0;
+        this.pending.set(champ);
+        await this.confirmPending(live);
+        if ((this.current(game).draftStep ?? 0) === before) break;
+      }
+    } finally {
+      this.pending.set(null);
+      this.autoFilling.set(false);
+    }
+  }
+
   protected async confirmPending(game: SeriesGame): Promise<void> {
     const champ = this.pending();
     if (!champ || this.committing()) return;
