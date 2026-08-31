@@ -251,35 +251,7 @@
                  wrong about all three. A board already filled is left alone: it
                  predates sides existing, and trapping it behind a question
                  nobody asked at the time would be worse than the gap. -->
-            @if (freshBoard(game)) {
-              <div class="draft-side-modal" role="dialog" aria-modal="true"
-                   aria-label="Which side are we on?">
-                <div class="draft-side-card">
-                  <h3>Which side are we on?</h3>
-                  <p class="muted">
-                    Blue bans and picks first. Everything after this depends on it &mdash;
-                    whose turn it is, which seat a pick lands in, who banned what.
-                  </p>
-                  <div class="draft-side-choices">
-                    <button type="button" class="draft-side-choice is-blue"
-                            (click)="setOurSide(game, 'blue')">
-                      <span class="draft-side-name">Blue</span>
-                      <span class="draft-side-hint">First ban, first pick</span>
-                    </button>
-                    <button type="button" class="draft-side-choice is-red"
-                            (click)="setOurSide(game, 'red')">
-                      <span class="draft-side-name">Red</span>
-                      <span class="draft-side-hint">Last pick of each phase</span>
-                    </button>
-                  </div>
-                  @if (draftSeries()?.side; as agreed) {
-                    <p class="muted draft-side-agreed">
-                      Game 1 side for this series was recorded as <strong>{{ agreed }}</strong>.
-                    </p>
-                  }
-                </div>
-              </div>
-            }
+
           } @else if (sequenceDone(game)) {
             <p class="draft-step-bar is-done">
               <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
@@ -714,6 +686,48 @@
       </p>
     }
   </section>
+
+  <!-- Outside the card on purpose.
+
+       .card carries an identity transform, and *any* transform makes an
+       element the containing block for position: fixed inside it — so the
+       overlay sized itself to the card rather than the viewport and centred
+       the dialog a thousand pixels below the fold. Measured, not guessed:
+       the computed position read 'fixed' and was still wrong. Rendering it
+       as a sibling of the card is what actually reaches the viewport. -->
+  @if (draftGame(); as game) {
+    @if (!ourSide(game)) {
+      @if (freshBoard(game)) {
+        <div class="draft-side-modal" role="dialog" aria-modal="true"
+             aria-label="Which side are we on?">
+          <div class="draft-side-card">
+            <h3>Which side are we on?</h3>
+            <p class="muted">
+              Blue bans and picks first. Everything after this depends on it &mdash;
+              whose turn it is, which seat a pick lands in, who banned what.
+            </p>
+            <div class="draft-side-choices">
+              <button type="button" class="draft-side-choice is-blue"
+                      (click)="setOurSide(game, 'blue')">
+                <span class="draft-side-name">Blue</span>
+                <span class="draft-side-hint">First ban, first pick</span>
+              </button>
+              <button type="button" class="draft-side-choice is-red"
+                      (click)="setOurSide(game, 'red')">
+                <span class="draft-side-name">Red</span>
+                <span class="draft-side-hint">Last pick of each phase</span>
+              </button>
+            </div>
+            @if (draftSeries()?.side; as agreed) {
+              <p class="muted draft-side-agreed">
+                Game 1 side for this series was recorded as <strong>{{ agreed }}</strong>.
+              </p>
+            }
+          </div>
+        </div>
+      }
+    }
+  }
 } @else {
   <p class="muted">No series to draft. Add one on the Plan view.</p>
 }
