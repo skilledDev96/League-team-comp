@@ -300,8 +300,29 @@
                   }
                 </div>
 
+                <!-- A minute a player is the rate limit, not a slow
+                     implementation, so the wait is stated rather than left to
+                     look like a hang. It also says the app stays usable: the
+                     scout runs in a root service and keeps going even if you
+                     navigate away, writing each player as it lands. -->
                 @if (scout.scouting() === series.id) {
-                  <p class="muted">{{ scout.progress() }}</p>
+                  <div class="opp-progress" role="status" aria-live="polite">
+                    <div class="opp-progress-line">
+                      <span class="material-symbols-rounded opp-progress-spin" aria-hidden="true">progress_activity</span>
+                      <strong>{{ scout.progress() }}</strong>
+                      <span class="muted">~{{ scout.secondsLeft() }}s left</span>
+                    </div>
+                    <div class="opp-progress-track" aria-hidden="true">
+                      <span class="opp-progress-fill"
+                            [style.width.%]="scout.total() ? (scout.done() / scout.total()) * 100 : 0"></span>
+                    </div>
+                    <p class="muted opp-progress-note">
+                      Riot allows 100 requests every 2 minutes and each player costs about 48,
+                      so this waits rather than failing. <strong>Carry on using the app</strong> —
+                      it keeps running in the background and saves each player as it finishes.
+                      Anything else that reads from Riot will just be slow until it is done.
+                    </p>
+                  </div>
                 }
 
                 <!-- Two buttons with no explanation of which does what was the

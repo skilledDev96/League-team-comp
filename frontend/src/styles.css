@@ -10144,7 +10144,7 @@ body:has(.draft-stage) .edit-mode-frame {
   gap: 0.22rem;
   padding: 0.08rem 0.36rem;
   border-radius: 0.35rem;
-  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-btn) 70%, transparent);
   border: 1px solid var(--card-border);
   font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
@@ -10204,17 +10204,19 @@ body:has(.draft-stage) .edit-mode-frame {
   z-index: 200;
   display: grid;
   place-items: center;
-  background: color-mix(in srgb, var(--surface-0) 82%, transparent);
-  backdrop-filter: blur(3px);
+  background: color-mix(in srgb, var(--bg-0) 88%, transparent);
+  backdrop-filter: blur(4px);
   border-radius: 0.75rem;
 }
 
 .draft-side-card {
+  /* Opaque on purpose. It sits over the champion wall, and anything
+     see-through here puts five champion portraits behind the question. */
   max-width: 34rem;
   padding: 1.6rem 1.8rem;
   border: 1px solid var(--card-border);
   border-radius: 0.9rem;
-  background: var(--surface-1);
+  background: var(--card);
   box-shadow: 0 1.2rem 3rem rgb(0 0 0 / 45%);
   text-align: center;
 }
@@ -10234,7 +10236,7 @@ body:has(.draft-stage) .edit-mode-frame {
   padding: 0.9rem 1rem;
   border-radius: 0.7rem;
   border: 1px solid var(--card-border);
-  background: var(--surface-2);
+  background: var(--surface-btn);
   color: var(--text-0);
   cursor: pointer;
   transition: border-color 120ms ease, transform 120ms ease;
@@ -10309,7 +10311,7 @@ body:has(.draft-stage) .edit-mode-frame {
   padding: 0.35rem 0.5rem;
   border: 1px solid var(--card-border);
   border-radius: 0.5rem;
-  background: var(--surface-2);
+  background: var(--surface-btn);
 }
 
 .opp-role {
@@ -10378,7 +10380,7 @@ body:has(.draft-stage) .edit-mode-frame {
   padding: 0.15rem 0.3rem;
   border-radius: 0.4rem;
   border: 1px solid var(--card-border);
-  background: var(--surface-2);
+  background: var(--surface-btn);
   cursor: pointer;
 }
 
@@ -10460,7 +10462,7 @@ body:has(.draft-stage) .edit-mode-frame {
   padding: 0.5rem 1rem;
   border-radius: 0.6rem;
   border: 1px solid var(--card-border);
-  background: var(--surface-2);
+  background: var(--surface-btn);
   color: var(--text-0);
   font-weight: 600;
   cursor: pointer;
@@ -10473,3 +10475,55 @@ body:has(.draft-stage) .edit-mode-frame {
    until it has been used once. */
 .opp-scout-cta { text-align: left; }
 .opp-scout-cta .opp-step-hint { color: var(--text-1); }
+
+/* ---- Scouting in progress ------------------------------------------------
+   A minute a player is the rate limit, not a slow implementation. Saying so,
+   with a bar that visibly moves, is the difference between waiting and
+   thinking it has hung — which is exactly what happened the first time. */
+.opp-progress {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.opp-progress-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.opp-progress-spin {
+  color: var(--accent);
+  animation: opp-spin 1.1s linear infinite;
+}
+
+@keyframes opp-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .opp-progress-spin { animation: none; }
+}
+
+.opp-progress-track {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-1) 20%, transparent);
+  overflow: hidden;
+}
+
+.opp-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 300ms ease;
+}
+
+.opp-progress-note {
+  margin: 0 !important;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}

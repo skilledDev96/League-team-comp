@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { OpponentPlayer, Role, ROLES, TournamentSeries } from '../models/team.models';
 import { PlayerEnrichmentService } from './player-enrichment.service';
 import { TeamDataService } from './team-data.service';
@@ -15,6 +15,9 @@ import { RiotId, parseRiotIds } from '../core/riot-id';
  * one line on how they play. That is what a draft can use, and collecting more
  * than a draft can use is how a scouting tool turns into a dossier.
  */
+/** Measured against the live API, not guessed: about a minute a player. */
+const SECONDS_PER_PLAYER = 60;
+
 @Injectable({ providedIn: 'root' })
 export class OpponentScoutService {
   private readonly enrichment = inject(PlayerEnrichmentService);
@@ -23,6 +26,20 @@ export class OpponentScoutService {
   /** Series id currently being scouted, so one button can show progress. */
   readonly scouting = signal<string | null>(null);
   readonly progress = signal('');
+  /** Players finished and players in total, for a bar rather than a spinner. */
+  readonly done = signal(0);
+  readonly total = signal(0);
+
+  /**
+   * Roughly how long is left, in seconds.
+   *
+   * A player costs about forty-eight Riot calls — account, summoner, league,
+   * match list and up to a dozen matches, across three queues — against a limit
+   * of a hundred every two minutes. So a minute each is not a slow
+   * implementation, it is the rate limit, and saying so is the difference
+   * between waiting and thinking it has hung.
+   */
+  readonly secondsLeft = computed(() => Math.max(this.total() - this.done(), 0) * SECONDS_PER_PLAYER);
 
   /**
    * Turn pasted text into five seats.
@@ -65,17 +82,22 @@ export class OpponentScoutService {
     if (!roster.length || this.scouting()) return;
 
     this.scouting.set(series.id);
+    this.total.set(roster.length);
+    this.done.set(0);
     const out: OpponentPlayer[] = [];
     try {
       for (const [index, player] of roster.entries()) {
         this.progress.set(`Scouting ${player.name || 'player'} (${index + 1} of ${roster.length})…`);
         out.push(await this.scoutOne(player));
+        this.done.set(out.length);
         // Written after each one, so a scout interrupted halfway keeps what it got.
         await this.data.updateSeries({ ...series, opponentPlayers: [...out, ...roster.slice(out.length)] });
       }
     } finally {
       this.scouting.set(null);
       this.progress.set('');
+      this.done.set(0);
+      this.total.set(0);
     }
   }
 
