@@ -148,6 +148,42 @@ export const POOL_LOW_WATER = 40;
 /** Match ids per player lookup. Riot allows 100; 20 keeps the sample recent. */
 export const IDS_PER_PLAYER = 20;
 
+/**
+ * How far back to collect, in days.
+ *
+ * "Their last twenty ranked games" is not the same as "twenty recent games" —
+ * the ladder is full of accounts that stopped playing, and asking them yields
+ * matches from months ago. The first day of collecting produced fourteen patch
+ * buckets holding four to seven games each, which is fourteen samples too small
+ * to say anything instead of one worth reading.
+ *
+ * A patch runs about two weeks, so this keeps requests on games that describe
+ * the game as it is now. Riot takes it as a query parameter, so the filtering
+ * costs nothing — the stale ids are never returned, rather than fetched and
+ * discarded.
+ */
+export const COLLECT_WINDOW_DAYS = 14;
+
+/** Riot wants `startTime` in epoch **seconds**, not milliseconds. */
+export function collectSince(now: number = Date.now()): number {
+  return Math.floor((now - COLLECT_WINDOW_DAYS * 24 * 60 * 60 * 1000) / 1000);
+}
+
+/**
+ * The cross-tier rollup for a patch.
+ *
+ * Tier buckets answer "is this champion better in Diamond than in Gold", which
+ * needs a lot more games than we will have soon. One combined total per patch
+ * is what the draft room can actually use, and reading it costs the browser a
+ * single document instead of ten.
+ */
+export const ALL_TIERS = 'ALL';
+
+/** "16.17.1" (Data Dragon) -> "16.17", so the app can find the current bucket. */
+export function patchOfVersion(version: string | undefined): string {
+  return patchOf(version);
+}
+
 export interface CrawlPlan {
   /** Ladder pages to pull this run — usually 0, occasionally 1. */
   readonly ladderPages: number;

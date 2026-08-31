@@ -47,6 +47,22 @@ service cloud.firestore {
       allow read, write: if signedIn() && emailId == emailKey();
     }
 
+    // The crawler's working state, not its output. crawlState holds a queue of
+    // up to 4,000 puuids and crawlSeen a marker per match id — neither is of any
+    // use to a reader, and the catch-all below would otherwise publish a list of
+    // identifiers for players who never opted into anything. The functions write
+    // these through the admin SDK, which bypasses rules entirely.
+    //
+    // The aggregate counters in championStats stay public: they are champion
+    // totals with no player in them, which is the whole point of the collection.
+    match /crawlState/{doc} {
+      allow read, write: if false;
+    }
+
+    match /crawlSeen/{doc} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read: if true;
       allow write: if canEdit();

@@ -378,6 +378,14 @@
                         } @else {
                           <span class="advice-proj is-none">&mdash;</span>
                         }
+                        <!-- Solo queue at large, beside our own record. The gap
+                             between the two is usually the interesting part. -->
+                        @if (soloRate(s.champion); as r) {
+                          <span class="advice-solo" [appTip]="soloNote(s.champion)">
+                            <span class="advice-solo-label">SoloQ</span>
+                            <b [class]="winRateBand(r.winRate)">{{ r.winRate }}%</b>
+                          </span>
+                        }
                         <span class="advice-comps">
                           @for (c of s.comps; track c.id) {
                             <span class="advice-comp">

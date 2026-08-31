@@ -10109,3 +10109,27 @@ body:has(.draft-stage) .edit-mode-frame {
   background: color-mix(in srgb, var(--accent) 15%, transparent);
   white-space: nowrap;
 }
+
+/* ---- Solo queue rate, beside our own record -----------------------------
+   Deliberately quieter than the projection next to it. Ours is the number
+   that knows our comps and our players; this one knows the game. Showing
+   them at equal weight would suggest they answer the same question. */
+.advice-solo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  margin-left: 0.5rem;
+  padding-left: 0.55rem;
+  border-left: 1px solid var(--card-border);
+  font-variant-numeric: tabular-nums;
+}
+
+.advice-solo-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-1);
+  opacity: 0.7;
+}
+
+.advice-solo b { font-size: 0.85rem; }

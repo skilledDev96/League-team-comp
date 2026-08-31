@@ -37,6 +37,7 @@ import {
   swingOf
 } from '../draft-advice';
 import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
+import { ChampionRate, ChampionStatsService } from '../../../services/champion-stats.service';
 import { TournamentContextService } from '../tournament-context.service';
 
 /** Which team a draft slot belongs to. */
@@ -72,6 +73,11 @@ export class TournamentDraftComponent implements OnInit {
    */
   ngOnInit(): void {
     if (this.auth.canEdit()) this.auth.editMode.set(true);
+
+    // One document, fetched once. Nothing waits on it: every champion's rate is
+    // optional in the view, so the panel renders immediately and the solo queue
+    // numbers appear when they arrive.
+    void this.stats.load();
 
     // Put the stage on screen. Opening Draft means drafting, and the page
     // header above it is not what anyone came here to read.
@@ -132,6 +138,7 @@ export class TournamentDraftComponent implements OnInit {
   protected readonly auth = inject(AuthService);
   protected readonly ui = inject(UiService);
   private readonly champs = inject(ChampionDataService);
+  protected readonly stats = inject(ChampionStatsService);
 
   private readonly ctx = inject(TournamentContextService);
 
@@ -891,6 +898,26 @@ export class TournamentDraftComponent implements OnInit {
   protected swing(game: SeriesGame, suggestion: ChampionSuggestion): number | undefined {
     return swingOf(suggestion.projected, this.standing(game).rate, suggestion.games);
   }
+  /**
+   * How a champion does in solo queue at large, or nothing while the crawl is
+   * too shallow to say.
+   *
+   * Shown *beside* our own record rather than blended into it. They answer
+   * different questions — ours is "how has this gone for us" over tens of
+   * games, this is "how does this champion do at all" over tens of thousands —
+   * and averaging them would destroy the only interesting thing about having
+   * both, which is where they disagree.
+   */
+  protected soloRate(champion: string): ChampionRate | undefined {
+    return this.stats.rate(champion);
+  }
+
+  protected soloNote(champion: string): string {
+    const r = this.stats.rate(champion);
+    if (!r) return 'Not enough solo queue games collected yet.';
+    return `${r.winRate}% over ${r.games.toLocaleString()} solo queue games on patch ${this.stats.patch()}.`;
+  }
+
   /** What our picks are short of. Empty while there is too little to judge. */
   protected gaps(game: SeriesGame): CompGaps {
     return compGaps(this.traitsForSide(game, 'our'));

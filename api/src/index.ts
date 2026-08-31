@@ -18,8 +18,10 @@ import {
   CRAWL_QUEUE,
   CrawledMatch,
   FIRST_CURSOR,
+  ALL_TIERS,
   IDS_PER_PLAYER,
   LadderCursor,
+  collectSince,
   MatchTally,
   Tier,
   ladderPath,
@@ -1699,9 +1701,20 @@ async function applyTally(tally: MatchTally): Promise<void> {
     updates[`champions.${key}.wins`] = FieldValue.increment(counts.wins);
   }
   updates['matches'] = FieldValue.increment(1);
-  await getFirestore()
-    .doc(statsDocPath(tally.patch, tally.tier))
-    .set({ patch: tally.patch, tier: tally.tier, ...updates }, { merge: true });
+
+  // Both buckets, from one tally. The tier split answers "is this champion
+  // better in Diamond than in Gold", which needs far more games than we will
+  // have soon; the rollup is what the draft room reads, and costs the browser
+  // one document instead of ten.
+  const db = getFirestore();
+  await Promise.all([
+    db
+      .doc(statsDocPath(tally.patch, tally.tier))
+      .set({ patch: tally.patch, tier: tally.tier, ...updates }, { merge: true }),
+    db
+      .doc(statsDocPath(tally.patch, ALL_TIERS as Tier))
+      .set({ patch: tally.patch, tier: ALL_TIERS, ...updates }, { merge: true })
+  ]);
 }
 
 /**
@@ -1753,7 +1766,7 @@ async function crawlTick(apiKey: string | undefined): Promise<string> {
     const player = state.pool.shift()!;
     try {
       const ids = await riotFetch<string[]>(
-        `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${player.puuid}/ids?queue=${CRAWL_QUEUE}&start=0&count=${IDS_PER_PLAYER}`,
+        `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${player.puuid}/ids?queue=${CRAWL_QUEUE}&startTime=${collectSince()}&start=0&count=${IDS_PER_PLAYER}`,
         apiKey
       );
       const fresh = (Array.isArray(ids) ? ids : []).map((id) => ({ id, tier: player.tier }));
