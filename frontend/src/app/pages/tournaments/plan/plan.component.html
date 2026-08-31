@@ -287,7 +287,13 @@
           </div>
 
           <!-- Opponent-specific prep, kept apart from the per-comp bans. -->
-          @if (auth.editing() || series.notes || series.bans?.length) {
+          <!-- A scouted roster counts as content.
+
+               Without it in this condition the panel simply did not exist
+               whenever edit mode was off — so five scouted players were
+               invisible to anyone reading, and the Scout button had nothing to
+               scroll to, which is what made it look broken. -->
+          @if (auth.editing() || series.notes || series.bans?.length || series.opponentPlayers?.length) {
             <details class="series-prep" [attr.data-prep]="series.id"
                      [open]="isPrepPanelOpen(series.id)">
               <summary class="comp-record-head series-prep-head"

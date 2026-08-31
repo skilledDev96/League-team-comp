@@ -80,6 +80,12 @@ export class TournamentPlanComponent {
    * nothing happening.
    */
   protected openPrepPanel(id: string): void {
+    // Scouting is an editing job — pasting a roster, setting target bans,
+    // writing notes — and the controls for all three only render in edit mode.
+    // Sending someone to a panel where every control is missing is the same
+    // failure as not sending them at all. The draft view does this too.
+    if (this.auth.canEdit()) this.auth.editMode.set(true);
+
     this.openSeriesId.set(id);
     this.openPrepIds.set(new Set([...this.openPrepIds(), id]));
     this.scrollToPrep(id);
