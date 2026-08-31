@@ -1693,13 +1693,24 @@ async function fetchLadderPage(
  * never happened.
  */
 async function applyTally(tally: MatchTally): Promise<void> {
-  const updates: Record<string, FieldValue> = {};
+  // Built as a real nested map, not as dotted keys.
+  //
+  // `set()` does not interpret a dotted key as a field path — only `update()`
+  // does — so `{'champions.Ahri.games': …}` wrote a *literal field named*
+  // "champions.Ahri.games" and no `champions` map ever existed. Every counter
+  // was landing correctly and was unreadable by anything expecting the shape
+  // the code describes. Nested objects merge and increment exactly as intended.
+  const champions: Record<string, { games: FieldValue; wins: FieldValue }> = {};
   for (const [champion, counts] of tally.champions) {
-    // Champion names can carry an apostrophe (Kai'Sa); dots would nest them.
+    // Champion names carry apostrophes and spaces (Kai'Sa, Dr. Mundo); a dot
+    // would split the path, so keys are letters and digits only.
     const key = champion.replace(/[^A-Za-z0-9]/g, '');
-    updates[`champions.${key}.games`] = FieldValue.increment(counts.games);
-    updates[`champions.${key}.wins`] = FieldValue.increment(counts.wins);
+    champions[key] = {
+      games: FieldValue.increment(counts.games),
+      wins: FieldValue.increment(counts.wins)
+    };
   }
+  const updates: Record<string, unknown> = { champions };
   updates['matches'] = FieldValue.increment(1);
 
   // Both buckets, from one tally. The tier split answers "is this champion

@@ -38,6 +38,44 @@ interface StatsDoc {
   patch?: string;
   matches?: number;
   champions?: Record<string, { games?: number; wins?: number }>;
+  /** Older buckets carry literal dotted field names; see `readCounters`. */
+  [flatKey: string]: unknown;
+}
+
+/**
+ * Pull champion counters out of a bucket, in either shape it may be stored in.
+ *
+ * The crawler's first days wrote `set({'champions.Ahri.games': …})`, and
+ * `set()` does not read a dotted key as a field path — only `update()` does —
+ * so those became *literal field names containing dots* and no `champions` map
+ * existed at all. The write is fixed, but a patch bucket already part-filled
+ * that way still holds real games, and dropping them to keep the reader tidy
+ * would throw away the only data there is.
+ */
+export function readCounters(data: StatsDoc | null): Map<string, { games: number; wins: number }> {
+  const out = new Map<string, { games: number; wins: number }>();
+  if (!data) return out;
+
+  const bump = (name: string, field: string, value: unknown) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return;
+    const key = name.toLowerCase();
+    const entry = out.get(key) ?? { games: 0, wins: 0 };
+    if (field === 'games') entry.games += value;
+    if (field === 'wins') entry.wins += value;
+    out.set(key, entry);
+  };
+
+  for (const [name, counts] of Object.entries(data.champions ?? {})) {
+    bump(name, 'games', counts?.games);
+    bump(name, 'wins', counts?.wins);
+  }
+
+  for (const [key, value] of Object.entries(data)) {
+    const parts = key.split('.');
+    if (parts.length === 3 && parts[0] === 'champions') bump(parts[1], parts[2], value);
+  }
+
+  return out;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -66,13 +104,10 @@ export class ChampionStatsService {
   readonly matches = computed(() => this.raw()?.matches ?? 0);
 
   private readonly byChampion = computed(() => {
-    const champions = this.raw()?.champions ?? {};
     const out = new Map<string, ChampionRate>();
-    for (const [key, value] of Object.entries(champions)) {
-      const games = value?.games ?? 0;
-      const wins = value?.wins ?? 0;
+    for (const [key, { games, wins }] of readCounters(this.raw())) {
       if (games > 0) {
-        out.set(key.toLowerCase(), { games, wins, winRate: Math.round((wins / games) * 1000) / 10 });
+        out.set(key, { games, wins, winRate: Math.round((wins / games) * 1000) / 10 });
       }
     }
     return out;
