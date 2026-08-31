@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { TournamentDraftComponent } from './draft/draft.component';
 import { TournamentPlanComponent } from './plan/plan.component';
 import { TournamentContextService } from './tournament-context.service';
@@ -18,5 +18,12 @@ export class TournamentsComponent {
   protected readonly ctx = inject(TournamentContextService);
   protected readonly champData = inject(ChampionDataService);
 
-  protected readonly view = signal<'plan' | 'draft'>('plan');
+  /**
+   * Held on the context service, not here.
+   *
+   * The draft view links straight to an opponent's prep panel, which lives
+   * on the plan view — so something both of them can see has to own which
+   * one is showing.
+   */
+  protected readonly view = this.ctx.view;
 }

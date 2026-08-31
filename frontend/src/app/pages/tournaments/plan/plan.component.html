@@ -273,8 +273,10 @@
 
           <!-- Opponent-specific prep, kept apart from the per-comp bans. -->
           @if (auth.editing() || series.notes || series.bans?.length) {
-            <details class="series-prep">
-              <summary class="comp-record-head series-prep-head">
+            <details class="series-prep" [attr.data-prep]="series.id"
+                     [open]="isPrepPanelOpen(series.id)">
+              <summary class="comp-record-head series-prep-head"
+                       (click)="$event.preventDefault(); togglePrepPanel(series.id)">
                 <span class="comp-record-title material-symbols-rounded" aria-hidden="true">description</span>
                 <span class="comp-record-label">Prep for this opponent</span>
                 <span class="series-prep-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
@@ -330,7 +332,17 @@
                      to Riot for what those rows play. Numbering them says that
                      without a paragraph of help text, and step two only appears
                      once step one has produced something to scout. -->
-                @if (auth.editing()) {
+                <!-- Once five players are in, step one has done its job. A
+                     full-width textarea asking for the link again would be the
+                     largest thing in a panel whose job is now to show what was
+                     scouted, so it folds behind a line of text. -->
+                @if (auth.editing() && series.opponentPlayers?.length && pasteOpenFor() !== series.id) {
+                  <button type="button" class="link-btn opp-repaste"
+                          (click)="togglePaste(series.id)">
+                    Paste a different link
+                  </button>
+                }
+                @if (auth.editing() && (!series.opponentPlayers?.length || pasteOpenFor() === series.id)) {
                   <label class="field opp-step">
                     <span>
                       <em class="opp-step-n">1</em>

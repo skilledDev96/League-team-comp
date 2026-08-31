@@ -166,6 +166,8 @@ export class TournamentDraftComponent implements OnInit {
   protected readonly poolPressure = (id: string) => this.ctx.poolPressure(id);
   protected readonly burnedBefore = (id: string, n: number) => this.ctx.burnedBefore(id, n);
   protected readonly compChampions = () => this.ctx.compChampions();
+  /** Jump to this opponent's prep panel on the plan view. */
+  protected readonly openPrep = (seriesId: string) => this.ctx.openPrep(seriesId);
 
   private readonly pickedSeriesId = signal<string>('');
   private readonly pickedGameId = signal<string>('');

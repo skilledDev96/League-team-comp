@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AnalysisGame, SeriesGame, TournamentSeries } from '../../../models/team.models';
@@ -58,6 +58,55 @@ export class TournamentPlanComponent {
   protected readonly poolPressure = (id: string) => this.ctx.poolPressure(id);
 
   protected readonly openSeriesId = signal<string>('');
+
+  // ---- Reaching the prep panel -------------------------------------------
+  //
+  // It sat five steps deep: leave the draft, find edit mode, open the series,
+  // scroll, open a second panel. The draft room now links straight to it, and
+  // the panel remembers being open so the trip is not repeated on every visit.
+
+  /** Series whose prep panel is open. Remembered, so it stays where you left it. */
+  private readonly openPrepIds = signal<ReadonlySet<string>>(new Set());
+
+  protected isPrepPanelOpen(id: string): boolean {
+    return this.openPrepIds().has(id);
+  }
+
+  protected togglePrepPanel(id: string): void {
+    const next = new Set(this.openPrepIds());
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.openPrepIds.set(next);
+  }
+
+  constructor() {
+    // Follow a request from the draft view: open the series, open its prep,
+    // and put it on screen. Polled for the element because it does not exist
+    // until the two panels above have rendered.
+    effect(() => {
+      const wanted = this.ctx.prepRequest();
+      if (!wanted) return;
+
+      this.openSeriesId.set(wanted);
+      this.openPrepIds.set(new Set([...this.openPrepIds(), wanted]));
+      this.ctx.prepRequest.set('');
+
+      const started = Date.now();
+      const find = setInterval(() => {
+        const el = document.querySelector(`[data-prep="${wanted}"]`);
+        if (el) {
+          // Instant, not smooth: smooth scrolling needs animation frames and
+          // silently does nothing wherever they are throttled.
+          el.scrollIntoView({ block: 'center', behavior: 'auto' });
+          clearInterval(find);
+        } else if (Date.now() - started > 2000) {
+          clearInterval(find);
+        }
+      }, 60);
+      this.destroyRef.onDestroy(() => clearInterval(find));
+    });
+  }
+
+  private readonly destroyRef = inject(DestroyRef);
 
   protected toggleSeries(id: string): void {
     this.openSeriesId.set(this.openSeriesId() === id ? '' : id);
@@ -213,6 +262,20 @@ export class TournamentPlanComponent {
 
   protected readonly scout = inject(OpponentScoutService);
   protected readonly rosterPaste = signal('');
+
+  /**
+   * Series whose paste box is showing.
+   *
+   * Step one is one-time setup. Once five players are in, a full-width
+   * textarea asking for the link again is the largest thing in a panel whose
+   * job is now to show what was scouted, so it folds away behind a line of
+   * text until somebody actually wants to replace the roster.
+   */
+  protected readonly pasteOpenFor = signal<string>('');
+
+  protected togglePaste(id: string): void {
+    this.pasteOpenFor.set(this.pasteOpenFor() === id ? '' : id);
+  }
 
   protected applyRoster(series: TournamentSeries): void {
     const roster = this.scout.fromPaste(this.rosterPaste(), series.opponentPlayers ?? []);

@@ -126,4 +126,25 @@ export class TournamentContextService {
       blockedSet(this.usedChampions(seriesId))
     );
   }
+
+  // ---- Moving between the two views ---------------------------------------
+
+  /**
+   * Which half of the page is showing.
+   *
+   * Held here rather than in the shell so either view can send you to the
+   * other. Editing an opponent roster used to mean leaving the draft, finding
+   * edit mode, opening the series, scrolling, and opening a second panel — a
+   * five-step trip to a thing the draft room links to directly.
+   */
+  readonly view = signal<'plan' | 'draft'>('plan');
+
+  /** A series whose prep panel should be revealed on the plan view. */
+  readonly prepRequest = signal<string>('');
+
+  /** Go to this opponent's prep, wherever you are now. */
+  openPrep(seriesId: string): void {
+    this.view.set('plan');
+    this.prepRequest.set(seriesId);
+  }
 }

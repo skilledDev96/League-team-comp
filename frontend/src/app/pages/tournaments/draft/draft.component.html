@@ -15,6 +15,14 @@
         vs {{ series.opponent }}
       </h2>
       <span class="draft-page-bo">Bo{{ series.bestOf }}</span>
+      <!-- Straight to their roster. It sat five steps away: leave the draft,
+           find edit mode, open the series, scroll, open a second panel. -->
+      <button type="button" class="link-btn draft-prep-link"
+              [appTip]="'Their roster, target bans and scouting notes'"
+              (click)="openPrep(series.id)">
+        <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
+        Opponent prep
+      </button>
       @if (seriesScore(series.id); as sc) {
         @if (sc.wins + sc.losses) {
           <span class="series-score" [class.is-positive]="sc.wins > sc.losses"

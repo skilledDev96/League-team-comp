@@ -10566,3 +10566,19 @@ body:has(.draft-stage) .edit-mode-frame {
   .opp-row { grid-template-columns: 4.5rem 1fr; }
   .opp-ranks, .opp-positions, .opp-pool { grid-column: 1 / -1; }
 }
+
+/* Straight to the opponent's prep from the draft. It sat five steps away:
+   leave the draft, find edit mode, open the series, scroll, open a panel. */
+.draft-prep-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+
+/* Once a roster exists, asking for the link again is a line of text rather
+   than the largest control in the panel. */
+.opp-repaste {
+  justify-self: start;
+  font-size: 0.78rem;
+}
