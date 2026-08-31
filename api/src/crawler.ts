@@ -149,6 +149,17 @@ export const POOL_LOW_WATER = 40;
 export const IDS_PER_PLAYER = 20;
 
 /**
+ * What a lookup actually returns once the time window has been applied.
+ *
+ * Measured, not assumed: with a fourteen-day window the first runs came back
+ * with the queue empty and a third of the budget unspent, because most ladder
+ * accounts have only a few games in any given fortnight. Planning against the
+ * requested count rather than the delivered one starves the stage that
+ * produces the data.
+ */
+export const EXPECTED_IDS_PER_PLAYER = 6;
+
+/**
  * How far back to collect, in days.
  *
  * "Their last twenty ranked games" is not the same as "twenty recent games" —
@@ -213,7 +224,16 @@ export function planRun(
 
   // Enough lookups to refill the queue, but never more than the pool can serve
   // and never so many that a run buys no matches at all.
-  const wanted = pendingIds < PENDING_LOW_WATER ? Math.ceil((PENDING_LOW_WATER - pendingIds) / IDS_PER_PLAYER) : 0;
+  //
+  // Sized on what a lookup *yields*, not what it asks for. Twenty ids are
+  // requested but the fourteen-day window filters most of them out — a ladder
+  // full of accounts that barely play returns a handful each — so budgeting as
+  // though every player brought twenty left the queue empty and a third of the
+  // run's rate-limit allowance unspent.
+  const wanted =
+    pendingIds < PENDING_LOW_WATER
+      ? Math.ceil((PENDING_LOW_WATER - pendingIds) / EXPECTED_IDS_PER_PLAYER)
+      : 0;
   const idLookups = Math.max(Math.min(wanted, poolSize, Math.floor(left / 2)), 0);
   left -= idLookups;
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   CRAWL_BUDGET,
+  EXPECTED_IDS_PER_PLAYER,
+  PENDING_LOW_WATER,
   CrawledMatch,
   FIRST_CURSOR,
   LadderCursor,
@@ -175,6 +177,13 @@ describe('planRun', () => {
     // A run that fetches no matches produces no data, however empty the queue.
     const plan = planRun(0, 0);
     expect(plan.matchFetches).toBeGreaterThan(0);
+  });
+
+  it('sizes lookups on what they yield, not what they ask for', () => {
+    // Budgeting as though every player returns twenty ids left the queue empty
+    // and a third of the run unspent, because the time window filters most out.
+    const plan = planRun(0, 500);
+    expect(plan.idLookups).toBeGreaterThanOrEqual(Math.ceil(PENDING_LOW_WATER / EXPECTED_IDS_PER_PLAYER));
   });
 
   it('cannot look up more players than it knows about', () => {
