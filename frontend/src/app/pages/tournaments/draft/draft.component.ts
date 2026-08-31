@@ -33,7 +33,8 @@ import {
   currentStanding,
   DraftRead,
   enemyRead,
-  suggestForLane
+  suggestForLane,
+  swingOf
 } from '../draft-advice';
 import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
 import { TournamentContextService } from '../tournament-context.service';
@@ -861,11 +862,16 @@ export class TournamentDraftComponent implements OnInit {
     return 'wr-poor-3';
   }
 
-  /** How a pick would move us, in points, against where we stand. */
-  protected swing(game: SeriesGame, projected: number | undefined): number | undefined {
-    const now = this.standing(game).rate;
-    if (projected === undefined || now === undefined) return undefined;
-    return projected - now;
+  /**
+   * How a pick would move us, in points, against where we stand.
+   *
+   * Takes the whole suggestion rather than just the percentage, because whether
+   * the movement is worth stating depends on how many games are behind it — a
+   * "+25" off two games is a claim the data cannot make. The projection still
+   * shows; only the arrow is withheld.
+   */
+  protected swing(game: SeriesGame, suggestion: ChampionSuggestion): number | undefined {
+    return swingOf(suggestion.projected, this.standing(game).rate, suggestion.games);
   }
   /** What our picks are short of. Empty while there is too little to judge. */
   protected gaps(game: SeriesGame): CompGaps {

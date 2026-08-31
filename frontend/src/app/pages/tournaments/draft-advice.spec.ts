@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { ChampionTraits, Role } from '../../models/team.models';
 import { CompAvailability } from './draft.util';
-import { compGaps, currentStanding, enemyRead, suggestForLane, weightedWinRate } from './draft-advice';
+import {
+  MIN_SWING_GAMES,
+  compGaps,
+  currentStanding,
+  enemyRead,
+  suggestForLane,
+  swingOf,
+  weightedWinRate
+} from './draft-advice';
 
 function comp(over: Partial<CompAvailability> & { id: string; name: string }): CompAvailability {
   return {
@@ -207,5 +215,38 @@ describe('enemyRead', () => {
     const read = enemyRead(many(3, { durability: 0, cc: 0, attack: 'melee' }));
     expect(read.length).toBeGreaterThan(1);
     expect(read.every((r) => r.tone === 'win')).toBe(true);
+  });
+});
+
+describe('swingOf', () => {
+  it('states the movement once there are enough games behind it', () => {
+    expect(swingOf(71, 46, 6)).toBe(25);
+    expect(swingOf(40, 55, 12)).toBe(-15);
+  });
+
+  it('withholds the arrow when the projection rests on too few games', () => {
+    // A "+25" off two games reads as a fact the record cannot support. The
+    // projection still shows; only the movement is held back.
+    expect(swingOf(71, 46, 2)).toBeUndefined();
+    expect(swingOf(71, 46, MIN_SWING_GAMES - 1)).toBeUndefined();
+    expect(swingOf(71, 46, MIN_SWING_GAMES)).toBe(25);
+  });
+
+  it('says nothing when either side of the comparison is missing', () => {
+    expect(swingOf(undefined, 50, 20)).toBeUndefined();
+    expect(swingOf(50, undefined, 20)).toBeUndefined();
+  });
+
+  it('shows no chip for a pick that moves nothing', () => {
+    // A "+0" is noise dressed as information.
+    expect(swingOf(50, 50, 20)).toBeUndefined();
+  });
+
+  it('is stricter than the projection it derives from', () => {
+    // A difference of two uncertain numbers is more uncertain than either, so
+    // a projection can be worth showing when its movement is not.
+    const comps = [{ id: 'a', name: 'A', winRate: 100, games: 2 }];
+    expect(weightedWinRate(comps)).toBe(100);
+    expect(swingOf(100, 50, 2)).toBeUndefined();
   });
 });

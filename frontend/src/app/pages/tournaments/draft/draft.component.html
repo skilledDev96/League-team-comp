@@ -290,7 +290,7 @@
                   @if (a.projected !== undefined) {
                     <span class="draft-confirm-read">
                       <b [class]="winRateBand(a.projected)">{{ a.projected }}%</b>
-                      @if (swing(game, a.projected); as d) {
+                      @if (swing(game, a); as d) {
                         <i [class.is-up]="d > 0" [class.is-down]="d < 0">{{ d > 0 ? '+' : '' }}{{ d }}</i>
                       }
                       <em>{{ a.comps[0].name }} {{ a.comps[0].winRate }}% · {{ a.comps[0].games }}g</em>
@@ -365,7 +365,7 @@
                         @if (s.projected !== undefined) {
                           <span class="advice-proj">
                             <b [class]="winRateBand(s.projected)">{{ s.projected }}%</b>
-                            @if (swing(g, s.projected); as d) {
+                            @if (swing(g, s); as d) {
                               <i [class.is-up]="d > 0" [class.is-down]="d < 0">
                                 {{ d > 0 ? '+' : '' }}{{ d }}
                               </i>

@@ -109,6 +109,35 @@ export function weightedWinRate(comps: readonly CompFit[]): number | undefined {
   return Math.round(total / games);
 }
 
+/**
+ * Games a projection needs behind it before its *movement* is worth showing.
+ *
+ * The projection itself is always honest — it is the record, and it carries its
+ * game count. The swing is a different claim: "+25" reads as this pick being
+ * worth twenty-five points, and off two games it is worth nothing of the sort.
+ * Five is where a comp stops being an anecdote; below it the number is shown
+ * without the arrow rather than hidden, because the record is still the record.
+ */
+export const MIN_SWING_GAMES = 5;
+
+/**
+ * How far a pick would move us, or nothing when the sample cannot carry it.
+ *
+ * Deliberately stricter than the projection it derives from: a difference of
+ * two uncertain numbers is more uncertain than either, and this one is rendered
+ * as a signed chip that invites being read as a fact.
+ */
+export function swingOf(
+  projected: number | undefined,
+  standing: number | undefined,
+  games: number
+): number | undefined {
+  if (projected === undefined || standing === undefined) return undefined;
+  if (games < MIN_SWING_GAMES) return undefined;
+  const delta = projected - standing;
+  return delta === 0 ? undefined : delta;
+}
+
 /** Where we stand now: every comp still reachable, weighted by games played. */
 export function currentStanding(comps: readonly CompAvailability[]): { rate?: number; games: number } {
   const fits = comps
