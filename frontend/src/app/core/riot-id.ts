@@ -35,8 +35,14 @@ const REGION_ALIASES: Record<string, string> = {
 };
 
 function clean(value: string): string {
-  // %23 is a hash that survived a copy from an address bar.
-  return decodeURIComponent(value.trim()).replace(/\s+/g, ' ').trim();
+  // A query string encodes a space as "+", so "MOSS+drakexo" is two words and
+  // not a name with a plus in it. decodeURIComponent does not do this — it is a
+  // rule of the query format, not of percent-encoding — so it happens here or
+  // every scouted name comes out wrong. %23 is a hash that survived a copy from
+  // an address bar.
+  return decodeURIComponent(value.trim().replace(/\+/g, ' '))
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function toId(raw: string, region?: string): RiotId | null {

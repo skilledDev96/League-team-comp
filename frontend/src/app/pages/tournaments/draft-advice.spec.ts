@@ -3,6 +3,7 @@ import { ChampionTraits, Role } from '../../models/team.models';
 import { CompAvailability } from './draft.util';
 import {
   MIN_SWING_GAMES,
+  banSuggestions,
   compGaps,
   compsUsing,
   currentStanding,
@@ -280,5 +281,54 @@ describe('compsUsing', () => {
 
   it('has nothing to say about an empty champion', () => {
     expect(compsUsing('', comps, pick, lanes)).toEqual([]);
+  });
+});
+
+describe('banSuggestions', () => {
+  const roster = [
+    { role: 'Top', bans: ['Darius', 'Fiora'] },
+    { role: 'Mid', bans: ['Darius', 'Ahri'] },
+    { role: 'ADC', bans: ['Ahri'] }
+  ];
+  const all = () => true;
+  const free = () => [];
+
+  it('ranks a champion that beats two of their seats above one that beats one', () => {
+    const out = banSuggestions(roster, all, free);
+    expect(out[0].champion).toBe('Ahri');
+    expect(out[0].beats).toEqual(['Mid', 'ADC']);
+  });
+
+  it('names every seat a champion beat, without repeating one', () => {
+    const twice = [{ role: 'Mid', bans: ['Ahri', 'Ahri'] }];
+    expect(banSuggestions(twice, all, free)[0].beats).toEqual(['Mid']);
+  });
+
+  it('leaves out champions already banned or picked', () => {
+    const out = banSuggestions(roster, (c) => c !== 'Ahri', free);
+    expect(out.map((s) => s.champion)).not.toContain('Ahri');
+  });
+
+  it('carries what the ban would cost us', () => {
+    const costly = banSuggestions(roster, all, (c) => (c === 'Darius' ? ['Engage', 'Dive'] : []));
+    expect(costly.find((s) => s.champion === 'Darius')?.costsUs).toEqual(['Engage', 'Dive']);
+  });
+
+  it('prefers the cheaper ban when two counter the same number of seats', () => {
+    // A ban lasts the whole series under fearless; one that also takes two of
+    // our comps is a worse trade than one that takes none.
+    const out = banSuggestions(
+      [{ role: 'Mid', bans: ['Cheap', 'Costly'] }],
+      all,
+      (c) => (c === 'Costly' ? ['Engage', 'Dive'] : [])
+    );
+    expect(out[0].champion).toBe('Cheap');
+  });
+
+  it('has nothing to say about an unscouted opponent', () => {
+    // Better than inventing a ban list: this is the whole reason it waited for
+    // the roster rather than guessing from our own comps.
+    expect(banSuggestions([], all, free)).toEqual([]);
+    expect(banSuggestions([{ role: 'Mid' }], all, free)).toEqual([]);
   });
 });

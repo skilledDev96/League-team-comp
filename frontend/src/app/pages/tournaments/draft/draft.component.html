@@ -365,6 +365,29 @@
                   <span class="draft-confirm-seat">into {{ seat }}</span>
                 }
                 <!-- What this pick does, at the moment it is worth reading. -->
+                <!-- What has actually beaten the people we are playing. Riot
+                     reports, per player, the champions that beat them in their
+                     own lane in games they lost — so this is a record of that
+                     player losing to that champion, not a guess from the meta. -->
+                @if (step(game)?.action === 'ban' && !pending()) {
+                  @if (banIdeas(game); as ideas) {
+                    @if (ideas.length) {
+                      <span class="draft-ban-ideas">
+                        <span class="draft-ban-ideas-label">Beats them</span>
+                        @for (idea of ideas; track idea.champion) {
+                          <button type="button" class="draft-ban-idea"
+                                  [class.is-costly]="idea.costsUs.length"
+                                  [appTip]="idea.champion + ' beat their ' + idea.beats.join(', ')
+                                    + (idea.costsUs.length ? ' — but it is in our ' + idea.costsUs.join(', ') : '')"
+                                  (click)="proposeFromSequence(idea.champion)">
+                            <img [src]="ui.championIconUrl(idea.champion)" [alt]="" loading="lazy" />
+                            <em>{{ idea.beats.length }}</em>
+                          </button>
+                        }
+                      </span>
+                    }
+                  }
+                }
                 <!-- At ban time the question inverts: not what this helps, but
                      what banning it costs. A ban lasts the whole series under
                      fearless, so banning into our own comps spends one of their

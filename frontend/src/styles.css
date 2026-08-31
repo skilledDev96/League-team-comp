@@ -10196,9 +10196,12 @@ body:has(.draft-stage) .edit-mode-frame {
    the series list stay reachable, so the way out is to pick a different game
    rather than to be stuck. */
 .draft-side-modal {
-  position: absolute;
+  /* Fixed to the viewport, not to the stage. The stage is several screens
+     tall, so centring inside it put the question below the fold — a dialog
+     you have to go looking for is not a dialog. */
+  position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 200;
   display: grid;
   place-items: center;
   background: color-mix(in srgb, var(--surface-0) 82%, transparent);
@@ -10347,4 +10350,53 @@ body:has(.draft-stage) .edit-mode-frame {
   height: 1.5rem;
   border-radius: 0.3rem;
   border: 1px solid var(--card-border);
+}
+
+/* ---- Ban ideas ----------------------------------------------------------
+   What has beaten the people we are playing, in the row where a ban is made.
+   Clicking one holds it for confirmation like any other pick, so the panel is
+   a shortcut and never a decision. */
+.draft-ban-ideas {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.draft-ban-ideas-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.draft-ban-idea {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.3rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.draft-ban-idea img {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.25rem;
+}
+
+.draft-ban-idea em {
+  font-style: normal;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+/* Banning it would take one of our own comps with it — still offered, because
+   that trade is the drafter's call, but never silently. */
+.draft-ban-idea.is-costly {
+  border-color: color-mix(in srgb, var(--warn) 55%, transparent);
 }

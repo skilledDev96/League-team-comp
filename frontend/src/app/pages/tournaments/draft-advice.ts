@@ -304,3 +304,60 @@ export function compsUsing(
     .filter((comp) => lanes.some((lane) => normalizeChampion(championInComp(comp, lane)) === wanted))
     .map((comp) => comp.name);
 }
+
+/** A champion worth banning, and why. */
+export interface BanSuggestion {
+  readonly champion: string;
+  /** Which of their seats this champion beat in lane, e.g. ["Mid", "Top"]. */
+  readonly beats: readonly string[];
+  /** Comps of ours it would take away with it. */
+  readonly costsUs: readonly string[];
+}
+
+/**
+ * What to ban, from what actually beats the people we are playing.
+ *
+ * This is the version that needed the opponent roster. Enrichment reports, for
+ * each of their players, the champions that beat them *in their own lane in
+ * games they lost* — so it is a record of that player losing to that champion,
+ * not a guess from the meta. A champion that shows up against two of their
+ * seats is worth more than one that shows up against a single seat, which is
+ * the ordering here.
+ *
+ * The cost of the ban travels with it. A ban lasts the whole series under
+ * fearless, so one that also takes three of our comps away may be the wrong
+ * trade even when it is a good counter, and that judgement belongs to whoever
+ * is drafting rather than to a sort order.
+ */
+export function banSuggestions(
+  roster: readonly { role: string; bans?: readonly string[] }[],
+  isAvailable: (champion: string) => boolean,
+  costOf: (champion: string) => string[]
+): BanSuggestion[] {
+  const beatsBy = new Map<string, { champion: string; roles: string[] }>();
+
+  for (const player of roster) {
+    for (const champion of player.bans ?? []) {
+      if (!champion || !isAvailable(champion)) continue;
+      const key = normalizeChampion(champion);
+      const entry = beatsBy.get(key) ?? { champion, roles: [] };
+      // One player can lose to the same champion repeatedly; the seat is the
+      // unit here, not the game.
+      if (!entry.roles.includes(player.role)) entry.roles.push(player.role);
+      beatsBy.set(key, entry);
+    }
+  }
+
+  return [...beatsBy.values()]
+    .map((entry) => ({
+      champion: entry.champion,
+      beats: entry.roles,
+      costsUs: costOf(entry.champion)
+    }))
+    .sort(
+      (a, b) =>
+        b.beats.length - a.beats.length ||
+        a.costsUs.length - b.costsUs.length ||
+        a.champion.localeCompare(b.champion)
+    );
+}

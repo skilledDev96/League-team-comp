@@ -29,6 +29,8 @@ import {
   stepAt
 } from '../draft-sequence';
 import {
+  BanSuggestion,
+  banSuggestions,
   ChampionSuggestion,
   CompFit,
   CompGaps,
@@ -696,6 +698,25 @@ export class TournamentDraftComponent implements OnInit {
   protected opponentPool(game: SeriesGame, player: OpponentPlayer): string[] {
     const blocked = blockedSet(this.unavailableFor(game, 'pick'));
     return (player.top3 ?? []).filter((champ) => !blocked.has(normalizeChampion(champ)));
+  }
+
+  /**
+   * What to ban, from what has actually beaten the people we are playing.
+   *
+   * Empty until the opponent is scouted, and deliberately so: this is the panel
+   * that waited for the roster rather than inventing a ban list from our own
+   * comps. Capped at five, because a ban phase is thirty seconds long.
+   */
+  protected banIdeas(game: SeriesGame): BanSuggestion[] {
+    const roster = this.draftSeries()?.opponentPlayers ?? [];
+    if (!roster.length) return [];
+
+    const blocked = blockedSet(this.unavailableFor(game, 'ban'));
+    return banSuggestions(
+      roster,
+      (champ) => !blocked.has(normalizeChampion(champ)),
+      (champ) => this.banCost(game, champ)
+    ).slice(0, 5);
   }
 
   protected step(game: SeriesGame): DraftStep | null {

@@ -67,3 +67,36 @@ describe('formatRiotId', () => {
     expect(parseRiotId(formatRiotId(id))).toEqual(id);
   });
 });
+
+describe('a real op.gg multi-link', () => {
+  // Pasted verbatim from the league's own roster page. Everything awkward about
+  // the format is in here at once: a locale and game segment before the region,
+  // "+" for spaces, %23 for the hash, %2C between players, and non-ASCII names.
+  const LINK =
+    'https://op.gg/sv/lol/multisearch/euw?summoners=MOSS+drakexo%23hwei%2CMOSS+Lilleman%23Mt7%2CMOSS+Träkol%23RÄKa%2CMOSS+St4mpe%23MT7%2CMOSS+Seldurin%23MT7';
+
+  it('reads all five players', () => {
+    expect(parseRiotIds(LINK)).toHaveLength(5);
+  });
+
+  it('turns "+" back into the space it stands for', () => {
+    // A query string encodes a space as "+", and decodeURIComponent does not
+    // undo it — so without this every scouted name is wrong and every lookup
+    // misses.
+    expect(parseRiotIds(LINK).map((id) => id.name)).toEqual([
+      'MOSS drakexo',
+      'MOSS Lilleman',
+      'MOSS Träkol',
+      'MOSS St4mpe',
+      'MOSS Seldurin'
+    ]);
+  });
+
+  it('keeps tags exactly as written, case and accents included', () => {
+    expect(parseRiotIds(LINK).map((id) => id.tag)).toEqual(['hwei', 'Mt7', 'RÄKa', 'MT7', 'MT7']);
+  });
+
+  it('finds the region past the locale and game segments in the path', () => {
+    expect(parseRiotIds(LINK)[0].region).toBe('euw');
+  });
+});
