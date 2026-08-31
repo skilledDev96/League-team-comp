@@ -10562,11 +10562,6 @@ body:has(.draft-stage) .edit-mode-frame {
   opacity: 0.8;
 }
 
-@media (max-width: 900px) {
-  .opp-row { grid-template-columns: 4.5rem 1fr; }
-  .opp-ranks, .opp-positions, .opp-pool { grid-column: 1 / -1; }
-}
-
 /* Straight to the opponent's prep from the draft. It sat five steps away:
    leave the draft, find edit mode, open the series, scroll, open a panel. */
 .draft-prep-link {
@@ -10668,23 +10663,7 @@ body:has(.draft-stage) .edit-mode-frame {
 
 .opp-swapped .material-symbols-rounded { font-size: 0.95rem; }
 
-.opp-row {
-  /* Auto-flow rather than a fixed column count. Each row carries a variable
-     number of parts — ranks, positions, pool, counters, and a swap warning
-     that only some players get — and a fixed grid silently dropped whichever
-     one came last. */
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
 
-.opp-row .opp-name { flex: 1 1 8rem; }
-
-@media (max-width: 1100px) {
-  .opp-row { grid-template-columns: 5.5rem 1fr; }
-  .opp-ranks, .opp-positions, .opp-pool, .opp-counters, .opp-swapped { grid-column: 1 / -1; }
-}
 
 /* A pool that is actually about the seat they hold, rather than their history
    at large. Thinner and far more useful, so it is marked as the better answer. */
@@ -10710,3 +10689,96 @@ body:has(.draft-stage) .edit-mode-frame {
 }
 
 .opp-champ.is-recent { opacity: 0.85; }
+
+/* ---- Their roster, as a table -------------------------------------------
+   Each player carries three champion strips and two ranks. With the labels
+   repeated inline, every row read as eight competing things and none of them
+   said what it was. Naming the columns once lets the rows be nothing but
+   data — which is what a table is for. Header and rows share one grid so the
+   columns actually line up. */
+.opp-table {
+  display: grid;
+  grid-template-columns:
+    minmax(5rem, auto)      /* seat */
+    minmax(9rem, 1.3fr)     /* player */
+    minmax(7rem, auto)      /* rank */
+    minmax(7rem, auto)      /* plays */
+    minmax(6rem, auto)      /* loses to */
+    minmax(8rem, 1fr);      /* lately */
+  gap: 0.15rem 0.75rem;
+  align-items: center;
+
+  /* Six columns need room. Below that the table scrolls inside its own box:
+     min-width here with the scroll on the wrapper, because min-width on a
+     scroll container defeats its own overflow and pushes the page sideways
+     instead — which is what it did. */
+  min-width: 52rem;
+}
+
+.opp-scroll {
+  overflow-x: auto;
+  scrollbar-gutter: stable;
+}
+
+.opp-head,
+.opp-table .opp-row {
+  display: contents;
+}
+
+.opp-head > span {
+  position: sticky;
+  top: 0;
+  padding: 0.2rem 0 0.35rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  opacity: 0.75;
+  border-bottom: 1px solid var(--card-border);
+  cursor: default;
+}
+
+.opp-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0;
+  min-height: 2.4rem;
+}
+
+/* A hairline between players, drawn on the cells since the row is contents. */
+.opp-table .opp-row:not(:last-child) > .opp-cell {
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+}
+
+/* Name over positions: two facts about the same person, not two columns. */
+.opp-who {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+}
+
+.opp-sub {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+/* Ranks stack, so Solo and Flex read as a pair rather than a queue of chips. */
+.opp-ranks {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.opp-rank.is-flex { opacity: 0.85; }
+
+.opp-none {
+  color: var(--text-1);
+  opacity: 0.4;
+}
+
+/* Below this the six columns stop fitting; the table scrolls sideways rather
+   than crushing champion icons into unreadable squares. */

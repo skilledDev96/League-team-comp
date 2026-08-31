@@ -406,106 +406,124 @@
                     </span>
                   </button>
                 }
-                @for (opp of orderedRoster(series); track $index) {
-                  <div class="opp-row">
-                    <!-- Set by hand, never from history. A team that has just
-                         swapped roles looks exactly like a roster pasted in the
-                         wrong order, and only somebody watching them knows
-                         which it is. -->
-                    @if (auth.editing()) {
-                      <select class="opp-role-pick" [ngModel]="opp.role"
-                              (ngModelChange)="setOpponentRole(series, $index, $event)"
-                              [name]="'opprole-' + series.id + '-' + $index"
-                              [attr.aria-label]="'Role for ' + opp.name">
-                        @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }
-                      </select>
-                    } @else {
-                      <span class="opp-role">{{ opp.role }}</span>
-                    }
-                    <span class="opp-name">
-                      {{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
-                    </span>
-                    <!-- Both ladders, labelled. They routinely differ by a tier
-                         or more, and it is flex a team plays together — so one
-                         unlabelled number could be either and misjudge them. -->
-                    <span class="opp-ranks">
-                      @if (opp.soloRank) {
-                        <span class="opp-rank" [appTip]="'Ranked solo/duo' + (opp.soloRecord ? ' — ' + opp.soloRecord : '')">
-                          <em>Solo</em> {{ opp.soloRank }}
-                        </span>
-                      }
-                      @if (opp.flexRank) {
-                        <span class="opp-rank" [appTip]="'Ranked flex, the queue a team plays together' + (opp.flexRecord ? ' — ' + opp.flexRecord : '')">
-                          <em>Flex</em> {{ opp.flexRank }}
-                        </span>
-                      }
-                      @if (!opp.soloRank && !opp.flexRank && opp.rank) {
-                        <span class="opp-rank">{{ opp.rank }}</span>
-                      }
-                    </span>
-                    <!-- Where they actually play, with the games behind it: a
-                         main with a fallback reads differently from a real flex. -->
-                    @if (opp.positions?.length) {
-                      <span class="opp-positions">
-                        @for (p of opp.positions ?? []; track p.role) {
-                          <span class="opp-position"
-                                [appTip]="p.games + ' games as ' + p.role + ' in the scouted sample'">
-                            {{ p.role }} <em>{{ p.games }}</em>
-                          </span>
+                <!-- A table, not five dense rows.
+
+                     Each player carries three separate champion strips and two
+                     ranks, and with the labels repeated inline every row read as
+                     eight competing things. Naming the columns once at the top
+                     lets the rows be nothing but data, which is the whole reason
+                     tables exist. Columns line up because the header and the
+                     rows share one grid. -->
+                <div class="opp-scroll">
+                <div class="opp-table" role="table" aria-label="Their roster">
+                  <div class="opp-head" role="row">
+                    <span role="columnheader">Seat</span>
+                    <span role="columnheader">Player</span>
+                    <span role="columnheader">Rank</span>
+                    <span role="columnheader" [appTip]="'What they play — in this seat where we have games for it, otherwise overall'">Plays</span>
+                    <span role="columnheader" [appTip]="'Champions that beat them in lane, from games they lost'">Loses to</span>
+                    <span role="columnheader" [appTip]="'Everything they have touched in the last two months, newest first'">Lately</span>
+                  </div>
+
+                  @for (opp of orderedRoster(series); track $index) {
+                    <div class="opp-row" role="row">
+                      <!-- Set by hand, never from history. A team that has just
+                           swapped roles looks exactly like a roster pasted in
+                           the wrong order, and only somebody watching them
+                           knows which it is. -->
+                      <span class="opp-cell" role="cell">
+                        @if (auth.editing()) {
+                          <select class="opp-role-pick" [ngModel]="opp.role"
+                                  (ngModelChange)="setOpponentRole(series, $index, $event)"
+                                  [name]="'opprole-' + series.id + '-' + $index"
+                                  [attr.aria-label]="'Seat for ' + opp.name">
+                            @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }
+                          </select>
+                        } @else {
+                          <span class="opp-role">{{ opp.role }}</span>
                         }
                       </span>
-                    }
-                    @if (poolFor(opp).length) {
-                      <span class="opp-pool">
+
+                      <span class="opp-cell opp-who" role="cell">
+                        <span class="opp-name">
+                          {{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
+                        </span>
+                        <!-- Where they actually play, under the name rather than
+                             beside it: a main with a fallback reads differently
+                             from a real flex, and the counts are the difference. -->
+                        <span class="opp-sub">
+                          @for (p of opp.positions ?? []; track p.role) {
+                            <span class="opp-position"
+                                  [appTip]="p.games + ' games as ' + p.role + ' in the scouted sample'">
+                              {{ p.role }} <em>{{ p.games }}</em>
+                            </span>
+                          }
+                          @if (!poolIsForSeat(opp) && playedElsewhere(opp); as was) {
+                            <span class="opp-swapped"
+                                  [appTip]="'Everything on this row comes from their games as ' + was.role + ' — they have no games at ' + opp.role + ' yet'">
+                              <span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span>
+                              from {{ was.role }}
+                            </span>
+                          }
+                        </span>
+                      </span>
+
+                      <!-- Both ladders, stacked. They routinely differ by a tier
+                           or more, and it is flex a team plays together. -->
+                      <span class="opp-cell opp-ranks" role="cell">
+                        @if (opp.soloRank) {
+                          <span class="opp-rank" [appTip]="'Ranked solo/duo' + (opp.soloRecord ? ' — ' + opp.soloRecord : '')">
+                            <em>Solo</em> {{ opp.soloRank }}
+                          </span>
+                        }
+                        @if (opp.flexRank) {
+                          <span class="opp-rank is-flex" [appTip]="'Ranked flex, the queue a team plays together' + (opp.flexRecord ? ' — ' + opp.flexRecord : '')">
+                            <em>Flex</em> {{ opp.flexRank }}
+                          </span>
+                        }
+                        @if (!opp.soloRank && !opp.flexRank && opp.rank) {
+                          <span class="opp-rank">{{ opp.rank }}</span>
+                        }
+                      </span>
+
+                      <span class="opp-cell opp-pool" role="cell">
                         @for (champ of poolFor(opp); track champ) {
                           <img class="opp-champ" [class.is-seat]="poolIsForSeat(opp)"
                                [src]="ui.championIconUrl(champ)" [alt]="champ"
                                [appTip]="champ + (poolIsForSeat(opp) ? ' — plays this at ' + opp.role : ' — one of their most played')" loading="lazy" />
                         }
+                        @if (!poolFor(opp).length) { <span class="opp-none">&mdash;</span> }
                       </span>
-                      <!-- Who beat them in their own lane, in games they lost.
-                           A record of this player losing to this champion, not
-                           a meta guess — which is what makes it a ban list. -->
-                      @if (countersFor(opp).length) {
-                        <span class="opp-counters" [appTip]="'Champions that beat ' + opp.name + ' in lane'">
-                          <em class="opp-counters-label">Loses to</em>
-                          @for (champ of countersFor(opp); track champ) {
-                            <img class="opp-champ is-counter" [class.is-seat]="countersAreForSeat(opp)"
-                                 [src]="ui.championIconUrl(champ)" [alt]="champ"
-                                 [appTip]="champ + ' beat them' + (countersAreForSeat(opp) ? ' at ' + opp.role : ' in lane')" loading="lazy" />
-                          }
-                        </span>
+
+                      <!-- A record of this player losing to this champion, not a
+                           meta guess, which is what makes it a ban list. -->
+                      <span class="opp-cell opp-counters" role="cell">
+                        @for (champ of countersFor(opp); track champ) {
+                          <img class="opp-champ is-counter" [class.is-seat]="countersAreForSeat(opp)"
+                               [src]="ui.championIconUrl(champ)" [alt]="champ"
+                               [appTip]="champ + ' beat them' + (countersAreForSeat(opp) ? ' at ' + opp.role : ' in lane')" loading="lazy" />
+                        }
+                        @if (!countersFor(opp).length) { <span class="opp-none">&mdash;</span> }
+                      </span>
+
+                      <!-- From mastery, so it sees past the match window: a
+                           champion picked up six weeks ago is invisible to the
+                           scan and obvious here. No position attached. -->
+                      <span class="opp-cell opp-recent" role="cell">
+                        @for (champ of opp.recentChampions ?? []; track champ) {
+                          <img class="opp-champ is-recent" [src]="ui.championIconUrl(champ)"
+                               [alt]="champ" [appTip]="champ" loading="lazy" />
+                        }
+                        @if (!opp.recentChampions?.length) { <span class="opp-none">&mdash;</span> }
+                      </span>
+
+                      @if (opp.scoutError) {
+                        <span class="opp-cell opp-error" role="cell">{{ opp.scoutError }}</span>
                       }
-                      <!-- The pool describes whatever role they were playing
-                           then. A career ADC seated at top still lists ADCs:
-                           true, and no longer a prediction. -->
-                      <!-- Everything they have touched in two months, newest
-                           first. The match scan sees a hundred games at most,
-                           so a champion picked up six weeks ago is invisible
-                           to it and obvious here. No position attached. -->
-                      @if (opp.recentChampions?.length) {
-                        <span class="opp-recent" [appTip]="'Played in the last two months, newest first — across all roles'">
-                          <em class="opp-recent-label">Lately</em>
-                          @for (champ of opp.recentChampions ?? []; track champ) {
-                            <img class="opp-champ is-recent" [src]="ui.championIconUrl(champ)"
-                                 [alt]="champ" [appTip]="champ" loading="lazy" />
-                          }
-                        </span>
-                      }
-                      @if (!poolIsForSeat(opp) && playedElsewhere(opp); as was) {
-                        <span class="opp-swapped"
-                              [appTip]="'Everything scouted here — pool and counters — comes from their games as ' + was.role">
-                          <span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span>
-                          scouted as {{ was.role }} ({{ was.games }}g)
-                        </span>
-                      }
-                    } @else if (opp.scoutError) {
-                      <span class="opp-error">{{ opp.scoutError }}</span>
-                    } @else {
-                      <span class="muted opp-error">not scouted yet</span>
-                    }
-                  </div>
-                }
+                    </div>
+                  }
+                </div>
+                </div>
               </div>
 
               @if (auth.editing()) {
