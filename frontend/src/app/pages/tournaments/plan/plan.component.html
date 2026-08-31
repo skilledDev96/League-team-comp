@@ -425,7 +425,7 @@
                     <span role="columnheader" [appTip]="'Everything they have touched in the last two months, newest first'">Lately</span>
                   </div>
 
-                  @for (opp of orderedRoster(series); track $index) {
+                  @for (opp of orderedRoster(series); track opp.name + opp.riotTag) {
                     <div class="opp-row" role="row">
                       <!-- Set by hand, never from history. A team that has just
                            swapped roles looks exactly like a roster pasted in
@@ -434,7 +434,7 @@
                       <span class="opp-cell" role="cell">
                         @if (auth.editing()) {
                           <select class="opp-role-pick" [ngModel]="opp.role"
-                                  (ngModelChange)="setOpponentRole(series, $index, $event)"
+                                  (ngModelChange)="setOpponentRole(series, opp, $event)"
                                   [name]="'opprole-' + series.id + '-' + $index"
                                   [attr.aria-label]="'Seat for ' + opp.name">
                             @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }

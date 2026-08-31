@@ -24,8 +24,11 @@ import {
   LadderCursor,
   collectSince,
   MatchTally,
+  MatchupUpdate,
   Tier,
   ladderPath,
+  matchupDocPath,
+  mergeMatchups,
   mergeTallies,
   nextCursor,
   sampleLadder,
@@ -1804,6 +1807,36 @@ async function fetchLadderPage(
  * matches used to mean a hundred counter writes into the same two or three
  * documents; Firestore bills every one of them.
  */
+/**
+ * Write a run's lane matchups, one document per lane.
+ *
+ * Split by lane rather than one document per patch: three thousand pairings
+ * in a single map would sit near Firestore's per-document index ceiling, and
+ * a lane is the natural cut because nothing ever reads across lanes.
+ *
+ * winsA is from the alphabetically-first champion's side, so both orderings
+ * of a pairing land in one cell instead of two half-filled ones.
+ */
+async function applyMatchups(updates: readonly MatchupUpdate[]): Promise<void> {
+  if (!updates.length) return;
+  const db = getFirestore();
+  await Promise.all(
+    updates.map((update) => {
+      const pairs: Record<string, { games: FieldValue; winsA: FieldValue }> = {};
+      for (const [key, tally] of update.pairs) {
+        pairs[key] = {
+          games: FieldValue.increment(tally.games),
+          winsA: FieldValue.increment(tally.winsA)
+        };
+      }
+      return db.doc(matchupDocPath(update.patch, update.lane)).set(
+        { patch: update.patch, lane: update.lane, pairs },
+        { merge: true }
+      );
+    })
+  );
+}
+
 async function applyBuckets(buckets: readonly BucketUpdate[]): Promise<void> {
   const db = getFirestore();
   await Promise.all(
@@ -1940,6 +1973,7 @@ async function crawlTick(apiKey: string | undefined): Promise<string> {
 
   // One document per bucket for the whole run, rather than three per match.
   await applyBuckets(mergeTallies(collected));
+  await applyMatchups(mergeMatchups(collected));
 
   state.matchesTallied += tallied;
   state.lastRunAt = new Date().toISOString();

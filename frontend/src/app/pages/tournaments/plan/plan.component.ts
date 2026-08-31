@@ -325,11 +325,19 @@ export class TournamentPlanComponent {
    * Swaps rather than overwrites: five players hold five seats, so giving one
    * away has to hand the old seat to whoever had the new one.
    */
-  protected setOpponentRole(series: TournamentSeries, index: number, role: Role): void {
+  protected setOpponentRole(series: TournamentSeries, player: OpponentPlayer, role: Role): void {
     const roster = [...(series.opponentPlayers ?? [])];
+
+    // Found by identity, never by index. The rows are sorted by seat for
+    // display, so the position in the list on screen is not the position in
+    // the stored array — passing the row index moved a *different* player, and
+    // two of them ended up in the same seat with a seat left empty.
+    const index = roster.findIndex((p) => p.name === player.name && p.riotTag === player.riotTag);
     const current = roster[index];
     if (!current || current.role === role) return;
 
+    // Five players hold five seats, so taking one has to hand the old seat to
+    // whoever had it.
     const holder = roster.findIndex((p, i) => i !== index && p.role === role);
     if (holder >= 0) roster[holder] = { ...roster[holder], role: current.role };
     roster[index] = { ...current, role };

@@ -258,11 +258,17 @@ export interface MatchTally {
   readonly patch: string;
   readonly tier: Tier;
   readonly champions: ReadonlyMap<string, ChampionTally>;
+  /** The five lane pairings in this match, for the matchup counters. */
+  readonly matchups: readonly LaneMatchup[];
 }
 
 export interface CrawledParticipant {
   championName: string;
   win: boolean;
+  /** TOP / JUNGLE / MIDDLE / BOTTOM / UTILITY. Needed to pair the two lanes. */
+  teamPosition?: string;
+  /** 100 blue, 200 red — which side, so a lane pairs across and not within. */
+  teamId?: number;
 }
 
 export interface CrawledMatch {
@@ -309,7 +315,7 @@ export function tallyMatch(match: CrawledMatch, tier: Tier): MatchTally | null {
     champions.set(p.championName, tally);
   }
 
-  return { patch: patchOf(info.gameVersion), tier, champions };
+  return { patch: patchOf(info.gameVersion), tier, champions, matchups: laneMatchups(match) };
 }
 
 /** One bucket's worth of increments, ready to write in a single call. */
@@ -376,4 +382,121 @@ export function statsDocPath(patch: string, tier: string): string {
 export function winRateOf(tally: ChampionTally, minGames = 200): number | undefined {
   if (!tally || tally.games < minGames) return undefined;
   return Math.round((tally.wins / tally.games) * 1000) / 10;
+}
+
+// ---------------------------------------------------------------------------
+// Lane matchups
+//
+// Every match already carries five of them — top against top, mid against mid
+// — and the crawler was throwing them away. They cost nothing extra to collect:
+// the match is already fetched and already says who stood in which lane.
+//
+// This is the only route to "if they take Zaahen, is Mordekaiser or Shen
+// better". It needs elapsed time and nothing else, which is exactly why it is
+// worth starting before it is wanted: at roughly 48 games per matchup per day,
+// a common one is three weeks from saying anything, and no amount of effort
+// later buys back a day not collected.
+// ---------------------------------------------------------------------------
+
+/** One lane, one pair, one result. */
+export interface LaneMatchup {
+  readonly lane: string;
+  /** Alphabetically first of the pair, so both orderings land in one cell. */
+  readonly a: string;
+  readonly b: string;
+  /** Whether `a` won. `b` won exactly when this is false. */
+  readonly aWon: boolean;
+}
+
+/**
+ * The five lane pairings in a match.
+ *
+ * A lane counts only when exactly two players claim it, one on each side.
+ * Riot leaves `teamPosition` empty on remakes and the odd malformed game, and a
+ * lane with three claimants or one is not a matchup — recording it anyway would
+ * quietly file a jungler's game under top.
+ */
+export function laneMatchups(match: CrawledMatch): LaneMatchup[] {
+  const byLane = new Map<string, CrawledParticipant[]>();
+  for (const p of match?.info?.participants ?? []) {
+    if (!p?.teamPosition || !p.championName) continue;
+    byLane.set(p.teamPosition, [...(byLane.get(p.teamPosition) ?? []), p]);
+  }
+
+  const out: LaneMatchup[] = [];
+  for (const [lane, players] of byLane) {
+    if (players.length !== 2) continue;
+    const [x, y] = players;
+    if (x.teamId === y.teamId) continue; // Same side is not a matchup.
+
+    // Canonical order, so Ahri-into-Syndra and Syndra-into-Ahri are one cell
+    // rather than two half-filled ones.
+    const [a, b] = x.championName.localeCompare(y.championName) <= 0 ? [x, y] : [y, x];
+    out.push({ lane, a: a.championName, b: b.championName, aWon: a.win });
+  }
+  return out;
+}
+
+/** Games and wins for one pairing, from the first champion's point of view. */
+export interface MatchupTally {
+  games: number;
+  winsA: number;
+}
+
+/**
+ * Firestore path for one lane's matchups in a patch.
+ *
+ * Split by lane rather than one document per patch: three thousand pairings in
+ * a single map would sit near Firestore's per-document index ceiling, and a
+ * lane is the natural cut because nothing ever reads across lanes.
+ */
+export function matchupDocPath(patch: string, lane: string): string {
+  return `matchupStats/${patch}_${lane}`;
+}
+
+/**
+ * The field key for one pairing.
+ *
+ * Champion names carry apostrophes and spaces (Kai'Sa, Dr. Mundo) and a dot
+ * would split the Firestore field path, so keys are letters and digits only —
+ * the same rule the champion counters use.
+ */
+export function matchupKey(a: string, b: string): string {
+  const clean = (name: string) => name.replace(/[^A-Za-z0-9]/g, '');
+  return `${clean(a)}_${clean(b)}`;
+}
+
+/** One lane document's worth of matchup increments. */
+export interface MatchupUpdate {
+  readonly patch: string;
+  readonly lane: string;
+  readonly pairs: ReadonlyMap<string, MatchupTally>;
+}
+
+/**
+ * Fold a run's lane pairings into one update per lane, the way the champion
+ * counters already fold into one per bucket.
+ *
+ * Fifty matches produce two hundred and fifty pairings across five lanes, and
+ * writing each on its own would spend two hundred and fifty documents on
+ * something five can carry. Increments commute, so summing first is exactly
+ * equivalent.
+ */
+export function mergeMatchups(tallies: readonly MatchTally[]): MatchupUpdate[] {
+  const lanes = new Map<string, { patch: string; lane: string; pairs: Map<string, MatchupTally> }>();
+
+  for (const tally of tallies) {
+    for (const m of tally.matchups) {
+      const path = `${tally.patch}_${m.lane}`;
+      const bucket = lanes.get(path) ?? { patch: tally.patch, lane: m.lane, pairs: new Map() };
+      const key = matchupKey(m.a, m.b);
+      const running = bucket.pairs.get(key) ?? { games: 0, winsA: 0 };
+      running.games += 1;
+      if (m.aWon) running.winsA += 1;
+      bucket.pairs.set(key, running);
+      lanes.set(path, bucket);
+    }
+  }
+
+  return [...lanes.values()];
 }

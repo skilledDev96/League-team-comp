@@ -10,7 +10,10 @@ import {
   ENTRIES_PER_PAGE,
   divisionsFor,
   isApex,
+  laneMatchups,
   ladderPath,
+  matchupKey,
+  mergeMatchups,
   mergeTallies,
   sampleLadder,
   nextCursor,
@@ -330,5 +333,108 @@ describe('mergeTallies', () => {
 
   it('has nothing to write for a run that tallied nothing', () => {
     expect(mergeTallies([])).toEqual([]);
+  });
+});
+
+describe('laneMatchups', () => {
+  const lanes = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
+  const full = (over: Partial<Record<string, unknown>> = {}) => ({
+    info: {
+      gameVersion: '15.17.704.1234', gameDuration: 1800, queueId: 420,
+      participants: [
+        ...lanes.map((teamPosition, i) => ({ championName: `Blue${i}`, win: true, teamPosition, teamId: 100 })),
+        ...lanes.map((teamPosition, i) => ({ championName: `Red${i}`, win: false, teamPosition, teamId: 200 }))
+      ],
+      ...over
+    }
+  }) as CrawledMatch;
+
+  it('finds one pairing per lane', () => {
+    expect(laneMatchups(full())).toHaveLength(5);
+  });
+
+  it('pairs across sides, never within one', () => {
+    for (const m of laneMatchups(full())) {
+      expect([m.a, m.b].some((c) => c.startsWith('Blue'))).toBe(true);
+      expect([m.a, m.b].some((c) => c.startsWith('Red'))).toBe(true);
+    }
+  });
+
+  it('orders the pair alphabetically, so both orderings are one cell', () => {
+    // Otherwise Ahri-into-Syndra and Syndra-into-Ahri fill two half-empty cells.
+    for (const m of laneMatchups(full())) expect(m.a.localeCompare(m.b)).toBeLessThanOrEqual(0);
+  });
+
+  it('records which side of the pair won', () => {
+    const mid = laneMatchups(full()).find((m) => m.lane === 'MIDDLE')!;
+    // Blue won this game, so aWon is true exactly when a is the blue champion.
+    expect(mid.aWon).toBe(mid.a.startsWith('Blue'));
+  });
+
+  it('skips a lane that is not exactly two players', () => {
+    // Riot leaves teamPosition empty on remakes; a lane with one or three
+    // claimants is not a matchup, and filing it anyway puts a jungler at top.
+    const odd = full();
+    odd.info.participants = odd.info.participants.filter((p) => p.teamPosition !== 'TOP');
+    expect(laneMatchups(odd).some((m) => m.lane === 'TOP')).toBe(false);
+    expect(laneMatchups(odd)).toHaveLength(4);
+  });
+
+  it('skips two players on the same side in one lane', () => {
+    const odd = full();
+    odd.info.participants = odd.info.participants.map((p) =>
+      p.teamPosition === 'JUNGLE' ? { ...p, teamId: 100 } : p
+    );
+    expect(laneMatchups(odd).some((m) => m.lane === 'JUNGLE')).toBe(false);
+  });
+
+  it('ignores participants with no position at all', () => {
+    const odd = full();
+    odd.info.participants = odd.info.participants.map((p) => ({ ...p, teamPosition: '' }));
+    expect(laneMatchups(odd)).toEqual([]);
+  });
+});
+
+describe('matchupKey', () => {
+  it('strips punctuation, since a dot would split the Firestore field path', () => {
+    expect(matchupKey("Kai'Sa", 'Dr. Mundo')).toBe('KaiSa_DrMundo');
+  });
+});
+
+describe('mergeMatchups', () => {
+  const tally = (patch: string, matchups: { lane: string; a: string; b: string; aWon: boolean }[]) =>
+    ({ patch, tier: 'GOLD' as const, champions: new Map(), matchups });
+
+  it('folds a run into one update per lane', () => {
+    // Fifty matches make 250 pairings across five lanes; five documents carry
+    // what 250 writes otherwise would.
+    const runs = Array.from({ length: 50 }, () =>
+      tally('16.17', [{ lane: 'MIDDLE', a: 'Ahri', b: 'Syndra', aWon: true }])
+    );
+    const merged = mergeMatchups(runs);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].pairs.get('Ahri_Syndra')).toEqual({ games: 50, winsA: 50 });
+  });
+
+  it('counts wins for the first champion only', () => {
+    const merged = mergeMatchups([
+      tally('16.17', [{ lane: 'MIDDLE', a: 'Ahri', b: 'Syndra', aWon: true }]),
+      tally('16.17', [{ lane: 'MIDDLE', a: 'Ahri', b: 'Syndra', aWon: false }])
+    ]);
+    expect(merged[0].pairs.get('Ahri_Syndra')).toEqual({ games: 2, winsA: 1 });
+  });
+
+  it('keeps lanes and patches apart', () => {
+    const merged = mergeMatchups([
+      tally('16.17', [{ lane: 'MIDDLE', a: 'Ahri', b: 'Syndra', aWon: true }]),
+      tally('16.17', [{ lane: 'TOP', a: 'Ahri', b: 'Syndra', aWon: true }]),
+      tally('16.16', [{ lane: 'MIDDLE', a: 'Ahri', b: 'Syndra', aWon: true }])
+    ]);
+    expect(merged).toHaveLength(3);
+  });
+
+  it('has nothing to write for a run with no pairings', () => {
+    expect(mergeMatchups([])).toEqual([]);
+    expect(mergeMatchups([tally('16.17', [])])).toEqual([]);
   });
 });
