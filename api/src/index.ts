@@ -1804,14 +1804,27 @@ export const crawlChampionStats = onSchedule(
 /**
  * Manual tick, for watching one run without waiting for the schedule.
  *
- * Honours the same flag, so this cannot be used to sidestep it — the point of
- * the switch is that collection starts deliberately.
+ * `?enable=true` / `?enable=false` moves the switch as well, because setting a
+ * typed boolean in the Firestore console is fiddly enough to get wrong twice —
+ * the string "true" looks identical to the boolean in the list view and reads
+ * as enabled while being neither. Starting collection is still a deliberate
+ * act; it just no longer needs the console.
+ *
+ * The reply always states the flag, so "is it running" is never a guess.
  */
 export const crawlOnce = onRequest(
   { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 120 },
-  async (_req, res) => {
+  async (req, res) => {
     try {
-      res.json({ ok: true, note: await crawlTick(RIOT_API_KEY.value()) });
+      const wanted = String(req.query.enable ?? '').toLowerCase();
+      if (wanted === 'true' || wanted === 'false') {
+        await getFirestore()
+          .doc(CRAWL_STATE_DOC)
+          .set({ enabled: wanted === 'true' }, { merge: true });
+      }
+      const note = await crawlTick(RIOT_API_KEY.value());
+      const after = (await getFirestore().doc(CRAWL_STATE_DOC).get()).data() as CrawlState | undefined;
+      res.json({ ok: true, enabled: after?.enabled === true, note, tallied: after?.matchesTallied ?? 0 });
     } catch (err) {
       res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'crawl failed' });
     }
