@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { retryDelayMs, riotError } from './riot-errors';
@@ -13,6 +13,22 @@ import { killParticipation, tallyKills } from './fights';
 import { summarizeMatches } from './match-stats';
 import { classifyArchetype, describePlayer } from './insights';
 import { CACHE_VERSION, isCacheCurrent, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
+import { cachedToMatch, planSample } from './enrich-sample';
+import {
+  CRAWL_QUEUE,
+  CrawledMatch,
+  FIRST_CURSOR,
+  IDS_PER_PLAYER,
+  LadderCursor,
+  MatchTally,
+  Tier,
+  ladderPath,
+  nextCursor,
+  sampleLadder,
+  planRun,
+  statsDocPath,
+  tallyMatch
+} from './crawler';
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
 import { ChampionTraits, toTraits } from './champion-traits';
 import { BUILD_SHA } from './build-info';
@@ -278,6 +294,10 @@ interface MatchStats {
   avgTankShare: number;
   avgBuildingDamage: number;
   avgVisionScore: number;
+  /** Games behind the vision average — below `games` while cache v4 backfills. */
+  visionSamples?: number;
+  /** Games behind the building-damage average, likewise. */
+  buildingSamples?: number;
   playstyle: string;
   strengths: string[];
   weaknesses: string[];
@@ -365,6 +385,46 @@ interface RiotMatch {
   };
 }
 
+/**
+ * How far back enrichment looks per queue.
+ *
+ * The old sample was twelve, because twelve was twelve Riot calls. Reading
+ * the cache first decouples the two: the id list costs one call at any
+ * length, and every id already cached is free.
+ *
+ * A hundred is Riot's own ceiling for a single ids request — 'Valid values: 0
+ * to 100' — so this is as wide as one call reaches. Going further would mean
+ * paging, another call per hundred, for games old enough that they describe a
+ * different player. What it does *not* change is the Riot budget: misses are
+ * capped separately by MAX_ENRICH_FETCHES, so a wider window costs Firestore
+ * reads and nothing else.
+ */
+const ENRICH_SAMPLE_SIZE = 100;
+
+/**
+ * Read many cache entries at once.
+ *
+ * One `getAll` rather than a read per id: the whole point of going to the
+ * cache is that it is cheaper than Riot, and forty sequential document reads
+ * would give most of that back in latency.
+ */
+async function readCachedMatches(ids: readonly string[]): Promise<Map<string, CachedMatch | undefined>> {
+  const found = new Map<string, CachedMatch | undefined>();
+  if (ids.length === 0) return found;
+
+  const db = getFirestore();
+  try {
+    const snaps = await db.getAll(...ids.map((id) => db.doc(`matchCache/${id}`)));
+    for (const snap of snaps) {
+      if (snap.exists) found.set(snap.id, snap.data() as CachedMatch);
+    }
+  } catch {
+    // A cache read failing is not a reason to fail enrichment — it just means
+    // every id looks uncached, and the Riot budget covers the sample instead.
+  }
+  return found;
+}
+
 async function fetchRiotQueueEnrichment(
   payload: EnrichRequest,
   apiKey: string,
@@ -398,29 +458,33 @@ async function fetchRiotQueueEnrichment(
     ? rankedEntries.find((entry) => entry.queueType === rankedQueueType)
     : undefined;
 
+  // Ask for a wide window: the id list is one call whatever its length, and
+  // most of what comes back may already be in the cache.
   const matchIds = await riotFetch<string[]>(
-    `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${account.puuid}/ids?queue=${queueId}&start=0&count=15`,
+    `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${account.puuid}/ids?queue=${queueId}&start=0&count=${ENRICH_SAMPLE_SIZE}`,
     apiKey
   );
 
-  const matches: RiotMatch[] = [];
-  for (const matchId of matchIds.slice(0, 12)) {
+  // Everything the comp analysis has already paid for, read in one batch.
+  const plan = planSample(matchIds, await readCachedMatches(matchIds));
+  const gathered: CachedMatch[] = [...plan.usable];
+
+  for (const matchId of plan.toFetch) {
     try {
-      const match = await riotFetch<RiotMatch>(
-        `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/${matchId}`,
-        apiKey
-      );
-      matches.push(match);
+      // Writes through to matchCache, so the next run over this player — and
+      // the comp analysis, if it is a team game — gets it for nothing.
+      const result = await getCachedMatch(matchId, routing.regional, apiKey, true);
+      if (result) gathered.push(result.match);
     } catch {
       // Skip individual match failures (e.g. remake/rate limit) without failing the whole request.
     }
   }
 
-  if (matches.length === 0) {
+  if (gathered.length === 0) {
     throw new Error('No recent ranked/normal match history found for this Riot ID.');
   }
 
-  const summary = summarizeMatches(matches, account.puuid, displayChampionName);
+  const summary = summarizeMatches(gathered.map(cachedToMatch), account.puuid, displayChampionName);
   if (!summary) {
     throw new Error('No recent ranked/normal match history found for this Riot ID.');
   }
@@ -437,7 +501,9 @@ async function fetchRiotQueueEnrichment(
     avgDamageShare,
     avgTankShare,
     avgBuildingDamage,
-    avgVisionScore
+    avgVisionScore,
+    visionSamples,
+    buildingSamples
   } = summary;
   const totalWins = summary.wins;
 
@@ -501,6 +567,8 @@ async function fetchRiotQueueEnrichment(
         avgTankShare,
         avgBuildingDamage,
         avgVisionScore,
+        visionSamples,
+        buildingSamples,
         playstyle: archetype,
         strengths: strengths.slice(0, 3),
         weaknesses: weaknesses.slice(0, 3),
@@ -821,6 +889,14 @@ interface AnalysisPlayerResponse {
   damageTaken?: number;
   /** Seconds spent crowd-controlling opponents. Absent below cache v3. */
   ccTime?: number;
+  /**
+   * Absent below cache v4. Stored so player enrichment can read its sample
+   * from here rather than spending a Riot call per match; anything averaging
+   * it must count its own sample, because missing is not zero.
+   */
+  visionScore?: number;
+  /** Absent below cache v4, and for the same reason. */
+  buildingDamage?: number;
 }
 
 interface AnalysisGameResponse {
@@ -985,7 +1061,9 @@ async function getCachedMatch(
       cs: p.totalMinionsKilled + p.neutralMinionsKilled,
       damage: p.totalDamageDealtToChampions,
       damageTaken: p.totalDamageTaken ?? 0,
-      ccTime: p.timeCCingOthers ?? 0
+      ccTime: p.timeCCingOthers ?? 0,
+      visionScore: p.visionScore ?? 0,
+      buildingDamage: p.damageDealtToBuildings ?? 0
     }))
   };
   await ref.set(match);
@@ -1510,6 +1588,272 @@ export const syncChampionTraits = onRequest(
       res.json({ ok: true, champions: count });
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Sync failed.' });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Champion win rates by rank, collected two minutes at a time.
+//
+// A proof of concept for a Production key application, and useful on its own:
+// the draft room currently cannot quote an external win rate at all, because
+// 159 games do not support one. See `crawler.ts` for the reasoning and the
+// approved-use-case clause this is built against.
+// ---------------------------------------------------------------------------
+
+/** The one region we collect. Their meta is ours; other regions would dilute it. */
+const CRAWL_REGION = 'euw';
+
+interface CrawlState {
+  /**
+   * Off until switched on by hand.
+   *
+   * Deploying this must not start a perpetual job against the Riot key. The
+   * crawler shares its rate limit with every interactive refresh on the site,
+   * and on a Personal key the approved use is a proof of concept, not a
+   * pipeline left running — so starting it is a decision, taken once, with
+   * somebody watching.
+   */
+  enabled?: boolean;
+  cursor: LadderCursor;
+  /** Players we know of, with the rank of the page they came from. */
+  pool: { puuid: string; tier: Tier }[];
+  /** Match ids waiting to be fetched, with the tier to file them under. */
+  pending: { id: string; tier: Tier }[];
+  matchesTallied: number;
+  lastRunAt: string;
+  lastNote: string;
+}
+
+const CRAWL_STATE_DOC = 'crawlState/championStats';
+/**
+ * How long a seen-marker has to live.
+ *
+ * It only has to outlast its own patch, because the counters it protects are
+ * bucketed per patch and a duplicate counted into a later bucket is a new
+ * game as far as that bucket is concerned. Three weeks covers a two-week
+ * patch with room either side. Without a TTL this collection grows by about
+ * 33,000 documents a day and never stops.
+ */
+const SEEN_TTL_DAYS = 21;
+/** Caps on the two queues, so the state document cannot grow without bound. */
+const MAX_POOL = 4000;
+const MAX_PENDING = 4000;
+
+function emptyCrawlState(): CrawlState {
+  return {
+    // Written explicitly, never left undefined. A state document that omits
+    // the one field it exists to hold is a switch with no switch on it.
+    enabled: false,
+    cursor: FIRST_CURSOR,
+    pool: [],
+    pending: [],
+    matchesTallied: 0,
+    lastRunAt: '',
+    lastNote: 'not started'
+  };
+}
+
+/**
+ * One page of a ranked ladder, as players we can crawl.
+ *
+ * Riot has been moving every endpoint from summoner ids to puuids, and this one
+ * has carried both at different times, so take whichever is present rather than
+ * assuming. An entry with neither is skipped: resolving it would cost a request
+ * each, which is the budget this whole design exists to protect.
+ */
+async function fetchLadderPage(
+  cursor: LadderCursor,
+  apiKey: string
+): Promise<{ puuid: string; tier: Tier }[]> {
+  const routing = REGION_ROUTING[CRAWL_REGION];
+  const body = await riotFetch<unknown>(
+    `https://${routing.platform}.api.riotgames.com${ladderPath(cursor)}`,
+    apiKey
+  );
+
+  // /entries answers with a bare array; the apex ladders wrap theirs in a
+  // league object. Both carry a puuid per entry, which is the only field used.
+  const entries = Array.isArray(body) ? body : (body as { entries?: unknown[] })?.entries;
+
+  // An apex ladder arrives whole, so it is cut to a page's worth before seeding.
+  return sampleLadder(Array.isArray(entries) ? entries : [], cursor)
+    .map((e) => (e as { puuid?: string })?.puuid)
+    .filter((p): p is string => typeof p === 'string' && p.length > 0)
+    .map((puuid) => ({ puuid, tier: cursor.tier }));
+}
+
+/**
+ * Add a match's champions to its patch-and-tier bucket.
+ *
+ * `FieldValue.increment` rather than read-modify-write: the counters are the
+ * only thing this crawler produces, and a lost update is a game that silently
+ * never happened.
+ */
+async function applyTally(tally: MatchTally): Promise<void> {
+  const updates: Record<string, FieldValue> = {};
+  for (const [champion, counts] of tally.champions) {
+    // Champion names can carry an apostrophe (Kai'Sa); dots would nest them.
+    const key = champion.replace(/[^A-Za-z0-9]/g, '');
+    updates[`champions.${key}.games`] = FieldValue.increment(counts.games);
+    updates[`champions.${key}.wins`] = FieldValue.increment(counts.wins);
+  }
+  updates['matches'] = FieldValue.increment(1);
+  await getFirestore()
+    .doc(statsDocPath(tally.patch, tally.tier))
+    .set({ patch: tally.patch, tier: tally.tier, ...updates }, { merge: true });
+}
+
+/**
+ * One crawl tick.
+ *
+ * Deliberately not transactional across the whole run: a run that fails halfway
+ * has still banked the matches it tallied, and the seen-marker means the next
+ * run does not recount them. Losing a few queued ids costs one request each.
+ */
+async function crawlTick(apiKey: string | undefined): Promise<string> {
+  if (!apiKey) return 'no key configured';
+
+  const db = getFirestore();
+  const stateRef = db.doc(CRAWL_STATE_DOC);
+  const snap = await stateRef.get();
+  const state: CrawlState = snap.exists
+    ? { ...emptyCrawlState(), ...(snap.data() as Partial<CrawlState>) }
+    : emptyCrawlState();
+
+  if (!state.enabled) {
+    // Write the document on first sight even though nothing else runs. The
+    // switch has to exist somewhere a person can flip it, and expecting anyone
+    // to hand-create a collection, a document id and a typed boolean in the
+    // Firestore console is a worse first step than one wasted write.
+    if (!snap.exists || typeof (snap.data() as CrawlState).enabled !== 'boolean') {
+      await stateRef.set({ enabled: false }, { merge: true });
+    }
+    return 'disabled — set crawlState/championStats.enabled to true to start';
+  }
+
+  const plan = planRun(state.pending.length, state.pool.length);
+  const routing = REGION_ROUTING[CRAWL_REGION];
+  let tallied = 0;
+  let skipped = 0;
+
+  // 1. Players, when we are short of them.
+  for (let i = 0; i < plan.ladderPages; i += 1) {
+    try {
+      const page = await fetchLadderPage(state.cursor, apiKey);
+      state.pool = [...state.pool, ...page].slice(-MAX_POOL);
+    } catch {
+      // A bad page should not stall the walk; move past it.
+    }
+    state.cursor = nextCursor(state.cursor);
+  }
+
+  // 2. Match ids, when the queue is running dry.
+  for (let i = 0; i < plan.idLookups && state.pool.length > 0; i += 1) {
+    const player = state.pool.shift()!;
+    try {
+      const ids = await riotFetch<string[]>(
+        `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${player.puuid}/ids?queue=${CRAWL_QUEUE}&start=0&count=${IDS_PER_PLAYER}`,
+        apiKey
+      );
+      const fresh = (Array.isArray(ids) ? ids : []).map((id) => ({ id, tier: player.tier }));
+      state.pending = [...state.pending, ...fresh].slice(0, MAX_PENDING);
+    } catch {
+      // Drop this player rather than retrying; there are millions more.
+    }
+  }
+
+  // 3. Matches, which is the only stage that produces data.
+  //
+  // The budget counts *Riot* requests, so an id already seen does not spend
+  // one — it costs a Firestore read and moves on. Counting skips against the
+  // budget meant a run could return having used a fraction of its rate-limit
+  // allowance, and the more matches we collect the more often that happens,
+  // because duplicates rise as the crawl deepens. `reads` caps the Firestore
+  // side so a queue full of duplicates cannot spin the whole timeout away.
+  let fetches = 0;
+  let reads = 0;
+  const maxReads = plan.matchFetches * 8;
+  while (fetches < plan.matchFetches && reads < maxReads && state.pending.length > 0) {
+    const next = state.pending.shift()!;
+    const seenRef = db.doc(`crawlSeen/${next.id}`);
+    reads += 1;
+    try {
+      // A five-stack appears in five players' histories; without this marker
+      // its champions would be counted five times over.
+      if ((await seenRef.get()).exists) {
+        skipped += 1;
+        continue;
+      }
+      const raw = await riotFetch<CrawledMatch>(
+        `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/${next.id}`,
+        apiKey
+      );
+      fetches += 1;
+      const tally = tallyMatch(raw, next.tier);
+      if (tally) {
+        await applyTally(tally);
+        tallied += 1;
+      }
+      // Marked either way: a remake stays a remake, and re-fetching one to
+      // reject it again is a wasted request every run forever. `expireAt` is
+      // what the TTL policy deletes on — a marker only has to outlive its own
+      // patch, since the counters it protects are bucketed per patch.
+      await seenRef.set({
+        patch: tally?.patch ?? 'skipped',
+        expireAt: Timestamp.fromMillis(Date.now() + SEEN_TTL_DAYS * 24 * 60 * 60 * 1000)
+      });
+    } catch {
+      // Leave it unmarked so a later run can retry it.
+    }
+  }
+
+  state.matchesTallied += tallied;
+  state.lastRunAt = new Date().toISOString();
+  state.lastNote = `+${tallied} tallied, ${skipped} already seen, ${state.pending.length} queued, ${state.pool.length} players`;
+  await stateRef.set(state);
+  return state.lastNote;
+}
+
+/**
+ * Runs on a schedule rather than on demand, because the point is the slow
+ * accumulation. Two minutes matches the rate-limit window, so each run gets a
+ * fresh allowance and never borrows from the next.
+ */
+export const crawlChampionStats = onSchedule(
+  { schedule: 'every 2 minutes', secrets: [RIOT_API_KEY], timeoutSeconds: 110 },
+  async () => {
+    const note = await crawlTick(RIOT_API_KEY.value());
+    console.log(`crawlChampionStats: ${note}`);
+  }
+);
+
+/**
+ * Manual tick, for watching one run without waiting for the schedule.
+ *
+ * `?enable=true` / `?enable=false` moves the switch as well, because setting a
+ * typed boolean in the Firestore console is fiddly enough to get wrong twice —
+ * the string "true" looks identical to the boolean in the list view and reads
+ * as enabled while being neither. Starting collection is still a deliberate
+ * act; it just no longer needs the console.
+ *
+ * The reply always states the flag, so "is it running" is never a guess.
+ */
+export const crawlOnce = onRequest(
+  { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 120 },
+  async (req, res) => {
+    try {
+      const wanted = String(req.query.enable ?? '').toLowerCase();
+      if (wanted === 'true' || wanted === 'false') {
+        await getFirestore()
+          .doc(CRAWL_STATE_DOC)
+          .set({ enabled: wanted === 'true' }, { merge: true });
+      }
+      const note = await crawlTick(RIOT_API_KEY.value());
+      const after = (await getFirestore().doc(CRAWL_STATE_DOC).get()).data() as CrawlState | undefined;
+      res.json({ ok: true, enabled: after?.enabled === true, note, tallied: after?.matchesTallied ?? 0 });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'crawl failed' });
     }
   }
 );

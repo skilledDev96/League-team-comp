@@ -170,6 +170,31 @@ run — so the field is *absent* on some matches for several refreshes, and any 
 over it has to say so rather than render a zero. Riot rate limits hard; that
 budget is the reason the cache exists at all.
 
+**`matchCache` is shared, and player enrichment reads it before Riot.**
+`enrichPlayer` used to read a fixed twelve matches per queue because each was a
+Riot call. It now asks for `ENRICH_SAMPLE_SIZE` (40) match ids — one call at any
+length — reads them from `matchCache` in a single `getAll`, and spends Riot
+calls only on the ids that miss, capped at `MAX_ENRICH_FETCHES` (12, the old
+sample size, so a cold cache is never worse than before). Everything fetched is
+written back through `getCachedMatch`, so a second run over the same player is
+cheaper than the first.
+
+The cache only covers `TEAM_QUEUES` (440 flex, 700 clash), so **solo queue
+starts cold** and warms as enrichment runs; flex — the queue
+`fetchRiotEnrichment` treats as primary — is warm from the comp analysis. The
+split of cached-versus-fetch lives in `api/src/enrich-sample.ts` (`planSample`,
+`cachedToMatch`) and is tested there.
+
+`planSample` deliberately accepts a **stale** entry rather than re-fetching it:
+a v3 entry lacks vision and building damage but still carries the champion, the
+kills and the result, and spending the budget to complete two averages would
+cost the extra games that are the point of the change. Consequently
+`summarizeMatches` counts a **separate sample per metric** — `visionSamples`,
+`buildingSamples`, `csSamples` — because during a backfill a missing number is
+genuinely unknown, and averaging it in as a zero reads as a player who stopped
+warding. A cached entry with no `durationSec` is likewise left out of CS per
+minute instead of being treated as a one-minute game.
+
 **Which comp a game counts as** is decided in `api/src/comp-attribution.ts`, not
 by the champion matcher alone. Two human corrections sit on top of `matchComp`:
 

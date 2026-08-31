@@ -68,6 +68,21 @@ export class PlayerProfileComponent {
     if (!second) return first;
     const totalGames = first.games + second.games;
     const weighted = (a: number, b: number): number => (a * first.games + b * second.games) / totalGames;
+
+    // Vision and building damage can rest on fewer games than the queue played,
+    // while cache v4 backfills. Weighting them by `games` would let a queue with
+    // no numbers at all pull the other one towards zero, so they are weighted by
+    // their own samples and fall back to the game count when those are absent.
+    const bySample = (
+      a: number,
+      b: number,
+      firstN = first.games,
+      secondN = second.games
+    ): number => (firstN + secondN > 0 ? (a * firstN + b * secondN) / (firstN + secondN) : 0);
+    const visionA = first.visionSamples ?? first.games;
+    const visionB = second.visionSamples ?? second.games;
+    const buildA = first.buildingSamples ?? first.games;
+    const buildB = second.buildingSamples ?? second.games;
     return {
       games: totalGames,
       wins: first.wins + second.wins,
@@ -81,8 +96,10 @@ export class PlayerProfileComponent {
       avgKillParticipation: weighted(first.avgKillParticipation, second.avgKillParticipation),
       avgDamageShare: weighted(first.avgDamageShare, second.avgDamageShare),
       avgTankShare: weighted(first.avgTankShare, second.avgTankShare),
-      avgBuildingDamage: weighted(first.avgBuildingDamage, second.avgBuildingDamage),
-      avgVisionScore: weighted(first.avgVisionScore, second.avgVisionScore),
+      avgBuildingDamage: bySample(first.avgBuildingDamage, second.avgBuildingDamage, buildA, buildB),
+      avgVisionScore: bySample(first.avgVisionScore, second.avgVisionScore, visionA, visionB),
+      visionSamples: visionA + visionB,
+      buildingSamples: buildA + buildB,
       playstyle: 'Combined ranked performance',
       strengths: [...new Set([...first.strengths, ...second.strengths])].slice(0, 3),
       weaknesses: [...new Set([...first.weaknesses, ...second.weaknesses])].slice(0, 3),

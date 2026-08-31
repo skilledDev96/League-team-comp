@@ -46,6 +46,25 @@ export class TeamProfilesComponent {
     });
   });
 
+  /**
+   * Games actually behind the vision average.
+   *
+   * Absent means the stats were enriched before the count existed, so the game
+   * count is the honest answer. Zero means the window genuinely carried no
+   * vision score — a cache v4 backfill still working through — and the column
+   * shows a dash, because a confident 0 reads as a player who never wards.
+   */
+  protected visionSample(m: QueueMatchStats): number {
+    return m.visionSamples ?? m.games;
+  }
+
+  protected visionNote(m: QueueMatchStats): string {
+    const n = this.visionSample(m);
+    if (!n) return 'No vision score recorded in this sample yet; it fills in as matches refresh.';
+    if (n < m.games) return `Vision score over the ${n} of ${m.games} games that recorded one.`;
+    return `Average vision score over ${n} games.`;
+  }
+
   // Roster totals for the selected queue.
   protected readonly summary = computed(() => {
     const withStats = this.rows().filter((r) => r.matches);

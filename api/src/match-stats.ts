@@ -19,9 +19,11 @@ export interface MatchParticipant {
   totalMinionsKilled: number;
   neutralMinionsKilled: number;
   totalDamageDealtToChampions: number;
-  damageDealtToBuildings: number;
   totalDamageTaken: number;
-  visionScore: number;
+  /** Absent on cache entries below v4, until the backfill reaches them. */
+  damageDealtToBuildings?: number;
+  /** Absent on cache entries below v4, likewise. */
+  visionScore?: number;
 }
 
 export interface Match {
@@ -48,6 +50,12 @@ export interface MatchSummary {
   avgTankShare: number;
   avgBuildingDamage: number;
   avgVisionScore: number;
+  /** Games that actually recorded a vision score — below `games` during a backfill. */
+  visionSamples: number;
+  /** Games that actually recorded building damage. */
+  buildingSamples: number;
+  /** Games with a known duration, the only ones CS per minute can come from. */
+  csSamples: number;
   /** Most-played champions first, capped so the pool reflects a real spread. */
   topChampions: string[];
   /** Champions that beat this player in lane, most frequent first. */
@@ -90,8 +98,11 @@ export function summarizeMatches(
   let deaths = 0;
   let assists = 0;
   let csPerMin = 0;
+  let csSamples = 0;
   let buildingDamage = 0;
+  let buildingSamples = 0;
   let visionScore = 0;
+  let visionSamples = 0;
 
   let killParticipation = 0;
   let killParticipationSamples = 0;
@@ -112,11 +123,26 @@ export function summarizeMatches(
     kills += me.kills;
     deaths += me.deaths;
     assists += me.assists;
-    // A remake would otherwise report an absurd CS per minute.
-    const minutes = Math.max(match.info.gameDuration / 60, 1);
-    csPerMin += (me.totalMinionsKilled + me.neutralMinionsKilled) / minutes;
-    buildingDamage += me.damageDealtToBuildings ?? 0;
-    visionScore += me.visionScore ?? 0;
+    // A remake would otherwise report an absurd CS per minute, and a cached
+    // entry written before durations were stored has no denominator at all —
+    // counting that game as a full minute would report ten times the real rate.
+    if (match.info.gameDuration > 0) {
+      const minutes = Math.max(match.info.gameDuration / 60, 1);
+      csPerMin += (me.totalMinionsKilled + me.neutralMinionsKilled) / minutes;
+      csSamples += 1;
+    }
+
+    // Missing is not zero. These two arrived with cache v4, so during the
+    // backfill some games genuinely have no number, and averaging those in as
+    // zeroes would read as a player who stopped warding.
+    if (typeof me.damageDealtToBuildings === 'number') {
+      buildingDamage += me.damageDealtToBuildings;
+      buildingSamples += 1;
+    }
+    if (typeof me.visionScore === 'number') {
+      visionScore += me.visionScore;
+      visionSamples += 1;
+    }
 
     const teammates = match.info.participants.filter((p) => p.teamId === me.teamId);
 
@@ -168,12 +194,15 @@ export function summarizeMatches(
     // A perfect game has no denominator; treat it as the raw kill+assist total
     // rather than dividing by zero.
     avgKda: avgDeaths > 0 ? (avgKills + avgAssists) / avgDeaths : avgKills + avgAssists,
-    avgCsPerMin: csPerMin / games,
+    avgCsPerMin: averageOf(csPerMin, csSamples),
     avgKillParticipation: averageOf(killParticipation, killParticipationSamples),
     avgDamageShare: averageOf(damageShare, damageShareSamples),
     avgTankShare: averageOf(tankShare, tankShareSamples),
-    avgBuildingDamage: buildingDamage / games,
-    avgVisionScore: visionScore / games,
+    avgBuildingDamage: averageOf(buildingDamage, buildingSamples),
+    avgVisionScore: averageOf(visionScore, visionSamples),
+    visionSamples,
+    buildingSamples,
+    csSamples,
     topChampions: rankedByCount(champGames).slice(0, POOL_SIZE).map(renameChampion),
     banCandidates: rankedByCount(banCandidateCounts).map(renameChampion),
     mainPosition: rankedByCount(roleCounts)[0] ?? ''
