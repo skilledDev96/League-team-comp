@@ -81,6 +81,13 @@ export interface MatchSummary {
    * there, because until they play the seat there is nothing to know.
    */
   championsByPosition: Record<string, string[]>;
+  /**
+   * Who beat them in each position, most frequent first.
+   *
+   * Same reasoning as the pools: a ban list built from their games at ADC is
+   * the wrong list for a player now playing top. Thin, or empty, is honest.
+   */
+  banCandidatesByPosition: Record<string, string[]>;
 }
 
 /** How many champions count as the player's pool. */
@@ -112,6 +119,7 @@ export function summarizeMatches(
   const champByPosition = new Map<string, Map<string, number>>();
   const roleCounts = new Map<string, number>();
   const banCandidateCounts = new Map<string, number>();
+  const bansByPosition = new Map<string, Map<string, number>>();
 
   let wins = 0;
   let kills = 0;
@@ -199,6 +207,9 @@ export function summarizeMatches(
           opponent.championName,
           (banCandidateCounts.get(opponent.championName) ?? 0) + 1
         );
+        const seat = bansByPosition.get(me.teamPosition) ?? new Map<string, number>();
+        seat.set(opponent.championName, (seat.get(opponent.championName) ?? 0) + 1);
+        bansByPosition.set(me.teamPosition, seat);
       }
     }
   }
@@ -231,6 +242,12 @@ export function summarizeMatches(
     topChampions: rankedByCount(champGames).slice(0, POOL_SIZE).map(renameChampion),
     banCandidates: rankedByCount(banCandidateCounts).map(renameChampion),
     mainPosition: rankedByCount(roleCounts)[0] ?? '',
+    banCandidatesByPosition: Object.fromEntries(
+      [...bansByPosition.entries()].map(([position, counts]) => [
+        position,
+        rankedByCount(counts).slice(0, POOL_SIZE).map(renameChampion)
+      ])
+    ),
     championsByPosition: Object.fromEntries(
       [...champByPosition.entries()].map(([position, counts]) => [
         position,

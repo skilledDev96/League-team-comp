@@ -138,6 +138,7 @@ export class OpponentScoutService {
         // Two is what a draft can act on; the rest is a long tail of one-offs.
         positions: (found.positions ?? []).slice(0, 2),
         poolByRole: found.poolByRole ?? {},
+        bansByRole: found.bansByRole ?? {},
         scoutedAt: new Date().toISOString(),
         scoutError: undefined
       };

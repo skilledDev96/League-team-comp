@@ -84,6 +84,8 @@ interface EnrichResponse {
    * absent — which is the honest state of knowledge about a fresh swap.
    */
   poolByRole?: Partial<Record<KnownRole, string[]>>;
+  /** Who beats them in each seat, for the same reason as poolByRole. */
+  bansByRole?: Partial<Record<KnownRole, string[]>>;
   top3?: string[];
   bans?: string[];
   queueStats?: {
@@ -542,6 +544,15 @@ async function fetchRiotQueueEnrichment(
     const role = TEAM_POSITION_TO_ROLE[position];
     if (role) poolByRole[role] = champions;
   }
+
+  // Who beats them in each seat, for the same reason: a ban list from their
+  // games at ADC is the wrong list for a player now playing top.
+  const bansByRole: Partial<Record<KnownRole, string[]>> = {};
+  for (const [position, champions] of Object.entries(summary.banCandidatesByPosition)) {
+    const seat = TEAM_POSITION_TO_ROLE[position];
+    if (seat) bansByRole[seat] = champions;
+  }
+
   const role = detectedRole ?? payload.role ?? 'Mid';
 
   // A champion we already play is a pick, not a ban.
@@ -572,6 +583,7 @@ async function fetchRiotQueueEnrichment(
     role,
     positions,
     poolByRole,
+    bansByRole,
     top3,
     bans,
     queueStats: {

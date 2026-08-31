@@ -466,12 +466,13 @@
                       <!-- Who beat them in their own lane, in games they lost.
                            A record of this player losing to this champion, not
                            a meta guess — which is what makes it a ban list. -->
-                      @if (opp.bans?.length) {
+                      @if (countersFor(opp).length) {
                         <span class="opp-counters" [appTip]="'Champions that beat ' + opp.name + ' in lane'">
                           <em class="opp-counters-label">Loses to</em>
-                          @for (champ of opp.bans ?? []; track champ) {
-                            <img class="opp-champ is-counter" [src]="ui.championIconUrl(champ)"
-                                 [alt]="champ" [appTip]="champ + ' beat them in lane'" loading="lazy" />
+                          @for (champ of countersFor(opp); track champ) {
+                            <img class="opp-champ is-counter" [class.is-seat]="countersAreForSeat(opp)"
+                                 [src]="ui.championIconUrl(champ)" [alt]="champ"
+                                 [appTip]="champ + ' beat them' + (countersAreForSeat(opp) ? ' at ' + opp.role : ' in lane')" loading="lazy" />
                           }
                         </span>
                       }

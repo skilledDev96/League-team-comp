@@ -10668,7 +10668,18 @@ body:has(.draft-stage) .edit-mode-frame {
 
 .opp-swapped .material-symbols-rounded { font-size: 0.95rem; }
 
-.opp-row { grid-template-columns: 5.5rem minmax(6rem, 1fr) auto auto auto auto; }
+.opp-row {
+  /* Auto-flow rather than a fixed column count. Each row carries a variable
+     number of parts — ranks, positions, pool, counters, and a swap warning
+     that only some players get — and a fixed grid silently dropped whichever
+     one came last. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.opp-row .opp-name { flex: 1 1 8rem; }
 
 @media (max-width: 1100px) {
   .opp-row { grid-template-columns: 5.5rem 1fr; }

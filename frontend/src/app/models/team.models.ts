@@ -502,6 +502,8 @@ export interface OpponentPlayer {
    * still lists ADCs and that is true rather than useful.
    */
   poolByRole?: Partial<Record<Role, string[]>>;
+  /** Who beats them in each seat, read the same way as poolByRole. */
+  bansByRole?: Partial<Record<Role, string[]>>;
   /** ISO timestamp of the last successful scout, so staleness is visible. */
   scoutedAt?: string;
   /** Why the last scout failed, when it did. Shown rather than swallowed. */

@@ -362,6 +362,16 @@ export class TournamentPlanComponent {
     return seat?.length ? seat : player.top3 ?? [];
   }
 
+  /** Who beats them in the seat they hold, falling back to their history. */
+  protected countersFor(player: OpponentPlayer): string[] {
+    const seat = player.role ? player.bansByRole?.[player.role] : undefined;
+    return seat?.length ? seat : player.bans ?? [];
+  }
+
+  protected countersAreForSeat(player: OpponentPlayer): boolean {
+    return !!(player.role && player.bansByRole?.[player.role]?.length);
+  }
+
   /** Whether the pool shown is the seat they hold, or their history at large. */
   protected poolIsForSeat(player: OpponentPlayer): boolean {
     return !!(player.role && player.poolByRole?.[player.role]?.length);

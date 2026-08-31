@@ -20,6 +20,8 @@ interface EnrichResponse {
   positions?: { role: Role; games: number }[];
   /** Their pool in each seat, for a player who has changed role. */
   poolByRole?: Partial<Record<Role, string[]>>;
+  /** Who beats them in each seat. */
+  bansByRole?: Partial<Record<Role, string[]>>;
   top3?: string[];
   bans?: string[];
   queueStats?: {
@@ -133,6 +135,7 @@ export class PlayerEnrichmentService {
       // in. These two were, and the positions never reached the screen.
       positions: data.positions,
       poolByRole: data.poolByRole,
+      bansByRole: data.bansByRole,
       top3: data.top3,
       bans: data.bans,
       queueStats: data.queueStats,
