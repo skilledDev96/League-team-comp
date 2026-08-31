@@ -22,6 +22,25 @@ export interface ChampionRate {
   readonly games: number;
   readonly wins: number;
   readonly winRate: number;
+  /** True when the previous patch had to be included to reach a usable sample. */
+  readonly combined: boolean;
+}
+
+/**
+ * The patch before this one — "16.17" -> "16.16".
+ *
+ * Needed because a fourteen-day collection window reaches back across a patch
+ * boundary, so for most of a patch's life the majority of what is collected
+ * describes the *previous* one. Reading only the current bucket threw that away
+ * and made a usable sample take three times as long to arrive.
+ *
+ * Nothing sensible exists before the first patch of a season, so it stops there
+ * rather than inventing "16.0".
+ */
+export function previousPatch(patch: string): string {
+  const [major, minor] = patch.split('.');
+  const n = Number(minor);
+  return major && Number.isFinite(n) && n > 1 ? `${major}.${n - 1}` : '';
 }
 
 /**
@@ -83,6 +102,8 @@ export class ChampionStatsService {
   private readonly champs = inject(ChampionDataService);
 
   private readonly raw = signal<StatsDoc | null>(null);
+  /** The previous patch, kept for the combined fallback. */
+  private readonly priorRaw = signal<StatsDoc | null>(null);
   private readonly loadedPatch = signal<string | null>(null);
 
   /** Whether a fetch has completed, so a view can tell empty from not-yet. */
@@ -103,11 +124,36 @@ export class ChampionStatsService {
   /** Matches behind the whole bucket, so a view can say how thin it is. */
   readonly matches = computed(() => this.raw()?.matches ?? 0);
 
-  private readonly byChampion = computed(() => {
+  private rates(data: StatsDoc | null, combined: boolean): Map<string, ChampionRate> {
     const out = new Map<string, ChampionRate>();
-    for (const [key, { games, wins }] of readCounters(this.raw())) {
+    for (const [key, { games, wins }] of readCounters(data)) {
       if (games > 0) {
-        out.set(key, { games, wins, winRate: Math.round((wins / games) * 1000) / 10 });
+        out.set(key, { games, wins, winRate: Math.round((wins / games) * 1000) / 10, combined });
+      }
+    }
+    return out;
+  }
+
+  private readonly byChampion = computed(() => this.rates(this.raw(), false));
+
+  /**
+   * This patch and the one before it, added together.
+   *
+   * Only consulted when the current patch alone is too thin. Adjacent patches
+   * rarely move a champion far, and a number from two patches beats no number
+   * at all — but it is the fallback, not the default, and it says so.
+   */
+  private readonly byChampionCombined = computed(() => {
+    const current = readCounters(this.raw());
+    const merged = new Map(current);
+    for (const [key, prior] of readCounters(this.priorRaw())) {
+      const running = merged.get(key) ?? { games: 0, wins: 0 };
+      merged.set(key, { games: running.games + prior.games, wins: running.wins + prior.wins });
+    }
+    const out = new Map<string, ChampionRate>();
+    for (const [key, { games, wins }] of merged) {
+      if (games > 0) {
+        out.set(key, { games, wins, winRate: Math.round((wins / games) * 1000) / 10, combined: true });
       }
     }
     return out;
@@ -125,15 +171,25 @@ export class ChampionStatsService {
     return championName.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
   }
 
-  /** A champion's solo-queue record, or nothing when it is too thin to quote. */
+  /**
+   * A champion's solo-queue record, or nothing when it is too thin to quote.
+   *
+   * This patch alone if that clears the floor, because it is the more truthful
+   * answer; otherwise this patch plus the one before, flagged as combined so
+   * the view can say which it got.
+   */
   rate(championName: string): ChampionRate | undefined {
-    const found = this.byChampion().get(this.key(championName));
-    return found && found.games >= MIN_RATE_GAMES ? found : undefined;
+    const key = this.key(championName);
+    const current = this.byChampion().get(key);
+    if (current && current.games >= MIN_RATE_GAMES) return current;
+
+    const both = this.byChampionCombined().get(key);
+    return both && both.games >= MIN_RATE_GAMES ? both : undefined;
   }
 
   /** The record whatever its size, for a view that shows its own caveat. */
   rawRate(championName: string): ChampionRate | undefined {
-    return this.byChampion().get(this.key(championName));
+    return this.byChampionCombined().get(this.key(championName));
   }
 
   /**
@@ -148,14 +204,20 @@ export class ChampionStatsService {
     const db = getDb();
     if (!patch || !db || this.loadedPatch() === patch) return;
 
+    const prior = previousPatch(patch);
     try {
-      const snap = await getDoc(doc(db, `championStats/${patch}_ALL`));
+      const [snap, priorSnap] = await Promise.all([
+        getDoc(doc(db, `championStats/${patch}_ALL`)),
+        prior ? getDoc(doc(db, `championStats/${prior}_ALL`)) : Promise.resolve(null)
+      ]);
       this.raw.set(snap.exists() ? (snap.data() as StatsDoc) : null);
+      this.priorRaw.set(priorSnap?.exists() ? (priorSnap.data() as StatsDoc) : null);
       this.loadedPatch.set(patch);
     } catch {
       // No rates is a fine outcome — every view here already handles a champion
       // having none, because most do until the crawl is deep enough.
       this.raw.set(null);
+      this.priorRaw.set(null);
     } finally {
       this.ready.set(true);
     }

@@ -38,7 +38,7 @@ import {
   swingOf
 } from '../draft-advice';
 import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
-import { ChampionRate, ChampionStatsService } from '../../../services/champion-stats.service';
+import { ChampionRate, ChampionStatsService, previousPatch } from '../../../services/champion-stats.service';
 import { TournamentContextService } from '../tournament-context.service';
 
 /** Which team a draft slot belongs to. */
@@ -932,7 +932,10 @@ export class TournamentDraftComponent implements OnInit {
   protected soloNote(champion: string): string {
     const r = this.stats.rate(champion);
     if (!r) return 'Not enough solo queue games collected yet.';
-    return `${r.winRate}% over ${r.games.toLocaleString()} solo queue games on patch ${this.stats.patch()}.`;
+    const where = r.combined
+      ? `patches ${previousPatch(this.stats.patch())}-${this.stats.patch()}`
+      : `patch ${this.stats.patch()}`;
+    return `${r.winRate}% over ${r.games.toLocaleString()} solo queue games on ${where}.`;
   }
 
   /**

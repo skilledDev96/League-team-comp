@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readCounters } from './champion-stats.service';
+import { previousPatch, readCounters } from './champion-stats.service';
 
 describe('readCounters', () => {
   it('reads a nested champions map', () => {
@@ -54,5 +54,21 @@ describe('readCounters', () => {
     // champion below the sample floor.
     const counts = readCounters({ champions: { KaiSa: { games: 500, wins: 260 } } });
     expect(counts.get('kaisa')).toEqual({ games: 500, wins: 260 });
+  });
+});
+
+describe('previousPatch', () => {
+  it('steps back one minor version', () => {
+    expect(previousPatch('16.17')).toBe('16.16');
+    expect(previousPatch('16.2')).toBe('16.1');
+  });
+
+  it('stops at the first patch of a season rather than inventing 16.0', () => {
+    expect(previousPatch('16.1')).toBe('');
+  });
+
+  it('has nothing to offer for a patch it cannot read', () => {
+    expect(previousPatch('')).toBe('');
+    expect(previousPatch('sixteen')).toBe('');
   });
 });
