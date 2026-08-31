@@ -42,6 +42,25 @@ export class ScrimsComponent {
 
   protected readonly openId = signal<string>('');
 
+  /** Our own name, so a scoreboard says who is who rather than Blue and Red. */
+  protected readonly teamName = computed(() => this.data.settings().teamName || 'Us');
+
+  /**
+   * What to call one side of a scrim.
+   *
+   * Once we know which side we were on, both sides have a name: ours from
+   * settings and theirs from whatever the scrim was labelled. Blue and Red
+   * are the fallback, not the default — a scoreboard of ten strangers is
+   * hard enough to read without the teams being colours.
+   */
+  protected teamLabel(scrim: Scrim, team: 100 | 200): string {
+    const side = this.ourSide(scrim);
+    const colour = team === 100 ? 'blue' : 'red';
+    if (!side) return team === 100 ? 'Blue' : 'Red';
+    if (side === colour) return this.teamName();
+    return scrim.opponent?.trim() || (team === 100 ? 'Blue' : 'Red');
+  }
+
   /** Newest first: a scrim is read the evening it was played, not in order. */
   protected readonly scrims = computed(() =>
     [...this.data.scrims()].sort((a, b) => (b.playedOn ?? '').localeCompare(a.playedOn ?? ''))

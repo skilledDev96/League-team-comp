@@ -49,8 +49,11 @@
     @for (scrim of scrims(); track scrim.id) {
       <details class="card scrim-panel" [open]="openId() === scrim.id">
         <summary class="scrim-summary" (click)="$event.preventDefault(); toggle(scrim.id)">
-          @if (won(scrim); as result) {
-            <span class="scrim-result" [class.is-win]="result === true">{{ result ? 'W' : 'L' }}</span>
+          <!-- Checked against null, not for truthiness. A loss is false, which
+               @if reads as "no value" — so every loss rendered as an unknown
+               result even when the side was known perfectly well. -->
+          @if (won(scrim) !== null) {
+            <span class="scrim-result" [class.is-win]="won(scrim) === true">{{ won(scrim) ? 'W' : 'L' }}</span>
           } @else {
             <span class="scrim-result is-unknown" [appTip]="'Nobody on our roster played in this one'">?</span>
           }
@@ -69,7 +72,7 @@
         @for (team of [100, 200]; track team) {
           <div class="scrim-team" [class.is-blue]="team === 100">
             <div class="scrim-team-head">
-              <span>{{ team === 100 ? 'Blue' : 'Red' }}</span>
+              <span>{{ teamLabel(scrim, $any(team)) }}</span>
               <span class="muted">{{ (team === 100) === scrim.blueWon ? 'won' : 'lost' }}</span>
             </div>
             <div class="scrim-board" role="table">
