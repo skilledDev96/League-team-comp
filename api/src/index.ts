@@ -1048,6 +1048,8 @@ function gameObjectives(match: CachedMatch, rosterTeamId: number): GameObjective
 
 // Human labels for match queues (a few extras in case a cached match has them).
 const QUEUE_LABEL: Record<number, string> = {
+  // Custom games are queue 0, which is exactly what a scrim is.
+  0: 'Scrim',
   440: 'Flex',
   700: 'Clash',
   400: '5v5 Draft',
@@ -1240,6 +1242,34 @@ async function computeCompAnalysis(
   );
   const rosterPuuids = new Set(identities.map((i) => i.puuid));
   const nameByPuuid = new Map(identities.map((i) => [i.puuid, i.name]));
+
+  // Scrims, imported from replay files by the browser. Custom games never enter
+  // the Riot API, so this is the only way they reach the analysis — and they are
+  // where the team actually practises for the tournament.
+  //
+  // Converted to a match rather than analysed separately: that way a scrim goes
+  // through the same comp attribution, the same thresholds and the same factor
+  // logic as a Riot game, and everything downstream picks it up without knowing
+  // scrims exist. The alternative was a second copy of objectives.ts in the
+  // browser, drifting from this one.
+  const puuidByRiotId = new Map(
+    identities.map((i) => [
+      `${i.name}#${(i.riotTag ?? '').replace(/^#/, '')}`.toLowerCase(),
+      i.puuid
+    ])
+  );
+  const scrimMatches = new Map<string, CachedMatch>();
+  try {
+    const snap = await getFirestore().collection('scrims').get();
+    for (const doc of snap.docs) {
+      const scrim = { id: doc.id, ...(doc.data() as Omit<StoredScrim, 'id'>) };
+      const asMatch = scrimAsMatch(scrim, puuidByRiotId);
+      if (asMatch) scrimMatches.set(scrim.id, asMatch);
+    }
+  } catch {
+    // A failed scrim read must not cost the whole analysis: the Riot games are
+    // the bulk of it and stand perfectly well on their own.
+  }
   // A game counts as "ours" when at least this many roster members are on the
   // same team — 4, so 4-of-5 stacks (a sub or one player absent) still count,
   // not just clean 5-premades. Games with a sub are flagged via rosterCount.
@@ -1268,11 +1298,16 @@ async function computeCompAnalysis(
     }
   }
   // Candidates: at least `teamMin` roster present, most recent first.
-  const candidateIds: string[] = [...matchIdCounts.entries()]
-    .filter(([, count]) => count >= teamMin)
-    .map(([id]) => id)
-    .sort()
-    .reverse();
+  const candidateIds: string[] = [
+    // Scrims first: they cost no Riot call, so they can never be squeezed out
+    // by the per-run fetch budget the way a new Riot match can.
+    ...scrimMatches.keys(),
+    ...[...matchIdCounts.entries()]
+      .filter(([, count]) => count >= teamMin)
+      .map(([id]) => id)
+      .sort()
+      .reverse()
+  ];
 
   const perComp = new Map<string, { compId: string; compName: string; games: number; wins: number }>();
   const games: AnalysisGameResponse[] = [];
@@ -1302,7 +1337,12 @@ async function computeCompAnalysis(
     try {
       // Only fetch new matches while we're under the per-run budget; cached ones
       // are always processed. Anything skipped is reported as pending.
-      const result = await getCachedMatch(matchId, routing.regional, apiKey, newMatches < MAX_NEW_FETCHES);
+      // A scrim is already in hand — no cache entry to read, no Riot call to
+      // spend, and no budget to check.
+      const scrim = scrimMatches.get(matchId);
+      const result = scrim
+        ? { match: scrim, fromCache: true, healed: false }
+        : await getCachedMatch(matchId, routing.regional, apiKey, newMatches < MAX_NEW_FETCHES);
       if (!result) {
         pendingMatches += 1;
         funnel.dropped.budget_exhausted += 1;
@@ -1817,6 +1857,82 @@ async function fetchLadderPage(
  * winsA is from the alphabetically-first champion's side, so both orderings
  * of a pairing land in one cell instead of two half-filled ones.
  */
+/**
+ * A scrim as stored by the browser importer.
+ *
+ * Written client-side from a replay file, because custom games never enter
+ * the Riot API. Only the fields the analysis reads are declared here.
+ */
+interface StoredScrim {
+  id: string;
+  playedOn?: string;
+  durationSec?: number;
+  blueWon?: boolean;
+  objectives?: { blue: CachedTeam; red: CachedTeam };
+  players?: {
+    name?: string; tag?: string; champion?: string; team?: number; win?: boolean;
+    position?: string; kills?: number; deaths?: number; assists?: number;
+    cs?: number; damage?: number; damageTaken?: number; ccTime?: number;
+  }[];
+}
+
+/** Scrims are queueId 0 the way custom games are, and label as such. */
+const SCRIM_QUEUE_ID = 0;
+
+/**
+ * Turn a stored scrim into the shape the analysis already consumes.
+ *
+ * The alternative was computing comp attribution and win/loss factors in the
+ * browser, which would mean a second copy of objectives.ts drifting from this
+ * one. Converting instead means a scrim goes through exactly the same
+ * attribution, the same thresholds and the same factor logic as a Riot match,
+ * and everything downstream — comp records, the Review page — picks it up
+ * without knowing scrims exist.
+ *
+ * Roster players are matched by Riot ID and given their real puuid, which is
+ * how the rest of the pipeline recognises them. Everyone else gets a synthetic
+ * id: it only has to be stable and not collide with a roster member.
+ */
+function scrimAsMatch(
+  scrim: StoredScrim,
+  puuidByRiotId: ReadonlyMap<string, string>
+): CachedMatch | null {
+  const rows = scrim.players ?? [];
+  if (rows.length !== 10 || !scrim.objectives) return null;
+
+  const participants: CachedParticipant[] = rows.map((p, index) => {
+    const key = `${p.name ?? ''}#${p.tag ?? ''}`.toLowerCase();
+    return {
+      puuid: puuidByRiotId.get(key) ?? `scrim:${scrim.id}:${index}`,
+      championName: p.champion ?? '',
+      win: !!p.win,
+      teamId: p.team ?? 100,
+      teamPosition: p.position ?? '',
+      kills: p.kills ?? 0,
+      deaths: p.deaths ?? 0,
+      assists: p.assists ?? 0,
+      cs: p.cs ?? 0,
+      damage: p.damage ?? 0,
+      damageTaken: p.damageTaken ?? 0,
+      ccTime: p.ccTime ?? 0
+    };
+  });
+
+  return {
+    cacheVersion: CACHE_VERSION,
+    queueId: SCRIM_QUEUE_ID,
+    // The replay never records when the game started, so the importer stores
+    // the file time. A few minutes late, and the only date there is.
+    gameCreation: Date.parse(scrim.playedOn ?? '') || Date.now(),
+    durationSec: scrim.durationSec ?? 0,
+    teams: [
+      { ...scrim.objectives.blue, teamId: 100 },
+      { ...scrim.objectives.red, teamId: 200 }
+    ],
+    participants
+  };
+}
+
 async function applyMatchups(updates: readonly MatchupUpdate[]): Promise<void> {
   if (!updates.length) return;
   const db = getFirestore();

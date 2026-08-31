@@ -38,6 +38,29 @@ export interface ReplayPlayer {
   readonly damageTaken: number;
   readonly visionScore: number;
   readonly cs: number;
+  /** Seconds spent crowd-controlling opponents. */
+  readonly ccTime: number;
+}
+
+/**
+ * One side's objective haul.
+ *
+ * Mirrors TeamObjectives in the app model, because a scrim converted for the
+ * analysis has to arrive in exactly the shape a Riot match does.
+ *
+ * firstBlood and firstTower are always false: the replay stats block does not
+ * record them, and no per-player field implies them. That is a real gap, not a
+ * default — two of the eight objective factors simply cannot fire for a scrim.
+ */
+export interface ReplayObjectives {
+  readonly firstBlood: boolean;
+  readonly firstTower: boolean;
+  readonly dragons: number;
+  readonly barons: number;
+  readonly heralds: number;
+  readonly grubs: number;
+  readonly towers: number;
+  readonly inhibitors: number;
 }
 
 export interface ReplayGame {
@@ -47,6 +70,8 @@ export interface ReplayGame {
   /** Whether blue won, for a scoreboard that wants to lead with the result. */
   readonly blueWon: boolean;
   readonly surrendered: boolean;
+  /** Objective totals per side, summed from the per-player counters. */
+  readonly objectives: { readonly blue: ReplayObjectives; readonly red: ReplayObjectives };
 }
 
 /**
@@ -148,8 +173,32 @@ export function parseReplay(bytes: ArrayBuffer): ReplayGame | null {
       damageToBuildings: num(r['TOTAL_DAMAGE_DEALT_TO_BUILDINGS']),
       damageTaken: num(r['TOTAL_DAMAGE_TAKEN']),
       visionScore: num(r['VISION_SCORE']),
-      cs: num(r['MINIONS_KILLED']) + num(r['NEUTRAL_MINIONS_KILLED'])
+      cs: num(r['MINIONS_KILLED']) + num(r['NEUTRAL_MINIONS_KILLED']),
+      ccTime: num(r['TIME_CCING_OTHERS'])
     }));
+
+    /**
+     * Objectives are per player in the file, so a side's haul is the sum.
+     *
+     * Riot's names differ from the app's: HORDE_KILLS is voidgrubs and
+     * BARRACKS_KILLED is inhibitors. Reading them straight through under their
+     * own names would put grubs in a field labelled horde and lose them.
+     */
+    const objectivesFor = (team: number): ReplayObjectives => {
+      const side = rows.filter((r) => num(r['TEAM']) === team);
+      const sum = (key: string) => side.reduce((total, r) => total + num(r[key]), 0);
+      return {
+        // Not recorded anywhere in the stats block, and nothing implies them.
+        firstBlood: false,
+        firstTower: false,
+        dragons: sum('DRAGON_KILLS'),
+        barons: sum('BARON_KILLS'),
+        heralds: sum('RIFT_HERALD_KILLS'),
+        grubs: sum('HORDE_KILLS'),
+        towers: sum('TURRETS_KILLED'),
+        inhibitors: sum('BARRACKS_KILLED')
+      };
+    };
 
     return {
       // gameLength is milliseconds; TIME_PLAYED per player is seconds and
@@ -157,7 +206,8 @@ export function parseReplay(bytes: ArrayBuffer): ReplayGame | null {
       durationSec: Math.round((meta.gameLength ?? 0) / 1000),
       players,
       blueWon: players.some((p) => p.team === 100 && p.win),
-      surrendered: rows.some((r) => String(r['GAME_ENDED_IN_SURRENDER'] ?? '0') !== '0')
+      surrendered: rows.some((r) => String(r['GAME_ENDED_IN_SURRENDER'] ?? '0') !== '0'),
+      objectives: { blue: objectivesFor(100), red: objectivesFor(200) }
     };
   } catch {
     return null;

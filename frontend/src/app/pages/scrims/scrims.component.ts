@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { Scrim, ScrimPlayer } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -27,7 +28,7 @@ import { looksLikeFiveOnFive, matchIdFromFilename, parseReplay } from '../../cor
  */
 @Component({
   selector: 'app-scrims',
-  imports: [FormsModule, TooltipDirective],
+  imports: [FormsModule, RouterLink, TooltipDirective],
   templateUrl: './scrims.component.html'
 })
 export class ScrimsComponent {
@@ -187,6 +188,7 @@ export class ScrimsComponent {
           blueWon: game.blueWon,
           surrendered: game.surrendered,
           players: game.players.map((p) => ({ ...p })),
+          objectives: { blue: { ...game.objectives.blue }, red: { ...game.objectives.red } },
           order: this.data.scrims().length + saved
         });
         saved += 1;

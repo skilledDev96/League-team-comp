@@ -10980,3 +10980,19 @@ body:has(.draft-stage) .edit-mode-frame {
 
 .scrim-edit { margin-top: 0.9rem; display: grid; gap: 0.5rem; }
 .scrim-note { margin-top: 0.7rem; color: var(--text-1); }
+
+/* Importing stores a scrim; the analysis is recomputed on the Analysis page.
+   A comp record that quietly does not move is worse than one line of text. */
+.scrim-refresh-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.scrim-refresh-hint .material-symbols-rounded { font-size: 1.1rem; color: var(--accent); }

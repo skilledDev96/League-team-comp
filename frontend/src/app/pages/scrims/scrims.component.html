@@ -45,6 +45,18 @@
     }
   }
 
+  <!-- Importing stores the scrim; the analysis is recomputed on the Analysis
+       page. Saying so beats a comp record that quietly does not move. -->
+  @if (scrims().length) {
+    <p class="muted scrim-refresh-hint">
+      <span class="material-symbols-rounded" aria-hidden="true">sync</span>
+      Scrims count towards comp win rates and the Review page after a
+      <a routerLink="/analysis">Refresh match data</a> on Analysis. Games where fewer
+      than four of the roster played are left out, so a solo queue replay imported by
+      mistake cannot move the numbers.
+    </p>
+  }
+
   @if (scrims().length) {
     @for (scrim of scrims(); track scrim.id) {
       <details class="card scrim-panel" [open]="openId() === scrim.id">

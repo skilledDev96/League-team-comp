@@ -711,5 +711,13 @@ export interface Scrim {
   opponent?: string;
   note?: string;
   players: ScrimPlayer[];
+  /**
+   * Objectives per side, so a scrim can be read the way a match is.
+   *
+   * `firstBlood` and `firstTower` are always false: the replay stats block does
+   * not record them and nothing implies them, so two of the eight objective
+   * factors simply cannot fire for a scrim. A real gap rather than a default.
+   */
+  objectives?: { blue: TeamObjectives; red: TeamObjectives };
   order: number;
 }
