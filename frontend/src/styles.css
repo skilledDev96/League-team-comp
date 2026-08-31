@@ -10611,3 +10611,14 @@ body:has(.draft-stage) .edit-mode-frame {
   margin-top: 0.9rem;
   font-size: 0.8rem;
 }
+
+/* Secondary actions sit together at the right of the roster heading. The
+   content of this panel is the five players; changing the link and re-scouting
+   are things done to it, not part of it. */
+.opp-roster-head > .tag:first-of-type { margin-left: auto; }
+
+.opp-head-btn { cursor: pointer; }
+.opp-head-btn.active {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--accent);
+}

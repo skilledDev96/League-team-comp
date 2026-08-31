@@ -299,6 +299,14 @@
                   @if (scoutedAt(series); as when) {
                     <span class="muted opp-scouted">scouted {{ when }}</span>
                   }
+                  @if (auth.editing() && series.opponentPlayers?.length) {
+                    <button type="button" class="tag opp-head-btn"
+                            [class.active]="pasteOpenFor() === series.id"
+                            [appTip]="'Replace these five with a different roster link'"
+                            (click)="togglePaste(series.id)">
+                      {{ pasteOpenFor() === series.id ? 'Cancel' : 'New link' }}
+                    </button>
+                  }
                   @if (auth.editing() && series.opponentPlayers?.length && scoutedAt(series)) {
                     <!-- Once there is data the button is a refresh, so it steps
                          back down to a chip. -->
@@ -344,12 +352,6 @@
                      full-width textarea asking for the link again would be the
                      largest thing in a panel whose job is now to show what was
                      scouted, so it folds behind a line of text. -->
-                @if (auth.editing() && series.opponentPlayers?.length && pasteOpenFor() !== series.id) {
-                  <button type="button" class="link-btn opp-repaste"
-                          (click)="togglePaste(series.id)">
-                    Paste a different link
-                  </button>
-                }
                 @if (auth.editing() && (!series.opponentPlayers?.length || pasteOpenFor() === series.id)) {
                   <label class="field opp-step">
                     <span>
