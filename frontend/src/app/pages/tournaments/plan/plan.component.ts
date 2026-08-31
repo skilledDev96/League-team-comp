@@ -1,7 +1,7 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AnalysisGame, OpponentPlayer, Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
+import { AnalysisGame, ChampionRecord, OpponentPlayer, Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
 import { ChampionDataService } from '../../../services/champion-data.service';
 import { NgModelNameDirective } from '../../../shared/ng-model-name.directive';
@@ -357,15 +357,23 @@ export class TournamentPlanComponent {
    * or three champions. Where it does not, the overall pool is shown with the
    * swap warning beside it rather than pretending.
    */
-  protected poolFor(player: OpponentPlayer): string[] {
+  protected poolFor(player: OpponentPlayer): ChampionRecord[] {
     const seat = player.role ? player.poolByRole?.[player.role] : undefined;
-    return seat?.length ? seat : player.top3 ?? [];
+    if (seat?.length) return seat.slice(0, 5);
+
+    // Rosters scouted before records existed carry names only; show those
+    // rather than nothing, with no numbers to go with them.
+    const overall = player.championRecords?.length
+      ? player.championRecords
+      : (player.top3 ?? []).map((champion) => ({ champion, games: 0, wins: 0 }));
+    return overall.slice(0, 5);
   }
 
   /** Who beats them in the seat they hold, falling back to their history. */
-  protected countersFor(player: OpponentPlayer): string[] {
+  protected countersFor(player: OpponentPlayer): ChampionRecord[] {
     const seat = player.role ? player.bansByRole?.[player.role] : undefined;
-    return seat?.length ? seat : player.bans ?? [];
+    if (seat?.length) return seat.slice(0, 4);
+    return (player.bans ?? []).slice(0, 4).map((champion) => ({ champion, games: 0, wins: 0 }));
   }
 
   protected countersAreForSeat(player: OpponentPlayer): boolean {
@@ -375,6 +383,21 @@ export class TournamentPlanComponent {
   /** Whether the pool shown is the seat they hold, or their history at large. */
   protected poolIsForSeat(player: OpponentPlayer): boolean {
     return !!(player.role && player.poolByRole?.[player.role]?.length);
+  }
+
+  /** A win rate, or nothing when the record is too thin to carry one. */
+  protected rateOf(r: ChampionRecord): number | null {
+    return r.games > 0 ? Math.round((r.wins / r.games) * 100) : null;
+  }
+
+  /** Colour band for a champion win rate, matching the draft panel. */
+  protected rateBand(r: ChampionRecord): string {
+    const rate = this.rateOf(r);
+    if (rate === null) return '';
+    if (rate >= 65) return 'is-good';
+    if (rate > 50) return 'is-ok';
+    if (rate === 50) return 'is-even';
+    return 'is-poor';
   }
 
   /** The seat their scouted history is about, when it is not the seat they hold. */

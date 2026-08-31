@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { getAuthInstance, isFirebaseConfigured } from '../core/firebase';
-import { PlayerQueueStats, Role } from '../models/team.models';
+import { ChampionRecord, PlayerQueueStats, Role } from '../models/team.models';
 
 interface EnrichRequest {
   summonerName: string;
@@ -19,9 +19,11 @@ interface EnrichResponse {
   /** Positions played, most often first, with the games behind each. */
   positions?: { role: Role; games: number }[];
   /** Their pool in each seat, for a player who has changed role. */
-  poolByRole?: Partial<Record<Role, string[]>>;
+  poolByRole?: Partial<Record<Role, ChampionRecord[]>>;
   /** Who beats them in each seat. */
-  bansByRole?: Partial<Record<Role, string[]>>;
+  bansByRole?: Partial<Record<Role, ChampionRecord[]>>;
+  /** Every champion they played, with games and wins. */
+  championRecords?: ChampionRecord[];
   /** Champions played in the last two months, newest first, from mastery. */
   recentChampions?: string[];
   top3?: string[];
@@ -138,6 +140,7 @@ export class PlayerEnrichmentService {
       positions: data.positions,
       poolByRole: data.poolByRole,
       bansByRole: data.bansByRole,
+      championRecords: data.championRecords,
       recentChampions: data.recentChampions,
       top3: data.top3,
       bans: data.bans,

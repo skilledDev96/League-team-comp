@@ -456,6 +456,19 @@ export interface Tournament {
  * information". These are identified by a Riot ID somebody typed in, taken from
  * a roster their own league publishes.
  */
+/**
+ * One champion for one player: how often, and how it went.
+ *
+ * The names alone said what they play. The record says how it has gone, which
+ * is the difference between listing a pool and reading one — a champion at 2
+ * wins from 9 games is a very different pick to ban than one at 7 from 9.
+ */
+export interface ChampionRecord {
+  champion: string;
+  games: number;
+  wins: number;
+}
+
 export interface OpponentPlayer {
   /** The seat we expect them in. Their pool is shown when that seat is picking. */
   role: Role;
@@ -501,9 +514,11 @@ export interface OpponentPlayer {
    * overall pool — saying which it got, because a career ADC seated at top
    * still lists ADCs and that is true rather than useful.
    */
-  poolByRole?: Partial<Record<Role, string[]>>;
+  poolByRole?: Partial<Record<Role, ChampionRecord[]>>;
   /** Who beats them in each seat, read the same way as poolByRole. */
-  bansByRole?: Partial<Record<Role, string[]>>;
+  bansByRole?: Partial<Record<Role, ChampionRecord[]>>;
+  /** Every champion they played, with games and wins — the fallback pool. */
+  championRecords?: ChampionRecord[];
   /**
    * Champions played in the last two months, newest first.
    *

@@ -10329,10 +10329,11 @@ body:has(.draft-stage) .edit-mode-frame {
 .opp-pool { display: inline-flex; gap: 0.25rem; }
 
 .opp-champ {
-  width: 1.6rem;
-  height: 1.6rem;
-  border-radius: 0.3rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.4rem;
   border: 1px solid var(--card-border);
+  display: block;
 }
 
 .opp-error { font-size: 0.75rem; color: var(--text-1); }
@@ -10702,9 +10703,9 @@ body:has(.draft-stage) .edit-mode-frame {
     minmax(5rem, auto)      /* seat */
     minmax(9rem, 1.3fr)     /* player */
     minmax(7rem, auto)      /* rank */
-    minmax(7rem, auto)      /* plays */
-    minmax(6rem, auto)      /* loses to */
-    minmax(8rem, 1fr);      /* lately */
+    minmax(11rem, auto)     /* plays */
+    minmax(9rem, auto)      /* loses to */
+    minmax(11rem, 1fr);     /* lately */
   gap: 0.15rem 0.75rem;
   align-items: center;
 
@@ -10712,7 +10713,7 @@ body:has(.draft-stage) .edit-mode-frame {
      min-width here with the scroll on the wrapper, because min-width on a
      scroll container defeats its own overflow and pushes the page sideways
      instead — which is what it did. */
-  min-width: 52rem;
+  min-width: 62rem;
 }
 
 .opp-scroll {
@@ -10782,3 +10783,45 @@ body:has(.draft-stage) .edit-mode-frame {
 
 /* Below this the six columns stop fitting; the table scrolls sideways rather
    than crushing champion icons into unreadable squares. */
+
+/* ---- A champion with its record ------------------------------------------
+   The icon says which champion; the number under it says whether that means
+   anything. Two wins from nine is a very different pick to ban than seven
+   from nine, and an icon alone cannot tell them apart. */
+.opp-champ-cell {
+  display: inline-grid;
+  justify-items: center;
+  gap: 0.1rem;
+  cursor: default;
+}
+
+.opp-champ-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--text-1);
+}
+
+/* Games sit beside the rate, quieter — the sample, not the finding. */
+.opp-champ-stat em {
+  font-style: normal;
+  font-weight: 400;
+  font-size: 0.58rem;
+  opacity: 0.6;
+}
+
+.opp-champ-stat.is-good { color: var(--ok); }
+.opp-champ-stat.is-ok   { color: color-mix(in srgb, var(--ok) 75%, var(--text-1)); }
+.opp-champ-stat.is-even { color: var(--text-1); }
+.opp-champ-stat.is-poor { color: var(--warn); }
+
+/* Rows are taller now that each champion carries a line of numbers. */
+.opp-cell { min-height: 3.4rem; }
+
+.opp-pool,
+.opp-counters,
+.opp-recent { gap: 0.35rem; }

@@ -10,7 +10,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
 import { attributeComp } from './comp-attribution';
 import { killParticipation, tallyKills } from './fights';
-import { summarizeMatches } from './match-stats';
+import { ChampionRecord, summarizeMatches } from './match-stats';
 import { classifyArchetype, describePlayer } from './insights';
 import { CACHE_VERSION, isCacheCurrent, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
 import { cachedToMatch, planSample } from './enrich-sample';
@@ -83,9 +83,11 @@ interface EnrichResponse {
    * rather than by the one their history is about. Often thin, sometimes
    * absent — which is the honest state of knowledge about a fresh swap.
    */
-  poolByRole?: Partial<Record<KnownRole, string[]>>;
+  poolByRole?: Partial<Record<KnownRole, ChampionRecord[]>>;
   /** Who beats them in each seat, for the same reason as poolByRole. */
-  bansByRole?: Partial<Record<KnownRole, string[]>>;
+  bansByRole?: Partial<Record<KnownRole, ChampionRecord[]>>;
+  /** Every champion they played, with games and wins — the fallback pool. */
+  championRecords?: ChampionRecord[];
   /**
    * Champions played in the last two months, newest first, from mastery.
    *
@@ -583,7 +585,7 @@ async function fetchRiotQueueEnrichment(
 
   // Their pool per seat, so a player who has changed role can be read by the
   // seat they now hold rather than the one their history happens to be about.
-  const poolByRole: Partial<Record<KnownRole, string[]>> = {};
+  const poolByRole: Partial<Record<KnownRole, ChampionRecord[]>> = {};
   for (const [position, champions] of Object.entries(summary.championsByPosition)) {
     const role = TEAM_POSITION_TO_ROLE[position];
     if (role) poolByRole[role] = champions;
@@ -591,7 +593,7 @@ async function fetchRiotQueueEnrichment(
 
   // Who beats them in each seat, for the same reason: a ban list from their
   // games at ADC is the wrong list for a player now playing top.
-  const bansByRole: Partial<Record<KnownRole, string[]>> = {};
+  const bansByRole: Partial<Record<KnownRole, ChampionRecord[]>> = {};
   for (const [position, champions] of Object.entries(summary.banCandidatesByPosition)) {
     const seat = TEAM_POSITION_TO_ROLE[position];
     if (seat) bansByRole[seat] = champions;
@@ -628,6 +630,7 @@ async function fetchRiotQueueEnrichment(
     positions,
     poolByRole,
     bansByRole,
+    championRecords: summary.championRecords,
     top3,
     bans,
     queueStats: {

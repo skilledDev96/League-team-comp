@@ -141,6 +141,7 @@ export class OpponentScoutService {
         positions: (found.positions ?? []).slice(0, 2),
         poolByRole: found.poolByRole ?? {},
         bansByRole: found.bansByRole ?? {},
+        championRecords: found.championRecords ?? [],
         recentChampions: found.recentChampions ?? [],
         // The season record was already being fetched and thrown away. It is
         // the honest scale of a rank: 425-439 is a different player from 12-6.

@@ -35,6 +35,13 @@ export interface Match {
   };
 }
 
+/** One champion for one player: how often, and how it went. */
+export interface ChampionRecord {
+  champion: string;
+  games: number;
+  wins: number;
+}
+
 export interface MatchSummary {
   games: number;
   wins: number;
@@ -80,14 +87,16 @@ export interface MatchSummary {
    * top*", which is thinner and sometimes empty. Empty is the honest answer
    * there, because until they play the seat there is nothing to know.
    */
-  championsByPosition: Record<string, string[]>;
+  championsByPosition: Record<string, ChampionRecord[]>;
   /**
    * Who beat them in each position, most frequent first.
    *
    * Same reasoning as the pools: a ban list built from their games at ADC is
    * the wrong list for a player now playing top. Thin, or empty, is honest.
    */
-  banCandidatesByPosition: Record<string, string[]>;
+  banCandidatesByPosition: Record<string, ChampionRecord[]>;
+  /** Every champion they played, with games and wins, most played first. */
+  championRecords: ChampionRecord[];
 }
 
 /** How many champions count as the player's pool. */
@@ -116,7 +125,8 @@ export function summarizeMatches(
   }
 
   const champGames = new Map<string, number>();
-  const champByPosition = new Map<string, Map<string, number>>();
+  const champByPosition = new Map<string, Map<string, { games: number; wins: number }>>();
+  const champRecords = new Map<string, { games: number; wins: number }>();
   const roleCounts = new Map<string, number>();
   const banCandidateCounts = new Map<string, number>();
   const bansByPosition = new Map<string, Map<string, number>>();
@@ -143,9 +153,21 @@ export function summarizeMatches(
     const me = match.info.participants.find((p) => p.puuid === puuid)!;
 
     champGames.set(me.championName, (champGames.get(me.championName) ?? 0) + 1);
+
+    // Games and wins, not just a count. The names alone say what they play; the
+    // records say how it has gone, which is the difference between a pool and a
+    // read on one.
+    const overall = champRecords.get(me.championName) ?? { games: 0, wins: 0 };
+    overall.games += 1;
+    if (me.win) overall.wins += 1;
+    champRecords.set(me.championName, overall);
+
     if (me.teamPosition) {
-      const seat = champByPosition.get(me.teamPosition) ?? new Map<string, number>();
-      seat.set(me.championName, (seat.get(me.championName) ?? 0) + 1);
+      const seat = champByPosition.get(me.teamPosition) ?? new Map<string, { games: number; wins: number }>();
+      const rec = seat.get(me.championName) ?? { games: 0, wins: 0 };
+      rec.games += 1;
+      if (me.win) rec.wins += 1;
+      seat.set(me.championName, rec);
       champByPosition.set(me.teamPosition, seat);
     }
     if (me.win) wins += 1;
@@ -242,18 +264,33 @@ export function summarizeMatches(
     topChampions: rankedByCount(champGames).slice(0, POOL_SIZE).map(renameChampion),
     banCandidates: rankedByCount(banCandidateCounts).map(renameChampion),
     mainPosition: rankedByCount(roleCounts)[0] ?? '',
+    // Counts travel with the names. "Beat them 4 times" and "beat them once"
+    // are different facts, and a bare icon cannot tell them apart.
     banCandidatesByPosition: Object.fromEntries(
       [...bansByPosition.entries()].map(([position, counts]) => [
         position,
-        rankedByCount(counts).slice(0, POOL_SIZE).map(renameChampion)
+        rankedByCount(counts)
+          .slice(0, POOL_SIZE)
+          .map((champion) => ({
+            champion: renameChampion(champion),
+            games: counts.get(champion) ?? 0,
+            // These are games the player *lost*, so the champion won all of them.
+            wins: counts.get(champion) ?? 0
+          }))
       ])
     ),
     championsByPosition: Object.fromEntries(
-      [...champByPosition.entries()].map(([position, counts]) => [
+      [...champByPosition.entries()].map(([position, records]) => [
         position,
-        rankedByCount(counts).slice(0, POOL_SIZE).map(renameChampion)
+        [...records.entries()]
+          .sort((a, b) => b[1].games - a[1].games)
+          .slice(0, POOL_SIZE)
+          .map(([champion, rec]) => ({ champion: renameChampion(champion), ...rec }))
       ])
     ),
+    championRecords: [...champRecords.entries()]
+      .sort((a, b) => b[1].games - a[1].games)
+      .map(([champion, rec]) => ({ champion: renameChampion(champion), ...rec })),
     positions: rankedByCount(roleCounts).map((position) => ({
       position,
       games: roleCounts.get(position) ?? 0

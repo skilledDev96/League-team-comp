@@ -487,10 +487,15 @@
                       </span>
 
                       <span class="opp-cell opp-pool" role="cell">
-                        @for (champ of poolFor(opp); track champ) {
-                          <img class="opp-champ" [class.is-seat]="poolIsForSeat(opp)"
-                               [src]="ui.championIconUrl(champ)" [alt]="champ"
-                               [appTip]="champ + (poolIsForSeat(opp) ? ' — plays this at ' + opp.role : ' — one of their most played')" loading="lazy" />
+                        @for (rec of poolFor(opp); track rec.champion) {
+                          <span class="opp-champ-cell"
+                                [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won' : '') + (poolIsForSeat(opp) ? ' at ' + opp.role : '')">
+                            <img class="opp-champ" [class.is-seat]="poolIsForSeat(opp)"
+                                 [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                            @if (rateOf(rec); as rate) {
+                              <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rate }}%<em>{{ rec.games }}</em></span>
+                            }
+                          </span>
                         }
                         @if (!poolFor(opp).length) { <span class="opp-none">&mdash;</span> }
                       </span>
@@ -498,10 +503,13 @@
                       <!-- A record of this player losing to this champion, not a
                            meta guess, which is what makes it a ban list. -->
                       <span class="opp-cell opp-counters" role="cell">
-                        @for (champ of countersFor(opp); track champ) {
-                          <img class="opp-champ is-counter" [class.is-seat]="countersAreForSeat(opp)"
-                               [src]="ui.championIconUrl(champ)" [alt]="champ"
-                               [appTip]="champ + ' beat them' + (countersAreForSeat(opp) ? ' at ' + opp.role : ' in lane')" loading="lazy" />
+                        @for (rec of countersFor(opp); track rec.champion) {
+                          <span class="opp-champ-cell"
+                                [appTip]="rec.champion + ' beat them' + (rec.games ? ' ' + rec.games + (rec.games === 1 ? ' time' : ' times') : '') + (countersAreForSeat(opp) ? ' at ' + opp.role : ' in lane')">
+                            <img class="opp-champ is-counter" [class.is-seat]="countersAreForSeat(opp)"
+                                 [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                            @if (rec.games) { <span class="opp-champ-stat is-poor">{{ rec.games }}&times;</span> }
+                          </span>
                         }
                         @if (!countersFor(opp).length) { <span class="opp-none">&mdash;</span> }
                       </span>
@@ -510,7 +518,7 @@
                            champion picked up six weeks ago is invisible to the
                            scan and obvious here. No position attached. -->
                       <span class="opp-cell opp-recent" role="cell">
-                        @for (champ of opp.recentChampions ?? []; track champ) {
+                        @for (champ of (opp.recentChampions ?? []).slice(0, 6); track champ) {
                           <img class="opp-champ is-recent" [src]="ui.championIconUrl(champ)"
                                [alt]="champ" [appTip]="champ" loading="lazy" />
                         }
