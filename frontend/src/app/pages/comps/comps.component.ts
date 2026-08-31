@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Comp, CompOutcome, CompPerformance, CompPicks, CompRecord, CompResult, Play, Role, ROLES } from '../../models/team.models';
+import { ChampionTraits, Comp, CompOutcome, CompPerformance, CompPicks, CompRecord, CompResult, Play, Role, ROLES } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -10,6 +10,8 @@ import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { CompBoardComponent } from '../../shared/comp-board.component';
+import { compIconFor } from '../../core/comp-identity';
+import { indexTraits, traitsFor } from '../../shared/comp-board.util';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { TacticalBoardComponent } from './tactical-board.component';
 import { NoteRollup, rollupNotes } from './note-insights.util';
@@ -382,16 +384,24 @@ export class CompsComponent {
     return new Date().toISOString().slice(0, 10);
   }
 
-  // Pick a Material Symbol that reflects the comp's playstyle from its name.
-  protected compIcon(name: string): string {
-    const n = (name || '').toLowerCase();
-    if (n.includes('engage')) return 'bolt';
-    if (n.includes('pick')) return 'my_location';
-    if (n.includes('poke') || n.includes('siege')) return 'sports_esports';
-    if (n.includes('split')) return 'call_split';
-    if (n.includes('protect') || n.includes('peel')) return 'shield';
-    if (n.includes('teamfight') || n.includes('aoe') || n.includes('wombo')) return 'groups';
-    if (n.includes('scal')) return 'trending_up';
-    return 'swords';
+  /**
+   * The comp's shape as a glyph, read from its five champions.
+   *
+   * Shared with the draft room through compIconFor, so the same comp carries
+   * the same mark in both places — which is the only thing an icon here is
+   * for. This used to guess from the name alone and left most comps on the
+   * generic fallback: Dive, Skirmish, Exodia and Arrows and Spears match no
+   * keyword while their champions say plainly what they are.
+   */
+  protected compIcon(comp: Comp): string {
+    const index = indexTraits(this.data.championTraits());
+    const traits: ChampionTraits[] = [];
+    for (const role of this.roles) {
+      const champion = this.ui.parseCompLine(comp.picks[role] ?? '').champion;
+      if (!champion) continue;
+      const found = traitsFor(index, this.champData.resolve(champion)?.id);
+      if (found) traits.push(found);
+    }
+    return compIconFor(traits, comp.name);
   }
 }

@@ -116,11 +116,52 @@ export const IDENTITY_LABEL: Record<CompIdentity, string> = {
  * three champions the classifier abstains, and the icon has to abstain with it.
  */
 export const IDENTITY_ICON: Record<CompIdentity, string> = {
-  poke: 'my_location',
+  poke: 'radar',
   dive: 'flight_land',
   teamfight: 'groups',
-  pick: 'trap',
+  pick: 'person_alert',
   split: 'call_split',
   protect: 'shield_person',
-  unclear: 'help'
+  unclear: 'swords'
 };
+
+/**
+ * What a comp's *name* suggests, for when its champions cannot say.
+ *
+ * Weaker than the classifier and kept only as a fallback: a name records what
+ * the team meant when they wrote it down, which is real information, but it is
+ * a label rather than a reading of the draft. "Arrows and Spears" is plainly a
+ * poke comp and the name knows nothing about it.
+ */
+export function iconFromName(name: string): string | null {
+  const n = (name || '').toLowerCase();
+  if (n.includes('engage')) return 'bolt';
+  if (n.includes('pick')) return IDENTITY_ICON.pick;
+  if (n.includes('poke') || n.includes('siege')) return IDENTITY_ICON.poke;
+  if (n.includes('split')) return IDENTITY_ICON.split;
+  if (n.includes('protect') || n.includes('peel')) return IDENTITY_ICON.protect;
+  if (n.includes('teamfight') || n.includes('aoe') || n.includes('wombo')) return IDENTITY_ICON.teamfight;
+  if (n.includes('dive')) return IDENTITY_ICON.dive;
+  if (n.includes('scal')) return 'trending_up';
+  return null;
+}
+
+/**
+ * The icon for a comp: read from its champions, falling back to its name.
+ *
+ * One function for both the Comps page and the draft room, because two icon
+ * schemes for the same nineteen comps is worse than either — the point of an
+ * icon here is recognising the same comp in two places.
+ *
+ * Composition first. The name-based guess it replaced left most comps on the
+ * generic fallback, because "Dive", "Skirmish", "Exodia" and "Arrows and
+ * Spears" match no keyword while their champions say exactly what they are.
+ * The name is still consulted when the classifier abstains — on a comp of
+ * three champions it has nothing to go on, and the team's own label is then
+ * the best signal there is.
+ */
+export function compIconFor(traits: ChampionTraits[], name: string): string {
+  const identity = classifyComp(traits);
+  if (identity !== 'unclear') return IDENTITY_ICON[identity];
+  return iconFromName(name) ?? IDENTITY_ICON.unclear;
+}

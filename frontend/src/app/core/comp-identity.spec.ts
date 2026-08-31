@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ChampionTraits } from '../models/team.models';
-import { classifyComp, damageProfile } from './comp-identity';
+import { classifyComp, compIconFor, damageProfile, IDENTITY_ICON } from './comp-identity';
 
 function t(over: Partial<ChampionTraits> = {}): ChampionTraits {
   return {
@@ -101,5 +101,41 @@ describe('classifyComp', () => {
   it('says unclear rather than forcing a shape that is not there', () => {
     const comp = Array.from({ length: 5 }, () => t({ cc: 0, mobility: 0, durability: 0, utility: 0, roles: [] }));
     expect(classifyComp(comp)).toBe('unclear');
+  });
+});
+
+describe('compIconFor', () => {
+  const t = (over: Partial<ChampionTraits>): ChampionTraits => ({
+    id: 'X', name: 'X', damage: 'physical', attack: 'melee',
+    roles: [], cc: 1, mobility: 1, durability: 1, utility: 1, ...over
+  });
+  const five = (over: Partial<ChampionTraits>) => Array.from({ length: 5 }, () => t(over));
+
+  it('reads the champions rather than the name', () => {
+    // "Arrows and Spears" matches no keyword, but its champions are plain.
+    const poke = five({ attack: 'ranged', mobility: 0, cc: 1, durability: 0 });
+    expect(compIconFor(poke, 'Arrows and Spears')).toBe(IDENTITY_ICON[classifyComp(poke)]);
+  });
+
+  it('falls back to the name when the champions cannot say', () => {
+    // Three champions is not a comp to classify, and the team's own label is
+    // then the best signal there is.
+    expect(compIconFor([], 'Engage')).toBe('bolt');
+    expect(compIconFor([], 'Poke')).toBe(IDENTITY_ICON.poke);
+  });
+
+  it('ends on the neutral mark when neither says anything', () => {
+    expect(compIconFor([], 'Exodia')).toBe(IDENTITY_ICON.unclear);
+    expect(compIconFor([], '')).toBe(IDENTITY_ICON.unclear);
+  });
+
+  it('never returns an icon that is not a real Material Symbol', () => {
+    // `trap` was not one, and rendered as the literal word TRAP on the pill.
+    const known = ['radar', 'flight_land', 'groups', 'person_alert', 'call_split',
+                   'shield_person', 'swords', 'bolt', 'trending_up'];
+    for (const icon of Object.values(IDENTITY_ICON)) expect(known).toContain(icon);
+    for (const name of ['Engage', 'Pick', 'Poke', 'Split', 'Protect', 'Wombo', 'Dive', 'Scaling', 'zzz']) {
+      expect(known).toContain(compIconFor([], name));
+    }
   });
 });
