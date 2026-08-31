@@ -82,10 +82,46 @@ export function suggestForLane(
     const aPlayed = a.winRate !== undefined;
     const bPlayed = b.winRate !== undefined;
     if (aPlayed !== bPlayed) return aPlayed ? -1 : 1;
-    if (aPlayed && bPlayed && a.winRate !== b.winRate) return b.winRate! - a.winRate!;
+
+    const byConfidence = confidenceScore(b) - confidenceScore(a);
+    if (Math.abs(byConfidence) > 0.0001) return byConfidence;
     if (a.comps.length !== b.comps.length) return b.comps.length - a.comps.length;
     return a.champion.localeCompare(b.champion);
   });
+}
+
+/** 95% confidence, the usual choice for a lower bound like this. */
+const Z = 1.96;
+
+/**
+ * The win rate this record can actually support, not the one it happens to show.
+ *
+ * The list used to sort on the best comp's raw percentage while *displaying*
+ * the games-weighted projection, so it read as unsorted: Shen at 100% from one
+ * game sat above Mordekaiser at 57% from fourteen, and neither the order nor
+ * the numbers explained the other.
+ *
+ * Sorting on the same figure the row shows fixes the contradiction. Ranking by
+ * the *lower bound* of that figure fixes the ordering: the Wilson interval asks
+ * "how low could this rate plausibly be", so one win from one game scores 21
+ * while eight from fourteen scores 33. A plain average cannot separate them,
+ * and simply shrinking toward even is not enough — a single perfect game still
+ * shrinks to 60%, which beats a genuine 57%.
+ *
+ * This is the same mistake the panel exists to stop the team making: a small
+ * sample looking like a strong one.
+ */
+export function confidenceScore(suggestion: ChampionSuggestion): number {
+  if (suggestion.projected === undefined) return 0;
+
+  const n = Math.max(suggestion.games, 0);
+  if (n <= 0) return 0;
+
+  const p = Math.min(Math.max(suggestion.projected / 100, 0), 1);
+  const denominator = 1 + (Z * Z) / n;
+  const centre = p + (Z * Z) / (2 * n);
+  const margin = Z * Math.sqrt((p * (1 - p) + (Z * Z) / (4 * n)) / n);
+  return ((centre - margin) / denominator) * 100;
 }
 
 

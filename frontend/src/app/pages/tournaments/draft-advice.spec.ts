@@ -6,6 +6,7 @@ import {
   banSuggestions,
   compGaps,
   compsUsing,
+  confidenceScore,
   currentStanding,
   enemyRead,
   suggestForLane,
@@ -330,5 +331,46 @@ describe('banSuggestions', () => {
     // the roster rather than guessing from our own comps.
     expect(banSuggestions([], all, free)).toEqual([]);
     expect(banSuggestions([{ role: 'Mid' }], all, free)).toEqual([]);
+  });
+});
+
+describe('suggestion ordering', () => {
+  const many = [
+    comp({ id: 'engage', name: 'Engage', winRate: 57, games: 14 }),
+    comp({ id: 'poke', name: 'Poke', winRate: 100, games: 1 })
+  ];
+  const lineup = (c: CompAvailability, lane: Role) =>
+    ({ engage: { Top: 'Mordekaiser' }, poke: { Top: 'Shen' } } as Record<string, Partial<Record<Role, string>>>)[
+      c.id
+    ]?.[lane] ?? '';
+
+  it('puts a real record above a single perfect game', () => {
+    // The complaint this fixes: Shen at 100% from one game sat above
+    // Mordekaiser at 57% from fourteen, and the displayed numbers made the
+    // order look arbitrary.
+    const order = suggestForLane('Top', ['Shen', 'Mordekaiser'], many, lineup).map((s) => s.champion);
+    expect(order).toEqual(['Mordekaiser', 'Shen']);
+  });
+
+  it('still prefers a better rate when the samples are comparable', () => {
+    const comps = [
+      comp({ id: 'engage', name: 'Engage', winRate: 70, games: 10 }),
+      comp({ id: 'poke', name: 'Poke', winRate: 40, games: 10 })
+    ];
+    const order = suggestForLane('Top', ['Shen', 'Mordekaiser'], comps, lineup).map((s) => s.champion);
+    expect(order).toEqual(['Mordekaiser', 'Shen']);
+  });
+
+  it('sorts on the same figure the row displays', () => {
+    // Sorting on one number and showing another is what made it read as
+    // unsorted; confidenceScore is a monotone function of the projection at a
+    // fixed sample size, so order and numbers now agree.
+    const out = suggestForLane('Top', ['Shen', 'Mordekaiser'], many, lineup);
+    const scores = out.map((s) => confidenceScore(s));
+    expect(scores).toEqual([...scores].sort((a, b) => b - a));
+  });
+
+  it('scores an unplayed suggestion at nothing rather than at even', () => {
+    expect(confidenceScore({ champion: 'X', comps: [], games: 0 })).toBe(0);
   });
 });
