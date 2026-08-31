@@ -153,9 +153,11 @@ const MIN_FOR_A_CLAIM = 8;
  * conclusion a reader would otherwise have to assemble from two tabs of
  * percentages — not to narrate every factor, which is what the bars are for.
  */
-export function reviewReadout(games: AnalysisGame[]): ReviewReadout {
+export function reviewReadout(games: AnalysisGame[], lead: Outcome = 'loss'): ReviewReadout {
   const wins = summarise(games, 'win');
   const losses = summarise(games, 'loss');
+  const winLines: ReadoutLine[] = [];
+  const lossLines: ReadoutLine[] = [];
   const lines: ReadoutLine[] = [];
 
   // Number first in each line: it is the finding, and leading with it means the
@@ -164,7 +166,7 @@ export function reviewReadout(games: AnalysisGame[]): ReviewReadout {
     const also = wins.patterns[1]
       ? ` and ${dropSharedVerb(phrase(wins.patterns[0].code, 'win'), phrase(wins.patterns[1].code, 'win'))}`
       : '';
-    lines.push({
+    winLines.push({
       strong: `${wins.patterns[0].share}% of your wins`,
       rest: `come from ${phrase(wins.patterns[0].code, 'win')}${also}.`,
       tone: 'win'
@@ -172,7 +174,7 @@ export function reviewReadout(games: AnalysisGame[]): ReviewReadout {
   }
 
   if (losses.analysed >= MIN_FOR_A_CLAIM && losses.patterns.length) {
-    lines.push({
+    lossLines.push({
       strong: `${losses.patterns[0].share}% of your losses`,
       rest: `come from ${phrase(losses.patterns[0].code, 'loss')}.`,
       tone: 'loss'
@@ -189,12 +191,34 @@ export function reviewReadout(games: AnalysisGame[]): ReviewReadout {
   }).length;
 
   if (analysedLosses.length >= MIN_FOR_A_CLAIM && wonFightsLost > 0) {
-    lines.push({
+    lossLines.push({
       strong: `${wonFightsLost} of those losses`,
       rest: "weren't about the fights — you lost the map anyway. That's a conversion problem, not a fighting one.",
       tone: 'gap'
     });
   }
+
+  // The same reading from the other end: games taken on the map without the
+  // fights going our way. It says the map is a route to winning and not only a
+  // way of losing, which is the encouraging half of the same fact.
+  const analysedWins = games.filter((g) => g.win && g.objectives);
+  const wonWithoutFights = analysedWins.filter((g) => {
+    const codes = (g.winFactors ?? []).map((f) => f.code);
+    return codes.includes('map_control') && !codes.includes('won_fights');
+  }).length;
+
+  if (analysedWins.length >= MIN_FOR_A_CLAIM && wonWithoutFights > 0) {
+    winLines.push({
+      strong: `${wonWithoutFights} of those wins`,
+      rest: "came without winning the fights — you took them on the map. That's a route you can play for deliberately.",
+      tone: 'gap'
+    });
+  }
+
+  // Both sides, always — the sentence the toggle cannot give on its own — but
+  // led by the one being asked about. Reading "90% of your losses" first under
+  // a heading that says "What keeps working" answers a question nobody asked.
+  lines.push(...(lead === 'win' ? [...winLines, ...lossLines] : [...lossLines, ...winLines]));
 
   return lines;
 }

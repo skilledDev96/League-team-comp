@@ -94,7 +94,7 @@ export class ReviewComponent {
    * against losses, and having to flip tabs to assemble it is the work this is
    * meant to remove.
    */
-  protected readonly readout = computed(() => reviewReadout(this.filteredGames()));
+  protected readonly readout = computed(() => reviewReadout(this.filteredGames(), this.outcome()));
 
   /** One line per factor, shown on hover rather than taking up layout. */
   protected factorHint(code: string): string {

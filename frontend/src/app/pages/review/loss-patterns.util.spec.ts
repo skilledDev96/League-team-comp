@@ -200,3 +200,47 @@ describe('reviewReadout', () => {
     expect(out).toEqual([]);
   });
 });
+
+describe('reviewReadout leading side', () => {
+  // MIN_FOR_A_CLAIM is 8, so both sides need at least that many to say anything.
+  const wins = Array.from({ length: 9 }, () =>
+    game({ win: true, lossFactors: [], winFactors: [{ code: 'map_control', label: 'Controlled the map', detail: '' }] })
+  );
+  const losses = Array.from({ length: 9 }, () =>
+    game({ lossFactors: [factor('map_control', 'Lost the map')] })
+  );
+  const both = [...wins, ...losses];
+
+  it('leads with losses when losses are being read', () => {
+    expect(reviewReadout(both, 'loss')[0].strong).toContain('losses');
+  });
+
+  it('leads with wins when wins are being read', () => {
+    // Reading "90% of your losses" first under a heading that says "What keeps
+    // working" answers a question nobody asked.
+    expect(reviewReadout(both, 'win')[0].strong).toContain('wins');
+  });
+
+  it('still says both, whichever way round', () => {
+    for (const lead of ['win', 'loss'] as const) {
+      const joined = reviewReadout(both, lead).map((l) => l.strong).join(' ');
+      expect(joined).toContain('wins');
+      expect(joined).toContain('losses');
+    }
+  });
+
+  it('keeps the conversion reading with the losses it describes', () => {
+    const lines = reviewReadout(both, 'loss');
+    const conversion = lines.findIndex((l) => l.rest.includes('conversion problem'));
+    const headline = lines.findIndex((l) => l.strong.includes('% of your losses'));
+    expect(conversion).toBeGreaterThan(headline);
+  });
+
+  it('gives the wins their own reading rather than borrowing the losses one', () => {
+    expect(reviewReadout(both, 'win').some((l) => l.rest.includes('took them on the map'))).toBe(true);
+  });
+
+  it('defaults to leading with losses, as the page always did', () => {
+    expect(reviewReadout(both)[0].strong).toContain('losses');
+  });
+});
