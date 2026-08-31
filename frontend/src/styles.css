@@ -10068,3 +10068,44 @@ body:has(.draft-stage) .edit-mode-frame {
   color: var(--text-1);
   opacity: 0.7;
 }
+
+/* ---- Whose pick is this -------------------------------------------------
+   The step bar names the turn, but it sits above the champion wall while the
+   pick columns are at the far edges of a full-width screen — so mid-draft you
+   read the answer in the middle and act at the side. Lighting the column puts
+   the answer where the eye already is.
+
+   Outline rather than border or padding: it sits outside the box model, so it
+   cannot move anything. Nothing on this screen may change layout height when
+   its state changes. */
+.field.is-on-turn {
+  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 4px;
+  border-radius: 0.6rem;
+  animation: on-clock-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes on-clock-pulse {
+  0%, 100% { outline-color: color-mix(in srgb, var(--accent) 62%, transparent); }
+  50%      { outline-color: color-mix(in srgb, var(--accent) 20%, transparent); }
+}
+
+/* A draft room is not the place to make someone watch a pulse they did not ask
+   for; the outline alone still answers the question. */
+@media (prefers-reduced-motion: reduce) {
+  .field.is-on-turn { animation: none; }
+}
+
+.on-clock {
+  font-style: normal;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-left: 0.45rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.35rem;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  white-space: nowrap;
+}

@@ -632,6 +632,24 @@ export class TournamentDraftComponent implements OnInit {
   }
 
   /**
+   * Whether this side is the one being asked to pick.
+   *
+   * The step bar already names the turn, but it sits above the champion wall
+   * and the columns are at the far edges of a full-width screen — so mid-draft
+   * the question "whose pick is this" is answered by reading text in the middle
+   * while looking at a card on the side. Lighting the column answers it where
+   * the eye already is.
+   *
+   * Pick steps only. A ban is answered on the ban strip, so lighting a pick
+   * column during one would point at the wrong control.
+   */
+  protected onTurn(game: SeriesGame, side: DraftSide): boolean {
+    const step = this.step(game);
+    if (!step || !game.ourSide || step.action !== 'pick') return false;
+    return this.sideOfStep(game) === side;
+  }
+
+  /**
    * The seat a pending pick would land in. Shown before confirming so a wrong
    * lane can be seen and corrected rather than discovered afterwards.
    */

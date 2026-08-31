@@ -113,8 +113,10 @@
               </div>
             }
           </div>
-          <div class="field">
-            <span>{{ teamName() }} picks <small class="pick-count">{{ pickedCount(game, 'our') }}/5</small></span>
+          <div class="field" [class.is-on-turn]="onTurn(game, 'our')">
+            <span>{{ teamName() }} picks <small class="pick-count">{{ pickedCount(game, 'our') }}/5</small>
+              @if (onTurn(game, 'our')) { <em class="on-clock">on the clock</em> }
+            </span>
             <ul class="list-clean pick-slots" [class.is-moving]="isMovingPick('our')">
               @for (slot of pickSlots(game, 'our'); track slot.role; let i = $index) {
                 <li class="pick-slot" [class.is-empty]="!slot.champion" [class.is-held]="isHeld('our', i)"
@@ -164,8 +166,10 @@
               }
             </ul>
           </div>
-          <div class="field">
-            <span>{{ series.opponent }} picks <small class="pick-count">{{ pickedCount(game, 'their') }}/5</small></span>
+          <div class="field" [class.is-on-turn]="onTurn(game, 'their')">
+            <span>{{ series.opponent }} picks <small class="pick-count">{{ pickedCount(game, 'their') }}/5</small>
+              @if (onTurn(game, 'their')) { <em class="on-clock">on the clock</em> }
+            </span>
             <ul class="list-clean pick-slots" [class.is-moving]="isMovingPick('their')">
               @for (slot of pickSlots(game, 'their'); track slot.role; let i = $index) {
                 <li class="pick-slot" [class.is-empty]="!slot.champion" [class.is-held]="isHeld('their', i)"
