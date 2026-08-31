@@ -243,6 +243,43 @@
               <button type="button" class="view-btn is-red" (click)="setOurSide(game, 'red')">Red</button>
               <span class="muted draft-side-note">Blue bans and picks first &mdash; or fill seats in any order below.</span>
             </div>
+
+            <!-- On an untouched board, ask properly rather than in passing.
+                 Every step after this depends on the answer — whose turn it is,
+                 which seat a pick lands in, who banned what — and the inline row
+                 was quiet enough to walk past, which starts a draft that is
+                 wrong about all three. A board already filled is left alone: it
+                 predates sides existing, and trapping it behind a question
+                 nobody asked at the time would be worse than the gap. -->
+            @if (freshBoard(game)) {
+              <div class="draft-side-modal" role="dialog" aria-modal="true"
+                   aria-label="Which side are we on?">
+                <div class="draft-side-card">
+                  <h3>Which side are we on?</h3>
+                  <p class="muted">
+                    Blue bans and picks first. Everything after this depends on it &mdash;
+                    whose turn it is, which seat a pick lands in, who banned what.
+                  </p>
+                  <div class="draft-side-choices">
+                    <button type="button" class="draft-side-choice is-blue"
+                            (click)="setOurSide(game, 'blue')">
+                      <span class="draft-side-name">Blue</span>
+                      <span class="draft-side-hint">First ban, first pick</span>
+                    </button>
+                    <button type="button" class="draft-side-choice is-red"
+                            (click)="setOurSide(game, 'red')">
+                      <span class="draft-side-name">Red</span>
+                      <span class="draft-side-hint">Last pick of each phase</span>
+                    </button>
+                  </div>
+                  @if (draftSeries()?.side; as agreed) {
+                    <p class="muted draft-side-agreed">
+                      Game 1 side for this series was recorded as <strong>{{ agreed }}</strong>.
+                    </p>
+                  }
+                </div>
+              </div>
+            }
           } @else if (sequenceDone(game)) {
             <p class="draft-step-bar is-done">
               <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
@@ -269,6 +306,17 @@
                 <span class="draft-clock-num">{{ secondsLeft() }}</span>
               </span>
 
+              <!-- Who closes this pick phase. The side picking last sees the
+                   other's champion first, so it answers rather than commits —
+                   which decides whether a flex pick is held back or spent. -->
+              @if (lastPickIsOurs(game); as ours) {
+                <span class="draft-lastpick" [class.is-ours]="ours" [class.is-theirs]="!ours"
+                      [appTip]="ours
+                        ? 'You close this phase, so you pick knowing theirs. Hold a flex pick.'
+                        : 'They close this phase and will see your pick. Expect an answer to it.'">
+                  {{ ours ? 'You have last pick' : 'They have last pick' }}
+                </span>
+              }
               <span class="draft-step-progress" aria-hidden="true">
                 <span class="draft-step-fill" [style.width.%]="progress(game)"></span>
               </span>
@@ -303,6 +351,20 @@
                   <span class="draft-confirm-seat">into {{ seat }}</span>
                 }
                 <!-- What this pick does, at the moment it is worth reading. -->
+                <!-- At ban time the question inverts: not what this helps, but
+                     what banning it costs. A ban lasts the whole series under
+                     fearless, so banning into our own comps spends one of their
+                     bans for them. -->
+                @if (step(game)?.action === 'ban' && pending(); as champ) {
+                  @if (banCost(game, champ); as costs) {
+                    @if (costs.length) {
+                      <span class="draft-ban-cost"
+                            [appTip]="'Banning ' + champ + ' costs us: ' + costs.join(', ')">
+                        also in {{ costs.length }} of our comps
+                      </span>
+                    }
+                  }
+                }
                 @if (pendingAdvice(game); as a) {
                   @if (a.projected !== undefined) {
                     <span class="draft-confirm-read">

@@ -10171,7 +10171,7 @@ body:has(.draft-stage) .edit-mode-frame {
 /* The comp's shape, as a glyph. Derived from its champions, so it says how the
    comp plays rather than decorating it — two comps that play alike look alike. */
 .advice-comp-icon {
-  font-size: 0.85rem;
+  font-size: 1.05rem;
   line-height: 1;
   opacity: 0.75;
   transform: translateY(0.1em);
@@ -10188,4 +10188,92 @@ body:has(.draft-stage) .edit-mode-frame {
 .draft-auto:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+/* ---- Which side are we on -----------------------------------------------
+   Asked properly on an untouched board, because everything after it depends
+   on the answer. Covers the stage rather than the window: the page header and
+   the series list stay reachable, so the way out is to pick a different game
+   rather than to be stuck. */
+.draft-side-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--surface-0) 82%, transparent);
+  backdrop-filter: blur(3px);
+  border-radius: 0.75rem;
+}
+
+.draft-side-card {
+  max-width: 34rem;
+  padding: 1.6rem 1.8rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.9rem;
+  background: var(--surface-1);
+  box-shadow: 0 1.2rem 3rem rgb(0 0 0 / 45%);
+  text-align: center;
+}
+
+.draft-side-card h3 { margin: 0 0 0.4rem; }
+.draft-side-card p { margin: 0 0 1.1rem; }
+
+.draft-side-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+
+.draft-side-choice {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-2);
+  color: var(--text-0);
+  cursor: pointer;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.draft-side-choice:hover { transform: translateY(-1px); }
+.draft-side-choice.is-blue:hover { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+.draft-side-choice.is-red:hover  { border-color: color-mix(in srgb, var(--warn) 70%, transparent); }
+
+.draft-side-name { font-size: 1.05rem; font-weight: 700; }
+.draft-side-choice.is-blue .draft-side-name { color: var(--accent); }
+.draft-side-choice.is-red .draft-side-name  { color: var(--warn); }
+
+.draft-side-hint { font-size: 0.75rem; color: var(--text-1); }
+.draft-side-agreed { margin: 1rem 0 0 !important; font-size: 0.8rem; }
+
+/* The stage is the positioning context the overlay covers. */
+.draft-stage { position: relative; }
+
+/* ---- Who closes the phase ----------------------------------------------- */
+.draft-lastpick {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.35rem;
+  white-space: nowrap;
+}
+
+.draft-lastpick.is-ours {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 15%, transparent);
+}
+
+.draft-lastpick.is-theirs {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+}
+
+/* Banning a champion our own comps depend on spends one of their bans for them. */
+.draft-ban-cost {
+  font-size: 0.78rem;
+  color: var(--warn);
 }

@@ -9,7 +9,9 @@ import {
   draftProgress,
   isComplete,
   seatFor,
-  stepAt
+  stepAt,
+  lastPickOfPhase,
+  picksLeftInPhase
 } from './draft-sequence';
 
 /** Compact reading of the whole order, for asserting it in one go. */
@@ -177,5 +179,43 @@ describe('bansForTeam', () => {
 
   it('ignores blank entries rather than counting them as bans', () => {
     expect(bansForTeam(['b1', '', 'r1'], 'our', 'blue')).toEqual(['b1', null, null, null, null]);
+  });
+});
+
+describe('lastPickOfPhase', () => {
+  it('says nothing during a ban phase', () => {
+    // There is nothing to counter with a ban; the question does not apply.
+    expect(lastPickOfPhase(0)).toBeNull();
+    expect(lastPickOfPhase(12)).toBeNull();
+  });
+
+  it('names the side that closes the first pick phase', () => {
+    // bp rp rp bp bp rp — red closes it.
+    expect(lastPickOfPhase(6)).toBe('red');
+  });
+
+  it('names the side that closes the second pick phase', () => {
+    // rp bp bp rp — red again, which is what last pick means in this format.
+    expect(lastPickOfPhase(16)).toBe('red');
+  });
+
+  it('gives the same answer from anywhere inside a phase', () => {
+    for (const at of [6, 7, 8, 9, 10, 11]) expect(lastPickOfPhase(at)).toBe('red');
+  });
+
+  it('does not read across the bans into the next phase', () => {
+    // Position 11 is the last pick of phase one; bans follow, not more picks.
+    expect(picksLeftInPhase(11)).toBe(1);
+  });
+});
+
+describe('picksLeftInPhase', () => {
+  it('counts the pick on the clock as one of them', () => {
+    expect(picksLeftInPhase(6)).toBe(6);
+    expect(picksLeftInPhase(16)).toBe(4);
+  });
+
+  it('is zero where the phase is bans', () => {
+    expect(picksLeftInPhase(0)).toBe(0);
   });
 });

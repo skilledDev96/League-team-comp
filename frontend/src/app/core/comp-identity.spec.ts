@@ -131,7 +131,7 @@ describe('compIconFor', () => {
 
   it('never returns an icon that is not a real Material Symbol', () => {
     // `trap` was not one, and rendered as the literal word TRAP on the pill.
-    const known = ['radar', 'flight_land', 'groups', 'person_alert', 'call_split',
+    const known = ['radar', 'flight_land', 'groups', 'gps_fixed', 'call_split',
                    'shield_person', 'swords', 'bolt', 'trending_up'];
     for (const icon of Object.values(IDENTITY_ICON)) expect(known).toContain(icon);
     for (const name of ['Engage', 'Pick', 'Poke', 'Split', 'Protect', 'Wombo', 'Dive', 'Scaling', 'zzz']) {

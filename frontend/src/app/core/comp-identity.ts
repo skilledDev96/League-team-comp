@@ -119,7 +119,7 @@ export const IDENTITY_ICON: Record<CompIdentity, string> = {
   poke: 'radar',
   dive: 'flight_land',
   teamfight: 'groups',
-  pick: 'person_alert',
+  pick: 'gps_fixed',
   split: 'call_split',
   protect: 'shield_person',
   unclear: 'swords'

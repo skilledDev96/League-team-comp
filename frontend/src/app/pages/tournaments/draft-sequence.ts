@@ -145,3 +145,36 @@ export function describeStep(step: DraftStep, blueName: string, redName: string)
   const who = step.team === 'blue' ? blueName : redName;
   return `${who} ${step.action} ${step.ordinal}`;
 }
+
+/**
+ * Which side makes the final pick of the phase this position sits in.
+ *
+ * The whole reason pick order matters: the side picking last sees the other's
+ * champion before choosing, so it answers rather than commits. Standing on it
+ * changes what you should do with a flex pick — hold it if you pick last, spend
+ * it early if you do not — and the sequence already knows, it just never said.
+ *
+ * Null outside a pick phase, because during bans there is nothing to counter.
+ */
+export function lastPickOfPhase(position: number): DraftTeam | null {
+  const here = stepAt(position);
+  if (!here || here.action !== 'pick') return null;
+
+  let last: DraftTeam | null = null;
+  for (let i = position; i < DRAFT_SEQUENCE.length; i += 1) {
+    const step = DRAFT_SEQUENCE[i];
+    if (step.action !== 'pick') break; // The phase ends where the bans resume.
+    last = step.team;
+  }
+  return last;
+}
+
+/** How many picks remain in this phase, including the one on the clock. */
+export function picksLeftInPhase(position: number): number {
+  let left = 0;
+  for (let i = position; i < DRAFT_SEQUENCE.length; i += 1) {
+    if (DRAFT_SEQUENCE[i].action !== 'pick') break;
+    left += 1;
+  }
+  return left;
+}

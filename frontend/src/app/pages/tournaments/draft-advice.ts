@@ -276,3 +276,31 @@ export function enemyRead(traits: readonly ChampionTraits[]): DraftRead[] {
 
   return out;
 }
+
+/**
+ * Which of our still-playable comps a champion belongs to.
+ *
+ * Written for ban time, where the useful question is the reverse of pick time:
+ * not "does this help us" but "does banning it cost us". A ban is permanent for
+ * the series under fearless, so banning a champion three of our comps depend on
+ * spends one of their bans for them.
+ *
+ * Deliberately not a ban *recommendation*. Recommending what to ban needs to
+ * know what the opponent plays, and nothing in this app knows that yet — a
+ * suggestion built from our own comps alone would be a confident-looking guess
+ * about somebody else's draft.
+ */
+export function compsUsing(
+  champion: string,
+  comps: readonly CompAvailability[],
+  championInComp: (comp: CompAvailability, lane: Role) => string,
+  lanes: readonly Role[]
+): string[] {
+  const wanted = normalizeChampion(champion);
+  if (!wanted) return [];
+
+  return comps
+    .filter((comp) => comp.playable)
+    .filter((comp) => lanes.some((lane) => normalizeChampion(championInComp(comp, lane)) === wanted))
+    .map((comp) => comp.name);
+}

@@ -23,6 +23,8 @@ import {
   DraftStep,
   draftProgress,
   isComplete,
+  lastPickOfPhase,
+  picksLeftInPhase,
   seatFor,
   stepAt
 } from '../draft-sequence';
@@ -31,6 +33,7 @@ import {
   CompFit,
   CompGaps,
   compGaps,
+  compsUsing,
   currentStanding,
   DraftRead,
   enemyRead,
@@ -605,6 +608,63 @@ export class TournamentDraftComponent implements OnInit {
     await this.data.updateSeriesGame({ ...game, ourSide: side, draftStep: 0 });
     this.pending.set(null);
     this.restartClock();
+  }
+
+  /**
+   * A board with nothing on it yet, and so safe to block on the side question.
+   *
+   * Games drafted before sides existed carry picks and bans but no `ourSide`.
+   * Demanding an answer from those would trap a finished record behind a
+   * question nobody was asked at the time, so the modal only appears on a board
+   * that has not started — where the answer still changes what happens next.
+   */
+  protected freshBoard(game: SeriesGame): boolean {
+    const live = this.current(game);
+    return (
+      !live.ourSide &&
+      (live.draftStep ?? 0) === 0 &&
+      !(live.bans ?? []).some(Boolean) &&
+      !(live.ourChampions ?? []).some(Boolean) &&
+      !(live.theirChampions ?? []).some(Boolean)
+    );
+  }
+
+  /**
+   * Who takes the final pick of the phase in progress, in our own terms.
+   *
+   * The side picking last sees the other's champion before choosing, so it
+   * answers rather than commits. Worth saying out loud: it decides whether a
+   * flex pick should be held back or spent, and the sequence has always known
+   * without ever mentioning it.
+   */
+  protected lastPickIsOurs(game: SeriesGame): boolean | null {
+    const closing = lastPickOfPhase(game.draftStep ?? 0);
+    if (!closing || !game.ourSide) return null;
+    return closing === game.ourSide;
+  }
+
+  protected picksLeft(game: SeriesGame): number {
+    return picksLeftInPhase(game.draftStep ?? 0);
+  }
+
+  /**
+   * Comps of ours that a champion belongs to — the cost of banning it.
+   *
+   * At ban time the useful question inverts: not "does this help us" but "does
+   * banning it cost us". A ban is permanent for the whole series under
+   * fearless, so banning a champion three of our comps depend on spends one of
+   * their bans for them.
+   */
+  protected banCost(game: SeriesGame, champion: string): string[] {
+    return compsUsing(
+      champion,
+      this.compAvailability(game.seriesId),
+      (comp, lane) => {
+        const source = this.data.comps().find((c) => c.id === comp.id);
+        return source ? this.ui.parseCompLine(source.picks[lane] ?? '').champion : '';
+      },
+      this.roles
+    );
   }
 
   protected step(game: SeriesGame): DraftStep | null {

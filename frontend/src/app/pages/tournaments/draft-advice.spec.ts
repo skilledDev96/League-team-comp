@@ -4,6 +4,7 @@ import { CompAvailability } from './draft.util';
 import {
   MIN_SWING_GAMES,
   compGaps,
+  compsUsing,
   currentStanding,
   enemyRead,
   suggestForLane,
@@ -248,5 +249,36 @@ describe('swingOf', () => {
     const comps = [{ id: 'a', name: 'A', winRate: 100, games: 2 }];
     expect(weightedWinRate(comps)).toBe(100);
     expect(swingOf(100, 50, 2)).toBeUndefined();
+  });
+});
+
+describe('compsUsing', () => {
+  const comps = [
+    comp({ id: 'engage', name: 'Engage', winRate: 83, games: 6 }),
+    comp({ id: 'poke', name: 'Poke', winRate: 50, games: 4 }),
+    comp({ id: 'fresh', name: 'Fresh', games: 0 })
+  ];
+  const lanes: Role[] = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
+
+  it('names every comp of ours the champion appears in', () => {
+    // Galio is mid in both Engage and Poke: banning him costs us two.
+    expect(compsUsing('Galio', comps, pick, lanes)).toEqual(['Engage', 'Poke']);
+  });
+
+  it('says nothing for a champion we do not run', () => {
+    expect(compsUsing('Garen', comps, pick, lanes)).toEqual([]);
+  });
+
+  it('ignores comps already broken, which cost nothing to ban into', () => {
+    const broken = [comp({ id: 'engage', name: 'Engage', playable: false })];
+    expect(compsUsing('Maokai', broken, pick, lanes)).toEqual([]);
+  });
+
+  it('matches regardless of punctuation or casing', () => {
+    expect(compsUsing('miss fortune', comps, pick, lanes)).toEqual(['Engage']);
+  });
+
+  it('has nothing to say about an empty champion', () => {
+    expect(compsUsing('', comps, pick, lanes)).toEqual([]);
   });
 });
