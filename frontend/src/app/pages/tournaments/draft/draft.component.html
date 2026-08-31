@@ -726,6 +726,13 @@
                 <span class="draft-side-hint">Last pick of each phase</span>
               </button>
             </div>
+            @if (draftSeries(); as s) {
+              <button type="button" class="link-btn draft-side-escape"
+                      (click)="openPrep(s.id)">
+                <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
+                Scout {{ s.opponent }} first
+              </button>
+            }
             @if (draftSeries()?.side; as agreed) {
               <p class="muted draft-side-agreed">
                 Game 1 side for this series was recorded as <strong>{{ agreed }}</strong>.

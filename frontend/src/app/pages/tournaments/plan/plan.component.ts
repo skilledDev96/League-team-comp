@@ -72,6 +72,12 @@ export class TournamentPlanComponent {
     return this.openPrepIds().has(id);
   }
 
+  /** Open the series and its scouting panel together, from one click. */
+  protected openPrepPanel(id: string): void {
+    this.openSeriesId.set(id);
+    this.openPrepIds.set(new Set([...this.openPrepIds(), id]));
+  }
+
   protected togglePrepPanel(id: string): void {
     const next = new Set(this.openPrepIds());
     next.has(id) ? next.delete(id) : next.add(id);

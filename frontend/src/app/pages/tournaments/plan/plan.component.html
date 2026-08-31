@@ -89,6 +89,14 @@
                 {{ used }} burned
               </span>
             }
+            <!-- Reachable without opening the series first: scouting is what
+                 you come to this row to do in the days before a match. -->
+            <button type="button" class="series-scout"
+                    [appTip]="'Their roster, target bans and scouting notes'"
+                    (click)="$event.stopPropagation(); openPrepPanel(series.id)">
+              <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
+              Scout
+            </button>
             <span class="series-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
           </summary>
 
@@ -278,7 +286,7 @@
               <summary class="comp-record-head series-prep-head"
                        (click)="$event.preventDefault(); togglePrepPanel(series.id)">
                 <span class="comp-record-title material-symbols-rounded" aria-hidden="true">description</span>
-                <span class="comp-record-label">Prep for this opponent</span>
+                <span class="comp-record-label">Scouting &amp; bans</span>
                 <span class="series-prep-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
               </summary>
               <!-- Their five. The rulebook makes every team publish an op.gg

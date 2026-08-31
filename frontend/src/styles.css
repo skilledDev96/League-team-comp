@@ -10582,3 +10582,32 @@ body:has(.draft-stage) .edit-mode-frame {
   justify-self: start;
   font-size: 0.78rem;
 }
+
+/* Scouting, reachable from the series row without opening anything first —
+   it is what you come to that row to do in the days before a match. */
+.series-scout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-1);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.series-scout:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* The way out of the side dialog. Quiet — the question is still the point. */
+.draft-side-escape {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.9rem;
+  font-size: 0.8rem;
+}
