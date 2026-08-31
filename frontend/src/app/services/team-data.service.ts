@@ -32,7 +32,8 @@ import {
   ResourceLinks,
   Settings,
   TeamData,
-  TeamIdentity
+  TeamIdentity,
+  Scrim
 } from '../models/team.models';
 import { normalizeEmail } from '../core/access';
 
@@ -48,6 +49,7 @@ type EntityKey =
   | 'matchNotes'
   | 'compOverrides'
   | 'compResults'
+  | 'scrims'
   | 'plays'
   | 'painPoints'
   | 'learnEntries';
@@ -60,6 +62,7 @@ export class TeamDataService {
   readonly fillIns = signal<FillIn[]>([]);
   readonly comps = signal<Comp[]>([]);
   readonly compResults = signal<CompResult[]>([]);
+  readonly scrims = signal<Scrim[]>([]);
   readonly plays = signal<Play[]>([]);
   readonly painPoints = signal<PainPoint[]>([]);
   readonly learnEntries = signal<LearnEntry[]>([]);
@@ -116,6 +119,7 @@ export class TeamDataService {
     this.fillIns.set([...data.fillIns].sort((a, b) => a.order - b.order));
     this.comps.set([...data.comps].sort((a, b) => a.order - b.order));
     this.compResults.set([...(data.compResults ?? [])].sort((a, b) => a.order - b.order));
+    this.scrims.set([...(data.scrims ?? [])].sort((a, b) => a.order - b.order));
     this.plays.set([...(data.plays ?? [])].sort((a, b) => a.order - b.order));
     this.painPoints.set([...(data.painPoints ?? [])].sort((a, b) => a.order - b.order));
     this.learnEntries.set([...(data.learnEntries ?? [])].sort((a, b) => a.order - b.order));
@@ -143,6 +147,7 @@ export class TeamDataService {
       fillIns: this.fillIns(),
       comps: this.comps(),
       compResults: this.compResults(),
+      scrims: this.scrims(),
       plays: this.plays(),
       painPoints: this.painPoints(),
       learnEntries: this.learnEntries(),
@@ -180,6 +185,11 @@ export class TeamDataService {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Comp, 'id'>) }));
       this.comps.set(list.sort((a, b) => a.order - b.order));
     });
+    onSnapshot(collection(db, 'scrims'), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Scrim, 'id'>) }));
+      this.scrims.set(list.sort((a, b) => a.order - b.order));
+    });
+
     onSnapshot(collection(db, 'compResults'), (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CompResult, 'id'>) }));
       this.compResults.set(list.sort((a, b) => a.order - b.order));
@@ -492,6 +502,21 @@ export class TeamDataService {
 
   deleteCompResult(id: string): Promise<void> {
     return this.persistRemove('compResults', this.compResults, id);
+  }
+
+  /**
+   * Save a scrim, keyed by its own match id.
+   *
+   * The id comes from the replay filename rather than being generated, so
+   * importing the same file twice updates one scrim instead of creating a
+   * second — which is the whole point of having a stable identity.
+   */
+  saveScrim(scrim: Scrim): Promise<void> {
+    return this.persistUpsert('scrims', this.scrims, scrim);
+  }
+
+  deleteScrim(id: string): Promise<void> {
+    return this.persistRemove('scrims', this.scrims, id);
   }
 
   // ---- Tactical plays ---------------------------------------------------

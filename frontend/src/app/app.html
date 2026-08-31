@@ -22,6 +22,7 @@
         <a routerLink="/comps" routerLinkActive="active">Comps</a>
         <a routerLink="/analysis" routerLinkActive="active">Analysis</a>
         <a routerLink="/review" routerLinkActive="active">Review</a>
+        <a routerLink="/scrims" routerLinkActive="active">Scrims</a>
         <a routerLink="/tournaments" routerLinkActive="active">Tournaments</a>
       </nav>
       <div class="user-bar">
@@ -119,6 +120,7 @@
         <li><strong>Roster</strong> — your players as cards, as a stat table, or as deep-dive scouting cards.</li>
         <li><strong>Comps</strong> — team comps, bans, and the game plan. <strong>Analysis</strong> — real win rates from your games.</li>
         <li><strong>Review</strong> — what keeps happening in the games you win and lose.</li>
+        <li><strong>Scrims</strong> — practice games, imported from replay files, since customs never reach the Riot API.</li>
         @if (auth.canEdit()) {
           <li><strong>Edit mode</strong> — flip the top-right switch to reveal editing controls and the roster editor.</li>
         }

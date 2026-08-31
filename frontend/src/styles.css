@@ -10825,3 +10825,158 @@ body:has(.draft-stage) .edit-mode-frame {
 .opp-pool,
 .opp-counters,
 .opp-recent { gap: 0.35rem; }
+
+/* ---- Scrims ---------------------------------------------------------------
+   Custom games never reach the Riot API, so a replay file is the only record
+   they leave. Everything here is parsed in the browser; the file never moves. */
+.scrim-drop {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.1rem 1.2rem;
+  margin: 0.9rem 0;
+  border: 2px dashed var(--card-border);
+  border-radius: 0.7rem;
+  background: var(--surface-btn);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.scrim-drop.is-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.scrim-drop > .material-symbols-rounded {
+  font-size: 2rem;
+  color: var(--accent);
+}
+
+.scrim-drop strong { display: block; }
+.scrim-drop small { display: block; color: var(--text-1); font-size: 0.75rem; line-height: 1.4; }
+
+.scrim-pick {
+  margin-left: auto;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.scrim-pick input { display: none; }
+
+.scrim-skipped {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  color: var(--warn);
+}
+
+.scrim-panel { margin: 0.6rem 0; }
+
+.scrim-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.scrim-summary::-webkit-details-marker { display: none; }
+
+.scrim-result {
+  display: inline-grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 0.4rem;
+  font-weight: 700;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+}
+
+.scrim-result.is-win { color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); }
+.scrim-result.is-unknown { color: var(--text-1); background: color-mix(in srgb, var(--text-1) 14%, transparent); }
+
+.scrim-vs { font-weight: 600; }
+.scrim-when, .scrim-duration { color: var(--text-1); font-size: 0.85rem; }
+
+.scrim-side,
+.scrim-ff {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--card-border);
+  color: var(--text-1);
+}
+
+.scrim-side.is-blue { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+
+.scrim-team { margin-top: 0.8rem; }
+
+.scrim-team-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--warn);
+}
+
+.scrim-team.is-blue .scrim-team-head { color: var(--accent); }
+
+/* Header and rows share one grid, so the columns actually line up. */
+.scrim-board {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) repeat(6, minmax(3rem, auto));
+  gap: 0.1rem 0.7rem;
+  align-items: center;
+  margin-top: 0.3rem;
+}
+
+.scrim-board-head,
+.scrim-line { display: contents; }
+
+.scrim-board-head > span {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  opacity: 0.7;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid var(--card-border);
+  cursor: default;
+}
+
+.scrim-line > * { padding: 0.25rem 0; }
+
+/* Our five, marked — a scoreboard of ten strangers is hard to read fast. */
+.scrim-line.is-ours > * {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.scrim-player { display: flex; align-items: center; gap: 0.4rem; }
+
+.scrim-champ {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 0.3rem;
+  border: 1px solid var(--card-border);
+}
+
+.scrim-name {
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scrim-edit { margin-top: 0.9rem; display: grid; gap: 0.5rem; }
+.scrim-note { margin-top: 0.7rem; color: var(--text-1); }

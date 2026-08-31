@@ -398,6 +398,8 @@ export interface TeamData {
   fillIns: FillIn[];
   comps: Comp[];
   compResults: CompResult[];
+  /** Imported from replay files; optional, since older data has none. */
+  scrims?: Scrim[];
   plays: Play[];
   painPoints: PainPoint[];
   learnEntries: LearnEntry[];
@@ -652,4 +654,62 @@ export interface ChampionTraitMap {
   traits: Record<string, ChampionTraits>;
   updatedAt: string;
   source: string;
+}
+
+/**
+ * One player's line in a scrim scoreboard, read from a replay file.
+ *
+ * Mirrors what `.rofl` actually carries rather than what the Riot API returns —
+ * they overlap but are not the same shape, and pretending otherwise would mean
+ * inventing fields the file does not have.
+ */
+export interface ScrimPlayer {
+  /** Riot game name, without the tag. */
+  name: string;
+  tag: string;
+  /** Riot's internal champion name — "MonkeyKing", not "Wukong". */
+  champion: string;
+  /** 100 blue, 200 red. */
+  team: number;
+  win: boolean;
+  position: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  gold: number;
+  damage: number;
+  damageToBuildings: number;
+  damageTaken: number;
+  visionScore: number;
+  cs: number;
+}
+
+/**
+ * A scrim, imported from a replay file.
+ *
+ * Custom games never enter the Riot API, so this is the only way any of them
+ * reach the app — and scrims are where the team actually practises. Kept apart
+ * from tournament series on purpose: a scrim has no bracket, no best-of and no
+ * fearless burn, and filing one as a series meant inventing all three.
+ */
+export interface Scrim {
+  /** The match id from the replay filename — the only stable identity it has. */
+  id: string;
+  /**
+   * When it was played, as an ISO date.
+   *
+   * From the file's modified time, which is a few minutes after the game ended:
+   * the replay carries how long the game ran but never when it started.
+   */
+  playedOn: string;
+  durationSec: number;
+  blueWon: boolean;
+  surrendered?: boolean;
+  /** Which side we were on, once someone has said. */
+  ourSide?: 'blue' | 'red';
+  /** Free text, since a scrim opponent is not a registered anything. */
+  opponent?: string;
+  note?: string;
+  players: ScrimPlayer[];
+  order: number;
 }

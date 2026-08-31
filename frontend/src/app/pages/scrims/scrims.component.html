@@ -1,0 +1,128 @@
+<section class="card" aria-label="Scrims">
+  <h2 class="title-with-icon">
+    <span class="section-icon material-symbols-rounded">sports_esports</span>
+    Scrims
+  </h2>
+  <p class="muted">
+    Custom games never reach the Riot API, so replays are the only record they leave.
+    Files are read here in the browser &mdash; nothing is uploaded, and only the
+    scoreboard is kept.
+  </p>
+
+  @if (auth.editing()) {
+    <div class="scrim-drop" [class.is-over]="dragging()"
+         (dragover)="onDragOver($event)"
+         (dragleave)="dragging.set(false)"
+         (drop)="onDrop($event)">
+      <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>
+      <div>
+        <strong>Drop <code>.rofl</code> replay files here</strong>
+        <small>
+          Documents &rsaquo; League of Legends &rsaquo; Replays. Download them at the end of
+          every scrim &mdash; the button disappears after a patch, and the game is gone with it.
+        </small>
+      </div>
+      <label class="scrim-pick">
+        <input type="file" multiple accept=".rofl"
+               (change)="importFiles($any($event.target).files); $any($event.target).value = ''" />
+        Choose files
+      </label>
+    </div>
+
+    @if (importing()) {
+      <p class="muted">{{ importNote() }}</p>
+    } @else if (importNote()) {
+      <p class="muted">{{ importNote() }}</p>
+    }
+
+    <!-- Named rather than dropped in silence: a replay folder always has a
+         stray file in it, and "nothing happened" is the worst possible answer
+         to a drag-and-drop. -->
+    @if (skipped().length) {
+      <ul class="list-clean scrim-skipped">
+        @for (line of skipped(); track line) { <li>{{ line }}</li> }
+      </ul>
+    }
+  }
+
+  @if (scrims().length) {
+    @for (scrim of scrims(); track scrim.id) {
+      <details class="card scrim-panel" [open]="openId() === scrim.id">
+        <summary class="scrim-summary" (click)="$event.preventDefault(); toggle(scrim.id)">
+          @if (won(scrim); as result) {
+            <span class="scrim-result" [class.is-win]="result === true">{{ result ? 'W' : 'L' }}</span>
+          } @else {
+            <span class="scrim-result is-unknown" [appTip]="'Nobody on our roster played in this one'">?</span>
+          }
+          <span class="scrim-when">{{ ui.formatDay(scrim.playedOn) }}</span>
+          <span class="scrim-vs">{{ scrim.opponent || 'Unnamed opponent' }}</span>
+          <span class="scrim-duration">{{ duration(scrim.durationSec) }}</span>
+          @if (ourSide(scrim); as side) {
+            <span class="scrim-side" [class.is-blue]="side === 'blue'">{{ side }}</span>
+          }
+          @if (scrim.surrendered) {
+            <span class="scrim-ff" [appTip]="'Ended in a surrender'">FF</span>
+          }
+          <span class="series-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+        </summary>
+
+        @for (team of [100, 200]; track team) {
+          <div class="scrim-team" [class.is-blue]="team === 100">
+            <div class="scrim-team-head">
+              <span>{{ team === 100 ? 'Blue' : 'Red' }}</span>
+              <span class="muted">{{ (team === 100) === scrim.blueWon ? 'won' : 'lost' }}</span>
+            </div>
+            <div class="scrim-board" role="table">
+              <div class="scrim-board-head" role="row">
+                <span role="columnheader">Player</span>
+                <span role="columnheader">KDA</span>
+                <span role="columnheader" [appTip]="'Damage to champions'">Dmg</span>
+                <span role="columnheader" [appTip]="'Damage taken'">Taken</span>
+                <span role="columnheader">Gold</span>
+                <span role="columnheader">CS</span>
+                <span role="columnheader" [appTip]="'Vision score'">Vis</span>
+              </div>
+              @for (p of side(scrim, $any(team)); track p.name + p.champion) {
+                <div class="scrim-line" [class.is-ours]="isOurs(p)" role="row">
+                  <span class="scrim-player" role="cell">
+                    <img class="scrim-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion"
+                         [appTip]="p.champion + (p.position ? ' — ' + p.position : '')" loading="lazy" />
+                    <span class="scrim-name">{{ p.name || p.champion }}</span>
+                  </span>
+                  <span class="num" role="cell">{{ kda(p) }}</span>
+                  <span class="num" role="cell">{{ k(p.damage) }}</span>
+                  <span class="num" role="cell">{{ k(p.damageTaken) }}</span>
+                  <span class="num" role="cell">{{ k(p.gold) }}</span>
+                  <span class="num" role="cell">{{ p.cs }}</span>
+                  <span class="num" role="cell">{{ p.visionScore }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        @if (auth.editing()) {
+          <div class="scrim-edit">
+            <label class="field"><span>Opponent</span>
+              <input type="text" [ngModel]="scrim.opponent || ''"
+                     (ngModelChange)="setOpponent(scrim, $event)"
+                     [name]="'scrimopp-' + scrim.id" placeholder="Who this was against" /></label>
+            <label class="field"><span>Notes</span>
+              <textarea rows="2" [ngModel]="scrim.note || ''"
+                        (ngModelChange)="setNote(scrim, $event)"
+                        [name]="'scrimnote-' + scrim.id"
+                        placeholder="What to take from this one…"></textarea></label>
+            <button type="button" class="link-btn draft-reset" (click)="remove(scrim)">Remove scrim</button>
+          </div>
+        } @else if (scrim.note) {
+          <p class="scrim-note">{{ scrim.note }}</p>
+        }
+      </details>
+    }
+  } @else {
+    <p class="muted">
+      No scrims imported yet.
+      @if (!auth.editing()) { Turn on Edit mode to import replay files. }
+    </p>
+  }
+</section>

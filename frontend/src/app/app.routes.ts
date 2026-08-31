@@ -53,6 +53,14 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/review/review.component').then((m) => m.ReviewComponent)
   },
   {
+    // Scrims are practice, not competition: no bracket, no best-of, no fearless
+    // burn. Filing one as a tournament series meant inventing all three, which
+    // is what this page replaces.
+    path: 'scrims',
+    canActivate: [viewerGuard],
+    loadComponent: () => import('./pages/scrims/scrims.component').then((m) => m.ScrimsComponent)
+  },
+  {
     path: 'tournaments',
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/tournaments/tournaments.component').then((m) => m.TournamentsComponent)
