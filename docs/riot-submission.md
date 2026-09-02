@@ -156,34 +156,25 @@ reviews finished games from objective data, and shows aggregate player stats
 collected from the ranked ladder. Free, used by one team, no advertising and
 nothing sold.
 
-### Standard — about 250 words
+### For the registration form — the field caps at 1,500 characters
 
-Bom Squad Draft Hub is a drafting and review tool for amateur five-stack League
-teams. A team enters its roster by Riot ID and the champions it plays; the app
-reads each player's ranked history and the team's own five-stack games.
+*Measured: the first draft was truncated at exactly 1500, losing both URLs and
+the attribution line. This fits in 1,268 with room to spare. The opponent
+scouting paragraph was cut and moved to an App Note, where it gets explained
+rather than compressed.*
 
-It uses them in three places. A live draft room follows the competitive ban and
-pick sequence and tracks fearless-draft champion burn across a series — the
-rule that a champion used once in a series cannot be used again, which
-community leagues increasingly run and which teams currently track on paper. A
-post-game review explains why games were won or lost from objective and fight
-data. And aggregate player stats (no specific players) show champion win rates
-by rank for the current patch, collected by walking the ranked ladder and
-storing counters only.
+```
+Bom Squad Draft Hub is a drafting and review tool for amateur five-stack League teams. A team enters its roster by Riot ID and the champions it plays; the app reads each player's ranked history and the team's own five-stack games.
 
-Where the draft room suggests champions it always offers several, each shown
-with the number of games behind it, so a small sample cannot be mistaken for a
-strong one. It never issues a single instruction and never reads live game
-state.
+It uses them in three places. A live draft room follows the competitive ban and pick sequence and tracks fearless-draft champion burn across a series — the rule that a champion used once in a series cannot be used again, which community leagues increasingly run and teams currently track on paper. A post-game review explains why games were won or lost from objective and fight data. And aggregate player stats (no specific players) show champion win rates by rank for the current patch, collected by walking the ranked ladder and storing counters only.
 
-The APIs we are using are: match, summoner, league, account, champion-mastery
-and lol-status. Every datum comes from documented Riot endpoints.
+Where the draft room suggests champions it always offers several, each shown with the number of games behind it, so a small sample cannot be mistaken for a strong one. It never issues a single instruction and never reads live game state.
 
-Free, used by one amateur team, no advertising and nothing sold. The site
-carries the Legal Jibber Jabber attribution in its footer on every page.
+APIs used: match, summoner, league, account, champion-mastery, lol-status. Free, used by one amateur team, no advertising and nothing sold.
 
 Live site: https://skilleddev96.github.io/League-team-comp/
-Walkthrough video: https://youtu.be/ZgyiHprMYYw
+Walkthrough: https://youtu.be/ZgyiHprMYYw
+```
 
 ---
 
