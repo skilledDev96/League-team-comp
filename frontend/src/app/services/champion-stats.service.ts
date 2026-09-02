@@ -160,15 +160,23 @@ export class ChampionStatsService {
   });
 
   /**
-   * Keyed the way the crawler wrote them: letters and digits only.
+   * Keyed the way the crawler wrote them: Riot's internal champion name,
+   * letters and digits only.
    *
-   * Firestore field paths split on dots, so "Kai'Sa" and "Dr. Mundo" are stored
-   * stripped. The same stripping has to happen on the way back out or those
-   * champions silently have no rate — the failure mode is invisible, because a
-   * missing rate looks exactly like a champion below the sample floor.
+   * Two separate transformations, and missing either one loses champions
+   * silently. Firestore field paths split on dots, so "Kai'Sa" and "Dr. Mundo"
+   * are stored stripped. And Riot's `championName` is the *id*, not the display
+   * name — Wukong arrives as "MonkeyKing", Renata Glasc as "Renata", Nunu &
+   * Willump as "Nunu" — so stripping the display name alone left those three
+   * with no rate at all from the day this shipped.
+   *
+   * The failure mode is invisible: a missing rate looks exactly like a champion
+   * below the sample floor, which is why it survived a crawl of fifty thousand
+   * matches without anyone noticing.
    */
   private key(championName: string): string {
-    return championName.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+    const id = this.champs.resolveId(championName) ?? championName;
+    return id.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
   }
 
   /**
