@@ -29,7 +29,12 @@ figures were measured on 2 Sep 2026 and are reproducible — see §6.
 SkilledScarecrow#42096, product group Default. Domain verification passed:
 `frontend/public/riot.txt` serves the code at the site root and **must not be
 deleted** — Riot may re-check it, and removing it could invalidate the
-verification. App Notes go in the **Messages** tab on the application.
+verification. The **Messages** tab is inbound only — Riot writes there, we cannot. The only
+outbound channel is a Developer Relations **support ticket**, whose App ID field
+links it to the application. The two policy questions, the evidence figures and
+the scouting disclosure all went that way, because trimming the description to
+the 1,500-character cap left the figures and the scouting note with nowhere else
+to live.
 
 **Framing decision:** this application is for a **private tool used by one
 team**, not a public launch. That is deliberate — see §5. It changes the "why do
