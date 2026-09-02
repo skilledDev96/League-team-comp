@@ -124,7 +124,7 @@ player history or player identifier is retained from any match tallied.
 - **Live site:** https://skilleddev96.github.io/League-team-comp/
 - **Test account:** read-only viewer credentials, supplied separately, so the
   product can be reviewed without signing in with a Riot account.
-- **Walkthrough recording:** roster, player detail, compositions, a live draft
+- **Walkthrough:** https://youtu.be/ZgyiHprMYYw (unlisted) — roster, player detail, compositions, a live draft
   including the champion suggestions, the fearless burn on the second game of a
   series, and the post-game review.
 
@@ -176,12 +176,14 @@ with the number of games behind it, so a small sample cannot be mistaken for a
 strong one. It never issues a single instruction and never reads live game
 state.
 
-Free, used by one amateur team, no advertising and nothing sold. Every datum
-comes from documented Riot endpoints. The site carries the Legal Jibber Jabber
-attribution in its footer on every page.
+The APIs we are using are: match, summoner, league, account, champion-mastery
+and lol-status. Every datum comes from documented Riot endpoints.
+
+Free, used by one amateur team, no advertising and nothing sold. The site
+carries the Legal Jibber Jabber attribution in its footer on every page.
 
 Live site: https://skilleddev96.github.io/League-team-comp/
-Walkthrough: [paste the unlisted video URL here]
+Walkthrough video: https://youtu.be/ZgyiHprMYYw
 
 ---
 
