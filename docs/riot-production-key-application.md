@@ -9,6 +9,20 @@ figures were measured on 2 Sep 2026 and are reproducible — see §6.
   the use-case detail): <https://support-developer.riotgames.com/hc/en-us/articles/22698698001939-League-of-Legends>
 - Portal / rate limits: <https://developer.riotgames.com/docs/portal>
 
+> ## ⚠ What actually gets sent to Riot
+>
+> **Only §3.** Its answers are written to be pasted into the form; §1 and §2 are
+> the reasoning and the checklist behind them.
+>
+> **§4, §5 and §6 are internal and must not be submitted, quoted or attached.**
+> §5 in particular describes a security weakness in the app — public read on
+> team data — which is a sensible note to ourselves and an irresponsible thing
+> to hand a third party. §5 also holds our own strategy reasoning, which reads
+> as gaming the process however honestly it was meant, and §6 carries the
+> Firebase project id and the commands to read straight out of it.
+>
+> If in doubt at the form: paste from §3, and nothing else.
+
 **Framing decision:** this application is for a **private tool used by one
 team**, not a public launch. That is deliberate — see §5. It changes the "why do
 you need a production key" answer from *"we want to open it up"* to *"the
@@ -67,13 +81,13 @@ Riot asks for evidence you will deliver on the use case:
 - [x] **The crawler's output** — see §3, *Evidence*. This is now the strongest
       part of the application: the aggregate use case is not a proposal, it is
       running and measurable.
-- [ ] **A short user-flow walkthrough.** The one item still outstanding. Sign in
+- [ ] **A short user-flow walkthrough.** The one item still outstanding, and now the only thing between here and submitting — the product is registered. Sign in
       → roster with Riot IDs → comps → live draft room → post-game review.
       Screenshots suffice; a 2–3 minute screen recording is better.
 
 ---
 
-## 3. Draft answers
+## 3. Draft answers — THE ONLY SECTION SENT TO RIOT
 
 Trim to whatever the form allows. Keep the phrase "aggregate player stats (no
 specific players)" verbatim somewhere — it is their own category name.
@@ -170,7 +184,7 @@ at **half** its rate limit:
 
 ---
 
-## 4. Order of operations
+## 4. Order of operations *(internal — not submitted)*
 
 The policy sets the sequence, and it is the opposite of launch-then-apply:
 
@@ -179,9 +193,11 @@ The policy sets the sequence, and it is the opposite of launch-then-apply:
 
 1. ~~Finish the crawler PoC and let it gather one patch of data.~~ **Done** — two
    patches, 53,604 matches.
-2. Record the user-flow walkthrough (the last open deliverable in §2).
-3. Register the product on the Developer Portal — required "regardless of
-   whether or not your product uses official documented APIs".
+2. ~~Register the product on the Developer Portal~~ — **done**. Required
+   "regardless of whether or not your product uses official documented APIs",
+   and it precedes the key request rather than accompanying it.
+3. Record the user-flow walkthrough — **the only open deliverable**, and the
+   only thing now standing between here and submitting.
 4. Apply, with the live URL, the test account and the walkthrough.
 5. **Only after approval**, if ever, open it to other teams.
 
@@ -190,7 +206,7 @@ separate product from the draft hub, it needs its own registration.
 
 ---
 
-## 5. Open questions, and where they stand
+## 5. Open questions *(internal — never submitted, see the warning at the top)*
 
 - **Public or private?** *Resolved: apply as a private, single-team tool.* The
   policy does not require a product to be public to hold a production key — it
@@ -211,7 +227,7 @@ separate product from the draft hub, it needs its own registration.
 
 ---
 
-## 6. Reproducing the evidence figures
+## 6. Reproducing the evidence figures *(internal — not submitted)*
 
 Read straight from Firestore over REST, so the numbers in §3 can be re-measured
 before submitting rather than quoted from this document on trust:
