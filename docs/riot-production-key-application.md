@@ -56,6 +56,9 @@ they already publish.
 | "Products cannot create alternatives for official skill ranking systems" | No MMR or ELO estimate anywhere. |
 | "Products cannot de-anonymize players who cannot reasonably be identified from visible information" / "may not expose a player's historic Riot IDs" | Players are only ever identified by a Riot ID somebody typed in: their own roster, or the opponents a league publishes in its fixtures. Scouting an opponent shows only that player's public ranked record — tier, the positions they play, the champions they play — which is the same information the client shows about anyone in a lobby. No historic IDs are stored or shown, no MMR is estimated, and nothing is inferred about a player beyond what they published by playing ranked. |
 | "Products may not publicly display a player's match history from the custom match queue unless the player opts in" | Custom games are invisible to the API (queueId 0 never appears in match ids, and `matches/{id}` 404s). Scrims are imported from the team's **own** `.rofl` replay files, parsed in the browser, and shown only to that team. Nothing custom is publicly displayed. |
+| "Shame players based on any metric including their recent performance… we don't allow assumptions that could lead to negative preconceptions of a player." | **Verified in code, 2 Sep 2026.** `OpponentPlayer` has no `weaknesses` field — the improvement notes ("Average KDA needs work", "High average deaths") exist only on `Player` and `FillIn`, our own roster, about their own play. An opponent row carries rank, positions, champions played, and a descriptive playstyle. `bans` is a statement about champion matchups, not about the person. Nothing rates, scores or ranks an opponent. |
+| "Publish a project that doesn't properly secure your API key" | The key is a Cloud Functions secret and is never sent to the browser — `grep` for `RIOT_API_KEY`, `riotApiKey` and `X-Riot-Token` across `frontend/src` returns nothing. Every Riot call is server-side. |
+| "Use any of our official logos" / Legal Jibber Jabber §5 | No Riot mark anywhere. The favicon is Angular's default; champion art is served from Data Dragon, which §5 explicitly permits ("feel free to use any of our art assets from the game (but NOT any official Logos)"). |
 | Scraping "sources outside of the provided Riot API Endpoints" | **Every** datum comes from Riot's documented endpoints, plus Oracle's Elixir, a dataset published for public analyst use. When a team pastes an op.gg link, only the Riot ID is parsed out of the URL — op.gg itself is never requested. |
 
 ---
@@ -224,11 +227,18 @@ separate product from the draft hub, it needs its own registration.
 
 ## 5. Open questions *(internal — never submitted, see the warning at the top)*
 
-- **Public or private?** *Resolved: apply as a private, single-team tool.* The
-  policy does not require a product to be public to hold a production key — it
-  requires the product to be registered, functional and testable by Riot, all of
-  which are true. Applying private also removes the multi-tenancy question below
-  from the critical path, and nothing prevents a later application to widen it.
+- **Public or private?** *Reopened 2 Sep 2026 after reading the General
+  Policies in full — my earlier confidence here was misplaced.* I wrote that
+  "the policy does not require a product to be public to hold a production key".
+  Two lines make that shakier than stated. The Don't list includes "provide
+  exclusive access, in whole or in part, to specific users", and Development
+  keys are described as being for a prototype "**before the project is made
+  public**" — which reads as though production keys are for projects that do go
+  public. Neither is decisive: the exclusive-access line sits beside charging
+  money and plausibly targets paid tiers, not a free team tool. But it is a
+  genuine grey area, and the policy page names the remedy — ask in an App Note.
+  **Now asked, as App Note 1 in the submission file.** Do not treat private as
+  settled until Riot answers.
 - **Multi-team support.** Deferred with the decision above. The public version
   would need teams separable so one cannot read another's scouting; today
   `firestore.rules` grants public read on team data (`allow read: if true`),
@@ -260,3 +270,60 @@ curl -s "https://firestore.googleapis.com/v1/projects/lol-bom-squad/databases/(d
 `{games, wins}`; `pairs` on a matchup document is keyed by the two champions in
 alphabetical order. Re-measure on the day you submit — the figures only grow,
 and a stale number is the one thing in this document that could read as careless.
+
+---
+
+## 7. Tournament Policies — do they apply to us? *(internal — not submitted)*
+
+**No, and it is worth knowing why before a reviewer raises it.**
+
+The Tournament Policies govern the **Tournament API** — the endpoints that
+generate tournament codes and pre-made lobbies. We do not call them. The
+`/tournaments` route in the app is our own bookkeeping over a league we play in:
+series, games, and the fearless burn across them. No Riot tournament endpoint is
+involved, and no tournament code is generated.
+
+This matters because those policies would be awkward if they did apply:
+
+> "A tournament must have a minimum of 20 active participants, regardless of
+>  team size (1v1, 3v3, 5v5 etc)."
+
+Our league is smaller than that in the app's own records, and a reviewer
+skimming a product with a tab labelled **Tournaments** could reasonably reach
+for the wrong policy page. If that question comes back, the answer is short: we
+do not use the Tournament API, and we are not a tournament organiser — we are a
+team tracking the league somebody else runs.
+
+Should we ever want tournament codes — the only compliant route to custom-game
+data, which is why it was considered — that is a **separate** application under
+these policies, and it would need the 20-participant threshold met.
+
+---
+
+## 8. Compliance review against the API Terms *(internal — not submitted)*
+
+Read in full on 2 Sep 2026: API Terms (9 Dec 2013), Legal Jibber Jabber
+(Aug 2018), General Policies, Tournament Policies. What the review changed:
+
+**Verified clean, in code rather than from memory:**
+
+- The API key never reaches the browser. Every Riot call is server-side.
+- No Riot logo or mark anywhere; the favicon is Angular's default. Champion art
+  comes from Data Dragon, which Legal Jibber Jabber §5 explicitly permits.
+- No MMR or ELO estimate; no reporting or player-rating channel.
+- Nothing is charged for, gated or sold.
+- The attribution notice is the exact wording §6 asks for.
+- **No weakness or judgement is ever generated about an opponent** — that was
+  the clause worth checking, and `OpponentPlayer` has no such field.
+
+**Two grey areas, both now asked as App Notes rather than assumed:**
+
+1. Whether a production key suits a project that is not public (see §5, which
+   this review reopened).
+2. Whether the collector is part of this product or a second project requiring
+   its own registration — "each project must submit an application and be
+   reviewed separately".
+
+The policy page invites exactly this: *"If you have an idea that you think might
+fall within a gray area feel free ask us in your project's application."*
+Asking is cheap; guessing wrong costs the key.

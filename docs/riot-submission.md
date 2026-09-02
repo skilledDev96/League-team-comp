@@ -136,3 +136,51 @@ including entering a draft — is visible end to end.
 The site carries the required attribution in its footer on every page: created
 under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games,
 and Riot Games does not endorse or sponsor this project.
+
+---
+
+## App Notes — two questions we would rather ask than assume
+
+*The General Policies invite exactly this: "If you have an idea that you think
+might fall within a gray area feel free ask us in your project's application…
+post your question as an App Note within the application." Both of these are
+grey areas we can read either way, and we would rather be told now than hold a
+key on a wrong assumption.*
+
+**1. Is a production key appropriate for a project that is not public?**
+
+This tool is used by a single amateur team rather than published to the
+community. We note that Development keys are described as being for prototypes
+"before the project is made public", which may imply a production key is
+intended for projects that do go public. We are not gating anything behind
+payment and nothing is sold; the tool is simply built around one team's own
+roster and compositions. If a production key requires general availability, we
+would rather know that now and plan for it than proceed on our own reading.
+
+**2. Is our collector part of this product, or a second project?**
+
+Our project has two parts sharing one key: the draft tool itself, and a
+background collector that walks the ranked ladder and tallies champion and
+matchup win rates, which the draft tool then displays. We have treated these as
+one product because the collector exists solely to feed the tool — it has no
+interface, no users and no output of its own. If you consider them two projects
+under the rule that each project is registered and reviewed separately, we will
+register the collector on its own; please tell us which you prefer.
+
+---
+
+## A note on scouting opponents
+
+We expect this to draw attention, so we would rather address it directly.
+
+The tool shows, for an opponent whose Riot ID the league publishes: their ranked
+tier, the positions they play with the games behind each, the champions they
+play, and a short factual description of their style. It does not score, rate or
+rank them against anyone, and it generates no assessment of their weaknesses —
+the improvement notes the tool produces are generated only for a team's own
+players, about their own play, and are never produced about an opponent.
+
+We read the rule against shaming players as prohibiting exactly that kind of
+judgement, and we have kept the opponent view to observable facts a player has
+published by playing ranked, of the same kind the client itself shows about
+anyone in a lobby.
