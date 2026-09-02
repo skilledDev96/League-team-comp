@@ -1,12 +1,19 @@
 # Riot Production API Key — application working document
 
 Everything needed to submit, plus the policy text each part answers to. Sources
-were read from Riot's own portal on 31 Aug 2026; quotes are verbatim.
+were read from Riot's own portal on 31 Aug 2026; quotes are verbatim. Evidence
+figures were measured on 2 Sep 2026 and are reproducible — see §6.
 
 - General policies: <https://developer.riotgames.com/policies/general>
 - LoL game policy (the authoritative one — `/policies/general` covers none of
   the use-case detail): <https://support-developer.riotgames.com/hc/en-us/articles/22698698001939-League-of-Legends>
 - Portal / rate limits: <https://developer.riotgames.com/docs/portal>
+
+**Framing decision:** this application is for a **private tool used by one
+team**, not a public launch. That is deliberate — see §5. It changes the "why do
+you need a production key" answer from *"we want to open it up"* to *"the
+personal key's rate limit is the binding constraint on the aggregate data the
+tool is built on"*, which is both true today and easier to evidence.
 
 ---
 
@@ -32,7 +39,7 @@ they already publish.
 | "Products may not provide any game-session-specific information that would be previously unknown to the player." | Everything shown is pre-game and already visible in the client: the draft on screen, and historical aggregates. Nothing reads live game state. |
 | "Products cannot create alternatives for official skill ranking systems" | No MMR or ELO estimate anywhere. |
 | "Products cannot de-anonymize players who cannot reasonably be identified from visible information" / "may not expose a player's historic Riot IDs" | Players are only ever identified by the Riot ID a person typed in themselves. No historic IDs are stored or shown. |
-| "Products may not publicly display a player's match history from the custom match queue unless the player opts in" | Moot — custom games are invisible to the API (queueId 0 never appears in match ids, and `matches/{id}` 404s). Nothing custom is displayed. |
+| "Products may not publicly display a player's match history from the custom match queue unless the player opts in" | Custom games are invisible to the API (queueId 0 never appears in match ids, and `matches/{id}` 404s). Scrims are imported from the team's **own** `.rofl` replay files, parsed in the browser, and shown only to that team. Nothing custom is publicly displayed. |
 | Scraping "sources outside of the provided Riot API Endpoints" | **Every** datum comes from Riot's documented endpoints, plus Oracle's Elixir, a dataset published for public analyst use. When a team pastes an op.gg link, only the Riot ID is parsed out of the URL — op.gg itself is never requested. |
 
 ---
@@ -47,16 +54,22 @@ Riot asks for evidence you will deliver on the use case:
 > "Riot needs to see the user flow to understand what your intended player
 >  experience is."
 
-- [ ] **Live URL** of the deployed site (GitHub Pages).
-- [ ] **A viewer-role test account**, so a reviewer sees the real thing without
-      signing in with their own Riot account. One already exists for the e2e
-      suite — reuse that pattern.
-- [ ] **A short user-flow walkthrough**: sign in → roster with Riot IDs → comps
-      → live draft room → post-game review. Screenshots suffice; a 2–3 minute
-      screen recording is better.
-- [ ] **The crawler's output**, as proof the aggregate use case is real and
-      working: champion win rate by tier for the current patch, with game counts.
-- [ ] **The attribution notice** already displayed (Legal Jibber Jabber §6).
+- [x] **Live URL** — <https://skilleddev96.github.io/League-team-comp/>
+- [x] **A viewer-role test account.** One already exists for the `e2e` suite and
+      is asserted read-only by `e2e/tests/authenticated.spec.ts` ("the account is
+      a viewer, so the tests cannot change anything"). Reuse those credentials so
+      a reviewer sees the real product without signing in with their own Riot
+      account.
+- [x] **The attribution notice**, displayed in the site footer on every page
+      (`frontend/src/app/app.html:88`): *"…created under Riot Games' 'Legal
+      Jibber Jabber' policy using assets owned by Riot Games. Riot Games does not
+      endorse or sponsor this project."*
+- [x] **The crawler's output** — see §3, *Evidence*. This is now the strongest
+      part of the application: the aggregate use case is not a proposal, it is
+      running and measurable.
+- [ ] **A short user-flow walkthrough.** The one item still outstanding. Sign in
+      → roster with Riot IDs → comps → live draft room → post-game review.
+      Screenshots suffice; a 2–3 minute screen recording is better.
 
 ---
 
@@ -105,20 +118,45 @@ specific players)" verbatim somewhere — it is their own category name.
 > tallies champion games and wins per tier per patch. It stores counters only —
 > no match bodies, no player histories, no puuids beyond a transient work queue.
 > On the personal key it runs at half the rate limit so interactive requests are
-> never delayed behind it; a production key would let it cover the ladder in
-> days rather than months.
+> never delayed behind it.
+
+### Evidence that the aggregate use case is real and working
+
+Measured 2 Sep 2026, after roughly three days of collection on the personal key
+at **half** its rate limit:
+
+> - **53,604 ranked matches** tallied across patches 16.16 and 16.17.
+> - **All 173 champions** have passed the 400-game floor the product requires
+>   before it will quote a win rate at all. Median champion: 2,561 games.
+> - **Ten tier buckets** populated, Iron through Challenger, so the rate shown is
+>   the rate at the rank the team actually plays at.
+> - **28,180 lane matchups** recorded, of which 175 have reached 100 games.
+>
+> Only counters are stored. The entire dataset is a few hundred kilobytes; no
+> match body, player history or identifier is retained.
 
 ### Why do you need a production key?
 
-> Two reasons. The personal key's rate limit of 100 requests per two minutes is
-> shared between interactive use and collection, which caps the aggregate stats
-> at roughly 900,000 games per patch — enough for champion win rates, not enough
-> for the matchup and composition data the draft room is built to use. And the
-> policy is explicit that a personal key may not be used to run an application
-> for public consumption, which is what opening the tool to other teams requires.
+> The rate limit is the binding constraint, and the shortfall is specific and
+> measurable rather than a general wish for more headroom.
 >
-> The crawler described above is running today as the proof of concept, in line
-> with the personal key's approved use.
+> Champion win rates are complete: all 173 champions, every tier, in three days.
+> **Matchup data is not, and cannot be on this key.** A single lane has 4,096
+> possible champion pairings. After the same three days, patch 16.17's top lane
+> has 4,096 pairings recorded but only **219 at thirty games or more**, and ten
+> at a hundred — and the head of that distribution is Garen, Nasus and Darius,
+> the champions a competitive team is least likely to be asked about. The tail is
+> where the value is, and the tail is a rate-limit problem: it needs roughly two
+> orders of magnitude more matches, and patches ship every two weeks, so the
+> collection window is fixed and short.
+>
+> A production key's 3,000 requests per minute against the personal key's 50 is a
+> sixtyfold increase, which turns "a handful of common matchups per patch" into
+> "the matchup table is complete before the patch ends". That is the difference
+> between the draft room quoting a number and showing a blank.
+>
+> The crawler described above is running today, within the personal key's
+> approved use, as the proof of concept.
 
 ---
 
@@ -129,24 +167,54 @@ The policy sets the sequence, and it is the opposite of launch-then-apply:
 > "You may not run your application for public consumption using a personal key,
 >  **regardless of how long the approval process for your production key takes**."
 
-1. Finish the crawler PoC and let it gather one patch of data.
-2. Register the product on the Developer Portal — required "regardless of
+1. ~~Finish the crawler PoC and let it gather one patch of data.~~ **Done** — two
+   patches, 53,604 matches.
+2. Record the user-flow walkthrough (the last open deliverable in §2).
+3. Register the product on the Developer Portal — required "regardless of
    whether or not your product uses official documented APIs".
-3. Apply, with the live URL, the test account and the walkthrough.
-4. **Only after approval**, open it to other teams.
+4. Apply, with the live URL, the test account and the walkthrough.
+5. **Only after approval**, if ever, open it to other teams.
 
 Also standing: **one product per key** — if the crawler is ever presented as a
 separate product from the draft hub, it needs its own registration.
 
 ---
 
-## 5. Open questions to resolve before submitting
+## 5. Open questions, and where they stand
 
+- **Public or private?** *Resolved: apply as a private, single-team tool.* The
+  policy does not require a product to be public to hold a production key — it
+  requires the product to be registered, functional and testable by Riot, all of
+  which are true. Applying private also removes the multi-tenancy question below
+  from the critical path, and nothing prevents a later application to widen it.
+- **Multi-team support.** Deferred with the decision above. The public version
+  would need teams separable so one cannot read another's scouting; today
+  `firestore.rules` grants public read on team data (`allow read: if true`),
+  which is fine for one team's own hub and is **not** fine for a multi-team
+  product. Do not open it up without changing this first.
 - **Monetisation.** None planned. If that ever changes: a free tier is
   mandatory, content must be "transformative", and no exchanging currency back
   into fiat.
-- **Multi-team support.** The public version needs teams to be separable, so one
-  team cannot read another's scouting. Not yet built.
 - **The op.gg input.** Parse the Riot ID out of the URL only. Fetching op.gg
   would be scraping a source outside Riot's endpoints, whose stated penalty is
   "indefinite revocation of your access to the Riot Games API".
+
+---
+
+## 6. Reproducing the evidence figures
+
+Read straight from Firestore over REST, so the numbers in §3 can be re-measured
+before submitting rather than quoted from this document on trust:
+
+```bash
+# champion coverage for a patch
+curl -s "https://firestore.googleapis.com/v1/projects/lol-bom-squad/databases/(default)/documents/championStats/16.17_ALL"
+
+# matchup density for one lane
+curl -s "https://firestore.googleapis.com/v1/projects/lol-bom-squad/databases/(default)/documents/matchupStats/16.17_TOP"
+```
+
+`matches` is the tallied match count; `champions` is a nested map of
+`{games, wins}`; `pairs` on a matchup document is keyed by the two champions in
+alphabetical order. Re-measure on the day you submit — the figures only grow,
+and a stale number is the one thing in this document that could read as careless.
