@@ -9,19 +9,21 @@ figures were measured on 2 Sep 2026 and are reproducible — see §6.
   the use-case detail): <https://support-developer.riotgames.com/hc/en-us/articles/22698698001939-League-of-Legends>
 - Portal / rate limits: <https://developer.riotgames.com/docs/portal>
 
-> ## ⚠ What actually gets sent to Riot
+> ## ⚠ Do not submit from this file
 >
-> **Only §3.** Its answers are written to be pasted into the form; §1 and §2 are
-> the reasoning and the checklist behind them.
+> **Submit from [`riot-submission.md`](./riot-submission.md)**, which contains
+> the answers and nothing else. This file is the reasoning behind them, and
+> several parts of it would be actively harmful to send:
 >
-> **§4, §5 and §6 are internal and must not be submitted, quoted or attached.**
-> §5 in particular describes a security weakness in the app — public read on
-> team data — which is a sensible note to ourselves and an irresponsible thing
-> to hand a third party. §5 also holds our own strategy reasoning, which reads
-> as gaming the process however honestly it was meant, and §6 carries the
-> Firebase project id and the commands to read straight out of it.
+> - **§5** describes a security weakness in the app — public read on team data.
+>   A sensible note to ourselves; an irresponsible thing to hand a third party.
+> - **§5** also holds our own strategy reasoning, which reads as gaming the
+>   process however honestly it was meant.
+> - **§6** carries the Firebase project id and the commands to read straight
+>   out of it.
 >
-> If in doubt at the form: paste from §3, and nothing else.
+> §3 below is kept as the source the submission file was written from. If the
+> two ever disagree, fix both — but paste from the submission file.
 
 **Framing decision:** this application is for a **private tool used by one
 team**, not a public launch. That is deliberate — see §5. It changes the "why do
@@ -81,13 +83,19 @@ Riot asks for evidence you will deliver on the use case:
 - [x] **The crawler's output** — see §3, *Evidence*. This is now the strongest
       part of the application: the aggregate use case is not a proposal, it is
       running and measurable.
-- [ ] **A short user-flow walkthrough.** The one item still outstanding, and now the only thing between here and submitting — the product is registered. Sign in
-      → roster with Riot IDs → comps → live draft room → post-game review.
-      Screenshots suffice; a 2–3 minute screen recording is better.
+- [x] **A short user-flow walkthrough.** Recorded 2 Sep 2026, 1:45, 8.3 MB:
+      roster → player detail → comps → a live draft including the champion
+      suggestions → fearless burn on game two → post-game review. Captured from
+      an **editor** account, so it shows the editing controls the read-only test
+      account will not; the submission says so plainly rather than leaving a
+      reviewer to notice the difference themselves.
 
 ---
 
-## 3. Draft answers — THE ONLY SECTION SENT TO RIOT
+## 3. Draft answers — source for the submission file
+
+Kept here with the reasoning around it. The copy that actually gets pasted lives
+in [`riot-submission.md`](./riot-submission.md); if the two disagree, fix both.
 
 Trim to whatever the form allows. Keep the phrase "aggregate player stats (no
 specific players)" verbatim somewhere — it is their own category name.
