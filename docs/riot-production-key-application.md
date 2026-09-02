@@ -30,11 +30,18 @@ SkilledScarecrow#42096, product group Default. Domain verification passed:
 `frontend/public/riot.txt` serves the code at the site root and **must not be
 deleted** — Riot may re-check it, and removing it could invalidate the
 verification. The **Messages** tab is inbound only — Riot writes there, we cannot. The only
-outbound channel is a Developer Relations **support ticket**, whose App ID field
-links it to the application. The two policy questions, the evidence figures and
-the scouting disclosure all went that way, because trimming the description to
-the 1,500-character cap left the figures and the scouting note with nowhere else
-to live.
+outbound channel is a Developer Relations support ticket.
+
+**Nothing further was sent, deliberately.** The policy line about posting a
+question as an "App Note within the application" describes a field this portal
+does not have, so forcing it through a support queue would be answering stale
+guidance rather than reality. Both open questions — whether a production key
+suits a non-public project, and whether the collector is a second project — are
+decided by the review itself: approval answers them. Raising them unprompted
+also risks planting a doubt a reviewer did not have.
+
+The drafted questions are kept in `riot-submission.md` and go out **only** if
+the review stalls for weeks or Riot comes back with a concern.
 
 **Framing decision:** this application is for a **private tool used by one
 team**, not a public launch. That is deliberate — see §5. It changes the "why do
