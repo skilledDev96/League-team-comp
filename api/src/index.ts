@@ -36,6 +36,7 @@ import {
   statsDocPath,
   tallyMatch
 } from './crawler';
+import { buildIndex, indexDocPath, splitIndexId, RawMatchupDoc } from './matchup-index';
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
 import { ChampionTraits, toTraits } from './champion-traits';
 import { BUILD_SHA } from './build-info';
@@ -2137,6 +2138,73 @@ export const crawlOnce = onRequest(
       res.json({ ok: true, enabled: after?.enabled === true, note, tallied: after?.matchesTallied ?? 0 });
     } catch (err) {
       res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'crawl failed' });
+    }
+  }
+);
+
+/**
+ * Publish the readable matchup index from the raw tallies.
+ *
+ * Separate from collection on purpose. The crawler writes with
+ * `FieldValue.increment` and never reads a matchup document, which is what lets
+ * it fold fifty matches into five writes; the index needs the whole document,
+ * which is a different and much rarer operation. Running it on its own schedule
+ * keeps a megabyte-sized read off the two-minute collection tick.
+ *
+ * Every raw document is re-indexed, not just the current patch. Old patches
+ * stop changing, so most of the work is redundant — but it is fifty reads and
+ * fifty writes a day against a collection that bills per operation, and the
+ * alternative is tracking which buckets moved, which is bookkeeping that can
+ * drift out of step with the truth. `splitIndexId` rejects anything that is not
+ * one of the five lanes, so a stray document cannot be indexed as a matchup.
+ */
+async function rollupMatchupIndex(): Promise<string> {
+  const db = getFirestore();
+  const snap = await db.collection('matchupStats').get();
+  const builtAt = new Date().toISOString();
+
+  let documents = 0;
+  let seen = 0;
+  let published = 0;
+
+  for (const doc of snap.docs) {
+    const parts = splitIndexId(doc.id);
+    if (!parts) continue;
+
+    const index = buildIndex(doc.data() as RawMatchupDoc, parts.patch, parts.lane, builtAt);
+    // Overwritten whole rather than merged: a pairing that drops below the
+    // floor after a correction should disappear from the index, and a merge
+    // would leave it behind for good.
+    await db.doc(indexDocPath(parts.patch, parts.lane)).set(index);
+
+    documents += 1;
+    seen += index.pairsSeen;
+    published += index.pairsPublished;
+  }
+
+  return `${documents} lane buckets indexed, ${published} of ${seen} pairings published`;
+}
+
+/**
+ * Daily. The index only has to be as fresh as the advice that reads it, and a
+ * pairing crossing the floor is not news that needs to arrive within minutes.
+ */
+export const buildMatchupIndex = onSchedule(
+  { schedule: 'every 24 hours', timeoutSeconds: 540, memory: '512MiB' },
+  async () => {
+    const note = await rollupMatchupIndex();
+    console.log(`buildMatchupIndex: ${note}`);
+  }
+);
+
+/** Manual trigger, so the index can be built the moment it is first deployed. */
+export const buildMatchupIndexOnce = onRequest(
+  { cors: true, timeoutSeconds: 540, memory: '512MiB' },
+  async (_req, res) => {
+    try {
+      res.json({ ok: true, note: await rollupMatchupIndex() });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'rollup failed' });
     }
   }
 );

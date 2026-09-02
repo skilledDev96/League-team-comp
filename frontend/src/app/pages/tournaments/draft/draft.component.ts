@@ -45,6 +45,7 @@ import {
 import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
 import { CompIdentity, IDENTITY_ICON, IDENTITY_LABEL, classifyComp } from '../../../core/comp-identity';
 import { ChampionRate, ChampionStatsService, previousPatch } from '../../../services/champion-stats.service';
+import { MatchupRate, MatchupStatsService } from '../../../services/matchup-stats.service';
 import { TournamentContextService } from '../tournament-context.service';
 
 /** Which team a draft slot belongs to. */
@@ -85,6 +86,13 @@ export class TournamentDraftComponent implements OnInit {
     // optional in the view, so the panel renders immediately and the solo queue
     // numbers appear when they arrive.
     void this.stats.load();
+
+    // All five lanes up front rather than as each is advised. The published
+    // index holds only pairings past the prune floor, so a lane is kilobytes —
+    // and fetching lazily would mean a Firestore read landing mid-render the
+    // first time a lane is looked at, which is both a side effect in the wrong
+    // place and a visible pause during a draft.
+    for (const role of this.roles) void this.matchups.load(role);
 
     // Put the stage on screen. Opening Draft means drafting, and the page
     // header above it is not what anyone came here to read.
@@ -146,6 +154,7 @@ export class TournamentDraftComponent implements OnInit {
   protected readonly ui = inject(UiService);
   private readonly champs = inject(ChampionDataService);
   protected readonly stats = inject(ChampionStatsService);
+  protected readonly matchups = inject(MatchupStatsService);
 
   private readonly ctx = inject(TournamentContextService);
 
@@ -1119,6 +1128,49 @@ export class TournamentDraftComponent implements OnInit {
       ? `patches ${previousPatch(this.stats.patch())}-${this.stats.patch()}`
       : `patch ${this.stats.patch()}`;
     return `${r.winRate}% over ${r.games.toLocaleString()} solo queue games on ${where}.`;
+  }
+
+  /**
+   * Their champion in the lane being advised, once they have taken one.
+   *
+   * Read off the seat rather than the pick order, because a flex pick moves
+   * seats mid-draft: their Jayce may be filed at Top or Mid depending on what
+   * came after it, and a matchup filed under the wrong lane is worse than none.
+   */
+  protected enemyAt(game: SeriesGame, lane: Role): string {
+    return this.pickSlots(game, 'their').find((s) => s.role === lane)?.champion ?? '';
+  }
+
+  /**
+   * Our champion's record into theirs in this lane, from the collected data.
+   *
+   * The one genuinely enemy-aware number on the panel. Everything above it
+   * answers "what does this keep open for us"; this answers "given what they
+   * have taken, does this lane still want it". Absent far more often than
+   * present — a lane has 4,096 possible pairings and only the busiest have the
+   * two hundred games the floor asks for — and absent is the correct rendering,
+   * not a gap to be filled with a thinner number.
+   */
+  protected matchupRate(game: SeriesGame, champion: string): MatchupRate | undefined {
+    const lane = this.suggestLane(game);
+    if (!lane) return undefined;
+    const theirs = this.enemyAt(game, lane);
+    return theirs ? this.matchups.rate(lane, champion, theirs) : undefined;
+  }
+
+  protected matchupNote(game: SeriesGame, champion: string): string {
+    const lane = this.suggestLane(game);
+    const theirs = lane ? this.enemyAt(game, lane) : '';
+    if (!theirs) return 'No matchup: they have not picked in this lane yet.';
+
+    const r = this.matchupRate(game, champion);
+    if (!r) {
+      return `Not enough games collected for ${champion} into ${theirs} to be worth quoting.`;
+    }
+    const where = r.combined
+      ? `patches ${previousPatch(this.stats.patch())}-${this.stats.patch()}`
+      : `patch ${this.stats.patch()}`;
+    return `${champion} into ${theirs}: ${r.winRate}% over ${r.games.toLocaleString()} games on ${where}.`;
   }
 
   /**

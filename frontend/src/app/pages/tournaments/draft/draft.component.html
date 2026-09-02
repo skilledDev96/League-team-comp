@@ -478,6 +478,20 @@
                             <b [class]="winRateBand(r.winRate)">{{ r.winRate }}%</b>
                           </span>
                         }
+                        <!-- Into the champion they have actually taken in this
+                             lane. Absent whenever they have not picked yet or
+                             the pairing is too thin to quote, which is most of
+                             them — a lane has 4,096 possible pairings and only
+                             the busiest reach the floor. Absent is correct here,
+                             not a gap waiting for a thinner number. -->
+                        @if (matchupRate(g, s.champion); as m) {
+                          <span class="advice-matchup" [appTip]="matchupNote(g, s.champion)">
+                            <span class="advice-matchup-label material-symbols-rounded"
+                                  aria-hidden="true">swords</span>
+                            <b [class]="winRateBand(m.winRate)">{{ m.winRate }}%</b>
+                            <em>{{ m.games }}g</em>
+                          </span>
+                        }
                         <!-- One pill per comp, name on hover. Spelling the names
                              out ran a row four comps wide and pushed the numbers
                              off the edge, which cost the thing being read. -->

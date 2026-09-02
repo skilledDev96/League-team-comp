@@ -10134,6 +10134,34 @@ body:has(.draft-stage) .edit-mode-frame {
 
 .advice-solo b { font-size: 0.85rem; }
 
+/* ---- Matchup chip -------------------------------------------------------
+   Their champion in this lane versus ours, from the collected data. Sits
+   after SoloQ because it is the more specific claim and the eye should reach
+   the general number first. Crossed swords rather than a label: the row
+   already carries two words of prefix and a third pushed the numbers along.
+
+   Rendered only when the pairing clears the sample floor, so this style is
+   absent from most rows by design and the row must not reserve space for it. */
+.advice-matchup {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+  padding-left: 0.55rem;
+  border-left: 1px solid var(--card-border);
+  font-variant-numeric: tabular-nums;
+}
+
+.advice-matchup-label {
+  font-size: 0.85rem;
+  color: var(--text-1);
+  opacity: 0.7;
+  align-self: center;
+}
+
+.advice-matchup b { font-size: 0.85rem; }
+.advice-matchup em { font-style: normal; font-size: 0.72rem; opacity: 0.65; }
+
 /* ---- Comp pills ---------------------------------------------------------
    Comps have no icon of their own, so the compact form is the number itself
    with the name on hover. Spelling four names out ran the row past the edge
