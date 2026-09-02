@@ -405,11 +405,82 @@
                   <span class="draft-confirm-blocked">{{ why }}</span>
                 }
               </div>
+            } @else {
+              <!-- The slot is reserved whether or not a champion is held, so it
+                   carries the two things a drafter otherwise has to remember:
+                   what is banned this game, and what the series has already
+                   burned. Both used to live in the left column under five tall
+                   pick cards and below the fold, which is where they were least
+                   use. Swapping rather than stacking keeps the height fixed —
+                   this screen may not move when its state changes. -->
+              <div class="draft-slot-status">
+                <div class="draft-slot-group">
+                  <span class="draft-slot-label">Bans</span>
+                  <span class="draft-slot-icons">
+                    @for (champ of bansOf(game, 'our'); track $index) {
+                      @if (champ) {
+                        <img class="draft-slot-icon is-ban" [src]="ui.championIconUrl(champ)"
+                             [alt]="champ" [appTip]="teamName() + ' banned ' + champ" loading="lazy" />
+                      } @else {
+                        <span class="draft-slot-icon is-empty" aria-hidden="true"></span>
+                      }
+                    }
+                    <span class="draft-slot-split" aria-hidden="true"></span>
+                    @for (champ of bansOf(game, 'their'); track $index) {
+                      @if (champ) {
+                        <img class="draft-slot-icon is-ban" [src]="ui.championIconUrl(champ)"
+                             [alt]="champ"
+                             [appTip]="(series.opponent || 'They') + ' banned ' + champ" loading="lazy" />
+                      } @else {
+                        <span class="draft-slot-icon is-empty" aria-hidden="true"></span>
+                      }
+                    }
+                  </span>
+                </div>
+
+                <!-- Rendered even at zero, so the row keeps its shape from game
+                     one and the label is not a thing that appears later. -->
+                <div class="draft-slot-group is-burn" [appTip]="burnedNote(game)">
+                  <span class="draft-slot-label">
+                    Burned
+                    @if (burnedBeforeCount(game); as n) {
+                      <b>{{ n }}</b>
+                    }
+                  </span>
+                  <span class="draft-slot-icons">
+                    @for (champ of burnedIcons(game); track champ) {
+                      <img class="draft-slot-icon is-burned" [src]="ui.championIconUrl(champ)"
+                           [alt]="champ" [appTip]="champ + ' — used earlier this series'" loading="lazy" />
+                    }
+                    @if (moreBurned(game); as extra) {
+                      <span class="draft-slot-more">+{{ extra }}</span>
+                    }
+                    @if (!burnedBeforeCount(game)) {
+                      <span class="draft-slot-none">nothing yet</span>
+                    }
+                  </span>
+                </div>
+              </div>
             }
             </div>
           }
           </div>
 
+          <!-- Rendered in *both* modes, which it previously was not. The line
+               existed only in the free-form branch, so choosing a side deleted
+               it and everything below jumped up by its height — the exact shift
+               this screen forbids, and the one reported after the first live
+               draft. Reserving it costs a line; not reserving it moves the
+               champion wall under a cursor mid-draft. -->
+          <p class="draft-grid-aim">
+            @if (ourSide(game) && !sequenceDone(game)) {
+              <span class="muted">The sequence decides the seat &mdash;</span>
+              <strong>{{ step(game)?.action === 'ban' ? 'ban a champion' : 'pick a champion' }}</strong>
+            } @else {
+              <span class="muted">Clicking a champion fills</span>
+              <strong>{{ targetLabel(game) }}</strong>
+            }
+          </p>
           @if (ourSide(game) && !sequenceDone(game)) {
             <!-- The seat only filters the wall here; the sequence still decides
                  where the pick lands. Clicking a seat mid-draft is a way of
@@ -420,10 +491,6 @@
                                (laneChange)="shownLane.set($event)"
                                (pick)="proposeFromSequence($event)" />
           } @else {
-          <p class="draft-grid-aim">
-            <span class="muted">Clicking a champion fills</span>
-            <strong>{{ targetLabel(game) }}</strong>
-          </p>
           <app-champion-grid [unavailable]="gridUnavailable(game)"
                              [taken]="gridTaken(game)"
                              [lane]="gridLane()"
@@ -444,7 +511,11 @@
                 Worth taking at {{ lane }}
                 @if (standing(g); as now) {
                   @if (now.rate !== undefined) {
-                    <span class="advice-now">
+                    <!-- Not our whole record: the games behind the comps that
+                         are *still reachable* after this series' fearless burn
+                         and this game's bans. It shrinks as a draft narrows,
+                         which reads as a stale number unless it says so. -->
+                    <span class="advice-now" [appTip]="standingNote(g)">
                       now <b [class]="winRateBand(now.rate)">{{ now.rate }}%</b>
                       <em>across {{ now.games }} games</em>
                     </span>
@@ -490,6 +561,19 @@
                                   aria-hidden="true">swords</span>
                             <b [class]="winRateBand(m.winRate)">{{ m.winRate }}%</b>
                             <em>{{ m.games }}g</em>
+                          </span>
+                        } @else if (enemyAt(g, lane); as theirs) {
+                          <!-- They have picked here, so the comparison is
+                               meaningful — there is just not enough of it yet.
+                               Rendered as a visible blank rather than nothing at
+                               all, because an absent chip is indistinguishable
+                               from a feature that was never built, which is
+                               exactly how this read on its first live draft. -->
+                          <span class="advice-matchup is-thin"
+                                [appTip]="matchupNote(g, s.champion)">
+                            <span class="advice-matchup-label material-symbols-rounded"
+                                  aria-hidden="true">swords</span>
+                            <b>&mdash;</b>
                           </span>
                         }
                         <!-- One pill per comp, name on hover. Spelling the names

@@ -9171,6 +9171,132 @@ body[data-theme="void"] {
   margin-bottom: 0;
 }
 
+/* ---- The confirm slot's resting state -----------------------------------
+   The slot is reserved at 4.2rem whether or not a champion is held, so it was
+   4.2rem of nothing for most of a draft. It now carries the bans and the
+   fearless burn, which previously sat in the left column under five tall pick
+   cards and below the fold.
+
+   Everything here must fit inside that 4.2rem. Nothing may grow it: this
+   screen's rule is that layout height never changes with state, and the whole
+   point of swapping rather than stacking is that the confirm row and this
+   strip occupy the same box. */
+.draft-slot-status {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  min-width: 0;
+  padding: 0 0.15rem;
+  overflow: hidden;
+}
+
+.draft-slot-group {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.draft-slot-group.is-burn {
+  /* Bans are fixed at five a side; the burn is what grows, so it takes the
+     slack and shrinks first. */
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.draft-slot-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  opacity: 0.75;
+  white-space: nowrap;
+  flex: none;
+}
+
+.draft-slot-label b {
+  font-weight: 700;
+  color: var(--warn);
+  margin-left: 0.2rem;
+}
+
+.draft-slot-icons {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.draft-slot-icon {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 0.3rem;
+  flex: none;
+  object-fit: cover;
+}
+
+/* Banned: desaturated and dimmed, because a ban is a champion removed rather
+   than a champion chosen, and it should not compete with the wall for the eye. */
+.draft-slot-icon.is-ban {
+  filter: grayscale(0.85) brightness(0.75);
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+}
+
+/* Burned reads differently from banned on purpose: the two mean different
+   things (gone for the series versus gone for this game) and a drafter has to
+   tell them apart at a glance. */
+.draft-slot-icon.is-burned {
+  filter: grayscale(0.5) brightness(0.85);
+  border: 1px solid var(--card-border);
+  opacity: 0.9;
+}
+
+/* A ban not yet made keeps its space, so the row does not shuffle sideways as
+   bans land — the same reason the slot itself is reserved. */
+.draft-slot-icon.is-empty {
+  border: 1px dashed var(--card-border);
+  background: color-mix(in srgb, var(--card-border) 18%, transparent);
+}
+
+.draft-slot-split {
+  width: 1px;
+  height: 1.3rem;
+  background: var(--card-border);
+  margin: 0 0.35rem;
+  flex: none;
+}
+
+.draft-slot-more,
+.draft-slot-none {
+  font-size: 0.7rem;
+  color: var(--text-1);
+  opacity: 0.6;
+  white-space: nowrap;
+  flex: none;
+  margin-left: 0.15rem;
+}
+
+.draft-slot-more {
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.3rem;
+}
+
+/* Narrow windows: the burn is the first thing that has to give, and it gives by
+   scrolling inside its own row rather than by wrapping, which would grow the
+   slot and break the fixed height. */
+@media (max-width: 1200px) {
+  .draft-slot-status { gap: 0.7rem; }
+  .draft-slot-group.is-burn .draft-slot-icons {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .draft-slot-group.is-burn .draft-slot-icons::-webkit-scrollbar { display: none; }
+}
+
+
 /* The five cards fill their column rather than sitting in a short stack with
    dead space beneath. Taller cards also mean more of the art. */
 .draft-stage .draft-inputs > .field:nth-child(2),
@@ -9290,7 +9416,12 @@ body[data-theme="void"] {
    exact moment the draft began. The head is now a fixed block and only its
    contents change. */
 .draft-head {
-  min-height: 8.2rem;
+  /* Measured, not guessed: the side question renders at 135px and the turn bar
+     plus confirm slot at 144px, so the old 8.2rem (131px) floor was under both
+     and reserved nothing — choosing a side moved the champion wall down 9px
+     under the cursor. 9.4rem clears the taller state with headroom for a
+     wrapped step label. Re-measure if either state gains a line. */
+  min-height: 9.4rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -10161,6 +10292,13 @@ body:has(.draft-stage) .edit-mode-frame {
 
 .advice-matchup b { font-size: 0.85rem; }
 .advice-matchup em { font-style: normal; font-size: 0.72rem; opacity: 0.65; }
+
+/* They have picked in this lane but the pairing is too thin to quote. Shown
+   dimmed rather than omitted: an absent chip reads as a feature that does not
+   exist, which is how this landed on its first live draft. The dash says the
+   comparison is being made and has no answer yet. */
+.advice-matchup.is-thin { opacity: 0.45; }
+.advice-matchup.is-thin b { color: var(--text-1); font-weight: 500; }
 
 /* ---- Comp pills ---------------------------------------------------------
    Comps have no icon of their own, so the compact form is the number itself

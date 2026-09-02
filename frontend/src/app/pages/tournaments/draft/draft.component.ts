@@ -60,6 +60,14 @@ type DraftTarget =
 const MAX_BANS = 10;
 
 /**
+ * Burned champions shown in the confirm-slot strip before it overflows.
+ *
+ * Ten is two games' worth. Beyond that the row would push the bans beside it
+ * off the edge, which is the failure this strip exists to fix.
+ */
+const BURN_STRIP_MAX = 10;
+
+/**
  * One game, full width, for use while the draft is actually happening: bans and
  * picks as they land, and what still survives the fearless burn.
  */
@@ -495,6 +503,28 @@ export class TournamentDraftComponent implements OnInit {
 
   protected burnedBeforeCount(game: SeriesGame): number {
     return this.burnedBefore(game.seriesId, game.gameNumber).length;
+  }
+
+  /**
+   * What the series has already spent, for the strip in the confirm slot.
+   *
+   * Capped, because game three of a best-of-five burns twenty champions and a
+   * row that wide pushes the bans it sits beside off the edge — the one thing
+   * this strip exists to prevent. The overflow count carries the rest, and the
+   * full list is still on the board below.
+   */
+  protected burnedIcons(game: SeriesGame): string[] {
+    return this.burnedBefore(game.seriesId, game.gameNumber).slice(0, BURN_STRIP_MAX);
+  }
+
+  protected moreBurned(game: SeriesGame): number {
+    return Math.max(0, this.burnedBeforeCount(game) - BURN_STRIP_MAX);
+  }
+
+  protected burnedNote(game: SeriesGame): string {
+    const n = this.burnedBeforeCount(game);
+    if (!n) return 'Nothing burned yet — this is the first game of the series.';
+    return `${n} champion${n === 1 ? '' : 's'} used earlier in this series and unavailable under fearless.`;
   }
 
   /**
@@ -1076,6 +1106,29 @@ export class TournamentDraftComponent implements OnInit {
   /** Where we stand now, across every comp still reachable. */
   protected standing(game: SeriesGame) {
     return currentStanding(this.compAvailability(game.seriesId));
+  }
+
+  /**
+   * What the standing is actually counting.
+   *
+   * It is not the team's whole record, and reads as a stuck number without
+   * that said: by game two of a fearless series the burn has closed most comps,
+   * so a total of 168 games across the books can present as 30 here. The count
+   * shrinking through a draft is the number working, not failing.
+   */
+  protected standingNote(game: SeriesGame): string {
+    const all = this.compAvailability(game.seriesId);
+    const playable = all.filter((c) => c.playable).length;
+    const burned = this.burnedBeforeCount(game);
+    const banned = (game.bans ?? []).filter(Boolean).length;
+
+    const parts = [
+      `Across the ${playable} of ${all.length} comps still reachable`,
+      burned ? `${burned} champions burned earlier in this series` : '',
+      banned ? `${banned} banned this game` : ''
+    ].filter(Boolean);
+
+    return `${parts[0]}. ${parts.slice(1).join(', ') || 'Nothing burned or banned yet'}. It falls as a draft narrows.`;
   }
 
   /**
