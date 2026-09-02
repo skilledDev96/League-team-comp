@@ -9161,7 +9161,10 @@ body[data-theme="void"] {
    pushed the grid — and the whole page — down and then back up on every single
    pick. Nothing under a clock should move like that. */
 .draft-confirm-slot {
-  min-height: 4.2rem;
+  /* Two stacked rows plus their gap. Raised with .draft-head together — the
+     confirm row swaps into this same box, so both states must fit the larger
+     of the two or the board moves when a champion is held. */
+  min-height: 5.4rem;
   display: flex;
   align-items: stretch;
 }
@@ -9181,11 +9184,17 @@ body[data-theme="void"] {
    screen's rule is that layout height never changes with state, and the whole
    point of swapping rather than stacking is that the confirm row and this
    strip occupy the same box. */
+/* Two rows, not one. Bans are five a side and fixed; the burn reaches forty in
+   a Bo5. Sharing a row meant the burn crushed the bans against the left edge
+   the moment a series got long — and both are read at a glance mid-draft, so
+   neither can be the one that gives. Stacked, each gets the full width and the
+   labels line up down the left. */
 .draft-slot-status {
   flex: 1 1 auto;
   display: flex;
-  align-items: center;
-  gap: 1.1rem;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.3rem;
   min-width: 0;
   padding: 0 0.15rem;
   overflow: hidden;
@@ -9199,13 +9208,15 @@ body[data-theme="void"] {
 }
 
 .draft-slot-group.is-burn {
-  /* Bans are fixed at five a side; the burn is what grows, so it takes the
-     slack and shrinks first. */
   flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
 }
 
 .draft-slot-label {
+  /* Fixed width so the two rows line up down the left rather than the icons
+     starting at two different places. */
+  min-width: 4.4rem;
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.07em;
@@ -9247,10 +9258,7 @@ body[data-theme="void"] {
 /* Burned reads differently from banned on purpose: the two mean different
    things (gone for the series versus gone for this game) and a drafter has to
    tell them apart at a glance. */
-/* Slightly smaller than a ban icon, so a game-three burn of twenty fits the row
-   outright and scrolling stays the exception. Bans are five a side and fixed;
-   the burn is the list that grows, so it is the one that gives. */
-.draft-slot-icon.is-burned { width: 1.4rem; height: 1.4rem; }
+/* Same size as a ban icon now that each has its own row and the full width. */
 
 .draft-slot-icon.is-burned {
   filter: grayscale(0.5) brightness(0.85);
@@ -9424,12 +9432,14 @@ body[data-theme="void"] {
    exact moment the draft began. The head is now a fixed block and only its
    contents change. */
 .draft-head {
-  /* Measured, not guessed: the side question renders at 135px and the turn bar
-     plus confirm slot at 144px, so the old 8.2rem (131px) floor was under both
-     and reserved nothing — choosing a side moved the champion wall down 9px
-     under the cursor. 9.4rem clears the taller state with headroom for a
-     wrapped step label. Re-measure if either state gains a line. */
-  min-height: 9.4rem;
+  /* Measured, not guessed, and re-measured whenever the slot changes size.
+     The side question renders at 155px; the turn bar plus the two-row status
+     slot at 163px. A floor under the taller state reserves nothing and the
+     champion wall moves under the cursor when a side is chosen — which is
+     exactly what happened twice, first at 8.2rem and again at 9.4rem after the
+     slot grew a second row. 10.4rem clears 163px with room for a wrapped step
+     label. **Re-measure both states after any change to the confirm slot.** */
+  min-height: 10.4rem;
   display: flex;
   flex-direction: column;
   justify-content: center;

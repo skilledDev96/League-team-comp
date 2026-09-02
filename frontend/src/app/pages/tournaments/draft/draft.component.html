@@ -75,7 +75,11 @@
            below the fold. -->
       <div class="draft-stage">
       <div class="draft-inputs">
+          <!-- The element stays even when it renders nothing: the stage places
+               these three fields by nth-child, so dropping this one would slide
+               our picks into the bans' grid cell. -->
           <div class="field">
+          @if (!sequenceActive(game)) {
             <span>
               Bans this game <small class="pick-count">{{ (game.bans || []).length }}</small>
               @if (auth.editing() && !game.ourSide && (game.bans || []).length) {
@@ -120,6 +124,7 @@
                 </ol>
               </div>
             }
+          }
           </div>
           <div class="field" [class.is-on-turn]="onTurn(game, 'our')">
             <span>{{ teamName() }} picks <small class="pick-count">{{ pickedCount(game, 'our') }}/5</small>
