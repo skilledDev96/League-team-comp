@@ -195,6 +195,43 @@ genuinely unknown, and averaging it in as a zero reads as a player who stopped
 warding. A cached entry with no `durationSec` is likewise left out of CS per
 minute instead of being treated as a one-minute game.
 
+**Lane matchups are collected raw and published pruned — two collections, not
+one.** The crawler accumulates every pairing it sees into
+`matchupStats/{patch}_{LANE}`, written with `FieldValue.increment` and never
+read back. Those documents are large: `16.17_TOP` measured **1.17 MB** two days
+into a patch, and the ceiling is C(173,2) = 14,878 pairings in one lane. Fine
+for increments, hopeless for a browser pulling it mid-draft.
+
+So `buildMatchupIndex` (scheduled daily, `buildMatchupIndexOnce` for a manual
+run) reads each raw bucket and republishes only the pairings worth reading to
+`matchupIndex/{patch}_{LANE}` — 1.17 MB becomes ~21 KB. The frontend reads
+**only** `matchupIndex`; nothing in the browser should ever touch
+`matchupStats`. The rollup overwrites whole rather than merging, so a pairing
+dropping below the floor disappears instead of being frozen in.
+
+**There are two floors and they are deliberately different.**
+`INDEX_MIN_GAMES` (50, `api/src/matchup-index.ts`) is only a document-size
+guard. `MIN_MATCHUP_GAMES` (200, `matchup-stats.service.ts`) is the honesty
+threshold, set where the ±0.98/√n interval is tight enough that a genuinely
+lopsided matchup separates from even. The client floor is the higher one so it
+can be moved by a frontend deploy; it must never drop below the backend's, or
+the UI would ask for pairings the index has already discarded.
+
+**Champion keys are Riot's `championName`, which is the id, not the display
+name.** Wukong is stored as `MonkeyKing`, Renata Glasc as `Renata`, Nunu &
+Willump as `Nunu`. Both `ChampionStatsService` and `MatchupStatsService` resolve
+through `ChampionDataService.resolveId()` before stripping to alphanumerics.
+Keying off the display name loses those champions silently — a missing rate is
+indistinguishable from one below the sample floor, which is how three champions
+went without a solo queue rate from the day that service shipped.
+
+**`pairKeyFor` must mirror the crawler exactly.** `laneMatchups` orders the two
+champions by `localeCompare` on the raw names and strips *afterwards*, so the
+reader has to order first and strip second. It also returns `oursIsA`, because
+the stored `winsA` counts wins for whichever champion sorted first — read it as
+ours when it is theirs and a 42% hard counter renders as a 58% free lane. Both
+are pure and tested in `matchup-stats.service.spec.ts`; keep them that way.
+
 **Which comp a game counts as** is decided in `api/src/comp-attribution.ts`, not
 by the champion matcher alone. Two human corrections sit on top of `matchComp`:
 
