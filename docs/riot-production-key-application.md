@@ -54,6 +54,7 @@ they already publish.
 | "Products cannot create alternatives for official skill ranking systems" | No MMR or ELO estimate anywhere. |
 | "Products cannot de-anonymize players who cannot reasonably be identified from visible information" / "may not expose a player's historic Riot IDs" | Players are only ever identified by the Riot ID a person typed in themselves. No historic IDs are stored or shown. |
 | "Products may not publicly display a player's match history from the custom match queue unless the player opts in" | Custom games are invisible to the API (queueId 0 never appears in match ids, and `matches/{id}` 404s). Scrims are imported from the team's **own** `.rofl` replay files, parsed in the browser, and shown only to that team. Nothing custom is publicly displayed. |
+| "Products cannot de-anonymize players who cannot reasonably be identified from visible information" | Opponent scouting looks up only the Riot IDs a league publishes in its own fixtures, and shows only that player's public ranked record — tier, positions played, champions played. The same information the client shows about anyone in a lobby. No historic IDs, no MMR estimate, and no inference about a player beyond what they have published by playing ranked. |
 | Scraping "sources outside of the provided Riot API Endpoints" | **Every** datum comes from Riot's documented endpoints, plus Oracle's Elixir, a dataset published for public analyst use. When a team pastes an op.gg link, only the Riot ID is parsed out of the URL — op.gg itself is never requested. |
 
 ---
@@ -102,6 +103,14 @@ specific players)" verbatim somewhere — it is their own category name.
 > post-game review that explains why games were won or lost from objective and
 > fight data; and aggregate player stats (no specific players) showing champion
 > win rates by rank for the current patch.
+>
+> Before a series, a team can look up the opponents it is about to play by the
+> Riot IDs the league publishes in its fixtures. That shows each opponent's
+> current ranked tier, the two positions they play most with the number of games
+> behind each, and the champions they play — all of it their public ranked
+> record, the same information the League client shows about anyone in a lobby.
+> No historic Riot IDs, no MMR estimate, and nothing that is not already visible
+> to the player themselves.
 >
 > A team can also import its own practice games from the replay files the client
 > writes, which is the only record a custom game leaves. Those are parsed in the
