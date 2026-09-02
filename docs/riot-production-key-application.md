@@ -89,14 +89,19 @@ specific players)" verbatim somewhere — it is their own category name.
 > fight data; and aggregate player stats (no specific players) showing champion
 > win rates by rank for the current patch.
 >
+> A team can also import its own practice games from the replay files the client
+> writes, which is the only record a custom game leaves. Those are parsed in the
+> browser, visible only to that team, and never published.
+>
 > It is built for the amateur tier that competes in community leagues, where
-> teams draft seriously but no existing tool tracks fearless series burn.
+> teams draft seriously but we could find no tool that tracks fearless series
+> burn.
 
 ### Who is it for, and how does it help players?
 
 > Amateur and semi-competitive League teams. Community leagues increasingly run
 > fearless draft — champions used in one game of a series cannot be used again —
-> and no existing tool tracks that burn across games. Teams currently manage it
+> and no tool we could find tracks that burn across games. Teams currently manage it
 > on paper or from memory, and lose drafts to bookkeeping errors rather than to
 > decisions.
 >
@@ -109,20 +114,25 @@ specific players)" verbatim somewhere — it is their own category name.
 
 ### How do you use the API?
 
-> Match-V5, Summoner-V4, League-V4, Account-V1 and Champion-Mastery-V4, all via
-> documented endpoints. Matches are cached in Firestore keyed by match id and
-> re-read rather than re-fetched, with a schema version so a cache entry is only
-> re-requested when the data we read from it has actually changed.
+> Match-V5, Summoner-V4, League-V4, Account-V1, Champion-Mastery-V4 and
+> LoL-Status-V4, all via documented endpoints. Matches the team itself played
+> are cached in Firestore keyed by match id and re-read rather than re-fetched,
+> with a schema version so a cache entry is only re-requested when the data we
+> read from it has actually changed.
 >
 > Collection for the aggregate stats walks the ranked ladder page by page and
-> tallies champion games and wins per tier per patch. It stores counters only —
-> no match bodies, no player histories, no puuids beyond a transient work queue.
+> tallies champion games and wins per tier per patch, plus the five lane
+> pairings in each match. Nothing from those matches is kept but the counters:
+> a match id is recorded so the same game is never tallied twice, and a rolling
+> queue of at most 4,000 puuids is held to know where to read next. Neither is
+> readable by anyone but the functions.
+>
 > On the personal key it runs at half the rate limit so interactive requests are
 > never delayed behind it.
 
 ### Evidence that the aggregate use case is real and working
 
-Measured 2 Sep 2026, after roughly three days of collection on the personal key
+Measured 2 Sep 2026, after the first days of collection on the personal key
 at **half** its rate limit:
 
 > - **53,604 ranked matches** tallied across patches 16.16 and 16.17.
@@ -132,17 +142,17 @@ at **half** its rate limit:
 >   the rate at the rank the team actually plays at.
 > - **28,180 lane matchups** recorded, of which 175 have reached 100 games.
 >
-> Only counters are stored. The entire dataset is a few hundred kilobytes; no
-> match body, player history or identifier is retained.
+> Only counters are stored — champion and pairing totals per patch. No match
+> body, player history or player identifier is retained from any match tallied.
 
 ### Why do you need a production key?
 
 > The rate limit is the binding constraint, and the shortfall is specific and
 > measurable rather than a general wish for more headroom.
 >
-> Champion win rates are complete: all 173 champions, every tier, in three days.
+> Champion win rates are complete: all 173 champions, every tier, within days.
 > **Matchup data is not, and cannot be on this key.** A single lane has 4,096
-> possible champion pairings. After the same three days, patch 16.17's top lane
+> possible champion pairings. In the same window, patch 16.17's top lane
 > has 4,096 pairings recorded but only **219 at thirty games or more**, and ten
 > at a hundred — and the head of that distribution is Garen, Nasus and Darius,
 > the champions a competitive team is least likely to be asked about. The tail is
