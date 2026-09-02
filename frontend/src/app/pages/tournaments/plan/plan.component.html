@@ -516,13 +516,23 @@
 
                       <!-- From mastery, so it sees past the match window: a
                            champion picked up six weeks ago is invisible to the
-                           scan and obvious here. No position attached. -->
+                           scan and obvious here. Mastery carries no position,
+                           so the raw list put supports and junglers in a top
+                           laner's row — narrowed here to champions actually
+                           played in this seat, using the pro-play lane map. -->
                       <span class="opp-cell opp-recent" role="cell">
-                        @for (champ of (opp.recentChampions ?? []).slice(0, 6); track champ) {
+                        @for (champ of recentForSeat(opp); track champ) {
                           <img class="opp-champ is-recent" [src]="ui.championIconUrl(champ)"
-                               [alt]="champ" [appTip]="champ" loading="lazy" />
+                               [alt]="champ" [appTip]="champ + ' — played at ' + opp.role"
+                               loading="lazy" />
                         }
-                        @if (!opp.recentChampions?.length) { <span class="opp-none">&mdash;</span> }
+                        @if (recentHidden(opp); as hidden) {
+                          <span class="opp-more"
+                                [appTip]="hidden + ' more they have played lately, in other lanes'">
+                            +{{ hidden }}
+                          </span>
+                        }
+                        @if (!recentForSeat(opp).length) { <span class="opp-none">&mdash;</span> }
                       </span>
 
                       @if (opp.scoutError) {

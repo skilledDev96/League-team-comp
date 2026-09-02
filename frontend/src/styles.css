@@ -10947,6 +10947,20 @@ body:has(.draft-stage) .edit-mode-frame {
   opacity: 0.4;
 }
 
+/* Recent champions dropped as off-seat. Counted rather than silently removed:
+   the filter is a judgement about which lane a champion belongs to, and a row
+   that quietly discards half a mastery list should say it did. */
+.opp-more {
+  align-self: center;
+  font-size: 0.68rem;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.3rem;
+  color: var(--text-1);
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
 /* Below this the six columns stop fitting; the table scrolls sideways rather
    than crushing champion icons into unreadable squares. */
 

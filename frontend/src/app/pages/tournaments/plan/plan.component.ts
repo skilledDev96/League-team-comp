@@ -7,6 +7,7 @@ import { ChampionDataService } from '../../../services/champion-data.service';
 import { NgModelNameDirective } from '../../../shared/ng-model-name.directive';
 import { TeamDataService } from '../../../services/team-data.service';
 import { UiService } from '../../../services/ui.service';
+import { playsRole } from '../../../core/champion-lanes';
 import { ChampionChipComponent } from '../../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../../shared/champion-picker.component';
 import { MatchNoteButtonComponent } from '../../../shared/match-note-button.component';
@@ -375,6 +376,40 @@ export class TournamentPlanComponent {
       ? player.championRecords
       : (player.top3 ?? []).map((champion) => ({ champion, games: 0, wins: 0 }));
     return overall.slice(0, 5);
+  }
+
+  /**
+   * What they have played lately **in this seat**.
+   *
+   * `recentChampions` comes from champion mastery, which carries no position at
+   * all — so the raw list put a support and a jungler in a top laner's row and
+   * read as noise. Narrowed here through the pro-play lane map, which is the
+   * only position data the app has and is deliberately generous: a champion
+   * with no pro games passes every lane rather than none, so this can never
+   * hide a pocket pick it has simply never seen.
+   *
+   * Falls back to the unfiltered list when the filter empties it. A player
+   * whose recent games are all off-seat is telling you something — most likely
+   * that the seat we have them in is wrong — and an empty cell says nothing.
+   */
+  protected recentForSeat(player: OpponentPlayer): string[] {
+    const all = player.recentChampions ?? [];
+    if (!all.length) return [];
+    const inSeat = all.filter((champion) => playsRole(champion, player.role));
+    return (inSeat.length ? inSeat : all).slice(0, 6);
+  }
+
+  /**
+   * How many recent champions were dropped as off-seat.
+   *
+   * The off-seat count only — not the six-icon cap, which is a display limit
+   * rather than a claim about the player. Zero when the filter emptied the list
+   * and the row fell back to showing everything, because then nothing was hidden.
+   */
+  protected recentHidden(player: OpponentPlayer): number {
+    const all = player.recentChampions ?? [];
+    const inSeat = all.filter((champion) => playsRole(champion, player.role));
+    return inSeat.length ? all.length - inSeat.length : 0;
   }
 
   /** Who beats them in the seat they hold, falling back to their history. */
