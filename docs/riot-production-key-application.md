@@ -26,10 +26,10 @@ figures were measured on 2 Sep 2026 and are reproducible — see §6.
 > two ever disagree, fix both — but paste from the submission file.
 
 **Submitted 2 Sep 2026.** App ID **876788**, status *Pending Review*, owner
-SkilledScarecrow#42096, product group Default. Domain verification passed —
- serves the code at the site root and **must not be
-deleted**; Riot may re-check it. App Notes go in the **Messages** tab on the
-application.
+SkilledScarecrow#42096, product group Default. Domain verification passed:
+`frontend/public/riot.txt` serves the code at the site root and **must not be
+deleted** — Riot may re-check it, and removing it could invalidate the
+verification. App Notes go in the **Messages** tab on the application.
 
 **Framing decision:** this application is for a **private tool used by one
 team**, not a public launch. That is deliberate — see §5. It changes the "why do
