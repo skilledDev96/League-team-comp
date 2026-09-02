@@ -9247,6 +9247,11 @@ body[data-theme="void"] {
 /* Burned reads differently from banned on purpose: the two mean different
    things (gone for the series versus gone for this game) and a drafter has to
    tell them apart at a glance. */
+/* Slightly smaller than a ban icon, so a game-three burn of twenty fits the row
+   outright and scrolling stays the exception. Bans are five a side and fixed;
+   the burn is the list that grows, so it is the one that gives. */
+.draft-slot-icon.is-burned { width: 1.4rem; height: 1.4rem; }
+
 .draft-slot-icon.is-burned {
   filter: grayscale(0.5) brightness(0.85);
   border: 1px solid var(--card-border);
@@ -9284,16 +9289,19 @@ body[data-theme="void"] {
   border-radius: 0.3rem;
 }
 
-/* Narrow windows: the burn is the first thing that has to give, and it gives by
-   scrolling inside its own row rather than by wrapping, which would grow the
-   slot and break the fixed height. */
+/* The burn scrolls inside its own row at every width, not just narrow ones.
+   Under fearless every burned champion matters, so none is dropped — but the
+   list reaches forty in a Bo5 and the slot height is fixed, so it cannot wrap.
+   Scrolling is the only give available, and it costs nothing until needed. */
+.draft-slot-group.is-burn .draft-slot-icons {
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+}
+.draft-slot-group.is-burn .draft-slot-icons::-webkit-scrollbar { display: none; }
+
 @media (max-width: 1200px) {
   .draft-slot-status { gap: 0.7rem; }
-  .draft-slot-group.is-burn .draft-slot-icons {
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .draft-slot-group.is-burn .draft-slot-icons::-webkit-scrollbar { display: none; }
 }
 
 

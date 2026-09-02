@@ -60,12 +60,15 @@ type DraftTarget =
 const MAX_BANS = 10;
 
 /**
- * Burned champions shown in the confirm-slot strip before it overflows.
+ * Burned champions shown in the confirm-slot strip.
  *
- * Ten is two games' worth. Beyond that the row would push the bans beside it
- * off the edge, which is the failure this strip exists to fix.
+ * Forty is a full Bo5 — in practice, all of them. Capping at ten was the wrong
+ * instinct: under fearless the burned list *is* the thing being tracked, so
+ * hiding half of it behind a "+10" put the answer one hover away at exactly the
+ * moment it is needed. The row scrolls inside its own box instead, which keeps
+ * the slot height fixed without dropping anything.
  */
-const BURN_STRIP_MAX = 10;
+const BURN_STRIP_MAX = 40;
 
 /**
  * One game, full width, for use while the draft is actually happening: bans and
