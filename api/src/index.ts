@@ -68,6 +68,23 @@ interface SynergyRequest {
   players: SynergyPlayerRequest[];
 }
 
+/**
+ * One queue's champion record, so solo and flex can be read apart.
+ *
+ * The same five fields the merged response carries, scoped to a single ladder.
+ * Every field is optional: a player with no games in a queue has an empty pool
+ * there, and that absence is itself worth showing rather than filling in from
+ * the other queue.
+ */
+interface QueuePool {
+  top3?: string[];
+  bans?: string[];
+  positions?: { role: KnownRole; games: number }[];
+  poolByRole?: Partial<Record<KnownRole, ChampionRecord[]>>;
+  bansByRole?: Partial<Record<KnownRole, ChampionRecord[]>>;
+  championRecords?: ChampionRecord[];
+}
+
 interface EnrichResponse {
   playstyle: string;
   strengths: string[];
@@ -105,6 +122,23 @@ interface EnrichResponse {
     solo?: QueueStats;
     flex?: QueueStats;
     clash?: QueueStats;
+  };
+  /**
+   * The champion side of the record, kept per queue rather than merged away.
+   *
+   * Everything above — `top3`, `poolByRole`, `bansByRole`, `championRecords`,
+   * `positions` — comes from whichever queue won the merge, and flex wins it.
+   * Both queues were already being fetched and fully computed; solo's champion
+   * data was then discarded, so a scouting row labelled "plays" was showing a
+   * player's *flex* pool and nothing said so. They are different pools for most
+   * players, and a team meets its opponents in flex but they grind solo.
+   *
+   * Populated only for the two ranked queues. Clash is a weekend format and its
+   * pool says little about how someone drafts.
+   */
+  byQueue?: {
+    solo?: QueuePool;
+    flex?: QueuePool;
   };
   iconUrl?: string;
   source: 'template' | 'provider';
@@ -746,8 +780,40 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
       solo: soloStats?.queueStats?.solo,
       flex: flexStats?.queueStats?.flex,
       clash: clashStats?.queueStats?.clash
+    },
+    // Both queues were already computed in full; only one survived the merge.
+    // Carrying both costs nothing but the bytes and is the difference between
+    // "what they play" and "what they play in the queue we happened to prefer".
+    byQueue: {
+      solo: queuePool(soloStats),
+      flex: queuePool(flexStats)
     }
   };
+}
+
+/**
+ * Lift one queue's champion data out of its enrichment result.
+ *
+ * Returns nothing at all when the queue produced no champion data, so an
+ * unranked-in-flex player shows an empty row rather than a row of zeroes that
+ * looks like a record.
+ */
+function queuePool(stats: EnrichResponse | undefined): QueuePool | undefined {
+  if (!stats) return undefined;
+  const pool: QueuePool = {
+    top3: stats.top3,
+    bans: stats.bans,
+    positions: stats.positions,
+    poolByRole: stats.poolByRole,
+    bansByRole: stats.bansByRole,
+    championRecords: stats.championRecords
+  };
+  const hasAnything =
+    pool.top3?.length ||
+    pool.championRecords?.length ||
+    pool.positions?.length ||
+    Object.keys(pool.poolByRole ?? {}).length;
+  return hasAnything ? pool : undefined;
 }
 
 function fallbackByRole(role: KnownRole | undefined, reason: string): EnrichResponse {

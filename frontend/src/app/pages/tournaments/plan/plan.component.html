@@ -431,7 +431,7 @@
                            swapped roles looks exactly like a roster pasted in
                            the wrong order, and only somebody watching them
                            knows which it is. -->
-                      <span class="opp-cell" role="cell">
+                      <span class="opp-cell opp-seat" role="cell">
                         @if (auth.editing()) {
                           <select class="opp-role-pick" [ngModel]="opp.role"
                                   (ngModelChange)="setOpponentRole(series, opp, $event)"
@@ -468,51 +468,54 @@
                         </span>
                       </span>
 
-                      <!-- Both ladders, stacked. They routinely differ by a tier
-                           or more, and it is flex a team plays together. -->
-                      <span class="opp-cell opp-ranks" role="cell">
-                        @if (opp.soloRank) {
-                          <span class="opp-rank" [appTip]="'Ranked solo/duo' + (opp.soloRecord ? ' — ' + opp.soloRecord : '')">
-                            <em>Solo</em> {{ opp.soloRank }}
-                          </span>
-                        }
-                        @if (opp.flexRank) {
-                          <span class="opp-rank is-flex" [appTip]="'Ranked flex, the queue a team plays together' + (opp.flexRecord ? ' — ' + opp.flexRecord : '')">
-                            <em>Flex</em> {{ opp.flexRank }}
-                          </span>
-                        }
-                        @if (!opp.soloRank && !opp.flexRank && opp.rank) {
-                          <span class="opp-rank">{{ opp.rank }}</span>
-                        }
-                      </span>
+                      <!-- One line per ranked queue. Solo and flex are separate
+                           ladders with separate champion pools, and the backend
+                           used to merge them — preferring flex — so this column
+                           showed half the picture unlabelled. A roster scouted
+                           before the split has one row, not two empty ones. -->
+                      @for (q of queueRows(opp); track q.key) {
+                        <span class="opp-cell opp-ranks" role="cell">
+                          @if (q.rank) {
+                            <span class="opp-rank" [class.is-flex]="q.key === 'flex'"
+                                  [appTip]="(q.key === 'flex' ? 'Ranked flex, the queue a team plays together' : q.key === 'solo' ? 'Ranked solo/duo' : 'Rank') + (q.record ? ' — ' + q.record : '')">
+                              @if (q.label) { <em>{{ q.label }}</em> } {{ q.rank }}
+                            </span>
+                          } @else {
+                            <span class="opp-rank is-unranked"
+                                  [appTip]="'No ' + (q.label || 'ranked') + ' games this season'">
+                              @if (q.label) { <em>{{ q.label }}</em> } &mdash;
+                            </span>
+                          }
+                        </span>
 
-                      <span class="opp-cell opp-pool" role="cell">
-                        @for (rec of poolFor(opp); track rec.champion) {
-                          <span class="opp-champ-cell"
-                                [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won' : '') + (poolIsForSeat(opp) ? ' at ' + opp.role : '')">
-                            <img class="opp-champ" [class.is-seat]="poolIsForSeat(opp)"
-                                 [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
-                            @if (rateOf(rec); as rate) {
-                              <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rate }}%<em>{{ rec.games }}</em></span>
-                            }
-                          </span>
-                        }
-                        @if (!poolFor(opp).length) { <span class="opp-none">&mdash;</span> }
-                      </span>
+                        <span class="opp-cell opp-pool" role="cell">
+                          @for (rec of q.pool; track rec.champion) {
+                            <span class="opp-champ-cell"
+                                  [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won' : '') + (q.forSeat ? ' at ' + opp.role : '') + (q.label ? ' (' + q.label + ')' : '')">
+                              <img class="opp-champ" [class.is-seat]="q.forSeat"
+                                   [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                              @if (rateOf(rec); as rate) {
+                                <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rate }}%<em>{{ rec.games }}</em></span>
+                              }
+                            </span>
+                          }
+                          @if (!q.pool.length) { <span class="opp-none">&mdash;</span> }
+                        </span>
 
-                      <!-- A record of this player losing to this champion, not a
-                           meta guess, which is what makes it a ban list. -->
-                      <span class="opp-cell opp-counters" role="cell">
-                        @for (rec of countersFor(opp); track rec.champion) {
-                          <span class="opp-champ-cell"
-                                [appTip]="rec.champion + ' beat them' + (rec.games ? ' ' + rec.games + (rec.games === 1 ? ' time' : ' times') : '') + (countersAreForSeat(opp) ? ' at ' + opp.role : ' in lane')">
-                            <img class="opp-champ is-counter" [class.is-seat]="countersAreForSeat(opp)"
-                                 [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
-                            @if (rec.games) { <span class="opp-champ-stat is-poor">{{ rec.games }}&times;</span> }
-                          </span>
-                        }
-                        @if (!countersFor(opp).length) { <span class="opp-none">&mdash;</span> }
-                      </span>
+                        <!-- A record of this player losing to this champion, not
+                             a meta guess, which is what makes it a ban list. -->
+                        <span class="opp-cell opp-counters" role="cell">
+                          @for (rec of q.counters; track rec.champion) {
+                            <span class="opp-champ-cell"
+                                  [appTip]="rec.champion + ' beat them' + (rec.games ? ' ' + rec.games + (rec.games === 1 ? ' time' : ' times') : '') + (q.forSeat ? ' at ' + opp.role : ' in lane') + (q.label ? ' (' + q.label + ')' : '')">
+                              <img class="opp-champ is-counter" [class.is-seat]="q.forSeat"
+                                   [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                              @if (rec.games) { <span class="opp-champ-stat is-poor">{{ rec.games }}&times;</span> }
+                            </span>
+                          }
+                          @if (!q.counters.length) { <span class="opp-none">&mdash;</span> }
+                        </span>
+                      }
 
                       <!-- From mastery, so it sees past the match window: a
                            champion picked up six weeks ago is invisible to the

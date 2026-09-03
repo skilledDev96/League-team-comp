@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { getAuthInstance, isFirebaseConfigured } from '../core/firebase';
-import { ChampionRecord, PlayerQueueStats, Role } from '../models/team.models';
+import { ChampionRecord, OpponentQueuePool, PlayerQueueStats, Role } from '../models/team.models';
 
 interface EnrichRequest {
   summonerName: string;
@@ -32,6 +32,15 @@ interface EnrichResponse {
     solo?: PlayerQueueStats;
     flex?: PlayerQueueStats;
     clash?: PlayerQueueStats;
+  };
+  /**
+   * The champion record per ranked queue. The fields above are whichever queue
+   * the backend merge preferred — flex — so without this a pool reads as
+   * everything a player touches when it is only half of it.
+   */
+  byQueue?: {
+    solo?: OpponentQueuePool;
+    flex?: OpponentQueuePool;
   };
   iconUrl?: string;
   source: 'template' | 'provider';
@@ -145,6 +154,7 @@ export class PlayerEnrichmentService {
       top3: data.top3,
       bans: data.bans,
       queueStats: data.queueStats,
+      byQueue: data.byQueue,
       iconUrl: data.iconUrl,
       source: data.source === 'provider' ? 'provider' : 'template',
       provider: data.provider ?? 'unknown',

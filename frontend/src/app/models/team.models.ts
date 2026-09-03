@@ -471,6 +471,22 @@ export interface ChampionRecord {
   wins: number;
 }
 
+/**
+ * One ranked queue's champion record for a scouted opponent.
+ *
+ * Mirrors the shape the merged fields already use, scoped to a single ladder so
+ * solo and flex can be shown as separate rows instead of one of them being
+ * silently discarded.
+ */
+export interface OpponentQueuePool {
+  top3?: string[];
+  bans?: string[];
+  positions?: { role: Role; games: number }[];
+  poolByRole?: Partial<Record<Role, ChampionRecord[]>>;
+  bansByRole?: Partial<Record<Role, ChampionRecord[]>>;
+  championRecords?: ChampionRecord[];
+}
+
 export interface OpponentPlayer {
   /** The seat we expect them in. Their pool is shown when that seat is picking. */
   role: Role;
@@ -530,6 +546,23 @@ export interface OpponentPlayer {
    * rather than sharpening it.
    */
   recentChampions?: string[];
+  /**
+   * The champion record for each ranked queue, read apart.
+   *
+   * The fields above (`top3`, `poolByRole`, `bansByRole`, `championRecords`)
+   * come from whichever queue the backend merge preferred, and it prefers flex
+   * — so a row labelled "plays" was showing a flex pool with nothing saying so.
+   * They are genuinely different pools: a team meets its opponents in flex, but
+   * most players grind solo, and the champions differ.
+   *
+   * Absent on rosters scouted before this existed, and absent per queue when a
+   * player has no games there. Both cases fall back to the merged fields, so an
+   * old roster keeps working and never goes blank.
+   */
+  byQueue?: {
+    solo?: OpponentQueuePool;
+    flex?: OpponentQueuePool;
+  };
   /** Ranked season record, e.g. "425W 439L (49%)". */
   soloRecord?: string;
   flexRecord?: string;

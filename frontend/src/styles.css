@@ -10905,10 +10905,57 @@ body:has(.draft-stage) .edit-mode-frame {
   scrollbar-gutter: stable;
 }
 
-.opp-head,
-.opp-table .opp-row {
+.opp-head {
   display: contents;
 }
+
+/* Each player is a subgrid, not display:contents.
+
+   A player now occupies one row per ranked queue, and the seat, name and
+   lately cells span them. With every cell a direct item of one big grid, the
+   auto-placement cursor had already passed row one by the time it reached the
+   lately cell — so it started on row two and drifted a further row down with
+   every player. A subgrid gives each player its own row context, which makes
+   "span every row of this player" expressible as grid-row: 1 / -1 and immune
+   to the order the cells appear in. Columns still come from the parent, so
+   everything stays aligned across players. */
+.opp-table .opp-row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  gap: 0.15rem 0.75rem;
+  align-items: center;
+}
+
+/* Each cell names its own column.
+
+   A player now spans one grid row per ranked queue, and with auto-placement
+   the flex row simply followed the solo one — landing the flex rank in the
+   Lately column. Pinning every cell to its column makes placement independent
+   of DOM order: seat, player and lately span the queue rows, and each queue
+   row fills the next free slot in columns three to five. */
+.opp-table .opp-row > .opp-seat     { grid-column: 1; }
+.opp-table .opp-row > .opp-who      { grid-column: 2; }
+.opp-table .opp-row > .opp-ranks    { grid-column: 3; }
+.opp-table .opp-row > .opp-pool     { grid-column: 4; }
+.opp-table .opp-row > .opp-counters { grid-column: 5; }
+.opp-table .opp-row > .opp-recent   { grid-column: 6; }
+
+/* Span every row this player has, whatever the cell order. Absolute within the
+   subgrid, so it does not depend on where the placement cursor happens to be —
+   which is exactly what went wrong before. Top-aligned so a name lines up with
+   its own first queue rather than floating between two. */
+.opp-table .opp-row > .opp-seat,
+.opp-table .opp-row > .opp-who,
+.opp-table .opp-row > .opp-recent {
+  grid-row: 1 / -1;
+  align-self: start;
+  padding-top: 0.15rem;
+}
+
+/* No games in a queue is worth seeing: it says a player only grinds one of the
+   two ladders, which is itself a scouting fact. Dimmed, not hidden. */
+.opp-rank.is-unranked { opacity: 0.4; }
 
 .opp-head > span {
   position: sticky;

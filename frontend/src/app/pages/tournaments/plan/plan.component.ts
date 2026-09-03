@@ -366,6 +366,66 @@ export class TournamentPlanComponent {
    * or three champions. Where it does not, the overall pool is shown with the
    * swap warning beside it rather than pretending.
    */
+  /**
+   * The rows to render for one scouted player — one per ranked queue.
+   *
+   * Solo and flex are different pools. The backend merge preferred flex and
+   * discarded solo, so a row labelled "plays" was showing half the picture with
+   * nothing saying which half. Both are now carried, and both are shown.
+   *
+   * Falls back to a **single** row for anyone scouted before the split existed:
+   * they have no `byQueue`, and rendering two empty rows for every stored
+   * roster would look like the feature is broken rather than like the data
+   * predates it. Re-scouting fills them in.
+   */
+  protected queueRows(player: OpponentPlayer): {
+    key: 'solo' | 'flex' | 'all';
+    label: string;
+    rank?: string;
+    record?: string;
+    pool: ChampionRecord[];
+    counters: ChampionRecord[];
+    forSeat: boolean;
+  }[] {
+    const byQueue = player.byQueue;
+    if (!byQueue?.solo && !byQueue?.flex) {
+      return [
+        {
+          key: 'all',
+          label: '',
+          rank: player.soloRank ?? player.flexRank ?? player.rank,
+          record: player.soloRecord ?? player.flexRecord,
+          pool: this.poolFor(player),
+          counters: this.countersFor(player),
+          forSeat: this.poolIsForSeat(player)
+        }
+      ];
+    }
+
+    const row = (key: 'solo' | 'flex', label: string, rank?: string, record?: string) => {
+      const queue = byQueue[key];
+      const seatPool = player.role ? queue?.poolByRole?.[player.role] : undefined;
+      const seatBans = player.role ? queue?.bansByRole?.[player.role] : undefined;
+      return {
+        key,
+        label,
+        rank,
+        record,
+        pool: (seatPool?.length ? seatPool : (queue?.championRecords ?? [])).slice(0, 5),
+        counters: (seatBans?.length
+          ? seatBans
+          : (queue?.bans ?? []).map((champion) => ({ champion, games: 0, wins: 0 }))
+        ).slice(0, 4),
+        forSeat: !!seatPool?.length
+      };
+    };
+
+    return [
+      row('solo', 'Solo', player.soloRank, player.soloRecord),
+      row('flex', 'Flex', player.flexRank, player.flexRecord)
+    ];
+  }
+
   protected poolFor(player: OpponentPlayer): ChampionRecord[] {
     const seat = player.role ? player.poolByRole?.[player.role] : undefined;
     if (seat?.length) return seat.slice(0, 5);

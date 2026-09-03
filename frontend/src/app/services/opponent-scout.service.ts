@@ -143,6 +143,10 @@ export class OpponentScoutService {
         bansByRole: found.bansByRole ?? {},
         championRecords: found.championRecords ?? [],
         recentChampions: found.recentChampions ?? [],
+        // Both ranked queues, kept apart. The merged fields above are whichever
+        // queue the backend preferred — flex — so without this the row shows a
+        // flex pool labelled as though it were everything they play.
+        byQueue: found.byQueue ?? undefined,
         // The season record was already being fetched and thrown away. It is
         // the honest scale of a rank: 425-439 is a different player from 12-6.
         soloRecord: record(solo),
