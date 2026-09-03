@@ -132,6 +132,17 @@ holds the component; the rules it obeys are pure and tested next door in
   filter and state, not by eye.
 - **The clock is a reminder, not a referee** — it never advances the draft or
   discards a pick. The real clock is in the League client.
+- **The page scrolls sideways by ~8px here, and that is a known, accepted
+  quirk** (decided 3 Sep 2026 — do not re-raise it as a bug). `.draft-page`
+  breaks out of the page column with `margin-inline: calc(50% - 50vw + var(--sbw)/2)`;
+  `100vw` counts the vertical scrollbar and the usable width does not, so the
+  breakout overshoots by exactly a scrollbar. `--sbw` exists to subtract it and
+  reads `0px`: `app.ts` measures it on startup, on `resize`, and via a
+  `ResizeObserver` on `body` — but the champion wall scrolls inside its own box,
+  so the body's geometry never changes and the observer never fires at a moment
+  when the scrollbar exists. Nothing is clipped and the user has chosen to live
+  with it. If it ever matters, `overflow-x: clip` on the container masks it in
+  one line; repairing the measurement properly means touching the app root.
 
 **Champion lanes come from pro match data, not from Riot.** Riot's champion tags
 are *classes*: Gragas is a Fighter in all three of his lanes, and "Support" is
