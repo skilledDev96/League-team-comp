@@ -73,7 +73,7 @@ until a user noticed.
 
 In Firebase mode the signals are kept live by `onSnapshot` listeners set up in `initFirebase()`. When adding a new persisted entity, wire **all** of: the model in `team.models.ts` + `TeamData`, a signal, an `onSnapshot` listener, `EntityKey`, `pushLocalToSignals`/`persistLocal`, `seedFirestore`, and CRUD methods — mirror how `compResults` is done.
 
-**Firestore layout**: list collections `players`, `fillIns`, `comps`, `compResults`, `access`; singleton docs under `meta/` (`teamIdentity`, `macro`, `resourceLinks`, `settings`). `SEED_DATA` (`frontend/src/app/data/seed-data.ts`) is the one-time migration source and the local-mode seed; its shape must stay in sync with the `TeamData` interface.
+**Firestore layout**: list collections `players`, `fillIns`, `comps`, `compResults`, `scrims`, `scrimOpponents`, `access`; singleton docs under `meta/` (`teamIdentity`, `macro`, `resourceLinks`, `settings`). `SEED_DATA` (`frontend/src/app/data/seed-data.ts`) is the one-time migration source and the local-mode seed; its shape must stay in sync with the `TeamData` interface.
 
 **Auth & roles** (`frontend/src/app/services/auth.service.ts`): roles are `admin` / `contributor` / `viewer`. `canEdit()` is true for local mode, `admin`, or `contributor`; `canManageUsers()` for local mode or `admin`. A bootstrap admin email is hardcoded (`ruanhart7@gmail.com`) in both the service and `firestore.rules`. Content routes are gated by `viewerGuard` (`frontend/src/app/app.routes.ts`); `AuthService.ready`/`waitUntilReady()` prevents guard-redirect races on refresh.
 
@@ -100,6 +100,20 @@ selected one is alive.
 `data: { view }` naming the mode it used to be, so old links and the `e2e`
 suite land where they always did. Do not turn them into redirects without
 checking `e2e/tests/authenticated.spec.ts`, which navigates to `./players`.
+
+**`/scrims` groups replays by opponent, and a scrim opponent is a first-class
+record.** A scrim arrives as one `.rofl` with a free-text opponent name; the page
+folds them by `slugOpponent(name)` (`pages/scrims/scrim-groups.ts`, pure and
+tested) so "MOSS", "moss" and "Moss " are one team. `ScrimOpponent` (keyed by that
+same slug, collection `scrimOpponents`) carries the notes, target bans and
+scouted roster a `TournamentSeries` carries — the same panel, the same
+`OpponentScoutService` (its `scoutRoster` is generic; `scoutSeries` and
+`scoutScrimOpponent` are thin wrappers that only differ in where the result is
+written). There is no "add opponent" step: the record is created the first time
+anything is saved against a group. **The roster table's read-side helpers live in
+`core/opponent-view.ts`** (`queueRows`, `reseatOpponent`, `recentForSeat`, the
+rate bands…) and are shared by the plan page and the scrims page; do not re-add
+copies to either component. `core/note-lines.ts` is likewise the one note parser.
 
 **`/tournaments` → Draft is a live draft room**, used while a draft is actually
 happening, and that constraint drives its design. `pages/tournaments/draft/`

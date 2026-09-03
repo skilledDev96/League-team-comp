@@ -1,0 +1,209 @@
+import { ChampionRecord, OpponentPlayer, ROLES, Role } from '../models/team.models';
+import { playsRole } from './champion-lanes';
+
+/**
+ * Reading a scouted opponent for display.
+ *
+ * Shared by the tournament plan and the scrims page, which show the same
+ * roster table for the same reason: a team we scout for a scrim is the same
+ * team if they show up in the bracket. One implementation, so the seat swap,
+ * the queue split and the lane filter cannot drift between the two.
+ *
+ * Everything here is pure and takes the roster or a player, never a series or
+ * a scrim opponent — the caller owns where the result is written back.
+ */
+
+/**
+ * Their five, in seat order rather than the order the link was pasted in.
+ *
+ * Once seats are set by hand the paste order means nothing, and a roster read
+ * top-to-support is the one shape everybody already knows how to scan.
+ */
+export function orderedRoster(players: readonly OpponentPlayer[]): OpponentPlayer[] {
+  return [...players].sort((a, b) => ROLES.indexOf(a.role) - ROLES.indexOf(b.role));
+}
+
+/**
+ * Move one of their players to a different seat, swapping with whoever had it.
+ *
+ * Set by hand, never inferred: a team that has just swapped roles looks
+ * identical to a roster pasted in the wrong order, and only somebody who has
+ * watched them knows which it is.
+ *
+ * Found by identity, never by index. The rows are sorted by seat for display,
+ * so the position on screen is not the position in the stored array — passing
+ * the row index once moved a *different* player, and two of them ended up in
+ * the same seat with a seat left empty.
+ *
+ * Returns null when nothing changes, so the caller can skip the write.
+ */
+export function reseatOpponent(
+  players: readonly OpponentPlayer[],
+  player: OpponentPlayer,
+  role: Role
+): OpponentPlayer[] | null {
+  const roster = [...players];
+  const index = roster.findIndex((p) => p.name === player.name && p.riotTag === player.riotTag);
+  const current = roster[index];
+  if (!current || current.role === role) return null;
+
+  // Five players hold five seats, so taking one has to hand the old seat to
+  // whoever had it.
+  const holder = roster.findIndex((p, i) => i !== index && p.role === role);
+  if (holder >= 0) roster[holder] = { ...roster[holder], role: current.role };
+  roster[index] = { ...current, role };
+  return roster;
+}
+
+/** How long since the roster was last scouted, as words; empty if never. */
+export function scoutedAgo(players: readonly OpponentPlayer[], now: number = Date.now()): string {
+  const stamps = players
+    .map((p) => p.scoutedAt)
+    .filter((at): at is string => !!at)
+    .sort();
+  if (!stamps.length) return '';
+
+  const days = Math.floor((now - Date.parse(stamps[stamps.length - 1])) / 86_400_000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  return `${days} days ago`;
+}
+
+/** What they play in the seat they hold, falling back to their history. */
+export function poolFor(player: OpponentPlayer): ChampionRecord[] {
+  const seat = player.role ? player.poolByRole?.[player.role] : undefined;
+  if (seat?.length) return seat.slice(0, 5);
+
+  // Rosters scouted before records existed carry names only; show those
+  // rather than nothing, with no numbers to go with them.
+  const overall = player.championRecords?.length
+    ? player.championRecords
+    : (player.top3 ?? []).map((champion) => ({ champion, games: 0, wins: 0 }));
+  return overall.slice(0, 5);
+}
+
+/** Who beats them in the seat they hold, falling back to their history. */
+export function countersFor(player: OpponentPlayer): ChampionRecord[] {
+  const seat = player.role ? player.bansByRole?.[player.role] : undefined;
+  if (seat?.length) return seat.slice(0, 4);
+  return (player.bans ?? []).slice(0, 4).map((champion) => ({ champion, games: 0, wins: 0 }));
+}
+
+/** Whether the pool shown is the seat they hold, or their history at large. */
+export function poolIsForSeat(player: OpponentPlayer): boolean {
+  return !!(player.role && player.poolByRole?.[player.role]?.length);
+}
+
+export function countersAreForSeat(player: OpponentPlayer): boolean {
+  return !!(player.role && player.bansByRole?.[player.role]?.length);
+}
+
+/** A win rate, or nothing when the record is too thin to carry one. */
+export function rateOf(r: ChampionRecord): number | null {
+  return r.games > 0 ? Math.round((r.wins / r.games) * 100) : null;
+}
+
+/** Colour band for a champion win rate, matching the draft panel. */
+export function rateBand(r: ChampionRecord): string {
+  const rate = rateOf(r);
+  if (rate === null) return '';
+  if (rate >= 65) return 'is-good';
+  if (rate > 50) return 'is-ok';
+  if (rate === 50) return 'is-even';
+  return 'is-poor';
+}
+
+export interface QueueRow {
+  key: 'solo' | 'flex' | 'all';
+  label: string;
+  rank?: string;
+  record?: string;
+  pool: ChampionRecord[];
+  counters: ChampionRecord[];
+  forSeat: boolean;
+}
+
+/**
+ * The rows to render for one scouted player — one per ranked queue.
+ *
+ * Solo and flex are different pools. The backend merge preferred flex and
+ * discarded solo, so a row labelled "plays" was showing half the picture with
+ * nothing saying which half. Both are now carried, and both are shown.
+ *
+ * Falls back to a **single** row for anyone scouted before the split existed:
+ * they have no `byQueue`, and rendering two empty rows for every stored roster
+ * would look like the feature is broken rather than like the data predates it.
+ * Re-scouting fills them in.
+ */
+export function queueRows(player: OpponentPlayer): QueueRow[] {
+  const byQueue = player.byQueue;
+  if (!byQueue?.solo && !byQueue?.flex) {
+    return [
+      {
+        key: 'all',
+        label: '',
+        rank: player.soloRank ?? player.flexRank ?? player.rank,
+        record: player.soloRecord ?? player.flexRecord,
+        pool: poolFor(player),
+        counters: countersFor(player),
+        forSeat: poolIsForSeat(player)
+      }
+    ];
+  }
+
+  const row = (key: 'solo' | 'flex', label: string, rank?: string, record?: string): QueueRow => {
+    const queue = byQueue[key];
+    const seatPool = player.role ? queue?.poolByRole?.[player.role] : undefined;
+    const seatBans = player.role ? queue?.bansByRole?.[player.role] : undefined;
+    return {
+      key,
+      label,
+      rank,
+      record,
+      pool: (seatPool?.length ? seatPool : (queue?.championRecords ?? [])).slice(0, 5),
+      counters: (seatBans?.length
+        ? seatBans
+        : (queue?.bans ?? []).map((champion) => ({ champion, games: 0, wins: 0 }))
+      ).slice(0, 4),
+      forSeat: !!seatPool?.length
+    };
+  };
+
+  return [
+    row('solo', 'Solo', player.soloRank, player.soloRecord),
+    row('flex', 'Flex', player.flexRank, player.flexRecord)
+  ];
+}
+
+/**
+ * What they have played lately **in this seat**.
+ *
+ * `recentChampions` comes from champion mastery, which carries no position at
+ * all — so the raw list put a support and a jungler in a top laner's row and
+ * read as noise. Narrowed through the pro-play lane map, which is deliberately
+ * generous: a champion with no pro games passes every lane rather than none,
+ * so this can never hide a pocket pick it has simply never seen.
+ *
+ * Falls back to the unfiltered list when the filter empties it. A player whose
+ * recent games are all off-seat is telling you something — most likely that
+ * the seat we have them in is wrong — and an empty cell says nothing.
+ */
+export function recentForSeat(player: OpponentPlayer): string[] {
+  const all = player.recentChampions ?? [];
+  if (!all.length) return [];
+  const inSeat = all.filter((champion) => playsRole(champion, player.role));
+  return (inSeat.length ? inSeat : all).slice(0, 6);
+}
+
+/**
+ * How many recent champions were dropped as off-seat.
+ *
+ * The off-seat count only — not the six-icon cap, which is a display limit
+ * rather than a claim about the player. Zero when the filter emptied the list
+ * and the row fell back to showing everything, because then nothing was hidden.
+ */
+export function recentHidden(player: OpponentPlayer): number {
+  const all = player.recentChampions ?? [];
+  const inSeat = all.filter((champion) => playsRole(champion, player.role));
+  return inSeat.length ? all.length - inSeat.length : 0;
+}

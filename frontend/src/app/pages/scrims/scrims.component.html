@@ -47,7 +47,7 @@
 
   <!-- Importing stores the scrim; the analysis is recomputed on the Analysis
        page. Saying so beats a comp record that quietly does not move. -->
-  @if (scrims().length) {
+  @if (groups().length) {
     <p class="muted scrim-refresh-hint">
       <span class="material-symbols-rounded" aria-hidden="true">sync</span>
       Scrims count towards comp win rates and the Review page after a
@@ -57,98 +57,357 @@
     </p>
   }
 
-  @if (scrims().length) {
-    @for (scrim of scrims(); track scrim.id) {
-      <details class="card scrim-panel" [open]="openId() === scrim.id">
-        <summary class="scrim-summary" (click)="$event.preventDefault(); toggle(scrim.id)">
-          <!-- Checked against null, not for truthiness. A loss is false, which
-               @if reads as "no value" — so every loss rendered as an unknown
-               result even when the side was known perfectly well. -->
-          @if (won(scrim) !== null) {
-            <span class="scrim-result" [class.is-win]="won(scrim) === true">{{ won(scrim) ? 'W' : 'L' }}</span>
-          } @else {
-            <span class="scrim-result is-unknown" [appTip]="'Nobody on our roster played in this one'">?</span>
-          }
-          <span class="scrim-when">{{ ui.formatDay(scrim.playedOn) }}</span>
-          <span class="scrim-vs">{{ scrim.opponent || 'Unnamed opponent' }}</span>
-          <span class="scrim-duration">{{ duration(scrim.durationSec) }}</span>
-          <span class="scrim-score" [appTip]="'Kills, blue to red'">
-            {{ teamKills(scrim, 100) }}&ndash;{{ teamKills(scrim, 200) }}
+  <!-- Grouped by who we played. A flat list said what we played and nothing
+       else; a group per opponent is how often we have met them, how it went,
+       and — below — what we know about them going in. -->
+  @if (groups().length) {
+    @for (group of groups(); track group.id) {
+      <details class="card scrim-group" [open]="isGroupOpen(group)">
+        <summary class="scrim-group-head" (click)="$event.preventDefault(); toggleGroup(group)">
+          <span class="scrim-group-name">{{ group.name }}</span>
+          <span class="scrim-group-record"
+                [class.is-positive]="group.wins > group.losses"
+                [class.is-negative]="group.wins < group.losses"
+                [appTip]="group.wins + ' won, ' + group.losses + ' lost' + (group.unknown ? ', ' + group.unknown + ' with no side known' : '')">
+            {{ group.wins }}&ndash;{{ group.losses }}
           </span>
-          @if (ourSide(scrim); as side) {
-            <span class="scrim-side" [class.is-blue]="side === 'blue'">{{ side }}</span>
+          <span class="scrim-group-count">
+            {{ group.scrims.length }} {{ group.scrims.length === 1 ? 'game' : 'games' }}
+          </span>
+          @if (lastPlayed(group); as when) {
+            <span class="muted scrim-group-when">last {{ when }}</span>
           }
-          @if (scrim.surrendered) {
-            <span class="scrim-ff" [appTip]="'Ended in a surrender'">FF</span>
+          @if (hasPrep(group)) {
+            <span class="scrim-group-scouted material-symbols-rounded" aria-hidden="true"
+                  [appTip]="'Notes, bans or a roster are saved for this team'">description</span>
           }
           <span class="series-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
         </summary>
 
-        @for (team of [100, 200]; track team) {
-          <div class="scrim-team" [class.is-blue]="team === 100">
-            <div class="scrim-team-head">
-              <span>{{ teamLabel(scrim, $any(team)) }}</span>
-              <span class="muted">{{ (team === 100) === scrim.blueWon ? 'won' : 'lost' }}</span>
-              <!-- What they actually took. The scoreboard says who farmed;
-                   this says who won the map, which is usually the answer. -->
-              @for (o of objectives(scrim, $any(team)); track o.label) {
-                <span class="scrim-obj" [appTip]="o.count + ' ' + o.label">
-                  <span class="material-symbols-rounded" aria-hidden="true">{{ o.icon }}</span>{{ o.count }}
-                </span>
-              }
-              @if (goldDiff(scrim, $any(team)); as diff) {
-                <span class="scrim-gold" [class.is-ahead]="diff > 0"
-                      [appTip]="'Gold difference at the end of the game'">
-                  {{ diff > 0 ? '+' : '' }}{{ k(diff) }}
-                </span>
-              }
-            </div>
-            <div class="scrim-board" role="table">
-              <div class="scrim-board-head" role="row">
-                <span role="columnheader"></span>
-                <span role="columnheader">Player</span>
-                <span role="columnheader">KDA</span>
-                <span role="columnheader" [appTip]="'Damage to champions'">Dmg</span>
-                <span role="columnheader" [appTip]="'Damage taken'">Taken</span>
-                <span role="columnheader">Gold</span>
-                <span role="columnheader">CS</span>
-                <span role="columnheader" [appTip]="'Vision score'">Vis</span>
-              </div>
-              @for (p of side(scrim, $any(team)); track p.name + p.champion) {
-                <div class="scrim-line" [class.is-ours]="isOurs(p)" role="row">
-                  <span class="scrim-lane" role="cell">{{ lane(p.position) }}</span>
-                  <span class="scrim-player" role="cell">
-                    <img class="scrim-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion"
-                         [appTip]="p.champion + (p.position ? ' — ' + p.position : '')" loading="lazy" />
-                    <span class="scrim-name">{{ p.name || p.champion }}</span>
-                  </span>
-                  <span class="num" role="cell">{{ kda(p) }}</span>
-                  <span class="num" role="cell">{{ k(p.damage) }}</span>
-                  <span class="num" role="cell">{{ k(p.damageTaken) }}</span>
-                  <span class="num" role="cell">{{ k(p.gold) }}</span>
-                  <span class="num" role="cell">{{ p.cs }}</span>
-                  <span class="num" role="cell">{{ p.visionScore }}</span>
+        <!-- The same panel a tournament series has. A scrim opponent is a team
+             too, and by the time they turn up in the bracket they are already
+             scouted. -->
+        @if (auth.editing() || hasPrep(group)) {
+          @if (opponentFor(group); as o) {
+            <div class="scrim-prep">
+              <div class="opp-roster">
+                <div class="opp-roster-head">
+                  <span class="comp-record-title material-symbols-rounded" aria-hidden="true">groups</span>
+                  <span class="comp-record-label">Their roster</span>
+                  @if (scoutedAt(group); as when) {
+                    <span class="muted opp-scouted">scouted {{ when }}</span>
+                  }
+                  @if (auth.editing() && o.opponentPlayers?.length) {
+                    <button type="button" class="tag opp-head-btn"
+                            [class.active]="pasteOpenFor() === group.id"
+                            [appTip]="'Replace these five with a different roster link'"
+                            (click)="togglePaste(group.id)">
+                      {{ pasteOpenFor() === group.id ? 'Cancel' : 'New link' }}
+                    </button>
+                  }
+                  @if (auth.editing() && o.opponentPlayers?.length && scoutedAt(group)) {
+                    <button type="button" class="tag" [disabled]="scout.scouting() === group.id"
+                            [appTip]="'Look each of them up through Riot again. Costs a few API calls.'"
+                            (click)="scoutOpponents(group)">
+                      {{ scout.scouting() === group.id ? 'Scouting…' : 'Re-scout' }}
+                    </button>
+                  }
                 </div>
+
+                @if (scout.scouting() === group.id) {
+                  <div class="opp-progress" role="status" aria-live="polite">
+                    <div class="opp-progress-line">
+                      <span class="material-symbols-rounded opp-progress-spin" aria-hidden="true">progress_activity</span>
+                      <strong>{{ scout.progress() }}</strong>
+                      <span class="muted">~{{ scout.secondsLeft() }}s left</span>
+                    </div>
+                    <div class="opp-progress-track" aria-hidden="true">
+                      <span class="opp-progress-fill"
+                            [style.width.%]="scout.total() ? (scout.done() / scout.total()) * 100 : 0"></span>
+                    </div>
+                    <p class="muted opp-progress-note">
+                      Riot allows 100 requests every 2 minutes and each player costs about 48,
+                      so this waits rather than failing. <strong>Carry on using the app</strong> &mdash;
+                      it keeps running in the background and saves each player as it finishes.
+                    </p>
+                  </div>
+                }
+
+                @if (auth.editing() && (!o.opponentPlayers?.length || pasteOpenFor() === group.id)) {
+                  <label class="field opp-step">
+                    <span>
+                      <em class="opp-step-n">1</em>
+                      Paste their op.gg multi-link
+                      <small class="opp-step-hint">
+                        Turns the link into the five rows below. Nothing is looked up yet.
+                      </small>
+                    </span>
+                    <textarea rows="2" [ngModel]="rosterPaste()"
+                              (ngModelChange)="rosterPaste.set($event)"
+                              [name]="'scrimroster-' + group.id"
+                              placeholder="https://op.gg/multisearch/euw?summoners=… — or Name#TAG, one per line"></textarea></label>
+                  <button type="button" class="opp-read-cta" [disabled]="!rosterPaste().trim()"
+                          (click)="applyRoster(group)">
+                    <span class="material-symbols-rounded" aria-hidden="true">playlist_add</span>
+                    Add these players
+                  </button>
+                }
+
+                @if (auth.editing() && o.opponentPlayers?.length && !scoutedAt(group)) {
+                  <button type="button" class="opp-scout-cta"
+                          [disabled]="scout.scouting() === group.id"
+                          (click)="scoutOpponents(group)">
+                    <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
+                    <span>
+                      <em class="opp-step-n">2</em>
+                      {{ scout.scouting() === group.id
+                          ? 'Scouting…'
+                          : 'Scout all ' + (o.opponentPlayers?.length ?? 0) + ' from Riot' }}
+                      <small class="opp-step-hint">
+                        Looks up what each of them plays. About a minute per player &mdash;
+                        Riot rate-limits, so it waits rather than failing.
+                      </small>
+                    </span>
+                  </button>
+                }
+
+                @if (o.opponentPlayers?.length) {
+                  <div class="opp-scroll">
+                  <div class="opp-table" role="table" aria-label="Their roster">
+                    <div class="opp-head" role="row">
+                      <span role="columnheader">Seat</span>
+                      <span role="columnheader">Player</span>
+                      <span role="columnheader">Rank</span>
+                      <span role="columnheader" [appTip]="'What they play — in this seat where we have games for it, otherwise overall'">Plays</span>
+                      <span role="columnheader" [appTip]="'Champions that beat them in lane, from games they lost'">Loses to</span>
+                      <span role="columnheader" [appTip]="'Everything they have touched in the last two months, narrowed to this seat'">Lately</span>
+                    </div>
+
+                    @for (opp of roster(group); track opp.name + opp.riotTag) {
+                      <div class="opp-row" role="row">
+                        <span class="opp-cell opp-seat" role="cell">
+                          @if (auth.editing()) {
+                            <select class="opp-role-pick" [ngModel]="opp.role"
+                                    (ngModelChange)="setOpponentRole(group, opp, $event)"
+                                    [name]="'scrimopprole-' + group.id + '-' + $index"
+                                    [attr.aria-label]="'Seat for ' + opp.name">
+                              @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }
+                            </select>
+                          } @else {
+                            <span class="opp-role">{{ opp.role }}</span>
+                          }
+                        </span>
+
+                        <span class="opp-cell opp-who" role="cell">
+                          <span class="opp-name">
+                            {{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
+                          </span>
+                          <span class="opp-sub">
+                            @for (p of opp.positions ?? []; track p.role) {
+                              <span class="opp-position"
+                                    [appTip]="p.games + ' games as ' + p.role + ' in the scouted sample'">
+                                {{ p.role }} <em>{{ p.games }}</em>
+                              </span>
+                            }
+                          </span>
+                        </span>
+
+                        @for (q of queueRows(opp); track q.key) {
+                          <span class="opp-cell opp-ranks" role="cell">
+                            @if (q.rank) {
+                              <span class="opp-rank" [class.is-flex]="q.key === 'flex'"
+                                    [appTip]="(q.key === 'flex' ? 'Ranked flex, the queue a team plays together' : q.key === 'solo' ? 'Ranked solo/duo' : 'Rank') + (q.record ? ' — ' + q.record : '')">
+                                @if (q.label) { <em>{{ q.label }}</em> } {{ q.rank }}
+                              </span>
+                            } @else {
+                              <span class="opp-rank is-unranked"
+                                    [appTip]="'No ' + (q.label || 'ranked') + ' games this season'">
+                                @if (q.label) { <em>{{ q.label }}</em> } &mdash;
+                              </span>
+                            }
+                          </span>
+
+                          <span class="opp-cell opp-pool" role="cell">
+                            @for (rec of q.pool; track rec.champion) {
+                              <span class="opp-champ-cell"
+                                    [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won' : '') + (q.forSeat ? ' at ' + opp.role : '') + (q.label ? ' (' + q.label + ')' : '')">
+                                <img class="opp-champ" [class.is-seat]="q.forSeat"
+                                     [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                                @if (rateOf(rec); as rate) {
+                                  <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rate }}%<em>{{ rec.games }}</em></span>
+                                }
+                              </span>
+                            }
+                            @if (!q.pool.length) { <span class="opp-none">&mdash;</span> }
+                          </span>
+
+                          <span class="opp-cell opp-counters" role="cell">
+                            @for (rec of q.counters; track rec.champion) {
+                              <span class="opp-champ-cell"
+                                    [appTip]="rec.champion + ' beat them' + (rec.games ? ' ' + rec.games + (rec.games === 1 ? ' time' : ' times') : '') + (q.forSeat ? ' at ' + opp.role : ' in lane') + (q.label ? ' (' + q.label + ')' : '')">
+                                <img class="opp-champ is-counter" [class.is-seat]="q.forSeat"
+                                     [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                                @if (rec.games) { <span class="opp-champ-stat is-poor">{{ rec.games }}&times;</span> }
+                              </span>
+                            }
+                            @if (!q.counters.length) { <span class="opp-none">&mdash;</span> }
+                          </span>
+                        }
+
+                        <span class="opp-cell opp-recent" role="cell">
+                          @for (champ of recentForSeat(opp); track champ) {
+                            <img class="opp-champ is-recent" [src]="ui.championIconUrl(champ)"
+                                 [alt]="champ" [appTip]="champ + ' — played at ' + opp.role"
+                                 loading="lazy" />
+                          }
+                          @if (recentHidden(opp); as hidden) {
+                            <span class="opp-more"
+                                  [appTip]="hidden + ' more they have played lately, in other lanes'">
+                              +{{ hidden }}
+                            </span>
+                          }
+                          @if (!recentForSeat(opp).length) { <span class="opp-none">&mdash;</span> }
+                        </span>
+
+                        @if (opp.scoutError) {
+                          <span class="opp-cell opp-error" role="cell">{{ opp.scoutError }}</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                  </div>
+                }
+              </div>
+
+              @if (auth.editing()) {
+                <div class="field"><span>Target bans</span>
+                  <app-champion-picker [champions]="o.bans || []"
+                                       [inputName]="'scrimbans-' + group.id" placeholder="Add a ban…"
+                                       (championsChange)="setOpponentBans(group, $event)" /></div>
+                <label class="field"><span>Scouting notes</span>
+                  <textarea rows="3" [ngModel]="o.notes || ''"
+                            (ngModelChange)="patchOpponent(group, { notes: $event })"
+                            [name]="'scrimnotes-' + group.id"
+                            placeholder="What they play, who carries, tendencies…"></textarea></label>
+              } @else {
+                @if (o.bans?.length) {
+                  <div class="tag-row">
+                    @for (ban of o.bans; track ban) {
+                      <app-champion-chip [champion]="ban" />
+                    }
+                  </div>
+                }
+                @if (o.notes) {
+                  <div class="tournament-notes">
+                    @for (line of noteLines(o.notes); track $index) {
+                      <p class="note-line" [class.is-bullet]="line.bullet">
+                        @for (part of line.parts; track $index) {
+                          @if (part.href) {
+                            <a [href]="part.href" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
+                          } @else {
+                            <span>{{ part.text }}</span>
+                          }
+                        }
+                      </p>
+                    }
+                  </div>
+                }
               }
             </div>
-          </div>
+          }
         }
 
-        @if (auth.editing()) {
-          <div class="scrim-edit">
-            <label class="field"><span>Opponent</span>
-              <input type="text" [ngModel]="scrim.opponent || ''"
-                     (ngModelChange)="setOpponent(scrim, $event)"
-                     [name]="'scrimopp-' + scrim.id" placeholder="Who this was against" /></label>
-            <label class="field"><span>Notes</span>
-              <textarea rows="2" [ngModel]="scrim.note || ''"
-                        (ngModelChange)="setNote(scrim, $event)"
-                        [name]="'scrimnote-' + scrim.id"
-                        placeholder="What to take from this one…"></textarea></label>
-            <button type="button" class="link-btn draft-reset" (click)="remove(scrim)">Remove scrim</button>
-          </div>
-        } @else if (scrim.note) {
-          <p class="scrim-note">{{ scrim.note }}</p>
+        <!-- The games themselves, newest first, exactly as before. -->
+        @for (scrim of group.scrims; track scrim.id) {
+          <details class="card scrim-panel" [open]="openId() === scrim.id">
+            <summary class="scrim-summary" (click)="$event.preventDefault(); toggle(scrim.id)">
+              <!-- Checked against null, not for truthiness. A loss is false, which
+                   @if reads as "no value" — so every loss rendered as an unknown
+                   result even when the side was known perfectly well. -->
+              @if (won(scrim) !== null) {
+                <span class="scrim-result" [class.is-win]="won(scrim) === true">{{ won(scrim) ? 'W' : 'L' }}</span>
+              } @else {
+                <span class="scrim-result is-unknown" [appTip]="'Nobody on our roster played in this one'">?</span>
+              }
+              <span class="scrim-when">{{ ui.formatDay(scrim.playedOn) }}</span>
+              <span class="scrim-duration">{{ duration(scrim.durationSec) }}</span>
+              <span class="scrim-score" [appTip]="'Kills, blue to red'">
+                {{ teamKills(scrim, 100) }}&ndash;{{ teamKills(scrim, 200) }}
+              </span>
+              @if (ourSide(scrim); as side) {
+                <span class="scrim-side" [class.is-blue]="side === 'blue'">{{ side }}</span>
+              }
+              @if (scrim.surrendered) {
+                <span class="scrim-ff" [appTip]="'Ended in a surrender'">FF</span>
+              }
+              <span class="series-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+            </summary>
+
+            @for (team of [100, 200]; track team) {
+              <div class="scrim-team" [class.is-blue]="team === 100">
+                <div class="scrim-team-head">
+                  <span>{{ teamLabel(scrim, $any(team)) }}</span>
+                  <span class="muted">{{ (team === 100) === scrim.blueWon ? 'won' : 'lost' }}</span>
+                  @for (ob of objectives(scrim, $any(team)); track ob.label) {
+                    <span class="scrim-obj" [appTip]="ob.count + ' ' + ob.label">
+                      <span class="material-symbols-rounded" aria-hidden="true">{{ ob.icon }}</span>{{ ob.count }}
+                    </span>
+                  }
+                  @if (goldDiff(scrim, $any(team)); as diff) {
+                    <span class="scrim-gold" [class.is-ahead]="diff > 0"
+                          [appTip]="'Gold difference at the end of the game'">
+                      {{ diff > 0 ? '+' : '' }}{{ k(diff) }}
+                    </span>
+                  }
+                </div>
+                <div class="scrim-board" role="table">
+                  <div class="scrim-board-head" role="row">
+                    <span role="columnheader"></span>
+                    <span role="columnheader">Player</span>
+                    <span role="columnheader">KDA</span>
+                    <span role="columnheader" [appTip]="'Damage to champions'">Dmg</span>
+                    <span role="columnheader" [appTip]="'Damage taken'">Taken</span>
+                    <span role="columnheader">Gold</span>
+                    <span role="columnheader">CS</span>
+                    <span role="columnheader" [appTip]="'Vision score'">Vis</span>
+                  </div>
+                  @for (p of side(scrim, $any(team)); track p.name + p.champion) {
+                    <div class="scrim-line" [class.is-ours]="isOurs(p)" role="row">
+                      <span class="scrim-lane" role="cell">{{ lane(p.position) }}</span>
+                      <span class="scrim-player" role="cell">
+                        <img class="scrim-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion"
+                             [appTip]="p.champion + (p.position ? ' — ' + p.position : '')" loading="lazy" />
+                        <span class="scrim-name">{{ p.name || p.champion }}</span>
+                      </span>
+                      <span class="num" role="cell">{{ kda(p) }}</span>
+                      <span class="num" role="cell">{{ k(p.damage) }}</span>
+                      <span class="num" role="cell">{{ k(p.damageTaken) }}</span>
+                      <span class="num" role="cell">{{ k(p.gold) }}</span>
+                      <span class="num" role="cell">{{ p.cs }}</span>
+                      <span class="num" role="cell">{{ p.visionScore }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            @if (auth.editing()) {
+              <div class="scrim-edit">
+                <label class="field"><span>Opponent</span>
+                  <input type="text" [ngModel]="scrim.opponent || ''"
+                         (ngModelChange)="setOpponent(scrim, $event)"
+                         [name]="'scrimopp-' + scrim.id" placeholder="Who this was against" /></label>
+                <label class="field"><span>Notes</span>
+                  <textarea rows="2" [ngModel]="scrim.note || ''"
+                            (ngModelChange)="setNote(scrim, $event)"
+                            [name]="'scrimnote-' + scrim.id"
+                            placeholder="What to take from this one…"></textarea></label>
+                <button type="button" class="link-btn draft-reset" (click)="remove(scrim)">Remove scrim</button>
+              </div>
+            } @else if (scrim.note) {
+              <p class="scrim-note">{{ scrim.note }}</p>
+            }
+          </details>
         }
       </details>
     }

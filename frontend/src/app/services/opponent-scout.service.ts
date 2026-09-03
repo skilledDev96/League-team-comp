@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { OpponentPlayer, Role, ROLES, TournamentSeries } from '../models/team.models';
+import { OpponentPlayer, Role, ROLES, ScrimOpponent, TournamentSeries } from '../models/team.models';
 import { PlayerEnrichmentService } from './player-enrichment.service';
 import { TeamDataService } from './team-data.service';
 import { RiotId, parseRiotIds } from '../core/riot-id';
@@ -78,10 +78,34 @@ export class OpponentScoutService {
    * having.
    */
   async scoutSeries(series: TournamentSeries): Promise<void> {
-    const roster = series.opponentPlayers ?? [];
+    await this.scoutRoster(series.id, series.opponentPlayers ?? [], (players) =>
+      this.data.updateSeries({ ...series, opponentPlayers: players })
+    );
+  }
+
+  /** The same scout, for a team we only ever meet in scrims. */
+  async scoutScrimOpponent(opponent: ScrimOpponent): Promise<void> {
+    await this.scoutRoster(opponent.id, opponent.opponentPlayers ?? [], (players) =>
+      this.data.saveScrimOpponent({ ...opponent, opponentPlayers: players })
+    );
+  }
+
+  /**
+   * Scout a roster, whoever owns it.
+   *
+   * The scouting is the same five lookups whether the roster hangs off a
+   * tournament series or a scrim opponent; only where the result is written
+   * differs, so the caller passes that in. Written after each player, so a
+   * scout interrupted halfway keeps what it got.
+   */
+  private async scoutRoster(
+    id: string,
+    roster: readonly OpponentPlayer[],
+    save: (players: OpponentPlayer[]) => Promise<void>
+  ): Promise<void> {
     if (!roster.length || this.scouting()) return;
 
-    this.scouting.set(series.id);
+    this.scouting.set(id);
     this.total.set(roster.length);
     this.done.set(0);
     const out: OpponentPlayer[] = [];
@@ -90,8 +114,7 @@ export class OpponentScoutService {
         this.progress.set(`Scouting ${player.name || 'player'} (${index + 1} of ${roster.length})…`);
         out.push(await this.scoutOne(player));
         this.done.set(out.length);
-        // Written after each one, so a scout interrupted halfway keeps what it got.
-        await this.data.updateSeries({ ...series, opponentPlayers: [...out, ...roster.slice(out.length)] });
+        await save([...out, ...roster.slice(out.length)]);
       }
     } finally {
       this.scouting.set(null);

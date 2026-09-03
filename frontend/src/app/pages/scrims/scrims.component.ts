@@ -1,15 +1,34 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Scrim, ScrimPlayer } from '../../models/team.models';
+import { OpponentPlayer, Role, Scrim, ScrimOpponent, ScrimPlayer } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
+import { OpponentScoutService } from '../../services/opponent-scout.service';
 import { TooltipDirective } from '../../shared/tooltip.directive';
+import { ChampionPickerComponent } from '../../shared/champion-picker.component';
+import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { looksLikeFiveOnFive, matchIdFromFilename, parseReplay } from '../../core/replay-parse';
+import { noteLines } from '../../core/note-lines';
+import {
+  countersAreForSeat,
+  countersFor,
+  orderedRoster,
+  poolFor,
+  poolIsForSeat,
+  queueRows,
+  rateBand,
+  rateOf,
+  recentForSeat,
+  recentHidden,
+  reseatOpponent,
+  scoutedAgo
+} from '../../core/opponent-view';
+import { ScrimGroup, groupScrims } from './scrim-groups';
 
 /**
- * Scrims, imported from replay files.
+ * Scrims, imported from replay files and grouped by who they were against.
  *
  * Custom games never enter the Riot API — queueId 0 never appears in a match
  * list and `matches/{id}` answers 404 even when the id is known — so before
@@ -17,10 +36,12 @@ import { looksLikeFiveOnFive, matchIdFromFilename, parseReplay } from '../../cor
  * they actually practise for the tournament, which made it the largest hole in
  * the data.
  *
- * A page of its own rather than a corner of Tournaments: a scrim has no
- * bracket, no best-of and no fearless burn, and filing one as a series meant
- * inventing all three. Using the tournament screens as a scrim harness is what
- * this replaces.
+ * A flat list of games answered "what did we play" and nothing else. Folding
+ * them by opponent is what turns the page into a history — how often we have
+ * met a team, how it has gone — and gives the notes, target bans and scouted
+ * roster that a tournament series already carries somewhere to live for a
+ * practice partner. Same panel, same scouting, same data shape; the only
+ * difference is that a scrim opponent has no bracket to hang off.
  *
  * Everything is parsed in the browser. The file never leaves the machine, and
  * only the scoreboard is stored — a twenty-megabyte replay reduces to about a
@@ -28,23 +49,149 @@ import { looksLikeFiveOnFive, matchIdFromFilename, parseReplay } from '../../cor
  */
 @Component({
   selector: 'app-scrims',
-  imports: [FormsModule, RouterLink, TooltipDirective],
+  imports: [FormsModule, RouterLink, TooltipDirective, ChampionPickerComponent, ChampionChipComponent],
   templateUrl: './scrims.component.html'
 })
 export class ScrimsComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly auth = inject(AuthService);
   protected readonly ui = inject(UiService);
+  protected readonly scout = inject(OpponentScoutService);
 
   protected readonly importing = signal(false);
   protected readonly importNote = signal('');
   /** Files that produced nothing, so a silent skip is still reported. */
   protected readonly skipped = signal<string[]>([]);
 
+  /** Which scrim scoreboards are expanded. */
   protected readonly openId = signal<string>('');
 
   /** Our own name, so a scoreboard says who is who rather than Blue and Red. */
   protected readonly teamName = computed(() => this.data.settings().teamName || 'Us');
+
+  protected readonly noteLines = noteLines;
+  protected readonly roles: readonly Role[] = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
+
+  // ---- Grouped by opponent ------------------------------------------------
+
+  /** Every scrim, folded by the team it was against, most recent team first. */
+  protected readonly groups = computed<ScrimGroup[]>(() =>
+    groupScrims(this.data.scrims(), (scrim) => this.won(scrim))
+  );
+
+  /**
+   * Which opponent panels are open.
+   *
+   * The most recent one opens itself: the team you scrimmed last night is the
+   * one you came to the page to look at. The rest stay folded so a season of
+   * practice partners does not become a wall.
+   */
+  private readonly openGroups = signal<ReadonlySet<string> | null>(null);
+
+  protected isGroupOpen(group: ScrimGroup): boolean {
+    const open = this.openGroups();
+    if (open) return open.has(group.id);
+    return this.groups()[0]?.id === group.id;
+  }
+
+  protected toggleGroup(group: ScrimGroup): void {
+    const current = this.openGroups() ?? new Set(this.groups()[0] ? [this.groups()[0].id] : []);
+    const next = new Set(current);
+    next.has(group.id) ? next.delete(group.id) : next.add(group.id);
+    this.openGroups.set(next);
+  }
+
+  /**
+   * What we know about this opponent, or an empty record ready to be written.
+   *
+   * There is no "add opponent" step. The record comes into being the first time
+   * a note, a ban or a roster is saved against the group, keyed by the same slug
+   * the group uses — so it is found again next time without anyone linking it.
+   */
+  protected opponentFor(group: ScrimGroup): ScrimOpponent {
+    return (
+      this.data.scrimOpponents().find((o) => o.id === group.id) ?? {
+        id: group.id,
+        name: group.name,
+        order: this.data.scrimOpponents().length
+      }
+    );
+  }
+
+  protected patchOpponent(group: ScrimGroup, patch: Partial<ScrimOpponent>): void {
+    void this.data.saveScrimOpponent({ ...this.opponentFor(group), ...patch });
+  }
+
+  protected setOpponentBans(group: ScrimGroup, bans: string[]): void {
+    this.patchOpponent(group, { bans: bans.length ? bans : undefined });
+  }
+
+  /** Whether there is anything worth showing in the panel when not editing. */
+  protected hasPrep(group: ScrimGroup): boolean {
+    const o = this.opponentFor(group);
+    return !!(o.notes || o.bans?.length || o.opponentPlayers?.length);
+  }
+
+  /**
+   * The last time this opponent was scrimmed, as a day.
+   *
+   * Sits in the summary so a glance down the page says who is recent and who
+   * is months stale, which is most of what a history is for.
+   */
+  protected lastPlayed(group: ScrimGroup): string {
+    return group.lastPlayed ? this.ui.formatDay(group.lastPlayed) : '';
+  }
+
+  // ---- Their roster -------------------------------------------------------
+  //
+  // The same setup as a tournament series: paste an op.gg multi-link or a list
+  // of Riot IDs, then scout them through Riot. Only the text of a pasted URL is
+  // read — the site is never requested.
+
+  protected readonly rosterPaste = signal('');
+  protected readonly pasteOpenFor = signal<string>('');
+
+  protected togglePaste(id: string): void {
+    this.pasteOpenFor.set(this.pasteOpenFor() === id ? '' : id);
+  }
+
+  protected applyRoster(group: ScrimGroup): void {
+    const roster = this.scout.fromPaste(this.rosterPaste(), this.opponentFor(group).opponentPlayers ?? []);
+    if (!roster.length) return;
+    this.rosterPaste.set('');
+    this.pasteOpenFor.set('');
+    this.patchOpponent(group, { opponentPlayers: roster });
+  }
+
+  protected scoutOpponents(group: ScrimGroup): void {
+    void this.scout.scoutScrimOpponent(this.opponentFor(group));
+  }
+
+  protected setOpponentRole(group: ScrimGroup, player: OpponentPlayer, role: Role): void {
+    const roster = reseatOpponent(this.opponentFor(group).opponentPlayers ?? [], player, role);
+    if (roster) this.patchOpponent(group, { opponentPlayers: roster });
+  }
+
+  protected roster(group: ScrimGroup): OpponentPlayer[] {
+    return orderedRoster(this.opponentFor(group).opponentPlayers ?? []);
+  }
+
+  protected scoutedAt(group: ScrimGroup): string {
+    return scoutedAgo(this.opponentFor(group).opponentPlayers ?? []);
+  }
+
+  // Pure table helpers, shared with the tournament plan.
+  protected readonly poolFor = poolFor;
+  protected readonly countersFor = countersFor;
+  protected readonly poolIsForSeat = poolIsForSeat;
+  protected readonly countersAreForSeat = countersAreForSeat;
+  protected readonly queueRows = queueRows;
+  protected readonly recentForSeat = recentForSeat;
+  protected readonly recentHidden = recentHidden;
+  protected readonly rateOf = rateOf;
+  protected readonly rateBand = rateBand;
+
+  // ---- One scrim ----------------------------------------------------------
 
   /**
    * What to call one side of a scrim.
@@ -61,11 +208,6 @@ export class ScrimsComponent {
     if (side === colour) return this.teamName();
     return scrim.opponent?.trim() || (team === 100 ? 'Blue' : 'Red');
   }
-
-  /** Newest first: a scrim is read the evening it was played, not in order. */
-  protected readonly scrims = computed(() =>
-    [...this.data.scrims()].sort((a, b) => (b.playedOn ?? '').localeCompare(a.playedOn ?? ''))
-  );
 
   protected toggle(id: string): void {
     this.openId.set(this.openId() === id ? '' : id);
@@ -206,6 +348,8 @@ export class ScrimsComponent {
     if (!confirm(`Remove the scrim ${scrim.id}?`)) return;
     await this.data.deleteScrim(scrim.id);
   }
+
+  // ---- Importing ----------------------------------------------------------
 
   /**
    * Read dropped or chosen replay files.

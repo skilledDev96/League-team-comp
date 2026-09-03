@@ -10957,6 +10957,72 @@ body:has(.draft-stage) .edit-mode-frame {
    two ladders, which is itself a scouting fact. Dimmed, not hidden. */
 .opp-rank.is-unranked { opacity: 0.4; }
 
+/* ---- Scrims, grouped by opponent -----------------------------------------
+   One panel per team we have practised against. The summary is the history
+   at a glance — record, game count, how long since — and the body is the same
+   scouting panel a tournament series has, followed by the games. */
+.scrim-group {
+  margin-top: 0.9rem;
+  padding: 0;
+}
+
+.scrim-group > .scrim-group-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding: 0.7rem 0.9rem;
+  cursor: pointer;
+  list-style: none;
+}
+.scrim-group > .scrim-group-head::-webkit-details-marker { display: none; }
+
+.scrim-group-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+/* The record reads like a series score: green up, red down, neutral level. */
+.scrim-group-record {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  font-size: 0.85rem;
+}
+.scrim-group-record.is-positive { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--card-border)); }
+.scrim-group-record.is-negative { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border)); }
+
+.scrim-group-count,
+.scrim-group-when {
+  font-size: 0.8rem;
+  color: var(--text-1);
+}
+
+/* A quiet mark that there is something saved for this team, so a closed
+   panel still says whether opening it will find anything. */
+.scrim-group-scouted {
+  font-size: 1.1rem;
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+.scrim-group > .scrim-group-head .series-chevron { margin-left: auto; }
+.scrim-group[open] > .scrim-group-head .series-chevron { transform: rotate(180deg); }
+
+.scrim-prep {
+  padding: 0 0.9rem 0.9rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+/* The games sit inside the opponent panel, inset so the nesting reads. */
+.scrim-group > .scrim-panel {
+  margin: 0 0.9rem 0.6rem;
+}
+.scrim-group > .scrim-panel:last-child { margin-bottom: 0.9rem; }
+
 .opp-head > span {
   position: sticky;
   top: 0;

@@ -7,7 +7,21 @@ import { ChampionDataService } from '../../../services/champion-data.service';
 import { NgModelNameDirective } from '../../../shared/ng-model-name.directive';
 import { TeamDataService } from '../../../services/team-data.service';
 import { UiService } from '../../../services/ui.service';
-import { playsRole } from '../../../core/champion-lanes';
+import { noteLines } from '../../../core/note-lines';
+import {
+  countersAreForSeat,
+  countersFor,
+  orderedRoster as sortRoster,
+  poolFor,
+  poolIsForSeat,
+  queueRows,
+  rateBand,
+  rateOf,
+  recentForSeat,
+  recentHidden,
+  reseatOpponent,
+  scoutedAgo
+} from '../../../core/opponent-view';
 import { ChampionChipComponent } from '../../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../../shared/champion-picker.component';
 import { MatchNoteButtonComponent } from '../../../shared/match-note-button.component';
@@ -155,43 +169,9 @@ export class TournamentPlanComponent {
    * would otherwise collapse them) and "- " / "* " lines render as bullets.
    * Each line is further split into link/text segments by `noteParts`.
    */
-  protected noteLines(
-    text: string | undefined
-  ): { bullet: boolean; parts: { text: string; href: string | null }[] }[] {
-    if (!text) return [];
-    return text.split(/\r?\n/).map((line) => {
-      const bullet = /^\s*[-*]\s+/.test(line);
-      const content = bullet ? line.replace(/^\s*[-*]\s+/, '') : line;
-      return { bullet, parts: this.noteParts(content) };
-    });
-  }
-
-  /**
-   * Split one line into plain and link segments so pasted URLs render as real
-   * links. Deliberately returns data for the template to bind rather than HTML:
-   * nothing bypasses Angular's escaping, and only http/https matches, so a
-   * "javascript:" string stays inert text.
-   */
-  protected noteParts(text: string | undefined): { text: string; href: string | null }[] {
-    if (!text) return [];
-    const parts: { text: string; href: string | null }[] = [];
-    const pattern = /https?:\/\/[^\s<>"']+/g;
-    let last = 0;
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(text)) !== null) {
-      if (match.index > last) {
-        parts.push({ text: text.slice(last, match.index), href: null });
-      }
-      // Trailing punctuation usually belongs to the sentence, not the URL.
-      const url = match[0].replace(/[.,;:)\]]+$/, '');
-      parts.push({ text: url, href: url });
-      last = match.index + url.length;
-    }
-    if (last < text.length) {
-      parts.push({ text: text.slice(last), href: null });
-    }
-    return parts;
-  }
+  // Shared with the scrims page, which renders opponent notes the same way.
+  // One implementation, so a fix to link detection lands in both.
+  protected readonly noteLines = noteLines;
 
 
   // ---- Series editing ---------------------------------------------------
@@ -327,23 +307,8 @@ export class TournamentPlanComponent {
    * away has to hand the old seat to whoever had the new one.
    */
   protected setOpponentRole(series: TournamentSeries, player: OpponentPlayer, role: Role): void {
-    const roster = [...(series.opponentPlayers ?? [])];
-
-    // Found by identity, never by index. The rows are sorted by seat for
-    // display, so the position in the list on screen is not the position in
-    // the stored array — passing the row index moved a *different* player, and
-    // two of them ended up in the same seat with a seat left empty.
-    const index = roster.findIndex((p) => p.name === player.name && p.riotTag === player.riotTag);
-    const current = roster[index];
-    if (!current || current.role === role) return;
-
-    // Five players hold five seats, so taking one has to hand the old seat to
-    // whoever had it.
-    const holder = roster.findIndex((p, i) => i !== index && p.role === role);
-    if (holder >= 0) roster[holder] = { ...roster[holder], role: current.role };
-    roster[index] = { ...current, role };
-
-    this.patchSeries(series, { opponentPlayers: roster });
+    const roster = reseatOpponent(series.opponentPlayers ?? [], player, role);
+    if (roster) this.patchSeries(series, { opponentPlayers: roster });
   }
 
   /**
@@ -353,9 +318,7 @@ export class TournamentPlanComponent {
    * read top-to-support is the one shape everybody already knows how to scan.
    */
   protected orderedRoster(series: TournamentSeries): OpponentPlayer[] {
-    return [...(series.opponentPlayers ?? [])].sort(
-      (a, b) => this.roles.indexOf(a.role) - this.roles.indexOf(b.role)
-    );
+    return sortRoster(series.opponentPlayers ?? []);
   }
 
   /**
@@ -366,142 +329,18 @@ export class TournamentPlanComponent {
    * or three champions. Where it does not, the overall pool is shown with the
    * swap warning beside it rather than pretending.
    */
-  /**
-   * The rows to render for one scouted player — one per ranked queue.
-   *
-   * Solo and flex are different pools. The backend merge preferred flex and
-   * discarded solo, so a row labelled "plays" was showing half the picture with
-   * nothing saying which half. Both are now carried, and both are shown.
-   *
-   * Falls back to a **single** row for anyone scouted before the split existed:
-   * they have no `byQueue`, and rendering two empty rows for every stored
-   * roster would look like the feature is broken rather than like the data
-   * predates it. Re-scouting fills them in.
-   */
-  protected queueRows(player: OpponentPlayer): {
-    key: 'solo' | 'flex' | 'all';
-    label: string;
-    rank?: string;
-    record?: string;
-    pool: ChampionRecord[];
-    counters: ChampionRecord[];
-    forSeat: boolean;
-  }[] {
-    const byQueue = player.byQueue;
-    if (!byQueue?.solo && !byQueue?.flex) {
-      return [
-        {
-          key: 'all',
-          label: '',
-          rank: player.soloRank ?? player.flexRank ?? player.rank,
-          record: player.soloRecord ?? player.flexRecord,
-          pool: this.poolFor(player),
-          counters: this.countersFor(player),
-          forSeat: this.poolIsForSeat(player)
-        }
-      ];
-    }
+  // Pure table helpers, shared with the scrims page — see core/opponent-view.
+  protected readonly poolFor = poolFor;
+  protected readonly queueRows = queueRows;
+  protected readonly recentForSeat = recentForSeat;
+  protected readonly recentHidden = recentHidden;
 
-    const row = (key: 'solo' | 'flex', label: string, rank?: string, record?: string) => {
-      const queue = byQueue[key];
-      const seatPool = player.role ? queue?.poolByRole?.[player.role] : undefined;
-      const seatBans = player.role ? queue?.bansByRole?.[player.role] : undefined;
-      return {
-        key,
-        label,
-        rank,
-        record,
-        pool: (seatPool?.length ? seatPool : (queue?.championRecords ?? [])).slice(0, 5),
-        counters: (seatBans?.length
-          ? seatBans
-          : (queue?.bans ?? []).map((champion) => ({ champion, games: 0, wins: 0 }))
-        ).slice(0, 4),
-        forSeat: !!seatPool?.length
-      };
-    };
+  protected readonly countersFor = countersFor;
 
-    return [
-      row('solo', 'Solo', player.soloRank, player.soloRecord),
-      row('flex', 'Flex', player.flexRank, player.flexRecord)
-    ];
-  }
-
-  protected poolFor(player: OpponentPlayer): ChampionRecord[] {
-    const seat = player.role ? player.poolByRole?.[player.role] : undefined;
-    if (seat?.length) return seat.slice(0, 5);
-
-    // Rosters scouted before records existed carry names only; show those
-    // rather than nothing, with no numbers to go with them.
-    const overall = player.championRecords?.length
-      ? player.championRecords
-      : (player.top3 ?? []).map((champion) => ({ champion, games: 0, wins: 0 }));
-    return overall.slice(0, 5);
-  }
-
-  /**
-   * What they have played lately **in this seat**.
-   *
-   * `recentChampions` comes from champion mastery, which carries no position at
-   * all — so the raw list put a support and a jungler in a top laner's row and
-   * read as noise. Narrowed here through the pro-play lane map, which is the
-   * only position data the app has and is deliberately generous: a champion
-   * with no pro games passes every lane rather than none, so this can never
-   * hide a pocket pick it has simply never seen.
-   *
-   * Falls back to the unfiltered list when the filter empties it. A player
-   * whose recent games are all off-seat is telling you something — most likely
-   * that the seat we have them in is wrong — and an empty cell says nothing.
-   */
-  protected recentForSeat(player: OpponentPlayer): string[] {
-    const all = player.recentChampions ?? [];
-    if (!all.length) return [];
-    const inSeat = all.filter((champion) => playsRole(champion, player.role));
-    return (inSeat.length ? inSeat : all).slice(0, 6);
-  }
-
-  /**
-   * How many recent champions were dropped as off-seat.
-   *
-   * The off-seat count only — not the six-icon cap, which is a display limit
-   * rather than a claim about the player. Zero when the filter emptied the list
-   * and the row fell back to showing everything, because then nothing was hidden.
-   */
-  protected recentHidden(player: OpponentPlayer): number {
-    const all = player.recentChampions ?? [];
-    const inSeat = all.filter((champion) => playsRole(champion, player.role));
-    return inSeat.length ? all.length - inSeat.length : 0;
-  }
-
-  /** Who beats them in the seat they hold, falling back to their history. */
-  protected countersFor(player: OpponentPlayer): ChampionRecord[] {
-    const seat = player.role ? player.bansByRole?.[player.role] : undefined;
-    if (seat?.length) return seat.slice(0, 4);
-    return (player.bans ?? []).slice(0, 4).map((champion) => ({ champion, games: 0, wins: 0 }));
-  }
-
-  protected countersAreForSeat(player: OpponentPlayer): boolean {
-    return !!(player.role && player.bansByRole?.[player.role]?.length);
-  }
-
-  /** Whether the pool shown is the seat they hold, or their history at large. */
-  protected poolIsForSeat(player: OpponentPlayer): boolean {
-    return !!(player.role && player.poolByRole?.[player.role]?.length);
-  }
-
-  /** A win rate, or nothing when the record is too thin to carry one. */
-  protected rateOf(r: ChampionRecord): number | null {
-    return r.games > 0 ? Math.round((r.wins / r.games) * 100) : null;
-  }
-
-  /** Colour band for a champion win rate, matching the draft panel. */
-  protected rateBand(r: ChampionRecord): string {
-    const rate = this.rateOf(r);
-    if (rate === null) return '';
-    if (rate >= 65) return 'is-good';
-    if (rate > 50) return 'is-ok';
-    if (rate === 50) return 'is-even';
-    return 'is-poor';
-  }
+  protected readonly countersAreForSeat = countersAreForSeat;
+  protected readonly poolIsForSeat = poolIsForSeat;
+  protected readonly rateOf = rateOf;
+  protected readonly rateBand = rateBand;
 
   /** The seat their scouted history is about, when it is not the seat they hold. */
   protected playedElsewhere(player: OpponentPlayer) {
@@ -520,16 +359,7 @@ export class TournamentPlanComponent {
    * row would say so.
    */
   protected scoutedAt(series: TournamentSeries): string {
-    const stamps = (series.opponentPlayers ?? [])
-      .map((p) => p.scoutedAt)
-      .filter((at): at is string => !!at)
-      .sort();
-    if (!stamps.length) return '';
-
-    const days = Math.floor((Date.now() - Date.parse(stamps[stamps.length - 1])) / 86_400_000);
-    if (days <= 0) return 'today';
-    if (days === 1) return 'yesterday';
-    return `${days} days ago`;
+    return scoutedAgo(series.opponentPlayers ?? []);
   }
 
   protected setGameResult(game: SeriesGame, win: boolean | undefined): void {

@@ -33,7 +33,8 @@ import {
   Settings,
   TeamData,
   TeamIdentity,
-  Scrim
+  Scrim,
+  ScrimOpponent
 } from '../models/team.models';
 import { normalizeEmail } from '../core/access';
 
@@ -50,6 +51,7 @@ type EntityKey =
   | 'compOverrides'
   | 'compResults'
   | 'scrims'
+  | 'scrimOpponents'
   | 'plays'
   | 'painPoints'
   | 'learnEntries';
@@ -63,6 +65,7 @@ export class TeamDataService {
   readonly comps = signal<Comp[]>([]);
   readonly compResults = signal<CompResult[]>([]);
   readonly scrims = signal<Scrim[]>([]);
+  readonly scrimOpponents = signal<ScrimOpponent[]>([]);
   readonly plays = signal<Play[]>([]);
   readonly painPoints = signal<PainPoint[]>([]);
   readonly learnEntries = signal<LearnEntry[]>([]);
@@ -120,6 +123,7 @@ export class TeamDataService {
     this.comps.set([...data.comps].sort((a, b) => a.order - b.order));
     this.compResults.set([...(data.compResults ?? [])].sort((a, b) => a.order - b.order));
     this.scrims.set([...(data.scrims ?? [])].sort((a, b) => a.order - b.order));
+    this.scrimOpponents.set([...(data.scrimOpponents ?? [])].sort((a, b) => a.order - b.order));
     this.plays.set([...(data.plays ?? [])].sort((a, b) => a.order - b.order));
     this.painPoints.set([...(data.painPoints ?? [])].sort((a, b) => a.order - b.order));
     this.learnEntries.set([...(data.learnEntries ?? [])].sort((a, b) => a.order - b.order));
@@ -148,6 +152,7 @@ export class TeamDataService {
       comps: this.comps(),
       compResults: this.compResults(),
       scrims: this.scrims(),
+      scrimOpponents: this.scrimOpponents(),
       plays: this.plays(),
       painPoints: this.painPoints(),
       learnEntries: this.learnEntries(),
@@ -188,6 +193,10 @@ export class TeamDataService {
     onSnapshot(collection(db, 'scrims'), (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Scrim, 'id'>) }));
       this.scrims.set(list.sort((a, b) => a.order - b.order));
+    });
+    onSnapshot(collection(db, 'scrimOpponents'), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ScrimOpponent, 'id'>) }));
+      this.scrimOpponents.set(list.sort((a, b) => a.order - b.order));
     });
 
     onSnapshot(collection(db, 'compResults'), (snap) => {
@@ -517,6 +526,22 @@ export class TeamDataService {
 
   deleteScrim(id: string): Promise<void> {
     return this.persistRemove('scrims', this.scrims, id);
+  }
+
+  /**
+   * Save what we know about a scrim opponent, keyed by a slug of their name.
+   *
+   * The id is derived, not generated, so notes written against "MOSS" on one
+   * evening and a roster pasted against "MOSS" on another land on the same
+   * record without anyone linking them. A new opponent is created the first
+   * time anything is saved against them; there is no separate "add" step.
+   */
+  saveScrimOpponent(opponent: ScrimOpponent): Promise<void> {
+    return this.persistUpsert('scrimOpponents', this.scrimOpponents, opponent);
+  }
+
+  deleteScrimOpponent(id: string): Promise<void> {
+    return this.persistRemove('scrimOpponents', this.scrimOpponents, id);
   }
 
   // ---- Tactical plays ---------------------------------------------------
