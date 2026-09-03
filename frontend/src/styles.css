@@ -5917,6 +5917,22 @@ body[data-theme='light'] input[type='time'] {
   color: var(--accent-2);
 }
 
+/* ---- Inline links, everywhere ------------------------------------------
+   There was no rule for a bare <a>, so every inline link the app did not
+   style by hand fell back to the browser: blue, then purple once visited,
+   on a dark teal page. Lowest possible specificity, so every deliberate
+   rule — nav, link lists, buttons styled as links — still wins. */
+a {
+  /* --accent-2 rather than --accent: it is what the notes links already use,
+     and it is themed per palette (blue in Hextech, grey in Light, red in the
+     red theme) so links read as links on every ground. */
+  color: var(--accent-2);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+a:visited { color: var(--accent-2); }
+a:hover { text-decoration-thickness: 2px; }
+
 .tournament-notes a {
   color: var(--accent-2);
   word-break: break-all;
@@ -10963,6 +10979,32 @@ body:has(.draft-stage) .edit-mode-frame {
    scouting panel a tournament series has, followed by the games. */
 /* The batch name sits directly above the drop zone it applies to. */
 .scrim-against { margin-bottom: 0.6rem; max-width: 34rem; }
+
+/* Prep a scrim: one row, the same shape as adding a series on the plan. */
+.scrim-add {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.9rem 0 0.3rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px dashed var(--card-border);
+  border-radius: 0.6rem;
+}
+.scrim-add > .material-symbols-rounded { color: var(--accent); align-self: center; }
+.scrim-add-field { flex: 1 1 16rem; margin: 0; }
+.scrim-add > small { flex-basis: 100%; }
+
+/* A team added to prep, before any replay exists. */
+.scrim-group-prep {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 0.1rem 0.5rem;
+  border: 1px dashed color-mix(in srgb, var(--accent) 50%, var(--card-border));
+  border-radius: 999px;
+}
 
 .scrim-group {
   margin-top: 0.9rem;

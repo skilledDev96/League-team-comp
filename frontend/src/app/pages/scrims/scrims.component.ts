@@ -25,7 +25,7 @@ import {
   reseatOpponent,
   scoutedAgo
 } from '../../core/opponent-view';
-import { ScrimGroup, groupScrims } from './scrim-groups';
+import { ScrimGroup, groupScrims, slugOpponent } from './scrim-groups';
 
 /**
  * Scrims, imported from replay files and grouped by who they were against.
@@ -88,10 +88,59 @@ export class ScrimsComponent {
 
   // ---- Grouped by opponent ------------------------------------------------
 
-  /** Every scrim, folded by the team it was against, most recent team first. */
-  protected readonly groups = computed<ScrimGroup[]>(() =>
-    groupScrims(this.data.scrims(), (scrim) => this.won(scrim))
-  );
+  /**
+   * Every team on the page: the ones we have played, and the ones we are
+   * about to.
+   *
+   * Scrims fold by opponent, most recent first. In front of them go the
+   * opponents that exist only as a record — added by hand to prep before the
+   * games happen — with no scrims yet. Prep comes first because a team you are
+   * about to play is the reason you opened the page; once their replays are
+   * imported under the same name they fold into that same group and it moves
+   * into the played list on its own.
+   */
+  protected readonly groups = computed<ScrimGroup[]>(() => {
+    const records = new Map(this.data.scrimOpponents().map((o) => [o.id, o]));
+    // The name somebody typed when prepping beats whatever was typed on a
+    // replay: "Elysion Esports" was deliberate, "elysion esports" on a file at
+    // midnight was not, and the record is the one that carries the notes.
+    const played = groupScrims(this.data.scrims(), (scrim) => this.won(scrim)).map((g) => ({
+      ...g,
+      name: records.get(g.id)?.name || g.name
+    }));
+    const seen = new Set(played.map((g) => g.id));
+    const prepping: ScrimGroup[] = this.data
+      .scrimOpponents()
+      .filter((o) => !seen.has(o.id))
+      .sort((a, b) => b.order - a.order)
+      .map((o) => ({ id: o.id, name: o.name, scrims: [], wins: 0, losses: 0, unknown: 0, lastPlayed: '' }));
+    return [...prepping, ...played];
+  });
+
+  // ---- Prepping for a scrim ---------------------------------------------
+  //
+  // The replays come after the games; the scouting has to come before. So an
+  // opponent can be added by name alone, scouted, and the replays dropped in
+  // afterwards under the same name — which folds them into the record that
+  // already exists.
+
+  protected readonly newOpponentName = signal('');
+
+  protected addOpponent(): void {
+    const name = this.newOpponentName().trim();
+    if (!name) return;
+    const id = slugOpponent(name);
+    const existing = this.data.scrimOpponents().find((o) => o.id === id);
+    if (!existing) {
+      void this.data.saveScrimOpponent({ id, name, order: this.data.scrimOpponents().length });
+    }
+    this.newOpponentName.set('');
+    // Open it, whether it was just created or was already there under another
+    // spelling — either way, this is the one they want to work on now.
+    const next = new Set(this.openGroups() ?? []);
+    next.add(id);
+    this.openGroups.set(next);
+  }
 
   /**
    * Which opponent panels are open.

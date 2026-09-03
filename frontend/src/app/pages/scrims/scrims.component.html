@@ -61,13 +61,36 @@
   <!-- Importing stores the scrim; the analysis is recomputed on the Analysis
        page. Saying so beats a comp record that quietly does not move. -->
   @if (groups().length) {
+    <!-- The text is one flex child, not three. The container is display:flex
+         for the icon, and a bare link between two bare text nodes made three
+         items that laid out as columns. -->
     <p class="muted scrim-refresh-hint">
       <span class="material-symbols-rounded" aria-hidden="true">sync</span>
-      Scrims count towards comp win rates and the Review page after a
-      <a routerLink="/analysis">Refresh match data</a> on Analysis. Games where fewer
-      than four of the roster played are left out, so a solo queue replay imported by
-      mistake cannot move the numbers.
+      <span>
+        Scrims count towards comp win rates and the Review page after a
+        <a routerLink="/analysis">Refresh match data</a> on Analysis. Games where fewer
+        than four of the roster played are left out, so a solo queue replay imported by
+        mistake cannot move the numbers.
+      </span>
     </p>
+  }
+
+  <!-- Prep first, replays later. The scouting has to happen before the games,
+       so an opponent can exist by name alone; replays dropped in afterwards
+       under that name fold into the same record. -->
+  @if (auth.editing()) {
+    <div class="scrim-add">
+      <span class="material-symbols-rounded" aria-hidden="true">add_circle</span>
+      <label class="field scrim-add-field">
+        <span>Prep a scrim</span>
+        <input type="text" [ngModel]="newOpponentName()" (ngModelChange)="newOpponentName.set($event)"
+               name="scrimNewOpponent" placeholder="Opponent team name"
+               (keydown.enter)="addOpponent()" />
+      </label>
+      <button type="button" class="view-btn active" [disabled]="!newOpponentName().trim()"
+              (click)="addOpponent()">Add opponent</button>
+      <small class="muted">Scout them now; drop the replays in under the same name after the games.</small>
+    </div>
   }
 
   <!-- Grouped by who we played. A flat list said what we played and nothing
@@ -78,17 +101,25 @@
       <details class="card scrim-group" [open]="isGroupOpen(group)">
         <summary class="scrim-group-head" (click)="$event.preventDefault(); toggleGroup(group)">
           <span class="scrim-group-name">{{ group.name }}</span>
-          <span class="scrim-group-record"
-                [class.is-positive]="group.wins > group.losses"
-                [class.is-negative]="group.wins < group.losses"
-                [appTip]="group.wins + ' won, ' + group.losses + ' lost' + (group.unknown ? ', ' + group.unknown + ' with no side known' : '')">
-            {{ group.wins }}&ndash;{{ group.losses }}
-          </span>
-          <span class="scrim-group-count">
-            {{ group.scrims.length }} {{ group.scrims.length === 1 ? 'game' : 'games' }}
-          </span>
-          @if (lastPlayed(group); as when) {
-            <span class="muted scrim-group-when">last {{ when }}</span>
+          @if (group.scrims.length) {
+            <span class="scrim-group-record"
+                  [class.is-positive]="group.wins > group.losses"
+                  [class.is-negative]="group.wins < group.losses"
+                  [appTip]="group.wins + ' won, ' + group.losses + ' lost' + (group.unknown ? ', ' + group.unknown + ' with no side known' : '')">
+              {{ group.wins }}&ndash;{{ group.losses }}
+            </span>
+            <span class="scrim-group-count">
+              {{ group.scrims.length }} {{ group.scrims.length === 1 ? 'game' : 'games' }}
+            </span>
+            @if (lastPlayed(group); as when) {
+              <span class="muted scrim-group-when">last {{ when }}</span>
+            }
+          } @else {
+            <!-- Added to prep, no replays yet. Says so rather than showing a
+                 0–0 that reads like two games nobody could call. -->
+            <span class="scrim-group-prep" [appTip]="'Added to prep — drop their replays in after the games'">
+              not played yet
+            </span>
           }
           @if (hasPrep(group)) {
             <span class="scrim-group-scouted material-symbols-rounded" aria-hidden="true"
