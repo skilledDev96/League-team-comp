@@ -60,6 +60,20 @@ export class ScrimsComponent {
 
   protected readonly importing = signal(false);
   protected readonly importNote = signal('');
+  /**
+   * Who the next batch of replays was against, applied to every file dropped.
+   *
+   * Scrims arrive as a block of games against one team in one evening, and a
+   * scrim without a name files under "Unnamed opponent" until somebody opens
+   * each card and types it. Naming the batch once up front is how they land in
+   * the right group straight away.
+   */
+  protected readonly importOpponent = signal('');
+
+  /** Names already on the page, so a team you have played before is one pick. */
+  protected readonly knownOpponents = computed(() =>
+    this.groups().map((g) => g.name).filter((n) => n && n !== 'Unnamed opponent')
+  );
   /** Files that produced nothing, so a silent skip is still reported. */
   protected readonly skipped = signal<string[]>([]);
 
@@ -390,6 +404,7 @@ export class ScrimsComponent {
 
         await this.data.saveScrim({
           id,
+          opponent: this.importOpponent().trim() || undefined,
           // The replay knows how long the game ran but never when it started,
           // so the file's own timestamp is the closest thing to a date. It is
           // a few minutes late, which matters to nobody.
@@ -405,8 +420,11 @@ export class ScrimsComponent {
       }
     } finally {
       this.importing.set(false);
+      const against = this.importOpponent().trim();
       this.importNote.set(
-        saved ? `Imported ${saved} ${saved === 1 ? 'scrim' : 'scrims'}.` : 'Nothing imported.'
+        saved
+          ? `Imported ${saved} ${saved === 1 ? 'scrim' : 'scrims'}${against ? ` against ${against}` : ''}.`
+          : 'Nothing imported.'
       );
       this.skipped.set(failed);
     }

@@ -10,6 +10,19 @@
   </p>
 
   @if (auth.editing()) {
+    <!-- Named once for the whole batch. A block of scrims is one team in one
+         evening, and a scrim with no name files under "Unnamed opponent" until
+         each card is opened and typed into. -->
+    <label class="field scrim-against">
+      <span>Against</span>
+      <input type="text" [ngModel]="importOpponent()" (ngModelChange)="importOpponent.set($event)"
+             name="scrimAgainst" list="scrim-known-opponents"
+             placeholder="Opponent team — applies to every file dropped below" />
+      <datalist id="scrim-known-opponents">
+        @for (name of knownOpponents(); track name) { <option [value]="name"></option> }
+      </datalist>
+    </label>
+
     <div class="scrim-drop" [class.is-over]="dragging()"
          (dragover)="onDragOver($event)"
          (dragleave)="dragging.set(false)"

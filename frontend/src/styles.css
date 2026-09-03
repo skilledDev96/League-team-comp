@@ -10961,6 +10961,9 @@ body:has(.draft-stage) .edit-mode-frame {
    One panel per team we have practised against. The summary is the history
    at a glance — record, game count, how long since — and the body is the same
    scouting panel a tournament series has, followed by the games. */
+/* The batch name sits directly above the drop zone it applies to. */
+.scrim-against { margin-bottom: 0.6rem; max-width: 34rem; }
+
 .scrim-group {
   margin-top: 0.9rem;
   padding: 0;
