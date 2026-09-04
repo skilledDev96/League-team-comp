@@ -45,6 +45,28 @@ function clean(value: string): string {
     .trim();
 }
 
+/**
+ * The tagline a region hands out by default.
+ *
+ * op.gg leaves the tag off a multi-search entry when it is the region's
+ * default, so a five-player link routinely arrives with two names bare. Read
+ * as "no tag", those two vanished and a five-stack came through as three —
+ * which is how it looked on the first real link pasted.
+ */
+const DEFAULT_TAG: Record<string, string> = {
+  euw: 'EUW',
+  eune: 'EUNE',
+  na: 'NA1',
+  kr: 'KR',
+  br: 'BR1',
+  jp: 'JP1',
+  lan: 'LAN',
+  las: 'LAS',
+  oce: 'OCE',
+  ru: 'RU',
+  tr: 'TR1'
+};
+
 function toId(raw: string, region?: string): RiotId | null {
   const text = clean(raw);
   if (!text) return null;
@@ -54,7 +76,14 @@ function toId(raw: string, region?: string): RiotId | null {
     const name = text.slice(0, hash).trim();
     const tag = text.slice(hash + 1).trim();
     if (name && tag) return { name, tag, region };
+    return null;
   }
+
+  // No tag. Safe to fill in only when the region is known — from a link —
+  // because that is the one case where a missing tag has a definite meaning.
+  // A bare name typed by hand still needs its tag: guessing there could scout
+  // a stranger on another region, which is worse than an empty row.
+  if (region && DEFAULT_TAG[region]) return { name: text, tag: DEFAULT_TAG[region], region };
   return null;
 }
 

@@ -100,3 +100,31 @@ describe('a real op.gg multi-link', () => {
     expect(parseRiotIds(LINK)[0].region).toBe('euw');
   });
 });
+
+describe('parseRiotIds: tags op.gg leaves off', () => {
+  it('fills in the region default for names a multi-link carries without a tag', () => {
+    // The first real link pasted. Two of five carry no tag because it equals
+    // the region default; read as junk, the five-stack came through as three.
+    const link =
+      'https://op.gg/de/lol/multisearch/euw?summoners=SGC+Snake%2CSPELLBOOKEZ%23SGC%2CTeain+Lol%2CYebi%237009%2CKastel%232308';
+    const ids = parseRiotIds(link);
+    expect(ids.map((i) => i.name + '#' + i.tag)).toEqual([
+      'SGC Snake#EUW',
+      'SPELLBOOKEZ#SGC',
+      'Teain Lol#EUW',
+      'Yebi#7009',
+      'Kastel#2308'
+    ]);
+    expect(ids.every((i) => i.region === 'euw')).toBe(true);
+  });
+
+  it('uses the right default per region, not always EUW', () => {
+    const ids = parseRiotIds('https://op.gg/multisearch/na?summoners=Alpha%2CBravo%23123');
+    expect(ids.map((i) => i.name + '#' + i.tag)).toEqual(['Alpha#NA1', 'Bravo#123']);
+  });
+
+  it('still refuses a bare name typed by hand, where no region is known', () => {
+    expect(parseRiotIds('JustAName')).toEqual([]);
+    expect(parseRiotIds('JustAName#EUW')).toHaveLength(1);
+  });
+});
