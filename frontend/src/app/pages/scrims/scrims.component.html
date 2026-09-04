@@ -6,57 +6,10 @@
   <p class="muted">
     Custom games never reach the Riot API, so replays are the only record they leave.
     Files are read here in the browser &mdash; nothing is uploaded, and only the
-    scoreboard is kept.
+    scoreboard is kept. Replays live in Documents &rsaquo; League of Legends &rsaquo;
+    Replays &mdash; download them at the end of every scrim, because the button
+    disappears after a patch and the game is gone with it.
   </p>
-
-  @if (auth.editing()) {
-    <!-- Named once for the whole batch. A block of scrims is one team in one
-         evening, and a scrim with no name files under "Unnamed opponent" until
-         each card is opened and typed into. -->
-    <label class="field scrim-against">
-      <span>Against</span>
-      <input type="text" [ngModel]="importOpponent()" (ngModelChange)="importOpponent.set($event)"
-             name="scrimAgainst" list="scrim-known-opponents"
-             placeholder="Opponent team — applies to every file dropped below" />
-      <datalist id="scrim-known-opponents">
-        @for (name of knownOpponents(); track name) { <option [value]="name"></option> }
-      </datalist>
-    </label>
-
-    <div class="scrim-drop" [class.is-over]="dragging()"
-         (dragover)="onDragOver($event)"
-         (dragleave)="dragging.set(false)"
-         (drop)="onDrop($event)">
-      <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>
-      <div>
-        <strong>Drop <code>.rofl</code> replay files here</strong>
-        <small>
-          Documents &rsaquo; League of Legends &rsaquo; Replays. Download them at the end of
-          every scrim &mdash; the button disappears after a patch, and the game is gone with it.
-        </small>
-      </div>
-      <label class="scrim-pick">
-        <input type="file" multiple accept=".rofl"
-               (change)="importFiles($any($event.target).files); $any($event.target).value = ''" />
-        Choose files
-      </label>
-    </div>
-
-    @if (importing()) {
-      <p class="muted">{{ importNote() }}</p>
-    } @else if (importNote()) {
-      <p class="muted">{{ importNote() }}</p>
-    }
-
-    <!-- Named rather than dropped in silence: a replay folder always has a
-         stray file in it, and "nothing happened" is the worst possible answer
-         to a drag-and-drop. -->
-    @if (skipped().length) {
-      <ul class="list-clean scrim-skipped">
-        @for (line of skipped(); track line) { <li>{{ line }}</li> }
-      </ul>
-    }
-  }
 
   <!-- Importing stores the scrim; the analysis is recomputed on the Analysis
        page. Saying so beats a comp record that quietly does not move. -->
@@ -89,8 +42,24 @@
       </label>
       <button type="button" class="view-btn active" [disabled]="!newOpponentName().trim()"
               (click)="addOpponent()">Add opponent</button>
-      <small class="muted">Scout them now; drop the replays in under the same name after the games.</small>
+      <small class="muted">Scout them now; drop their replays into their panel after the games.</small>
+      <!-- Names already on the page, for the mover in the Unnamed group. -->
+      <datalist id="scrim-known-opponents">
+        @for (name of knownOpponents(); track name) { <option [value]="name"></option> }
+      </datalist>
     </div>
+
+    <!-- Feedback for whichever panel took the files. Named rather than dropped
+         in silence: a replay folder always has a stray file in it, and
+         "nothing happened" is the worst possible answer to a drag-and-drop. -->
+    @if (importing() || importNote()) {
+      <p class="muted">{{ importNote() }}</p>
+    }
+    @if (skipped().length) {
+      <ul class="list-clean scrim-skipped">
+        @for (line of skipped(); track line) { <li>{{ line }}</li> }
+      </ul>
+    }
   }
 
   <!-- Grouped by who we played. A flat list said what we played and nothing

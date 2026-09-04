@@ -62,15 +62,6 @@ export class ScrimsComponent {
 
   protected readonly importing = signal(false);
   protected readonly importNote = signal('');
-  /**
-   * Who the next batch of replays was against, applied to every file dropped.
-   *
-   * Scrims arrive as a block of games against one team in one evening, and a
-   * scrim without a name files under "Unnamed opponent" until somebody opens
-   * each card and types it. Naming the batch once up front is how they land in
-   * the right group straight away.
-   */
-  protected readonly importOpponent = signal('');
 
   /** Names already on the page, so a team you have played before is one pick. */
   protected readonly knownOpponents = computed(() =>
@@ -448,10 +439,7 @@ export class ScrimsComponent {
    * because a folder always has a stray file in it and "nothing happened" is
    * the worst possible answer to a drag-and-drop.
    */
-  protected async importFiles(
-    files: FileList | null,
-    opponent: string = this.importOpponent().trim()
-  ): Promise<void> {
+  protected async importFiles(files: FileList | null, opponent: string): Promise<void> {
     if (!files?.length || this.importing()) return;
 
     this.importing.set(true);
@@ -507,11 +495,6 @@ export class ScrimsComponent {
     }
   }
 
-  protected onDrop(event: DragEvent): void {
-    event.preventDefault();
-    this.dragging.set(false);
-    void this.importFiles(event.dataTransfer?.files ?? null);
-  }
 
   // ---- Importing into a team's own panel ----------------------------------
   //
@@ -556,10 +539,4 @@ export class ScrimsComponent {
     this.reassignTo.set('');
   }
 
-  protected readonly dragging = signal(false);
-
-  protected onDragOver(event: DragEvent): void {
-    event.preventDefault();
-    this.dragging.set(true);
-  }
 }
