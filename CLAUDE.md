@@ -123,7 +123,20 @@ of the two is the bench is `OpponentPlayer.sub`, set by hand through
 `setSubstitute` (the Sub toggle in the seat cell). `starters` and `bench` split
 the roster: the table and the ban board read only the five, and the bench is
 one line under the table with a "to starters" button, because six rows was
-too much to take in. **The roster table's read-side helpers live in
+too much to take in.
+
+**"As a team" is what their five did together lately**, and it is a separate
+question from what each of them plays. `getOpponentHistory` (`api/src/index.ts`,
+logic in `api/src/team-history.ts`) takes the five, reads each player's match
+ids for the last N days (default 30) in flex, Clash and draft with Riot's
+`startTime`, keeps the matches where three or more of them were on one side,
+and reads the details through `matchCache`. Their games are rarely in the cache
+— it holds ours — so `MAX_HISTORY_FETCHES` (40) caps one run and the rest is
+reported as `pending`; Refresh reads the next batch. The result is stored on
+the series or scrim opponent as `teamHistory`, so one fetch serves the whole
+team, and `OpponentHistoryService` refuses a six-player table until the sub is
+marked — the first five by seat would be a guess. Local mode has no Riot
+access, so the button there explains that rather than failing. **The roster table's read-side helpers live in
 `core/opponent-view.ts`** (`queueRows`, `reseatOpponent`, `recentForSeat`, the
 rate bands…) and are shared by the plan page and the scrims page; do not re-add
 copies to either component. `banCandidates` there feeds the **ban board** that

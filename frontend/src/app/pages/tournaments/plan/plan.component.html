@@ -634,6 +634,81 @@
                 }
               </div>
 
+              <!-- The five as a team: the games they actually queued together lately,
+                   read from Riot through the match cache. Absent until fetched, and
+                   stored, so one fetch serves the whole team. -->
+              <section class="opp-history">
+                <div class="opp-history-head">
+                  <span class="opp-history-title">As a team</span>
+                  @if (series.teamHistory; as h) {
+                    <span class="opp-history-sum">
+                      <b>{{ h.summary.games }}</b> {{ h.summary.games === 1 ? 'game' : 'games' }} together in {{ h.days }} days
+                      @if (h.summary.games) {
+                        &middot; <b [class.is-good]="h.summary.wins > h.summary.losses" [class.is-poor]="h.summary.wins < h.summary.losses">{{ h.summary.wins }}&ndash;{{ h.summary.losses }}</b>
+                        &middot; {{ h.summary.fullStacks }} as a full five
+                      }
+                      <em>fetched {{ ui.formatDay(h.fetchedAt) }}</em>
+                    </span>
+                  } @else {
+                    <span class="muted opp-history-sum">Not fetched yet — flex, Clash and draft games with three or more of them on one side.</span>
+                  }
+                  @if (auth.editing()) {
+                    <button type="button" class="view-btn" [disabled]="historyBusy() === series.id" (click)="fetchHistory(series)">
+                      @if (historyBusy() === series.id) {
+                        <span class="btn-spinner" aria-hidden="true"></span> Reading Riot…
+                      } @else {
+                        {{ series.teamHistory ? 'Refresh' : 'Fetch last 30 days' }}
+                      }
+                    </button>
+                  }
+                </div>
+                @if (historyError() && historyBusy() !== series.id) {
+                  <p class="tag bad" role="alert">{{ historyError() }}</p>
+                }
+                @if (series.teamHistory; as h) {
+                  @if (h.unresolved.length) {
+                    <p class="muted">Riot did not find: {{ h.unresolved.join(', ') }}</p>
+                  }
+                  @if (h.pending) {
+                    <p class="muted">{{ h.pending }} more {{ h.pending === 1 ? 'game' : 'games' }} not read yet — one run's Riot budget. Refresh reads the next batch.</p>
+                  }
+                  @if (h.summary.picks.length) {
+                    <div class="opp-history-picks" aria-label="Their picks as a team">
+                      @for (pk of h.summary.picks.slice(0, 8); track pk.champion + pk.role) {
+                        <span class="opp-history-pick" [appTip]="pk.champion + (pk.role ? ' at ' + pk.role : '') + ': ' + pk.wins + ' of ' + pk.games + ' won together'">
+                          <img [src]="ui.championIconUrl(pk.champion)" [alt]="pk.champion" loading="lazy" />
+                          <b>{{ pk.games }}</b><small [class.is-good]="pk.winRate >= 55" [class.is-poor]="pk.winRate < 45">{{ pk.winRate }}%</small>
+                        </span>
+                      }
+                    </div>
+                  }
+                  <div class="opp-history-games">
+                    @for (g of h.games; track g.matchId) {
+                      <div class="opp-history-game" [class.is-win]="g.win">
+                        <span class="opp-history-result">{{ g.win ? 'W' : 'L' }}</span>
+                        <span class="opp-history-when">{{ ui.formatDay(g.date) }}</span>
+                        <span class="opp-history-queue">{{ g.queue }}</span>
+                        <span class="opp-history-side" [class.is-blue]="g.side === 'blue'">{{ g.side }}</span>
+                        <span class="opp-history-count" [appTip]="g.together + ' of their five were in this game'">{{ g.together }}/5</span>
+                        <span class="opp-history-lineup">
+                          @for (pk of g.picks; track pk.role + pk.champion) {
+                            <img [src]="ui.championIconUrl(pk.champion)" [alt]="pk.champion" [class.is-other]="!pk.player" loading="lazy"
+                                 [appTip]="(pk.player || 'not one of the five') + ' — ' + pk.champion + (pk.role ? ' (' + pk.role + ')' : '')" />
+                          }
+                        </span>
+                        <span class="opp-history-vs">vs</span>
+                        <span class="opp-history-lineup is-enemy">
+                          @for (pk of g.enemies; track pk.role + pk.champion) {
+                            <img [src]="ui.championIconUrl(pk.champion)" [alt]="pk.champion" loading="lazy"
+                                 [appTip]="pk.champion + (pk.role ? ' (' + pk.role + ')' : '')" />
+                          }
+                        </span>
+                      </div>
+                    }
+                  </div>
+                }
+              </section>
+
               @if (auth.editing()) {
                 <div class="field"><span>Target bans</span>
                   <app-champion-picker [champions]="series.bans || []"

@@ -417,6 +417,8 @@ export interface ScrimOpponent {
   bans?: string[];
   /** Their five, once someone has pasted the roster. */
   opponentPlayers?: OpponentPlayer[];
+  /** Their games together lately. Absent until fetched. */
+  teamHistory?: OpponentTeamHistory;
   order: number;
 }
 
@@ -611,6 +613,58 @@ export interface OpponentPlayer {
  * One weekly match-up against an opponent. Scheduling itself happens on Discord
  * per the rulebook — this just records what was agreed so it isn't lost.
  */
+/** One of their picks in a game together; `player` is null for a teammate outside the five. */
+export interface TogetherPick {
+  role: Role | '';
+  champion: string;
+  player: string | null;
+}
+
+export interface TogetherGame {
+  matchId: string;
+  /** ISO. */
+  date: string;
+  queue: string;
+  durationSec?: number;
+  win: boolean;
+  side: 'blue' | 'red';
+  /** How many of the five were on this side. */
+  together: number;
+  picks: TogetherPick[];
+  enemies: TogetherPick[];
+}
+
+export interface TogetherPickStat {
+  champion: string;
+  role: Role | '';
+  games: number;
+  wins: number;
+  winRate: number;
+}
+
+export interface TogetherSummary {
+  games: number;
+  wins: number;
+  losses: number;
+  fullStacks: number;
+  picks: TogetherPickStat[];
+}
+
+/**
+ * What their five did as a team lately, from `getOpponentHistory`. Stored on
+ * the series or scrim opponent so the whole team reads one fetch.
+ */
+export interface OpponentTeamHistory {
+  fetchedAt: string;
+  days: number;
+  games: TogetherGame[];
+  summary: TogetherSummary;
+  /** Candidates left unread by one run's Riot budget; a refresh reads on. */
+  pending: number;
+  /** Names Riot did not know, so a typo is visible rather than silent. */
+  unresolved: string[];
+}
+
 export interface TournamentSeries {
   id: string;
   tournamentId: string;
@@ -635,6 +689,8 @@ export interface TournamentSeries {
    * match it was scouted for goes stale without anyone noticing.
    */
   opponentPlayers?: OpponentPlayer[];
+  /** Their games together lately. Absent until fetched. */
+  teamHistory?: OpponentTeamHistory;
   status?: 'scheduled' | 'played';
   order: number;
 }

@@ -11708,3 +11708,143 @@ body:has(.draft-stage) .edit-mode-frame {
   color: var(--text-0);
   outline: none;
 }
+
+/* ---- As a team: their games together lately ---------------------------- */
+.opp-history {
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 60%, transparent);
+}
+
+.opp-history-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.opp-history-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.opp-history-sum {
+  font-size: 0.85rem;
+}
+
+.opp-history-sum em {
+  margin-left: 0.4rem;
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--text-1);
+}
+
+.opp-history-sum .is-good,
+.opp-history-pick small.is-good {
+  color: var(--ok);
+}
+
+.opp-history-sum .is-poor,
+.opp-history-pick small.is-poor {
+  color: var(--warn);
+}
+
+.opp-history-head .view-btn {
+  margin-left: auto;
+}
+
+.opp-history-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.opp-history-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem 0.15rem 0.15rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  font-size: 0.72rem;
+}
+
+.opp-history-pick img {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+}
+
+.opp-history-games {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.6rem;
+}
+
+.opp-history-game {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--card-border) 50%, transparent);
+  border-radius: 0.6rem;
+  font-size: 0.78rem;
+}
+
+.opp-history-result {
+  display: inline-grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 0.35rem;
+  font-weight: 800;
+  background: color-mix(in srgb, var(--warn) 22%, transparent);
+  color: var(--warn);
+}
+
+.opp-history-game.is-win .opp-history-result {
+  background: color-mix(in srgb, var(--ok) 22%, transparent);
+  color: var(--ok);
+}
+
+.opp-history-when,
+.opp-history-queue,
+.opp-history-side,
+.opp-history-count,
+.opp-history-vs {
+  color: var(--text-1);
+}
+
+.opp-history-side {
+  text-transform: capitalize;
+}
+
+.opp-history-side.is-blue {
+  color: var(--accent-2);
+}
+
+.opp-history-lineup {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.opp-history-lineup img {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 0.35rem;
+}
+
+.opp-history-lineup img.is-other {
+  opacity: 0.45;
+}
+
+.opp-history-lineup.is-enemy img {
+  width: 1.35rem;
+  height: 1.35rem;
+  opacity: 0.8;
+}

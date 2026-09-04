@@ -28,6 +28,7 @@ import {
   starters,
   scoutedAgo
 } from '../../../core/opponent-view';
+import { OpponentHistoryService } from '../../../services/opponent-history.service';
 import { ChampionChipComponent } from '../../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../../shared/champion-picker.component';
 import { MatchNoteButtonComponent } from '../../../shared/match-note-button.component';
@@ -59,6 +60,7 @@ export class TournamentPlanComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly auth = inject(AuthService);
   protected readonly ui = inject(UiService);
+  private readonly history = inject(OpponentHistoryService);
   protected readonly champData = inject(ChampionDataService);
 
   private readonly ctx = inject(TournamentContextService);
@@ -340,6 +342,24 @@ export class TournamentPlanComponent {
   protected setOpponentRole(series: TournamentSeries, player: OpponentPlayer, role: Role): void {
     const roster = reseatOpponent(series.opponentPlayers ?? [], player, role);
     if (roster) this.patchSeries(series, { opponentPlayers: roster });
+  }
+
+// ---- As a team: their games together lately ---------------------------
+
+  protected readonly historyBusy = signal('');
+  protected readonly historyError = signal('');
+
+  protected async fetchHistory(series: TournamentSeries): Promise<void> {
+    this.historyError.set('');
+    this.historyBusy.set(series.id);
+    try {
+      const teamHistory = await this.history.load(starters(series.opponentPlayers ?? []));
+      this.patchSeries(series, { teamHistory });
+    } catch (error) {
+      this.historyError.set(error instanceof Error ? error.message : 'Their match history could not be loaded.');
+    } finally {
+      this.historyBusy.set('');
+    }
   }
 
   protected setOpponentSub(series: TournamentSeries, player: OpponentPlayer, sub: boolean): void {

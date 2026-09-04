@@ -36,6 +36,17 @@ import {
   statsDocPath,
   tallyMatch
 } from './crawler';
+import {
+  MAX_HISTORY_CANDIDATES,
+  MAX_HISTORY_FETCHES,
+  MIN_TOGETHER,
+  TEAM_HISTORY_QUEUES,
+  TeamHistoryRequest,
+  gamesTogether,
+  parseTeamHistoryRequest,
+  sinceSeconds,
+  summariseTogether
+} from './team-history';
 import { buildIndex, indexDocPath, splitIndexId, RawMatchupDoc } from './matchup-index';
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
 import { ChampionTraits, toTraits } from './champion-traits';
@@ -999,6 +1010,126 @@ export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY], t
     res.status(400).json({ error: message });
   }
 });
+
+// ---- Opponent team history (their five together, lately) ---------------------
+
+/**
+ * The games their five queued together in the last N days. Match ids come one
+ * call per player per team queue with Riot's startTime; details go through
+ * the match cache like everything else, so a re-run costs only what is new.
+ */
+export const getOpponentHistory = onRequest({ cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 300 }, async (req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed. Use POST.' });
+    return;
+  }
+  try {
+    const idToken = parseBearerToken(req.headers.authorization);
+    if (!idToken) {
+      res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
+      return;
+    }
+    const decoded = await getAuth().verifyIdToken(idToken);
+    const email = normalizeEmail(decoded.email);
+    const role = await getAccessRoleByEmail(email);
+    if (!role) {
+      res.status(403).json({ error: 'Insufficient role. Viewer access required.' });
+      return;
+    }
+    const payload = parseTeamHistoryRequest(req.body);
+    const result = await computeOpponentHistory(payload, RIOT_API_KEY.value());
+    res.status(200).json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unexpected error.';
+    res.status(400).json({ error: message });
+  }
+});
+
+async function computeOpponentHistory(payload: TeamHistoryRequest, apiKey: string) {
+  const firstRegion = payload.players[0]?.region ?? 'euw';
+  const routing = REGION_ROUTING[firstRegion] ?? REGION_ROUTING.euw;
+
+  // One name that Riot does not know must not sink the other four: a typo in
+  // a pasted roster is common and the rest of the team is still worth reading.
+  const unresolved: string[] = [];
+  const identities = (
+    await Promise.all(
+      payload.players.map(async (player) => {
+        const tagLine = (player.riotTag || firstRegion.toUpperCase()).replace(/^#/, '');
+        try {
+          const account = await riotFetch<RiotAccount>(
+            'https://' + routing.regional + '.api.riotgames.com/riot/account/v1/accounts/by-riot-id/' +
+              encodeURIComponent(player.name) + '/' + encodeURIComponent(tagLine),
+            apiKey
+          );
+          return { ...player, puuid: account.puuid };
+        } catch {
+          unresolved.push(player.name + '#' + tagLine);
+          return null;
+        }
+      })
+    )
+  ).filter((i): i is SynergyPlayerRequest & { puuid: string } => i !== null);
+
+  const minTogether = Math.min(MIN_TOGETHER, identities.length);
+  if (identities.length < 2) {
+    throw new Error('Riot could not find enough of them: ' + unresolved.join(', '));
+  }
+  const nameByPuuid = new Map(identities.map((i) => [i.puuid, i.name]));
+  const since = sinceSeconds(payload.days);
+
+  const counts = new Map<string, number>();
+  for (const queueId of TEAM_HISTORY_QUEUES) {
+    for (const player of identities) {
+      let ids: string[] = [];
+      try {
+        ids = await riotFetch<string[]>(
+          'https://' + routing.regional + '.api.riotgames.com/lol/match/v5/matches/by-puuid/' + player.puuid +
+            '/ids?queue=' + queueId + '&startTime=' + since + '&start=0&count=100',
+          apiKey
+        );
+      } catch {
+        continue; // a rate-limited page costs this player this queue, not the run
+      }
+      for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+  }
+  const candidates = [...counts.entries()]
+    .filter(([, n]) => n >= minTogether)
+    .map(([id]) => id)
+    .sort()
+    .reverse()
+    .slice(0, MAX_HISTORY_CANDIDATES);
+
+  let fetched = 0;
+  let pending = 0;
+  const matches: { id: string; match: CachedMatch }[] = [];
+  for (const id of candidates) {
+    const result = await getCachedMatch(id, routing.regional, apiKey, fetched < MAX_HISTORY_FETCHES);
+    if (!result) {
+      pending += 1;
+      continue;
+    }
+    if (!result.fromCache) fetched += 1;
+    matches.push({ id, match: result.match });
+  }
+
+  const games = gamesTogether(matches, nameByPuuid, minTogether);
+  return {
+    days: payload.days,
+    since: new Date(since * 1000).toISOString(),
+    players: identities.map((i) => i.name),
+    unresolved,
+    games,
+    summary: summariseTogether(games, identities.length),
+    pending,
+    generatedAt: new Date().toISOString()
+  };
+}
 
 // ---- Comp analysis (real win rates from full-5-stack team games) ----------
 

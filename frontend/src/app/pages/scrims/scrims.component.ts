@@ -31,6 +31,7 @@ import {
   starters,
   scoutedAgo
 } from '../../core/opponent-view';
+import { OpponentHistoryService } from '../../services/opponent-history.service';
 import { ScrimGroup, groupScrims, slugOpponent } from './scrim-groups';
 
 /**
@@ -62,6 +63,7 @@ export class ScrimsComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly auth = inject(AuthService);
   protected readonly ui = inject(UiService);
+  private readonly history = inject(OpponentHistoryService);
   protected readonly scout = inject(OpponentScoutService);
 
   protected readonly importing = signal(false);
@@ -266,6 +268,24 @@ export class ScrimsComponent {
   protected setOpponentRole(group: ScrimGroup, player: OpponentPlayer, role: Role): void {
     const roster = reseatOpponent(this.opponentFor(group).opponentPlayers ?? [], player, role);
     if (roster) this.patchOpponent(group, { opponentPlayers: roster });
+  }
+
+// ---- As a team: their games together lately ---------------------------
+
+  protected readonly historyBusy = signal('');
+  protected readonly historyError = signal('');
+
+  protected async fetchHistory(group: ScrimGroup): Promise<void> {
+    this.historyError.set('');
+    this.historyBusy.set(group.id);
+    try {
+      const teamHistory = await this.history.load(starters(this.opponentFor(group).opponentPlayers ?? []));
+      this.patchOpponent(group, { teamHistory });
+    } catch (error) {
+      this.historyError.set(error instanceof Error ? error.message : 'Their match history could not be loaded.');
+    } finally {
+      this.historyBusy.set('');
+    }
   }
 
   protected setOpponentSub(group: ScrimGroup, player: OpponentPlayer, sub: boolean): void {
