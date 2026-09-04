@@ -5,13 +5,19 @@
   <header class="topbar">
     @if (auth.isAuthed()) {
       <a class="brand brand-link" routerLink="/roster">
-        {{ data.settings().teamName || 'Bom Squad' }}
-        <small>Draft Hub</small>
+        <img class="brand-mark" src="assets/brand/bomb-128.png" alt="" width="128" height="128" />
+        <span class="brand-text">
+          {{ data.settings().teamName || 'Bom Squad' }}
+          <small>Draft Hub</small>
+        </span>
       </a>
     } @else {
       <div class="brand">
-        {{ data.settings().teamName || 'Bom Squad' }}
-        <small>Draft Hub</small>
+        <img class="brand-mark" src="assets/brand/bomb-128.png" alt="" width="128" height="128" />
+        <span class="brand-text">
+          {{ data.settings().teamName || 'Bom Squad' }}
+          <small>Draft Hub</small>
+        </span>
       </div>
     }
     @if (auth.isAuthed()) {
@@ -38,6 +44,7 @@
         <label for="themeSelect" class="visually-hidden">Theme</label>
         <select id="themeSelect" class="theme-select" aria-label="Theme selector"
                 [value]="theme.current()" (change)="onThemeChange($event)">
+          <option value="bomb">Bomb Squad</option>
           <option value="dark">Dark</option>
           <option value="dark-blue">Blue</option>
           <option value="dark-red">Red</option>
@@ -60,6 +67,7 @@
         <label for="themeSelect" class="visually-hidden">Theme</label>
         <select id="themeSelect" class="theme-select" aria-label="Theme selector"
                 [value]="theme.current()" (change)="onThemeChange($event)">
+          <option value="bomb">Bomb Squad</option>
           <option value="dark">Dark</option>
           <option value="dark-blue">Blue</option>
           <option value="dark-red">Red</option>

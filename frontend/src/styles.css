@@ -660,10 +660,47 @@ body {
 }
 
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   font-family: "Chakra Petch", sans-serif;
   font-size: clamp(1.4rem, 2vw, 1.9rem);
   letter-spacing: 0.04em;
   font-weight: 700;
+}
+
+/* The team's mark. The art carries its own dark ground, so a circle crop
+   turns it into a badge that sits on every theme; the ring and glow are
+   tokens, so on the Bomb Squad theme it rims in brass. */
+.brand-mark {
+  flex: none;
+  width: 2.7rem;
+  height: 2.7rem;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px var(--card-border), 0 0 0.9rem var(--glow-a);
+}
+
+.login-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.hero-mark {
+  flex: none;
+  width: 7.5rem;
+  height: 7.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px var(--card-border), 0 0 2.2rem var(--glow-a);
+}
+
+@media (max-width: 640px) {
+  .login-hero {
+    flex-direction: column;
+    text-align: center;
+  }
 }
 
 .brand-link {
@@ -7986,6 +8023,33 @@ body[data-theme="void"] {
   --surface-controls: rgba(19, 12, 32, 0.7);
   --surface-btn: rgba(28, 18, 46, 0.85);
   --shadow-elev: rgba(0, 0, 0, 0.4);
+}
+
+/* ---- Bomb Squad ---------------------------------------------------------
+   The team's own mark: iron black with a cold teal rim, the skull in worn
+   brass. Brass carries the accents and the text is the skull's cream, so the
+   page reads like the icon; ember stands in for red on losses, and the green
+   is kept muted so it does not fight the metal. */
+body[data-theme="bomb"] {
+  --bg-0: #070b0c;
+  --bg-1: #0f1618;
+  --bg-2: #182224;
+  --card: rgba(12, 18, 20, 0.9);
+  --card-border: rgba(201, 162, 74, 0.34);
+  --text-0: #f1e8cf;
+  --text-1: #b3ab92;
+  --accent: #c9a24a;
+  --accent-2: #e6c26b;
+  --ok: #86d29a;
+  --warn: #f2683f;
+  --glow-a: rgba(201, 162, 74, 0.22);
+  --glow-b: rgba(20, 70, 70, 0.3);
+  --surface-nav: rgba(9, 14, 16, 0.88);
+  --surface-hero-a: rgba(10, 16, 18, 0.96);
+  --surface-hero-b: rgba(22, 32, 34, 0.9);
+  --surface-controls: rgba(12, 19, 21, 0.72);
+  --surface-btn: rgba(24, 34, 36, 0.86);
+  --shadow-elev: rgba(0, 0, 0, 0.42);
 }
 
 /* Rows need to be legible at rest, not only under the cursor. The hover and

@@ -1,14 +1,14 @@
 import { Injectable, signal } from '@angular/core';
 
-export type Theme = 'dark' | 'dark-blue' | 'dark-red' | 'hextech' | 'void' | 'light';
+export type Theme = 'bomb' | 'dark' | 'dark-blue' | 'dark-red' | 'hextech' | 'void' | 'light';
 
-const THEMES: Theme[] = ['dark', 'dark-blue', 'dark-red', 'hextech', 'void', 'light'];
+const THEMES: Theme[] = ['bomb', 'dark', 'dark-blue', 'dark-red', 'hextech', 'void', 'light'];
 const STORAGE_KEY = 'bom-theme';
 
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   readonly themes = THEMES;
-  readonly current = signal<Theme>('hextech');
+  readonly current = signal<Theme>('bomb');
 
   constructor() {
     this.applyTheme(this.preferredTheme());
@@ -19,6 +19,7 @@ export class ThemeService {
   }
 
   themeLabel(theme: Theme): string {
+    if (theme === 'bomb') return 'Bomb Squad';
     if (theme === 'dark') return 'Dark';
     if (theme === 'dark-red') return 'Red';
     if (theme === 'hextech') return 'Hextech';
@@ -37,11 +38,12 @@ export class ThemeService {
     if (stored) {
       return stored;
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'hextech' : 'light';
+    // The team's own theme is the default; a stored choice still wins.
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'bomb' : 'light';
   }
 
   applyTheme(theme: Theme): void {
-    const selected = this.isValid(theme) ? theme : 'hextech';
+    const selected = this.isValid(theme) ? theme : 'bomb';
     document.body.setAttribute('data-theme', selected);
     localStorage.setItem(STORAGE_KEY, selected);
     this.current.set(selected);
