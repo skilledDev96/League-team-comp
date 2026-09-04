@@ -15,6 +15,7 @@ import { parseRiotIds } from '../../core/riot-id';
 import {
   appendToRoster,
   banCandidates,
+  bench,
   countersAreForSeat,
   countersFor,
   orderedRoster,
@@ -27,6 +28,7 @@ import {
   recentHidden,
   reseatOpponent,
   setSubstitute,
+  starters,
   scoutedAgo
 } from '../../core/opponent-view';
 import { ScrimGroup, groupScrims, slugOpponent } from './scrim-groups';
@@ -272,7 +274,11 @@ export class ScrimsComponent {
   }
 
   protected roster(group: ScrimGroup): OpponentPlayer[] {
-    return orderedRoster(this.opponentFor(group).opponentPlayers ?? []);
+    return starters(this.opponentFor(group).opponentPlayers ?? []);
+  }
+
+  protected bench(group: ScrimGroup): OpponentPlayer[] {
+    return bench(this.opponentFor(group).opponentPlayers ?? []);
   }
 
   protected scoutedAt(group: ScrimGroup): string {

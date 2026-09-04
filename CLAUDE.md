@@ -120,8 +120,10 @@ roles), `appendToRoster` adds a single Name#TAG without replacing the rest, and
 `reseatOpponent` only swaps seats on a five-player roster — with subs it just
 sets the role, since two players sharing one is the truth of the roster. Which
 of the two is the bench is `OpponentPlayer.sub`, set by hand through
-`setSubstitute` (the Sub toggle in the seat cell); `orderedRoster` puts the sub
-under the starter on the same seat, and the ban board tags their picks. **The roster table's read-side helpers live in
+`setSubstitute` (the Sub toggle in the seat cell). `starters` and `bench` split
+the roster: the table and the ban board read only the five, and the bench is
+one line under the table with a "to starters" button, because six rows was
+too much to take in. **The roster table's read-side helpers live in
 `core/opponent-view.ts`** (`queueRows`, `reseatOpponent`, `recentForSeat`, the
 rate bands…) and are shared by the plan page and the scrims page; do not re-add
 copies to either component. `banCandidates` there feeds the **ban board** that

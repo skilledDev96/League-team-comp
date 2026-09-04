@@ -11645,15 +11645,66 @@ body:has(.draft-stage) .edit-mode-frame {
   color: var(--accent);
 }
 
-.opp-row.is-sub .opp-name {
-  opacity: 0.82;
+/* The bench: one line under the table, so the five above read as five. */
+.opp-bench {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+  font-size: 0.85rem;
 }
 
-.opp-ban-sub {
-  margin-left: 0.3rem;
-  font-style: normal;
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
+.opp-bench-label {
+  margin-right: 0.2rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--text-1);
+}
+
+.opp-bench-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card-border) 10%, transparent);
+}
+
+.opp-bench-player em {
+  font-style: normal;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.opp-bench-player a {
+  font-weight: 600;
+}
+
+.opp-bench-rank {
+  font-size: 0.7rem;
+  color: var(--text-1);
+}
+
+.opp-bench-promote {
+  padding: 0.1rem 0.5rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.opp-bench-promote:hover,
+.opp-bench-promote:focus-visible {
+  border-color: var(--accent);
+  color: var(--text-0);
+  outline: none;
 }

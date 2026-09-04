@@ -27,6 +27,19 @@ export function orderedRoster(players: readonly OpponentPlayer[]): OpponentPlaye
   );
 }
 
+/** The five they field — everyone not flagged as a sub — in seat order. */
+export function starters(players: readonly OpponentPlayer[]): OpponentPlayer[] {
+  return orderedRoster(players.filter((p) => !p.sub));
+}
+
+/**
+ * Their bench, in seat order. Kept off the table and off the ban board so
+ * five seats read as five; a sub is one line under the table until promoted.
+ */
+export function bench(players: readonly OpponentPlayer[]): OpponentPlayer[] {
+  return orderedRoster(players.filter((p) => p.sub));
+}
+
 /**
  * Flag one of their players as the substitute, or clear it. Found by identity
  * like reseatOpponent; returns null when nothing would change. The flag is
@@ -240,8 +253,6 @@ export interface BanCandidate {
   wins: number;
   /** Rounded percentage; 0 when there is no record behind the name. */
   winRate: number;
-  /** Their substitute's pick: still worth a ban, but not a certain start. */
-  sub?: boolean;
 }
 
 /**
@@ -261,6 +272,7 @@ export interface BanCandidate {
 export function banCandidates(players: readonly OpponentPlayer[], limit = 6): BanCandidate[] {
   const out: BanCandidate[] = [];
   for (const player of players) {
+    if (player.sub) continue; // the board answers "who do we ban of the five"
     const merged = new Map<string, { games: number; wins: number }>();
     for (const row of queueRows(player)) {
       for (const rec of row.pool) {
@@ -277,8 +289,7 @@ export function banCandidates(players: readonly OpponentPlayer[], limit = 6): Ba
         role: player.role,
         games,
         wins,
-        winRate: games ? Math.round((wins / games) * 100) : 0,
-        ...(player.sub ? { sub: true } : {})
+        winRate: games ? Math.round((wins / games) * 100) : 0
       }))
       .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
     out.push(...theirs.slice(0, 2));

@@ -254,7 +254,7 @@
                             <img class="opp-ban-art" [src]="ui.championIconUrl(c.champion)" [alt]="c.champion" loading="lazy" />
                             <div class="opp-ban-body">
                               <span class="opp-ban-champ">{{ c.champion }}</span>
-                              <span class="opp-ban-who"><em>{{ c.role }}</em> {{ c.player }}@if (c.sub) { <i class="opp-ban-sub">sub</i> }</span>
+                              <span class="opp-ban-who"><em>{{ c.role }}</em> {{ c.player }}</span>
                             </div>
                             <span class="opp-ban-stat" [appTip]="c.games ? c.wins + ' of ' + c.games + ' won at ' + c.role + ', solo and flex together' : 'Scouted by name only — no games recorded'">
                               <b>{{ c.games }}g</b>
@@ -287,7 +287,7 @@
                     </div>
 
                     @for (opp of roster(group); track opp.name + opp.riotTag) {
-                      <div class="opp-row" role="row" [class.is-sub]="opp.sub">
+                      <div class="opp-row" role="row">
                         <span class="opp-cell opp-seat" role="cell">
                           @if (auth.editing()) {
                             <select class="opp-role-pick" [ngModel]="opp.role"
@@ -385,6 +385,28 @@
                     }
                   </div>
                   </div>
+                  <!-- The bench, off the table: five seats should read as five.
+                       A sub goes back into the five from here. -->
+                  @if (bench(group); as subs) {
+                    @if (subs.length) {
+                      <div class="opp-bench">
+                        <span class="opp-bench-label">Bench</span>
+                        @for (opp of subs; track opp.name + opp.riotTag) {
+                          <span class="opp-bench-player">
+                            <em>{{ opp.role }}</em>
+                            <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
+                               target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>
+                            @if (queueRows(opp)[0]?.rank; as rank) { <span class="opp-bench-rank">{{ rank }}</span> }
+                            @if (auth.editing()) {
+                              <button type="button" class="opp-bench-promote"
+                                      [appTip]="'Move ' + opp.name + ' into the five'"
+                                      (click)="setOpponentSub(group, opp, false)">to starters</button>
+                            }
+                          </span>
+                        }
+                      </div>
+                    }
+                  }
                 }
               </div>
 

@@ -3,6 +3,7 @@ import { OpponentPlayer } from '../models/team.models';
 import {
   appendToRoster,
   banCandidates,
+  bench,
   orderedRoster,
   poolFor,
   queueRows,
@@ -11,7 +12,8 @@ import {
   recentHidden,
   reseatOpponent,
   scoutedAgo,
-  setSubstitute
+  setSubstitute,
+  starters
 } from './opponent-view';
 
 const p = (name: string, role: OpponentPlayer['role'], extra: Partial<OpponentPlayer> = {}): OpponentPlayer => ({
@@ -160,6 +162,20 @@ describe('banCandidates', () => {
 
   it('is empty for an empty roster', () => {
     expect(banCandidates([])).toEqual([]);
+  });
+
+  it('leaves the bench out — the board is about the five', () => {
+    const adc = p('starter', 'ADC', { byQueue: { solo: { poolByRole: { ADC: [rec('Jinx', 30, 15)] } } } });
+    const sub = p('bench', 'ADC', { sub: true, byQueue: { solo: { poolByRole: { ADC: [rec('Kaisa', 40, 30)] } } } });
+    expect(banCandidates([adc, sub]).map((c) => c.champion)).toEqual(['Jinx']);
+  });
+});
+
+describe('starters / bench', () => {
+  it('splits a six-player roster into the five and the bench, both in seat order', () => {
+    const roster = [p('sub', 'ADC', { sub: true }), p('adc', 'ADC'), p('top', 'Top')];
+    expect(starters(roster).map((x) => x.name)).toEqual(['top', 'adc']);
+    expect(bench(roster).map((x) => x.name)).toEqual(['sub']);
   });
 });
 

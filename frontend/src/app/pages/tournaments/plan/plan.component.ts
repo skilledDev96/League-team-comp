@@ -12,6 +12,7 @@ import { parseRiotIds } from '../../../core/riot-id';
 import {
   appendToRoster,
   banCandidates,
+  bench,
   countersAreForSeat,
   countersFor,
   orderedRoster as sortRoster,
@@ -24,6 +25,7 @@ import {
   recentHidden,
   reseatOpponent,
   setSubstitute,
+  starters,
   scoutedAgo
 } from '../../../core/opponent-view';
 import { ChampionChipComponent } from '../../../shared/champion-chip.component';
@@ -352,7 +354,11 @@ export class TournamentPlanComponent {
    * read top-to-support is the one shape everybody already knows how to scan.
    */
   protected orderedRoster(series: TournamentSeries): OpponentPlayer[] {
-    return sortRoster(series.opponentPlayers ?? []);
+    return starters(series.opponentPlayers ?? []);
+  }
+
+  protected bench(series: TournamentSeries): OpponentPlayer[] {
+    return bench(series.opponentPlayers ?? []);
   }
 
   /**
