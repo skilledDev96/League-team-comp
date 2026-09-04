@@ -227,12 +227,15 @@ budget is the reason the cache exists at all.
 
 **`matchCache` is shared, and player enrichment reads it before Riot.**
 `enrichPlayer` used to read a fixed twelve matches per queue because each was a
-Riot call. It now asks for `ENRICH_SAMPLE_SIZE` (40) match ids — one call at any
-length — reads them from `matchCache` in a single `getAll`, and spends Riot
-calls only on the ids that miss, capped at `MAX_ENRICH_FETCHES` (12, the old
-sample size, so a cold cache is never worse than before). Everything fetched is
-written back through `getCachedMatch`, so a second run over the same player is
-cheaper than the first.
+Riot call. It now pages `ENRICH_SAMPLE_PAGES` (3) lists of `ENRICH_SAMPLE_SIZE`
+(100, Riot's per-request ceiling) match ids — one call per hundred — reads
+them from `matchCache` in a single `getAll`, and spends Riot calls only on the
+ids that miss, capped at `MAX_ENRICH_FETCHES` (40 per queue per run; solo and
+flex together fit one player inside the key's hundred calls per two minutes).
+Everything fetched is written back through `getCachedMatch`, so scouting the
+same player again reads the *next* forty for the same price. Each queue's
+record carries `sample` (read / available / unread), which the roster table
+shows under the rank as `40/300+` — the plus is the invitation to scout again.
 
 The cache only covers `TEAM_QUEUES` (440 flex, 700 clash), so **solo queue
 starts cold** and warms as enrichment runs; flex — the queue

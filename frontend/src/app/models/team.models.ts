@@ -517,6 +517,12 @@ export interface OpponentQueuePool {
   poolByRole?: Partial<Record<Role, ChampionRecord[]>>;
   bansByRole?: Partial<Record<Role, ChampionRecord[]>>;
   championRecords?: ChampionRecord[];
+  /**
+   * How much of their recent history this record is built from: games read
+   * against games Riot listed, and how many are still unread. One scout reads
+   * a batch; the next reads the next batch, so "unread" is an invitation.
+   */
+  sample?: { read: number; available: number; unread: number };
 }
 
 export interface OpponentPlayer {

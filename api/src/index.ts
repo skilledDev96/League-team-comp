@@ -94,6 +94,8 @@ interface QueuePool {
   poolByRole?: Partial<Record<KnownRole, ChampionRecord[]>>;
   bansByRole?: Partial<Record<KnownRole, ChampionRecord[]>>;
   championRecords?: ChampionRecord[];
+  /** How much of the recent history this record is built from. */
+  sample?: { read: number; available: number; unread: number };
 }
 
 interface EnrichResponse {
@@ -120,6 +122,8 @@ interface EnrichResponse {
   bansByRole?: Partial<Record<KnownRole, ChampionRecord[]>>;
   /** Every champion they played, with games and wins — the fallback pool. */
   championRecords?: ChampionRecord[];
+  /** How much of the recent history this record is built from. */
+  sample?: { read: number; available: number; unread: number };
   /**
    * Champions played in the last two months, newest first, from mastery.
    *
@@ -505,17 +509,18 @@ interface RiotMatch {
  * How far back enrichment looks per queue.
  *
  * The old sample was twelve, because twelve was twelve Riot calls. Reading
- * the cache first decouples the two: the id list costs one call at any
- * length, and every id already cached is free.
+ * the cache first decouples the two: an id list costs one call per hundred,
+ * and every id already cached is free.
  *
  * A hundred is Riot's own ceiling for a single ids request — 'Valid values: 0
- * to 100' — so this is as wide as one call reaches. Going further would mean
- * paging, another call per hundred, for games old enough that they describe a
- * different player. What it does *not* change is the Riot budget: misses are
- * capped separately by MAX_ENRICH_FETCHES, so a wider window costs Firestore
- * reads and nothing else.
+ * to 100' — so the window is paged: three calls reach three hundred games,
+ * which for an active player is a season rather than a fortnight. What paging
+ * does *not* change is the Riot budget: misses are capped separately by
+ * MAX_ENRICH_FETCHES per run, so a wider window costs Firestore reads and
+ * nothing else — and each scout reads the next batch of what is still unread.
  */
 const ENRICH_SAMPLE_SIZE = 100;
+const ENRICH_SAMPLE_PAGES = 3;
 
 /**
  * Read many cache entries at once.
@@ -574,12 +579,19 @@ async function fetchRiotQueueEnrichment(
     ? rankedEntries.find((entry) => entry.queueType === rankedQueueType)
     : undefined;
 
-  // Ask for a wide window: the id list is one call whatever its length, and
-  // most of what comes back may already be in the cache.
-  const matchIds = await riotFetch<string[]>(
-    `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${account.puuid}/ids?queue=${queueId}&start=0&count=${ENRICH_SAMPLE_SIZE}`,
-    apiKey
-  );
+  // Ask for a wide window: an id page is one call whatever it holds, and most
+  // of what comes back may already be in the cache. A short page is the end
+  // of their history, so stop there rather than asking for an empty one.
+  const matchIds: string[] = [];
+  for (let page = 0; page < ENRICH_SAMPLE_PAGES; page += 1) {
+    const ids = await riotFetch<string[]>(
+      'https://' + routing.regional + '.api.riotgames.com/lol/match/v5/matches/by-puuid/' + account.puuid +
+        '/ids?queue=' + queueId + '&start=' + page * ENRICH_SAMPLE_SIZE + '&count=' + ENRICH_SAMPLE_SIZE,
+      apiKey
+    );
+    matchIds.push(...ids);
+    if (ids.length < ENRICH_SAMPLE_SIZE) break;
+  }
 
   // Everything the comp analysis has already paid for, read in one batch.
   const plan = planSample(matchIds, await readCachedMatches(matchIds));
@@ -680,6 +692,7 @@ async function fetchRiotQueueEnrichment(
     poolByRole,
     bansByRole,
     championRecords: summary.championRecords,
+    sample: { read: gathered.length, available: matchIds.length, unread: plan.skipped },
     top3,
     bans,
     queueStats: {
@@ -817,7 +830,8 @@ function queuePool(stats: EnrichResponse | undefined): QueuePool | undefined {
     positions: stats.positions,
     poolByRole: stats.poolByRole,
     bansByRole: stats.bansByRole,
-    championRecords: stats.championRecords
+    championRecords: stats.championRecords,
+    sample: stats.sample
   };
   const hasAnything =
     pool.top3?.length ||

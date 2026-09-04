@@ -183,6 +183,8 @@ export function rateBand(r: ChampionRecord): string {
 }
 
 export interface QueueRow {
+  /** Games read against games listed, when the record knows. */
+  sample?: { read: number; available: number; unread: number };
   key: 'solo' | 'flex' | 'all';
   label: string;
   rank?: string;
@@ -234,7 +236,8 @@ export function queueRows(player: OpponentPlayer): QueueRow[] {
         ? seatBans
         : (queue?.bans ?? []).map((champion) => ({ champion, games: 0, wins: 0 }))
       ).slice(0, 4),
-      forSeat: !!seatPool?.length
+      forSeat: !!seatPool?.length,
+      sample: queue?.sample
     };
   };
 

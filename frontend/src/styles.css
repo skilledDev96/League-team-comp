@@ -11937,3 +11937,25 @@ body:has(.draft-stage) .edit-mode-frame {
   border-color: var(--accent);
   box-shadow: 0 0 0.8rem var(--glow-a);
 }
+
+/* How much of their history a queue's record is built from: read/listed,
+   with a plus when a scout would read further. Sits under the rank. */
+.opp-cell.opp-ranks {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.opp-sample {
+  order: 9;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.opp-sample em {
+  font-style: normal;
+  color: var(--accent);
+}

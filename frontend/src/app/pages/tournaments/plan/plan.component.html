@@ -445,8 +445,8 @@
                           ? 'Scouting…'
                           : 'Scout all ' + (series.opponentPlayers?.length ?? 0) + ' from Riot' }}
                       <small class="opp-step-hint">
-                        Looks up what each of them plays. About a minute per player &mdash;
-                        Riot rate-limits, so it waits rather than failing.
+                        Looks up what each of them plays. Reads up to 40 new games per queue each time, so a couple of minutes per player &mdash;
+                        Riot rate-limits, so it waits rather than failing. Scout again to read further back.
                       </small>
                     </span>
                   </button>
@@ -559,6 +559,12 @@
                            before the split has one row, not two empty ones. -->
                       @for (q of queueRows(opp); track q.key) {
                         <span class="opp-cell opp-ranks" role="cell">
+                          @if (q.sample; as s) {
+                            <small class="opp-sample"
+                                   [appTip]="s.read + ' of the ' + s.available + ' recent ' + (q.label || '') + ' games Riot lists were read' + (s.unread ? ' — scout again to read the next batch' : '')">
+                              {{ s.read }}/{{ s.available }}@if (s.unread) { <em>+</em> }
+                            </small>
+                          }
                           @if (q.rank) {
                             <span class="opp-rank" [class.is-flex]="q.key === 'flex'"
                                   [appTip]="(q.key === 'flex' ? 'Ranked flex, the queue a team plays together' : q.key === 'solo' ? 'Ranked solo/duo' : 'Rank') + (q.record ? ' — ' + q.record : '')">

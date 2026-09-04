@@ -105,12 +105,17 @@ export function cachedToMatch(cached: SampleMatch): AdaptedMatch {
 }
 
 /**
- * How many matches enrichment may pull from Riot per queue when the cache is
- * cold. Held at the old fixed sample size on purpose: a player nobody has
- * analysed is no worse off than before, and everything fetched is cached, so
- * the next run over them costs less.
+ * How many matches enrichment may pull from Riot per queue per run when the
+ * cache is cold.
+ *
+ * Forty, up from the old twelve: a pool built from twelve games was too thin
+ * to draft against, and the personal key allows a hundred calls per two
+ * minutes — solo and flex together spend eighty-odd on one player, so a
+ * scout takes a couple of minutes per player and waits on the limit rather
+ * than failing. Everything fetched is cached, so scouting again reads the
+ * next forty for the same price, and the response says how much is unread.
  */
-export const MAX_ENRICH_FETCHES = 12;
+export const MAX_ENRICH_FETCHES = 40;
 
 export interface SamplePlan {
   /** Cache entries good enough to summarise, in the order the ids arrived. */
