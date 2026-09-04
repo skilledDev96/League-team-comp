@@ -235,6 +235,38 @@
                 }
 
                 @if (o.opponentPlayers?.length) {
+                  <!-- The ban board: the answer the table exists to give, pulled out above
+                       it. The few champions across their five that they actually live on,
+                       each one click from the target-ban list. -->
+                  @if (banCandidates(o.opponentPlayers ?? []); as board) {
+                    @if (board.length) {
+                      <div class="opp-banboard" aria-label="Ban candidates">
+                        @for (c of board; track c.player + c.champion) {
+                          <div class="opp-ban" [class.is-banned]="isTargetBan(group, c.champion)">
+                            <img class="opp-ban-art" [src]="ui.championIconUrl(c.champion)" [alt]="c.champion" loading="lazy" />
+                            <div class="opp-ban-body">
+                              <span class="opp-ban-champ">{{ c.champion }}</span>
+                              <span class="opp-ban-who"><em>{{ c.role }}</em> {{ c.player }}</span>
+                            </div>
+                            <span class="opp-ban-stat" [appTip]="c.games ? c.wins + ' of ' + c.games + ' won at ' + c.role + ', solo and flex together' : 'Scouted by name only — no games recorded'">
+                              <b>{{ c.games }}g</b>
+                              @if (c.games) {
+                                <small [class.is-good]="c.winRate >= 55" [class.is-poor]="c.winRate < 45">{{ c.winRate }}%</small>
+                              } @else {
+                                <small>no record</small>
+                              }
+                            </span>
+                            @if (auth.editing()) {
+                              <button type="button" class="tag opp-ban-add" [disabled]="isTargetBan(group, c.champion)"
+                                      (click)="addTargetBan(group, c.champion)">
+                                {{ isTargetBan(group, c.champion) ? 'Target ban' : 'Add to target bans' }}
+                              </button>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  }
                   <div class="opp-scroll">
                   <div class="opp-table" role="table" aria-label="Their roster">
                     <div class="opp-head" role="row">

@@ -14,6 +14,7 @@ import { noteLines } from '../../core/note-lines';
 import { parseRiotIds } from '../../core/riot-id';
 import {
   appendToRoster,
+  banCandidates,
   countersAreForSeat,
   countersFor,
   orderedRoster,
@@ -203,6 +204,19 @@ export class ScrimsComponent {
 
   protected setOpponentBans(group: ScrimGroup, bans: string[]): void {
     this.patchOpponent(group, { bans: bans.length ? bans : undefined });
+  }
+
+  /** The champions a ban would actually hurt, across their five. */
+  protected readonly banCandidates = banCandidates;
+
+  protected isTargetBan(group: ScrimGroup, champion: string): boolean {
+    return (this.opponentFor(group).bans ?? []).some((b) => b.toLowerCase() === champion.toLowerCase());
+  }
+
+  /** One click from the ban board to the target-ban list, without duplicates. */
+  protected addTargetBan(group: ScrimGroup, champion: string): void {
+    if (this.isTargetBan(group, champion)) return;
+    this.setOpponentBans(group, [...(this.opponentFor(group).bans ?? []), champion]);
   }
 
   /** Whether there is anything worth showing in the panel when not editing. */

@@ -11,6 +11,7 @@ import { noteLines } from '../../../core/note-lines';
 import { parseRiotIds } from '../../../core/riot-id';
 import {
   appendToRoster,
+  banCandidates,
   countersAreForSeat,
   countersFor,
   orderedRoster as sortRoster,
@@ -264,6 +265,19 @@ export class TournamentPlanComponent {
 
   protected setSeriesBans(series: TournamentSeries, bans: string[]): void {
     this.patchSeries(series, { bans: bans.length ? bans : undefined });
+  }
+
+  /** The champions a ban would actually hurt, across their five. */
+  protected readonly banCandidates = banCandidates;
+
+  protected isTargetBan(series: TournamentSeries, champion: string): boolean {
+    return (series.bans ?? []).some((b) => b.toLowerCase() === champion.toLowerCase());
+  }
+
+  /** One click from the ban board to the target-ban list, without duplicates. */
+  protected addTargetBan(series: TournamentSeries, champion: string): void {
+    if (this.isTargetBan(series, champion)) return;
+    this.setSeriesBans(series, [...(series.bans ?? []), champion]);
   }
 
   // ---- Their roster -------------------------------------------------------

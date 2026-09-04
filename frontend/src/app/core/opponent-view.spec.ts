@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { OpponentPlayer } from '../models/team.models';
 import {
   appendToRoster,
+  banCandidates,
   orderedRoster,
   poolFor,
   queueRows,
@@ -90,6 +91,52 @@ describe('appendToRoster', () => {
 
   it('returns the roster unchanged for nothing new', () => {
     expect(appendToRoster([], five)).toEqual(five);
+  });
+});
+
+describe('banCandidates', () => {
+  const rec = (champion: string, games: number, wins: number) => ({ champion, games, wins });
+
+  it('adds solo and flex together and ranks by games, win rate as the tie-break', () => {
+    const top = p('gurke', 'Top', {
+      byQueue: {
+        solo: { poolByRole: { Top: [rec('Aatrox', 21, 11), rec('Sion', 3, 3)] } },
+        flex: { poolByRole: { Top: [rec('Aatrox', 9, 3), rec('Ornn', 6, 3)] } }
+      }
+    });
+    const [first, second] = banCandidates([top]);
+    // Aatrox: 30 games, 14 wins across both queues — the comfort pick.
+    expect(first).toMatchObject({ champion: 'Aatrox', player: 'gurke', role: 'Top', games: 30, wins: 14, winRate: 47 });
+    // Ornn on 6 beats Sion on 3, however shiny the 100%.
+    expect(second.champion).toBe('Ornn');
+  });
+
+  it('takes at most two per player, so one player cannot fill the board', () => {
+    const jg = p('spezi', 'Jungle', {
+      byQueue: { solo: { poolByRole: { Jungle: [rec('Vi', 13, 11), rec('Lee', 12, 6), rec('Kha', 11, 6), rec('Xin', 10, 5)] } } }
+    });
+    const sup = p('esc', 'Support', {
+      byQueue: { solo: { poolByRole: { Support: [rec('Thresh', 4, 4)] } } }
+    });
+    const board = banCandidates([jg, sup]);
+    expect(board.filter((c) => c.player === 'spezi')).toHaveLength(2);
+    expect(board.map((c) => c.champion)).toEqual(['Vi', 'Lee', 'Thresh']);
+  });
+
+  it('caps the board', () => {
+    const many = ['a', 'b', 'c', 'd', 'e'].map((n, i) =>
+      p(n, 'Mid', { byQueue: { solo: { poolByRole: { Mid: [rec('X' + i, 10 - i, 5), rec('Y' + i, 9 - i, 4)] } } } })
+    );
+    expect(banCandidates(many, 6)).toHaveLength(6);
+  });
+
+  it('still lists a name-only roster, with no record behind it', () => {
+    const board = banCandidates([p('old', 'ADC', { top3: ['Jinx', 'Caitlyn'] })]);
+    expect(board[0]).toMatchObject({ champion: 'Jinx', games: 0, winRate: 0 });
+  });
+
+  it('is empty for an empty roster', () => {
+    expect(banCandidates([])).toEqual([]);
   });
 });
 

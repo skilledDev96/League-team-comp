@@ -11028,6 +11028,69 @@ body:has(.draft-stage) .edit-mode-frame {
    default before, white on a dark panel, and read as something unfinished. */
 .opp-add-player > .field { flex: 1 1 18rem; min-width: 0; margin: 0; }
 
+/* ---- Ban board ------------------------------------------------------------
+   The answer the roster table exists to give, pulled out above it: the few
+   champions across their five that they actually live on, each one click from
+   the target-ban list. Bigger art than the table, because these are the ones
+   to recognise in a draft, not the ones to scan past. */
+.opp-banboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.5rem;
+  margin: 0.6rem 0 0.9rem;
+}
+
+.opp-ban {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.6rem;
+  background: var(--surface-btn);
+}
+.opp-ban.is-banned {
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--card-border));
+  background: color-mix(in srgb, var(--warn) 10%, var(--surface-btn));
+}
+
+.opp-ban-art {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 0.5rem;
+  object-fit: cover;
+}
+
+.opp-ban-body { display: grid; gap: 0.1rem; min-width: 0; }
+.opp-ban-champ { font-weight: 700; line-height: 1.15; }
+.opp-ban-who {
+  font-size: 0.75rem;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.opp-ban-who em { font-style: normal; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.65rem; opacity: 0.8; }
+
+/* Games first, big; the rate beside it, coloured the way the table colours it. */
+.opp-ban-stat {
+  display: grid;
+  justify-items: end;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.opp-ban-stat b { font-size: 1.05rem; }
+.opp-ban-stat small { font-size: 0.72rem; color: var(--text-1); }
+.opp-ban-stat small.is-good { color: var(--ok); }
+.opp-ban-stat small.is-poor { color: var(--warn); }
+
+.opp-ban-add {
+  grid-column: 1 / -1;
+  justify-self: end;
+  margin-top: 0.1rem;
+}
+
 /* Refresh is an action, not a word in a sentence: a button at the end of the
    hint row, so it is found without reading. */
 .scrim-refresh-hint > .view-btn {
@@ -11230,7 +11293,7 @@ body:has(.draft-stage) .edit-mode-frame {
   display: inline-flex;
   align-items: baseline;
   gap: 0.15rem;
-  font-size: 0.62rem;
+  font-size: 0.76rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -11241,7 +11304,7 @@ body:has(.draft-stage) .edit-mode-frame {
 .opp-champ-stat em {
   font-style: normal;
   font-weight: 400;
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   opacity: 0.6;
 }
 

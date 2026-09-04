@@ -209,6 +209,58 @@ export function queueRows(player: OpponentPlayer): QueueRow[] {
   ];
 }
 
+/** One champion worth banning, and the player it would take it from. */
+export interface BanCandidate {
+  champion: string;
+  player: string;
+  role: Role;
+  games: number;
+  wins: number;
+  /** Rounded percentage; 0 when there is no record behind the name. */
+  winRate: number;
+}
+
+/**
+ * The champions across their five that a ban would actually hurt.
+ *
+ * The roster table shows everything and so answers nothing: deciding who to
+ * ban meant scanning two rows of small icons per player. This is the answer
+ * the table exists to give — for each player, the champion they play most in
+ * their seat with both queues added together, ranked by games because a ban
+ * is aimed at comfort, with win rate beside it for the judgement call. Two per
+ * player go in, so a genuine two-champion player shows both; the top few
+ * across the team come out.
+ *
+ * Games first, win rate to break ties. A 100% over three games is a curiosity;
+ * a 52% over twenty-one is what they will pick under pressure.
+ */
+export function banCandidates(players: readonly OpponentPlayer[], limit = 6): BanCandidate[] {
+  const out: BanCandidate[] = [];
+  for (const player of players) {
+    const merged = new Map<string, { games: number; wins: number }>();
+    for (const row of queueRows(player)) {
+      for (const rec of row.pool) {
+        const m = merged.get(rec.champion) ?? { games: 0, wins: 0 };
+        m.games += rec.games;
+        m.wins += rec.wins;
+        merged.set(rec.champion, m);
+      }
+    }
+    const theirs = [...merged.entries()]
+      .map(([champion, { games, wins }]) => ({
+        champion,
+        player: player.name,
+        role: player.role,
+        games,
+        wins,
+        winRate: games ? Math.round((wins / games) * 100) : 0
+      }))
+      .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
+    out.push(...theirs.slice(0, 2));
+  }
+  return out.sort((a, b) => b.games - a.games || b.winRate - a.winRate).slice(0, limit);
+}
+
 /**
  * What they have played lately **in this seat**.
  *

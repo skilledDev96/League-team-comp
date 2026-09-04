@@ -121,7 +121,11 @@ roles), `appendToRoster` adds a single Name#TAG without replacing the rest, and
 sets the role, since two players sharing one is the truth of the roster. **The roster table's read-side helpers live in
 `core/opponent-view.ts`** (`queueRows`, `reseatOpponent`, `recentForSeat`, the
 rate bands…) and are shared by the plan page and the scrims page; do not re-add
-copies to either component. `core/note-lines.ts` is likewise the one note parser.
+copies to either component. `banCandidates` there feeds the **ban board** that
+sits above the roster table on both pages: solo and flex merged per champion,
+most-played first with win rate as the tie-break, at most two per player so one
+one-trick cannot fill it, capped at six; a card's button adds it to the target
+bans. `core/note-lines.ts` is likewise the one note parser.
 
 **`/tournaments` → Draft is a live draft room**, used while a draft is actually
 happening, and that constraint drives its design. `pages/tournaments/draft/`
