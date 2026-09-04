@@ -26,6 +26,7 @@ import {
   recentForSeat,
   recentHidden,
   reseatOpponent,
+  setSubstitute,
   scoutedAgo
 } from '../../core/opponent-view';
 import { ScrimGroup, groupScrims, slugOpponent } from './scrim-groups';
@@ -262,6 +263,11 @@ export class ScrimsComponent {
 
   protected setOpponentRole(group: ScrimGroup, player: OpponentPlayer, role: Role): void {
     const roster = reseatOpponent(this.opponentFor(group).opponentPlayers ?? [], player, role);
+    if (roster) this.patchOpponent(group, { opponentPlayers: roster });
+  }
+
+  protected setOpponentSub(group: ScrimGroup, player: OpponentPlayer, sub: boolean): void {
+    const roster = setSubstitute(this.opponentFor(group).opponentPlayers ?? [], player, sub);
     if (roster) this.patchOpponent(group, { opponentPlayers: roster });
   }
 

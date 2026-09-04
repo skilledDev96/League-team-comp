@@ -10,7 +10,8 @@ import {
   recentForSeat,
   recentHidden,
   reseatOpponent,
-  scoutedAgo
+  scoutedAgo,
+  setSubstitute
 } from './opponent-view';
 
 const p = (name: string, role: OpponentPlayer['role'], extra: Partial<OpponentPlayer> = {}): OpponentPlayer => ({
@@ -30,6 +31,28 @@ describe('orderedRoster', () => {
     const roster = [p('c', 'Support'), p('a', 'Top')];
     orderedRoster(roster);
     expect(roster[0].name).toBe('c');
+  });
+
+  it('puts the substitute under the starter on the same seat', () => {
+    const roster = [p('bench', 'ADC', { sub: true }), p('starter', 'ADC'), p('sup', 'Support')];
+    expect(orderedRoster(roster).map((x) => x.name)).toEqual(['starter', 'bench', 'sup']);
+  });
+});
+
+describe('setSubstitute', () => {
+  const roster = [p('a', 'ADC'), p('b', 'ADC')];
+
+  it('flags by identity and clears by dropping the key', () => {
+    const flagged = setSubstitute(roster, roster[1], true)!;
+    expect(flagged[1].sub).toBe(true);
+    expect(flagged[0].sub).toBeUndefined();
+    const cleared = setSubstitute(flagged, flagged[1], false)!;
+    expect('sub' in cleared[1]).toBe(false);
+  });
+
+  it('returns null when nothing would change', () => {
+    expect(setSubstitute(roster, roster[0], false)).toBeNull();
+    expect(setSubstitute(roster, p('stranger', 'Mid'), true)).toBeNull();
   });
 });
 

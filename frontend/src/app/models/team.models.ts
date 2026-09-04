@@ -520,6 +520,11 @@ export interface OpponentQueuePool {
 export interface OpponentPlayer {
   /** The seat we expect them in. Their pool is shown when that seat is picking. */
   role: Role;
+  /**
+   * Their substitute, set by hand. A six-player roster has two people on one
+   * seat and nothing in the data says which is the starter; this does.
+   */
+  sub?: boolean;
   /** Riot game name, without the tag. */
   name: string;
   /** Riot tag line, without the hash. */

@@ -23,6 +23,7 @@ import {
   recentForSeat,
   recentHidden,
   reseatOpponent,
+  setSubstitute,
   scoutedAgo
 } from '../../../core/opponent-view';
 import { ChampionChipComponent } from '../../../shared/champion-chip.component';
@@ -336,6 +337,11 @@ export class TournamentPlanComponent {
    */
   protected setOpponentRole(series: TournamentSeries, player: OpponentPlayer, role: Role): void {
     const roster = reseatOpponent(series.opponentPlayers ?? [], player, role);
+    if (roster) this.patchSeries(series, { opponentPlayers: roster });
+  }
+
+  protected setOpponentSub(series: TournamentSeries, player: OpponentPlayer, sub: boolean): void {
+    const roster = setSubstitute(series.opponentPlayers ?? [], player, sub);
     if (roster) this.patchSeries(series, { opponentPlayers: roster });
   }
 

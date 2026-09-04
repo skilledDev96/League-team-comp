@@ -246,7 +246,7 @@
                             <img class="opp-ban-art" [src]="ui.championIconUrl(c.champion)" [alt]="c.champion" loading="lazy" />
                             <div class="opp-ban-body">
                               <span class="opp-ban-champ">{{ c.champion }}</span>
-                              <span class="opp-ban-who"><em>{{ c.role }}</em> {{ c.player }}</span>
+                              <span class="opp-ban-who"><em>{{ c.role }}</em> {{ c.player }}@if (c.sub) { <i class="opp-ban-sub">sub</i> }</span>
                             </div>
                             <span class="opp-ban-stat" [appTip]="c.games ? c.wins + ' of ' + c.games + ' won at ' + c.role + ', solo and flex together' : 'Scouted by name only — no games recorded'">
                               <b>{{ c.games }}g</b>
@@ -279,7 +279,7 @@
                     </div>
 
                     @for (opp of roster(group); track opp.name + opp.riotTag) {
-                      <div class="opp-row" role="row">
+                      <div class="opp-row" role="row" [class.is-sub]="opp.sub">
                         <span class="opp-cell opp-seat" role="cell">
                           @if (auth.editing()) {
                             <select class="opp-role-pick" [ngModel]="opp.role"
@@ -288,8 +288,13 @@
                                     [attr.aria-label]="'Seat for ' + opp.name">
                               @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }
                             </select>
+                            <button type="button" class="opp-sub-toggle" [class.active]="opp.sub"
+                                    [attr.aria-pressed]="!!opp.sub"
+                                    [appTip]="opp.sub ? 'Their substitute — click to make them the starter' : 'Mark as their substitute for this seat'"
+                                    (click)="setOpponentSub(group, opp, !opp.sub)">Sub</button>
                           } @else {
                             <span class="opp-role">{{ opp.role }}</span>
+                            @if (opp.sub) { <span class="opp-sub-tag">sub</span> }
                           }
                         </span>
 

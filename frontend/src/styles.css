@@ -662,7 +662,7 @@ body {
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.8rem;
   font-family: "Chakra Petch", sans-serif;
   font-size: clamp(1.4rem, 2vw, 1.9rem);
   letter-spacing: 0.04em;
@@ -674,8 +674,8 @@ body {
    tokens, so on the Bomb Squad theme it rims in brass. */
 .brand-mark {
   flex: none;
-  width: 2.7rem;
-  height: 2.7rem;
+  width: 3.6rem;
+  height: 3.6rem;
   border-radius: 50%;
   object-fit: cover;
   box-shadow: 0 0 0 1px var(--card-border), 0 0 0.9rem var(--glow-a);
@@ -11603,3 +11603,57 @@ body:has(.draft-stage) .edit-mode-frame {
 }
 
 .scrim-team-head { flex-wrap: wrap; }
+
+/* Substitutes are flagged by hand and shown under the seat. The row's name
+   dims a touch so the five starters read first without hiding the bench. */
+.opp-sub-toggle {
+  display: block;
+  margin-top: 0.3rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.opp-sub-toggle:hover,
+.opp-sub-toggle:focus-visible {
+  border-color: var(--accent);
+  color: var(--text-0);
+  outline: none;
+}
+
+.opp-sub-toggle.active {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+
+.opp-sub-tag {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.05rem 0.45rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+.opp-row.is-sub .opp-name {
+  opacity: 0.82;
+}
+
+.opp-ban-sub {
+  margin-left: 0.3rem;
+  font-style: normal;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}

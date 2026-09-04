@@ -20,7 +20,29 @@ import { playsRole } from './champion-lanes';
  * top-to-support is the one shape everybody already knows how to scan.
  */
 export function orderedRoster(players: readonly OpponentPlayer[]): OpponentPlayer[] {
-  return [...players].sort((a, b) => ROLES.indexOf(a.role) - ROLES.indexOf(b.role));
+  // Seat order, and within a seat the starter before the sub, so a six-player
+  // roster reads as five seats with the bench underneath, not as two ADCs.
+  return [...players].sort(
+    (a, b) => ROLES.indexOf(a.role) - ROLES.indexOf(b.role) || Number(!!a.sub) - Number(!!b.sub)
+  );
+}
+
+/**
+ * Flag one of their players as the substitute, or clear it. Found by identity
+ * like reseatOpponent; returns null when nothing would change. The flag is
+ * dropped rather than written false, so an untouched roster stays untouched.
+ */
+export function setSubstitute(
+  players: readonly OpponentPlayer[],
+  player: OpponentPlayer,
+  sub: boolean
+): OpponentPlayer[] | null {
+  const index = players.findIndex((p) => p.name === player.name && p.riotTag === player.riotTag);
+  if (index < 0 || !!players[index].sub === sub) return null;
+  const roster = [...players];
+  const { sub: _was, ...rest } = roster[index];
+  roster[index] = sub ? { ...rest, sub: true } : rest;
+  return roster;
 }
 
 /**
@@ -218,6 +240,8 @@ export interface BanCandidate {
   wins: number;
   /** Rounded percentage; 0 when there is no record behind the name. */
   winRate: number;
+  /** Their substitute's pick: still worth a ban, but not a certain start. */
+  sub?: boolean;
 }
 
 /**
@@ -253,7 +277,8 @@ export function banCandidates(players: readonly OpponentPlayer[], limit = 6): Ba
         role: player.role,
         games,
         wins,
-        winRate: games ? Math.round((wins / games) * 100) : 0
+        winRate: games ? Math.round((wins / games) * 100) : 0,
+        ...(player.sub ? { sub: true } : {})
       }))
       .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
     out.push(...theirs.slice(0, 2));
