@@ -8,7 +8,9 @@ import { NgModelNameDirective } from '../../../shared/ng-model-name.directive';
 import { TeamDataService } from '../../../services/team-data.service';
 import { UiService } from '../../../services/ui.service';
 import { noteLines } from '../../../core/note-lines';
+import { parseRiotIds } from '../../../core/riot-id';
 import {
+  appendToRoster,
   countersAreForSeat,
   countersFor,
   orderedRoster as sortRoster,
@@ -292,6 +294,18 @@ export class TournamentPlanComponent {
     const roster = this.scout.fromPaste(this.rosterPaste(), series.opponentPlayers ?? []);
     if (!roster.length) return; // Nothing readable; leave what is there.
     this.rosterPaste.set('');
+    this.patchSeries(series, { opponentPlayers: roster });
+  }
+
+  /** A single Name#TAG or op.gg link to add to a roster already in place. */
+  protected readonly playerPaste = signal('');
+
+  /** Add a sub or a missed name without replacing the five already there. */
+  protected addPlayer(series: TournamentSeries): void {
+    const existing = series.opponentPlayers ?? [];
+    const roster = appendToRoster(parseRiotIds(this.playerPaste()), existing);
+    if (roster.length === existing.length) return;
+    this.playerPaste.set('');
     this.patchSeries(series, { opponentPlayers: roster });
   }
 

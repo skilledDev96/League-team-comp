@@ -10995,6 +10995,57 @@ body:has(.draft-stage) .edit-mode-frame {
 .scrim-add-field { flex: 1 1 16rem; margin: 0; }
 .scrim-add > small { flex-basis: 100%; }
 
+/* A team's own drop zone, inside its panel. Smaller than the page-level one:
+   it sits above a scouting table and must not read as the main event. */
+.scrim-group > .scrim-drop.is-compact {
+  margin: 0.6rem 0.9rem 0.2rem;
+  padding: 0.6rem 0.9rem;
+  gap: 0.7rem;
+}
+.scrim-group > .scrim-drop.is-compact > .material-symbols-rounded { font-size: 1.4rem; }
+.scrim-group > .scrim-drop.is-compact strong { font-size: 0.9rem; }
+
+/* Moving the games that landed under "Unnamed opponent" to where they belong. */
+.scrim-reassign {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.6rem 0.9rem 0.2rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px dashed color-mix(in srgb, var(--warn) 55%, var(--card-border));
+  border-radius: 0.6rem;
+}
+.scrim-reassign > .material-symbols-rounded { color: var(--warn); align-self: center; }
+.scrim-reassign-field { flex: 1 1 16rem; margin: 0; }
+
+/* Adding one player to a roster that already exists. A quiet single line under
+   the roster head — the paste box is for replacing five, this is for a sixth. */
+.opp-add-player {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.4rem 0 0.6rem;
+}
+.opp-add-player input { flex: 1 1 18rem; min-width: 0; font-size: 0.85rem; }
+
+/* Player names are op.gg links — on the roster table and the scrim scoreboard —
+   so looking someone up is one click from where their name already is, rather
+   than a trip back to find the multi-link. Quiet until hovered: a table of
+   underlined names reads as a table of links, not a table of players. */
+.opp-name a,
+.scrim-name a {
+  color: inherit;
+  text-decoration: none;
+}
+.opp-name a:hover,
+.scrim-name a:hover,
+.opp-name a:focus-visible,
+.scrim-name a:focus-visible {
+  color: var(--accent-2);
+  text-decoration: underline;
+}
+
 /* A team added to prep, before any replay exists. */
 .scrim-group-prep {
   font-size: 0.75rem;

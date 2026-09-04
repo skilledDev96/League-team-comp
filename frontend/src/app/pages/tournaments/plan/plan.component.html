@@ -336,6 +336,19 @@
                      look like a hang. It also says the app stays usable: the
                      scout runs in a root service and keeps going even if you
                      navigate away, writing each player as it lands. -->
+                <!-- One more name, without touching the five already there:
+                     the sub who was not in the multi-link. -->
+                @if (auth.editing() && series.opponentPlayers?.length && pasteOpenFor() !== series.id) {
+                  <div class="opp-add-player">
+                    <input type="text" [ngModel]="playerPaste()" (ngModelChange)="playerPaste.set($event)"
+                           [name]="'addplayer-' + series.id"
+                           placeholder="Add a player — Name#TAG or their op.gg link"
+                           (keydown.enter)="addPlayer(series)" />
+                    <button type="button" class="tag" [disabled]="!playerPaste().trim()"
+                            (click)="addPlayer(series)">Add player</button>
+                  </div>
+                }
+
                 @if (scout.scouting() === series.id) {
                   <div class="opp-progress" role="status" aria-live="polite">
                     <div class="opp-progress-line">
@@ -446,7 +459,8 @@
 
                       <span class="opp-cell opp-who" role="cell">
                         <span class="opp-name">
-                          {{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
+                          <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
+                             target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
                         </span>
                         <!-- Where they actually play, under the name rather than
                              beside it: a main with a fallback reads differently

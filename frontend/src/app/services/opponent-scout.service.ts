@@ -53,10 +53,14 @@ export class OpponentScoutService {
     const ids = parseRiotIds(input);
     if (!ids.length) return [...existing];
 
-    return ids.slice(0, ROLES.length).map((id: RiotId, index: number) => {
+    // No cap at five. Teams carry subs, and a multi-link with six or seven
+    // names is the roster exactly as the league publishes it. The sixth
+    // onwards cycles through the roles — a guess, fixable in one dropdown —
+    // rather than being silently dropped, which is what used to happen.
+    return ids.map((id: RiotId, index: number) => {
       const previous = existing[index];
       return {
-        role: (previous?.role ?? ROLES[index]) as Role,
+        role: (previous?.role ?? ROLES[index % ROLES.length]) as Role,
         name: id.name,
         riotTag: id.tag,
         region: id.region ?? previous?.region ?? 'euw',

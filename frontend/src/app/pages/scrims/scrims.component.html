@@ -128,6 +128,43 @@
           <span class="series-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
         </summary>
 
+        <!-- Their replays go in here, not in the box at the top of the page.
+             Files dropped in this panel are named after this team, so they
+             fold straight into it. The unnamed group gets a mover instead. -->
+        @if (auth.editing()) {
+          @if (group.id !== 'unnamed') {
+            <div class="scrim-drop is-compact" [class.is-over]="dragTarget() === group.id"
+                 (dragover)="onGroupDragOver($event, group)"
+                 (dragleave)="dragTarget.set('')"
+                 (drop)="onGroupDrop($event, group)">
+              <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>
+              <div>
+                <strong>Drop {{ group.name }}'s replays here</strong>
+                <small>They file under this team automatically.</small>
+              </div>
+              <label class="scrim-pick">
+                <input type="file" multiple accept=".rofl"
+                       (change)="importFiles($any($event.target).files, group.name); $any($event.target).value = ''" />
+                Choose files
+              </label>
+            </div>
+          } @else if (group.scrims.length) {
+            <div class="scrim-reassign">
+              <span class="material-symbols-rounded" aria-hidden="true">drive_file_move</span>
+              <label class="field scrim-reassign-field">
+                <span>These {{ group.scrims.length }} were against</span>
+                <input type="text" [ngModel]="reassignTo()" (ngModelChange)="reassignTo.set($event)"
+                       name="scrimReassign" list="scrim-known-opponents"
+                       placeholder="Opponent team name" (keydown.enter)="reassign(group)" />
+              </label>
+              <button type="button" class="view-btn active" [disabled]="!reassignTo().trim()"
+                      (click)="reassign(group)">
+                Move all {{ group.scrims.length }}
+              </button>
+            </div>
+          }
+        }
+
         <!-- The same panel a tournament series has. A scrim opponent is a team
              too, and by the time they turn up in the bracket they are already
              scouted. -->
@@ -157,6 +194,19 @@
                     </button>
                   }
                 </div>
+
+                <!-- One more name, without touching the five already there:
+                     the sub who was not in the multi-link. -->
+                @if (auth.editing() && o.opponentPlayers?.length && pasteOpenFor() !== group.id) {
+                  <div class="opp-add-player">
+                    <input type="text" [ngModel]="playerPaste()" (ngModelChange)="playerPaste.set($event)"
+                           [name]="'scrimaddplayer-' + group.id"
+                           placeholder="Add a player — Name#TAG or their op.gg link"
+                           (keydown.enter)="addPlayer(group)" />
+                    <button type="button" class="tag" [disabled]="!playerPaste().trim()"
+                            (click)="addPlayer(group)">Add player</button>
+                  </div>
+                }
 
                 @if (scout.scouting() === group.id) {
                   <div class="opp-progress" role="status" aria-live="polite">
@@ -244,7 +294,8 @@
 
                         <span class="opp-cell opp-who" role="cell">
                           <span class="opp-name">
-                            {{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
+                            <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
+                               target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
                           </span>
                           <span class="opp-sub">
                             @for (p of opp.positions ?? []; track p.role) {
@@ -421,7 +472,7 @@
                       <span class="scrim-player" role="cell">
                         <img class="scrim-champ" [src]="ui.championIconUrl(p.champion)" [alt]="p.champion"
                              [appTip]="p.champion + (p.position ? ' — ' + p.position : '')" loading="lazy" />
-                        <span class="scrim-name">{{ p.name || p.champion }}</span>
+                        <span class="scrim-name">@if (p.name) {<a [href]="ui.summonerSearchUrl(p.name, { region: 'euw', riotTag: p.tag })" target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + p.name + ' on op.gg'">{{ p.name }}</a>} @else { {{ p.champion }} }</span>
                       </span>
                       <span class="num" role="cell">{{ kda(p) }}</span>
                       <span class="num" role="cell">{{ k(p.damage) }}</span>

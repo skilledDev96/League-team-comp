@@ -11,7 +11,9 @@ import { ChampionPickerComponent } from '../../shared/champion-picker.component'
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { looksLikeFiveOnFive, matchIdFromFilename, parseReplay } from '../../core/replay-parse';
 import { noteLines } from '../../core/note-lines';
+import { parseRiotIds } from '../../core/riot-id';
 import {
+  appendToRoster,
   countersAreForSeat,
   countersFor,
   orderedRoster,
@@ -172,13 +174,36 @@ export class ScrimsComponent {
    * the group uses — so it is found again next time without anyone linking it.
    */
   protected opponentFor(group: ScrimGroup): ScrimOpponent {
-    return (
-      this.data.scrimOpponents().find((o) => o.id === group.id) ?? {
-        id: group.id,
-        name: group.name,
-        order: this.data.scrimOpponents().length
-      }
-    );
+    const stored = this.data.scrimOpponents().find((o) => o.id === group.id);
+    if (stored) return stored;
+
+    // Nothing saved for them here yet — but a team scouted for a tournament
+    // series under the same name is the same team, so start from that rather
+    // than asking for the link a second time. Read-only until something is
+    // saved against the scrim record, at which point that record takes over.
+    const series = this.data.tournamentSeries().find((s) => slugOpponent(s.opponent) === group.id);
+    return {
+      id: group.id,
+      name: group.name,
+      order: this.data.scrimOpponents().length,
+      ...(series
+        ? { opponentPlayers: series.opponentPlayers, bans: series.bans, notes: series.notes }
+        : {})
+    };
+  }
+
+  /** A single Name#TAG or op.gg link to add to a roster already in place. */
+  protected readonly playerPaste = signal('');
+
+  /**
+   * Add one or more players without replacing the roster — the sub who was not
+   * in the multi-link, or the name that was missed. Skips anyone already there.
+   */
+  protected addPlayer(group: ScrimGroup): void {
+    const roster = appendToRoster(parseRiotIds(this.playerPaste()), this.opponentFor(group).opponentPlayers ?? []);
+    if (roster.length === (this.opponentFor(group).opponentPlayers ?? []).length) return;
+    this.playerPaste.set('');
+    this.patchOpponent(group, { opponentPlayers: roster });
   }
 
   protected patchOpponent(group: ScrimGroup, patch: Partial<ScrimOpponent>): void {
@@ -423,7 +448,10 @@ export class ScrimsComponent {
    * because a folder always has a stray file in it and "nothing happened" is
    * the worst possible answer to a drag-and-drop.
    */
-  protected async importFiles(files: FileList | null): Promise<void> {
+  protected async importFiles(
+    files: FileList | null,
+    opponent: string = this.importOpponent().trim()
+  ): Promise<void> {
     if (!files?.length || this.importing()) return;
 
     this.importing.set(true);
@@ -453,7 +481,7 @@ export class ScrimsComponent {
 
         await this.data.saveScrim({
           id,
-          opponent: this.importOpponent().trim() || undefined,
+          opponent: opponent || undefined,
           // The replay knows how long the game ran but never when it started,
           // so the file's own timestamp is the closest thing to a date. It is
           // a few minutes late, which matters to nobody.
@@ -469,7 +497,7 @@ export class ScrimsComponent {
       }
     } finally {
       this.importing.set(false);
-      const against = this.importOpponent().trim();
+      const against = opponent;
       this.importNote.set(
         saved
           ? `Imported ${saved} ${saved === 1 ? 'scrim' : 'scrims'}${against ? ` against ${against}` : ''}.`
@@ -483,6 +511,49 @@ export class ScrimsComponent {
     event.preventDefault();
     this.dragging.set(false);
     void this.importFiles(event.dataTransfer?.files ?? null);
+  }
+
+  // ---- Importing into a team's own panel ----------------------------------
+  //
+  // The flow people actually follow is prep → scout → import *here*, in the
+  // panel they are already looking at. A single "Against" field at the top of
+  // the page was too far from that: files dropped with it empty filed under
+  // "Unnamed opponent", which is exactly what happened the first time it was
+  // used. Each panel now takes its own replays and names them itself.
+
+  /** Which team's drop zone a drag is over, for the highlight. */
+  protected readonly dragTarget = signal<string>('');
+
+  protected onGroupDragOver(event: DragEvent, group: ScrimGroup): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragTarget.set(group.id);
+  }
+
+  protected onGroupDrop(event: DragEvent, group: ScrimGroup): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragTarget.set('');
+    void this.importFiles(event.dataTransfer?.files ?? null, group.name);
+  }
+
+  /** Where the unnamed scrims should have gone. */
+  protected readonly reassignTo = signal('');
+
+  /**
+   * File every scrim in a group under a different team.
+   *
+   * For the games that landed in "Unnamed opponent" before the per-panel drop
+   * zone existed, and for a batch named wrongly. Written one scrim at a time;
+   * they re-group on their own as each save lands.
+   */
+  protected async reassign(group: ScrimGroup): Promise<void> {
+    const name = this.reassignTo().trim();
+    if (!name) return;
+    for (const scrim of group.scrims) {
+      await this.data.saveScrim({ ...scrim, opponent: name });
+    }
+    this.reassignTo.set('');
   }
 
   protected readonly dragging = signal(false);

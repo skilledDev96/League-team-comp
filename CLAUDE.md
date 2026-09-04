@@ -110,7 +110,15 @@ scouted roster a `TournamentSeries` carries — the same panel, the same
 `OpponentScoutService` (its `scoutRoster` is generic; `scoutSeries` and
 `scoutScrimOpponent` are thin wrappers that only differ in where the result is
 written). There is no "add opponent" step: the record is created the first time
-anything is saved against a group. **The roster table's read-side helpers live in
+anything is saved against a group — though an opponent *can* be added by name
+alone to prep before any replay exists, and replays dropped in a team's own
+panel are named after that team. A scrim opponent with no record of its own
+reads the roster, bans and notes of a `TournamentSeries` with the same slugged
+opponent name (read-only, until something is saved). **Rosters are not capped
+at five**: `fromPaste` keeps every name in a multi-link (subs cycle through the
+roles), `appendToRoster` adds a single Name#TAG without replacing the rest, and
+`reseatOpponent` only swaps seats on a five-player roster — with subs it just
+sets the role, since two players sharing one is the truth of the roster. **The roster table's read-side helpers live in
 `core/opponent-view.ts`** (`queueRows`, `reseatOpponent`, `recentForSeat`, the
 rate bands…) and are shared by the plan page and the scrims page; do not re-add
 copies to either component. `core/note-lines.ts` is likewise the one note parser.

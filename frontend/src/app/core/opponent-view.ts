@@ -48,11 +48,45 @@ export function reseatOpponent(
   if (!current || current.role === role) return null;
 
   // Five players hold five seats, so taking one has to hand the old seat to
-  // whoever had it.
-  const holder = roster.findIndex((p, i) => i !== index && p.role === role);
-  if (holder >= 0) roster[holder] = { ...roster[holder], role: current.role };
+  // whoever had it. A roster with subs is different: six players cannot all
+  // hold distinct seats, so displacing whoever had the role would shuffle a
+  // starter into a sub's old slot for no reason. With subs, a seat is simply
+  // set, and two players sharing a role is the truth of the roster.
+  if (roster.length <= ROLES.length) {
+    const holder = roster.findIndex((p, i) => i !== index && p.role === role);
+    if (holder >= 0) roster[holder] = { ...roster[holder], role: current.role };
+  }
   roster[index] = { ...current, role };
   return roster;
+}
+
+/**
+ * Add players to a roster without replacing it.
+ *
+ * For the sub who was not in the multi-link, or the one name that was missed.
+ * Anyone already on the roster is skipped, so pasting the same link twice is
+ * harmless. A new player lands on the role with the fewest holders, so a sixth
+ * name goes to a sensible seat rather than always to Top.
+ */
+export function appendToRoster(
+  incoming: readonly { name: string; tag: string; region?: string }[],
+  existing: readonly OpponentPlayer[]
+): OpponentPlayer[] {
+  const have = new Set(existing.map((p) => `${p.name}#${p.riotTag ?? ''}`.toLowerCase()));
+  const fresh = incoming.filter((id) => !have.has(`${id.name}#${id.tag}`.toLowerCase()));
+  if (!fresh.length) return [...existing];
+
+  const counts = new Map<Role, number>(ROLES.map((r) => [r, 0]));
+  for (const p of existing) counts.set(p.role, (counts.get(p.role) ?? 0) + 1);
+
+  const added = fresh.map((id) => {
+    const role = [...counts.entries()].sort(
+      (a, b) => a[1] - b[1] || ROLES.indexOf(a[0]) - ROLES.indexOf(b[0])
+    )[0][0];
+    counts.set(role, (counts.get(role) ?? 0) + 1);
+    return { role, name: id.name, riotTag: id.tag, region: id.region ?? 'euw' } as OpponentPlayer;
+  });
+  return [...existing, ...added];
 }
 
 /** How long since the roster was last scouted, as words; empty if never. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { OpponentPlayer } from '../models/team.models';
 import {
+  appendToRoster,
   orderedRoster,
   poolFor,
   queueRows,
@@ -51,6 +52,44 @@ describe('reseatOpponent', () => {
     const roster = [p('top', 'Top')];
     expect(reseatOpponent(roster, roster[0], 'Top')).toBeNull();
     expect(reseatOpponent(roster, p('stranger', 'Mid'), 'Top')).toBeNull();
+  });
+});
+
+describe('reseatOpponent with subs', () => {
+  it('just sets the seat when the roster has more than five, without displacing anyone', () => {
+    const roster = [p('top', 'Top'), p('jg', 'Jungle'), p('mid', 'Mid'), p('adc', 'ADC'), p('sup', 'Support'), p('sub', 'Support')];
+    const next = reseatOpponent(roster, roster[5], 'Top')!;
+    expect(next.find((x) => x.name === 'sub')!.role).toBe('Top');
+    // The starter Top keeps Top; two players now legitimately hold it.
+    expect(next.find((x) => x.name === 'top')!.role).toBe('Top');
+  });
+});
+
+describe('appendToRoster', () => {
+  const five = [p('top', 'Top'), p('jg', 'Jungle'), p('mid', 'Mid'), p('adc', 'ADC'), p('sup', 'Support')];
+
+  it('appends a new player and keeps everyone already there', () => {
+    const next = appendToRoster([{ name: 'sub', tag: 'EUW' }], five);
+    expect(next).toHaveLength(6);
+    expect(next.slice(0, 5)).toEqual(five);
+    expect(next[5].name).toBe('sub');
+  });
+
+  it('skips anyone already on the roster, so pasting the same link twice is harmless', () => {
+    const next = appendToRoster([{ name: 'top', tag: 'EUW' }, { name: 'new', tag: 'EUW' }], five);
+    expect(next.map((x) => x.name)).toEqual(['top', 'jg', 'mid', 'adc', 'sup', 'new']);
+  });
+
+  it('seats a sub on the least-held role, top-to-support on a tie', () => {
+    const next = appendToRoster([{ name: 's1', tag: 'EUW' }, { name: 's2', tag: 'EUW' }], five);
+    // All five roles held once; ties break top-first, so the first sub takes
+    // Top and the second the next least-held, Jungle.
+    expect(next[5].role).toBe('Top');
+    expect(next[6].role).toBe('Jungle');
+  });
+
+  it('returns the roster unchanged for nothing new', () => {
+    expect(appendToRoster([], five)).toEqual(five);
   });
 });
 
