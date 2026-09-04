@@ -11959,3 +11959,75 @@ body:has(.draft-stage) .edit-mode-frame {
   font-style: normal;
   color: var(--accent);
 }
+
+/* The champion typeahead: the box anchors the menu, the menu shows icons. */
+.champ-filter-box {
+  position: relative;
+  flex: 1 1 18rem;
+  max-width: 26rem;
+}
+
+.champ-filter-box .champ-filter-input {
+  display: flex;
+  max-width: none;
+}
+
+.champ-filter-pick {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--card-border);
+}
+
+.champ-filter-input.is-set {
+  border-color: var(--accent);
+}
+
+.champ-filter-input input::-webkit-search-cancel-button {
+  filter: invert(0.7);
+}
+
+.champ-filter-menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 30;
+  min-width: 100%;
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  background: var(--bg-1);
+  border: 1px solid var(--card-border);
+  border-radius: 0.8rem;
+  box-shadow: 0 0.6rem 1.6rem var(--shadow-elev);
+  max-height: 22rem;
+  overflow: auto;
+}
+
+.champ-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.55rem;
+  cursor: pointer;
+  color: var(--text-0);
+}
+
+.champ-filter-option img {
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  flex: none;
+}
+
+.champ-filter-option small {
+  margin-left: auto;
+  color: var(--text-1);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.champ-filter-option.is-active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}

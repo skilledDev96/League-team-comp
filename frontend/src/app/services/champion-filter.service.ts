@@ -21,8 +21,15 @@ export class ChampionFilterService {
 
   readonly value = signal(readStored());
 
-  /** The trimmed champion, or '' when nothing is being filtered. */
-  readonly active = computed(() => this.value().trim());
+  /**
+   * The champion being filtered on, or '' when there is none. Only text that
+   * names a real champion counts: half-typed "ka" must not empty every page
+   * on the way to Kai'Sa.
+   */
+  readonly active = computed(() => {
+    const text = this.value().trim();
+    return text && this.champs.resolveId(text) ? text : '';
+  });
 
   /** Names for the dropdown, as people know them. */
   readonly names = computed(() => this.champs.champions().map((c) => c.name));
