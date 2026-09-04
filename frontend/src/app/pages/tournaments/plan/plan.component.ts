@@ -380,7 +380,24 @@ export class TournamentPlanComponent {
     void this.data.updateSeriesGame({ ...game, win });
   }
 
+  /**
+   * Delete a game — asking first when there is anything in it.
+   *
+   * An empty game placeholder goes without a question, because there is
+   * nothing to lose. A game with picks, bans or a result is the record of a
+   * draft somebody sat through, and one mis-click on a row of small buttons
+   * should not erase it silently.
+   */
   protected removeGame(game: SeriesGame): void {
+    const hasContent =
+      (game.ourChampions ?? []).some(Boolean) ||
+      (game.theirChampions ?? []).some(Boolean) ||
+      (game.bans ?? []).length > 0 ||
+      game.win !== undefined;
+    if (hasContent) {
+      const what = game.win === undefined ? 'its draft' : 'its draft and result';
+      if (!confirm(`Delete game ${game.gameNumber}? ${what[0].toUpperCase() + what.slice(1)} will be lost.`)) return;
+    }
     void this.data.deleteSeriesGame(game.id);
   }
 

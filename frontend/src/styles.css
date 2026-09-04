@@ -11020,11 +11020,25 @@ body:has(.draft-stage) .edit-mode-frame {
    the roster head — the paste box is for replacing five, this is for a sixth. */
 .opp-add-player {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.5rem;
   margin: 0.4rem 0 0.6rem;
 }
-.opp-add-player input { flex: 1 1 18rem; min-width: 0; font-size: 0.85rem; }
+/* The same .field every other input on the page uses — it was a bare browser
+   default before, white on a dark panel, and read as something unfinished. */
+.opp-add-player > .field { flex: 1 1 18rem; min-width: 0; margin: 0; }
+
+/* Refresh is an action, not a word in a sentence: a button at the end of the
+   hint row, so it is found without reading. */
+.scrim-refresh-hint > .view-btn {
+  margin-left: auto;
+  flex: none;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.scrim-refresh-hint > .view-btn .material-symbols-rounded { font-size: 1.1rem; color: inherit; }
 
 /* Player names are op.gg links — on the roster table and the scrim scoreboard —
    so looking someone up is one click from where their name already is, rather
@@ -11041,6 +11055,19 @@ body:has(.draft-stage) .edit-mode-frame {
 .scrim-name a:focus-visible {
   color: var(--accent-2);
   text-decoration: underline;
+}
+
+/* The delete control on a series row: the Scout chip's shape, in the warning
+   colour, icon only — present but not competing with the row's own content. */
+.series-scout.is-danger {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border));
+  padding-inline: 0.45rem;
+}
+.series-scout.is-danger:hover,
+.series-scout.is-danger:focus-visible {
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  border-color: var(--warn);
 }
 
 /* A team added to prep, before any replay exists. */

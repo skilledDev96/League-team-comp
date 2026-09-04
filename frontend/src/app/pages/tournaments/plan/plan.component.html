@@ -104,6 +104,17 @@
               <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
               Scout
             </button>
+            <!-- On the row, not three panels deep. Deleting a series was a button
+                 at the bottom of the scouting panel's edit block, which is where
+                 nobody looks for it. Same summary click-guard as Scout. -->
+            @if (auth.editing()) {
+              <button type="button" class="series-scout is-danger"
+                      [appTip]="'Delete this series and its games'"
+                      [attr.aria-label]="'Delete the series against ' + series.opponent"
+                      (click)="$event.preventDefault(); $event.stopPropagation(); removeSeries(series)">
+                <span class="material-symbols-rounded" aria-hidden="true">delete</span>
+              </button>
+            }
             <span class="series-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
           </summary>
 
@@ -340,12 +351,15 @@
                      the sub who was not in the multi-link. -->
                 @if (auth.editing() && series.opponentPlayers?.length && pasteOpenFor() !== series.id) {
                   <div class="opp-add-player">
-                    <input type="text" [ngModel]="playerPaste()" (ngModelChange)="playerPaste.set($event)"
-                           [name]="'addplayer-' + series.id"
-                           placeholder="Add a player — Name#TAG or their op.gg link"
-                           (keydown.enter)="addPlayer(series)" />
-                    <button type="button" class="tag" [disabled]="!playerPaste().trim()"
-                            (click)="addPlayer(series)">Add player</button>
+                    <label class="field">
+                      <span>Add a player</span>
+                      <input type="text" [ngModel]="playerPaste()" (ngModelChange)="playerPaste.set($event)"
+                             [name]="'addplayer-' + series.id"
+                             placeholder="Name#TAG or their op.gg link"
+                             (keydown.enter)="addPlayer(series)" />
+                    </label>
+                    <button type="button" class="view-btn active" [disabled]="!playerPaste().trim()"
+                            (click)="addPlayer(series)">Add</button>
                   </div>
                 }
 
@@ -581,9 +595,6 @@
                   <button type="button" [class.active]="series.side === 'red'"
                           (click)="patchSeries(series, { side: 'red' })">Red side G1</button>
                 </div>
-                <button type="button" class="view-btn series-delete" (click)="removeSeries(series)">
-                  Delete series
-                </button>
               } @else {
                 @if (series.bans?.length) {
                   <div class="tag-row">

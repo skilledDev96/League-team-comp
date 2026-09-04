@@ -4,27 +4,24 @@
     Scrims
   </h2>
   <p class="muted">
-    Custom games never reach the Riot API, so replays are the only record they leave.
-    Files are read here in the browser &mdash; nothing is uploaded, and only the
-    scoreboard is kept. Replays live in Documents &rsaquo; League of Legends &rsaquo;
-    Replays &mdash; download them at the end of every scrim, because the button
-    disappears after a patch and the game is gone with it.
+    Replays are the only record a custom game leaves. They are read here in your
+    browser and only the scoreboard is kept.
   </p>
 
   <!-- Importing stores the scrim; the analysis is recomputed on the Analysis
        page. Saying so beats a comp record that quietly does not move. -->
   @if (groups().length) {
-    <!-- The text is one flex child, not three. The container is display:flex
-         for the icon, and a bare link between two bare text nodes made three
-         items that laid out as columns. -->
+    <!-- One line and a button. The caveat about partial rosters is real but
+         rarely needed, so it lives on hover rather than in the sentence. -->
     <p class="muted scrim-refresh-hint">
       <span class="material-symbols-rounded" aria-hidden="true">sync</span>
-      <span>
-        Scrims count towards comp win rates and the Review page after a
-        <a routerLink="/analysis">Refresh match data</a> on Analysis. Games where fewer
-        than four of the roster played are left out, so a solo queue replay imported by
-        mistake cannot move the numbers.
+      <span [appTip]="'Games where fewer than four of the roster played are left out, so a solo queue replay imported by mistake cannot move the numbers.'">
+        Scrims count towards comp win rates once you refresh on Analysis.
       </span>
+      <a class="view-btn scrim-refresh-btn" routerLink="/analysis">
+        <span class="material-symbols-rounded" aria-hidden="true">refresh</span>
+        Refresh match data
+      </a>
     </p>
   }
 
@@ -42,7 +39,7 @@
       </label>
       <button type="button" class="view-btn active" [disabled]="!newOpponentName().trim()"
               (click)="addOpponent()">Add opponent</button>
-      <small class="muted">Scout them now; drop their replays into their panel after the games.</small>
+      <small class="muted">Scout now, import the replays after.</small>
       <!-- Names already on the page, for the mover in the Unnamed group. -->
       <datalist id="scrim-known-opponents">
         @for (name of knownOpponents(); track name) { <option [value]="name"></option> }
@@ -109,7 +106,7 @@
               <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>
               <div>
                 <strong>Drop {{ group.name }}'s replays here</strong>
-                <small>They file under this team automatically.</small>
+                <small>Documents &rsaquo; League of Legends &rsaquo; Replays &mdash; download them right after each game.</small>
               </div>
               <label class="scrim-pick">
                 <input type="file" multiple accept=".rofl"
@@ -168,12 +165,15 @@
                      the sub who was not in the multi-link. -->
                 @if (auth.editing() && o.opponentPlayers?.length && pasteOpenFor() !== group.id) {
                   <div class="opp-add-player">
-                    <input type="text" [ngModel]="playerPaste()" (ngModelChange)="playerPaste.set($event)"
-                           [name]="'scrimaddplayer-' + group.id"
-                           placeholder="Add a player — Name#TAG or their op.gg link"
-                           (keydown.enter)="addPlayer(group)" />
-                    <button type="button" class="tag" [disabled]="!playerPaste().trim()"
-                            (click)="addPlayer(group)">Add player</button>
+                    <label class="field">
+                      <span>Add a player</span>
+                      <input type="text" [ngModel]="playerPaste()" (ngModelChange)="playerPaste.set($event)"
+                             [name]="'scrimaddplayer-' + group.id"
+                             placeholder="Name#TAG or their op.gg link"
+                             (keydown.enter)="addPlayer(group)" />
+                    </label>
+                    <button type="button" class="view-btn active" [disabled]="!playerPaste().trim()"
+                            (click)="addPlayer(group)">Add</button>
                   </div>
                 }
 
