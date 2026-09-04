@@ -443,8 +443,26 @@ export class ScrimsComponent {
     void this.data.saveScrim({ ...scrim, note });
   }
 
+  /**
+   * Delete a team: every replay in the group and, if one exists, the record
+   * carrying their notes, bans and roster. One confirm that says which.
+   */
+  protected async removeOpponent(group: ScrimGroup): Promise<void> {
+    const n = group.scrims.length;
+    const record = this.data.scrimOpponents().find((o) => o.id === group.id);
+    const parts = [
+      n ? n + (n === 1 ? ' replay' : ' replays') : '',
+      record ? 'their notes, bans and roster' : ''
+    ].filter(Boolean);
+    const what = parts.length ? 'This removes ' + parts.join(' and ') + '.' : '';
+    if (!confirm('Delete ' + group.name + '? ' + what)) return;
+    for (const scrim of group.scrims) await this.data.deleteScrim(scrim.id);
+    if (record) await this.data.deleteScrimOpponent(record.id);
+  }
+
   protected async remove(scrim: Scrim): Promise<void> {
-    if (!confirm(`Remove the scrim ${scrim.id}?`)) return;
+    const when = this.ui.formatDay(scrim.playedOn);
+    if (!confirm('Delete the scrim on ' + when + (scrim.opponent ? ' against ' + scrim.opponent : '') + '?')) return;
     await this.data.deleteScrim(scrim.id);
   }
 

@@ -91,6 +91,14 @@
             <span class="scrim-group-scouted material-symbols-rounded" aria-hidden="true"
                   [appTip]="'Notes, bans or a roster are saved for this team'">description</span>
           }
+          @if (auth.editing()) {
+            <button type="button" class="series-scout is-danger"
+                    [appTip]="'Delete ' + group.name + ' — their replays, notes, bans and roster'"
+                    [attr.aria-label]="'Delete ' + group.name"
+                    (click)="$event.preventDefault(); $event.stopPropagation(); removeOpponent(group)">
+              <span class="material-symbols-rounded" aria-hidden="true">delete</span>
+            </button>
+          }
           <span class="series-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
         </summary>
 
@@ -441,6 +449,14 @@
               @if (scrim.surrendered) {
                 <span class="scrim-ff" [appTip]="'Ended in a surrender'">FF</span>
               }
+              @if (auth.editing()) {
+                <button type="button" class="series-scout is-danger"
+                        [appTip]="'Delete this replay'"
+                        [attr.aria-label]="'Delete the scrim on ' + ui.formatDay(scrim.playedOn)"
+                        (click)="$event.preventDefault(); $event.stopPropagation(); remove(scrim)">
+                  <span class="material-symbols-rounded" aria-hidden="true">delete</span>
+                </button>
+              }
               <span class="series-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
             </summary>
 
@@ -503,7 +519,6 @@
                             (ngModelChange)="setNote(scrim, $event)"
                             [name]="'scrimnote-' + scrim.id"
                             placeholder="What to take from this one…"></textarea></label>
-                <button type="button" class="link-btn draft-reset" (click)="remove(scrim)">Remove scrim</button>
               </div>
             } @else if (scrim.note) {
               <p class="scrim-note">{{ scrim.note }}</p>
