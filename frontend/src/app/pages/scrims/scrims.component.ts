@@ -1,3 +1,5 @@
+import { ChampionFilterService } from '../../services/champion-filter.service';
+import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -56,13 +58,14 @@ import { ScrimGroup, groupScrims, slugOpponent } from './scrim-groups';
  */
 @Component({
   selector: 'app-scrims',
-  imports: [FormsModule, RouterLink, TooltipDirective, ChampionPickerComponent, ChampionChipComponent],
+  imports: [FormsModule, RouterLink, TooltipDirective, ChampionPickerComponent, ChampionChipComponent, ChampionFilterComponent],
   templateUrl: './scrims.component.html'
 })
 export class ScrimsComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly auth = inject(AuthService);
   protected readonly ui = inject(UiService);
+  protected readonly filter = inject(ChampionFilterService);
   private readonly history = inject(OpponentHistoryService);
   protected readonly scout = inject(OpponentScoutService);
 
@@ -103,7 +106,10 @@ export class ScrimsComponent {
     // The name somebody typed when prepping beats whatever was typed on a
     // replay: "Elysion Esports" was deliberate, "elysion esports" on a file at
     // midnight was not, and the record is the one that carries the notes.
-    const played = groupScrims(this.data.scrims(), (scrim) => this.won(scrim)).map((g) => ({
+    // The shared champion filter narrows to the replays that champion was in,
+    // on either side — a scrim where they played it against us counts too.
+    const scrims = this.data.scrims().filter((s) => this.filter.passes(s.players.map((p) => p.champion)));
+    const played = groupScrims(scrims, (scrim) => this.won(scrim)).map((g) => ({
       ...g,
       name: records.get(g.id)?.name || g.name
     }));
@@ -113,8 +119,12 @@ export class ScrimsComponent {
       .filter((o) => !seen.has(o.id))
       .sort((a, b) => b.order - a.order)
       .map((o) => ({ id: o.id, name: o.name, scrims: [], wins: 0, losses: 0, unknown: 0, lastPlayed: '' }));
-    return [...prepping, ...played];
+    // A team still being prepped has no replays to match, so it steps aside
+    // while a champion is being asked about.
+    return this.filter.active() ? played : [...prepping, ...played];
   });
+
+  protected readonly matchedScrims = computed(() => this.groups().reduce((n, g) => n + g.scrims.length, 0));
 
   // ---- Prepping for a scrim ---------------------------------------------
   //

@@ -1,3 +1,5 @@
+import { ChampionFilterService } from '../../../services/champion-filter.service';
+import { ChampionFilterComponent } from '../../../shared/champion-filter.component';
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -45,6 +47,7 @@ import { TournamentContextService } from '../tournament-context.service';
 @Component({
   selector: 'app-tournament-plan',
   imports: [
+    ChampionFilterComponent,
     FormsModule,
     RouterLink,
     ChampionChipComponent,
@@ -60,6 +63,7 @@ export class TournamentPlanComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly auth = inject(AuthService);
   protected readonly ui = inject(UiService);
+  protected readonly filter = inject(ChampionFilterService);
   private readonly history = inject(OpponentHistoryService);
   protected readonly champData = inject(ChampionDataService);
 
@@ -71,6 +75,18 @@ export class TournamentPlanComponent {
   protected readonly tournaments = this.ctx.tournaments;
   protected readonly currentTournament = this.ctx.currentTournament;
   protected readonly seriesList = this.ctx.seriesList;
+
+  /** Per series, the scouted opponents whose pool has the champion being asked about. */
+  protected readonly holders = computed(() =>
+    this.seriesList()
+      .map((series) => ({
+        series,
+        players: (series.opponentPlayers ?? []).filter((p) =>
+          this.filter.passes(queueRows(p).flatMap((row) => row.pool.map((rec) => rec.champion)))
+        )
+      }))
+      .filter((h) => h.players.length)
+  );
   protected readonly selectTournament = (id: string) => this.ctx.selectTournament(id);
   protected readonly gamesFor = (id: string) => this.ctx.gamesFor(id);
   protected readonly seriesScore = (id: string) => this.ctx.seriesScore(id);

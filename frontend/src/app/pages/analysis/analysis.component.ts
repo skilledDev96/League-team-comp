@@ -5,7 +5,8 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { AnalysisGame, CompOutcome, CompPerformance, CompPicks, CompResult, Role, ROLES } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
-import { ChampionDataService } from '../../services/champion-data.service';
+import { ChampionFilterService } from '../../services/champion-filter.service';
+import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
@@ -35,7 +36,7 @@ interface LogRow {
 
 @Component({
   selector: 'app-analysis',
-  imports: [DatePipe, NgTemplateOutlet, FormsModule, MatchNoteComponent, MatchNoteButtonComponent, TooltipDirective, NgModelNameDirective],
+  imports: [DatePipe, NgTemplateOutlet, FormsModule, MatchNoteComponent, MatchNoteButtonComponent, TooltipDirective, NgModelNameDirective, ChampionFilterComponent],
   templateUrl: './analysis.component.html'
 })
 export class AnalysisComponent {
@@ -43,7 +44,7 @@ export class AnalysisComponent {
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
   private readonly analysis = inject(CompAnalysisService);
-  private readonly champs = inject(ChampionDataService);
+  protected readonly filter = inject(ChampionFilterService);
   protected readonly roles = ROLES;
 
   // ---- Team-wide game log ----------------------------------------------
@@ -77,11 +78,10 @@ export class AnalysisComponent {
 
     // Under a champion filter only games that carry champions can answer, so
     // the hand-logged results — a comp and a result, no picks — step aside.
-    const want = this.championFilter().trim();
-    const key = want ? this.championKey(want) : '';
+    const key = this.filter.active();
     const matches: LogRow[] = (this.data.compAnalysis()?.games ?? [])
       .filter((g) => g.compId)
-      .filter((g) => !key || g.players.some((p) => this.championKey(p.champion) === key))
+      .filter((g) => this.filter.passes(g.players.map((p) => p.champion)))
       .map((g) => ({
         id: `match-${g.matchId}`,
         compId: g.compId,
@@ -206,35 +206,16 @@ export class AnalysisComponent {
     return [...seen];
   });
 
-  /**
-   * "Where does Tristana sit in our comps?" One champion, typed by display
-   * name; the games are keyed by Riot's id (Wukong is MonkeyKing), so both
-   * sides resolve through the champion data before they are compared.
-   */
-  protected readonly championFilter = signal('');
-
-  protected readonly championNames = computed(() => this.champs.champions().map((c) => c.name));
-
-  private championKey(name: string): string {
-    return (this.champs.resolveId(name) ?? name).replace(/[^a-z0-9]/gi, '').toLowerCase();
-  }
-
-  protected matchesChampionFilter(champion: string): boolean {
-    const want = this.championFilter().trim();
-    return !!want && this.championKey(champion) === this.championKey(want);
-  }
-
   // Games after the queue and champion filters are applied. Everything below
   // — comp records, the strictness buckets, form and matchups — reads this,
   // so a champion filter answers "how do we do with Tristana in each comp".
+  // The champion is the one shared filter (ChampionFilterService), so the
+  // name typed here is the name every other page is already asking about.
   protected readonly filteredGames = computed<AnalysisGame[]>(() => {
     const games = this.data.compAnalysis()?.games ?? [];
     const queue = this.analysisQueue();
     const byQueue = queue === 'all' ? games : games.filter((g) => g.queue === queue);
-    const want = this.championFilter().trim();
-    if (!want) return byQueue;
-    const key = this.championKey(want);
-    return byQueue.filter((g) => g.players.some((p) => this.championKey(p.champion) === key));
+    return byQueue.filter((g) => this.filter.passes(g.players.map((p) => p.champion)));
   });
 
   // How many of a comp's 5 champions a game must share to be credited to it.

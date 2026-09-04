@@ -1,3 +1,5 @@
+import { ChampionFilterService } from '../../services/champion-filter.service';
+import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -37,7 +39,7 @@ import {
  */
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, RouterLink, TooltipDirective],
+  imports: [DatePipe, RouterLink, TooltipDirective, ChampionFilterComponent],
   templateUrl: './review.component.html'
 })
 export class ReviewComponent {
@@ -58,6 +60,8 @@ export class ReviewComponent {
   /** Match id of the game whose objective detail is open, or null for none. */
   protected readonly expandedId = signal<string | null>(null);
 
+  protected readonly filter = inject(ChampionFilterService);
+
   protected readonly analysis = computed(() => this.data.compAnalysis());
 
   /**
@@ -69,10 +73,12 @@ export class ReviewComponent {
     return effectiveComp(game.compId, this.data.compOverride(game.matchId), this.data.comps());
   }
 
-  private readonly filteredGames = computed<AnalysisGame[]>(() => {
+  protected readonly filteredGames = computed<AnalysisGame[]>(() => {
     const comp = this.compFilter();
     const games = this.analysis()?.games ?? [];
-    return comp === 'all' ? games : games.filter((game) => this.compFor(game)?.id === comp);
+    return (comp === 'all' ? games : games.filter((game) => this.compFor(game)?.id === comp)).filter((game) =>
+      this.filter.passes(game.players.map((p) => p.champion))
+    );
   });
 
   /**

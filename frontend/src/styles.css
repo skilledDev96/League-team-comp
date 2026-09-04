@@ -11849,8 +11849,8 @@ body:has(.draft-stage) .edit-mode-frame {
   opacity: 0.8;
 }
 
-/* ---- Analysis: one-champion filter -------------------------------------- */
-.analysis-champ-filter {
+/* ---- One-champion filter, shared across pages --------------------------- */
+.champ-filter {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -11858,7 +11858,7 @@ body:has(.draft-stage) .edit-mode-frame {
   margin: 0.6rem 0 0.9rem;
 }
 
-.analysis-champ-input {
+.champ-filter-input {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -11871,7 +11871,7 @@ body:has(.draft-stage) .edit-mode-frame {
   color: var(--text-1);
 }
 
-.analysis-champ-input input {
+.champ-filter-input input {
   flex: 1;
   min-width: 0;
   border: 0;
@@ -11881,16 +11881,16 @@ body:has(.draft-stage) .edit-mode-frame {
   outline: none;
 }
 
-.analysis-champ-input:focus-within {
+.champ-filter-input:focus-within {
   border-color: var(--accent);
 }
 
-.analysis-champ-count {
+.champ-filter-count {
   font-size: 0.85rem;
   color: var(--text-1);
 }
 
-.analysis-champ-count b {
+.champ-filter-count b {
   color: var(--text-0);
 }
 
@@ -11899,4 +11899,41 @@ body:has(.draft-stage) .edit-mode-frame {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
   box-shadow: 0 0 0.6rem var(--glow-a);
+}
+
+.champ-filter-answer {
+  margin: -0.3rem 0 1rem;
+  font-size: 0.9rem;
+  color: var(--text-1);
+}
+
+.champ-filter-answer b {
+  color: var(--text-0);
+}
+
+.champ-filter-holder {
+  display: inline-block;
+  margin-right: 1.2rem;
+}
+
+/* What each page picks out when the filter matches. */
+.comp-slot.is-match {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: 0.5rem;
+}
+
+.scrim-line.is-match {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.scrim-line.is-match .scrim-champ,
+.opp-champ.is-match {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0.6rem var(--glow-a);
+}
+
+.opp-ban.is-match {
+  border-color: var(--accent);
+  box-shadow: 0 0 0.8rem var(--glow-a);
 }

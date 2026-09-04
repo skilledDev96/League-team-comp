@@ -1,3 +1,5 @@
+import { ChampionFilterService } from '../../services/champion-filter.service';
+import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -26,10 +28,17 @@ const VIEWS: RosterView[] = ['cards', 'table', 'scouting'];
  */
 @Component({
   selector: 'app-roster',
-  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent],
+  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ChampionFilterComponent],
   templateUrl: './roster.component.html'
 })
 export class RosterComponent {
+  protected readonly filter = inject(ChampionFilterService);
+
+  /** Our players whose listed pool has the champion being asked about. */
+  protected readonly playersWith = computed(() =>
+    this.data.players().filter((p) => this.filter.passes(p.top3 ?? []))
+  );
+
   protected readonly data = inject(TeamDataService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);

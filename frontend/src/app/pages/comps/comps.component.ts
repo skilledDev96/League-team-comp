@@ -1,3 +1,5 @@
+import { ChampionFilterService } from '../../services/champion-filter.service';
+import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -27,7 +29,7 @@ interface ResultDraft {
 
 @Component({
   selector: 'app-comps',
-  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective, NgModelNameDirective],
+  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective, NgModelNameDirective, ChampionFilterComponent],
   templateUrl: './comps.component.html'
 })
 export class CompsComponent {
@@ -36,6 +38,7 @@ export class CompsComponent {
   protected readonly auth = inject(AuthService);
   private readonly champData = inject(ChampionDataService);
   protected readonly roles = ROLES;
+  protected readonly filter = inject(ChampionFilterService);
 
   // Start calm: Starter view with comp panels collapsed.
   protected readonly fullView = signal(false);
@@ -58,7 +61,11 @@ export class CompsComponent {
   protected readonly visibleComps = computed<Comp[]>(() => {
     const filter = this.compCategoryFilter();
     const comps = this.data.comps();
-    return filter === 'all' ? comps : comps.filter((c) => (c.category ?? '') === filter);
+    const byCategory = filter === 'all' ? comps : comps.filter((c) => (c.category ?? '') === filter);
+    // The shared champion filter: only the comps that champion is drafted in.
+    return byCategory.filter((c) =>
+      this.filter.passes(this.roles.map((r) => this.ui.parseCompLine(c.picks[r] ?? '').champion))
+    );
   });
 
   // Per-comp game plan, phase by phase — the macro that applies to this draft.

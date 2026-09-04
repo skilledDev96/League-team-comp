@@ -7,6 +7,24 @@
   </section>
 }
 
+<app-champion-filter [count]="holders().length" noun="opponents" placeholder="Who on their side plays a champion — Tristana, Rakan…" />
+@if (filter.active()) {
+  <p class="champ-filter-answer">
+    @if (holders().length) {
+      @for (h of holders(); track h.series.id) {
+        <span class="champ-filter-holder">
+          <b>{{ h.series.opponent }}</b>:
+          @for (p of h.players; track p.name + p.riotTag; let last = $last) {
+            {{ p.name }} ({{ p.role }}){{ last ? '' : ',' }}
+          }
+        </span>
+      }
+    } @else {
+      None of the scouted opponents in this tournament list {{ filter.active() }}.
+    }
+  </p>
+}
+
 @if (currentTournament(); as tournament) {
   <section class="card tournament-head" aria-label="Tournament details">
     <h2 class="title-with-icon">
@@ -448,7 +466,7 @@
                   @if (board.length) {
                     <div class="opp-banboard" aria-label="Ban candidates">
                       @for (c of board; track c.player + c.champion) {
-                        <div class="opp-ban" [class.is-banned]="isTargetBan(series, c.champion)">
+                        <div class="opp-ban" [class.is-banned]="isTargetBan(series, c.champion)" [class.is-match]="filter.matches(c.champion)">
                           <img class="opp-ban-art" [src]="ui.championIconUrl(c.champion)" [alt]="c.champion" loading="lazy" />
                           <div class="opp-ban-body">
                             <span class="opp-ban-champ">{{ c.champion }}</span>
@@ -557,7 +575,7 @@
                           @for (rec of q.pool; track rec.champion) {
                             <span class="opp-champ-cell"
                                   [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won' : '') + (q.forSeat ? ' at ' + opp.role : '') + (q.label ? ' (' + q.label + ')' : '')">
-                              <img class="opp-champ" [class.is-seat]="q.forSeat"
+                              <img class="opp-champ" [class.is-seat]="q.forSeat" [class.is-match]="filter.matches(rec.champion)"
                                    [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
                               @if (rateOf(rec); as rate) {
                                 <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rate }}%<em>{{ rec.games }}</em></span>

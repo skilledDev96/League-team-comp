@@ -55,6 +55,8 @@
     }
   </section>
 
+  <app-champion-filter [count]="filteredGames().length" noun="games" placeholder="Games with a champion — Tristana, Rakan…" />
+
   <section class="card" [attr.aria-label]="outcome() === 'win' ? 'What keeps working' : 'Recurring problems'">
     <h2>{{ outcome() === 'win' ? 'What keeps working' : 'Recurring problems' }}</h2>
     @if (summary().analysed === 0) {

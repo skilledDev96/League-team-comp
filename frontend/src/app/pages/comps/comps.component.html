@@ -27,6 +27,8 @@
   @for (cat of categorySuggestions; track cat) { <option [value]="cat"></option> }
 </datalist>
 
+<app-champion-filter [count]="visibleComps().length" noun="comps" placeholder="Comps with a champion — Tristana, Rakan…" />
+
 <section id="compSection" class="grid two" aria-label="Team compositions">
   @for (comp of visibleComps(); track comp.id) {
     <div class="card comp-card">
@@ -63,7 +65,7 @@
         <ol class="comp-slots" aria-label="Comp by role">
           @for (role of roles; track role) {
             @if (comp.picks[role]; as line) {
-              <li class="comp-slot">
+              <li class="comp-slot" [class.is-match]="filter.matches(ui.parseCompLine(line).champion)">
                 <span class="comp-slot-role">{{ role }}</span>
                 <img class="comp-slot-icon"
                      [src]="ui.championIconUrl(ui.parseCompLine(line).champion)"

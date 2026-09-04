@@ -327,6 +327,15 @@ Two questions are asked of a cached entry, and conflating them makes a
 - **Angular 22, standalone components, signals throughout.** No NgModules; components declare their own `imports`. State is signals + `computed`; prefer this over RxJS for view state.
 - Forms use `[ngModel]` + `(ngModelChange)` with `FormsModule` (template-driven, one-way bound to signals), not reactive forms — see `admin.component.html`.
 - Styling is one global `frontend/src/styles.css` (no per-component styles) built on CSS custom properties. Theme is switched via `body[data-theme="..."]` (`bomb` — the default, built on the team mark in `public/assets/brand/` — `dark`, `dark-blue`, `dark-red`, `hextech`, `void`, `light`); **always style through tokens** (`--accent`, `--text-0/1`, `--ok` for wins/positive, `--warn` for losses/negative, `--card-border`, `--surface-*`) so every theme works.
+- **One champion filter, followed across pages.** `ChampionFilterService` holds
+  the name (a root signal, kept in `sessionStorage`), `<app-champion-filter>`
+  is the box, and each page passes its own count and noun so the line reads
+  "2 comps with Tristana" there and "5 scrims with Tristana" here. Analysis and
+  Review narrow the games (and every record over them), Comps the comps it is
+  drafted in, Scrims the replays it was in on either side, Roster answers who
+  on our side lists it, Tournaments who on the scouted opponents' side plays
+  it. Compare through `filter.matches()`/`filter.passes()`, never by name:
+  games carry Riot ids (`MonkeyKing`), people type Wukong.
 - Shared UI lives in `frontend/src/app/shared/` (e.g. `overflow-menu.component.ts`, `champion-chip.component.ts`, `external-profiles.component.ts`); reuse these rather than re-rolling menus/chips. `champion-grid.component.ts` is the searchable wall of champions used by both the comp board and the live draft — it owns no idea of *where* a pick lands, and only emits a name.
 - **Sizing is in `rem`, not `px`.** The root font size is a `clamp()` on `html`, so the whole interface scales with the monitor: unchanged below ~1600px, about 31% larger at 2560px. A `px` width or height silently opts out of that and will look wrong on a large screen. Borders, radii and shadows are the exception and should stay in `px`. Material Symbols carry an explicit `1.5rem` because Google's stylesheet pins them at 24px.
 - Champion art: `ui.championIconUrl()` for the square icon, `ui.championArtUrl()` for **splash** art on wide cards. Splash is 1215×717 landscape; the loading art at 308×560 is portrait and crops badly into anything wide.

@@ -95,24 +95,7 @@
 
     <!-- One champion narrows every comp to the games it was in, so the
          records above read as "with Tristana", not just "overall". -->
-    <div class="analysis-champ-filter">
-      <label class="analysis-champ-input">
-        <span class="material-symbols-rounded" aria-hidden="true">filter_alt</span>
-        <input type="search" list="analysisChampList" autocomplete="off"
-               placeholder="Games with a champion — Tristana, Rakan…"
-               aria-label="Filter games by champion"
-               [ngModel]="championFilter()" (ngModelChange)="championFilter.set($event)" name="analysisChampFilter" />
-      </label>
-      <datalist id="analysisChampList">
-        @for (n of championNames(); track n) { <option [value]="n"></option> }
-      </datalist>
-      @if (championFilter().trim()) {
-        <span class="analysis-champ-count">
-          <b>{{ filteredGames().length }}</b> {{ filteredGames().length === 1 ? 'game' : 'games' }} with {{ championFilter().trim() }}
-        </span>
-        <button type="button" class="link-btn" (click)="championFilter.set('')">Clear</button>
-      }
-    </div>
+    <app-champion-filter [count]="filteredGames().length" noun="games" placeholder="Games with a champion — Tristana, Rakan…" />
 
     @if (compRows().length) {
       <ul class="analysis-list">
@@ -256,7 +239,7 @@
           <span class="game-outcome">{{ game.win ? 'W' : 'L' }}</span>
           <span class="game-champs">
             @for (p of game.players; track p.name) {
-              <img class="game-champ-sm" [class.is-match]="matchesChampionFilter(p.champion)"
+              <img class="game-champ-sm" [class.is-match]="filter.matches(p.champion)"
                    [src]="ui.championIconUrl(p.champion)" [alt]="p.champion"
                    [appTip]="p.position + ' · ' + p.name + ' · ' + p.champion" loading="lazy" />
             }

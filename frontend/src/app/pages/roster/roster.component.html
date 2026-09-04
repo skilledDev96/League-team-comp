@@ -28,6 +28,21 @@
   </div>
 </section>
 
+<app-champion-filter [count]="playersWith().length" noun="players" placeholder="Who on our side plays a champion — Tristana, Rakan…" />
+@if (filter.active()) {
+  <p class="champ-filter-answer">
+    @if (playersWith().length) {
+      Played by
+      @for (p of playersWith(); track p.id; let last = $last) {
+        <b>{{ p.name }}</b>{{ last ? '' : ',' }}
+      }
+      — from the pools listed on their cards.
+    } @else {
+      Nobody on the roster lists {{ filter.active() }} in their pool.
+    }
+  </p>
+}
+
 <!-- Only the selected mode is rendered. Each brings its own controls and its
      own state; keeping all three alive would run three sets of computeds over
      the same roster for no benefit. -->
