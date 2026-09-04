@@ -296,9 +296,13 @@ export class TournamentPlanComponent {
   }
 
   /** One click from the ban board to the target-ban list, without duplicates. */
-  protected addTargetBan(series: TournamentSeries, champion: string): void {
-    if (this.isTargetBan(series, champion)) return;
-    this.setSeriesBans(series, [...(series.bans ?? []), champion]);
+  /** A board card toggles: one click adds the target ban, the next removes it. */
+  protected toggleTargetBan(series: TournamentSeries, champion: string): void {
+    const bans = series.bans ?? [];
+    this.setSeriesBans(
+      series,
+      this.isTargetBan(series, champion) ? bans.filter((b) => !(b.replace(/[^a-z0-9]/gi, '').toLowerCase() === champion.replace(/[^a-z0-9]/gi, '').toLowerCase())) : [...bans, champion]
+    );
   }
 
   // ---- Their roster -------------------------------------------------------

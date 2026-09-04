@@ -229,9 +229,13 @@ export class ScrimsComponent {
   }
 
   /** One click from the ban board to the target-ban list, without duplicates. */
-  protected addTargetBan(group: ScrimGroup, champion: string): void {
-    if (this.isTargetBan(group, champion)) return;
-    this.setOpponentBans(group, [...(this.opponentFor(group).bans ?? []), champion]);
+  /** A board card toggles: one click adds the target ban, the next removes it. */
+  protected toggleTargetBan(group: ScrimGroup, champion: string): void {
+    const bans = this.opponentFor(group).bans ?? [];
+    this.setOpponentBans(
+      group,
+      this.isTargetBan(group, champion) ? bans.filter((b) => !(b.replace(/[^a-z0-9]/gi, '').toLowerCase() === champion.replace(/[^a-z0-9]/gi, '').toLowerCase())) : [...bans, champion]
+    );
   }
 
   /** Whether there is anything worth showing in the panel when not editing. */

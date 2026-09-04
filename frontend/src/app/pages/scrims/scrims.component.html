@@ -267,9 +267,10 @@
                               }
                             </span>
                             @if (auth.editing()) {
-                              <button type="button" class="tag opp-ban-add" [disabled]="isTargetBan(group, c.champion)"
-                                      (click)="addTargetBan(group, c.champion)">
-                                {{ isTargetBan(group, c.champion) ? 'Target ban' : 'Add to target bans' }}
+                              <button type="button" class="tag opp-ban-add" [attr.aria-pressed]="isTargetBan(group, c.champion)"
+                                      [appTip]="isTargetBan(group, c.champion) ? 'Click to remove from the target bans' : 'Click to add to the target bans'"
+                                      (click)="toggleTargetBan(group, c.champion)">
+                                {{ isTargetBan(group, c.champion) ? 'Target ban ✓' : 'Add to target bans' }}
                               </button>
                             }
                           </div>
