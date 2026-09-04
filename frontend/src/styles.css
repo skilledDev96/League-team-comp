@@ -11848,3 +11848,55 @@ body:has(.draft-stage) .edit-mode-frame {
   height: 1.35rem;
   opacity: 0.8;
 }
+
+/* ---- Analysis: one-champion filter -------------------------------------- */
+.analysis-champ-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.9rem;
+  margin: 0.6rem 0 0.9rem;
+}
+
+.analysis-champ-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1 1 18rem;
+  max-width: 26rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--surface-controls);
+  color: var(--text-1);
+}
+
+.analysis-champ-input input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-0);
+  font: inherit;
+  outline: none;
+}
+
+.analysis-champ-input:focus-within {
+  border-color: var(--accent);
+}
+
+.analysis-champ-count {
+  font-size: 0.85rem;
+  color: var(--text-1);
+}
+
+.analysis-champ-count b {
+  color: var(--text-0);
+}
+
+/* The champion being filtered on, picked out on every row it appears in. */
+.game-champ-sm.is-match {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0.6rem var(--glow-a);
+}
