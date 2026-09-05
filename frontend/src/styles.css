@@ -9296,12 +9296,155 @@ body[data-theme="bomb"] {
   background: var(--surface-controls);
 }
 
+/* ---- Draft on the map ------------------------------------------------------
+   The map takes the left column, bans stay under it, and the champion wall
+   keeps the rest. The third column goes: both teams are on the one map. */
+.draft-stage.is-map {
+  grid-template-columns: minmax(18rem, 1.1fr) minmax(0, 2fr);
+}
+
+.draft-stage.is-map .draft-map {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.draft-stage.is-map .draft-inputs > .field:nth-child(1) {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.draft-stage.is-map .draft-grid {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.draft-map {
+  position: relative;
+  aspect-ratio: 1;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  overflow: hidden;
+  background: var(--bg-0);
+}
+
+.draft-map-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  pointer-events: none;
+  filter: saturate(0.85) brightness(0.9);
+}
+
+.draft-map-side {
+  position: absolute;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-0) 70%, transparent);
+  color: var(--text-1);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  z-index: 2;
+}
+
+.draft-map-side.is-blue { left: 0.6rem; bottom: 0.6rem; }
+.draft-map-side.is-red { right: 0.6rem; top: 0.6rem; }
+.draft-map-side.is-ours { color: var(--accent-2); }
+
+.draft-map-token {
+  --ring: var(--warn);
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-0);
+  font: inherit;
+  cursor: pointer;
+}
+
+.draft-map-token:disabled { cursor: default; }
+.draft-map-token.is-ours { --ring: var(--ok); }
+
+.draft-map-token-img {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 3px solid var(--ring);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  background: var(--surface-btn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+
+.draft-map-token.is-empty .draft-map-token-img {
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.draft-map-token.is-aimed .draft-map-token-img {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent), 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.draft-map-token.is-on-turn .draft-map-token-img {
+  animation: draft-map-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes draft-map-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring) 55%, transparent); }
+  50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--ring) 0%, transparent); }
+}
+
+.draft-map-token-name {
+  max-width: 6.5rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.draft-layout {
+  margin-left: auto;
+}
+
+.draft-layout .segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.draft-layout .segment .material-symbols-rounded {
+  font-size: 1rem;
+}
+
 @media (max-width: 1100px) {
   .draft-stage {
     grid-template-columns: 1fr;
   }
   .draft-stage .draft-inputs > .field,
-  .draft-stage .draft-grid {
+  .draft-stage .draft-grid,
+  .draft-stage.is-map .draft-map,
+  .draft-stage.is-map .draft-inputs > .field:nth-child(1),
+  .draft-stage.is-map .draft-grid {
     grid-column: 1;
     grid-row: auto;
   }

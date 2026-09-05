@@ -38,6 +38,19 @@
                 [class.is-negative]="sc.wins < sc.losses">{{ sc.wins }}&ndash;{{ sc.losses }}</span>
         }
       }
+      <!-- Five a side like the client, or the same ten placed on the rift
+           where they will stand at two minutes — the second reads as lane
+           matchups, the first as a draft. -->
+      <div class="segmented draft-layout" role="group" aria-label="Layout">
+        <button type="button" class="segment" [class.active]="layout() === 'columns'"
+                [attr.aria-pressed]="layout() === 'columns'" (click)="setLayout('columns')">
+          <span class="material-symbols-rounded" aria-hidden="true">view_column</span> Columns
+        </button>
+        <button type="button" class="segment" [class.active]="layout() === 'map'"
+                [attr.aria-pressed]="layout() === 'map'" (click)="setLayout('map')">
+          <span class="material-symbols-rounded" aria-hidden="true">map</span> Map
+        </button>
+      </div>
     </header>
 
     @if (gamesFor(series.id).length || auth.editing()) {
@@ -107,7 +120,39 @@
            draft is two teams facing each other across a champion pool, and a
            stacked layout spends the width on nothing while pushing the grid
            below the fold. -->
-      <div class="draft-stage">
+      <div class="draft-stage" [class.is-map]="layout() === 'map'">
+      @if (layout() === 'map') {
+        <!-- The same ten seats as the columns, placed on the rift. A token is
+             the seat: aiming works as it does on a card, and the sequence still
+             decides where a pick lands. -->
+        <div class="draft-map" [attr.aria-label]="'Draft on the map — ' + teamName() + ' on ' + colourOf(game, 'our')">
+          <img class="draft-map-img" src="assets/maps/summoners-rift.png" alt="" draggable="false" />
+          <span class="draft-map-side is-blue" [class.is-ours]="colourOf(game, 'our') === 'blue'">
+            {{ colourOf(game, 'our') === 'blue' ? teamName() : series.opponent }}
+          </span>
+          <span class="draft-map-side is-red" [class.is-ours]="colourOf(game, 'our') === 'red'">
+            {{ colourOf(game, 'our') === 'red' ? teamName() : series.opponent }}
+          </span>
+          @for (t of mapTokens(game); track t.side + t.index) {
+            <button type="button" class="draft-map-token"
+                    [class.is-ours]="t.side === 'our'" [class.is-theirs]="t.side === 'their'"
+                    [class.is-empty]="!t.champion"
+                    [class.is-aimed]="auth.editing() && isTargeted('pick', t.side, t.index)"
+                    [class.is-on-turn]="onTurn(game, t.side) && !t.champion"
+                    [style.left.%]="t.x" [style.top.%]="t.y"
+                    [disabled]="!auth.editing()"
+                    [appTip]="(t.side === 'our' ? teamName() : series.opponent) + ' ' + t.role + (t.champion ? ' — ' + t.champion : ' — empty')"
+                    (click)="aimAtPick(t.side, t.index)">
+              @if (t.champion) {
+                <img class="draft-map-token-img" [src]="ui.championIconUrl(t.champion)" [alt]="" loading="lazy" />
+              } @else {
+                <span class="draft-map-token-img is-empty">{{ ui.roleBadgeText(t.role) }}</span>
+              }
+              <span class="draft-map-token-name">{{ t.champion || t.role }}</span>
+            </button>
+          }
+        </div>
+      }
       <div class="draft-inputs">
           <!-- The element stays even when it renders nothing: the stage places
                these three fields by nth-child, so dropping this one would slide
@@ -160,7 +205,7 @@
             }
           }
           </div>
-          <div class="field" [class.is-on-turn]="onTurn(game, 'our')">
+          <div class="field" [class.is-on-turn]="onTurn(game, 'our')" [hidden]="layout() === 'map'">
             <span>{{ teamName() }} picks <small class="pick-count">{{ pickedCount(game, 'our') }}/5</small>
               @if (onTurn(game, 'our')) { <em class="on-clock">on the clock</em> }
             </span>
@@ -213,7 +258,7 @@
               }
             </ul>
           </div>
-          <div class="field" [class.is-on-turn]="onTurn(game, 'their')">
+          <div class="field" [class.is-on-turn]="onTurn(game, 'their')" [hidden]="layout() === 'map'">
             <span>{{ series.opponent }} picks <small class="pick-count">{{ pickedCount(game, 'their') }}/5</small>
               @if (onTurn(game, 'their')) { <em class="on-clock">on the clock</em> }
             </span>
