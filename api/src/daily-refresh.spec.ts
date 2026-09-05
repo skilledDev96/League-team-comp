@@ -84,6 +84,41 @@ describe('mergePlayer', () => {
       refreshedAt: '2026-09-05T05:00:00Z'
     });
   });
+
+  it('keeps a hand-edited player as saved, and still takes the stats and the time', () => {
+    const curated: StoredPlayer = {
+      ...player,
+      curated: true,
+      playstyle: 'Split pusher',
+      strengths: ['Lane bully'],
+      top3: ['Ornn', 'Lillia'],
+      icon: 'ours.webp'
+    };
+    const merged = mergePlayer(
+      curated,
+      {
+        source: 'provider',
+        role: 'Jungle',
+        iconUrl: 'riot.jpg',
+        playstyle: 'Teamfighter',
+        strengths: ['generated'],
+        top3: ['Sion'],
+        bans: ['Zed'],
+        queueStats: { solo: { games: 3 } }
+      },
+      '2026-09-06T05:00:00Z'
+    );
+    expect(merged).toMatchObject({
+      role: 'Top',
+      playstyle: 'Split pusher',
+      strengths: ['Lane bully'],
+      top3: ['Ornn', 'Lillia'],
+      bans: ['Fiora'],
+      icon: 'ours.webp',
+      queueStats: { solo: { games: 3 } },
+      refreshedAt: '2026-09-06T05:00:00Z'
+    });
+  });
 });
 
 describe('refreshOrder', () => {

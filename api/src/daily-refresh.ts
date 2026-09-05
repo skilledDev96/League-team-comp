@@ -28,6 +28,13 @@ export interface StoredPlayer {
   profile?: { region?: string; riotTag?: string; mobalyticsSlug?: string };
   /** ISO time of the last automatic or manual Riot refresh, when known. */
   refreshedAt?: string;
+  /**
+   * Saved by hand in Admin. From then on a refresh keeps the stats and the
+   * time and leaves the text, the pool and the bans alone: a person's edit
+   * outranks a generated line, and the alternative — "Lillia" reverting the
+   * next morning (5 Sep 2026) — makes the form a lie.
+   */
+  curated?: boolean;
 }
 
 /** What enrichment hands back, as far as the merge cares. */
@@ -141,6 +148,14 @@ export function mergePlayer(
   now: string
 ): StoredPlayer | null {
   if (enriched.source !== 'provider') return null;
+  if (player.curated) {
+    return {
+      ...player,
+      icon: player.icon || enriched.iconUrl,
+      queueStats: enriched.queueStats ?? player.queueStats,
+      refreshedAt: now
+    };
+  }
   return {
     ...player,
     role: enriched.role ?? player.role,

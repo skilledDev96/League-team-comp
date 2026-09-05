@@ -17,6 +17,7 @@ export interface PlayerDraft {
   role: Role;
   secondaryRoles: Role[];
   sub: boolean;
+  curated: boolean;
   icon: string;
   playstyle: string;
   strengths: string;
@@ -97,6 +98,7 @@ export function toPlayerDraft(p: Player): PlayerDraft {
     role: p.role,
     secondaryRoles: (p.secondaryRoles ?? []).filter((r) => r !== p.role),
     sub: !!p.sub,
+    curated: !!p.curated,
     icon: p.icon ?? '',
     playstyle: p.playstyle ?? '',
     strengths: p.strengths.join(', '),

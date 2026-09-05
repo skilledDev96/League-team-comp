@@ -61,6 +61,7 @@
           <span class="pp-name">{{ draft.name || 'New player' }}</span>
           <span class="pp-role">{{ draft.role }}</span>
           @if (draft.sub) { <span class="pp-role flex">Sub</span> }
+          @if (draft.curated) { <span class="pp-role flex" title="Saved by hand. The morning refresh keeps this player's text, pool and bans; press Refresh on the player to pull Riot's again.">Hand-edited</span> }
         </span>
         <span class="player-panel-chevron material-symbols-rounded" aria-hidden="true">
           {{ ctx.isPlayerOpen(draft) ? 'expand_less' : 'expand_more' }}

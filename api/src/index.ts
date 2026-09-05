@@ -1821,7 +1821,14 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
         },
         apiKey
       );
-      const merged = mergePlayer(player, enriched, new Date().toISOString());
+      // Re-read before merging. A run takes minutes and an editor may have
+      // saved this player meanwhile; merging into the copy read at the start
+      // wrote that save away, which is how a pool edit "reverted on refresh".
+      const freshSnap = await db.doc(`players/${player.id}`).get();
+      const fresh: StoredPlayer = freshSnap.exists
+        ? { ...(freshSnap.data() as Omit<StoredPlayer, 'id'>), id: player.id }
+        : player;
+      const merged = mergePlayer(fresh, enriched, new Date().toISOString());
       if (!merged) {
         log.playersFailed.push(player.name);
         continue;

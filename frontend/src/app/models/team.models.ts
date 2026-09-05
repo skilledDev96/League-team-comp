@@ -99,6 +99,12 @@ export interface Player {
   profile?: SummonerProfile;
   /** ISO time of the last Riot refresh, set by the morning job. */
   refreshedAt?: string;
+  /**
+   * Saved by hand in Admin. The refresh then keeps only the stats; the text,
+   * the pool and the bans are the team's own until someone presses Refresh
+   * on the player and saves again.
+   */
+  curated?: boolean;
   order: number;
 }
 

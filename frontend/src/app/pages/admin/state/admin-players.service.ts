@@ -189,6 +189,7 @@ export class AdminPlayersService {
       role: 'Top',
       secondaryRoles: [],
       sub: false,
+      curated: false,
       icon: '',
       playstyle: '',
       strengths: '',
@@ -221,6 +222,8 @@ export class AdminPlayersService {
       role: draft.role,
       secondaryRoles: secondaryRoles.length ? secondaryRoles : undefined,
       sub: draft.sub || undefined,
+      // Saved by hand: the refresh keeps this player's text, pool and bans.
+      curated: true,
       icon: draft.icon.trim() || undefined,
       playstyle: draft.playstyle.trim() || undefined,
       strengths: splitList(draft.strengths),
@@ -236,7 +239,8 @@ export class AdminPlayersService {
     }
     if (draft.id) {
       const existing = this.data.players().find((p) => p.id === draft.id);
-      await this.data.updatePlayer({ ...base, id: draft.id, order: existing?.order ?? 0 });
+      // The save replaces the document, so carry the refresh stamp across.
+      await this.data.updatePlayer({ ...base, id: draft.id, order: existing?.order ?? 0, refreshedAt: existing?.refreshedAt });
     } else {
       await this.data.createPlayer(base);
       this.shell.requestResync();
