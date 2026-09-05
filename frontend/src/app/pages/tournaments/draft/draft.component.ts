@@ -47,7 +47,7 @@ import { comfortOf, gamePlan, GamePlan, LaneRead, LaneVerdict, readLanes, SeatIn
 import { countersFor, poolFor, starters } from '../../../core/opponent-view';
 import { playsRole } from '../../../core/champion-lanes';
 import { DraftAdvisorService } from '../../../services/draft-advisor.service';
-import { DraftAdvice } from '../../../models/team.models';
+import { DraftAdvice, SavedDraftAdvice } from '../../../models/team.models';
 import { CompIdentity, IDENTITY_ICON, IDENTITY_LABEL, classifyComp } from '../../../core/comp-identity';
 import { ChampionRate, ChampionStatsService, previousPatch } from '../../../services/champion-stats.service';
 import { MatchupRate, MatchupStatsService } from '../../../services/matchup-stats.service';
@@ -1120,7 +1120,8 @@ export class TournamentDraftComponent implements OnInit {
       theirChampions: [],
       ourSide: undefined,
       draftStep: undefined,
-      holding: undefined
+      holding: undefined,
+      advice: undefined
     });
     this.pending.set(null);
   }
@@ -1442,14 +1443,17 @@ export class TournamentDraftComponent implements OnInit {
   // the step, and the backend drops anything outside them.
 
   protected readonly advisor = inject(DraftAdvisorService);
-  protected readonly advice = signal<DraftAdvice | null>(null);
+  /** The stored answer for this game, if one has been asked. */
+  protected adviceOf(game: SeriesGame): SavedDraftAdvice | null {
+    return this.current(game).advice ?? null;
+  }
+
   protected readonly adviceError = signal('');
   /** The step the advice was given for, so a stale answer says so. */
-  private readonly adviceStep = signal<number | null>(null);
 
   protected adviceIsStale(game: SeriesGame): boolean {
-    const at = this.adviceStep();
-    return at !== null && at !== (game.draftStep ?? 0);
+    const saved = this.adviceOf(game);
+    return !!saved && saved.step !== (this.current(game).draftStep ?? 0);
   }
 
   /** How many champions the advisor may choose from. */
@@ -1576,8 +1580,13 @@ export class TournamentDraftComponent implements OnInit {
     this.adviceError.set('');
     try {
       const answer = await this.advisor.ask(request);
-      this.advice.set(answer);
-      this.adviceStep.set(live.draftStep ?? 0);
+      // Re-read the game: the board may have moved in the seconds the model
+      // took, and the answer must not carry a stale board back over it.
+      const now = this.current(game);
+      await this.data.updateSeriesGame({
+        ...now,
+        advice: { ...answer, step: live.draftStep ?? 0, action, askedAt: new Date().toISOString() }
+      });
     } catch (error) {
       this.adviceError.set(error instanceof Error ? error.message : 'The advisor could not answer.');
     }

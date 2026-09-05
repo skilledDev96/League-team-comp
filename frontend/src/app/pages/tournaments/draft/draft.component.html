@@ -609,17 +609,17 @@
                 @if (advisor.busy()) {
                   <span class="btn-spinner" aria-hidden="true"></span> Thinking…
                 } @else {
-                  {{ advice() ? 'Ask again' : 'Ask what to ' + (step(g)?.action || 'pick') }}
+                  {{ adviceOf(g) ? 'Ask again' : 'Ask what to ' + (step(g)?.action || 'pick') }}
                 }
               </button>
-              @if (advice()?.tookMs; as ms) {
+              @if (adviceOf(g)?.tookMs; as ms) {
                 <em class="advisor-took">{{ (ms / 1000).toFixed(1) }}s</em>
               }
             </span>
             @if (adviceError()) {
               <p class="advisor-error">{{ adviceError() }}</p>
             }
-            @if (advice(); as a) {
+            @if (adviceOf(g); as a) {
               @if (adviceIsStale(g)) {
                 <p class="advisor-stale">
                   <span class="material-symbols-rounded" aria-hidden="true">history</span>

@@ -461,6 +461,13 @@ export interface DraftAdvice {
   tookMs?: number;
 }
 
+/** An answer as stored on a `SeriesGame`. */
+export interface SavedDraftAdvice extends DraftAdvice {
+  step: number;
+  action: 'pick' | 'ban';
+  askedAt: string;
+}
+
 /** What the last morning refresh did (Firestore `meta/refreshLog`). Mirrors `api/src/daily-refresh.ts`. */
 export interface RefreshLog {
   ranAt: string;
@@ -758,6 +765,12 @@ export interface SeriesGame {
    * Cleared on confirm, cancel, undo and reset; absent means nothing held.
    */
   holding?: string;
+  /**
+   * The advisor's last answer for this game, kept so it survives a reload and
+   * reaches a teammate on the shared link. `step` is the draft step it was
+   * asked at; the room marks it stale once the board moves past that.
+   */
+  advice?: SavedDraftAdvice;
   win?: boolean;
   /** Set when reconciled against Riot match history after the fact. */
   matchId?: string;
