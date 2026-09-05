@@ -9043,8 +9043,8 @@ body[data-theme="bomb"] {
 }
 
 .draft-grid .board-champ img {
-  width: 3rem;
-  height: 3rem;
+  width: 3.9rem;
+  height: 3.9rem;
 }
 
 .draft-grid .board-champ-label {
@@ -9837,7 +9837,7 @@ body[data-theme="bomb"] {
 /* Tighter wall. The gaps were doing no work — a champion tile is already a
    framed square, so the space between them only pushed rows off screen. */
 .draft-grid .board-grid {
-  grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(4.9rem, 1fr));
   gap: 0.2rem;
   padding: 0.35rem;
 }
@@ -9971,7 +9971,7 @@ body[data-theme="bomb"] {
    and the pick columns stretch to match, which is where their extra height
    comes from. */
 .draft-grid .board-grid {
-  height: min(24rem, 34vh);
+  height: min(40rem, 58vh);
   max-height: none;
   align-content: start;
 }
@@ -12720,6 +12720,22 @@ body:has(.draft-stage) .edit-mode-frame {
    shows the same three rows at two thirds the height, and the advisor block
    has a fixed height with its own scroll, so the answer fills a frame that was
    already there instead of making one. */
+.draft-grid .board-grid {
+  --tile-w: 5rem;
+  --tile-h: 5.2rem;
+  --tile-rows: 3;
+}
+
+.draft-grid .board-filters,
+.draft-grid .board-lane-note {
+  max-width: calc(8 * 5rem + 7 * var(--tile-gap, 0.3rem) + 2 * var(--tile-pad, 0.4rem) + 2px + 1rem);
+}
+
+.draft-grid .board-champ img {
+  width: 3rem;
+  height: 3rem;
+}
+
 .draft-stage .advice-block.is-advisor {
   height: 15rem;
   overflow-y: auto;
