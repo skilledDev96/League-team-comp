@@ -50,6 +50,7 @@
         <div class="title-row">
           <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
           <h2>{{ player.role }} - {{ player.name }}</h2>
+          @if (player.sub) { <span class="sub-badge" title="On the bench: the draft room follows the starter in this seat.">Sub</span> }
         </div>
         <p class="meta-line meta-playstyle">
           <span class="meta-label">Playstyle</span>

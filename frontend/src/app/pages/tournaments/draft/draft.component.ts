@@ -630,7 +630,7 @@ export class TournamentDraftComponent implements OnInit {
       game.ourChampions
     );
     return poolPressure(
-      this.data.players().map((p) => ({ name: p.name, role: p.role, pool: p.top3 ?? [] })),
+      this.data.starters().map((p) => ({ name: p.name, role: p.role, pool: p.top3 ?? [] })),
       blocked
     );
   }
@@ -1479,7 +1479,7 @@ export class TournamentDraftComponent implements OnInit {
     };
 
     if (action === 'pick') {
-      const ourPlayer = seat ? this.data.players().find((p) => p.role === seat) : undefined;
+      const ourPlayer = seat ? this.data.starters().find((p) => p.role === seat) : undefined;
       for (const champ of ourPlayer?.top3 ?? []) add(champ);
       for (const comp of this.draftPlayable(game)) {
         const source = this.data.comps().find((c) => c.id === comp.id);
@@ -1551,7 +1551,7 @@ export class TournamentDraftComponent implements OnInit {
       theirPicks: pickMap('their'),
       bans: (live.bans ?? []).filter(Boolean),
       burned: this.burnedBefore(live.seriesId, live.gameNumber),
-      ourRoster: this.data.players().map((p) => ({ name: p.name, role: p.role, pool: (p.top3 ?? []).slice(0, 10) })),
+      ourRoster: this.data.starters().map((p) => ({ name: p.name, role: p.role, pool: (p.top3 ?? []).slice(0, 10) })),
       theirRoster: theirs.map((p) => ({
         name: p.name,
         role: p.role,
@@ -1615,7 +1615,7 @@ export class TournamentDraftComponent implements OnInit {
       const matchup = ours && theirs ? this.matchups.rate(role, ours, theirs) : undefined;
 
       // Our roster carries a pool without counts: first entry is the main.
-      const ourPlayer = this.data.players().find((p) => p.role === role);
+      const ourPlayer = this.data.starters().find((p) => p.role === role);
       const ourPool = ourPlayer?.top3 ?? [];
       const ourAt = ours ? ourPool.findIndex((c) => normalizeChampion(c) === normalizeChampion(ours)) : -1;
       const ourComfort = !ourPlayer || !ours

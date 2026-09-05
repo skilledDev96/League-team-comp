@@ -82,6 +82,9 @@ export interface Player {
   role: Role;
   // Additional roles this player can flex into, beyond their main `role`.
   secondaryRoles?: Role[];
+  /** On the bench. Two players can share a seat; the draft room, the lane read and
+   *  the advisor follow the one who is not marked, so the sub never steals the seat. */
+  sub?: boolean;
   icon?: string;
   playstyle?: string;
   strengths: string[];

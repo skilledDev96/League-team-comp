@@ -1,4 +1,4 @@
-import { Injectable, WritableSignal, signal } from '@angular/core';
+import { Injectable, WritableSignal, computed, signal } from '@angular/core';
 import {
   collection,
   deleteDoc,
@@ -62,6 +62,8 @@ export class TeamDataService {
   readonly mode: 'firebase' | 'local' = isFirebaseConfigured() ? 'firebase' : 'local';
 
   readonly players = signal<Player[]>([]);
+  /** The five who start: everyone not marked as a sub, in roster order. */
+  readonly starters = computed(() => this.players().filter((p) => !p.sub));
   readonly fillIns = signal<FillIn[]>([]);
   readonly comps = signal<Comp[]>([]);
   readonly compResults = signal<CompResult[]>([]);

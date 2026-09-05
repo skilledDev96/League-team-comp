@@ -60,6 +60,7 @@
         <span class="player-panel-title">
           <span class="pp-name">{{ draft.name || 'New player' }}</span>
           <span class="pp-role">{{ draft.role }}</span>
+          @if (draft.sub) { <span class="pp-role flex">Sub</span> }
         </span>
         <span class="player-panel-chevron material-symbols-rounded" aria-hidden="true">
           {{ ctx.isPlayerOpen(draft) ? 'expand_less' : 'expand_more' }}
@@ -86,6 +87,12 @@
             }
           }
         </div>
+      </div>
+      <div class="field"><span>Bench</span>
+        <button type="button" class="role-flex-toggle" [class.on]="draft.sub" (click)="draft.sub = !draft.sub"
+                title="A sub shares a seat with a starter. The draft room, the lane read and the advisor follow the starter.">
+          {{ draft.sub ? 'Substitute' : 'Starter' }}
+        </button>
       </div>
       <label class="field"><span>Icon file</span>
         <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event" [name]="'picon-' + draft.uid" placeholder="name.webp" /></label>

@@ -39,6 +39,14 @@ describe('TeamDataService in local mode', () => {
     expect(data.ready()).toBe(true);
   });
 
+  it('starters leaves out whoever is marked as a sub, in roster order', () => {
+    const [first, ...rest] = data.players();
+    data.players.set([{ ...first, sub: true }, ...rest]);
+
+    expect(data.starters().map((p) => p.id)).toEqual(rest.map((p) => p.id));
+    expect(data.starters().some((p) => p.sub)).toBe(false);
+  });
+
   describe('creating', () => {
     it('adds an entity and writes it through to storage', async () => {
       const before = data.comps().length;
