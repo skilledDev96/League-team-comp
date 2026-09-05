@@ -51,6 +51,16 @@ import { buildIndex, indexDocPath, splitIndexId, RawMatchupDoc } from './matchup
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
 import { ChampionTraits, toTraits } from './champion-traits';
 import { BUILD_SHA } from './build-info';
+import {
+  PLAYER_BUDGET_SECONDS,
+  RefreshLog,
+  StoredComp,
+  StoredOverride,
+  StoredPlayer,
+  analysisRequestFrom,
+  mergePlayer,
+  refreshOrder
+} from './daily-refresh';
 
 initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 10 });
@@ -1746,6 +1756,150 @@ export const getCompAnalysis = onRequest(
       // Cache the result so viewers see it without re-running the analysis.
       await getFirestore().doc('meta/compAnalysis').set(stripUndefinedDeep(analysis));
       res.status(200).json(analysis);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unexpected error.';
+      res.status(400).json({ error: message });
+    }
+  }
+);
+
+// ---- The morning refresh ---------------------------------------------------
+//
+// Every roster member re-read from Riot and the comp analysis re-run before
+// anyone is awake, so the pages open on last night's games rather than on
+// whatever someone last clicked Refresh for. The same two jobs the app runs
+// by hand — the merge and the request are shared with the frontend's shape in
+// `daily-refresh.ts` — with a time budget, because a scheduled function has
+// nine minutes and a player costs about one.
+
+async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['trigger']): Promise<RefreshLog> {
+  const db = getFirestore();
+  const startedAt = Date.now();
+  const ranAt = new Date(startedAt).toISOString();
+
+  const [playersSnap, compsSnap, overridesSnap] = await Promise.all([
+    db.collection('players').get(),
+    db.collection('comps').get(),
+    db.collection('compOverrides').get()
+  ]);
+  const players = playersSnap.docs.map((d) => ({ ...(d.data() as Omit<StoredPlayer, 'id'>), id: d.id }));
+  const comps = compsSnap.docs.map((d) => ({ ...(d.data() as Omit<StoredComp, 'id'>), id: d.id }));
+  const overrides = overridesSnap.docs.map((d) => d.data() as StoredOverride);
+
+  const log: RefreshLog = {
+    ranAt,
+    finishedAt: ranAt,
+    trigger,
+    playersUpdated: [],
+    playersFailed: [],
+    playersSkipped: [],
+    analysis: { ok: false }
+  };
+
+  // Players first: enrichment warms the shared match cache, so the analysis
+  // that follows spends fewer of its own Riot calls. Oldest refresh first, and
+  // whoever does not fit the budget goes first tomorrow.
+  for (const player of refreshOrder(players)) {
+    const elapsed = (Date.now() - startedAt) / 1000;
+    if (elapsed > PLAYER_BUDGET_SECONDS) {
+      log.playersSkipped.push(player.name);
+      continue;
+    }
+    try {
+      const enriched = await enrichPlayerProfile(
+        {
+          summonerName: player.name,
+          riotTag: player.profile?.riotTag,
+          region: player.profile?.region,
+          role: player.role,
+          mobalyticsSlug: player.profile?.mobalyticsSlug
+        },
+        apiKey
+      );
+      const merged = mergePlayer(player, enriched, new Date().toISOString());
+      if (!merged) {
+        log.playersFailed.push(player.name);
+        continue;
+      }
+      const { id, ...doc } = merged;
+      await db.doc(`players/${id}`).set(stripUndefinedDeep(doc), { merge: true });
+      log.playersUpdated.push(player.name);
+    } catch (error) {
+      console.error(`Morning refresh: ${player.name} failed`, error);
+      log.playersFailed.push(player.name);
+    }
+  }
+
+  try {
+    const request = analysisRequestFrom(players, comps, overrides);
+    if (request.players.length < 5) {
+      throw new Error(`Only ${request.players.length} roster players; the analysis needs five.`);
+    }
+    const analysis = await computeCompAnalysis(request, apiKey ?? '');
+    await db.doc('meta/compAnalysis').set(stripUndefinedDeep(analysis));
+    log.analysis = {
+      ok: true,
+      games: analysis.totalTeamGames,
+      newMatches: analysis.newMatches,
+      pending: analysis.pendingMatches
+    };
+  } catch (error) {
+    log.analysis = { ok: false, error: error instanceof Error ? error.message : 'Analysis failed.' };
+    console.error('Morning refresh: analysis failed', error);
+  }
+
+  log.finishedAt = new Date().toISOString();
+  await db.doc('meta/refreshLog').set(stripUndefinedDeep(log));
+  return log;
+}
+
+/**
+ * Daily, before anyone is up. The key probe runs at 08:00 and reports a dead
+ * key either way; this runs first because a refresh with a dead key fails
+ * loudly into the log on its own.
+ */
+export const refreshTeamData = onSchedule(
+  { schedule: 'every day 06:30', timeZone: 'Europe/Amsterdam', secrets: [RIOT_API_KEY], timeoutSeconds: 540, memory: '512MiB' },
+  async () => {
+    const log = await runTeamRefresh(RIOT_API_KEY.value(), 'schedule');
+    console.log(
+      `Morning refresh: ${log.playersUpdated.length} players updated, ${log.playersFailed.length} failed, ` +
+        `${log.playersSkipped.length} skipped; analysis ${log.analysis.ok ? 'ok' : 'failed'}.`
+    );
+  }
+);
+
+/**
+ * The same run on demand, for an editor. Runs server-side to completion, so
+ * closing the tab does not stop it — which is the difference from the app's
+ * own Refresh all, and the reason both exist.
+ */
+export const refreshTeamDataOnce = onRequest(
+  { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 540, memory: '512MiB' },
+  async (req, res) => {
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed. Use POST.' });
+      return;
+    }
+    try {
+      const idToken = parseBearerToken(req.headers.authorization);
+      if (!idToken) {
+        res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
+        return;
+      }
+      const decoded = await getAuth().verifyIdToken(idToken);
+      const email = normalizeEmail(decoded.email);
+      const role = await getAccessRoleByEmail(email);
+      if (role !== 'admin' && role !== 'contributor') {
+        res.status(403).json({ error: 'Editor access required to refresh team data.' });
+        return;
+      }
+      const log = await runTeamRefresh(RIOT_API_KEY.value(), 'manual');
+      res.status(200).json(log);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unexpected error.';
       res.status(400).json({ error: message });

@@ -731,6 +731,24 @@ body {
   font-size: 0.72rem;
 }
 
+.refresh-log {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0.8rem;
+  font-size: 0.82rem;
+  color: var(--text-1);
+}
+
+.refresh-log .material-symbols-rounded {
+  font-size: 1.05rem;
+  color: var(--accent-2);
+}
+
+.refresh-log.is-bad .material-symbols-rounded {
+  color: var(--warn);
+}
+
 .analysis-refresh-all {
   margin-left: 0.6rem;
 }

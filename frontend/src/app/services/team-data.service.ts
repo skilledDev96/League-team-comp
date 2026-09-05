@@ -34,7 +34,8 @@ import {
   TeamData,
   TeamIdentity,
   Scrim,
-  ScrimOpponent
+  ScrimOpponent,
+  RefreshLog
 } from '../models/team.models';
 import { normalizeEmail } from '../core/access';
 
@@ -87,6 +88,8 @@ export class TeamDataService {
 
   /** Last Riot API key probe (written by the scheduled health check). */
   readonly keyHealth = signal<KeyHealth | null>(null);
+  /** The last morning refresh, so the pages can say when the numbers are from. */
+  readonly refreshLog = signal<RefreshLog | null>(null);
   readonly resourceLinks = signal<ResourceLinks>({});
   readonly settings = signal<Settings>({ teamName: '' });
   readonly ready = signal(false);
@@ -244,6 +247,9 @@ export class TeamDataService {
     });
     onSnapshot(doc(db, 'meta', 'teamIdentity'), (d) => {
       this.teamIdentity.set((d.data() as TeamIdentity) ?? null);
+    });
+    onSnapshot(doc(db, 'meta', 'refreshLog'), (d) => {
+      this.refreshLog.set((d.data() as RefreshLog) ?? null);
     });
     onSnapshot(doc(db, 'meta', 'keyHealth'), (d) => {
       this.keyHealth.set((d.data() as KeyHealth) ?? null);

@@ -94,6 +94,8 @@ export interface Player {
     clash?: PlayerQueueStats;
   };
   profile?: SummonerProfile;
+  /** ISO time of the last Riot refresh, set by the morning job. */
+  refreshedAt?: string;
   order: number;
 }
 
@@ -443,6 +445,17 @@ export interface TeamData {
   seriesGames: SeriesGame[];
   matchNotes: MatchNote[];
   compOverrides: CompOverride[];
+}
+
+/** What the last morning refresh did (Firestore `meta/refreshLog`). Mirrors `api/src/daily-refresh.ts`. */
+export interface RefreshLog {
+  ranAt: string;
+  finishedAt: string;
+  trigger: 'schedule' | 'manual';
+  playersUpdated: string[];
+  playersFailed: string[];
+  playersSkipped: string[];
+  analysis: { ok: boolean; games?: number; newMatches?: number; pending?: number; error?: string };
 }
 
 /** Result of the scheduled Riot API key probe (Firestore `meta/keyHealth`). */
