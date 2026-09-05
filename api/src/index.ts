@@ -1971,9 +1971,10 @@ export const draftAdvice = onRequest(
         // Stable system text first so it caches; the draft itself changes on
         // every step and goes last.
         system: [{ type: 'text', text: ADVISOR_SYSTEM, cache_control: { type: 'ephemeral' } }],
-        // Medium effort: a draft has a thirty-second clock, and the reasoning
-        // here is weighing a page of evidence, not solving anything.
-        output_config: { effort: 'medium', format: { type: 'json_schema', schema: ADVICE_SCHEMA } },
+        // Low effort: a draft has a thirty-second clock. Measured on a real
+        // request on 5 Sep 2026, medium took 20s and low 13s for the same call;
+        // the reasoning here is weighing a page of evidence, not solving anything.
+        output_config: { effort: 'low', format: { type: 'json_schema', schema: ADVICE_SCHEMA } },
         messages: [{ role: 'user', content: buildDraftPrompt(request) }]
       });
 
