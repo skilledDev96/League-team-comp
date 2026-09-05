@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChampionDataService } from '../services/champion-data.service';
 import { UiService } from '../services/ui.service';
@@ -54,6 +54,7 @@ export class ChampionGridComponent {
    */
   readonly laneChange = output<Role | null>();
 
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly roles = ROLES;
   protected readonly query = signal('');
 
@@ -100,6 +101,26 @@ export class ChampionGridComponent {
 
   protected isTaken(name: string): boolean {
     return this.taken().has(name.toLowerCase());
+  }
+
+  /**
+   * Enter takes the first champion the search shows that can still be
+   * picked. Entering the opponent's pick meant finding one tile in a wall of
+   * 173 for every one of their ten actions; three letters and Enter is the
+   * whole of it now.
+   */
+  protected commitFirst(event: Event): void {
+    if (!this.query().trim()) return;
+    const first = this.grid().find((c) => !this.isBlocked(c.name) && !this.isTaken(c.name));
+    if (!first) return;
+    event.preventDefault();
+    this.choose(first.name);
+  }
+
+  /** Put the cursor in the search box, so the next action can be typed. */
+  focusSearch(): void {
+    const box = this.host.nativeElement.querySelector<HTMLInputElement>('.board-search');
+    if (box && document.activeElement !== box) box.focus();
   }
 
   protected choose(name: string): void {

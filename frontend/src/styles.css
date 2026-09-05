@@ -13074,3 +13074,17 @@ body:has(.draft-stage) .edit-mode-frame {
   line-height: 1.4;
   color: var(--text-0);
 }
+
+
+/* Reset keeps its warning colour now that it is a pill like its neighbours. */
+.view-btn.draft-reset {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+}
+
+.view-btn.draft-side-escape {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.6rem;
+}

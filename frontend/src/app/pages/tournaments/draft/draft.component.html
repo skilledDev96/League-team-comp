@@ -164,7 +164,7 @@
             <span>
               Bans this game <small class="pick-count">{{ (game.bans || []).length }}</small>
               @if (auth.editing() && !game.ourSide && (game.bans || []).length) {
-                <button type="button" class="link-btn ban-clear-all"
+                <button type="button" class="view-btn ban-clear-all"
                         (click)="setGameBans(game, [])">Clear all</button>
               }
             </span>
@@ -423,18 +423,18 @@
                    time is how a layout bug survives to match night. -->
               @if (auth.editing()) {
                 @if (step(game)?.action === 'ban') {
-                  <button type="button" class="link-btn draft-auto" [disabled]="autoFilling()"
+                  <button type="button" class="view-btn draft-auto" [disabled]="autoFilling()"
                           [appTip]="'Ban at random through to the first pick. For testing.'"
                           (click)="autoAdvance(game, 'bans')">Skip bans</button>
                 }
-                <button type="button" class="link-btn draft-auto" [disabled]="autoFilling()"
+                <button type="button" class="view-btn draft-auto" [disabled]="autoFilling()"
                         [appTip]="'Fill every remaining ban and pick at random. For testing.'"
                         (click)="autoAdvance(game, 'end')">Fill draft</button>
               }
               @if ((game.draftStep ?? 0) > 0) {
                 <button type="button" class="view-btn" (click)="undoStep(game)">Undo last</button>
               }
-              <button type="button" class="link-btn draft-reset" (click)="resetDraft(game)">Reset</button>
+              <button type="button" class="view-btn draft-reset" (click)="resetDraft(game)">Reset</button>
             </div>
 
             <!-- Held, not committed. A draft is confirmed out loud before it is
@@ -504,7 +504,7 @@
                         (click)="confirmPending(game)">
                   Confirm {{ step(game)?.action }}
                 </button>
-                <button type="button" class="link-btn" (click)="cancelPending()">Cancel</button>
+                <button type="button" class="view-btn" (click)="cancelPending()">Cancel</button>
                 @if (confirmBlockedReason(game); as why) {
                   <span class="draft-confirm-blocked">{{ why }}</span>
                 }
@@ -1062,7 +1062,7 @@
               </button>
             </div>
             @if (draftSeries(); as s) {
-              <button type="button" class="link-btn draft-side-escape"
+              <button type="button" class="view-btn draft-side-escape"
                       (click)="openPrep(s.id)">
                 <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
                 Scout {{ s.opponent }} first

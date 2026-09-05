@@ -1,6 +1,7 @@
 <div class="board-filters">
   <input type="text" class="board-search" [ngModel]="query()" (ngModelChange)="query.set($event)"
-         name="boardSearch" placeholder="Search…" autocomplete="off"
+         (keydown.enter)="commitFirst($event)" (keydown.escape)="query.set('')"
+         name="boardSearch" placeholder="Type a name, Enter takes the top match" autocomplete="off"
          [attr.aria-label]="'Search champions'" />
   <!-- Lanes, not Riot's class tags. The chips answer "who can go here", which
        is the only question being asked with a champion in hand. -->

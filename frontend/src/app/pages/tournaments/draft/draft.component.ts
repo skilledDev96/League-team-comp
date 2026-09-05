@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChampionTraits, OpponentPlayer, Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
@@ -1647,6 +1647,41 @@ export class TournamentDraftComponent implements OnInit {
    * reads the saved one instead of paying for it again. Two editors' tabs
    * can still both ask on the same step; that costs a few cents, not a turn.
    */
+  private readonly wall = viewChild(ChampionGridComponent);
+
+  /**
+   * The search box takes the cursor whenever the step moves, so an action
+   * can be typed: three letters and Enter. Only while editing and only
+   * while the sequence runs; a watcher's tab has nothing to type.
+   */
+  private readonly focusOnStep = effect(() => {
+    const game = this.draftGame();
+    const editing = this.auth.editing();
+    const step = game?.draftStep ?? -1;
+    untracked(() => {
+      if (!game || !editing || step < 0 || !this.sequenceActive(game)) return;
+      setTimeout(() => this.wall()?.focusSearch(), 0);
+    });
+  });
+
+  /** A shared link to a game that has since been removed lands on the live one — and says so. */
+  private saidGoneFor = '';
+  private readonly gameGone = effect(() => {
+    const wanted = this.pickedGameId();
+    const series = this.draftSeries();
+    if (!wanted || !series) return;
+    const games = this.gamesFor(series.id);
+    untracked(() => {
+      if (!games.length || games.some((g) => g.id === wanted) || this.saidGoneFor === wanted) return;
+      this.saidGoneFor = wanted;
+      const shown = this.draftGame();
+      this.toast.show('That game is no longer in this series', {
+        kind: 'warn',
+        text: shown ? `Showing game ${shown.gameNumber} instead.` : 'Nothing to show yet.'
+      });
+    });
+  });
+
   private lastAutoAsked = '';
   private readonly autoAsk = effect(() => {
     const game = this.draftGame();
