@@ -319,7 +319,7 @@
            a ban, or a seat on either team — and every click lands there, which
            is the only way to keep pace with a draft happening live. -->
       @if (auth.editing()) {
-        <div class="draft-grid">
+        <div class="draft-grid" [class.is-done]="sequenceDone(game) && !wallAfterDone()">
           <!-- Fixed height. Choosing a side swaps a one-line question for a
                turn bar and a confirm slot, and without a reserved head the
                whole page jumped the moment the draft started. -->

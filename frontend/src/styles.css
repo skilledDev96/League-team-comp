@@ -13015,3 +13015,30 @@ body:has(.draft-stage) .edit-mode-frame {
 .draft-advice > [hidden] {
   display: none !important;
 }
+
+/* ---- The lane read under the advice, not under the board ------------------
+   It was a full-width row beneath everything, 3,300px down in the map view
+   after a complete draft (5 Sep 2026). It is the one thing worth reading
+   once the picks are in, so it joins the middle stack: under the advisor
+   during the draft, first in line once the draft is complete. */
+.draft-stage .draft-lanes {
+  grid-column: 2;
+  grid-row: 3;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  min-width: 0;
+}
+
+.draft-stage .draft-inputs > .field:nth-child(1) { grid-row: 4; }
+.draft-stage .draft-status          { grid-row: 5; }
+.draft-stage .draft-board-body      { grid-row: 6; }
+
+/* With the wall folded away the reserved height is only a gap. */
+.draft-stage .draft-grid.is-done {
+  height: auto;
+  min-height: 0;
+}
+
+@media (max-width: 1100px) {
+  .draft-stage .draft-lanes { grid-column: 1; grid-row: auto; }
+}
