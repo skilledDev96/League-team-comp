@@ -13274,10 +13274,20 @@ button.opp-more.active {
   min-width: 74rem;
 }
 
-.opp-table .opp-row > .opp-recent {
-  padding-top: 2.6rem;
+/* Lately and Loses-to sit on the same line as the Plays icons, structurally
+   rather than by a measured padding: every champion cell starts at the top of
+   its row (a single-queue player's tall name cell used to push the centred
+   Plays cell down by a different amount on every row), and the two cells
+   without a mastery line pad by exactly what that line occupies — the cell's
+   own 0.4rem, the 0.8rem mastery line, its 0.05rem margin and the 0.1rem the
+   inline grid adds. Measured at 0.0px on every row, at 16px and at 21px. */
+.opp-table .opp-row > .opp-pool,
+.opp-table .opp-row > .opp-counters {
+  align-self: start;
+  align-items: flex-start;
 }
 
-.opp-table .opp-row > .opp-recent {
-  padding-top: 2.95rem; /* -6px at 2.6rem, measured on loaded icons */
+.opp-table .opp-row > .opp-recent,
+.opp-table .opp-row > .opp-counters {
+  padding-top: 1.35rem;
 }
