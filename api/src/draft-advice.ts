@@ -257,7 +257,12 @@ Rules that never bend:
 - Prefer champions the player in that seat actually plays. A strong champion nobody on the roster plays is not a pick.
 - Our own comp records are tens of games; solo queue and matchup rates are thousands. Say which you are leaning on, and say when a number is too thin to trust.
 - Rank, do not list. Give at most three picks or three bans, best first, each with one sentence of reason that names the evidence.
-- No hedging boilerplate, no headings, no markdown. The team can read; be direct.`;
+- No hedging boilerplate, no headings, no markdown. The team can read; be direct.
+
+Answer length, because the draft clock is thirty seconds and every word costs time:
+- Answer only what was asked. For a pick question leave "bans" empty; for a ban question leave "picks" empty.
+- "summary" is one sentence. Each "why" is one clause under 20 words that names the evidence.
+- "watch" has at most two items, each under 12 words. Leave it empty if there is nothing worth watching.`;
 
 function pickLine(p: Partial<Record<KnownRole, string>>): string {
   return ROLES.map((r) => `${r}: ${p[r] ?? '—'}`).join(', ');
