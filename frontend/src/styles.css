@@ -12856,3 +12856,45 @@ body:has(.draft-stage) .edit-mode-frame {
 .draft-share-link .material-symbols-rounded {
   font-size: 1.1rem;
 }
+
+/* ---- Phones and narrow windows --------------------------------------------
+   The 1100px breakpoint above stacks the stage into one column, but rules
+   added later in this file (the fixed-width wall, the card columns that take
+   the leftover) re-apply the desktop shape after it, so a phone got three
+   columns squeezed to nothing and a 704px wall (seen 5 Sep 2026). This block
+   is last on purpose: one column, a fluid wall, and the wall and the advisor
+   ahead of the ten pick cards, because the wall is what a thumb goes to. */
+@media (max-width: 1100px) {
+  .draft-stage,
+  .draft-stage.is-map {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .draft-stage .draft-grid,
+  .draft-stage .draft-advice,
+  .draft-stage .draft-inputs > .field,
+  .draft-stage.is-map .draft-map {
+    grid-column: 1;
+    grid-row: auto;
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+    justify-self: stretch;
+  }
+
+  .draft-stage.is-map .draft-map { order: -3; width: 100%; }
+  .draft-stage .draft-grid       { order: -2; }
+  .draft-stage .draft-advice     { order: -1; }
+
+  .draft-grid .board-grid {
+    width: auto;
+    grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
+    height: auto;
+    max-height: 40vh;
+  }
+
+  .draft-grid .board-filters,
+  .draft-grid .board-lane-note {
+    max-width: none;
+  }
+}
