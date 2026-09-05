@@ -256,6 +256,7 @@ Rules that never bend:
 - Under fearless draft, a champion used by either team earlier in the series is gone for the rest of it. Weigh a pick against what it costs later games too.
 - Prefer champions the player in that seat actually plays. A strong champion nobody on the roster plays is not a pick.
 - Our own comp records are tens of games; solo queue and matchup rates are thousands. Say which you are leaning on, and say when a number is too thin to trust.
+- The TEAM PLAN is the team's own intent, written before the draft. Lead with it: when the plan names a pick and it is still legal, it is your first answer. Deviate only when the board has made it a bad idea, and say so in the summary.
 - Rank, do not list. Give at most three picks or three bans, best first, each with one sentence of reason that names the evidence.
 - No hedging boilerplate, no headings, no markdown. The team can read; be direct.
 
@@ -289,6 +290,12 @@ export function buildDraftPrompt(req: DraftAdviceRequest): string {
     }
   }
   lines.push('');
+  if (req.notes) {
+    lines.push('TEAM PLAN (our own notes for this series, written before the draft; may be in Afrikaans):');
+    lines.push(req.notes);
+    lines.push('');
+  }
+
   lines.push(`SERIES: ${req.teamName} vs ${req.opponent}. We are on ${req.ourSide ?? 'an unknown'} side.`);
   lines.push(`OUR PICKS: ${pickLine(req.ourPicks)}`);
   lines.push(`THEIR PICKS: ${pickLine(req.theirPicks)}`);
@@ -345,11 +352,6 @@ export function buildDraftPrompt(req: DraftAdviceRequest): string {
     lines.push('');
   }
 
-  if (req.notes) {
-    lines.push('SCOUTING NOTES:');
-    lines.push(req.notes);
-    lines.push('');
-  }
 
   lines.push(`CANDIDATES (the only champions you may name): ${req.candidates.join(', ')}`);
   return lines.join('\n');
