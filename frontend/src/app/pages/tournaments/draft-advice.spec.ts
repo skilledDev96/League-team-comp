@@ -386,19 +386,19 @@ describe('ownRecord', () => {
     id: 'g', seriesId: 's', gameNumber: 1, ourChampions: ours, theirChampions: theirs, win
   });
 
-  it('quotes our games into the enemy when we have met it, from both sources', () => {
+  it('quotes both ways at once — into the enemy from both sources, and overall', () => {
     const got = ownRecord(
       'Tristana',
       "Kai'Sa",
       [analysis('Tristana', ["Kai'Sa", 'Thresh'], true), analysis('Tristana', ['Jinx'], false)],
       [series(['', '', '', 'Tristana', ''], ['', '', '', 'Kaisa', ''], false)]
     );
-    expect(got).toEqual({ wins: 1, games: 2, winRate: 50, into: "Kai'Sa" });
+    expect(got).toEqual({ overall: { wins: 1, games: 3, winRate: 33 }, into: { wins: 1, games: 2, winRate: 50, enemy: "Kai'Sa" } });
   });
 
-  it('falls back to every opponent, and says so by leaving into unset', () => {
+  it('leaves into unset when we have never met the enemy on the champion', () => {
     const got = ownRecord('Tristana', "Kai'Sa", [analysis('Tristana', ['Jinx'], true)], []);
-    expect(got).toEqual({ wins: 1, games: 1, winRate: 100 });
+    expect(got).toEqual({ overall: { wins: 1, games: 1, winRate: 100 } });
   });
 
   it('is nothing with no games, and ignores series games without a result', () => {

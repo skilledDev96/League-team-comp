@@ -67,6 +67,27 @@ export interface HistoryParticipant {
   win: boolean;
   teamId: number;
   teamPosition: string;
+  /** Per-player numbers, on every entry cached since v2; absent on the oldest. */
+  kills?: number;
+  deaths?: number;
+  assists?: number;
+  cs?: number;
+  damage?: number;
+  damageTaken?: number;
+  visionScore?: number;
+}
+
+/** One side's objectives, as the cache keeps them. */
+export interface HistoryTeam {
+  teamId: number;
+  firstBlood?: boolean;
+  firstTower?: boolean;
+  dragons?: number;
+  barons?: number;
+  heralds?: number;
+  grubs?: number;
+  towers?: number;
+  inhibitors?: number;
 }
 
 export interface HistoryMatch {
@@ -74,6 +95,7 @@ export interface HistoryMatch {
   gameCreation: number;
   durationSec?: number;
   participants: HistoryParticipant[];
+  teams?: HistoryTeam[];
 }
 
 export type HistoryRole = 'Top' | 'Jungle' | 'Mid' | 'ADC' | 'Support' | '';
@@ -97,11 +119,35 @@ export const QUEUE_LABEL: Record<number, string> = {
   490: 'Quickplay'
 };
 
+/** What one player did in the game; absent when the cache entry predates the numbers. */
+export interface TogetherPickStats {
+  kills: number;
+  deaths: number;
+  assists: number;
+  cs: number;
+  damage: number;
+  damageTaken?: number;
+  vision?: number;
+}
+
 export interface TogetherPick {
   role: HistoryRole;
   champion: string;
   /** Roster member's name, or null for a teammate who is not one of the five. */
   player: string | null;
+  stats?: TogetherPickStats;
+}
+
+/** The objectives one side took. */
+export interface ObjectiveLine {
+  dragons: number;
+  barons: number;
+  heralds: number;
+  grubs: number;
+  towers: number;
+  inhibitors: number;
+  firstBlood: boolean;
+  firstTower: boolean;
 }
 
 export interface TogetherGame {
@@ -118,13 +164,42 @@ export interface TogetherGame {
   picks: TogetherPick[];
   /** The other side, seat order. */
   enemies: TogetherPick[];
+  /** The scoreline, their side first. Absent when the cache has no numbers. */
+  kills?: { team: number; enemy: number };
+  /** Objectives, their side first. Absent on cache entries without teams. */
+  objectives?: { team: ObjectiveLine; enemy: ObjectiveLine };
 }
 
 function toPick(p: HistoryParticipant, nameByPuuid: Map<string, string>): TogetherPick {
-  return {
+  const pick: TogetherPick = {
     role: POSITION_ROLE[p.teamPosition] ?? '',
     champion: p.championName,
     player: nameByPuuid.get(p.puuid) ?? null
+  };
+  if (p.kills !== undefined && p.deaths !== undefined && p.assists !== undefined) {
+    pick.stats = {
+      kills: p.kills,
+      deaths: p.deaths,
+      assists: p.assists,
+      cs: p.cs ?? 0,
+      damage: p.damage ?? 0,
+      ...(p.damageTaken !== undefined ? { damageTaken: p.damageTaken } : {}),
+      ...(p.visionScore !== undefined ? { vision: p.visionScore } : {})
+    };
+  }
+  return pick;
+}
+
+function objectiveLine(t: HistoryTeam): ObjectiveLine {
+  return {
+    dragons: t.dragons ?? 0,
+    barons: t.barons ?? 0,
+    heralds: t.heralds ?? 0,
+    grubs: t.grubs ?? 0,
+    towers: t.towers ?? 0,
+    inhibitors: t.inhibitors ?? 0,
+    firstBlood: t.firstBlood ?? false,
+    firstTower: t.firstTower ?? false
   };
 }
 
@@ -156,7 +231,9 @@ export function gameTogether(
   }
   if (theirs.length < minTogether) return null;
 
-  return {
+  const picks = match.participants.filter((p) => p.teamId === teamId).map((p) => toPick(p, nameByPuuid)).sort(bySeat);
+  const enemies = match.participants.filter((p) => p.teamId !== teamId).map((p) => toPick(p, nameByPuuid)).sort(bySeat);
+  const game: TogetherGame = {
     matchId,
     date: new Date(match.gameCreation).toISOString(),
     queue: QUEUE_LABEL[match.queueId] ?? String(match.queueId),
@@ -164,9 +241,18 @@ export function gameTogether(
     win: theirs[0].win,
     side: teamId === 100 ? 'blue' : 'red',
     together: theirs.length,
-    picks: match.participants.filter((p) => p.teamId === teamId).map((p) => toPick(p, nameByPuuid)).sort(bySeat),
-    enemies: match.participants.filter((p) => p.teamId !== teamId).map((p) => toPick(p, nameByPuuid)).sort(bySeat)
+    picks,
+    enemies
   };
+  // The row opens to the numbers, and they come from the cache entry the
+  // match was already read from — a refresh costs no Riot call for a game
+  // already cached, only the older entries without them stay bare.
+  const sum = (side: TogetherPick[]) => side.reduce((n, p) => n + (p.stats?.kills ?? 0), 0);
+  if (picks.some((p) => p.stats)) game.kills = { team: sum(picks), enemy: sum(enemies) };
+  const team = match.teams?.find((t) => t.teamId === teamId);
+  const enemy = match.teams?.find((t) => t.teamId !== teamId);
+  if (team && enemy) game.objectives = { team: objectiveLine(team), enemy: objectiveLine(enemy) };
+  return game;
 }
 
 /** Newest first. */

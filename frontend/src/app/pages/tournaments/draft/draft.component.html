@@ -757,14 +757,28 @@
                             <small>they have not picked {{ lane }} yet</small>
                           </span>
                         }
+                        <!-- Our own games on the champion, both ways: into their
+                             pick in this lane, and across everyone. Asked for
+                             side by side on 6 Sep 2026. -->
                         @if (ownRecord(g, s.champion); as ours) {
-                          <span class="advice-proj"
-                                [appTip]="ours.into
-                                  ? 'Our own games on ' + s.champion + ' against ' + ours.into + ': ' + ours.wins + ' won of ' + ours.games
-                                  : 'We have not met ' + (enemyAt(g, lane) || 'their pick here') + ' on ' + s.champion + '; our record on ' + s.champion + ' against everyone: ' + ours.wins + ' won of ' + ours.games">
-                            <small>{{ ours.into ? 'ours into ' + ours.into : 'ours overall' }}</small>
-                            <b [class]="winRateBand(ours.winRate)">{{ ours.winRate }}%</b>
-                            <small>{{ ours.games }}</small>
+                          <span class="advice-proj">
+                            @if (ours.into; as v) {
+                              <span class="advice-ours" [appTip]="'Our games on ' + s.champion + ' against ' + v.enemy + ': ' + v.wins + ' won of ' + v.games">
+                                <small>vs</small>
+                                <b [class]="winRateBand(v.winRate)">{{ v.winRate }}%</b>
+                                <small>{{ v.games }}</small>
+                              </span>
+                            } @else {
+                              <span class="advice-ours is-none" [appTip]="'We have not met ' + (enemyAt(g, lane) || 'their pick here') + ' on ' + s.champion">
+                                <small>vs</small>
+                                <b>&mdash;</b>
+                              </span>
+                            }
+                            <span class="advice-ours" [appTip]="'Our games on ' + s.champion + ' against everyone: ' + ours.overall.wins + ' won of ' + ours.overall.games">
+                              <small>overall</small>
+                              <b [class]="winRateBand(ours.overall.winRate)">{{ ours.overall.winRate }}%</b>
+                              <small>{{ ours.overall.games }}</small>
+                            </span>
                           </span>
                         }
                       </li>

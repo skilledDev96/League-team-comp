@@ -180,6 +180,20 @@ export function masteryLabel(m: MasteryRecord): string {
   return m.points >= 1_000_000 ? `${(m.points / 1_000_000).toFixed(1)}M` : `${Math.round(m.points / 1000)}k`;
 }
 
+/** Seconds as m:ss, the way a game clock reads. */
+export function gameClock(seconds: number | undefined): string {
+  if (!seconds) return '';
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+/** 18432 -> 18.4k; a stat column has no room for the units digit. */
+export function compactNumber(n: number | undefined): string {
+  if (n === undefined) return '—';
+  return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+}
+
 export function rateOf(r: ChampionRecord): number | null {
   return r.games > 0 ? Math.round((r.wins / r.games) * 100) : null;
 }

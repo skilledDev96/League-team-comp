@@ -671,10 +671,34 @@ export interface OpponentPlayer {
  * per the rulebook — this just records what was agreed so it isn't lost.
  */
 /** One of their picks in a game together; `player` is null for a teammate outside the five. */
+/** What one player did in the game; absent when the cache entry predates the numbers. */
+export interface TogetherPickStats {
+  kills: number;
+  deaths: number;
+  assists: number;
+  cs: number;
+  damage: number;
+  damageTaken?: number;
+  vision?: number;
+}
+
 export interface TogetherPick {
   role: Role | '';
   champion: string;
   player: string | null;
+  stats?: TogetherPickStats;
+}
+
+/** The objectives one side took. Mirrors `api/src/team-history.ts`. */
+export interface ObjectiveLine {
+  dragons: number;
+  barons: number;
+  heralds: number;
+  grubs: number;
+  towers: number;
+  inhibitors: number;
+  firstBlood: boolean;
+  firstTower: boolean;
 }
 
 export interface TogetherGame {
@@ -689,6 +713,10 @@ export interface TogetherGame {
   together: number;
   picks: TogetherPick[];
   enemies: TogetherPick[];
+  /** The scoreline, their side first. Absent when the history was fetched before the numbers were kept. */
+  kills?: { team: number; enemy: number };
+  /** Objectives, their side first. Absent likewise. */
+  objectives?: { team: ObjectiveLine; enemy: ObjectiveLine };
 }
 
 export interface TogetherPickStat {

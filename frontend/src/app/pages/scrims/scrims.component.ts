@@ -18,22 +18,24 @@ import {
   appendToRoster,
   banCandidates,
   bench,
+  compactNumber,
   countersAreForSeat,
   countersFor,
+  gameClock,
+  masteryLabel,
+  masteryOf,
   orderedRoster,
   poolFor,
   poolIsForSeat,
   queueRows,
-  masteryLabel,
-  masteryOf,
   rateBand,
   rateOf,
   recentForSeat,
   recentHidden,
   reseatOpponent,
+  scoutedAgo,
   setSubstitute,
-  starters,
-  scoutedAgo
+  starters
 } from '../../core/opponent-view';
 import { OpponentHistoryService } from '../../services/opponent-history.service';
 import { ScrimGroup, groupScrims, slugOpponent } from './scrim-groups';
@@ -328,6 +330,8 @@ export class ScrimsComponent {
   protected readonly countersAreForSeat = countersAreForSeat;
   protected readonly queueRows = queueRows;
   protected readonly recentForSeat = recentForSeat;
+  protected readonly gameClock = gameClock;
+  protected readonly compactNumber = compactNumber;
 
   /** Players whose Lately row is showing every lane, not just their seat's. */
   private readonly recentOpen = signal<ReadonlySet<string>>(new Set());

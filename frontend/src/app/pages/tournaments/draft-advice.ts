@@ -90,19 +90,24 @@ export function suggestForLane(
   });
 }
 
-export interface OwnRecord {
+export interface Tally {
   readonly wins: number;
   readonly games: number;
   readonly winRate: number;
-  /** The enemy the record is into; absent when it is our record across every opponent. */
-  readonly into?: string;
+}
+
+export interface OwnRecord {
+  /** Our games on the champion against everyone. */
+  readonly overall: Tally;
+  /** Our games on the champion against the named enemy; absent when we have never met it. */
+  readonly into?: Tally & { readonly enemy: string };
 }
 
 /**
- * Our own record on a champion: into the named enemy when we have met it,
- * otherwise across everyone we have played. Riot five-stack games and series
- * games with a result both count, and lanes are ignored — three games say
- * more than one. The row used to show the comp projection here, which knew
+ * Our own record on a champion, both ways at once: into the named enemy and
+ * across everyone we have played. Riot five-stack games and series games
+ * with a result both count, and lanes are ignored — three games say more
+ * than one. The row used to show the comp projection here, which knew
  * nothing about what they had taken (asked for on 6 Sep 2026).
  */
 export function ownRecord(
@@ -125,14 +130,16 @@ export function ownRecord(
     if (g.win === undefined || !has(g.ourChampions, key)) continue;
     played.push({ win: g.win, into: has(g.theirChampions, foe) });
   }
-  const tally = (rows: { win: boolean }[]): OwnRecord => {
+  if (!played.length) return undefined;
+  const tally = (rows: { win: boolean }[]): Tally => {
     const wins = rows.filter((r) => r.win).length;
     return { wins, games: rows.length, winRate: Math.round((wins / rows.length) * 100) };
   };
   const into = played.filter((r) => r.into);
-  if (into.length) return { ...tally(into), into: enemy };
-  if (played.length) return tally(played);
-  return undefined;
+  return {
+    overall: tally(played),
+    ...(into.length ? { into: { ...tally(into), enemy } } : {})
+  };
 }
 
 /** 95% confidence, the usual choice for a lower bound like this. */

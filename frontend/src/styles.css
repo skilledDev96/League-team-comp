@@ -13298,3 +13298,125 @@ button.opp-more.active {
 .opp-champ-stat.is-none {
   visibility: hidden;
 }
+
+
+/* ---- Their games together, opened (6 Sep 2026) ---------------------------
+   Each game row is a details: the row is the summary, the match underneath —
+   scoreline and objectives on one line, then a table of the ten players. The
+   numbers come from the cache entry the game was read from, so a refresh
+   fills them in for games already fetched at no Riot cost. */
+.opp-history-game {
+  display: block;
+  padding: 0;
+}
+
+.opp-history-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.55rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.opp-history-head::-webkit-details-marker { display: none; }
+
+.opp-history-head:hover { background: color-mix(in srgb, var(--card-border) 25%, transparent); }
+
+.opp-history-chevron {
+  margin-left: auto;
+  font-size: 1.1rem;
+  color: var(--text-1);
+  transition: transform 0.15s ease;
+}
+
+.opp-history-game[open] .opp-history-chevron { transform: rotate(180deg); }
+
+.opp-history-detail {
+  padding: 0.25rem 0.55rem 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 50%, transparent);
+  font-size: 0.76rem;
+}
+
+.opp-history-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0.3rem 0 0.5rem;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.opp-history-line small {
+  margin-right: 0.3rem;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+
+.opp-history-line b { color: var(--text-0); }
+
+.opp-history-scroll { overflow-x: auto; }
+
+.opp-history-stats {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.opp-history-stats th {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-1);
+}
+
+.opp-history-stats td {
+  padding: 0.15rem 0.4rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 40%, transparent);
+  white-space: nowrap;
+}
+
+.opp-history-stats td.icon { width: 1.5rem; padding-right: 0; }
+
+.opp-history-stats td.icon img {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.3rem;
+  vertical-align: middle;
+}
+
+.opp-history-stats .num { text-align: right; }
+
+.opp-history-stats tr.is-other td { opacity: 0.6; }
+
+.opp-history-stats tr.is-enemy td { color: var(--text-1); }
+
+.opp-history-stats .opp-history-split td {
+  padding-top: 0.5rem;
+  border-top: 0;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-1);
+}
+
+.opp-history-nostats { margin: 0.3rem 0 0; font-size: 0.74rem; }
+
+
+/* Ours, both ways: "vs" is our games into their pick, "overall" across
+   everyone; the two sit side by side so neither has to be inferred. */
+.advice-row .advice-proj { gap: 0.8rem; }
+
+.advice-ours {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.advice-ours.is-none { opacity: 0.55; }

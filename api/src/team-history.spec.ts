@@ -52,6 +52,27 @@ describe('sinceSeconds', () => {
 });
 
 describe('gameTogether', () => {
+  it('carries the numbers and the objectives when the cache entry has them', () => {
+    const m = match(3);
+    m.participants = m.participants.map((p, i) => ({ ...p, kills: i, deaths: 1, assists: 2, cs: 100 + i, damage: 1000 * i, damageTaken: 500, visionScore: 20 }));
+    m.teams = [
+      { teamId: 100, dragons: 3, barons: 1, towers: 8, firstBlood: true },
+      { teamId: 200, dragons: 1, barons: 0, towers: 2, firstTower: true }
+    ];
+    const g = gameTogether('m1', m, names)!;
+    expect(g.picks[0].stats).toEqual({ kills: 0, deaths: 1, assists: 2, cs: 100, damage: 0, damageTaken: 500, vision: 20 });
+    expect(g.kills).toEqual({ team: 0 + 1 + 2 + 3 + 4, enemy: 5 + 6 + 7 + 8 + 9 });
+    expect(g.objectives?.team).toMatchObject({ dragons: 3, barons: 1, towers: 8, firstBlood: true, firstTower: false, grubs: 0 });
+    expect(g.objectives?.enemy).toMatchObject({ dragons: 1, towers: 2, firstTower: true });
+  });
+
+  it('leaves the numbers off an entry without them, rather than inventing zeros', () => {
+    const g = gameTogether('m1', match(3), names)!;
+    expect(g.picks[0].stats).toBeUndefined();
+    expect(g.kills).toBeUndefined();
+    expect(g.objectives).toBeUndefined();
+  });
+
   it('reads the side with the most of them, in seat order, naming only the five', () => {
     const g = gameTogether('m1', match(4), names)!;
     expect(g.together).toBe(4);

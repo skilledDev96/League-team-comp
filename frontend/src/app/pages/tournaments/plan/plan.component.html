@@ -725,26 +725,98 @@
                   }
                   <div class="opp-history-games">
                     @for (g of h.games; track g.matchId) {
-                      <div class="opp-history-game" [class.is-win]="g.win">
-                        <span class="opp-history-result">{{ g.win ? 'W' : 'L' }}</span>
-                        <span class="opp-history-when">{{ ui.formatDay(g.date) }}</span>
-                        <span class="opp-history-queue">{{ g.queue }}</span>
-                        <span class="opp-history-side" [class.is-blue]="g.side === 'blue'">{{ g.side }}</span>
-                        <span class="opp-history-count" [appTip]="g.together + ' of their five were in this game'">{{ g.together }}/5</span>
-                        <span class="opp-history-lineup">
-                          @for (pk of g.picks; track pk.role + pk.champion) {
-                            <img [src]="ui.championIconUrl(pk.champion)" [alt]="pk.champion" [class.is-other]="!pk.player" loading="lazy"
-                                 [appTip]="(pk.player || 'not one of the five') + ' — ' + pk.champion + (pk.role ? ' (' + pk.role + ')' : '')" />
+                      <!-- The row opens to the match: kills, objectives and each player's line,
+                           read from the cache entry the game was already fetched from. -->
+                      <details class="opp-history-game" [class.is-win]="g.win">
+                        <summary class="opp-history-head">
+                          <span class="opp-history-result">{{ g.win ? 'W' : 'L' }}</span>
+                          <span class="opp-history-when">{{ ui.formatDay(g.date) }}</span>
+                          <span class="opp-history-queue">{{ g.queue }}</span>
+                          <span class="opp-history-side" [class.is-blue]="g.side === 'blue'">{{ g.side }}</span>
+                          <span class="opp-history-count" [appTip]="g.together + ' of their five were in this game'">{{ g.together }}/5</span>
+                          <span class="opp-history-lineup">
+                            @for (pk of g.picks; track pk.role + pk.champion) {
+                              <img [src]="ui.championIconUrl(pk.champion)" [alt]="pk.champion" [class.is-other]="!pk.player" loading="lazy"
+                                   [appTip]="(pk.player || 'not one of the five') + ' — ' + pk.champion + (pk.role ? ' (' + pk.role + ')' : '')" />
+                            }
+                          </span>
+                          <span class="opp-history-vs">vs</span>
+                          <span class="opp-history-lineup is-enemy">
+                            @for (pk of g.enemies; track pk.role + pk.champion) {
+                              <img [src]="ui.championIconUrl(pk.champion)" [alt]="pk.champion" loading="lazy"
+                                   [appTip]="pk.champion + (pk.role ? ' (' + pk.role + ')' : '')" />
+                            }
+                          </span>
+                          <span class="opp-history-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+                        </summary>
+                        <div class="opp-history-detail">
+                          @if (g.kills || g.objectives || g.durationSec) {
+                            <div class="opp-history-line" aria-label="Scoreline and objectives, their side first">
+                              @if (g.durationSec) { <span><small>Length</small>{{ gameClock(g.durationSec) }}</span> }
+                              @if (g.kills; as k) { <span><small>Kills</small><b>{{ k.team }}</b>&ndash;{{ k.enemy }}</span> }
+                              @if (g.objectives; as o) {
+                                <span><small>Dragons</small><b>{{ o.team.dragons }}</b>&ndash;{{ o.enemy.dragons }}</span>
+                                <span><small>Barons</small><b>{{ o.team.barons }}</b>&ndash;{{ o.enemy.barons }}</span>
+                                <span><small>Towers</small><b>{{ o.team.towers }}</b>&ndash;{{ o.enemy.towers }}</span>
+                                <span><small>Grubs</small><b>{{ o.team.grubs }}</b>&ndash;{{ o.enemy.grubs }}</span>
+                                <span><small>Heralds</small><b>{{ o.team.heralds }}</b>&ndash;{{ o.enemy.heralds }}</span>
+                                @if (o.team.firstBlood || o.enemy.firstBlood) {
+                                  <span><small>First blood</small>{{ o.team.firstBlood ? 'them' : 'the other side' }}</span>
+                                }
+                                @if (o.team.firstTower || o.enemy.firstTower) {
+                                  <span><small>First tower</small>{{ o.team.firstTower ? 'them' : 'the other side' }}</span>
+                                }
+                              }
+                            </div>
                           }
-                        </span>
-                        <span class="opp-history-vs">vs</span>
-                        <span class="opp-history-lineup is-enemy">
-                          @for (pk of g.enemies; track pk.role + pk.champion) {
-                            <img [src]="ui.championIconUrl(pk.champion)" [alt]="pk.champion" loading="lazy"
-                                 [appTip]="pk.champion + (pk.role ? ' (' + pk.role + ')' : '')" />
+                          @if (g.picks[0]?.stats) {
+                            <div class="opp-history-scroll">
+                              <table class="opp-history-stats">
+                                <thead>
+                                  <tr>
+                                    <th scope="col">Seat</th><th scope="col" colspan="2">Champion</th><th scope="col">Player</th>
+                                    <th scope="col" class="num">KDA</th><th scope="col" class="num">CS</th>
+                                    <th scope="col" class="num" appTip="Damage to champions">DMG</th>
+                                    <th scope="col" class="num" appTip="Damage taken">Taken</th>
+                                    <th scope="col" class="num" appTip="Vision score">Vision</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  @for (pk of g.picks; track pk.role + pk.champion) {
+                                    <tr [class.is-other]="!pk.player">
+                                      <td>{{ pk.role || '—' }}</td>
+                                      <td class="icon"><img [src]="ui.championIconUrl(pk.champion)" [alt]="" loading="lazy" /></td>
+                                      <td>{{ pk.champion }}</td>
+                                      <td>{{ pk.player || 'not one of the five' }}</td>
+                                      <td class="num">{{ pk.stats?.kills }}/{{ pk.stats?.deaths }}/{{ pk.stats?.assists }}</td>
+                                      <td class="num">{{ pk.stats?.cs }}</td>
+                                      <td class="num">{{ compactNumber(pk.stats?.damage) }}</td>
+                                      <td class="num">{{ compactNumber(pk.stats?.damageTaken) }}</td>
+                                      <td class="num">{{ pk.stats?.vision ?? '—' }}</td>
+                                    </tr>
+                                  }
+                                  <tr class="opp-history-split"><td colspan="9">The other side</td></tr>
+                                  @for (pk of g.enemies; track pk.role + pk.champion) {
+                                    <tr class="is-enemy">
+                                      <td>{{ pk.role || '—' }}</td>
+                                      <td class="icon"><img [src]="ui.championIconUrl(pk.champion)" [alt]="" loading="lazy" /></td>
+                                      <td>{{ pk.champion }}</td>
+                                      <td></td>
+                                      <td class="num">{{ pk.stats?.kills }}/{{ pk.stats?.deaths }}/{{ pk.stats?.assists }}</td>
+                                      <td class="num">{{ pk.stats?.cs }}</td>
+                                      <td class="num">{{ compactNumber(pk.stats?.damage) }}</td>
+                                      <td class="num">{{ compactNumber(pk.stats?.damageTaken) }}</td>
+                                      <td class="num">{{ pk.stats?.vision ?? '—' }}</td>
+                                    </tr>
+                                  }
+                                </tbody>
+                              </table>
+                            </div>
+                          } @else {
+                            <p class="muted opp-history-nostats">Read before the numbers were kept. Refresh fills them from the cache; games already read cost no Riot call.</p>
                           }
-                        </span>
-                      </div>
+                        </div>
+                      </details>
                     }
                   </div>
                 }
