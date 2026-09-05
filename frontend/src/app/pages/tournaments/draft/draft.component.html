@@ -17,7 +17,7 @@
       <span class="draft-page-bo">Bo{{ series.bestOf }}</span>
       <!-- Straight to their roster. It sat five steps away: leave the draft,
            find edit mode, open the series, scroll, open a second panel. -->
-      <button type="button" class="link-btn draft-prep-link"
+      <button type="button" class="view-btn draft-prep-link"
               [appTip]="'Their roster, target bans and scouting notes'"
               (click)="openPrep(series.id)">
         <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
@@ -26,7 +26,7 @@
       <!-- The address bar already names this series and game; this copies
            it. A teammate on the link watches the same board live, hold
            included, so the draft can be talked through together. -->
-      <button type="button" class="link-btn draft-share-link"
+      <button type="button" class="view-btn draft-share-link"
               [appTip]="'Copy a link to this game. Teammates who open it see the draft live.'"
               (click)="copyLink()">
         <span class="material-symbols-rounded" aria-hidden="true">link</span>

@@ -12819,7 +12819,9 @@ body:has(.draft-stage) .edit-mode-frame {
 
   .draft-stage.is-map .draft-map,
   .draft-stage.is-map .draft-inputs > .field:nth-child(1) {
-    width: min(calc(100vh - 8rem), 42vw);
+    /* As much map as the window allows once the 44rem stack and its gutters
+       have their room, capped so the whole map stays on screen. */
+    width: min(calc(100vh - 6rem), calc(100vw - 54rem));
     max-width: 100%;
   }
 }
@@ -12827,4 +12829,19 @@ body:has(.draft-stage) .edit-mode-frame {
 /* The row labels had a 4.4rem gutter for a 3.2rem word. */
 .draft-slot-label {
   min-width: 3.6rem;
+}
+
+/* Actions are buttons, not underlined links — the user has asked for this on
+   every new control (5 Sep 2026). The two in the draft header take the pill
+   the rest of the room uses, with the icon sat on the text's baseline. */
+.draft-prep-link,
+.draft-share-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.draft-prep-link .material-symbols-rounded,
+.draft-share-link .material-symbols-rounded {
+  font-size: 1.1rem;
 }
