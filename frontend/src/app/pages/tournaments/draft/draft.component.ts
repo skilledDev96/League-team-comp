@@ -1691,14 +1691,18 @@ export class TournamentDraftComponent implements OnInit {
   private readonly autoAsk = effect(() => {
     const game = this.draftGame();
     const editing = this.auth.editing();
+    // Tracked on purpose: when an answer for an earlier step is still in
+    // flight, this runs again the moment it lands and asks for the current
+    // one. "Skip bans" used to leave a ban answer on a pick step for good.
+    const busy = this.advisor.busy();
     if (!game) return;
     const step = game.draftStep ?? 0;
     untracked(() => {
       if (!editing || !this.sequenceActive(game) || !this.isOurTurn(game)) return;
+      if (game.advice?.step === step || busy) return;
       const key = `${game.id}:${step}`;
       if (this.lastAutoAsked === key) return;
       this.lastAutoAsked = key;
-      if (game.advice?.step === step || this.advisor.busy()) return;
       void this.askAdvisor(game);
     });
   });

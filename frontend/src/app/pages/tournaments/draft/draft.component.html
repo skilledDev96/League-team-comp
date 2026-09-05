@@ -733,54 +733,34 @@
                       <li class="advice-row">
                         <img class="advice-icon" [src]="ui.championIconUrl(s.champion)" [alt]="" loading="lazy" />
                         <span class="advice-champ">{{ s.champion }}</span>
-                        @if (s.projected !== undefined) {
-                          <span class="advice-proj">
-                            <b [class]="winRateBand(s.projected)">{{ s.projected }}%</b>
-                            @if (swing(g, s); as d) {
-                              <i [class.is-up]="d > 0" [class.is-down]="d < 0">
-                                {{ d > 0 ? '+' : '' }}{{ d }}
-                              </i>
-                            }
-                          </span>
-                        } @else {
-                          <span class="advice-proj is-none">&mdash;</span>
-                        }
-                        <!-- Solo queue at large, beside our own record. The gap
-                             between the two is usually the interesting part. -->
-                        @if (soloRate(s.champion); as r) {
-                          <span class="advice-solo" [appTip]="soloNote(s.champion)">
-                            <span class="advice-solo-label">SoloQ</span>
-                            <b [class]="winRateBand(r.winRate)">{{ r.winRate }}%</b>
-                          </span>
-                        }
-                        <!-- Into the champion they have actually taken in this
-                             lane. Absent whenever they have not picked yet or
-                             the pairing is too thin to quote, which is most of
-                             them — a lane has 4,096 possible pairings and only
-                             the busiest reach the floor. Absent is correct here,
-                             not a gap waiting for a thinner number. -->
+                        <!-- The matchup leads: it is the only number on the row
+                             that knows what they have taken. Our own record
+                             follows, small; the solo queue rate and the comp
+                             swing came off on 6 Sep 2026 — neither answered the
+                             question the row is there for. -->
                         @if (matchupRate(g, s.champion); as m) {
-                          <span class="advice-matchup" [class.is-thin]="m.thin" [appTip]="matchupNote(g, s.champion)">
-                            <span class="advice-matchup-label material-symbols-rounded"
-                                  aria-hidden="true">swords</span>
+                          <span class="advice-matchup is-lead" [class.is-thin]="m.thin" [appTip]="matchupNote(g, s.champion)">
                             <b [class]="winRateBand(m.winRate)">{{ m.winRate }}%</b>
                             @if (m.thin) {
                               <i class="advice-matchup-margin">±{{ wholeMargin(m) }}</i>
                             }
-                            <em>{{ m.games }}g</em>
+                            <small>into {{ enemyAt(g, lane) }} &middot; {{ m.games }} games{{ m.combined ? ' over two patches' : '' }}</small>
                           </span>
                         } @else if (enemyAt(g, lane); as theirs) {
-                          <!-- They have picked here, so the comparison is
-                               meaningful — there is just not enough of it yet.
-                               Rendered as a visible blank rather than nothing at
-                               all, because an absent chip is indistinguishable
-                               from a feature that was never built, which is
-                               exactly how this read on its first live draft. -->
-                          <span class="advice-matchup is-thin"
-                                [appTip]="matchupNote(g, s.champion)">
-                            <span class="advice-matchup-label material-symbols-rounded"
-                                  aria-hidden="true">swords</span>
+                          <span class="advice-matchup is-lead is-thin" [appTip]="matchupNote(g, s.champion)">
                             <b>&mdash;</b>
+                            <small>too few games into {{ theirs }} to quote</small>
+                          </span>
+                        } @else {
+                          <span class="advice-matchup is-lead is-thin">
+                            <b>&mdash;</b>
+                            <small>they have not picked {{ lane }} yet</small>
+                          </span>
+                        }
+                        @if (s.projected !== undefined) {
+                          <span class="advice-proj" [appTip]="'Our own record in the comps still playable that field ' + s.champion">
+                            <small>ours</small>
+                            <b [class]="winRateBand(s.projected)">{{ s.projected }}%</b>
                           </span>
                         }
                       </li>

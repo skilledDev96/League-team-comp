@@ -12721,14 +12721,15 @@ body:has(.draft-stage) .edit-mode-frame {
    has a fixed height with its own scroll, so the answer fills a frame that was
    already there instead of making one. */
 .draft-grid .board-grid {
-  --tile-w: 5rem;
+  --tile-cols: 10;
+  --tile-w: 4.6rem;
   --tile-h: 5.2rem;
   --tile-rows: 3;
 }
 
 .draft-grid .board-filters,
 .draft-grid .board-lane-note {
-  max-width: calc(8 * 5rem + 7 * var(--tile-gap, 0.3rem) + 2 * var(--tile-pad, 0.4rem) + 2px + 1rem);
+  max-width: calc(10 * 4.6rem + 9 * var(--tile-gap, 0.3rem) + 2 * var(--tile-pad, 0.4rem) + 2px + 1rem);
 }
 
 .draft-grid .board-champ img {
@@ -12793,7 +12794,7 @@ body:has(.draft-stage) .edit-mode-frame {
 @media (min-width: 1400px) {
   .draft-stage .draft-grid,
   .draft-stage .draft-advice {
-    --wall-w: calc(8 * 5rem + 7 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
+    --wall-w: calc(10 * 4.6rem + 9 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
     width: var(--wall-w);
     max-width: 100%;
     min-width: 0;
@@ -13049,7 +13050,7 @@ body:has(.draft-stage) .edit-mode-frame {
    read takes the stack's width like the blocks above it. */
 @media (min-width: 1400px) {
   .draft-stage .draft-lanes {
-    width: calc(8 * 5rem + 7 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
+    width: calc(10 * 4.6rem + 9 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
     max-width: 100%;
     justify-self: center;
   }
@@ -13087,4 +13088,46 @@ body:has(.draft-stage) .edit-mode-frame {
   align-items: center;
   gap: 0.3rem;
   margin-top: 0.6rem;
+}
+
+
+/* Worth-taking, led by the matchup. The rate is the biggest thing on the
+   row; the games and the champion it is into sit beside it in small type,
+   and our own record closes the row. */
+.advice-matchup.is-lead {
+  flex: 1 1 auto;
+  margin-left: 0.2rem;
+  padding-left: 0;
+  border-left: 0;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.advice-matchup.is-lead b {
+  font-size: 1.05rem;
+}
+
+.advice-matchup.is-lead small {
+  font-size: 0.72rem;
+  color: var(--text-1);
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.advice-row .advice-proj {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+}
+
+.advice-row .advice-proj small {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-1);
+  opacity: 0.7;
 }
