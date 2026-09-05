@@ -62,7 +62,7 @@ export class ChampionGridComponent {
   readonly roleFilter = signal<Role | null>(null);
 
   /** Set the chip and tell the caller, so both stay on the same seat. */
-  protected chooseLane(role: Role | null): void {
+  chooseLane(role: Role | null): void {
     this.roleFilter.set(role);
     this.laneChange.emit(role);
   }

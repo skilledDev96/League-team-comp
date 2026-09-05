@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, effect, inject, signal, untracked, viewChild, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChampionTraits, OpponentPlayer, Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
@@ -230,6 +230,7 @@ export class TournamentDraftComponent implements OnInit {
   protected readonly matchups = inject(MatchupStatsService);
 
   private readonly ctx = inject(TournamentContextService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   // Shared with the other view; re-exposed so the template reads the same.
   protected readonly roles = this.ctx.roles;
@@ -1202,6 +1203,10 @@ export class TournamentDraftComponent implements OnInit {
       // next champion while this write is still in flight has already replaced
       // the hold, and clearing it here threw that click away.
       if (this.pending() === champ) this.pending.set(null);
+      // The chip did its job; left in place it would filter the wall to a
+      // seat we no longer need and steer the advisor at it.
+      const chip = this.shownLane();
+      if (chip && !this.ourSeatOpen(chip)) this.wall()?.chooseLane(null);
       this.restartClock();
     } finally {
       this.committing.set(false);
@@ -1700,6 +1705,9 @@ export class TournamentDraftComponent implements OnInit {
 
   protected async askAdvisor(game: SeriesGame): Promise<void> {
     if (this.advisor.busy()) return;
+    // The block scrolls inside a fixed frame; an answer read halfway down
+    // last time should not leave the next one starting halfway down.
+    this.host.nativeElement.querySelector('.advice-block.is-advisor')?.scrollTo({ top: 0 });
     const live = this.current(game);
     const step = this.step(live);
     const action = step?.action ?? 'pick';
@@ -1914,10 +1922,19 @@ export class TournamentDraftComponent implements OnInit {
 
   /** A seat someone has actually chosen — a lane chip or an aimed slot — or none. */
   private explicitSeat(): Role | null {
+    // A chip on a seat we have already filled is left over from the last
+    // pick, not a choice for this one: with Nautilus locked the Support chip
+    // had the advisor naming a second support (6 Sep 2026).
     const chip = this.shownLane();
-    if (chip) return chip;
+    if (chip && this.ourSeatOpen(chip)) return chip;
     const aimed = this.target();
     return aimed.kind === 'pick' ? this.roles[aimed.index] : null;
+  }
+
+  private ourSeatOpen(role: Role): boolean {
+    const game = this.draftGame();
+    if (!game) return true;
+    return !this.pickSlots(this.current(game), 'our').find((s) => s.role === role)?.champion;
   }
 
   /** The seat's lane, so the grid narrows itself without anyone filtering. */
