@@ -12972,3 +12972,28 @@ body:has(.draft-stage) .edit-mode-frame {
   font-weight: 500;
   color: var(--text-1);
 }
+
+
+/* A made ban as a button: no chrome of its own, the icon is the control. Aimed
+   at, it takes the accent ring the pick cards use, so "the next click goes
+   here" reads the same in both rows. */
+.draft-slot-ban {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 0.35rem;
+  cursor: pointer;
+}
+.draft-slot-ban:disabled { cursor: default; }
+.draft-slot-ban.is-aimed .draft-slot-icon.is-ban {
+  filter: none;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.draft-aim-cancel {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.72rem;
+}

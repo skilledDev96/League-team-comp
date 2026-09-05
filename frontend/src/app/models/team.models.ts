@@ -786,6 +786,12 @@ export interface SeriesGame {
    * asked at; the room marks it stale once the board moves past that.
    */
   advice?: SavedDraftAdvice;
+  /**
+   * Picks in the order they were confirmed, both teams, so Undo takes back
+   * the most recent pick. Seats are keyed by role, so "the highest filled
+   * seat" was the wrong guess more often than not (5 Sep 2026).
+   */
+  pickLog?: string[];
   win?: boolean;
   /** Set when reconciled against Riot match history after the fact. */
   matchId?: string;

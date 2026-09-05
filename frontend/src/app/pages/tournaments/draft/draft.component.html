@@ -350,7 +350,7 @@
             <p class="draft-step-bar is-done">
               <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
               <strong>Draft complete.</strong>
-              <button type="button" class="link-btn" (click)="undoStep(game)">Undo last</button>
+              <button type="button" class="view-btn" (click)="undoStep(game)">Undo last</button>
               <button type="button" class="link-btn draft-reset" (click)="resetDraft(game)">Reset</button>
             </p>
           } @else {
@@ -414,7 +414,7 @@
                         (click)="autoAdvance(game, 'end')">Fill draft</button>
               }
               @if ((game.draftStep ?? 0) > 0) {
-                <button type="button" class="link-btn" (click)="undoStep(game)">Undo last</button>
+                <button type="button" class="view-btn" (click)="undoStep(game)">Undo last</button>
               }
               <button type="button" class="link-btn draft-reset" (click)="resetDraft(game)">Reset</button>
             </div>
@@ -505,8 +505,14 @@
                   <span class="draft-slot-icons">
                     @for (champ of bansOf(game, 'our'); track $index) {
                       @if (champ) {
-                        <img class="draft-slot-icon is-ban" [src]="ui.championIconUrl(champ)"
-                             [alt]="champ" [appTip]="teamName() + ' banned ' + champ" loading="lazy" />
+                        <!-- A made ban is a button while the sequence runs: aim at
+                             it and the next wall click replaces it in place. -->
+                        <button type="button" class="draft-slot-ban" [class.is-aimed]="isBanTargeted(banIndexOf(game, 'our', $index))"
+                                [disabled]="!auth.editing() || !sequenceActive(game)"
+                                [appTip]="teamName() + ' banned ' + champ + (auth.editing() && sequenceActive(game) ? ' — click to replace it' : '')"
+                                (click)="aimAtBan(banIndexOf(game, 'our', $index))">
+                          <img class="draft-slot-icon is-ban" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
+                        </button>
                       } @else {
                         <span class="draft-slot-icon is-empty" aria-hidden="true"></span>
                       }
@@ -514,9 +520,12 @@
                     <span class="draft-slot-split" aria-hidden="true"></span>
                     @for (champ of bansOf(game, 'their'); track $index) {
                       @if (champ) {
-                        <img class="draft-slot-icon is-ban" [src]="ui.championIconUrl(champ)"
-                             [alt]="champ"
-                             [appTip]="(series.opponent || 'They') + ' banned ' + champ" loading="lazy" />
+                        <button type="button" class="draft-slot-ban" [class.is-aimed]="isBanTargeted(banIndexOf(game, 'their', $index))"
+                                [disabled]="!auth.editing() || !sequenceActive(game)"
+                                [appTip]="(series.opponent || 'They') + ' banned ' + champ + (auth.editing() && sequenceActive(game) ? ' — click to replace it' : '')"
+                                (click)="aimAtBan(banIndexOf(game, 'their', $index))">
+                          <img class="draft-slot-icon is-ban" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
+                        </button>
                       } @else {
                         <span class="draft-slot-icon is-empty" aria-hidden="true"></span>
                       }
@@ -563,7 +572,11 @@
                draft. Reserving it costs a line; not reserving it moves the
                champion wall under a cursor mid-draft. -->
           <p class="draft-grid-aim">
-            @if (ourSide(game) && !sequenceDone(game)) {
+            @if (replacing(game); as r) {
+              <span class="muted">Replacing {{ r.label }} &mdash;</span>
+              <strong>click the champion that should be there</strong>
+              <button type="button" class="view-btn draft-aim-cancel" (click)="cancelReplace()">Cancel</button>
+            } @else if (ourSide(game) && !sequenceDone(game)) {
               <span class="muted">The sequence decides the seat &mdash;</span>
               <strong>{{ step(game)?.action === 'ban' ? 'ban a champion' : 'pick a champion' }}</strong>
             } @else {

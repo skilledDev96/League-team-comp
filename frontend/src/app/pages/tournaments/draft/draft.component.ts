@@ -59,7 +59,7 @@ type DraftSide = 'our' | 'their';
 
 /** Where the next champion clicked in the grid lands. */
 type DraftTarget =
-  | { kind: 'ban' }
+  | { kind: 'ban'; index?: number }
   | { kind: 'pick'; side: DraftSide; index: number };
 
 /** Fearless series run ten bans a game, same as the client. */
@@ -708,6 +708,59 @@ export class TournamentDraftComponent implements OnInit {
     this.target.set({ kind: 'pick', side, index });
   }
 
+  /** Aim at one made ban, to replace it: the next wall click lands there. */
+  protected aimAtBan(index: number): void {
+    const aimed = this.target();
+    if (aimed.kind === 'ban' && aimed.index === index) {
+      this.target.set({ kind: 'ban' });
+      return;
+    }
+    this.target.set({ kind: 'ban', index });
+  }
+
+  protected isBanTargeted(index: number): boolean {
+    const aimed = this.target();
+    return aimed.kind === 'ban' && aimed.index === index;
+  }
+
+  /**
+   * The flat index in `bans` of a side's k-th ban. Bans are one flat list in
+   * sequence order; which side made one is read off its position.
+   */
+  protected banIndexOf(game: SeriesGame, side: DraftSide, k: number): number {
+    const live = this.current(game);
+    let seen = -1;
+    for (let i = 0; i < (live.bans ?? []).length; i += 1) {
+      const team = banTeamAt(i);
+      const ours = team === live.ourSide;
+      if ((side === 'our') === ours) {
+        seen += 1;
+        if (seen === k) return i;
+      }
+    }
+    return -1;
+  }
+
+  /** What a wall click would replace right now, or null when it would be a normal pick. */
+  protected replacing(game: SeriesGame): { label: string } | null {
+    const live = this.current(game);
+    if (!this.sequenceActive(live)) return null;
+    const aimed = this.target();
+    if (aimed.kind === 'ban' && aimed.index !== undefined) {
+      const champ = (live.bans ?? [])[aimed.index];
+      return champ ? { label: `the ${champ} ban` } : null;
+    }
+    if (aimed.kind === 'pick') {
+      const slot = this.pickSlots(live, aimed.side)[aimed.index];
+      return slot?.champion ? { label: `${slot.champion} at ${slot.role}` } : null;
+    }
+    return null;
+  }
+
+  protected cancelReplace(): void {
+    this.target.set({ kind: 'ban' });
+  }
+
   /**
    * What the grid refuses, which depends on what is aimed at. A ban may still
    * land on a champion nobody has drafted, so bans and picks ask different
@@ -973,8 +1026,44 @@ export class TournamentDraftComponent implements OnInit {
 
   /** Hold a champion for confirmation rather than committing it immediately. */
   protected proposeFromSequence(name: string): void {
+    // Aimed at a ban or a seat that is already filled: this click replaces
+    // it, in place, without moving the step. That is how a wrong entry is
+    // corrected mid-sequence — Undo only reaches the most recent one, and the
+    // free-form clear controls stand down while a sequence runs.
+    const game = this.draftGame();
+    if (game && this.replacing(game)) {
+      void this.replaceAimed(this.current(game), name);
+      return;
+    }
     this.pending.set(name);
     this.writeHold(name);
+  }
+
+  private async replaceAimed(live: SeriesGame, name: string): Promise<void> {
+    const aimed = this.target();
+    if (aimed.kind === 'ban' && aimed.index !== undefined) {
+      const bans = [...(live.bans ?? [])];
+      const was = bans[aimed.index];
+      if (!was) return;
+      bans[aimed.index] = name;
+      await this.data.updateSeriesGame({ ...live, bans });
+      this.toast.show(`Replaced the ${was} ban with ${name}`);
+    } else if (aimed.kind === 'pick') {
+      const picks = [...((aimed.side === 'our' ? live.ourChampions : live.theirChampions) ?? [])];
+      const was = picks[aimed.index];
+      if (!was) return;
+      picks[aimed.index] = name;
+      const pickLog = (live.pickLog ?? []).map((c) => (normalizeChampion(c) === normalizeChampion(was) ? name : c));
+      await this.data.updateSeriesGame({
+        ...live,
+        ...(aimed.side === 'our' ? { ourChampions: picks } : { theirChampions: picks }),
+        pickLog
+      });
+      this.toast.show(`Replaced ${was} with ${name}`);
+    }
+    this.target.set({ kind: 'ban' });
+    this.pending.set(null);
+    this.writeHold(null);
   }
 
   protected cancelPending(): void {
@@ -1090,6 +1179,7 @@ export class TournamentDraftComponent implements OnInit {
         await this.data.updateSeriesGame({
           ...live,
           ...(side === 'our' ? { ourChampions: picks } : { theirChampions: picks }),
+          pickLog: [...(live.pickLog ?? []), champ],
           draftStep: next,
           holding: undefined
         });
@@ -1122,7 +1212,8 @@ export class TournamentDraftComponent implements OnInit {
       ourSide: undefined,
       draftStep: undefined,
       holding: undefined,
-      advice: undefined
+      advice: undefined,
+      pickLog: undefined
     });
     this.pending.set(null);
   }
@@ -1142,11 +1233,20 @@ export class TournamentDraftComponent implements OnInit {
     } else {
       const side = previous.team === live.ourSide ? 'our' : 'their';
       const picks = [...((side === 'our' ? live.ourChampions : live.theirChampions) ?? [])];
-      // Undo the last filled seat rather than the last index: seats are keyed by
-      // role, so the most recent pick is not necessarily the highest index.
-      for (let i = picks.length - 1; i >= 0; i--) {
-        if (picks[i]) { picks[i] = ''; break; }
+      // The most recent pick, by the log the confirm keeps. Seats are keyed by
+      // role, so "the highest filled seat" took the wrong champion whenever
+      // the last pick landed in an earlier seat — Top after Support, say.
+      // Games drafted before the log existed fall back to that old guess.
+      const log = [...(live.pickLog ?? [])];
+      const last = log.pop();
+      let at = last ? picks.findIndex((c) => c && normalizeChampion(c) === normalizeChampion(last)) : -1;
+      if (at < 0) {
+        for (let i = picks.length - 1; i >= 0; i--) {
+          if (picks[i]) { at = i; break; }
+        }
       }
+      if (at >= 0) picks[at] = '';
+      patch.pickLog = log;
       Object.assign(patch, side === 'our' ? { ourChampions: picks } : { theirChampions: picks });
     }
     await this.data.updateSeriesGame({ ...live, ...patch });
