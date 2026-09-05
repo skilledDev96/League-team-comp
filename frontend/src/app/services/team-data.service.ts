@@ -337,6 +337,19 @@ export class TeamDataService {
     sig: WritableSignal<T[]>,
     entity: T
   ): Promise<void> {
+    // The screen first, the network second. A draft action measured about a
+    // second from click to screen while it waited for the write (5 Sep 2026),
+    // and under a thirty-second clock that is a third of the time to react.
+    // The snapshot that follows carries the same document and simply confirms
+    // what the screen already shows — and if a tab's listener ever stalls,
+    // the drafter still sees their own actions land.
+    const current = sig();
+    const exists = current.some((item) => item.id === entity.id);
+    const next = exists
+      ? current.map((item) => (item.id === entity.id ? entity : item))
+      : [...current, entity];
+    sig.set([...next].sort((a, b) => a.order - b.order));
+
     if (this.mode === 'firebase') {
       const db = getDb();
       if (!db) return;
@@ -344,12 +357,6 @@ export class TeamDataService {
       await setDoc(doc(db, key, id), stripUndefined(rest as Record<string, unknown>));
       return;
     }
-    const current = sig();
-    const exists = current.some((item) => item.id === entity.id);
-    const next = exists
-      ? current.map((item) => (item.id === entity.id ? entity : item))
-      : [...current, entity];
-    sig.set([...next].sort((a, b) => a.order - b.order));
     this.persistLocal();
   }
 
@@ -358,13 +365,13 @@ export class TeamDataService {
     sig: WritableSignal<T[]>,
     id: string
   ): Promise<void> {
+    sig.set(sig().filter((item) => item.id !== id));
     if (this.mode === 'firebase') {
       const db = getDb();
       if (!db) return;
       await deleteDoc(doc(db, key, id));
       return;
     }
-    sig.set(sig().filter((item) => item.id !== id));
     this.persistLocal();
   }
 

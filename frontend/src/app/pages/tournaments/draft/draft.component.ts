@@ -1184,7 +1184,10 @@ export class TournamentDraftComponent implements OnInit {
           holding: undefined
         });
       }
-      this.pending.set(null);
+      // Only clear the hold that was just confirmed. A drafter who clicks the
+      // next champion while this write is still in flight has already replaced
+      // the hold, and clearing it here threw that click away.
+      if (this.pending() === champ) this.pending.set(null);
       this.restartClock();
     } finally {
       this.committing.set(false);
