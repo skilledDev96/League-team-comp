@@ -74,21 +74,22 @@ const LAYOUT_KEY = 'bom-draft-layout';
  * of the map image, blue side (base bottom-left) and red side (base top-right).
  *
  * The point of the map is that a lane matchup sits *together*: both top laners
- * at the top-left corner, both bot lanes at the bottom-right, junglers in their
- * own halves. Mirroring blue through the centre would have put red's top laner
+ * at the top-left corner, both bot lanes at the bottom-right, and both junglers
+ * in the top-side jungle — the half of the map above mid, each in their own
+ * quadrant of it (asked for on 5 Sep 2026; the bot-side spots read as bot lane). Mirroring blue through the centre would have put red's top laner
  * in bot lane, so red is placed by hand, not derived.
  */
 const MAP_SPOTS: Record<'blue' | 'red', Record<Role, { x: number; y: number }>> = {
   blue: {
     Top: { x: 13, y: 34 },
-    Jungle: { x: 27, y: 71 },
+    Jungle: { x: 26, y: 46 },
     Mid: { x: 42, y: 58 },
     ADC: { x: 62, y: 87 },
     Support: { x: 71, y: 81 }
   },
   red: {
     Top: { x: 30, y: 12 },
-    Jungle: { x: 73, y: 29 },
+    Jungle: { x: 48, y: 26 },
     Mid: { x: 58, y: 42 },
     ADC: { x: 89, y: 38 },
     Support: { x: 83, y: 47 }
