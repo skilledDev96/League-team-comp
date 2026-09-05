@@ -742,27 +742,6 @@
                             <b>&mdash;</b>
                           </span>
                         }
-                        <!-- One pill per comp, name on hover. Spelling the names
-                             out ran a row four comps wide and pushed the numbers
-                             off the edge, which cost the thing being read. -->
-                        <span class="advice-comps">
-                          @for (c of shownComps(s); track c.id) {
-                            <span class="advice-comp" [class.is-unplayed]="!c.games"
-                                  [appTip]="compNote(c)">
-                              <span class="advice-comp-icon material-symbols-rounded"
-                                    aria-hidden="true">{{ compIcon(c) }}</span>
-                              @if (c.games) {
-                                <b [class]="winRateBand(c.winRate)">{{ c.winRate }}%</b>
-                                <em>{{ c.games }}g</em>
-                              } @else {
-                                <em>new</em>
-                              }
-                            </span>
-                          }
-                          @if (moreComps(s); as extra) {
-                            <span class="advice-comp is-more" [appTip]="moreNote(s)">+{{ extra }}</span>
-                          }
-                        </span>
                       </li>
                     }
                   </ul>
