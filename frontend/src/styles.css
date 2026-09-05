@@ -12903,3 +12903,33 @@ body:has(.draft-stage) .edit-mode-frame {
     max-width: none;
   }
 }
+
+/* Phones, continued: the advice blocks are grid items, and a grid item's
+   default minimum is its content's width, so the advisor rows (champion,
+   reason, confidence on one line) and the ban strip pushed the blocks out of
+   the page. Let them shrink and let the rows wrap. */
+@media (max-width: 1100px) {
+  .draft-advice > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .advisor-head,
+  .advice-row,
+  .draft-slot-icons {
+    flex-wrap: wrap;
+  }
+
+  .advisor-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .advisor-row .advisor-confidence {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+
+  .draft-slot-group.is-burn .draft-slot-icons {
+    flex-wrap: nowrap;
+  }
+}
