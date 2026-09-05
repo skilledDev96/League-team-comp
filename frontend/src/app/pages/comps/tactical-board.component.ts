@@ -385,6 +385,7 @@ export class TacticalBoardComponent {
   protected async remove(): Promise<void> {
     const existing = this.play();
     if (!existing || !this.canEdit()) return;
+    if (!confirm(`Delete the play "${existing.title || 'Untitled'}"? Its tokens, arrows and notes go too.`)) return;
     await this.data.deletePlay(existing.id);
     this.close.emit();
   }

@@ -112,6 +112,26 @@
   }
 </div>
 
+<!-- Transient notices, one stack for the whole app. -->
+@if (toast.toasts().length) {
+  <div class="toast-stack" role="status" aria-live="polite">
+    @for (t of toast.toasts(); track t.id) {
+      <div class="toast" [class]="'toast is-' + t.kind">
+        @if (t.icon) {
+          <span class="toast-icon material-symbols-rounded" aria-hidden="true">{{ t.icon }}</span>
+        }
+        <span class="toast-body">
+          <strong class="toast-title">{{ t.title }}</strong>
+          @if (t.text) { <span class="toast-text">{{ t.text }}</span> }
+        </span>
+        <button type="button" class="toast-close" aria-label="Dismiss" (click)="toast.dismiss(t.id)">
+          <span class="material-symbols-rounded" aria-hidden="true">close</span>
+        </button>
+      </div>
+    }
+  </div>
+}
+
 @if (initialLoading()) {
   <div class="app-loading-overlay" role="status" aria-live="polite">
     <span class="app-loading-spinner" aria-hidden="true"></span>

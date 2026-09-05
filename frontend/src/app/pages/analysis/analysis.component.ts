@@ -275,6 +275,9 @@ export class AnalysisComponent {
   protected offBookRecord = winLossRecord;
 
   protected deleteResult(result: CompResult): void {
+    const when = this.ui.formatDay(result.playedOn);
+    const who = result.opponent ? ` against ${result.opponent}` : '';
+    if (!confirm(`Delete the logged ${result.outcome}${who} on ${when}?`)) return;
     void this.data.deleteCompResult(result.id);
   }
 

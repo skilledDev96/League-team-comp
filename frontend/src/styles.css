@@ -837,6 +837,82 @@ body {
   animation: edit-banner-in 0.25s ease-out;
 }
 
+/* ---- Toasts -------------------------------------------------------------
+   Transient notices from ToastService. Stacked top-right under the topbar so
+   they never cover the thing that was just clicked, and sized in rem like the
+   rest of the interface. */
+.toast-stack {
+  position: fixed;
+  top: 4.6rem;
+  right: 1rem;
+  z-index: 70;
+  display: grid;
+  gap: 0.5rem;
+  width: min(22rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.75rem 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  border-left: 4px solid var(--accent);
+  background: color-mix(in srgb, var(--card) 92%, var(--bg-0));
+  color: var(--text-0);
+  box-shadow: 0 10px 28px var(--shadow-elev);
+  pointer-events: auto;
+  animation: toast-in 0.22s ease-out;
+}
+
+.toast.is-ok { border-left-color: var(--ok); }
+.toast.is-warn { border-left-color: var(--warn); }
+
+.toast-icon {
+  color: var(--accent);
+  margin-top: 0.05rem;
+}
+
+.toast.is-ok .toast-icon { color: var(--ok); }
+.toast.is-warn .toast-icon { color: var(--warn); }
+
+.toast-body {
+  display: grid;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.toast-title { font-size: 0.9rem; }
+.toast-text { color: var(--text-1); }
+
+.toast-close {
+  border: 0;
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  margin: -0.1rem -0.2rem 0 0;
+}
+
+.toast-close:hover,
+.toast-close:focus-visible {
+  color: var(--text-0);
+  outline: none;
+}
+
+.toast-close .material-symbols-rounded { font-size: 1.15rem; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-0.4rem); }
+  to { opacity: 1; transform: none; }
+}
+
 @keyframes edit-banner-in {
   from { opacity: 0; transform: translate(-50%, 0.6rem); }
   to { opacity: 1; transform: translate(-50%, 0); }

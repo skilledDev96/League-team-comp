@@ -445,6 +445,10 @@ export class TournamentDraftComponent implements OnInit {
 
   /** Drop the last game of the series; removing an earlier one would renumber. */
   protected removeDraftGame(game: SeriesGame): void {
+    const drafted = (game.bans ?? []).length
+      + [...(game.ourChampions ?? []), ...(game.theirChampions ?? [])].filter(Boolean).length;
+    const what = drafted ? ` and the ${drafted} bans and picks drafted into it` : '';
+    if (!confirm(`Remove game ${game.gameNumber}${what}?`)) return;
     this.pickedGameId.set('');
     void this.data.deleteSeriesGame(game.id);
   }
