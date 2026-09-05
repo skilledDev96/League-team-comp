@@ -12786,25 +12786,31 @@ body:has(.draft-stage) .edit-mode-frame {
    now takes the wall's width and centres, which is also what the columns view
    wanted all along: the pick cards share whatever is left. --wall-w mirrors
    the tile sums in the last .draft-grid .board-grid rule; change both. */
-.draft-stage .draft-grid,
-.draft-stage .draft-advice {
-  --wall-w: calc(8 * 5rem + 7 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
-  width: var(--wall-w);
-  max-width: 100%;
-  min-width: 0;
-  justify-self: center;
-}
+/* Wide windows only. A fixed 755px stack next to two 9rem columns needs
+   about 1400px; below that the middle column shrinks as it always did, and
+   the phone layout (one column under 1100px) is untouched — a fixed width
+   there put the wall on top of the pick cards, seen 5 Sep 2026. */
+@media (min-width: 1400px) {
+  .draft-stage .draft-grid,
+  .draft-stage .draft-advice {
+    --wall-w: calc(8 * 5rem + 7 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
+    width: var(--wall-w);
+    max-width: 100%;
+    min-width: 0;
+    justify-self: center;
+  }
 
-/* The map keeps its own column, capped so it stays on screen whole, and the
-   stack centres in what remains rather than sitting hard against it. */
-.draft-stage.is-map {
-  grid-template-columns: auto minmax(0, 1fr);
-}
+  /* The map keeps its own column, capped so it stays on screen whole, and
+     the stack centres in what remains rather than sitting hard against it. */
+  .draft-stage.is-map {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
 
-.draft-stage.is-map .draft-map,
-.draft-stage.is-map .draft-inputs > .field:nth-child(1) {
-  width: min(calc(100vh - 8rem), 42vw);
-  max-width: 100%;
+  .draft-stage.is-map .draft-map,
+  .draft-stage.is-map .draft-inputs > .field:nth-child(1) {
+    width: min(calc(100vh - 8rem), 42vw);
+    max-width: 100%;
+  }
 }
 
 /* The row labels had a 4.4rem gutter for a 3.2rem word. */
