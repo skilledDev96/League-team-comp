@@ -12778,3 +12778,36 @@ body:has(.draft-stage) .edit-mode-frame {
   border: 2px solid var(--accent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
 }
+
+/* ---- One width for the middle stack --------------------------------------
+   Asked for on 5 Sep 2026. The wall was 755px centred in a column that the
+   header, the confirm slot, the aim line and the advisor all stretched across,
+   so four left edges and two widths sat on top of each other. The whole stack
+   now takes the wall's width and centres, which is also what the columns view
+   wanted all along: the pick cards share whatever is left. --wall-w mirrors
+   the tile sums in the last .draft-grid .board-grid rule; change both. */
+.draft-stage .draft-grid,
+.draft-stage .draft-advice {
+  --wall-w: calc(8 * 5rem + 7 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
+  width: var(--wall-w);
+  max-width: 100%;
+  min-width: 0;
+  justify-self: center;
+}
+
+/* The map keeps its own column, capped so it stays on screen whole, and the
+   stack centres in what remains rather than sitting hard against it. */
+.draft-stage.is-map {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.draft-stage.is-map .draft-map,
+.draft-stage.is-map .draft-inputs > .field:nth-child(1) {
+  width: min(calc(100vh - 8rem), 42vw);
+  max-width: 100%;
+}
+
+/* The row labels had a 4.4rem gutter for a 3.2rem word. */
+.draft-slot-label {
+  min-width: 3.6rem;
+}
