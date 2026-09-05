@@ -10593,6 +10593,118 @@ body:has(.draft-stage) .edit-mode-frame {
 .advice-empty { margin: 0; font-size: 0.8rem; }
 
 /* Gaps are read off champion traits, so they need no sample-size caveat. */
+/* ---- The lane read --------------------------------------------------------- */
+.draft-lanes {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+  margin: 0.8rem 0;
+}
+
+/* It sits inside the stage grid, which auto-places anything unplaced into
+   the first column; this is a full-width row under the board. */
+.draft-stage .draft-lanes {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  .draft-lanes { grid-template-columns: 1fr; }
+}
+
+.lane-list {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.2rem 0 0;
+}
+
+.lane-row {
+  display: grid;
+  grid-template-columns: 3.6rem auto auto auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--card-border) 60%, transparent);
+  cursor: help;
+}
+
+.lane-row.is-strong { border-color: color-mix(in srgb, var(--ok) 55%, var(--card-border)); background: color-mix(in srgb, var(--ok) 8%, transparent); }
+.lane-row.is-weak { border-color: color-mix(in srgb, var(--warn) 55%, var(--card-border)); background: color-mix(in srgb, var(--warn) 8%, transparent); }
+
+.lane-name {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.lane-side {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.lane-side .pool-champ-icon {
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 2px solid var(--ok);
+}
+
+.lane-side.is-theirs .pool-champ-icon { border-color: var(--warn); }
+
+.lane-vs {
+  font-size: 0.7rem;
+  color: var(--text-1);
+}
+
+.lane-verdict {
+  justify-self: end;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lane-row.is-strong .lane-verdict { color: var(--ok); }
+.lane-row.is-weak .lane-verdict { color: var(--warn); }
+.lane-row.is-even .lane-verdict { color: var(--text-1); }
+
+.lane-verdict em {
+  margin-left: 0.3rem;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.lane-confidence {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  font-size: 0.66rem;
+  color: var(--text-1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lane-confidence.is-low { opacity: 0.6; }
+.lane-confidence.is-high { border-color: color-mix(in srgb, var(--accent) 50%, var(--card-border)); color: var(--accent-2); }
+
+.advice-callout.is-plan { margin: 0; }
+
+/* The map says it too: our token glows for the lane we should snowball and
+   dims for the lane to cover. */
+.draft-map-token.is-strong .draft-map-token-img {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 60%, transparent), 0 0 18px color-mix(in srgb, var(--ok) 70%, transparent);
+}
+
+.draft-map-token.is-weak .draft-map-token-img {
+  border-color: var(--warn);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 50%, transparent);
+}
+
 .advice-block.is-gaps { border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border)); }
 .advice-block.is-gaps .advice-head { color: var(--warn); }
 .advice-gaps { display: grid; gap: 0.2rem; margin: 0; font-size: 0.82rem; }

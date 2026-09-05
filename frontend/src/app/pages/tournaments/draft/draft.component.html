@@ -139,6 +139,8 @@
                     [class.is-empty]="!t.champion"
                     [class.is-aimed]="auth.editing() && isTargeted('pick', t.side, t.index)"
                     [class.is-on-turn]="onTurn(game, t.side) && !t.champion"
+                    [class.is-strong]="t.side === 'our' && laneVerdict(game, t.role) === 'strong'"
+                    [class.is-weak]="t.side === 'our' && laneVerdict(game, t.role) === 'weak'"
                     [style.left.%]="t.x" [style.top.%]="t.y"
                     [disabled]="!auth.editing()"
                     [appTip]="(t.side === 'our' ? teamName() : series.opponent) + ' ' + t.role + (t.champion ? ' — ' + t.champion : ' — empty')"
@@ -720,6 +722,57 @@
             }
           }
         </div>
+      }
+
+      <!-- The lanes, once both sides have picked into them. One word per
+           lane and the reasons on hover; then what to do about it. Shown to
+           everyone on the link, because it is what a watching teammate is
+           there to talk about. -->
+      @if (readableLanes(game); as lanes) {
+        @if (lanes.length) {
+          <section class="draft-lanes" aria-label="Lane read">
+            <div class="advice-block is-lanes">
+              <span class="advice-head">Lanes</span>
+              <ul class="list-clean lane-list">
+                @for (r of lanes; track r.lane) {
+                  <li class="lane-row" [class]="'lane-row is-' + r.verdict" [appTip]="laneNote(r)">
+                    <span class="lane-name">{{ r.lane }}</span>
+                    <span class="lane-side is-ours">
+                      @for (c of r.ours; track c) {
+                        <img class="pool-champ-icon" [src]="ui.championIconUrl(c)" [alt]="c" loading="lazy" />
+                      }
+                    </span>
+                    <span class="lane-vs">vs</span>
+                    <span class="lane-side is-theirs">
+                      @for (c of r.theirs; track c) {
+                        <img class="pool-champ-icon" [src]="ui.championIconUrl(c)" [alt]="c" loading="lazy" />
+                      }
+                    </span>
+                    <span class="lane-verdict">
+                      {{ r.verdict === 'strong' ? 'ours' : r.verdict === 'weak' ? 'theirs' : 'even' }}
+                      @if (r.score) { <em>{{ r.score > 0 ? '+' : '' }}{{ r.score }}</em> }
+                    </span>
+                    <span class="lane-confidence" [class]="'lane-confidence is-' + r.confidence">{{ r.confidence }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+            @if (lanePlan(game); as plan) {
+              @if (plan.lines.length) {
+                <aside class="callout advice-callout is-plan" aria-label="Game plan">
+                  <span class="callout-icon material-symbols-rounded" aria-hidden="true">route</span>
+                  <div class="callout-body">
+                    @for (line of plan.lines; track line.strong) {
+                      <p class="readout-line" [class]="'readout-line tone-' + line.tone">
+                        <strong>{{ line.strong }}</strong> {{ line.rest }}
+                      </p>
+                    }
+                  </div>
+                </aside>
+              }
+            }
+          </section>
+        }
       }
 
       <div class="draft-status">

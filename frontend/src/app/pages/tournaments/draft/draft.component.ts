@@ -43,6 +43,8 @@ import {
   swingOf
 } from '../draft-advice';
 import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
+import { comfortOf, gamePlan, GamePlan, LaneRead, LaneVerdict, readLanes, SeatInput } from '../lane-read';
+import { poolFor, starters } from '../../../core/opponent-view';
 import { CompIdentity, IDENTITY_ICON, IDENTITY_LABEL, classifyComp } from '../../../core/comp-identity';
 import { ChampionRate, ChampionStatsService, previousPatch } from '../../../services/champion-stats.service';
 import { MatchupRate, MatchupStatsService } from '../../../services/matchup-stats.service';
@@ -1429,6 +1431,79 @@ export class TournamentDraftComponent implements OnInit {
       .slice(this.COMPS_SHOWN)
       .map((c) => this.compNote(c))
       .join('\n');
+  }
+
+  // ---- The lanes ----------------------------------------------------------
+  //
+  // A draft is two lists of five; a game is five matchups. This gathers what
+  // the app knows about each — the collected matchup rate, both champions'
+  // solo queue rates, whether each player actually plays the pick, and the
+  // traits — and hands it to `readLanes`, which is pure and tested. Shown to
+  // everyone on the link, not only the editor: it is what a watching teammate
+  // is there to talk about.
+
+  protected laneReads(game: SeriesGame): LaneRead[] {
+    const index = indexTraits(this.data.championTraits());
+    const ourSlots = this.pickSlots(game, 'our');
+    const theirSlots = this.pickSlots(game, 'their');
+    const theirRoster = starters(this.draftSeries()?.opponentPlayers ?? []);
+
+    const seats: SeatInput[] = this.roles.map((role, i) => {
+      const ours = ourSlots[i].champion;
+      const theirs = theirSlots[i].champion;
+      const matchup = ours && theirs ? this.matchups.rate(role, ours, theirs) : undefined;
+
+      // Our roster carries a pool without counts: first entry is the main.
+      const ourPlayer = this.data.players().find((p) => p.role === role);
+      const ourPool = ourPlayer?.top3 ?? [];
+      const ourAt = ours ? ourPool.findIndex((c) => normalizeChampion(c) === normalizeChampion(ours)) : -1;
+      const ourComfort = !ourPlayer || !ours
+        ? undefined
+        : ourAt < 0
+          ? { level: 'none' as const }
+          : { level: ourAt === 0 ? ('main' as const) : ('pool' as const) };
+
+      const theirPlayer = theirRoster.find((p) => p.role === role);
+      const theirPool = theirPlayer ? poolFor(theirPlayer) : [];
+      const theirAt = theirs ? theirPool.findIndex((c) => normalizeChampion(c.champion) === normalizeChampion(theirs)) : -1;
+      const theirComfort = theirs && theirPlayer
+        ? comfortOf(theirAt >= 0 ? theirPool[theirAt] : undefined, theirAt, theirPool.length > 0)
+        : undefined;
+
+      return {
+        role,
+        ours,
+        theirs,
+        matchup: matchup ? { winRate: matchup.winRate, games: matchup.games } : undefined,
+        ourSolo: ours ? this.stats.rate(ours)?.winRate : undefined,
+        theirSolo: theirs ? this.stats.rate(theirs)?.winRate : undefined,
+        ourComfort,
+        theirComfort,
+        ourTraits: ours ? traitsFor(index, this.champs.resolve(ours)?.id) ?? undefined : undefined,
+        theirTraits: theirs ? traitsFor(index, this.champs.resolve(theirs)?.id) ?? undefined : undefined
+      };
+    });
+    return readLanes(seats);
+  }
+
+  /** Lanes with something to say, for the panel. */
+  protected readableLanes(game: SeriesGame): LaneRead[] {
+    return this.laneReads(game).filter((r) => r.verdict !== 'unknown');
+  }
+
+  protected lanePlan(game: SeriesGame): GamePlan {
+    return gamePlan(this.laneReads(game));
+  }
+
+  /** The verdict of the lane a seat belongs to, for tinting the map tokens. */
+  protected laneVerdict(game: SeriesGame, role: Role): LaneVerdict {
+    const lane = role === 'ADC' || role === 'Support' ? 'Bot' : role;
+    return this.laneReads(game).find((r) => r.lane === lane)?.verdict ?? 'unknown';
+  }
+
+  protected laneNote(read: LaneRead): string {
+    const head = `${read.verdict === 'strong' ? 'Ours' : read.verdict === 'weak' ? 'Theirs' : 'Even'} by ${Math.abs(read.score)} points, ${read.confidence} confidence.`;
+    return read.reasons.length ? `${head}\n${read.reasons.join('\n')}` : head;
   }
 
   /** What our picks are short of. Empty while there is too little to judge. */
