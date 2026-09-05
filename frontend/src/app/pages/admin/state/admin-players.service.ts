@@ -231,7 +231,28 @@ export class AdminPlayersService {
   }
 
 
-  async savePlayer(draft: PlayerDraft): Promise<void> {
+  private readonly autosaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /**
+   * Save a moment after the last change. Existing players only: a new one
+   * has no name yet and is committed by its own Add step. The delay lets a
+   * word finish before it is written, and one timer per panel means typing
+   * in two panels cannot save the wrong one.
+   */
+  autosave(draft: PlayerDraft): void {
+    if (!draft.id) return;
+    const pending = this.autosaveTimers.get(draft.uid);
+    if (pending) clearTimeout(pending);
+    this.autosaveTimers.set(
+      draft.uid,
+      setTimeout(() => {
+        this.autosaveTimers.delete(draft.uid);
+        void this.savePlayer(draft, { quiet: true });
+      }, 900)
+    );
+  }
+
+  async savePlayer(draft: PlayerDraft, options: { quiet?: boolean } = {}): Promise<void> {
     const profile = {
       region: draft.region.trim() || 'euw',
       opggSlug: draft.opggSlug.trim(),
@@ -267,7 +288,7 @@ export class AdminPlayersService {
       await this.data.createPlayer(base);
       this.shell.requestResync();
     }
-    this.flash(`Saved ${base.name}.`);
+    this.flash(options.quiet ? `Saved ${base.name}` : `Saved ${base.name}.`);
   }
 
   async deletePlayer(draft: PlayerDraft): Promise<void> {

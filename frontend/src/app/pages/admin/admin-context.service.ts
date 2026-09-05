@@ -80,6 +80,7 @@ export class AdminContextService {
   readonly addPlayerManually = () => this.players.addPlayerManually();
   readonly confirmAutofillAdd = () => this.players.confirmAutofillAdd();
   readonly savePlayer = (d: PlayerDraft) => this.players.savePlayer(d);
+  readonly autosave = (d: PlayerDraft) => this.players.autosave(d);
   readonly deletePlayer = (d: PlayerDraft) => this.players.deletePlayer(d);
 
   // Accordion: only one player panel open at a time to reduce clutter.
