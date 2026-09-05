@@ -12942,3 +12942,11 @@ body:has(.draft-stage) .edit-mode-frame {
   opacity: 0.75;
   margin-left: 0.05rem;
 }
+
+
+/* The picker's "no champion matches" line: a miss is now said, not silent. */
+.champ-picker-none {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  color: var(--warn);
+}
