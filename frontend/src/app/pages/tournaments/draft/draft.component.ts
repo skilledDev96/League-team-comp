@@ -104,7 +104,6 @@ const MAP_SPOTS: Record<'blue' | 'red', Record<Role, { x: number; y: number }>> 
  * moment it is needed. The row scrolls inside its own box instead, which keeps
  * the slot height fixed without dropping anything.
  */
-const BURN_STRIP_MAX = 40;
 
 /**
  * One game, full width, for use while the draft is actually happening: bans and
@@ -639,20 +638,19 @@ export class TournamentDraftComponent implements OnInit {
     return this.burnedBefore(game.seriesId, game.gameNumber).length;
   }
 
-  /**
-   * What the series has already spent, for the strip in the confirm slot.
-   *
-   * Capped, because game three of a best-of-five burns twenty champions and a
-   * row that wide pushes the bans it sits beside off the edge — the one thing
-   * this strip exists to prevent. The overflow count carries the rest, and the
-   * full list is still on the board below.
-   */
-  protected burnedIcons(game: SeriesGame): string[] {
-    return this.burnedBefore(game.seriesId, game.gameNumber).slice(0, BURN_STRIP_MAX);
+  /** What the series has already spent, split by who spent it, for the strip in the confirm slot. */
+  protected burnedBySide(game: SeriesGame, side: 'our' | 'their'): string[] {
+    return this.ctx.burnedBeforeBySide(game.seriesId, game.gameNumber)[side];
   }
 
-  protected moreBurned(game: SeriesGame): number {
-    return Math.max(0, this.burnedBeforeCount(game) - BURN_STRIP_MAX);
+  /**
+   * Which starter lists a burned champion in their pool, if any. Under fearless
+   * that is the burn that hurts — a comfort pick gone for the rest of the series
+   * — so the strip marks it rather than leaving the drafter to remember.
+   */
+  protected burnedPoolOwner(champion: string): string | undefined {
+    const key = normalizeChampion(champion);
+    return this.data.starters().find((p) => (p.top3 ?? []).some((c) => normalizeChampion(c) === key))?.name;
   }
 
   protected burnedNote(game: SeriesGame): string {

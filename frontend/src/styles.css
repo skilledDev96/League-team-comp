@@ -12755,3 +12755,26 @@ body:has(.draft-stage) .edit-mode-frame {
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
+
+/* ---- Burned, laid out like the bans -------------------------------------
+   Requested 5 Sep 2026. The burn was one undifferentiated run of icons; it now
+   reads as ours | theirs the way the bans row does, and a burned champion that
+   sits in one of our starters' pools is ringed in the accent, because that is
+   the burn that changes what we can draft. Both rows' icons grow to 2rem — two
+   rows plus the gap still sit inside the 5.4rem slot. */
+.draft-slot-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.35rem;
+}
+
+.draft-slot-split {
+  height: 1.7rem;
+}
+
+.draft-slot-icon.is-burned.is-pool {
+  filter: grayscale(0.15) brightness(0.95);
+  opacity: 1;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}

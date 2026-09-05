@@ -89,6 +89,22 @@ export class TournamentContextService {
     return [...new Set(used.filter(Boolean))];
   }
 
+  /**
+   * The same carry-over split by who spent it. A champion is burned whoever
+   * used it, but a drafter reads the two lists differently: ours are comps we
+   * can no longer play, theirs are threats we no longer face.
+   */
+  burnedBeforeBySide(seriesId: string, gameNumber: number): { our: string[]; their: string[] } {
+    const our: string[] = [];
+    const their: string[] = [];
+    for (const game of this.gamesFor(seriesId)) {
+      if (game.gameNumber >= gameNumber) continue;
+      our.push(...(game.ourChampions ?? []));
+      their.push(...(game.theirChampions ?? []));
+    }
+    return { our: [...new Set(our.filter(Boolean))], their: [...new Set(their.filter(Boolean))] };
+  }
+
   /** Our comps reduced to their five champions, for the availability maths. */
   compChampions() {
     const ranked = this.data.compAnalysis()?.comps ?? [];

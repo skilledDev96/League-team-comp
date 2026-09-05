@@ -534,12 +534,16 @@
                     }
                   </span>
                   <span class="draft-slot-icons">
-                    @for (champ of burnedIcons(game); track champ) {
-                      <img class="draft-slot-icon is-burned" [src]="ui.championIconUrl(champ)"
-                           [alt]="champ" [appTip]="champ + ' — used earlier this series'" loading="lazy" />
+                    @for (champ of burnedBySide(game, 'our'); track champ) {
+                      <img class="draft-slot-icon is-burned" [class.is-pool]="burnedPoolOwner(champ)"
+                           [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy"
+                           [appTip]="teamName() + ' played ' + champ + ' earlier this series' + (burnedPoolOwner(champ) ? ' — it is in ' + burnedPoolOwner(champ) + '\'s pool' : '')" />
                     }
-                    @if (moreBurned(game); as extra) {
-                      <span class="draft-slot-more">+{{ extra }}</span>
+                    <span class="draft-slot-split" aria-hidden="true"></span>
+                    @for (champ of burnedBySide(game, 'their'); track champ) {
+                      <img class="draft-slot-icon is-burned" [class.is-pool]="burnedPoolOwner(champ)"
+                           [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy"
+                           [appTip]="(series.opponent || 'They') + ' played ' + champ + ' earlier this series' + (burnedPoolOwner(champ) ? ' — it is in ' + burnedPoolOwner(champ) + '\'s pool' : '')" />
                     }
                     @if (!burnedBeforeCount(game)) {
                       <span class="draft-slot-none">nothing yet</span>
