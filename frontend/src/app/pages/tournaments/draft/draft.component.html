@@ -722,7 +722,7 @@
                              the busiest reach the floor. Absent is correct here,
                              not a gap waiting for a thinner number. -->
                         @if (matchupRate(g, s.champion); as m) {
-                          <span class="advice-matchup" [appTip]="matchupNote(g, s.champion)">
+                          <span class="advice-matchup" [class.is-thin]="m.thin" [appTip]="matchupNote(g, s.champion)">
                             <span class="advice-matchup-label material-symbols-rounded"
                                   aria-hidden="true">swords</span>
                             <b [class]="winRateBand(m.winRate)">{{ m.winRate }}%</b>

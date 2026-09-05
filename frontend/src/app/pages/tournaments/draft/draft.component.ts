@@ -1370,7 +1370,8 @@ export class TournamentDraftComponent implements OnInit {
     const where = r.combined
       ? `patches ${previousPatch(this.stats.patch())}-${this.stats.patch()}`
       : `patch ${this.stats.patch()}`;
-    return `${champion} into ${theirs}: ${r.winRate}% over ${r.games.toLocaleString()} games on ${where}.`;
+    const thin = r.thin ? ` Thin: about ${r.margin} points either way, so read it as a lean, not a verdict.` : '';
+    return `${champion} into ${theirs}: ${r.winRate}% over ${r.games.toLocaleString()} games on ${where}.${thin}`;
   }
 
   /**

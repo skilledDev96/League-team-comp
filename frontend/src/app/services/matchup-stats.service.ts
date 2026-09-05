@@ -31,6 +31,10 @@ export interface MatchupRate {
   readonly winRate: number;
   /** True when the previous patch was added to reach a usable sample. */
   readonly combined: boolean;
+  /** Fewer than SOLID_MATCHUP_GAMES: shown, but dimmed and with its margin. */
+  readonly thin: boolean;
+  /** Half-width of the 95% interval, in points: about 98/√games. */
+  readonly margin: number;
 }
 
 /**
@@ -52,7 +56,18 @@ export interface MatchupRate {
  * deploy; the backend prunes at a lower figure purely to keep the document
  * small.
  */
-export const MIN_MATCHUP_GAMES = 200;
+export const SOLID_MATCHUP_GAMES = 200;
+
+/**
+ * Games before a matchup is quoted at all — the same floor the index is
+ * published at, so nothing the document holds is hidden. Below
+ * SOLID_MATCHUP_GAMES the number is shown thin: dimmed, with its games and
+ * its margin, because the team asked to see the matchup they are actually in
+ * (5 Sep 2026) rather than a dash, and 47% over 114 games with ±9 on it is
+ * still more use in a draft than nothing. Must never drop below the
+ * backend's INDEX_MIN_GAMES.
+ */
+export const MIN_MATCHUP_GAMES = 50;
 
 /**
  * Rebuild the key the crawler wrote, for a pair given in either order.
@@ -85,7 +100,14 @@ export function rateFrom(
   combined: boolean
 ): MatchupRate {
   const wins = oursIsA ? winsA : games - winsA;
-  return { games, wins, winRate: Math.round((wins / games) * 1000) / 10, combined };
+  return {
+    games,
+    wins,
+    winRate: Math.round((wins / games) * 1000) / 10,
+    combined,
+    thin: games < SOLID_MATCHUP_GAMES,
+    margin: Math.round(980 / Math.sqrt(games)) / 10
+  };
 }
 
 /** Our role names to Riot's lane names, which is how the crawler buckets them. */
@@ -176,14 +198,17 @@ export class MatchupStatsService {
     const { key, oursIsA } = this.pairKey(ours, theirs);
 
     const current = this.read(entry.current, key);
-    if (current && current.games >= MIN_MATCHUP_GAMES) {
+    // This patch alone when it is solid; otherwise both patches, which is
+    // solid more often; otherwise whatever clears the quote floor, thin.
+    if (current && current.games >= SOLID_MATCHUP_GAMES) {
       return rateFrom(current.games, current.winsA, oursIsA, false);
     }
 
     const prior = this.read(entry.prior, key);
     const games = (current?.games ?? 0) + (prior?.games ?? 0);
     const winsA = (current?.winsA ?? 0) + (prior?.winsA ?? 0);
-    return games >= MIN_MATCHUP_GAMES ? rateFrom(games, winsA, oursIsA, true) : undefined;
+    if (games < MIN_MATCHUP_GAMES) return undefined;
+    return rateFrom(games, winsA, oursIsA, !!prior?.games);
   }
 
   /**

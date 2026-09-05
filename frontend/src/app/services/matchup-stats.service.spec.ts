@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MIN_MATCHUP_GAMES, pairKeyFor, rateFrom } from './matchup-stats.service';
+import { MIN_MATCHUP_GAMES, SOLID_MATCHUP_GAMES, pairKeyFor, rateFrom } from './matchup-stats.service';
 
 describe('pairKeyFor', () => {
   it('produces the same key whichever way round the pair is given', () => {
@@ -33,17 +33,18 @@ describe('pairKeyFor', () => {
 
 describe('rateFrom', () => {
   it('reads the stored wins directly when ours sorted first', () => {
-    expect(rateFrom(200, 116, true, false)).toEqual({
+    expect(rateFrom(200, 116, true, false)).toMatchObject({
       games: 200,
       wins: 116,
       winRate: 58,
-      combined: false
+      combined: false,
+      thin: false
     });
   });
 
   it('flips the wins when ours sorted second', () => {
     // The same cell read from the other side: 116 of 200 for them is 84 for us.
-    expect(rateFrom(200, 116, false, false)).toEqual({
+    expect(rateFrom(200, 116, false, false)).toMatchObject({
       games: 200,
       wins: 84,
       winRate: 42,
@@ -64,13 +65,22 @@ describe('rateFrom', () => {
   it('rounds to one decimal rather than showing a full float', () => {
     expect(rateFrom(3, 1, true, false).winRate).toBe(33.3);
   });
+
+  it('marks a sample under the solid floor as thin and says how wide it is', () => {
+    // Lux into Braum on 5 Sep 2026: 114 games. ±98/√114 ≈ ±9.2 points.
+    const r = rateFrom(114, 60, false, false);
+    expect(r.thin).toBe(true);
+    expect(r.margin).toBeCloseTo(9.2, 1);
+    expect(rateFrom(400, 200, true, false)).toMatchObject({ thin: false, margin: 4.9 });
+  });
 });
 
 describe('MIN_MATCHUP_GAMES', () => {
-  it('is high enough that a lopsided matchup separates from even', () => {
+  it('the solid floor is high enough that a lopsided matchup separates from even', () => {
     // The interval half-width on a proportion is about 0.98/sqrt(n) points.
-    // The floor has to be tight enough that a 57% matchup clears 50%.
-    const halfWidth = 98 / Math.sqrt(MIN_MATCHUP_GAMES);
+    // The solid floor has to be tight enough that a 57% matchup clears 50%;
+    // the quote floor below it is shown thin, with that width on the chip.
+    const halfWidth = 98 / Math.sqrt(SOLID_MATCHUP_GAMES);
     expect(57 - halfWidth).toBeGreaterThan(50);
   });
 
