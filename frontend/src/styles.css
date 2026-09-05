@@ -12813,6 +12813,17 @@ body:has(.draft-stage) .edit-mode-frame {
     grid-row: 1 / span 2;
   }
 
+  /* The map view had the stack spanning both rows too (an older rule with
+     higher specificity), which put the advisor on top of the wall. */
+  .draft-stage.is-map .draft-grid {
+    grid-row: 1;
+  }
+
+  .draft-stage.is-map .draft-advice {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
   .draft-stage.is-map .draft-inputs > .field:nth-child(1) {
     grid-row: 3;
   }
