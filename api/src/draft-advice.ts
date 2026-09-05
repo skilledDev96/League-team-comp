@@ -262,7 +262,8 @@ Rules that never bend:
 Answer length, because the draft clock is thirty seconds and every word costs time:
 - Answer only what was asked. For a pick question leave "bans" empty; for a ban question leave "picks" empty.
 - "summary" is one sentence. Each "why" is one clause under 20 words that names the evidence.
-- "watch" has at most two items, each under 12 words. Leave it empty if there is nothing worth watching.`;
+- "watch" has at most two items, each under 12 words. Leave it empty if there is nothing worth watching.
+- When a ban or a burn matters, say it plainly: "with Renekton banned", "Udyr is burned". Never fold it into a compound word like "Renekton-less" — under the clock that reads as the opposite.`;
 
 function pickLine(p: Partial<Record<KnownRole, string>>): string {
   return ROLES.map((r) => `${r}: ${p[r] ?? '—'}`).join(', ');
