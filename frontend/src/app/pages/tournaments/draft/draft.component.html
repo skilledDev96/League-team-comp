@@ -726,6 +726,9 @@
                             <span class="advice-matchup-label material-symbols-rounded"
                                   aria-hidden="true">swords</span>
                             <b [class]="winRateBand(m.winRate)">{{ m.winRate }}%</b>
+                            @if (m.thin) {
+                              <i class="advice-matchup-margin">±{{ wholeMargin(m) }}</i>
+                            }
                             <em>{{ m.games }}g</em>
                           </span>
                         } @else if (enemyAt(g, lane); as theirs) {

@@ -1,24 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import {
   CRAWL_BUDGET,
-  EXPECTED_IDS_PER_PLAYER,
-  PENDING_LOW_WATER,
   CrawledMatch,
+  ENTRIES_PER_PAGE,
+  EXPECTED_IDS_PER_PLAYER,
   FIRST_CURSOR,
   LadderCursor,
+  NIGHT_CRAWL_BUDGET,
+  PENDING_LOW_WATER,
   TIERS,
-  ENTRIES_PER_PAGE,
+  crawlBudgetAt,
   divisionsFor,
   isApex,
-  laneMatchups,
   ladderPath,
+  laneMatchups,
   matchupKey,
   mergeMatchups,
   mergeTallies,
-  sampleLadder,
   nextCursor,
   patchOf,
   planRun,
+  sampleLadder,
   statsDocPath,
   tallyMatch,
   winRateOf
@@ -156,6 +158,25 @@ describe('nextCursor', () => {
   it('recovers from an unrecognised tier rather than stalling', () => {
     const odd = nextCursor({ tier: 'EMERALDD' as never, division: 'IV', page: 1 });
     expect(TIERS).toContain(odd.tier);
+  });
+});
+
+describe('crawlBudgetAt', () => {
+  it('spends most of the key between midnight and six in Amsterdam', () => {
+    // 01:00Z in September is 03:00 in Amsterdam (CEST).
+    expect(crawlBudgetAt(new Date('2026-09-05T01:00:00Z'))).toBe(NIGHT_CRAWL_BUDGET);
+    expect(crawlBudgetAt(new Date('2026-09-05T22:30:00Z'))).toBe(NIGHT_CRAWL_BUDGET); // 00:30 next day
+  });
+
+  it('leaves the daytime half alone, including the morning refresh window', () => {
+    expect(crawlBudgetAt(new Date('2026-09-05T04:30:00Z'))).toBe(CRAWL_BUDGET); // 06:30, refresh running
+    expect(crawlBudgetAt(new Date('2026-09-05T10:00:00Z'))).toBe(CRAWL_BUDGET); // midday
+    expect(crawlBudgetAt(new Date('2026-09-05T19:00:00Z'))).toBe(CRAWL_BUDGET); // 21:00, match night
+  });
+
+  it('the night budget still leaves headroom under the key\'s hundred', () => {
+    expect(NIGHT_CRAWL_BUDGET).toBeLessThan(100);
+    expect(NIGHT_CRAWL_BUDGET).toBeGreaterThan(CRAWL_BUDGET);
   });
 });
 

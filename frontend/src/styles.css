@@ -12933,3 +12933,12 @@ body:has(.draft-stage) .edit-mode-frame {
     flex-wrap: nowrap;
   }
 }
+
+/* A thin matchup carries its margin on the chip — "62% ±9" — because a
+   number that is only honest on hover is not honest under a draft clock. */
+.advice-matchup-margin {
+  font-style: normal;
+  font-size: 0.72rem;
+  opacity: 0.75;
+  margin-left: 0.05rem;
+}

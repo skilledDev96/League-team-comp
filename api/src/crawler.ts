@@ -141,6 +141,31 @@ export function nextCursor(cursor: LadderCursor): LadderCursor {
  */
 export const CRAWL_BUDGET = 50;
 
+/**
+ * The night budget. Between midnight and six in Amsterdam nobody is pressing
+ * Refresh and the morning job has not started, so the crawler may take most
+ * of the key: 85 of 100, the rest left for the key probe and a stray request.
+ * The point is the thin lanes — Support pairings sat at sixty games where a
+ * stats site has thousands (5 Sep 2026) — and every match read feeds all five
+ * lanes at once, so more matches is the only lever there is.
+ */
+export const NIGHT_CRAWL_BUDGET = 85;
+export const NIGHT_START_HOUR = 0;
+export const NIGHT_END_HOUR = 6;
+
+/** The hour of the day in Amsterdam, where the team and the schedules live. */
+export function amsterdamHour(now: Date): number {
+  const text = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Amsterdam', hour: 'numeric', hour12: false }).format(now);
+  const hour = parseInt(text, 10);
+  return Number.isFinite(hour) ? hour % 24 : now.getUTCHours();
+}
+
+/** What the crawler may spend on this tick, by the clock. */
+export function crawlBudgetAt(now: Date): number {
+  const hour = amsterdamHour(now);
+  return hour >= NIGHT_START_HOUR && hour < NIGHT_END_HOUR ? NIGHT_CRAWL_BUDGET : CRAWL_BUDGET;
+}
+
 /** Below this many queued match ids, spend calls refilling instead of fetching. */
 export const PENDING_LOW_WATER = 60;
 /** Below this many known players, spend a call on a ladder page. */

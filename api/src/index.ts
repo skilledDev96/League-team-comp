@@ -22,6 +22,7 @@ import {
   BucketUpdate,
   IDS_PER_PLAYER,
   LadderCursor,
+  crawlBudgetAt,
   collectSince,
   MatchTally,
   MatchupUpdate,
@@ -2495,7 +2496,7 @@ async function crawlTick(apiKey: string | undefined): Promise<string> {
     return 'disabled — set crawlState/championStats.enabled to true to start';
   }
 
-  const plan = planRun(state.pending.length, state.pool.length);
+  const plan = planRun(state.pending.length, state.pool.length, crawlBudgetAt(new Date()));
   const routing = REGION_ROUTING[CRAWL_REGION];
   let tallied = 0;
   let skipped = 0;

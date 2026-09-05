@@ -1358,6 +1358,11 @@ export class TournamentDraftComponent implements OnInit {
     return theirs ? this.matchups.rate(lane, champion, theirs) : undefined;
   }
 
+  /** The chip shows the margin in whole points; the tip keeps the decimal. */
+  protected wholeMargin(m: MatchupRate): number {
+    return Math.round(m.margin);
+  }
+
   protected matchupNote(game: SeriesGame, champion: string): string {
     const lane = this.suggestLane(game);
     const theirs = lane ? this.enemyAt(game, lane) : '';
