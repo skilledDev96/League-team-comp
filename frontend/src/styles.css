@@ -7274,6 +7274,46 @@ app-match-note {
   color: var(--text-1);
 }
 
+.draft-share-link .material-symbols-rounded {
+  font-size: 1.1rem;
+}
+
+/* The watcher's step bar: the same phase chip, turn and progress the editor's
+   bar carries, without the controls. */
+.draft-live-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card-border) 10%, transparent);
+}
+
+.draft-live-bar.is-ours {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--card-border));
+}
+
+.draft-live-bar.is-done .material-symbols-rounded {
+  color: var(--ok);
+}
+
+.draft-live-hold {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.55rem 0.15rem 0.2rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  font-size: 0.85rem;
+}
+
+.draft-live-bar .draft-step-progress {
+  flex-basis: 100%;
+}
+
 .draft-readonly-hint .material-symbols-rounded {
   font-size: 1rem;
   color: var(--accent-2);

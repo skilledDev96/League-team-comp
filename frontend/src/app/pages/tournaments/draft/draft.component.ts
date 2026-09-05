@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChampionTraits, OpponentPlayer, Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
@@ -47,6 +47,7 @@ import { CompIdentity, IDENTITY_ICON, IDENTITY_LABEL, classifyComp } from '../..
 import { ChampionRate, ChampionStatsService, previousPatch } from '../../../services/champion-stats.service';
 import { MatchupRate, MatchupStatsService } from '../../../services/matchup-stats.service';
 import { TournamentContextService } from '../tournament-context.service';
+import { ToastService } from '../../../services/toast.service';
 
 /** Which team a draft slot belongs to. */
 type DraftSide = 'our' | 'their';
@@ -134,6 +135,32 @@ export class TournamentDraftComponent implements OnInit {
 
   private readonly destroyRef = inject(DestroyRef);
 
+  /** Publish what the view resolved to, for the address bar. */
+  private readonly publishShown = effect(() => {
+    const series = this.draftSeries();
+    const game = this.draftGame();
+    untracked(() => {
+      this.ctx.shownSeriesId.set(series?.id ?? '');
+      this.ctx.shownGameId.set(game?.id ?? '');
+    });
+  });
+
+  /**
+   * The held champion follows the game document, not this screen.
+   *
+   * Holding is written to `SeriesGame.holding` so everyone on the link sees
+   * the same thing being considered. Mirroring it back here means a second
+   * editor, or the same editor on another device, sees the hold and the
+   * cancel as they happen instead of a board that only moves on confirm.
+   */
+  private readonly mirrorHold = effect(() => {
+    const game = this.draftGame();
+    const held = game?.holding ?? null;
+    untracked(() => {
+      if (this.pending() !== held) this.pending.set(held);
+    });
+  });
+
   // ---- The pick clock -----------------------------------------------------
   //
   // Tournament drafts run a 30-second shot clock per action. This one is a
@@ -189,8 +216,29 @@ export class TournamentDraftComponent implements OnInit {
   /** Jump to this opponent's prep panel on the plan view. */
   protected readonly openPrep = (seriesId: string) => this.ctx.openPrep(seriesId);
 
-  private readonly pickedSeriesId = signal<string>('');
-  private readonly pickedGameId = signal<string>('');
+  // On the context service, so a shared link can set them and the shell can
+  // write them back into the address bar.
+  private readonly pickedSeriesId = this.ctx.draftSeriesId;
+  private readonly pickedGameId = this.ctx.draftGameId;
+
+  private readonly toast = inject(ToastService);
+
+  /**
+   * The address bar is the share link. Copying it here rather than building a
+   * URL by hand means what is copied is exactly what the shell keeps current.
+   */
+  protected async copyLink(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      this.toast.show('Draft link copied', {
+        kind: 'ok',
+        icon: 'link',
+        text: 'Anyone on the team who opens it sees this game live as picks are confirmed.'
+      });
+    } catch {
+      this.toast.show('Could not copy', { kind: 'warn', text: 'Copy the address bar instead.' });
+    }
+  }
 
   /** The series being drafted: whatever was picked, else the first live one. */
   protected draftSeries(): TournamentSeries | undefined {
@@ -848,10 +896,21 @@ export class TournamentDraftComponent implements OnInit {
   /** Hold a champion for confirmation rather than committing it immediately. */
   protected proposeFromSequence(name: string): void {
     this.pending.set(name);
+    this.writeHold(name);
   }
 
   protected cancelPending(): void {
     this.pending.set(null);
+    this.writeHold(null);
+  }
+
+  /** Share the hold with everyone on the link. Nothing else on the game moves. */
+  private writeHold(name: string | null): void {
+    const game = this.draftGame();
+    if (!game) return;
+    const live = this.current(game);
+    if ((live.holding ?? null) === name) return;
+    void this.data.updateSeriesGame({ ...live, holding: name ?? undefined });
   }
 
   /** Commit the held champion and advance one step. */
@@ -940,7 +999,7 @@ export class TournamentDraftComponent implements OnInit {
 
       if (step.action === 'ban') {
         const bans = [...(live.bans ?? []), champ];
-        await this.data.updateSeriesGame({ ...live, bans, draftStep: next });
+        await this.data.updateSeriesGame({ ...live, bans, draftStep: next, holding: undefined });
       } else {
         const side = this.sideOfStep(live);
         const seat = this.pendingSeat(live);
@@ -953,7 +1012,8 @@ export class TournamentDraftComponent implements OnInit {
         await this.data.updateSeriesGame({
           ...live,
           ...(side === 'our' ? { ourChampions: picks } : { theirChampions: picks }),
-          draftStep: next
+          draftStep: next,
+          holding: undefined
         });
       }
       this.pending.set(null);
@@ -982,7 +1042,8 @@ export class TournamentDraftComponent implements OnInit {
       ourChampions: [],
       theirChampions: [],
       ourSide: undefined,
-      draftStep: undefined
+      draftStep: undefined,
+      holding: undefined
     });
     this.pending.set(null);
   }
@@ -996,7 +1057,7 @@ export class TournamentDraftComponent implements OnInit {
     const previous = stepAt(position - 1);
     if (!previous) return;
 
-    const patch: Partial<SeriesGame> = { draftStep: position - 1 };
+    const patch: Partial<SeriesGame> = { draftStep: position - 1, holding: undefined };
     if (previous.action === 'ban') {
       patch.bans = (live.bans ?? []).slice(0, -1);
     } else {

@@ -142,6 +142,29 @@ export class TournamentContextService {
   /** A series whose prep panel should be revealed on the plan view. */
   readonly prepRequest = signal<string>('');
 
+  // ---- The draft in the address bar ----------------------------------------
+  //
+  // Which series and game the draft view shows, held here rather than on the
+  // draft component so the shell can write them into the query string. That
+  // is what makes the draft shareable: a teammate opening the same link lands
+  // on the same game, and the board is already live over the snapshot
+  // listener, so they see every ban and pick as it is confirmed.
+
+  /** What the draft view was asked to show — by a click, or by a shared link. */
+  readonly draftSeriesId = signal<string>('');
+  readonly draftGameId = signal<string>('');
+
+  /** What the draft view is actually showing, after its own fallbacks. */
+  readonly shownSeriesId = signal<string>('');
+  readonly shownGameId = signal<string>('');
+
+  /** Open a specific game on the draft view, as a shared link does. */
+  openDraft(seriesId: string, gameId: string): void {
+    this.draftSeriesId.set(seriesId);
+    this.draftGameId.set(gameId);
+    this.view.set('draft');
+  }
+
   /** Go to this opponent's prep, wherever you are now. */
   openPrep(seriesId: string): void {
     this.view.set('plan');

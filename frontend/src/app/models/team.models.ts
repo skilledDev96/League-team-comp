@@ -738,6 +738,12 @@ export interface SeriesGame {
    * finished — see `stepAt`.
    */
   draftStep?: number;
+  /**
+   * The champion held for confirmation right now, so a teammate watching the
+   * draft from a shared link sees what is being considered before it lands.
+   * Cleared on confirm, cancel, undo and reset; absent means nothing held.
+   */
+  holding?: string;
   win?: boolean;
   /** Set when reconciled against Riot match history after the fact. */
   matchId?: string;

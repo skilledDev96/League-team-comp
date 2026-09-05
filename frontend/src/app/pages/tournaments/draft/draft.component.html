@@ -23,6 +23,15 @@
         <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
         Opponent prep
       </button>
+      <!-- The address bar already names this series and game; this copies
+           it. A teammate on the link watches the same board live, hold
+           included, so the draft can be talked through together. -->
+      <button type="button" class="link-btn draft-share-link"
+              [appTip]="'Copy a link to this game. Teammates who open it see the draft live.'"
+              (click)="copyLink()">
+        <span class="material-symbols-rounded" aria-hidden="true">link</span>
+        Share
+      </button>
       @if (seriesScore(series.id); as sc) {
         @if (sc.wins + sc.losses) {
           <span class="series-score" [class.is-positive]="sc.wins > sc.losses"
@@ -66,6 +75,31 @@
         <p class="draft-readonly-hint">
           <span class="material-symbols-rounded" aria-hidden="true">visibility</span>
           Viewing only — turn on <strong>Edit mode</strong> above to draft.
+        </p>
+      }
+
+      <!-- What a watcher sees of the sequence. The editor's step bar and
+           confirm slot only render in edit mode; someone on the shared link
+           still needs whose turn it is and what is being considered, which is
+           the whole point of sharing it. -->
+      @if (!auth.editing() && ourSide(game)) {
+        <p class="draft-live-bar" [class.is-ours]="isOurTurn(game)" [class.is-done]="sequenceDone(game)">
+          @if (sequenceDone(game)) {
+            <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
+            <strong>Draft complete.</strong>
+          } @else {
+            <span class="draft-phase" [class.is-ban]="step(game)?.action === 'ban'">{{ step(game)?.action }}</span>
+            <span class="draft-step-turn">{{ stepLabel(game) }}</span>
+            @if (game.holding; as held) {
+              <span class="draft-live-hold">
+                <img class="pool-champ-icon" [src]="ui.championIconUrl(held)" [alt]="" loading="lazy" />
+                considering <strong>{{ held }}</strong>
+              </span>
+            }
+          }
+          <span class="draft-step-progress" aria-hidden="true">
+            <span class="draft-step-fill" [style.width.%]="progress(game)"></span>
+          </span>
         </p>
       }
 
