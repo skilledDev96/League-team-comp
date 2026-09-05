@@ -33,6 +33,8 @@ export interface AdviceOpponent extends AdviceRoster {
   records?: { champion: string; games: number; wins: number }[];
   /** Champions that have beaten them in lane. */
   counters?: string[];
+  /** Their top masteries, points descending: the one-trick signal. */
+  mastery?: { champion: string; level: number; points: number }[];
 }
 
 export interface AdviceComp {
@@ -136,6 +138,20 @@ export function parseDraftAdviceRequest(body: unknown): DraftAdviceRequest {
             if (opponent) {
               out.rank = str(row.rank, 30) || undefined;
               out.counters = strList(row.counters, 8);
+              out.mastery = Array.isArray(row.mastery)
+                ? row.mastery
+                    .map((x) => {
+                      const m = (x ?? {}) as Record<string, unknown>;
+                      const champion = str(m.champion);
+                      const level = Number(m.level);
+                      const points = Number(m.points);
+                      return champion && Number.isFinite(points)
+                        ? { champion, level: Number.isFinite(level) ? Math.max(0, Math.round(level)) : 0, points: Math.max(0, Math.round(points)) }
+                        : null;
+                    })
+                    .filter((x): x is { champion: string; level: number; points: number } => !!x)
+                    .slice(0, 8)
+                : [];
               out.records = Array.isArray(row.records)
                 ? row.records
                     .map((x) => {
@@ -266,6 +282,11 @@ Answer length, because the draft clock is thirty seconds and every word costs ti
 - "watch" has at most two items, each under 12 words. Leave it empty if there is nothing worth watching.
 - When a ban or a burn matters, say it plainly: "with Renekton banned", "Udyr is burned". Never fold it into a compound word like "Renekton-less" — under the clock that reads as the opposite.`;
 
+/** 412345 -> "412k", 1.2M for the millions; the prompt does not need the units digit. */
+function masteryPoints(points: number): string {
+  return points >= 1_000_000 ? `${(points / 1_000_000).toFixed(1)}M` : `${Math.round(points / 1000)}k`;
+}
+
 function pickLine(p: Partial<Record<KnownRole, string>>): string {
   return ROLES.map((r) => `${r}: ${p[r] ?? '—'}`).join(', ');
 }
@@ -315,7 +336,10 @@ export function buildDraftPrompt(req: DraftAdviceRequest): string {
       .join(', ');
     lines.push(
       `- ${p.role} ${p.name}${p.rank ? ` (${p.rank})` : ''}: plays ${records || p.pool.join(', ') || 'unknown'}` +
-        (p.counters?.length ? `; loses to ${p.counters.join(', ')}` : '')
+        (p.counters?.length ? `; loses to ${p.counters.join(', ')}` : '') +
+        (p.mastery?.length
+          ? `; mastery ${p.mastery.slice(0, 5).map((m) => `${m.champion} M${m.level} ${masteryPoints(m.points)}`).join(', ')}`
+          : '')
     );
   }
   lines.push('');

@@ -146,6 +146,12 @@ interface EnrichResponse {
    * this reads their whole history — at the cost of carrying no position.
    */
   recentChampions?: string[];
+  /**
+   * Their highest champion masteries, points descending. Mastery is the
+   * all-time record a match scan cannot see: a 400k-point Nautilus is a
+   * one-trick whatever the last forty games say.
+   */
+  mastery?: MasteryRecord[];
   top3?: string[];
   bans?: string[];
   queueStats?: {
@@ -285,8 +291,16 @@ function displayChampionName(riotChampionName: string): string {
   return DDRAGON_TO_DISPLAY[riotChampionName] ?? riotChampionName;
 }
 
+/** One champion's mastery, as the app shows it. */
+interface MasteryRecord {
+  champion: string;
+  level: number;
+  points: number;
+}
+
 interface RiotChampionMastery {
   championId: number;
+  championLevel?: number;
   championPoints: number;
   /** Epoch ms of their last game on it. What makes "recently played" possible. */
   lastPlayTime?: number;
@@ -327,20 +341,17 @@ async function getChampionIdToName(): Promise<Map<number, string>> {
  * Carries no position data, so it cannot replace a seat-specific pool. A wider
  * net, not a sharper one.
  */
-async function fetchRecentMasteryChampions(
-  puuid: string,
-  platform: string,
-  apiKey: string,
-  count: number,
-  withinDays = 60
-): Promise<string[]> {
+/** Every champion mastery they hold — one request; the three lists below read from it. */
+async function fetchMasteryList(puuid: string, platform: string, apiKey: string): Promise<RiotChampionMastery[]> {
   const masteries = await riotFetch<RiotChampionMastery[]>(
     `https://${platform}.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/${puuid}`,
     apiKey
   );
-  const idToName = await getChampionIdToName();
-  const since = Date.now() - withinDays * 24 * 60 * 60 * 1000;
+  return Array.isArray(masteries) ? masteries : [];
+}
 
+function recentFromMastery(masteries: RiotChampionMastery[], idToName: Map<number, string>, count: number, withinDays = 60): string[] {
+  const since = Date.now() - withinDays * 24 * 60 * 60 * 1000;
   return masteries
     .filter((m) => (m.lastPlayTime ?? 0) >= since)
     .sort((a, b) => (b.lastPlayTime ?? 0) - (a.lastPlayTime ?? 0))
@@ -349,20 +360,22 @@ async function fetchRecentMasteryChampions(
     .slice(0, count);
 }
 
-async function fetchTopMasteryChampions(
-  puuid: string,
-  platform: string,
-  apiKey: string,
-  count: number
-): Promise<string[]> {
-  const masteries = await riotFetch<RiotChampionMastery[]>(
-    `https://${platform}.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/${puuid}/top?count=${count + 3}`,
-    apiKey
-  );
-  const idToName = await getChampionIdToName();
-  return masteries
+function topFromMastery(masteries: RiotChampionMastery[], idToName: Map<number, string>, count: number): string[] {
+  return [...masteries]
+    .sort((a, b) => b.championPoints - a.championPoints)
     .map((m) => idToName.get(m.championId))
     .filter((name): name is string => Boolean(name))
+    .slice(0, count);
+}
+
+function recordsFromMastery(masteries: RiotChampionMastery[], idToName: Map<number, string>, count: number): MasteryRecord[] {
+  return [...masteries]
+    .sort((a, b) => b.championPoints - a.championPoints)
+    .map((m) => {
+      const champion = idToName.get(m.championId);
+      return champion ? { champion, level: m.championLevel ?? 0, points: m.championPoints } : null;
+    })
+    .filter((r): r is MasteryRecord => !!r)
     .slice(0, count);
 }
 
@@ -780,6 +793,7 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
   // unavailable (new champ not yet in the cached DDragon version, API hiccup…).
   let masteryPool: string[] = [];
   let recentPool: string[] = [];
+  let masteryRecords: MasteryRecord[] = [];
   try {
     const region = payload.region ?? 'euw';
     const routing = REGION_ROUTING[region] ?? REGION_ROUTING['euw'];
@@ -789,11 +803,16 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
       `https://${routing.regional}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`,
       apiKey
     );
-    masteryPool = await fetchTopMasteryChampions(account.puuid, routing.platform, apiKey, 5);
+    // One mastery request serves all three lists: the all-time pool, what
+    // they have touched lately, and the mastery figures the table shows.
+    const masteries = await fetchMasteryList(account.puuid, routing.platform, apiKey);
+    const idToName = await getChampionIdToName();
+    masteryPool = topFromMastery(masteries, idToName, 5);
     // Everything they have touched in the last two months, newest first. One
     // request, and it sees far past the hundred-game match window — a champion
     // played six weeks ago is invisible to the scan but obvious here.
-    recentPool = await fetchRecentMasteryChampions(account.puuid, routing.platform, apiKey, 8);
+    recentPool = recentFromMastery(masteries, idToName, 8);
+    masteryRecords = recordsFromMastery(masteries, idToName, 12);
   } catch {
     // Keep the recent most-played pool from `primary`.
   }
@@ -815,6 +834,7 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
      */
     top3: primary.top3?.length ? primary.top3 : masteryPool,
     recentChampions: recentPool,
+    mastery: masteryRecords,
     queueStats: {
       solo: soloStats?.queueStats?.solo,
       flex: flexStats?.queueStats?.flex,

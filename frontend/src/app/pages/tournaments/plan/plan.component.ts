@@ -21,6 +21,8 @@ import {
   poolFor,
   poolIsForSeat,
   queueRows,
+  masteryLabel,
+  masteryOf,
   rateBand,
   rateOf,
   recentForSeat,
@@ -409,6 +411,8 @@ export class TournamentPlanComponent {
    */
   // Pure table helpers, shared with the scrims page — see core/opponent-view.
   protected readonly poolFor = poolFor;
+  protected readonly masteryOf = masteryOf;
+  protected readonly masteryLabel = masteryLabel;
   protected readonly queueRows = queueRows;
   protected readonly recentForSeat = recentForSeat;
   protected readonly recentHidden = recentHidden;

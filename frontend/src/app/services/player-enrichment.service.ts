@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { getAuthInstance, isFirebaseConfigured } from '../core/firebase';
-import { ChampionRecord, OpponentQueuePool, PlayerQueueStats, Role } from '../models/team.models';
+import { ChampionRecord, OpponentQueuePool, PlayerQueueStats, Role, MasteryRecord } from '../models/team.models';
 
 interface EnrichRequest {
   summonerName: string;
@@ -26,6 +26,8 @@ interface EnrichResponse {
   championRecords?: ChampionRecord[];
   /** Champions played in the last two months, newest first, from mastery. */
   recentChampions?: string[];
+  /** Their top masteries, points descending. */
+  mastery?: MasteryRecord[];
   top3?: string[];
   bans?: string[];
   queueStats?: {
@@ -151,6 +153,7 @@ export class PlayerEnrichmentService {
       bansByRole: data.bansByRole,
       championRecords: data.championRecords,
       recentChampions: data.recentChampions,
+      mastery: data.mastery,
       top3: data.top3,
       bans: data.bans,
       queueStats: data.queueStats,

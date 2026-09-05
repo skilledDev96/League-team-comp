@@ -1,4 +1,4 @@
-import { ChampionRecord, OpponentPlayer, ROLES, Role } from '../models/team.models';
+import { ChampionRecord, MasteryRecord, OpponentPlayer, ROLES, Role } from '../models/team.models';
 import { playsRole } from './champion-lanes';
 
 /**
@@ -168,6 +168,18 @@ export function countersAreForSeat(player: OpponentPlayer): boolean {
 }
 
 /** A win rate, or nothing when the record is too thin to carry one. */
+/** The mastery this player holds on a champion, if the scout saw one. */
+export function masteryOf(player: OpponentPlayer, champion: string): MasteryRecord | undefined {
+  const key = (v: string) => (v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const wanted = key(champion);
+  return (player.mastery ?? []).find((m) => key(m.champion) === wanted);
+}
+
+/** 412345 -> "412k", 1.2M above a million: a badge, not a ledger. */
+export function masteryLabel(m: MasteryRecord): string {
+  return m.points >= 1_000_000 ? `${(m.points / 1_000_000).toFixed(1)}M` : `${Math.round(m.points / 1000)}k`;
+}
+
 export function rateOf(r: ChampionRecord): number | null {
   return r.games > 0 ? Math.round((r.wins / r.games) * 100) : null;
 }

@@ -24,6 +24,8 @@ import {
   poolFor,
   poolIsForSeat,
   queueRows,
+  masteryLabel,
+  masteryOf,
   rateBand,
   rateOf,
   recentForSeat,
@@ -319,6 +321,8 @@ export class ScrimsComponent {
 
   // Pure table helpers, shared with the tournament plan.
   protected readonly poolFor = poolFor;
+  protected readonly masteryOf = masteryOf;
+  protected readonly masteryLabel = masteryLabel;
   protected readonly countersFor = countersFor;
   protected readonly poolIsForSeat = poolIsForSeat;
   protected readonly countersAreForSeat = countersAreForSeat;

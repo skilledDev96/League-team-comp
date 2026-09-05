@@ -543,6 +543,13 @@ export interface ChampionRecord {
   wins: number;
 }
 
+/** One champion's mastery: the all-time signal a match scan cannot see. */
+export interface MasteryRecord {
+  champion: string;
+  level: number;
+  points: number;
+}
+
 /**
  * One ranked queue's champion record for a scouted opponent.
  *
@@ -629,6 +636,8 @@ export interface OpponentPlayer {
    * rather than sharpening it.
    */
   recentChampions?: string[];
+  /** Their top masteries, points descending, from the same scout. */
+  mastery?: MasteryRecord[];
   /**
    * The champion record for each ranked queue, read apart.
    *

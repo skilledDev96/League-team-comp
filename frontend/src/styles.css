@@ -12950,3 +12950,25 @@ body:has(.draft-stage) .edit-mode-frame {
   font-size: 0.78rem;
   color: var(--warn);
 }
+
+
+/* Mastery under a scouted champion: level and points, the all-time signal a
+   forty-game scan cannot see. Quiet next to the win rate, which is the number
+   that changes; mastery is the one that explains a one-trick. */
+.opp-champ-mastery {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  margin-top: 0.1rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent-2);
+  opacity: 0.85;
+}
+
+.opp-champ-mastery em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--text-1);
+}

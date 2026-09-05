@@ -587,6 +587,10 @@
                               @if (rateOf(rec); as rate) {
                                 <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rate }}%<em>{{ rec.games }}</em></span>
                               }
+                              @if (masteryOf(opp, rec.champion); as m) {
+                                <span class="opp-champ-mastery"
+                                      [appTip]="'Mastery ' + m.level + ' — ' + m.points.toLocaleString() + ' points on ' + rec.champion">M{{ m.level }}<em>{{ masteryLabel(m) }}</em></span>
+                              }
                             </span>
                           }
                           @if (!q.pool.length) { <span class="opp-none">&mdash;</span> }

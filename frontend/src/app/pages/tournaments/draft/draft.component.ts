@@ -1580,7 +1580,8 @@ export class TournamentDraftComponent implements OnInit {
         rank: p.soloRank ?? p.rank,
         pool: poolFor(p).map((r) => r.champion),
         records: poolFor(p).filter((r) => r.games > 0),
-        counters: countersFor(p).map((r) => r.champion)
+        counters: countersFor(p).map((r) => r.champion),
+        mastery: (p.mastery ?? []).slice(0, 8)
       })),
       comps: this.draftComps(live).map((c) => ({
         name: c.name,
