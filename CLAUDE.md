@@ -18,6 +18,13 @@ Frontend and backend are separate packages, with the Firebase project at the rep
 to choose. The `firebase deploy --only functions` command is *not* — "functions"
 there is the Firebase product, not the directory.
 
+## Where the reasoning lives
+
+`HANDOVER.md` (30 Aug) and `docs/handover-2026-09-05.md` record *why* things are the
+way they are — decisions, reversals, open questions — and `docs/global-plan.md` is the
+longer-range plan (multi-link import, multi-tenancy, user-supplied datasets) with its
+legal reasoning. Read them before proposing something they already settled.
+
 ## Commands
 
 ```bash
