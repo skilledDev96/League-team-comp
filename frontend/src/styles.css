@@ -12870,9 +12870,15 @@ body:has(.draft-stage) .edit-mode-frame {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* Specificity matched on purpose: the desktop placements use
+     :nth-child() and .is-map, and a plainer selector here loses to them
+     whatever the order. */
   .draft-stage .draft-grid,
+  .draft-stage.is-map .draft-grid,
   .draft-stage .draft-advice,
-  .draft-stage .draft-inputs > .field,
+  .draft-stage.is-map .draft-advice,
+  .draft-stage .draft-inputs > .field:nth-child(n),
+  .draft-stage.is-map .draft-inputs > .field:nth-child(n),
   .draft-stage.is-map .draft-map {
     grid-column: 1;
     grid-row: auto;
@@ -12883,8 +12889,10 @@ body:has(.draft-stage) .edit-mode-frame {
   }
 
   .draft-stage.is-map .draft-map { order: -3; width: 100%; }
-  .draft-stage .draft-grid       { order: -2; }
-  .draft-stage .draft-advice     { order: -1; }
+  .draft-stage .draft-grid,
+  .draft-stage.is-map .draft-grid   { order: -2; }
+  .draft-stage .draft-advice,
+  .draft-stage.is-map .draft-advice { order: -1; }
 
   .draft-grid .board-grid {
     width: auto;
