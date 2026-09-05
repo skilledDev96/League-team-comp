@@ -13245,3 +13245,29 @@ button.opp-more.active {
   flex-direction: row;
   align-items: flex-start;
 }
+
+/* Second measurement: 2.35rem put Lately 18px under the icons; 1.75rem is
+   the line. The Plays and Loses-to columns were narrower than five tiles
+   once each tile carried a mastery label, so tiles ran under the next
+   column; the minimums now fit five, and the label cannot widen a tile. */
+.opp-table .opp-row > .opp-recent {
+  padding-top: 1.75rem;
+}
+
+.opp-champ-cell .opp-champ-mastery {
+  max-width: 3.1rem;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0.58rem;
+}
+
+.opp-table {
+  grid-template-columns:
+    minmax(5rem, auto)      /* seat */
+    minmax(11rem, auto)     /* player */
+    minmax(7rem, auto)      /* rank */
+    minmax(17rem, 1fr)      /* plays */
+    minmax(15rem, auto)     /* loses to */
+    minmax(11rem, 1.2fr);   /* lately */
+  min-width: 74rem;
+}
