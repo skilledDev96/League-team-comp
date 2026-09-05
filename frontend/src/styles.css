@@ -13042,3 +13042,24 @@ body:has(.draft-stage) .edit-mode-frame {
 @media (max-width: 1100px) {
   .draft-stage .draft-lanes { grid-column: 1; grid-row: auto; }
 }
+
+/* Map view: the map spans the stack's three rows plus a flexible spacer, so
+   the extra height a tall map brings lands in the spacer under the stack
+   instead of as gaps between the wall, the advice and the lane read. The lane
+   read takes the stack's width like the blocks above it. */
+@media (min-width: 1400px) {
+  .draft-stage .draft-lanes {
+    width: calc(8 * 5rem + 7 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
+    max-width: 100%;
+    justify-self: center;
+  }
+
+  .draft-stage.is-map {
+    grid-template-rows: auto auto auto 1fr auto auto auto;
+  }
+
+  .draft-stage.is-map .draft-map { grid-row: 1 / span 4; }
+  .draft-stage.is-map .draft-inputs > .field:nth-child(1) { grid-row: 5; }
+  .draft-stage.is-map .draft-status { grid-row: 6; }
+  .draft-stage.is-map .draft-board-body { grid-row: 7; }
+}
