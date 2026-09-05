@@ -12806,6 +12806,17 @@ body:has(.draft-stage) .edit-mode-frame {
     grid-template-columns: auto minmax(0, 1fr);
   }
 
+  /* The map is taller than the wall stack, so the advisor in the row beneath
+     started at the map's foot, a hundred pixels under the wall. The map now
+     spans both rows and the advisor sits directly under the wall. */
+  .draft-stage.is-map .draft-map {
+    grid-row: 1 / span 2;
+  }
+
+  .draft-stage.is-map .draft-inputs > .field:nth-child(1) {
+    grid-row: 3;
+  }
+
   .draft-stage.is-map .draft-map,
   .draft-stage.is-map .draft-inputs > .field:nth-child(1) {
     width: min(calc(100vh - 8rem), 42vw);
