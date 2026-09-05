@@ -364,8 +364,10 @@
                                 }
                                 <img class="opp-champ" [class.is-seat]="q.forSeat" [class.is-match]="filter.matches(rec.champion)"
                                      [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
-                                @if (rateOf(rec); as rate) {
-                                  <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rate }}%<em>{{ rec.games }}</em></span>
+                                @if (rateOf(rec) !== null) {
+                                  <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rateOf(rec) }}%<em>{{ rec.games }}</em></span>
+                                } @else {
+                                  <span class="opp-champ-stat is-none" aria-hidden="true">&nbsp;</span>
                                 }
                               </span>
                             }

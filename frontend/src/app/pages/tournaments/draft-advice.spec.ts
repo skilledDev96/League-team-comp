@@ -11,7 +11,8 @@ import {
   enemyRead,
   suggestForLane,
   swingOf,
-  weightedWinRate
+  weightedWinRate,
+  ownRecord
 } from './draft-advice';
 
 function comp(over: Partial<CompAvailability> & { id: string; name: string }): CompAvailability {
@@ -372,5 +373,35 @@ describe('suggestion ordering', () => {
 
   it('scores an unplayed suggestion at nothing rather than at even', () => {
     expect(confidenceScore({ champion: 'X', comps: [], games: 0 })).toBe(0);
+  });
+});
+
+describe('ownRecord', () => {
+  const analysis = (champion: string, enemies: string[], win: boolean) => ({
+    matchId: 'm', compId: null, compName: null, win, queue: 'flex', date: 0,
+    players: [{ name: 'x', position: 'BOTTOM', champion, kills: 0, deaths: 0, assists: 0, cs: 0, damage: 0 }],
+    enemyChampions: enemies
+  });
+  const series = (ours: string[], theirs: string[], win?: boolean) => ({
+    id: 'g', seriesId: 's', gameNumber: 1, ourChampions: ours, theirChampions: theirs, win
+  });
+
+  it('quotes our games into the enemy when we have met it, from both sources', () => {
+    const got = ownRecord(
+      'Tristana',
+      "Kai'Sa",
+      [analysis('Tristana', ["Kai'Sa", 'Thresh'], true), analysis('Tristana', ['Jinx'], false)],
+      [series(['', '', '', 'Tristana', ''], ['', '', '', 'Kaisa', ''], false)]
+    );
+    expect(got).toEqual({ wins: 1, games: 2, winRate: 50, into: "Kai'Sa" });
+  });
+
+  it('falls back to every opponent, and says so by leaving into unset', () => {
+    const got = ownRecord('Tristana', "Kai'Sa", [analysis('Tristana', ['Jinx'], true)], []);
+    expect(got).toEqual({ wins: 1, games: 1, winRate: 100 });
+  });
+
+  it('is nothing with no games, and ignores series games without a result', () => {
+    expect(ownRecord('Tristana', '', [], [series(['Tristana'], ['Jinx'])])).toBeUndefined();
   });
 });

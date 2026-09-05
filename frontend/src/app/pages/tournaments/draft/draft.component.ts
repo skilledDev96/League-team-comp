@@ -31,6 +31,8 @@ import {
 import {
   BanSuggestion,
   banSuggestions,
+  ownRecord,
+  OwnRecord,
   ChampionSuggestion,
   CompFit,
   CompGaps,
@@ -1203,10 +1205,9 @@ export class TournamentDraftComponent implements OnInit {
       // next champion while this write is still in flight has already replaced
       // the hold, and clearing it here threw that click away.
       if (this.pending() === champ) this.pending.set(null);
-      // The chip did its job; left in place it would filter the wall to a
-      // seat we no longer need and steer the advisor at it.
-      const chip = this.shownLane();
-      if (chip && !this.ourSeatOpen(chip)) this.wall()?.chooseLane(null);
+      // Every pick puts the wall back to All: the chip was for the seat just
+      // filled, and the next seat is the sequence's to name (asked 6 Sep 2026).
+      this.wall()?.chooseLane(null);
       this.restartClock();
     } finally {
       this.committing.set(false);
@@ -1900,10 +1901,47 @@ export class TournamentDraftComponent implements OnInit {
     const candidates = this.champs.champions()
       .map((c) => c.name)
       .filter((name) => !blocked.has(normalizeChampion(name)));
-    return suggestForLane(lane, candidates, this.compAvailability(game.seriesId), (comp, seat) => {
+    const fromComps = suggestForLane(lane, candidates, this.compAvailability(game.seriesId), (comp, seat) => {
       const source = this.data.comps().find((c) => c.id === comp.id);
       return source ? this.ui.parseCompLine(source.picks[seat] ?? '').champion : '';
-    }).slice(0, 6);
+    });
+    // The advisor's picks for this seat and the seat's own pool join the comp
+    // champions, so the champion being argued for has its matchup on the
+    // board even when no comp of ours fields it: Tristana into Kai'Sa was the
+    // advisor's answer and missing from this list (6 Sep 2026).
+    const advised = (this.adviceOf(game)?.picks ?? [])
+      .filter((p) => !p.seat || p.seat === lane)
+      .map((p) => p.champion);
+    const pool = this.data.starters().find((p) => p.role === lane)?.top3 ?? [];
+    const seen = new Set(fromComps.map((s) => normalizeChampion(s.champion)));
+    const extras: ChampionSuggestion[] = [];
+    for (const name of [...advised, ...pool]) {
+      const real = candidates.find((c) => normalizeChampion(c) === normalizeChampion(name));
+      if (!real || seen.has(normalizeChampion(real))) continue;
+      seen.add(normalizeChampion(real));
+      extras.push({ champion: real, comps: [], games: 0 });
+    }
+    // Advised first, then by the matchup the row leads with; with nothing of
+    // theirs in the lane yet the comp order stands.
+    const theirs = this.enemyAt(game, lane);
+    const advisedSet = new Set(advised.map(normalizeChampion));
+    const matchup = (s: ChampionSuggestion) =>
+      theirs ? this.matchups.rate(lane, s.champion, theirs)?.winRate ?? -1 : -1;
+    return [...fromComps, ...extras]
+      .sort((a, b) => {
+        const aa = advisedSet.has(normalizeChampion(a.champion));
+        const bb = advisedSet.has(normalizeChampion(b.champion));
+        if (aa !== bb) return aa ? -1 : 1;
+        return matchup(b) - matchup(a);
+      })
+      .slice(0, 8);
+  }
+
+  /** Our own record on this champion, into their pick in this lane when we have met it. */
+  protected ownRecord(game: SeriesGame, champion: string): OwnRecord | undefined {
+    const lane = this.suggestLane(game);
+    const enemy = lane ? this.enemyAt(game, lane) : '';
+    return ownRecord(champion, enemy, this.data.compAnalysis()?.games ?? [], this.data.seriesGames());
   }
 
   /**

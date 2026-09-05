@@ -13291,3 +13291,10 @@ button.opp-more.active {
 .opp-table .opp-row > .opp-counters {
   padding-top: 1.35rem;
 }
+
+/* A champion with no games keeps the stat line's height, so the cell beside
+   it does not centre differently — and a 0% champion has a line at all:
+   "@if (rateOf(rec); as rate)" treated 0 as nothing (spotted 6 Sep 2026). */
+.opp-champ-stat.is-none {
+  visibility: hidden;
+}

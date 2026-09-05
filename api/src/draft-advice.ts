@@ -280,6 +280,7 @@ Answer length, because the draft clock is thirty seconds and every word costs ti
 - Answer only what was asked. For a pick question leave "bans" empty; for a ban question leave "picks" empty.
 - "summary" is one sentence. Each "why" is one clause under 20 words that names the evidence.
 - "watch" has at most two items, each under 12 words. Leave it empty if there is nothing worth watching.
+- OUR PICKS and THEIR PICKS are the only record of what is locked. The TEAM PLAN is intent written before the draft: a champion it names is not ours until it appears in OUR PICKS, and a "core" is not set until every champion in it does. With OUR PICKS empty, the first pick is still to be made.
 - When a ban or a burn matters, say it plainly: "with Renekton banned", "Udyr is burned". Never fold it into a compound word like "Renekton-less" — under the clock that reads as the opposite.`;
 
 /** 412345 -> "412k", 1.2M for the millions; the prompt does not need the units digit. */
@@ -318,7 +319,8 @@ export function buildDraftPrompt(req: DraftAdviceRequest): string {
   }
 
   lines.push(`SERIES: ${req.teamName} vs ${req.opponent}. We are on ${req.ourSide ?? 'an unknown'} side.`);
-  lines.push(`OUR PICKS: ${pickLine(req.ourPicks)}`);
+  const locked = ROLES.filter((r) => req.ourPicks[r]).length;
+  lines.push(`OUR PICKS: ${pickLine(req.ourPicks)}${locked ? '' : ' (nothing locked yet — our board is empty)'}`);
   lines.push(`THEIR PICKS: ${pickLine(req.theirPicks)}`);
   lines.push(`BANS THIS GAME: ${req.bans.length ? req.bans.join(', ') : 'none yet'}`);
   lines.push(`BURNED EARLIER IN THE SERIES: ${req.burned.length ? req.burned.join(', ') : 'none — first game'}`);

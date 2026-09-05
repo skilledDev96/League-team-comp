@@ -757,17 +757,21 @@
                             <small>they have not picked {{ lane }} yet</small>
                           </span>
                         }
-                        @if (s.projected !== undefined) {
-                          <span class="advice-proj" [appTip]="'Our own record in the comps still playable that field ' + s.champion">
-                            <small>ours</small>
-                            <b [class]="winRateBand(s.projected)">{{ s.projected }}%</b>
+                        @if (ownRecord(g, s.champion); as ours) {
+                          <span class="advice-proj"
+                                [appTip]="ours.into
+                                  ? 'Our own games on ' + s.champion + ' against ' + ours.into + ': ' + ours.wins + ' won of ' + ours.games
+                                  : 'We have not met ' + (enemyAt(g, lane) || 'their pick here') + ' on ' + s.champion + '; our record on ' + s.champion + ' against everyone: ' + ours.wins + ' won of ' + ours.games">
+                            <small>{{ ours.into ? 'ours into ' + ours.into : 'ours overall' }}</small>
+                            <b [class]="winRateBand(ours.winRate)">{{ ours.winRate }}%</b>
+                            <small>{{ ours.games }}</small>
                           </span>
                         }
                       </li>
                     }
                   </ul>
                 } @else {
-                  <p class="muted advice-empty">No comp of ours still needs a {{ lane }}.</p>
+                  <p class="muted advice-empty">Nothing to weigh at {{ lane }} yet.</p>
                 }
               }
             </div>

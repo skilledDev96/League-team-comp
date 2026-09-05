@@ -1,4 +1,4 @@
-import { ChampionTraits, Role } from '../../models/team.models';
+import { AnalysisGame, ChampionTraits, Role, SeriesGame } from '../../models/team.models';
 import { CompAvailability, normalizeChampion } from './draft.util';
 
 /**
@@ -88,6 +88,51 @@ export function suggestForLane(
     if (a.comps.length !== b.comps.length) return b.comps.length - a.comps.length;
     return a.champion.localeCompare(b.champion);
   });
+}
+
+export interface OwnRecord {
+  readonly wins: number;
+  readonly games: number;
+  readonly winRate: number;
+  /** The enemy the record is into; absent when it is our record across every opponent. */
+  readonly into?: string;
+}
+
+/**
+ * Our own record on a champion: into the named enemy when we have met it,
+ * otherwise across everyone we have played. Riot five-stack games and series
+ * games with a result both count, and lanes are ignored — three games say
+ * more than one. The row used to show the comp projection here, which knew
+ * nothing about what they had taken (asked for on 6 Sep 2026).
+ */
+export function ownRecord(
+  champion: string,
+  enemy: string,
+  analysis: readonly AnalysisGame[],
+  series: readonly SeriesGame[]
+): OwnRecord | undefined {
+  const key = normalizeChampion(champion);
+  const foe = enemy ? normalizeChampion(enemy) : '';
+  const has = (list: readonly string[] | undefined, k: string) =>
+    !!k && (list ?? []).some((c) => normalizeChampion(c) === k);
+  const played: { win: boolean; into: boolean }[] = [];
+  for (const g of analysis) {
+    if (!g.players.some((p) => normalizeChampion(p.champion) === key)) continue;
+    const enemies = g.enemies?.map((e) => e.champion) ?? g.enemyChampions ?? [];
+    played.push({ win: g.win, into: has(enemies, foe) });
+  }
+  for (const g of series) {
+    if (g.win === undefined || !has(g.ourChampions, key)) continue;
+    played.push({ win: g.win, into: has(g.theirChampions, foe) });
+  }
+  const tally = (rows: { win: boolean }[]): OwnRecord => {
+    const wins = rows.filter((r) => r.win).length;
+    return { wins, games: rows.length, winRate: Math.round((wins / rows.length) * 100) };
+  };
+  const into = played.filter((r) => r.into);
+  if (into.length) return { ...tally(into), into: enemy };
+  if (played.length) return tally(played);
+  return undefined;
 }
 
 /** 95% confidence, the usual choice for a lower bound like this. */
