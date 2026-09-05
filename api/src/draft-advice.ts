@@ -281,6 +281,12 @@ export function buildDraftPrompt(req: DraftAdviceRequest): string {
         : `They are picking next. What should we expect, and what should we prepare to answer with?`;
 
   lines.push(`QUESTION: ${asking}`);
+  if (req.action === 'pick' && req.turn === 'our' && !req.seat) {
+    const open = ROLES.filter((r) => !req.ourPicks[r]);
+    if (open.length) {
+      lines.push(`SEATS STILL OPEN FOR US: ${open.join(', ')} — choose the seat as well as the champion, and set "seat" on each pick.`);
+    }
+  }
   lines.push('');
   lines.push(`SERIES: ${req.teamName} vs ${req.opponent}. We are on ${req.ourSide ?? 'an unknown'} side.`);
   lines.push(`OUR PICKS: ${pickLine(req.ourPicks)}`);

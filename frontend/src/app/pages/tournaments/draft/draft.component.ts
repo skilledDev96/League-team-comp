@@ -1482,15 +1482,23 @@ export class TournamentDraftComponent implements OnInit {
     };
 
     if (action === 'pick') {
-      const ourPlayer = seat ? this.data.starters().find((p) => p.role === seat) : undefined;
-      for (const champ of ourPlayer?.top3 ?? []) add(champ);
+      // One seat if it was chosen, else every seat we still have to fill, so
+      // the list carries each open seat's pool and comp picks rather than the
+      // champion wall in alphabetical order.
+      const seats: Role[] = seat
+        ? [seat]
+        : this.pickSlots(game, 'our').filter((s) => !s.champion).map((s) => s.role);
+      for (const s of seats) {
+        const ourPlayer = this.data.starters().find((p) => p.role === s);
+        for (const champ of ourPlayer?.top3 ?? []) add(champ);
+      }
       for (const comp of this.draftPlayable(game)) {
         const source = this.data.comps().find((c) => c.id === comp.id);
-        if (!source || !seat) continue;
-        add(this.ui.parseCompLine(source.picks[seat] ?? '').champion);
+        if (!source) continue;
+        for (const s of seats) add(this.ui.parseCompLine(source.picks[s] ?? '').champion);
       }
       for (const champ of this.champs.champions().map((c) => c.name)) {
-        if (!seat || playsRole(champ, seat)) add(champ);
+        if (seats.some((s) => playsRole(champ, s))) add(champ);
       }
     } else {
       for (const player of starters(this.draftSeries()?.opponentPlayers ?? [])) {
@@ -1513,8 +1521,13 @@ export class TournamentDraftComponent implements OnInit {
     const step = this.step(live);
     const action = step?.action ?? 'pick';
     const turn = step ? (this.isOurTurn(live) ? 'our' : 'their') : 'our';
+    // Only an explicit seat fixes the seat: a held champion, a lane chip, or a
+    // slot being aimed at. With none of those the model chooses the seat too,
+    // from every seat still open — the old fallback took the first empty seat
+    // in Top-to-Support order, which asked for a jungler when the board was
+    // asking for a counter to their ADC.
     const seat = action === 'pick' && turn === 'our'
-      ? (this.pendingSeat(live) ?? this.suggestLane(live))
+      ? (this.pendingSeat(live) ?? this.explicitSeat())
       : null;
     const candidates = this.advisorCandidates(live, action, seat);
     if (!candidates.length) {
@@ -1713,6 +1726,14 @@ export class TournamentDraftComponent implements OnInit {
     // Nothing filtered and nothing aimed: advise on the first seat still empty.
     const empty = this.pickSlots(game, 'our').find((s) => !s.champion);
     return empty ? empty.role : null;
+  }
+
+  /** A seat someone has actually chosen — a lane chip or an aimed slot — or none. */
+  private explicitSeat(): Role | null {
+    const chip = this.shownLane();
+    if (chip) return chip;
+    const aimed = this.target();
+    return aimed.kind === 'pick' ? this.roles[aimed.index] : null;
   }
 
   /** The seat's lane, so the grid narrows itself without anyone filtering. */
