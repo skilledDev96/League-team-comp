@@ -841,27 +841,6 @@ export interface ScrimPlayer {
  * from tournament series on purpose: a scrim has no bracket, no best-of and no
  * fearless burn, and filing one as a series meant inventing all three.
  */
-/**
- * What we know about a team we scrim, kept apart from any one game.
- *
- * A scrim carries its own opponent name and a per-game note, but the things
- * that accumulate — scouting notes, target bans, their roster — belong to the
- * team and were being kept nowhere, or in tournament series created just to
- * hold them. One record per team, keyed by a slug of the name so "MOSS" and
- * "moss" do not become two.
- */
-export interface ScrimOpponent {
-  /** `scrimOpponentId(name)` — letters and digits, safe as a document key. */
-  id: string;
-  name: string;
-  notes?: string;
-  /** Target bans against this team, the same shape a series carries. */
-  bans?: string[];
-  /** Their five, scouted the same way a tournament opponent is. */
-  opponentPlayers?: OpponentPlayer[];
-  order: number;
-}
-
 export interface Scrim {
   /** The match id from the replay filename — the only stable identity it has. */
   id: string;
