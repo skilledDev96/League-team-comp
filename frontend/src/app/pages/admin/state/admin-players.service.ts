@@ -33,6 +33,28 @@ export class AdminPlayersService {
     this.playerDrafts.set(players.map((p) => toPlayerDraft(p)));
   }
 
+  /**
+   * Called on every later roster change. Panels that are closed take the
+   * server's version; the one being edited keeps its edits. Loading once and
+   * never again meant a save from another tab, another device or the morning
+   * job stayed invisible here until a reload — and a stale panel saved over
+   * it, which read as "the champions are not saving" (5 Sep 2026).
+   */
+  follow(players: Player[]): void {
+    const open = this.openPlayer();
+    this.playerDrafts.update((list) => {
+      const current = new Map(list.map((d) => [d.id, d] as const));
+      const synced = players.map((p) => {
+        const mine = current.get(p.id);
+        if (mine && open && mine.uid === open.uid) return mine;
+        const fresh = toPlayerDraft(p);
+        return mine ? { ...fresh, uid: mine.uid } : fresh;
+      });
+      // Unsaved new players have no id yet; keep them where they are.
+      return [...synced, ...list.filter((d) => !d.id)];
+    });
+  }
+
   readonly enrichingPlayerId = signal<string | null>(null);
 
   readonly openPlayer = signal<PlayerDraft | null>(null);

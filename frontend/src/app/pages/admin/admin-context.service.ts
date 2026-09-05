@@ -1,4 +1,4 @@
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { AccessEntry, AccessRole, Comp, CompPicks, FillIn, Player, ROLES, Role, Tournament } from '../../models/team.models';
@@ -106,6 +106,13 @@ export class AdminContextService {
       this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry })));
       this.tournamentDrafts.set(this.data.tournaments().map((t) => toTournamentDraft(t)));
       this.applyRouteFocus();
+    });
+
+    // After the first load, the player panels follow the live roster.
+    effect(() => {
+      const players = this.data.players();
+      if (!this.initialized) return;
+      untracked(() => this.players.follow(players));
     });
 
     effect(() => {
