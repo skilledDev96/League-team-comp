@@ -13246,6 +13246,8 @@ button.opp-more.active {
   align-items: flex-start;
 }
 
+/* Third measurement, images loaded this time: the icons sat 15px above at
+   1.75rem; 2.6rem is the line. */
 /* Second measurement: 2.35rem put Lately 18px under the icons; 1.75rem is
    the line. The Plays and Loses-to columns were narrower than five tiles
    once each tile carried a mastery label, so tiles ran under the next
@@ -13270,4 +13272,8 @@ button.opp-more.active {
     minmax(15rem, auto)     /* loses to */
     minmax(11rem, 1.2fr);   /* lately */
   min-width: 74rem;
+}
+
+.opp-table .opp-row > .opp-recent {
+  padding-top: 2.6rem;
 }
