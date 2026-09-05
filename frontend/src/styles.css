@@ -13131,3 +13131,49 @@ body:has(.draft-stage) .edit-mode-frame {
   color: var(--text-1);
   opacity: 0.7;
 }
+
+
+/* ---- Opponent table, 6 Sep 2026 -------------------------------------------
+   Mastery sits above the champion icon, one line for every champion so the
+   icons stay on one baseline; the player's summoner icon sits by the name;
+   the width the name column was hoarding goes to the champion columns. */
+.opp-champ-cell .opp-champ-mastery {
+  margin-top: 0;
+  margin-bottom: 0.05rem;
+  line-height: 1;
+  min-height: 0.8rem;
+}
+
+.opp-champ-mastery.is-none {
+  visibility: hidden;
+}
+
+.opp-table .opp-row > .opp-who {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.opp-avatar {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  flex: 0 0 auto;
+  object-fit: cover;
+}
+
+.opp-who-text {
+  min-width: 0;
+}
+
+.opp-table {
+  grid-template-columns:
+    minmax(5rem, auto)      /* seat */
+    minmax(11rem, auto)     /* player */
+    minmax(7rem, auto)      /* rank */
+    minmax(11rem, 1fr)      /* plays */
+    minmax(9rem, auto)      /* loses to */
+    minmax(11rem, 1.2fr);   /* lately */
+}

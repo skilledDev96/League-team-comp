@@ -180,6 +180,7 @@ export class OpponentScoutService {
         championRecords: found.championRecords ?? [],
         recentChampions: found.recentChampions ?? [],
         mastery: found.mastery ?? [],
+        icon: found.iconUrl ?? player.icon,
         // Both ranked queues, kept apart. The merged fields above are whichever
         // queue the backend preferred — flex — so without this the row shows a
         // flex pool labelled as though it were everything they play.

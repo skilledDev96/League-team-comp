@@ -528,6 +528,10 @@
                       </span>
 
                       <span class="opp-cell opp-who" role="cell">
+                        @if (opp.icon) {
+                          <img class="opp-avatar" [src]="opp.icon" [alt]="" loading="lazy" />
+                        }
+                        <span class="opp-who-text">
                         <span class="opp-name">
                           <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
                              target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
@@ -551,6 +555,7 @@
                           }
                         </span>
                       </span>
+                        </span>
 
                       <!-- One line per ranked queue. Solo and flex are separate
                            ladders with separate champion pools, and the backend
@@ -582,14 +587,16 @@
                           @for (rec of q.pool; track rec.champion) {
                             <span class="opp-champ-cell"
                                   [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won' : '') + (q.forSeat ? ' at ' + opp.role : '') + (q.label ? ' (' + q.label + ')' : '')">
+                              @if (masteryOf(opp, rec.champion); as m) {
+                                <span class="opp-champ-mastery"
+                                      [appTip]="'Mastery ' + m.level + ' — ' + m.points.toLocaleString() + ' points on ' + rec.champion">M{{ m.level }}<em>{{ masteryLabel(m) }}</em></span>
+                              } @else {
+                                <span class="opp-champ-mastery is-none" aria-hidden="true">&nbsp;</span>
+                              }
                               <img class="opp-champ" [class.is-seat]="q.forSeat" [class.is-match]="filter.matches(rec.champion)"
                                    [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
                               @if (rateOf(rec); as rate) {
                                 <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rate }}%<em>{{ rec.games }}</em></span>
-                              }
-                              @if (masteryOf(opp, rec.champion); as m) {
-                                <span class="opp-champ-mastery"
-                                      [appTip]="'Mastery ' + m.level + ' — ' + m.points.toLocaleString() + ' points on ' + rec.champion">M{{ m.level }}<em>{{ masteryLabel(m) }}</em></span>
                               }
                             </span>
                           }

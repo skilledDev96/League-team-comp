@@ -638,6 +638,8 @@ export interface OpponentPlayer {
   recentChampions?: string[];
   /** Their top masteries, points descending, from the same scout. */
   mastery?: MasteryRecord[];
+  /** Their summoner icon, from the same scout. */
+  icon?: string;
   /**
    * The champion record for each ranked queue, read apart.
    *
