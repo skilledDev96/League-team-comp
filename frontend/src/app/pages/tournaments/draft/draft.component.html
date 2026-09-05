@@ -509,7 +509,6 @@
                              it and the next wall click replaces it in place. -->
                         <button type="button" class="draft-slot-ban" [class.is-aimed]="isBanTargeted(banIndexOf(game, 'our', $index))"
                                 [disabled]="!auth.editing() || !sequenceActive(game)"
-                                [appTip]="teamName() + ' banned ' + champ + (auth.editing() && sequenceActive(game) ? ' — click to replace it' : '')"
                                 (click)="aimAtBan(banIndexOf(game, 'our', $index))">
                           <img class="draft-slot-icon is-ban" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
                         </button>
@@ -522,7 +521,6 @@
                       @if (champ) {
                         <button type="button" class="draft-slot-ban" [class.is-aimed]="isBanTargeted(banIndexOf(game, 'their', $index))"
                                 [disabled]="!auth.editing() || !sequenceActive(game)"
-                                [appTip]="(series.opponent || 'They') + ' banned ' + champ + (auth.editing() && sequenceActive(game) ? ' — click to replace it' : '')"
                                 (click)="aimAtBan(banIndexOf(game, 'their', $index))">
                           <img class="draft-slot-icon is-ban" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
                         </button>
@@ -535,7 +533,7 @@
 
                 <!-- Rendered even at zero, so the row keeps its shape from game
                      one and the label is not a thing that appears later. -->
-                <div class="draft-slot-group is-burn" [appTip]="burnedNote(game)">
+                <div class="draft-slot-group is-burn">
                   <span class="draft-slot-label">
                     Burned
                     @if (burnedBeforeCount(game); as n) {
@@ -545,14 +543,12 @@
                   <span class="draft-slot-icons">
                     @for (champ of burnedBySide(game, 'our'); track champ) {
                       <img class="draft-slot-icon is-burned" [class.is-pool]="burnedPoolOwner(champ)"
-                           [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy"
-                           [appTip]="teamName() + ' played ' + champ + ' earlier this series' + (burnedPoolOwner(champ) ? ' — it is in ' + burnedPoolOwner(champ) + '\'s pool' : '')" />
+                           [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
                     }
                     <span class="draft-slot-split" aria-hidden="true"></span>
                     @for (champ of burnedBySide(game, 'their'); track champ) {
                       <img class="draft-slot-icon is-burned" [class.is-pool]="burnedPoolOwner(champ)"
-                           [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy"
-                           [appTip]="(series.opponent || 'They') + ' played ' + champ + ' earlier this series' + (burnedPoolOwner(champ) ? ' — it is in ' + burnedPoolOwner(champ) + '\'s pool' : '')" />
+                           [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
                     }
                     @if (!burnedBeforeCount(game)) {
                       <span class="draft-slot-none">nothing yet</span>
