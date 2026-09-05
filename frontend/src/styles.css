@@ -13277,3 +13277,7 @@ button.opp-more.active {
 .opp-table .opp-row > .opp-recent {
   padding-top: 2.6rem;
 }
+
+.opp-table .opp-row > .opp-recent {
+  padding-top: 2.95rem; /* -6px at 2.6rem, measured on loaded icons */
+}
