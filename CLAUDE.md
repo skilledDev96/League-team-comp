@@ -274,13 +274,17 @@ run) reads each raw bucket and republishes only the pairings worth reading to
 `matchupStats`. The rollup overwrites whole rather than merging, so a pairing
 dropping below the floor disappears instead of being frozen in.
 
-**There are two floors and they are deliberately different.**
+**There are three floors and they are deliberately different.**
 `INDEX_MIN_GAMES` (50, `api/src/matchup-index.ts`) is only a document-size
-guard. `MIN_MATCHUP_GAMES` (200, `matchup-stats.service.ts`) is the honesty
-threshold, set where the ±0.98/√n interval is tight enough that a genuinely
-lopsided matchup separates from even. The client floor is the higher one so it
-can be moved by a frontend deploy; it must never drop below the backend's, or
-the UI would ask for pairings the index has already discarded.
+guard. `MIN_MATCHUP_GAMES` (50, `matchup-stats.service.ts`) is the quote floor:
+equal to the backend's so nothing the index holds is hidden, and it must never
+drop below it or the UI would ask for pairings the index has already
+discarded. `SOLID_MATCHUP_GAMES` (200) is the honesty threshold, where the
+±0.98/√n interval is tight enough that a lopsided matchup separates from even;
+between 50 and 200 a rate is shown *thin* — dimmed, with its games and its
+margin in the tip — because the team asked (5 Sep 2026) to see the matchup
+they are actually in rather than a dash. On patch 16.17 that was the
+difference between 49 and 353 Support pairings being quoted.
 
 **Champion keys are Riot's `championName`, which is the id, not the display
 name.** Wukong is stored as `MonkeyKing`, Renata Glasc as `Renata`, Nunu &
