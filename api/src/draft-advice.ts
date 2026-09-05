@@ -355,7 +355,7 @@ export const ADVICE_SCHEMA = {
         type: 'object',
         properties: {
           champion: { type: 'string' },
-          seat: { type: ['string', 'null'], enum: [...ROLES, null] },
+          seat: { anyOf: [{ type: 'string', enum: [...ROLES] }, { type: 'null' }] },
           why: { type: 'string' },
           confidence: { type: 'string', enum: ['high', 'medium', 'low'] }
         },
