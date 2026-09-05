@@ -149,7 +149,12 @@ interface EnrichResponse {
   /**
    * Their highest champion masteries, points descending. Mastery is the
    * all-time record a match scan cannot see: a 400k-point Nautilus is a
-   * one-trick whatever the last forty games say.
+   * one-trick whatever the last forty games say. The whole list, not a top
+   * twelve: a champion in their pool outside the twelve had no badge, which
+   * read as missing data rather than a cap (5 Sep 2026). ~170 rows of three
+   * numbers is a few kilobytes per player.
+   */
+  /* (see note above) */   * one-trick whatever the last forty games say.
    */
   mastery?: MasteryRecord[];
   top3?: string[];
@@ -812,7 +817,7 @@ async function fetchRiotEnrichment(payload: EnrichRequest, apiKey: string): Prom
     // request, and it sees far past the hundred-game match window — a champion
     // played six weeks ago is invisible to the scan but obvious here.
     recentPool = recentFromMastery(masteries, idToName, 8);
-    masteryRecords = recordsFromMastery(masteries, idToName, 12);
+    masteryRecords = recordsFromMastery(masteries, idToName, Number.MAX_SAFE_INTEGER);
   } catch {
     // Keep the recent most-played pool from `primary`.
   }
