@@ -383,7 +383,7 @@ describe('ownRecord', () => {
     enemyChampions: enemies
   });
   const series = (ours: string[], theirs: string[], win?: boolean) => ({
-    id: 'g', seriesId: 's', gameNumber: 1, ourChampions: ours, theirChampions: theirs, win
+    id: 'g', seriesId: 's', gameNumber: 1, order: 1, ourChampions: ours, theirChampions: theirs, win
   });
 
   it('quotes both ways at once — into the enemy from both sources, and overall', () => {

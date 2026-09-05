@@ -102,7 +102,7 @@ export function readSeat(seat: SeatInput): { score: number; reasons: string[]; s
     const thin = seat.matchup.games < THIN_MATCHUP;
     parts.push({
       points: thin ? swing * 0.6 : swing,
-      reason: `${ours} into ${theirs} wins ${seat.matchup.winRate}% over ${seat.matchup.games.toLocaleString()} games${thin ? ' (thin)' : ''}`
+      reason: `${ours} into ${theirs} wins ${seat.matchup.winRate}% over ${seat.matchup.games.toLocaleString('en-GB')} games${thin ? ' (thin)' : ''}`
     });
   }
 
