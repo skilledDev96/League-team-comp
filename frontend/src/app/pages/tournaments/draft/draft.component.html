@@ -347,11 +347,29 @@
                  nobody asked at the time would be worse than the gap. -->
 
           } @else if (sequenceDone(game)) {
+            <!-- The end state used to be the wall, still open, aimed at bans.
+                 What the room needs now is the result, the next game and the
+                 lane read; the wall folds away and comes back on request. -->
             <p class="draft-step-bar is-done">
               <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
               <strong>Draft complete.</strong>
+              <span class="view-segment draft-result" role="group" aria-label="Result">
+                <button type="button" [class.active]="game.win === true" (click)="setGameResult(game, true)">Win</button>
+                <button type="button" [class.active]="game.win === false" (click)="setGameResult(game, false)">Loss</button>
+              </span>
+              @if (nextGameOf(game); as next) {
+                <button type="button" class="view-btn active" (click)="selectDraftGame(next.id)">Game {{ next.gameNumber }}</button>
+              } @else if (canAddDraftGame(series)) {
+                <button type="button" class="view-btn active" (click)="addDraftGame(series)">
+                  <span class="material-symbols-rounded" aria-hidden="true">add</span>
+                  Next game
+                </button>
+              }
+              <button type="button" class="view-btn" (click)="wallAfterDone.set(!wallAfterDone())">
+                {{ wallAfterDone() ? 'Hide champions' : 'Adjust picks or bans' }}
+              </button>
               <button type="button" class="view-btn" (click)="undoStep(game)">Undo last</button>
-              <button type="button" class="link-btn draft-reset" (click)="resetDraft(game)">Reset</button>
+              <button type="button" class="view-btn draft-reset" (click)="resetDraft(game)">Reset</button>
             </p>
           } @else {
             <div class="draft-step-bar" [class.is-ours]="isOurTurn(game)">
@@ -567,6 +585,7 @@
                this screen forbids, and the one reported after the first live
                draft. Reserving it costs a line; not reserving it moves the
                champion wall under a cursor mid-draft. -->
+          @if (!sequenceDone(game) || wallAfterDone()) {
           <p class="draft-grid-aim">
             @if (replacing(game); as r) {
               <span class="muted">Replacing {{ r.label }} &mdash;</span>
@@ -596,6 +615,7 @@
                              (laneChange)="shownLane.set($event)"
                              (pick)="gridPick(game, $event)" />
           }
+          }
         </div>
       }
 
@@ -610,7 +630,7 @@
                the wall does. Asked, never automatic: each answer costs money
                and takes seconds, and the drafter decides when it is worth
                either. -->
-          <div class="advice-block is-advisor" [class.is-stale]="adviceIsStale(g)">
+          <div class="advice-block is-advisor" [class.is-stale]="adviceIsStale(g)" [hidden]="sequenceDone(g)">
             <span class="advice-head advisor-head">
               <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>
               Advisor
@@ -681,7 +701,7 @@
             }
           </div>
           @if (suggestLane(g); as lane) {
-            <div class="advice-block">
+            <div class="advice-block" [hidden]="sequenceDone(g)">
               <span class="advice-head">
                 Worth taking at {{ lane }}
                 @if (standing(g); as now) {

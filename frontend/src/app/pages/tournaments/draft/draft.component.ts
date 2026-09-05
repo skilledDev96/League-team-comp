@@ -341,6 +341,20 @@ export class TournamentDraftComponent implements OnInit {
     this.pickedGameId.set('');
   }
 
+  /** Show the champion wall again after the draft is complete, to correct a pick or ban. */
+  protected readonly wallAfterDone = signal(false);
+
+  /** The game after this one in the series, if it exists. */
+  protected nextGameOf(game: SeriesGame): SeriesGame | undefined {
+    return this.gamesFor(game.seriesId).find((g) => g.gameNumber > game.gameNumber);
+  }
+
+  /** The result, the same write the plan page makes. */
+  protected setGameResult(game: SeriesGame, win: boolean): void {
+    const live = this.current(game);
+    void this.data.updateSeriesGame({ ...live, win: live.win === win ? undefined : win });
+  }
+
   protected selectDraftGame(gameId: string): void {
     this.pickedGameId.set(gameId);
     this.heldPick.set(null);

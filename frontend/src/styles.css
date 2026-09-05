@@ -12997,3 +12997,21 @@ body:has(.draft-stage) .edit-mode-frame {
   padding: 0.1rem 0.55rem;
   font-size: 0.72rem;
 }
+
+
+/* ---- After "Draft complete" -----------------------------------------------
+   The bar carries the result and the next game; the wall folds away unless
+   asked back; the advisor and the next-pick panel hide, so the lane read is
+   the first thing under the picks. */
+.draft-step-bar.is-done {
+  flex-wrap: wrap;
+  gap: 0.5rem 0.6rem;
+}
+
+.draft-step-bar.is-done .draft-result {
+  margin-left: 0.4rem;
+}
+
+.draft-advice > [hidden] {
+  display: none !important;
+}
