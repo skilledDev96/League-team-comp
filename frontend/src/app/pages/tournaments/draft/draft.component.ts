@@ -1624,6 +1624,31 @@ export class TournamentDraftComponent implements OnInit {
     return out;
   }
 
+  /**
+   * Ask on our turn without being asked. The answer took eight seconds after
+   * the click and was stale two steps later (5 Sep 2026); fired the moment
+   * their pick lands it is usually waiting before the drafter looks. Once per
+   * step per tab, only while editing, only on our own turn, and never when
+   * the game already carries an answer for this step — a reload mid-draft
+   * reads the saved one instead of paying for it again. Two editors' tabs
+   * can still both ask on the same step; that costs a few cents, not a turn.
+   */
+  private lastAutoAsked = '';
+  private readonly autoAsk = effect(() => {
+    const game = this.draftGame();
+    const editing = this.auth.editing();
+    if (!game) return;
+    const step = game.draftStep ?? 0;
+    untracked(() => {
+      if (!editing || !this.sequenceActive(game) || !this.isOurTurn(game)) return;
+      const key = `${game.id}:${step}`;
+      if (this.lastAutoAsked === key) return;
+      this.lastAutoAsked = key;
+      if (game.advice?.step === step || this.advisor.busy()) return;
+      void this.askAdvisor(game);
+    });
+  });
+
   protected async askAdvisor(game: SeriesGame): Promise<void> {
     if (this.advisor.busy()) return;
     const live = this.current(game);
