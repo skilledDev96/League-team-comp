@@ -154,8 +154,6 @@ interface EnrichResponse {
    * read as missing data rather than a cap (5 Sep 2026). ~170 rows of three
    * numbers is a few kilobytes per player.
    */
-  /* (see note above) */   * one-trick whatever the last forty games say.
-   */
   mastery?: MasteryRecord[];
   top3?: string[];
   bans?: string[];
