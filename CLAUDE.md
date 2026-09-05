@@ -329,7 +329,7 @@ Two questions are asked of a cached entry, and conflating them makes a
 
 - **Angular 22, standalone components, signals throughout.** No NgModules; components declare their own `imports`. State is signals + `computed`; prefer this over RxJS for view state.
 - Forms use `[ngModel]` + `(ngModelChange)` with `FormsModule` (template-driven, one-way bound to signals), not reactive forms — see `admin.component.html`.
-- Styling is one global `frontend/src/styles.css` (no per-component styles) built on CSS custom properties. Theme is switched via `body[data-theme="..."]` (`bomb` — the default, built on the team mark in `public/assets/brand/` — `dark`, `dark-blue`, `dark-red`, `hextech`, `void`, `light`); **always style through tokens** (`--accent`, `--text-0/1`, `--ok` for wins/positive, `--warn` for losses/negative, `--card-border`, `--surface-*`) so every theme works.
+- Styling is one global `frontend/src/styles.css` (no per-component styles) built on CSS custom properties. Theme is switched via `body[data-theme="..."]` (`bomb` — the default, built on the team mark in `public/assets/brand/` — then League regions `hextech`, `demacia`, `noxus`, `freljord`, `ionia`, `shadow-isles`, `shurima`, `void`, and `light`; the list and labels live in `ThemeService`, and retired names are mapped there so a stored choice never goes blank); **always style through tokens** (`--accent`, `--text-0/1`, `--ok` for wins/positive, `--warn` for losses/negative, `--card-border`, `--surface-*`) so every theme works.
 - **One champion filter, followed across pages.** `ChampionFilterService` holds
   the name (a root signal, kept in `sessionStorage`), `<app-champion-filter>`
   is the box, and each page passes its own count and noun so the line reads

@@ -1,8 +1,61 @@
 import { Injectable, signal } from '@angular/core';
 
-export type Theme = 'bomb' | 'dark' | 'dark-blue' | 'dark-red' | 'hextech' | 'void' | 'light';
+/**
+ * The themes on offer.
+ *
+ * `bomb` is the team's own mark and the default. The rest are League's regions
+ * — each one a palette the game already taught people to read — plus `light`
+ * for a bright room. The generic Dark / Blue / Red set that used to sit beside
+ * them was three shades of the same idea and said nothing about the game.
+ */
+export type Theme =
+  | 'bomb'
+  | 'hextech'
+  | 'demacia'
+  | 'noxus'
+  | 'freljord'
+  | 'ionia'
+  | 'shadow-isles'
+  | 'shurima'
+  | 'void'
+  | 'light';
 
-const THEMES: Theme[] = ['bomb', 'dark', 'dark-blue', 'dark-red', 'hextech', 'void', 'light'];
+const THEMES: Theme[] = [
+  'bomb',
+  'hextech',
+  'demacia',
+  'noxus',
+  'freljord',
+  'ionia',
+  'shadow-isles',
+  'shurima',
+  'void',
+  'light'
+];
+
+const LABELS: Record<Theme, string> = {
+  bomb: 'Bomb Squad',
+  hextech: 'Hextech',
+  demacia: 'Demacia',
+  noxus: 'Noxus',
+  freljord: 'Freljord',
+  ionia: 'Ionia',
+  'shadow-isles': 'Shadow Isles',
+  shurima: 'Shurima',
+  void: 'Void',
+  light: 'Light'
+};
+
+/**
+ * Where a retired theme's users land. Each maps to the region closest to what
+ * they had chosen, so nobody opens the app to a palette they did not pick.
+ */
+const RETIRED: Record<string, Theme> = {
+  dark: 'bomb',
+  'dark-blue': 'freljord',
+  'dark-red': 'noxus'
+};
+
 const STORAGE_KEY = 'bom-theme';
 
 @Injectable({ providedIn: 'root' })
@@ -19,18 +72,14 @@ export class ThemeService {
   }
 
   themeLabel(theme: Theme): string {
-    if (theme === 'bomb') return 'Bomb Squad';
-    if (theme === 'dark') return 'Dark';
-    if (theme === 'dark-red') return 'Red';
-    if (theme === 'hextech') return 'Hextech';
-    if (theme === 'void') return 'Void';
-    if (theme === 'light') return 'Light';
-    return 'Blue';
+    return LABELS[theme] ?? theme;
   }
 
   private getStoredTheme(): Theme | null {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return this.isValid(stored) ? stored : null;
+    if (this.isValid(stored)) return stored;
+    if (stored && RETIRED[stored]) return RETIRED[stored];
+    return null;
   }
 
   preferredTheme(): Theme {

@@ -262,28 +262,6 @@ html {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
-body[data-theme="dark"] {
-  --bg-0: #0b0d10;
-  --bg-1: #15191f;
-  --bg-2: #20262f;
-  --card: rgba(20, 25, 31, 0.9);
-  --card-border: rgba(122, 140, 158, 0.32);
-  --text-0: #ecf1f5;
-  --text-1: #b6c2cc;
-  --accent: #8aa3bc;
-  --accent-2: #a8b7c6;
-  --ok: #8ecf8e;
-  --warn: #d58a7f;
-  --glow-a: rgba(112, 128, 144, 0.18);
-  --glow-b: rgba(54, 63, 73, 0.24);
-  --surface-nav: rgba(25, 31, 38, 0.84);
-  --surface-hero-a: rgba(22, 27, 33, 0.96);
-  --surface-hero-b: rgba(30, 38, 46, 0.92);
-  --surface-controls: rgba(24, 31, 38, 0.74);
-  --surface-btn: rgba(37, 46, 56, 0.86);
-  --shadow-elev: rgba(0, 0, 0, 0.26);
-}
-
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -512,50 +490,6 @@ body[data-theme="dark"] {
 .role-group-heading .tag {
   font-size: 0.95rem;
   padding: 0.25rem 0.8rem;
-}
-
-body[data-theme="dark-blue"] {
-  --bg-0: #0f1418;
-  --bg-1: #1a232d;
-  --bg-2: #233345;
-  --card: rgba(18, 29, 37, 0.88);
-  --card-border: rgba(94, 162, 204, 0.38);
-  --text-0: #e9f4fb;
-  --text-1: #b7cedb;
-  --accent: #4ea7e9;
-  --accent-2: #7bc5ff;
-  --ok: #8ce26f;
-  --warn: #ff6e59;
-  --glow-a: rgba(95, 170, 224, 0.28);
-  --glow-b: rgba(37, 82, 126, 0.26);
-  --surface-nav: rgba(17, 36, 44, 0.8);
-  --surface-hero-a: rgba(14, 30, 37, 0.96);
-  --surface-hero-b: rgba(21, 43, 51, 0.9);
-  --surface-controls: rgba(15, 34, 41, 0.68);
-  --surface-btn: rgba(20, 44, 53, 0.82);
-  --shadow-elev: rgba(0, 0, 0, 0.18);
-}
-
-body[data-theme="dark-red"] {
-  --bg-0: #121214;
-  --bg-1: #1e1e24;
-  --bg-2: #2a2a33;
-  --card: rgba(28, 25, 30, 0.9);
-  --card-border: rgba(217, 86, 86, 0.34);
-  --text-0: #f8ebeb;
-  --text-1: #d5bcbc;
-  --accent: #ef5555;
-  --accent-2: #ff8c8c;
-  --ok: #9fdb87;
-  --warn: #ff6e59;
-  --glow-a: rgba(211, 67, 67, 0.24);
-  --glow-b: rgba(94, 40, 40, 0.28);
-  --surface-nav: rgba(43, 24, 29, 0.82);
-  --surface-hero-a: rgba(38, 21, 25, 0.96);
-  --surface-hero-b: rgba(53, 30, 35, 0.92);
-  --surface-controls: rgba(41, 24, 29, 0.72);
-  --surface-btn: rgba(58, 31, 38, 0.86);
-  --shadow-elev: rgba(28, 10, 10, 0.28);
 }
 
 body[data-theme="light"] {
@@ -1013,7 +947,6 @@ body {
   color: var(--text-1);
   margin: 0 0 0.6rem;
 }
-
 
 .profiles-table {
   display: flex;
@@ -5686,7 +5619,6 @@ body.intel-page #fillInSection {
   opacity: 0.6;
 }
 
-
 .pool-champ.is-gone {
   color: var(--warn);
   text-decoration: line-through;
@@ -7584,7 +7516,6 @@ app-match-note {
   background: var(--bar-ok);
 }
 
-
 /* Wins/losses switch: one control rather than two loose buttons, sharing the
    labelled-field treatment of the select beside it so the two line up. The
    counts sit in the control because the split is the first thing you want to
@@ -8073,6 +8004,160 @@ body[data-theme="hextech"] {
   --surface-controls: rgba(8, 24, 32, 0.7);
   --surface-btn: rgba(14, 36, 46, 0.85);
   --shadow-elev: rgba(0, 0, 0, 0.32);
+}
+
+/* ---- Demacia ------------------------------------------------------------
+   Navy and gold: the kingdom's banners. Gold carries the accents, a steel
+   blue the secondary, and the text is parchment-white so the whole thing
+   reads like a heraldic hall rather than a night sky. */
+body[data-theme="demacia"] {
+  --bg-0: #0a1220;
+  --bg-1: #101c33;
+  --bg-2: #172846;
+  --card: rgba(14, 26, 48, 0.9);
+  --card-border: rgba(214, 178, 94, 0.36);
+  --text-0: #f3efe2;
+  --text-1: #aeb8cf;
+  --accent: #d4af5a;
+  --accent-2: #7fb3ff;
+  --ok: #7ed99a;
+  --warn: #ff6b6b;
+  --glow-a: rgba(212, 175, 90, 0.22);
+  --glow-b: rgba(60, 110, 200, 0.26);
+  --surface-nav: rgba(10, 20, 38, 0.86);
+  --surface-hero-a: rgba(12, 22, 42, 0.96);
+  --surface-hero-b: rgba(20, 36, 66, 0.9);
+  --surface-controls: rgba(13, 24, 44, 0.7);
+  --surface-btn: rgba(22, 38, 68, 0.85);
+  --shadow-elev: rgba(0, 0, 0, 0.32);
+}
+
+/* ---- Noxus --------------------------------------------------------------
+   Iron black and crimson. Crimson is the accent, so losses are marked in
+   ember-orange instead — red on red would say nothing — and bronze stands in
+   as the secondary, the metal of the empire's armour. */
+body[data-theme="noxus"] {
+  --bg-0: #100a0b;
+  --bg-1: #1c1114;
+  --bg-2: #2a181c;
+  --card: rgba(24, 14, 17, 0.9);
+  --card-border: rgba(200, 50, 60, 0.36);
+  --text-0: #f4e6e3;
+  --text-1: #c4a9a6;
+  --accent: #d8323f;
+  --accent-2: #c98d4b;
+  --ok: #8ed49a;
+  --warn: #ff8a5c;
+  --glow-a: rgba(216, 50, 63, 0.24);
+  --glow-b: rgba(90, 25, 30, 0.3);
+  --surface-nav: rgba(28, 14, 17, 0.86);
+  --surface-hero-a: rgba(26, 13, 16, 0.96);
+  --surface-hero-b: rgba(44, 22, 27, 0.9);
+  --surface-controls: rgba(30, 16, 19, 0.72);
+  --surface-btn: rgba(46, 24, 29, 0.86);
+  --shadow-elev: rgba(20, 5, 8, 0.36);
+}
+
+/* ---- Freljord -----------------------------------------------------------
+   Ice. Deep blue-black ground, glacier cyan for the accents, and a paler
+   frost for the secondary; the text is the white of snow under moonlight. */
+body[data-theme="freljord"] {
+  --bg-0: #071019;
+  --bg-1: #0c1c2b;
+  --bg-2: #132a3f;
+  --card: rgba(10, 26, 40, 0.9);
+  --card-border: rgba(130, 200, 240, 0.36);
+  --text-0: #eaf6ff;
+  --text-1: #a9c6da;
+  --accent: #79d0f2;
+  --accent-2: #c9ecff;
+  --ok: #8ee8b3;
+  --warn: #ff7d6b;
+  --glow-a: rgba(121, 208, 242, 0.24);
+  --glow-b: rgba(40, 90, 140, 0.28);
+  --surface-nav: rgba(8, 20, 32, 0.86);
+  --surface-hero-a: rgba(9, 22, 35, 0.96);
+  --surface-hero-b: rgba(18, 40, 60, 0.9);
+  --surface-controls: rgba(10, 26, 40, 0.7);
+  --surface-btn: rgba(18, 40, 60, 0.85);
+  --shadow-elev: rgba(0, 5, 12, 0.36);
+}
+
+/* ---- Ionia --------------------------------------------------------------
+   Spirit blossom: a plum night with blossom pink and jade. Pink carries the
+   accents and jade the secondary; green stays for wins because it reads as
+   the same jade family, and the warning coral is warm enough to stand apart
+   from the pink. */
+body[data-theme="ionia"] {
+  --bg-0: #0d0b16;
+  --bg-1: #171227;
+  --bg-2: #221a3a;
+  --card: rgba(20, 15, 34, 0.9);
+  --card-border: rgba(240, 140, 190, 0.32);
+  --text-0: #f7ecf3;
+  --text-1: #bfa9c6;
+  --accent: #f28cc0;
+  --accent-2: #64d9c3;
+  --ok: #7fe0b8;
+  --warn: #ff7a6b;
+  --glow-a: rgba(242, 140, 192, 0.22);
+  --glow-b: rgba(100, 217, 195, 0.16);
+  --surface-nav: rgba(16, 12, 28, 0.86);
+  --surface-hero-a: rgba(18, 13, 30, 0.96);
+  --surface-hero-b: rgba(34, 24, 56, 0.9);
+  --surface-controls: rgba(20, 15, 34, 0.7);
+  --surface-btn: rgba(32, 24, 52, 0.85);
+  --shadow-elev: rgba(0, 0, 0, 0.38);
+}
+
+/* ---- Shadow Isles -------------------------------------------------------
+   The black mist. Near-black green ground and a ghost-light green for the
+   accents; losses go to a cold pink so they are not lost in the same green. */
+body[data-theme="shadow-isles"] {
+  --bg-0: #060b09;
+  --bg-1: #0c1612;
+  --bg-2: #14231c;
+  --card: rgba(9, 18, 14, 0.9);
+  --card-border: rgba(84, 200, 140, 0.3);
+  --text-0: #e3f1e8;
+  --text-1: #97b3a3;
+  --accent: #5ce0a0;
+  --accent-2: #9fe8c8;
+  --ok: #8ff0b0;
+  --warn: #ff6b7d;
+  --glow-a: rgba(92, 224, 160, 0.2);
+  --glow-b: rgba(20, 60, 45, 0.3);
+  --surface-nav: rgba(7, 14, 11, 0.88);
+  --surface-hero-a: rgba(8, 16, 12, 0.96);
+  --surface-hero-b: rgba(18, 32, 26, 0.9);
+  --surface-controls: rgba(9, 18, 14, 0.72);
+  --surface-btn: rgba(18, 32, 26, 0.86);
+  --shadow-elev: rgba(0, 0, 0, 0.42);
+}
+
+/* ---- Shurima ------------------------------------------------------------
+   Sand and sun. A deep earthen ground with the disc's gold on the accents and
+   Shurima's turquoise as the secondary; the text is warm sandstone. */
+body[data-theme="shurima"] {
+  --bg-0: #14100a;
+  --bg-1: #221b10;
+  --bg-2: #33281a;
+  --card: rgba(30, 22, 13, 0.9);
+  --card-border: rgba(232, 180, 80, 0.36);
+  --text-0: #f7ecd6;
+  --text-1: #c6b394;
+  --accent: #e8b450;
+  --accent-2: #6ec8d8;
+  --ok: #9bd982;
+  --warn: #ff7355;
+  --glow-a: rgba(232, 180, 80, 0.24);
+  --glow-b: rgba(110, 200, 216, 0.16);
+  --surface-nav: rgba(22, 17, 10, 0.86);
+  --surface-hero-a: rgba(24, 18, 11, 0.96);
+  --surface-hero-b: rgba(44, 34, 20, 0.9);
+  --surface-controls: rgba(28, 21, 13, 0.72);
+  --surface-btn: rgba(46, 36, 22, 0.86);
+  --shadow-elev: rgba(10, 6, 0, 0.4);
 }
 
 /* ---- Void ---------------------------------------------------------------
@@ -9467,7 +9552,6 @@ body[data-theme="bomb"] {
 @media (max-width: 1200px) {
   .draft-slot-status { gap: 0.7rem; }
 }
-
 
 /* The five cards fill their column rather than sitting in a short stack with
    dead space beneath. Taller cards also mean more of the art. */
@@ -11003,8 +11087,6 @@ body:has(.draft-stage) .edit-mode-frame {
 }
 
 .opp-swapped .material-symbols-rounded { font-size: 0.95rem; }
-
-
 
 /* A pool that is actually about the seat they hold, rather than their history
    at large. Thinner and far more useful, so it is marked as the better answer. */

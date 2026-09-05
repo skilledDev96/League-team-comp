@@ -44,13 +44,9 @@
         <label for="themeSelect" class="visually-hidden">Theme</label>
         <select id="themeSelect" class="theme-select" aria-label="Theme selector"
                 [value]="theme.current()" (change)="onThemeChange($event)">
-          <option value="bomb">Bomb Squad</option>
-          <option value="dark">Dark</option>
-          <option value="dark-blue">Blue</option>
-          <option value="dark-red">Red</option>
-          <option value="hextech">Hextech</option>
-          <option value="void">Void</option>
-          <option value="light">Light</option>
+          @for (t of theme.themes; track t) {
+            <option [value]="t" [selected]="t === theme.current()">{{ theme.themeLabel(t) }}</option>
+          }
         </select>
 
         <span class="topbar-divider" aria-hidden="true"></span>
@@ -67,13 +63,9 @@
         <label for="themeSelect" class="visually-hidden">Theme</label>
         <select id="themeSelect" class="theme-select" aria-label="Theme selector"
                 [value]="theme.current()" (change)="onThemeChange($event)">
-          <option value="bomb">Bomb Squad</option>
-          <option value="dark">Dark</option>
-          <option value="dark-blue">Blue</option>
-          <option value="dark-red">Red</option>
-          <option value="hextech">Hextech</option>
-          <option value="void">Void</option>
-          <option value="light">Light</option>
+          @for (t of theme.themes; track t) {
+            <option [value]="t" [selected]="t === theme.current()">{{ theme.themeLabel(t) }}</option>
+          }
         </select>
       </div>
     }
