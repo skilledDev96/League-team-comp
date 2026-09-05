@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { AdminContextService } from './admin-context.service';
@@ -32,8 +32,17 @@ import { AdminTournamentsComponent } from './tabs/tournaments.component';
   ],
   templateUrl: './admin.component.html'
 })
-export class AdminComponent {
+export class AdminComponent implements OnInit {
   protected readonly ctx = inject(AdminContextService);
   protected readonly auth = inject(AuthService);
   protected readonly data = inject(TeamDataService);
+
+  /**
+   * Open in edit mode, like the draft and plan pages. Every field here is a
+   * form: arriving with the header saying "Edit mode" off while the fields
+   * accept typing read as a contradiction (5 Sep 2026).
+   */
+  ngOnInit(): void {
+    if (this.auth.canEdit()) this.auth.editMode.set(true);
+  }
 }
