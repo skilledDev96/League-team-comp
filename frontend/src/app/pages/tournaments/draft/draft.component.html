@@ -695,9 +695,18 @@
                 </ul>
               }
             } @else if (!adviceError()) {
-              <p class="muted advisor-hint">
-                Weighs our comps, their scouted pools, the matchup rates and the lane read together, and names three champions with a reason each. Takes a few seconds.
-              </p>
+              <!-- Until the first answer the block held a hint about itself.
+                   The team's own notes are what the advisor is told to follow,
+                   so they are what belongs here from step one. -->
+              @if (draftSeries()?.notes?.trim(); as notes) {
+                <span class="advisor-sub">Team plan</span>
+                <p class="advisor-plan">{{ notes }}</p>
+                <p class="muted advisor-hint">The advisor leads with this plan while it is still legal, and says when the board makes it a bad idea.</p>
+              } @else {
+                <p class="muted advisor-hint">
+                  Weighs our comps, their scouted pools, the matchup rates and the lane read together, and names three champions with a reason each. Takes a few seconds.
+                </p>
+              }
             }
           </div>
           @if (suggestLane(g); as lane) {

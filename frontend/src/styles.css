@@ -13063,3 +13063,14 @@ body:has(.draft-stage) .edit-mode-frame {
   .draft-stage.is-map .draft-status { grid-row: 6; }
   .draft-stage.is-map .draft-board-body { grid-row: 7; }
 }
+
+
+/* The team plan in the advisor block, verbatim, line breaks kept: it is the
+   drafter's own text and reads best exactly as they wrote it. */
+.advisor-plan {
+  margin: 0.2rem 0 0.5rem;
+  white-space: pre-line;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text-0);
+}
