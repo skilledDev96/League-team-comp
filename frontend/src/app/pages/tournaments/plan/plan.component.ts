@@ -415,6 +415,27 @@ export class TournamentPlanComponent {
   protected readonly masteryLabel = masteryLabel;
   protected readonly queueRows = queueRows;
   protected readonly recentForSeat = recentForSeat;
+
+  /** Players whose Lately row is showing every lane, not just their seat's. */
+  private readonly recentOpen = signal<ReadonlySet<string>>(new Set());
+
+  protected isRecentOpen(opp: OpponentPlayer): boolean {
+    return this.recentOpen().has(opp.name);
+  }
+
+  protected toggleRecent(opp: OpponentPlayer): void {
+    this.recentOpen.update((set) => {
+      const next = new Set(set);
+      if (next.has(opp.name)) next.delete(opp.name);
+      else next.add(opp.name);
+      return next;
+    });
+  }
+
+  /** The seat's champions, or all of them once the +N has been opened. */
+  protected recentShown(opp: OpponentPlayer): string[] {
+    return this.isRecentOpen(opp) ? (opp.recentChampions ?? []) : recentForSeat(opp);
+  }
   protected readonly recentHidden = recentHidden;
 
   protected readonly countersFor = countersFor;

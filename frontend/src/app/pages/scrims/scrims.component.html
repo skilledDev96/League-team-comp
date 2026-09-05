@@ -299,10 +299,6 @@
                                     [attr.aria-label]="'Seat for ' + opp.name">
                               @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }
                             </select>
-                            <button type="button" class="opp-sub-toggle" [class.active]="opp.sub"
-                                    [attr.aria-pressed]="!!opp.sub"
-                                    [appTip]="opp.sub ? 'Their substitute — click to make them the starter' : 'Mark as their substitute for this seat'"
-                                    (click)="setOpponentSub(group, opp, !opp.sub)">Sub</button>
                           } @else {
                             <span class="opp-role">{{ opp.role }}</span>
                             @if (opp.sub) { <span class="opp-sub-tag">sub</span> }
@@ -318,6 +314,12 @@
                             <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
                                target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
                           </span>
+                          @if (auth.editing()) {
+                            <button type="button" class="opp-sub-toggle" [class.active]="opp.sub"
+                                    [attr.aria-pressed]="!!opp.sub"
+                                    [appTip]="opp.sub ? 'Their substitute — click to make them the starter' : 'Mark as their substitute for this seat'"
+                                    (click)="setOpponentSub(group, opp, !opp.sub)">{{ opp.sub ? 'Substitute' : 'Bench' }}</button>
+                          }
                           <span class="opp-sub">
                             @for (p of opp.positions ?? []; track p.role) {
                               <span class="opp-position"
@@ -384,16 +386,17 @@
                         }
 
                         <span class="opp-cell opp-recent" role="cell">
-                          @for (champ of recentForSeat(opp); track champ) {
-                            <img class="opp-champ is-recent" [src]="ui.championIconUrl(champ)"
-                                 [alt]="champ" [appTip]="champ + ' — played at ' + opp.role"
+                          @for (champ of recentShown(opp); track champ) {
+                            <img class="opp-champ is-recent" [class.is-elsewhere]="!recentForSeat(opp).includes(champ)"
+                                 [src]="ui.championIconUrl(champ)"
+                                 [alt]="champ" [appTip]="champ + (recentForSeat(opp).includes(champ) ? ' — played at ' + opp.role : ' — played lately, in another lane')"
                                  loading="lazy" />
-                          }
+                            }
                           @if (recentHidden(opp); as hidden) {
-                            <span class="opp-more"
-                                  [appTip]="hidden + ' more they have played lately, in other lanes'">
-                              +{{ hidden }}
-                            </span>
+                            <button type="button" class="opp-more" [class.active]="isRecentOpen(opp)"
+                                    [attr.aria-pressed]="isRecentOpen(opp)"
+                                    [appTip]="isRecentOpen(opp) ? 'Back to this seat only' : hidden + ' more they have played lately, in other lanes — show them'"
+                                    (click)="toggleRecent(opp)">{{ isRecentOpen(opp) ? '−' + hidden : '+' + hidden }}</button>
                           }
                           @if (!recentForSeat(opp).length) { <span class="opp-none">&mdash;</span> }
                         </span>

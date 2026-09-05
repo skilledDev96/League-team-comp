@@ -13177,3 +13177,59 @@ body:has(.draft-stage) .edit-mode-frame {
     minmax(9rem, auto)      /* loses to */
     minmax(11rem, 1.2fr);   /* lately */
 }
+
+
+/* ---- Opponent table, later on 6 Sep 2026 ---------------------------------
+   Lately lines up with the champion icons, which now carry a mastery line
+   above them. The +N is a toggle; the champions it reveals are tinted so the
+   seat's own stay distinct. The Sub control moved under the name and is a
+   quiet word until it is on — a pill on every row read as every player being
+   a sub. */
+.opp-table .opp-row > .opp-recent {
+  padding-top: 1.05rem;
+  flex-wrap: wrap;
+  row-gap: 0.3rem;
+}
+
+.opp-champ.is-elsewhere {
+  opacity: 0.7;
+  outline: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
+}
+
+button.opp-more {
+  cursor: pointer;
+  background: none;
+  color: var(--text-1);
+  font: inherit;
+  font-size: 0.68rem;
+}
+
+button.opp-more:hover,
+button.opp-more.active {
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+
+.opp-who-text .opp-sub-toggle {
+  display: inline-block;
+  margin-top: 0.25rem;
+  padding: 0.05rem 0.4rem;
+  border-color: transparent;
+  background: none;
+  color: var(--text-1);
+  opacity: 0.55;
+}
+
+.opp-who-text .opp-sub-toggle:hover,
+.opp-who-text .opp-sub-toggle:focus-visible {
+  opacity: 1;
+  border-color: var(--card-border);
+}
+
+.opp-who-text .opp-sub-toggle.active {
+  opacity: 1;
+  border-color: var(--warn);
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
