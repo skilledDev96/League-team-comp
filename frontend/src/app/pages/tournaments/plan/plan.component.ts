@@ -366,19 +366,17 @@ export class TournamentPlanComponent {
 
 // ---- As a team: their games together lately ---------------------------
 
-  protected readonly historyBusy = signal('');
+  /** Held on the service, so the button reads busy from any page. */
+  protected readonly historyBusy = this.history.busy;
   protected readonly historyError = signal('');
 
   protected async fetchHistory(series: TournamentSeries): Promise<void> {
     this.historyError.set('');
-    this.historyBusy.set(series.id);
     try {
-      const teamHistory = await this.history.load(starters(series.opponentPlayers ?? []));
+      const teamHistory = await this.history.load(starters(series.opponentPlayers ?? []), { key: series.id, label: series.opponent });
       this.patchSeries(series, { teamHistory });
     } catch (error) {
       this.historyError.set(error instanceof Error ? error.message : 'Their match history could not be loaded.');
-    } finally {
-      this.historyBusy.set('');
     }
   }
 

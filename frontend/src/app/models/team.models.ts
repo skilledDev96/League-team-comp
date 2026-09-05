@@ -94,6 +94,8 @@ export interface Player {
     clash?: PlayerQueueStats;
   };
   profile?: SummonerProfile;
+  /** ISO time of the last Riot refresh, set by the morning job. */
+  refreshedAt?: string;
   order: number;
 }
 
@@ -445,6 +447,28 @@ export interface TeamData {
   compOverrides: CompOverride[];
 }
 
+/** What the draft advisor answered. Mirrors `api/src/draft-advice.ts`. */
+export interface DraftAdvice {
+  summary: string;
+  picks: { champion: string; seat: Role | null; why: string; confidence: 'high' | 'medium' | 'low' }[];
+  bans: { champion: string; why: string }[];
+  /** What to watch for in their next moves. */
+  watch: string[];
+  model?: string;
+  tookMs?: number;
+}
+
+/** What the last morning refresh did (Firestore `meta/refreshLog`). Mirrors `api/src/daily-refresh.ts`. */
+export interface RefreshLog {
+  ranAt: string;
+  finishedAt: string;
+  trigger: 'schedule' | 'manual';
+  playersUpdated: string[];
+  playersFailed: string[];
+  playersSkipped: string[];
+  analysis: { ok: boolean; games?: number; newMatches?: number; pending?: number; error?: string };
+}
+
 /** Result of the scheduled Riot API key probe (Firestore `meta/keyHealth`). */
 export interface KeyHealth {
   ok: boolean;
@@ -725,6 +749,12 @@ export interface SeriesGame {
    * finished — see `stepAt`.
    */
   draftStep?: number;
+  /**
+   * The champion held for confirmation right now, so a teammate watching the
+   * draft from a shared link sees what is being considered before it lands.
+   * Cleared on confirm, cancel, undo and reset; absent means nothing held.
+   */
+  holding?: string;
   win?: boolean;
   /** Set when reconciled against Riot match history after the fact. */
   matchId?: string;
@@ -822,27 +852,6 @@ export interface ScrimPlayer {
  * from tournament series on purpose: a scrim has no bracket, no best-of and no
  * fearless burn, and filing one as a series meant inventing all three.
  */
-/**
- * What we know about a team we scrim, kept apart from any one game.
- *
- * A scrim carries its own opponent name and a per-game note, but the things
- * that accumulate — scouting notes, target bans, their roster — belong to the
- * team and were being kept nowhere, or in tournament series created just to
- * hold them. One record per team, keyed by a slug of the name so "MOSS" and
- * "moss" do not become two.
- */
-export interface ScrimOpponent {
-  /** `scrimOpponentId(name)` — letters and digits, safe as a document key. */
-  id: string;
-  name: string;
-  notes?: string;
-  /** Target bans against this team, the same shape a series carries. */
-  bans?: string[];
-  /** Their five, scouted the same way a tournament opponent is. */
-  opponentPlayers?: OpponentPlayer[];
-  order: number;
-}
-
 export interface Scrim {
   /** The match id from the replay filename — the only stable identity it has. */
   id: string;

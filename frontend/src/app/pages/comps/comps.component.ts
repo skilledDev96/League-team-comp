@@ -276,7 +276,7 @@ export class CompsComponent {
   // What surfaces first is which champions keep getting named when we lose.
 
   protected retro(compId: string): NoteRollup | null {
-    const games = this.data.compAnalysis()?.games.filter((g) => g.compId === compId) ?? [];
+    const games = (this.data.compAnalysis()?.games ?? []).filter((g) => g.compId === compId);
     const notes = games
       .map((game) => ({
         matchId: game.matchId,
@@ -311,7 +311,7 @@ export class CompsComponent {
   }
 
   protected rankedRecord(compId: string): CompPerformance | undefined {
-    return this.data.compAnalysis()?.comps.find((c) => c.compId === compId);
+    return (this.data.compAnalysis()?.comps ?? []).find((c) => c.compId === compId);
   }
   protected panelBadge(
     compId: string
@@ -320,7 +320,7 @@ export class CompsComponent {
     if (logged) {
       return { wins: logged.wins, losses: logged.losses, winRate: logged.winRate, source: 'log' };
     }
-    const ranked = this.data.compAnalysis()?.comps.find((c) => c.compId === compId);
+    const ranked = (this.data.compAnalysis()?.comps ?? []).find((c) => c.compId === compId);
     if (ranked) {
       return { wins: ranked.wins, losses: ranked.losses, winRate: ranked.winRate, source: 'ranked' };
     }
@@ -380,6 +380,9 @@ export class CompsComponent {
   }
 
   protected deleteResult(result: CompResult): void {
+    const when = this.ui.formatDay(result.playedOn);
+    const who = result.opponent ? ` against ${result.opponent}` : '';
+    if (!confirm(`Delete the logged ${result.outcome}${who} on ${when}?`)) return;
     void this.data.deleteCompResult(result.id);
   }
 

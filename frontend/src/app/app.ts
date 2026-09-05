@@ -12,6 +12,9 @@ import {
 import { AuthService } from './services/auth.service';
 import { TeamDataService } from './services/team-data.service';
 import { Theme, ThemeService } from './services/theme.service';
+import { ToastService } from './services/toast.service';
+import { ActivityService } from './services/activity.service';
+import { RefreshService } from './services/refresh.service';
 import { UserMenuComponent } from './shared/user-menu.component';
 import { TooltipDirective } from './shared/tooltip.directive';
 
@@ -25,6 +28,9 @@ export class App {
   protected readonly theme = inject(ThemeService);
   protected readonly auth = inject(AuthService);
   protected readonly data = inject(TeamDataService);
+  protected readonly toast = inject(ToastService);
+  protected readonly activity = inject(ActivityService);
+  protected readonly refresh = inject(RefreshService);
   private readonly router = inject(Router);
 
   protected readonly navigating = signal(false);
@@ -94,6 +100,21 @@ export class App {
       }
     });
 
+    // The first time edit mode comes on, say how it works. There is no save
+    // button anywhere in the app — every change is written as it is made — and
+    // that is the one thing a new editor cannot tell by looking. Watched here
+    // rather than on the toggle, because the draft and plan pages switch edit
+    // mode on by themselves and the notice belongs to the mode, not the button.
+    effect(() => {
+      if (!this.auth.editing()) return;
+      this.toast.once('edit-autosave', 'Edit mode saves as you go', {
+        text: 'There is no save button. Every change is written the moment you make it, for everyone.',
+        icon: 'edit',
+        kind: 'ok',
+        timeout: 9000
+      });
+    });
+
     // Show a one-time welcome tour the first time a user signs in (stored per-account in Firestore).
     effect(() => {
       if (!this.auth.ready()) {
@@ -118,6 +139,14 @@ export class App {
   protected dismissTutorial(): void {
     this.showTutorial.set(false);
     void this.auth.markTourSeen();
+  }
+
+  /** Every running job on one line, for the pill's tooltip. */
+  protected activityNote(): string {
+    return this.activity
+      .jobs()
+      .map((j) => (j.detail ? `${j.label} — ${j.detail}` : j.label))
+      .join('\n');
   }
 
   protected onThemeChange(event: Event): void {

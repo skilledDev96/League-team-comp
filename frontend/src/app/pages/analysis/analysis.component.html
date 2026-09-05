@@ -8,14 +8,45 @@
        repeating it put the same words twice on one screen. -->
   <div class="analysis-head is-bare">
     @if (auth.editing()) {
-      <button type="button" class="view-btn analysis-refresh" [disabled]="analysisLoading()" (click)="refreshAnalysis()">
-        <span class="material-symbols-rounded" aria-hidden="true">sync</span>
+      <button type="button" class="view-btn analysis-refresh" [disabled]="refresh.anyRunning()" (click)="refreshAnalysis()">
+        @if (analysisLoading()) {
+          <span class="btn-spinner" aria-hidden="true"></span>
+        } @else {
+          <span class="material-symbols-rounded" aria-hidden="true">sync</span>
+        }
         {{ analysisLoading() ? 'Analyzing…' : 'Refresh match data' }}
+      </button>
+      <!-- Players first, then the analysis: enrichment warms the shared match
+           cache, so the analysis after it spends fewer Riot calls. Sequential
+           on purpose — both share the same hundred calls per two minutes. -->
+      <button type="button" class="link-btn analysis-refresh-all" [disabled]="refresh.anyRunning()"
+              appTip="Re-read every player from Riot, then re-run the match analysis. Takes a few minutes."
+              (click)="refresh.refreshAll()">
+        <span class="material-symbols-rounded" aria-hidden="true">cloud_sync</span>
+        {{ refresh.allRunning() ? 'Refreshing everything…' : 'Refresh all' }}
       </button>
     }
   </div>
   @if (analysisError()) {
     <p class="analysis-error">{{ analysisError() }}</p>
+  }
+
+  <!-- The morning job: players re-read and the analysis re-run at 06:30, so
+       the numbers here are usually last night's games without anyone clicking.
+       Said out loud, because a refresh nobody triggered is otherwise a mystery
+       change in the win rates. -->
+  @if (data.refreshLog(); as log) {
+    <p class="refresh-log" [class.is-bad]="!log.analysis.ok || log.playersFailed.length">
+      <span class="material-symbols-rounded" aria-hidden="true">{{ log.analysis.ok ? 'schedule' : 'error' }}</span>
+      {{ log.trigger === 'schedule' ? 'Morning refresh' : 'Server refresh' }}
+      {{ log.ranAt | date: 'MMM d, HH:mm' }}:
+      {{ log.playersUpdated.length }} player{{ log.playersUpdated.length === 1 ? '' : 's' }} updated@if (log.playersFailed.length) {, {{ log.playersFailed.length }} failed ({{ log.playersFailed.join(', ') }})}@if (log.playersSkipped.length) {, {{ log.playersSkipped.length }} left for tomorrow},
+      @if (log.analysis.ok) {
+        analysis over {{ log.analysis.games }} games@if (log.analysis.newMatches) { ({{ log.analysis.newMatches }} new)}.
+      } @else {
+        analysis failed: {{ log.analysis.error }}
+      }
+    </p>
   }
 
   <!-- Proactive key status from the daily probe, so an expired key is known

@@ -3,6 +3,7 @@ import { OpponentPlayer, Role, ROLES, ScrimOpponent, TournamentSeries } from '..
 import { PlayerEnrichmentService } from './player-enrichment.service';
 import { TeamDataService } from './team-data.service';
 import { RiotId, parseRiotIds } from '../core/riot-id';
+import { ActivityService } from './activity.service';
 
 /**
  * Reading the other team from their public Riot IDs.
@@ -22,6 +23,7 @@ const SECONDS_PER_PLAYER = 60;
 export class OpponentScoutService {
   private readonly enrichment = inject(PlayerEnrichmentService);
   private readonly data = inject(TeamDataService);
+  private readonly activity = inject(ActivityService);
 
   /** Series id currently being scouted, so one button can show progress. */
   readonly scouting = signal<string | null>(null);
@@ -83,14 +85,16 @@ export class OpponentScoutService {
    */
   async scoutSeries(series: TournamentSeries): Promise<void> {
     await this.scoutRoster(series.id, series.opponentPlayers ?? [], (players) =>
-      this.data.updateSeries({ ...series, opponentPlayers: players })
+      this.data.updateSeries({ ...series, opponentPlayers: players }),
+      series.opponent
     );
   }
 
   /** The same scout, for a team we only ever meet in scrims. */
   async scoutScrimOpponent(opponent: ScrimOpponent): Promise<void> {
     await this.scoutRoster(opponent.id, opponent.opponentPlayers ?? [], (players) =>
-      this.data.saveScrimOpponent({ ...opponent, opponentPlayers: players })
+      this.data.saveScrimOpponent({ ...opponent, opponentPlayers: players }),
+      opponent.name
     );
   }
 
@@ -105,7 +109,8 @@ export class OpponentScoutService {
   private async scoutRoster(
     id: string,
     roster: readonly OpponentPlayer[],
-    save: (players: OpponentPlayer[]) => Promise<void>
+    save: (players: OpponentPlayer[]) => Promise<void>,
+    teamName = ''
   ): Promise<void> {
     if (!roster.length || this.scouting()) return;
 
@@ -114,12 +119,16 @@ export class OpponentScoutService {
     this.done.set(0);
     const out: OpponentPlayer[] = [];
     try {
-      for (const [index, player] of roster.entries()) {
-        this.progress.set(`Scouting ${player.name || 'player'} (${index + 1} of ${roster.length})…`);
-        out.push(await this.scoutOne(player));
-        this.done.set(out.length);
-        await save([...out, ...roster.slice(out.length)]);
-      }
+      await this.activity.run(`Scouting ${teamName || 'opponent'}`, async (job) => {
+        for (const [index, player] of roster.entries()) {
+          const line = `${player.name || 'player'} (${index + 1} of ${roster.length})`;
+          this.progress.set(`Scouting ${line}…`);
+          job.progress(line);
+          out.push(await this.scoutOne(player));
+          this.done.set(out.length);
+          await save([...out, ...roster.slice(out.length)]);
+        }
+      }, { notify: `Scouted ${teamName || 'the opponent'}` });
     } finally {
       this.scouting.set(null);
       this.progress.set('');

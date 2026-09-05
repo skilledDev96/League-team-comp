@@ -1,14 +1,28 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { getAuthInstance, isFirebaseConfigured } from '../core/firebase';
 import { Player, PremadeGroupStats, SynergyQueue } from '../models/team.models';
+import { ActivityService } from './activity.service';
 
 @Injectable({ providedIn: 'root' })
 export class SynergyService {
+  private readonly activity = inject(ActivityService);
+
+  /** Whether a synergy read is in flight, wherever it was started. */
+  busy(): boolean {
+    return this.activity.has('Loading team synergy');
+  }
+
   async load(players: Player[]): Promise<PremadeGroupStats[]> {
     if (!isFirebaseConfigured()) {
       return [];
     }
+    return this.activity.run('Loading team synergy', () => this.fetch(players), {
+      detail: 'recent ranked games together'
+    });
+  }
+
+  private async fetch(players: Player[]): Promise<PremadeGroupStats[]> {
     const auth = getAuthInstance();
     const user = auth?.currentUser;
     if (!auth || !user) {

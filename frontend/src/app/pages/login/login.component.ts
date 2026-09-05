@@ -1,6 +1,6 @@
 import { Component, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -11,6 +11,7 @@ import { AuthService } from '../../services/auth.service';
 export class LoginComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly email = signal('');
   protected readonly password = signal('');
@@ -19,13 +20,20 @@ export class LoginComponent {
   protected readonly mode = this.auth.mode;
 
   constructor() {
-    // After sign-in completes, everyone lands on the overview page.
+    // After sign-in, back to whatever the person was sent — a shared draft
+    // link, say — and otherwise the overview.
     effect(() => {
       if (!this.auth.isAuthed()) {
         return;
       }
-      void this.router.navigate(['/overview']);
+      void this.router.navigateByUrl(this.destination());
     });
+  }
+
+  /** Only a path on this site; anything else is ignored rather than followed. */
+  private destination(): string {
+    const wanted = this.route.snapshot.queryParamMap.get('returnUrl') ?? '';
+    return wanted.startsWith('/') && !wanted.startsWith('//') ? wanted : '/overview';
   }
 
   protected async submit(): Promise<void> {
@@ -33,7 +41,7 @@ export class LoginComponent {
     this.busy.set(true);
     try {
       await this.auth.login(this.email(), this.password());
-      await this.router.navigate(['/overview']);
+      await this.router.navigateByUrl(this.destination());
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Login failed.');
     } finally {
@@ -46,7 +54,7 @@ export class LoginComponent {
     this.busy.set(true);
     try {
       await this.auth.loginWithGoogle();
-      await this.router.navigate(['/overview']);
+      await this.router.navigateByUrl(this.destination());
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Google sign-in failed.');
     } finally {

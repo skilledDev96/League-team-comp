@@ -32,6 +32,18 @@
         <a routerLink="/tournaments" routerLinkActive="active">Tournaments</a>
       </nav>
       <div class="user-bar">
+        <!-- What the app is fetching right now, wherever it was started.
+             Every Riot job takes a minute or more and most finish on a page
+             other than the one that began them; this is the one place that
+             always says so. -->
+        @if (activity.primary(); as job) {
+          <span class="activity-pill" role="status" aria-live="polite" [appTip]="activityNote()">
+            <span class="btn-spinner" aria-hidden="true"></span>
+            <span class="activity-label">{{ job.label }}</span>
+            @if (job.detail) { <span class="activity-detail">{{ job.detail }}</span> }
+            @if (activity.others(); as n) { <span class="activity-more">+{{ n }}</span> }
+          </span>
+        }
         @if (auth.canEdit()) {
           <button type="button" class="edit-toggle" [class.active]="auth.editMode()"
                   [attr.aria-pressed]="auth.editMode()"
@@ -44,13 +56,9 @@
         <label for="themeSelect" class="visually-hidden">Theme</label>
         <select id="themeSelect" class="theme-select" aria-label="Theme selector"
                 [value]="theme.current()" (change)="onThemeChange($event)">
-          <option value="bomb">Bomb Squad</option>
-          <option value="dark">Dark</option>
-          <option value="dark-blue">Blue</option>
-          <option value="dark-red">Red</option>
-          <option value="hextech">Hextech</option>
-          <option value="void">Void</option>
-          <option value="light">Light</option>
+          @for (t of theme.themes; track t) {
+            <option [value]="t" [selected]="t === theme.current()">{{ theme.themeLabel(t) }}</option>
+          }
         </select>
 
         <span class="topbar-divider" aria-hidden="true"></span>
@@ -58,6 +66,12 @@
         <app-user-menu [email]="auth.userEmail() || ''" [role]="auth.role() || ''">
           @if (auth.canEdit()) {
             <a class="overflow-item" routerLink="/admin">Admin</a>
+            @if (data.mode === 'firebase') {
+              <button type="button" class="overflow-item" [disabled]="refresh.anyRunning()"
+                      (click)="refresh.refreshAll()">
+                {{ refresh.allRunning() ? 'Refreshing everything…' : 'Refresh all from Riot' }}
+              </button>
+            }
           }
           <button type="button" class="overflow-item" (click)="logout()">Log out</button>
         </app-user-menu>
@@ -67,13 +81,9 @@
         <label for="themeSelect" class="visually-hidden">Theme</label>
         <select id="themeSelect" class="theme-select" aria-label="Theme selector"
                 [value]="theme.current()" (change)="onThemeChange($event)">
-          <option value="bomb">Bomb Squad</option>
-          <option value="dark">Dark</option>
-          <option value="dark-blue">Blue</option>
-          <option value="dark-red">Red</option>
-          <option value="hextech">Hextech</option>
-          <option value="void">Void</option>
-          <option value="light">Light</option>
+          @for (t of theme.themes; track t) {
+            <option [value]="t" [selected]="t === theme.current()">{{ theme.themeLabel(t) }}</option>
+          }
         </select>
       </div>
     }
@@ -111,6 +121,26 @@
     </button>
   }
 </div>
+
+<!-- Transient notices, one stack for the whole app. -->
+@if (toast.toasts().length) {
+  <div class="toast-stack" role="status" aria-live="polite">
+    @for (t of toast.toasts(); track t.id) {
+      <div class="toast" [class]="'toast is-' + t.kind">
+        @if (t.icon) {
+          <span class="toast-icon material-symbols-rounded" aria-hidden="true">{{ t.icon }}</span>
+        }
+        <span class="toast-body">
+          <strong class="toast-title">{{ t.title }}</strong>
+          @if (t.text) { <span class="toast-text">{{ t.text }}</span> }
+        </span>
+        <button type="button" class="toast-close" aria-label="Dismiss" (click)="toast.dismiss(t.id)">
+          <span class="material-symbols-rounded" aria-hidden="true">close</span>
+        </button>
+      </div>
+    }
+  </div>
+}
 
 @if (initialLoading()) {
   <div class="app-loading-overlay" role="status" aria-live="polite">

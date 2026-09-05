@@ -108,6 +108,8 @@ export class PlayerIntelComponent {
   }
 
   protected deletePain(id: string): void {
+    const pain = this.data.painPoints().find((p) => p.id === id);
+    if (!confirm(`Delete this pain point${pain?.text ? ` — "${pain.text}"` : ''}?`)) return;
     void this.data.deletePainPoint(id);
   }
 
@@ -204,6 +206,8 @@ export class PlayerIntelComponent {
   }
 
   protected deleteLearn(id: string): void {
+    const entry = this.data.learnEntries().find((e) => e.id === id);
+    if (!confirm(`Remove ${entry?.champion || 'this champion'} from the learn list?`)) return;
     void this.data.deleteLearnEntry(id);
   }
 }

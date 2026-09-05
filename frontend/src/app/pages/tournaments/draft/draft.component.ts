@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChampionTraits, OpponentPlayer, Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
@@ -43,10 +43,16 @@ import {
   swingOf
 } from '../draft-advice';
 import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
+import { comfortOf, gamePlan, GamePlan, LaneRead, LaneVerdict, readLanes, SeatInput } from '../lane-read';
+import { countersFor, poolFor, starters } from '../../../core/opponent-view';
+import { playsRole } from '../../../core/champion-lanes';
+import { DraftAdvisorService } from '../../../services/draft-advisor.service';
+import { DraftAdvice } from '../../../models/team.models';
 import { CompIdentity, IDENTITY_ICON, IDENTITY_LABEL, classifyComp } from '../../../core/comp-identity';
 import { ChampionRate, ChampionStatsService, previousPatch } from '../../../services/champion-stats.service';
 import { MatchupRate, MatchupStatsService } from '../../../services/matchup-stats.service';
 import { TournamentContextService } from '../tournament-context.service';
+import { ToastService } from '../../../services/toast.service';
 
 /** Which team a draft slot belongs to. */
 type DraftSide = 'our' | 'their';
@@ -58,6 +64,36 @@ type DraftTarget =
 
 /** Fearless series run ten bans a game, same as the client. */
 const MAX_BANS = 10;
+
+/** How the ten picks are laid out: five a side, or on the map. */
+type DraftLayout = 'columns' | 'map';
+const LAYOUT_KEY = 'bom-draft-layout';
+
+/**
+ * Where each seat stands on the rift during the laning phase, as a percentage
+ * of the map image, blue side (base bottom-left) and red side (base top-right).
+ *
+ * The point of the map is that a lane matchup sits *together*: both top laners
+ * at the top-left corner, both bot lanes at the bottom-right, junglers in their
+ * own halves. Mirroring blue through the centre would have put red's top laner
+ * in bot lane, so red is placed by hand, not derived.
+ */
+const MAP_SPOTS: Record<'blue' | 'red', Record<Role, { x: number; y: number }>> = {
+  blue: {
+    Top: { x: 13, y: 34 },
+    Jungle: { x: 27, y: 71 },
+    Mid: { x: 42, y: 58 },
+    ADC: { x: 62, y: 87 },
+    Support: { x: 71, y: 81 }
+  },
+  red: {
+    Top: { x: 30, y: 12 },
+    Jungle: { x: 73, y: 29 },
+    Mid: { x: 58, y: 42 },
+    ADC: { x: 89, y: 38 },
+    Support: { x: 83, y: 47 }
+  }
+};
 
 /**
  * Burned champions shown in the confirm-slot strip.
@@ -134,6 +170,32 @@ export class TournamentDraftComponent implements OnInit {
 
   private readonly destroyRef = inject(DestroyRef);
 
+  /** Publish what the view resolved to, for the address bar. */
+  private readonly publishShown = effect(() => {
+    const series = this.draftSeries();
+    const game = this.draftGame();
+    untracked(() => {
+      this.ctx.shownSeriesId.set(series?.id ?? '');
+      this.ctx.shownGameId.set(game?.id ?? '');
+    });
+  });
+
+  /**
+   * The held champion follows the game document, not this screen.
+   *
+   * Holding is written to `SeriesGame.holding` so everyone on the link sees
+   * the same thing being considered. Mirroring it back here means a second
+   * editor, or the same editor on another device, sees the hold and the
+   * cancel as they happen instead of a board that only moves on confirm.
+   */
+  private readonly mirrorHold = effect(() => {
+    const game = this.draftGame();
+    const held = game?.holding ?? null;
+    untracked(() => {
+      if (this.pending() !== held) this.pending.set(held);
+    });
+  });
+
   // ---- The pick clock -----------------------------------------------------
   //
   // Tournament drafts run a 30-second shot clock per action. This one is a
@@ -189,8 +251,73 @@ export class TournamentDraftComponent implements OnInit {
   /** Jump to this opponent's prep panel on the plan view. */
   protected readonly openPrep = (seriesId: string) => this.ctx.openPrep(seriesId);
 
-  private readonly pickedSeriesId = signal<string>('');
-  private readonly pickedGameId = signal<string>('');
+  // On the context service, so a shared link can set them and the shell can
+  // write them back into the address bar.
+  private readonly pickedSeriesId = this.ctx.draftSeriesId;
+  private readonly pickedGameId = this.ctx.draftGameId;
+
+  private readonly toast = inject(ToastService);
+
+  // ---- Columns or map ---------------------------------------------------------
+  //
+  // The columns are the client's own layout and the one to draft from. The map
+  // puts the same ten champions where they will stand at two minutes, so a
+  // draft can be read as five lane matchups instead of two lists — which is
+  // what the lane read below is about. Remembered per browser.
+
+  protected readonly layout = signal<DraftLayout>(this.storedLayout());
+
+  private storedLayout(): DraftLayout {
+    try {
+      return localStorage.getItem(LAYOUT_KEY) === 'map' ? 'map' : 'columns';
+    } catch {
+      return 'columns';
+    }
+  }
+
+  protected setLayout(layout: DraftLayout): void {
+    this.layout.set(layout);
+    try {
+      localStorage.setItem(LAYOUT_KEY, layout);
+    } catch {
+      // A preference, not state; losing it costs one click.
+    }
+  }
+
+  /** Which colour a side is on this game. Unset means we take blue on the map. */
+  protected colourOf(game: SeriesGame, side: DraftSide): 'blue' | 'red' {
+    const ours = game.ourSide ?? 'blue';
+    return side === 'our' ? ours : ours === 'blue' ? 'red' : 'blue';
+  }
+
+  /** The ten seats with their spot on the map, for the map layout. */
+  protected mapTokens(game: SeriesGame): { side: DraftSide; index: number; role: Role; champion: string; x: number; y: number }[] {
+    const out: { side: DraftSide; index: number; role: Role; champion: string; x: number; y: number }[] = [];
+    for (const side of ['our', 'their'] as const) {
+      const spots = MAP_SPOTS[this.colourOf(game, side)];
+      this.pickSlots(game, side).forEach((slot, index) => {
+        out.push({ side, index, role: slot.role, champion: slot.champion, ...spots[slot.role] });
+      });
+    }
+    return out;
+  }
+
+  /**
+   * The address bar is the share link. Copying it here rather than building a
+   * URL by hand means what is copied is exactly what the shell keeps current.
+   */
+  protected async copyLink(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      this.toast.show('Draft link copied', {
+        kind: 'ok',
+        icon: 'link',
+        text: 'Anyone on the team who opens it sees this game live as picks are confirmed.'
+      });
+    } catch {
+      this.toast.show('Could not copy', { kind: 'warn', text: 'Copy the address bar instead.' });
+    }
+  }
 
   /** The series being drafted: whatever was picked, else the first live one. */
   protected draftSeries(): TournamentSeries | undefined {
@@ -445,6 +572,10 @@ export class TournamentDraftComponent implements OnInit {
 
   /** Drop the last game of the series; removing an earlier one would renumber. */
   protected removeDraftGame(game: SeriesGame): void {
+    const drafted = (game.bans ?? []).length
+      + [...(game.ourChampions ?? []), ...(game.theirChampions ?? [])].filter(Boolean).length;
+    const what = drafted ? ` and the ${drafted} bans and picks drafted into it` : '';
+    if (!confirm(`Remove game ${game.gameNumber}${what}?`)) return;
     this.pickedGameId.set('');
     void this.data.deleteSeriesGame(game.id);
   }
@@ -844,10 +975,21 @@ export class TournamentDraftComponent implements OnInit {
   /** Hold a champion for confirmation rather than committing it immediately. */
   protected proposeFromSequence(name: string): void {
     this.pending.set(name);
+    this.writeHold(name);
   }
 
   protected cancelPending(): void {
     this.pending.set(null);
+    this.writeHold(null);
+  }
+
+  /** Share the hold with everyone on the link. Nothing else on the game moves. */
+  private writeHold(name: string | null): void {
+    const game = this.draftGame();
+    if (!game) return;
+    const live = this.current(game);
+    if ((live.holding ?? null) === name) return;
+    void this.data.updateSeriesGame({ ...live, holding: name ?? undefined });
   }
 
   /** Commit the held champion and advance one step. */
@@ -936,7 +1078,7 @@ export class TournamentDraftComponent implements OnInit {
 
       if (step.action === 'ban') {
         const bans = [...(live.bans ?? []), champ];
-        await this.data.updateSeriesGame({ ...live, bans, draftStep: next });
+        await this.data.updateSeriesGame({ ...live, bans, draftStep: next, holding: undefined });
       } else {
         const side = this.sideOfStep(live);
         const seat = this.pendingSeat(live);
@@ -949,7 +1091,8 @@ export class TournamentDraftComponent implements OnInit {
         await this.data.updateSeriesGame({
           ...live,
           ...(side === 'our' ? { ourChampions: picks } : { theirChampions: picks }),
-          draftStep: next
+          draftStep: next,
+          holding: undefined
         });
       }
       this.pending.set(null);
@@ -978,7 +1121,8 @@ export class TournamentDraftComponent implements OnInit {
       ourChampions: [],
       theirChampions: [],
       ourSide: undefined,
-      draftStep: undefined
+      draftStep: undefined,
+      holding: undefined
     });
     this.pending.set(null);
   }
@@ -992,7 +1136,7 @@ export class TournamentDraftComponent implements OnInit {
     const previous = stepAt(position - 1);
     if (!previous) return;
 
-    const patch: Partial<SeriesGame> = { draftStep: position - 1 };
+    const patch: Partial<SeriesGame> = { draftStep: position - 1, holding: undefined };
     if (previous.action === 'ban') {
       patch.bans = (live.bans ?? []).slice(0, -1);
     } else {
@@ -1290,6 +1434,237 @@ export class TournamentDraftComponent implements OnInit {
       .slice(this.COMPS_SHOWN)
       .map((c) => this.compNote(c))
       .join('\n');
+  }
+
+  // ---- The advisor --------------------------------------------------------
+  //
+  // Everything the panels above already show, weighed at once by a model on
+  // the backend, answered in three ranked champions with a sentence each. It
+  // only ranks: the candidates it may name are built here, already legal for
+  // the step, and the backend drops anything outside them.
+
+  protected readonly advisor = inject(DraftAdvisorService);
+  protected readonly advice = signal<DraftAdvice | null>(null);
+  protected readonly adviceError = signal('');
+  /** The step the advice was given for, so a stale answer says so. */
+  private readonly adviceStep = signal<number | null>(null);
+
+  protected adviceIsStale(game: SeriesGame): boolean {
+    const at = this.adviceStep();
+    return at !== null && at !== (game.draftStep ?? 0);
+  }
+
+  /** How many champions the advisor may choose from. */
+  private readonly ADVISOR_CANDIDATES = 60;
+
+  /**
+   * The champions the advisor may name for this step.
+   *
+   * For our pick: what fits the seat, our player's own pool and the comps
+   * still reachable first, then the rest of the lane. For a ban: what the
+   * opponents play and what has beaten them, plus their likely next seat's
+   * pool. Everything is already filtered for the burn, the bans and the
+   * board, so the model cannot suggest a champion that cannot be taken.
+   */
+  private advisorCandidates(game: SeriesGame, action: 'ban' | 'pick', seat: Role | null): string[] {
+    const blocked = blockedSet(this.sequenceUnavailable(game));
+    const legal = (name: string) => !!name && !blocked.has(normalizeChampion(name));
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const add = (name: string) => {
+      const key = normalizeChampion(name);
+      if (!legal(name) || seen.has(key) || out.length >= this.ADVISOR_CANDIDATES) return;
+      seen.add(key);
+      out.push(name);
+    };
+
+    if (action === 'pick') {
+      const ourPlayer = seat ? this.data.players().find((p) => p.role === seat) : undefined;
+      for (const champ of ourPlayer?.top3 ?? []) add(champ);
+      for (const comp of this.draftPlayable(game)) {
+        const source = this.data.comps().find((c) => c.id === comp.id);
+        if (!source || !seat) continue;
+        add(this.ui.parseCompLine(source.picks[seat] ?? '').champion);
+      }
+      for (const champ of this.champs.champions().map((c) => c.name)) {
+        if (!seat || playsRole(champ, seat)) add(champ);
+      }
+    } else {
+      for (const player of starters(this.draftSeries()?.opponentPlayers ?? [])) {
+        for (const rec of poolFor(player)) add(rec.champion);
+        for (const rec of countersFor(player)) add(rec.champion);
+        for (const champ of player.recentChampions ?? []) add(champ);
+      }
+      // Their comps' answers to ours: the champions our own comps fear.
+      for (const comp of this.draftPlayable(game)) {
+        const source = this.data.comps().find((c) => c.id === comp.id);
+        for (const champ of source?.bans ?? []) add(champ);
+      }
+    }
+    return out;
+  }
+
+  protected async askAdvisor(game: SeriesGame): Promise<void> {
+    if (this.advisor.busy()) return;
+    const live = this.current(game);
+    const step = this.step(live);
+    const action = step?.action ?? 'pick';
+    const turn = step ? (this.isOurTurn(live) ? 'our' : 'their') : 'our';
+    const seat = action === 'pick' && turn === 'our'
+      ? (this.pendingSeat(live) ?? this.suggestLane(live))
+      : null;
+    const candidates = this.advisorCandidates(live, action, seat);
+    if (!candidates.length) {
+      this.adviceError.set('Nothing left to choose from for this step.');
+      return;
+    }
+
+    const series = this.draftSeries();
+    const theirs = starters(series?.opponentPlayers ?? []);
+    const pickMap = (side: DraftSide) =>
+      Object.fromEntries(this.pickSlots(live, side).filter((s) => s.champion).map((s) => [s.role, s.champion]));
+
+    const soloRates: Record<string, number> = {};
+    for (const champ of candidates) {
+      const r = this.stats.rate(champ);
+      if (r) soloRates[champ] = r.winRate;
+    }
+    const enemy = seat ? this.enemyAt(live, seat) : '';
+    const matchups = seat && enemy
+      ? candidates
+          .map((champ) => {
+            const r = this.matchups.rate(seat, champ, enemy);
+            return r ? { ours: champ, theirs: enemy, winRate: r.winRate, games: r.games } : null;
+          })
+          .filter((m): m is NonNullable<typeof m> => !!m)
+      : [];
+
+    const request = {
+      teamName: this.teamName(),
+      opponent: series?.opponent ?? 'Them',
+      action,
+      turn,
+      stepNumber: (live.draftStep ?? 0) + 1,
+      ourSide: live.ourSide ?? null,
+      seat,
+      ourPicks: pickMap('our'),
+      theirPicks: pickMap('their'),
+      bans: (live.bans ?? []).filter(Boolean),
+      burned: this.burnedBefore(live.seriesId, live.gameNumber),
+      ourRoster: this.data.players().map((p) => ({ name: p.name, role: p.role, pool: (p.top3 ?? []).slice(0, 10) })),
+      theirRoster: theirs.map((p) => ({
+        name: p.name,
+        role: p.role,
+        rank: p.soloRank ?? p.rank,
+        pool: poolFor(p).map((r) => r.champion),
+        records: poolFor(p).filter((r) => r.games > 0),
+        counters: countersFor(p).map((r) => r.champion)
+      })),
+      comps: this.draftComps(live).map((c) => ({
+        name: c.name,
+        champions: this.compLineup(c.id).map((l) => l.champion).filter(Boolean),
+        winRate: c.winRate,
+        games: c.games,
+        playable: c.playable,
+        blocked: c.blocked
+      })),
+      lanes: this.readableLanes(live).map((r) => ({ lane: r.lane, verdict: r.verdict, score: r.score, reasons: r.reasons.slice(0, 3) })),
+      candidates,
+      soloRates,
+      matchups,
+      notes: (series?.notes ?? '').slice(0, 1500) || undefined
+    };
+
+    this.adviceError.set('');
+    try {
+      const answer = await this.advisor.ask(request);
+      this.advice.set(answer);
+      this.adviceStep.set(live.draftStep ?? 0);
+    } catch (error) {
+      this.adviceError.set(error instanceof Error ? error.message : 'The advisor could not answer.');
+    }
+  }
+
+  /** Take an advised champion the same way a click on the wall does. */
+  protected takeAdvice(game: SeriesGame, champion: string): void {
+    if (this.sequenceActive(game)) {
+      this.proposeFromSequence(champion);
+    } else {
+      this.gridPick(game, champion);
+    }
+  }
+
+  // ---- The lanes ----------------------------------------------------------
+  //
+  // A draft is two lists of five; a game is five matchups. This gathers what
+  // the app knows about each — the collected matchup rate, both champions'
+  // solo queue rates, whether each player actually plays the pick, and the
+  // traits — and hands it to `readLanes`, which is pure and tested. Shown to
+  // everyone on the link, not only the editor: it is what a watching teammate
+  // is there to talk about.
+
+  protected laneReads(game: SeriesGame): LaneRead[] {
+    const index = indexTraits(this.data.championTraits());
+    const ourSlots = this.pickSlots(game, 'our');
+    const theirSlots = this.pickSlots(game, 'their');
+    const theirRoster = starters(this.draftSeries()?.opponentPlayers ?? []);
+
+    const seats: SeatInput[] = this.roles.map((role, i) => {
+      const ours = ourSlots[i].champion;
+      const theirs = theirSlots[i].champion;
+      const matchup = ours && theirs ? this.matchups.rate(role, ours, theirs) : undefined;
+
+      // Our roster carries a pool without counts: first entry is the main.
+      const ourPlayer = this.data.players().find((p) => p.role === role);
+      const ourPool = ourPlayer?.top3 ?? [];
+      const ourAt = ours ? ourPool.findIndex((c) => normalizeChampion(c) === normalizeChampion(ours)) : -1;
+      const ourComfort = !ourPlayer || !ours
+        ? undefined
+        : ourAt < 0
+          ? { level: 'none' as const }
+          : { level: ourAt === 0 ? ('main' as const) : ('pool' as const) };
+
+      const theirPlayer = theirRoster.find((p) => p.role === role);
+      const theirPool = theirPlayer ? poolFor(theirPlayer) : [];
+      const theirAt = theirs ? theirPool.findIndex((c) => normalizeChampion(c.champion) === normalizeChampion(theirs)) : -1;
+      const theirComfort = theirs && theirPlayer
+        ? comfortOf(theirAt >= 0 ? theirPool[theirAt] : undefined, theirAt, theirPool.length > 0)
+        : undefined;
+
+      return {
+        role,
+        ours,
+        theirs,
+        matchup: matchup ? { winRate: matchup.winRate, games: matchup.games } : undefined,
+        ourSolo: ours ? this.stats.rate(ours)?.winRate : undefined,
+        theirSolo: theirs ? this.stats.rate(theirs)?.winRate : undefined,
+        ourComfort,
+        theirComfort,
+        ourTraits: ours ? traitsFor(index, this.champs.resolve(ours)?.id) ?? undefined : undefined,
+        theirTraits: theirs ? traitsFor(index, this.champs.resolve(theirs)?.id) ?? undefined : undefined
+      };
+    });
+    return readLanes(seats);
+  }
+
+  /** Lanes with something to say, for the panel. */
+  protected readableLanes(game: SeriesGame): LaneRead[] {
+    return this.laneReads(game).filter((r) => r.verdict !== 'unknown');
+  }
+
+  protected lanePlan(game: SeriesGame): GamePlan {
+    return gamePlan(this.laneReads(game));
+  }
+
+  /** The verdict of the lane a seat belongs to, for tinting the map tokens. */
+  protected laneVerdict(game: SeriesGame, role: Role): LaneVerdict {
+    const lane = role === 'ADC' || role === 'Support' ? 'Bot' : role;
+    return this.laneReads(game).find((r) => r.lane === lane)?.verdict ?? 'unknown';
+  }
+
+  protected laneNote(read: LaneRead): string {
+    const head = `${read.verdict === 'strong' ? 'Ours' : read.verdict === 'weak' ? 'Theirs' : 'Even'} by ${Math.abs(read.score)} points, ${read.confidence} confidence.`;
+    return read.reasons.length ? `${head}\n${read.reasons.join('\n')}` : head;
   }
 
   /** What our picks are short of. Empty while there is too little to judge. */

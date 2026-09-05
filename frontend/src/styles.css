@@ -262,28 +262,6 @@ html {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
-body[data-theme="dark"] {
-  --bg-0: #0b0d10;
-  --bg-1: #15191f;
-  --bg-2: #20262f;
-  --card: rgba(20, 25, 31, 0.9);
-  --card-border: rgba(122, 140, 158, 0.32);
-  --text-0: #ecf1f5;
-  --text-1: #b6c2cc;
-  --accent: #8aa3bc;
-  --accent-2: #a8b7c6;
-  --ok: #8ecf8e;
-  --warn: #d58a7f;
-  --glow-a: rgba(112, 128, 144, 0.18);
-  --glow-b: rgba(54, 63, 73, 0.24);
-  --surface-nav: rgba(25, 31, 38, 0.84);
-  --surface-hero-a: rgba(22, 27, 33, 0.96);
-  --surface-hero-b: rgba(30, 38, 46, 0.92);
-  --surface-controls: rgba(24, 31, 38, 0.74);
-  --surface-btn: rgba(37, 46, 56, 0.86);
-  --shadow-elev: rgba(0, 0, 0, 0.26);
-}
-
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -514,50 +492,6 @@ body[data-theme="dark"] {
   padding: 0.25rem 0.8rem;
 }
 
-body[data-theme="dark-blue"] {
-  --bg-0: #0f1418;
-  --bg-1: #1a232d;
-  --bg-2: #233345;
-  --card: rgba(18, 29, 37, 0.88);
-  --card-border: rgba(94, 162, 204, 0.38);
-  --text-0: #e9f4fb;
-  --text-1: #b7cedb;
-  --accent: #4ea7e9;
-  --accent-2: #7bc5ff;
-  --ok: #8ce26f;
-  --warn: #ff6e59;
-  --glow-a: rgba(95, 170, 224, 0.28);
-  --glow-b: rgba(37, 82, 126, 0.26);
-  --surface-nav: rgba(17, 36, 44, 0.8);
-  --surface-hero-a: rgba(14, 30, 37, 0.96);
-  --surface-hero-b: rgba(21, 43, 51, 0.9);
-  --surface-controls: rgba(15, 34, 41, 0.68);
-  --surface-btn: rgba(20, 44, 53, 0.82);
-  --shadow-elev: rgba(0, 0, 0, 0.18);
-}
-
-body[data-theme="dark-red"] {
-  --bg-0: #121214;
-  --bg-1: #1e1e24;
-  --bg-2: #2a2a33;
-  --card: rgba(28, 25, 30, 0.9);
-  --card-border: rgba(217, 86, 86, 0.34);
-  --text-0: #f8ebeb;
-  --text-1: #d5bcbc;
-  --accent: #ef5555;
-  --accent-2: #ff8c8c;
-  --ok: #9fdb87;
-  --warn: #ff6e59;
-  --glow-a: rgba(211, 67, 67, 0.24);
-  --glow-b: rgba(94, 40, 40, 0.28);
-  --surface-nav: rgba(43, 24, 29, 0.82);
-  --surface-hero-a: rgba(38, 21, 25, 0.96);
-  --surface-hero-b: rgba(53, 30, 35, 0.92);
-  --surface-controls: rgba(41, 24, 29, 0.72);
-  --surface-btn: rgba(58, 31, 38, 0.86);
-  --shadow-elev: rgba(28, 10, 10, 0.28);
-}
-
 body[data-theme="light"] {
   --bg-0: #eaf4f8;
   --bg-1: #d9ecf3;
@@ -757,6 +691,73 @@ body {
   margin-left: auto;
 }
 
+.activity-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 24rem;
+  padding: 0.35rem 0.75rem 0.35rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--card-border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-btn));
+  color: var(--text-0);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: default;
+}
+
+.activity-pill .btn-spinner {
+  margin-right: 0;
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+
+.activity-label {
+  font-weight: 600;
+}
+
+.activity-detail {
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-more {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
+.refresh-log {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0.8rem;
+  font-size: 0.82rem;
+  color: var(--text-1);
+}
+
+.refresh-log .material-symbols-rounded {
+  font-size: 1.05rem;
+  color: var(--accent-2);
+}
+
+.refresh-log.is-bad .material-symbols-rounded {
+  color: var(--warn);
+}
+
+.analysis-refresh-all {
+  margin-left: 0.6rem;
+}
+
+.overflow-item:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .topbar-divider {
   width: 1px;
   height: 1.4rem;
@@ -835,6 +836,82 @@ body {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35),
     0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
   animation: edit-banner-in 0.25s ease-out;
+}
+
+/* ---- Toasts -------------------------------------------------------------
+   Transient notices from ToastService. Stacked top-right under the topbar so
+   they never cover the thing that was just clicked, and sized in rem like the
+   rest of the interface. */
+.toast-stack {
+  position: fixed;
+  top: 4.6rem;
+  right: 1rem;
+  z-index: 70;
+  display: grid;
+  gap: 0.5rem;
+  width: min(22rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.75rem 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  border-left: 4px solid var(--accent);
+  background: color-mix(in srgb, var(--card) 92%, var(--bg-0));
+  color: var(--text-0);
+  box-shadow: 0 10px 28px var(--shadow-elev);
+  pointer-events: auto;
+  animation: toast-in 0.22s ease-out;
+}
+
+.toast.is-ok { border-left-color: var(--ok); }
+.toast.is-warn { border-left-color: var(--warn); }
+
+.toast-icon {
+  color: var(--accent);
+  margin-top: 0.05rem;
+}
+
+.toast.is-ok .toast-icon { color: var(--ok); }
+.toast.is-warn .toast-icon { color: var(--warn); }
+
+.toast-body {
+  display: grid;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.toast-title { font-size: 0.9rem; }
+.toast-text { color: var(--text-1); }
+
+.toast-close {
+  border: 0;
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  margin: -0.1rem -0.2rem 0 0;
+}
+
+.toast-close:hover,
+.toast-close:focus-visible {
+  color: var(--text-0);
+  outline: none;
+}
+
+.toast-close .material-symbols-rounded { font-size: 1.15rem; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-0.4rem); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes edit-banner-in {
@@ -937,7 +1014,6 @@ body {
   color: var(--text-1);
   margin: 0 0 0.6rem;
 }
-
 
 .profiles-table {
   display: flex;
@@ -5610,7 +5686,6 @@ body.intel-page #fillInSection {
   opacity: 0.6;
 }
 
-
 .pool-champ.is-gone {
   color: var(--warn);
   text-decoration: line-through;
@@ -7199,6 +7274,46 @@ app-match-note {
   color: var(--text-1);
 }
 
+.draft-share-link .material-symbols-rounded {
+  font-size: 1.1rem;
+}
+
+/* The watcher's step bar: the same phase chip, turn and progress the editor's
+   bar carries, without the controls. */
+.draft-live-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: color-mix(in srgb, var(--card-border) 10%, transparent);
+}
+
+.draft-live-bar.is-ours {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--card-border));
+}
+
+.draft-live-bar.is-done .material-symbols-rounded {
+  color: var(--ok);
+}
+
+.draft-live-hold {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.55rem 0.15rem 0.2rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  font-size: 0.85rem;
+}
+
+.draft-live-bar .draft-step-progress {
+  flex-basis: 100%;
+}
+
 .draft-readonly-hint .material-symbols-rounded {
   font-size: 1rem;
   color: var(--accent-2);
@@ -7507,7 +7622,6 @@ app-match-note {
 .pattern-fill.is-win {
   background: var(--bar-ok);
 }
-
 
 /* Wins/losses switch: one control rather than two loose buttons, sharing the
    labelled-field treatment of the select beside it so the two line up. The
@@ -7997,6 +8111,160 @@ body[data-theme="hextech"] {
   --surface-controls: rgba(8, 24, 32, 0.7);
   --surface-btn: rgba(14, 36, 46, 0.85);
   --shadow-elev: rgba(0, 0, 0, 0.32);
+}
+
+/* ---- Demacia ------------------------------------------------------------
+   Navy and gold: the kingdom's banners. Gold carries the accents, a steel
+   blue the secondary, and the text is parchment-white so the whole thing
+   reads like a heraldic hall rather than a night sky. */
+body[data-theme="demacia"] {
+  --bg-0: #0a1220;
+  --bg-1: #101c33;
+  --bg-2: #172846;
+  --card: rgba(14, 26, 48, 0.9);
+  --card-border: rgba(214, 178, 94, 0.36);
+  --text-0: #f3efe2;
+  --text-1: #aeb8cf;
+  --accent: #d4af5a;
+  --accent-2: #7fb3ff;
+  --ok: #7ed99a;
+  --warn: #ff6b6b;
+  --glow-a: rgba(212, 175, 90, 0.22);
+  --glow-b: rgba(60, 110, 200, 0.26);
+  --surface-nav: rgba(10, 20, 38, 0.86);
+  --surface-hero-a: rgba(12, 22, 42, 0.96);
+  --surface-hero-b: rgba(20, 36, 66, 0.9);
+  --surface-controls: rgba(13, 24, 44, 0.7);
+  --surface-btn: rgba(22, 38, 68, 0.85);
+  --shadow-elev: rgba(0, 0, 0, 0.32);
+}
+
+/* ---- Noxus --------------------------------------------------------------
+   Iron black and crimson. Crimson is the accent, so losses are marked in
+   ember-orange instead — red on red would say nothing — and bronze stands in
+   as the secondary, the metal of the empire's armour. */
+body[data-theme="noxus"] {
+  --bg-0: #100a0b;
+  --bg-1: #1c1114;
+  --bg-2: #2a181c;
+  --card: rgba(24, 14, 17, 0.9);
+  --card-border: rgba(200, 50, 60, 0.36);
+  --text-0: #f4e6e3;
+  --text-1: #c4a9a6;
+  --accent: #d8323f;
+  --accent-2: #c98d4b;
+  --ok: #8ed49a;
+  --warn: #ff8a5c;
+  --glow-a: rgba(216, 50, 63, 0.24);
+  --glow-b: rgba(90, 25, 30, 0.3);
+  --surface-nav: rgba(28, 14, 17, 0.86);
+  --surface-hero-a: rgba(26, 13, 16, 0.96);
+  --surface-hero-b: rgba(44, 22, 27, 0.9);
+  --surface-controls: rgba(30, 16, 19, 0.72);
+  --surface-btn: rgba(46, 24, 29, 0.86);
+  --shadow-elev: rgba(20, 5, 8, 0.36);
+}
+
+/* ---- Freljord -----------------------------------------------------------
+   Ice. Deep blue-black ground, glacier cyan for the accents, and a paler
+   frost for the secondary; the text is the white of snow under moonlight. */
+body[data-theme="freljord"] {
+  --bg-0: #071019;
+  --bg-1: #0c1c2b;
+  --bg-2: #132a3f;
+  --card: rgba(10, 26, 40, 0.9);
+  --card-border: rgba(130, 200, 240, 0.36);
+  --text-0: #eaf6ff;
+  --text-1: #a9c6da;
+  --accent: #79d0f2;
+  --accent-2: #c9ecff;
+  --ok: #8ee8b3;
+  --warn: #ff7d6b;
+  --glow-a: rgba(121, 208, 242, 0.24);
+  --glow-b: rgba(40, 90, 140, 0.28);
+  --surface-nav: rgba(8, 20, 32, 0.86);
+  --surface-hero-a: rgba(9, 22, 35, 0.96);
+  --surface-hero-b: rgba(18, 40, 60, 0.9);
+  --surface-controls: rgba(10, 26, 40, 0.7);
+  --surface-btn: rgba(18, 40, 60, 0.85);
+  --shadow-elev: rgba(0, 5, 12, 0.36);
+}
+
+/* ---- Ionia --------------------------------------------------------------
+   Spirit blossom: a plum night with blossom pink and jade. Pink carries the
+   accents and jade the secondary; green stays for wins because it reads as
+   the same jade family, and the warning coral is warm enough to stand apart
+   from the pink. */
+body[data-theme="ionia"] {
+  --bg-0: #0d0b16;
+  --bg-1: #171227;
+  --bg-2: #221a3a;
+  --card: rgba(20, 15, 34, 0.9);
+  --card-border: rgba(240, 140, 190, 0.32);
+  --text-0: #f7ecf3;
+  --text-1: #bfa9c6;
+  --accent: #f28cc0;
+  --accent-2: #64d9c3;
+  --ok: #7fe0b8;
+  --warn: #ff7a6b;
+  --glow-a: rgba(242, 140, 192, 0.22);
+  --glow-b: rgba(100, 217, 195, 0.16);
+  --surface-nav: rgba(16, 12, 28, 0.86);
+  --surface-hero-a: rgba(18, 13, 30, 0.96);
+  --surface-hero-b: rgba(34, 24, 56, 0.9);
+  --surface-controls: rgba(20, 15, 34, 0.7);
+  --surface-btn: rgba(32, 24, 52, 0.85);
+  --shadow-elev: rgba(0, 0, 0, 0.38);
+}
+
+/* ---- Shadow Isles -------------------------------------------------------
+   The black mist. Near-black green ground and a ghost-light green for the
+   accents; losses go to a cold pink so they are not lost in the same green. */
+body[data-theme="shadow-isles"] {
+  --bg-0: #060b09;
+  --bg-1: #0c1612;
+  --bg-2: #14231c;
+  --card: rgba(9, 18, 14, 0.9);
+  --card-border: rgba(84, 200, 140, 0.3);
+  --text-0: #e3f1e8;
+  --text-1: #97b3a3;
+  --accent: #5ce0a0;
+  --accent-2: #9fe8c8;
+  --ok: #8ff0b0;
+  --warn: #ff6b7d;
+  --glow-a: rgba(92, 224, 160, 0.2);
+  --glow-b: rgba(20, 60, 45, 0.3);
+  --surface-nav: rgba(7, 14, 11, 0.88);
+  --surface-hero-a: rgba(8, 16, 12, 0.96);
+  --surface-hero-b: rgba(18, 32, 26, 0.9);
+  --surface-controls: rgba(9, 18, 14, 0.72);
+  --surface-btn: rgba(18, 32, 26, 0.86);
+  --shadow-elev: rgba(0, 0, 0, 0.42);
+}
+
+/* ---- Shurima ------------------------------------------------------------
+   Sand and sun. A deep earthen ground with the disc's gold on the accents and
+   Shurima's turquoise as the secondary; the text is warm sandstone. */
+body[data-theme="shurima"] {
+  --bg-0: #14100a;
+  --bg-1: #221b10;
+  --bg-2: #33281a;
+  --card: rgba(30, 22, 13, 0.9);
+  --card-border: rgba(232, 180, 80, 0.36);
+  --text-0: #f7ecd6;
+  --text-1: #c6b394;
+  --accent: #e8b450;
+  --accent-2: #6ec8d8;
+  --ok: #9bd982;
+  --warn: #ff7355;
+  --glow-a: rgba(232, 180, 80, 0.24);
+  --glow-b: rgba(110, 200, 216, 0.16);
+  --surface-nav: rgba(22, 17, 10, 0.86);
+  --surface-hero-a: rgba(24, 18, 11, 0.96);
+  --surface-hero-b: rgba(44, 34, 20, 0.9);
+  --surface-controls: rgba(28, 21, 13, 0.72);
+  --surface-btn: rgba(46, 36, 22, 0.86);
+  --shadow-elev: rgba(10, 6, 0, 0.4);
 }
 
 /* ---- Void ---------------------------------------------------------------
@@ -9028,12 +9296,155 @@ body[data-theme="bomb"] {
   background: var(--surface-controls);
 }
 
+/* ---- Draft on the map ------------------------------------------------------
+   The map takes the left column, bans stay under it, and the champion wall
+   keeps the rest. The third column goes: both teams are on the one map. */
+.draft-stage.is-map {
+  grid-template-columns: minmax(18rem, 1.1fr) minmax(0, 2fr);
+}
+
+.draft-stage.is-map .draft-map {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.draft-stage.is-map .draft-inputs > .field:nth-child(1) {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.draft-stage.is-map .draft-grid {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.draft-map {
+  position: relative;
+  aspect-ratio: 1;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  overflow: hidden;
+  background: var(--bg-0);
+}
+
+.draft-map-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  pointer-events: none;
+  filter: saturate(0.85) brightness(0.9);
+}
+
+.draft-map-side {
+  position: absolute;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-0) 70%, transparent);
+  color: var(--text-1);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  z-index: 2;
+}
+
+.draft-map-side.is-blue { left: 0.6rem; bottom: 0.6rem; }
+.draft-map-side.is-red { right: 0.6rem; top: 0.6rem; }
+.draft-map-side.is-ours { color: var(--accent-2); }
+
+.draft-map-token {
+  --ring: var(--warn);
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-0);
+  font: inherit;
+  cursor: pointer;
+}
+
+.draft-map-token:disabled { cursor: default; }
+.draft-map-token.is-ours { --ring: var(--ok); }
+
+.draft-map-token-img {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 3px solid var(--ring);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  background: var(--surface-btn);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+
+.draft-map-token.is-empty .draft-map-token-img {
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.draft-map-token.is-aimed .draft-map-token-img {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent), 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.draft-map-token.is-on-turn .draft-map-token-img {
+  animation: draft-map-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes draft-map-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring) 55%, transparent); }
+  50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--ring) 0%, transparent); }
+}
+
+.draft-map-token-name {
+  max-width: 6.5rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.draft-layout {
+  margin-left: auto;
+}
+
+.draft-layout .segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.draft-layout .segment .material-symbols-rounded {
+  font-size: 1rem;
+}
+
 @media (max-width: 1100px) {
   .draft-stage {
     grid-template-columns: 1fr;
   }
   .draft-stage .draft-inputs > .field,
-  .draft-stage .draft-grid {
+  .draft-stage .draft-grid,
+  .draft-stage.is-map .draft-map,
+  .draft-stage.is-map .draft-inputs > .field:nth-child(1),
+  .draft-stage.is-map .draft-grid {
     grid-column: 1;
     grid-row: auto;
   }
@@ -9391,7 +9802,6 @@ body[data-theme="bomb"] {
 @media (max-width: 1200px) {
   .draft-slot-status { gap: 0.7rem; }
 }
-
 
 /* The five cards fill their column rather than sitting in a short stack with
    dead space beneath. Taller cards also mean more of the art. */
@@ -10183,6 +10593,279 @@ body:has(.draft-stage) .edit-mode-frame {
 .advice-empty { margin: 0; font-size: 0.8rem; }
 
 /* Gaps are read off champion traits, so they need no sample-size caveat. */
+/* ---- The advisor ----------------------------------------------------------- */
+.advice-block.is-advisor {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border));
+}
+
+.advice-block.is-advisor.is-stale {
+  border-style: dashed;
+}
+
+.advisor-head {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.advisor-head .material-symbols-rounded {
+  font-size: 1.1rem;
+  color: var(--accent-2);
+}
+
+.advisor-ask {
+  margin-left: auto;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.8rem;
+}
+
+.advisor-took {
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--text-1);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.advisor-error {
+  margin: 0.4rem 0 0;
+  color: var(--warn);
+  font-size: 0.85rem;
+}
+
+.advisor-stale {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-1);
+}
+
+.advisor-stale .material-symbols-rounded { font-size: 1rem; }
+
+.advisor-summary {
+  margin: 0.5rem 0 0.4rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.advisor-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.82rem;
+}
+
+.advisor-sub {
+  display: block;
+  margin: 0.5rem 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.advisor-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.advisor-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--card-border) 60%, transparent);
+}
+
+.advisor-row.is-high { border-color: color-mix(in srgb, var(--ok) 50%, var(--card-border)); }
+.advisor-row.is-low { opacity: 0.85; }
+
+.advisor-champ {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.6rem 0.2rem 0.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--surface-btn);
+  color: var(--text-0);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.advisor-champ:hover,
+.advisor-champ:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.advisor-champ.is-ban .pool-champ-icon { filter: grayscale(0.6); }
+
+.advisor-champ b { font-size: 0.88rem; }
+
+.advisor-champ em {
+  font-style: normal;
+  font-size: 0.7rem;
+  color: var(--text-1);
+  text-transform: uppercase;
+}
+
+.advisor-why {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--text-1);
+}
+
+.advisor-confidence {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-1);
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+}
+
+.advisor-row.is-high .advisor-confidence { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--card-border)); }
+
+.advisor-watch {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-1);
+}
+
+.advisor-watch li {
+  display: flex;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+
+.advisor-watch .material-symbols-rounded {
+  font-size: 1rem;
+  color: var(--accent-2);
+}
+
+/* ---- The lane read --------------------------------------------------------- */
+.draft-lanes {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+  margin: 0.8rem 0;
+}
+
+/* It sits inside the stage grid, which auto-places anything unplaced into
+   the first column; this is a full-width row under the board. */
+.draft-stage .draft-lanes {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  .draft-lanes { grid-template-columns: 1fr; }
+}
+
+.lane-list {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.2rem 0 0;
+}
+
+.lane-row {
+  display: grid;
+  grid-template-columns: 3.6rem auto auto auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--card-border) 60%, transparent);
+  cursor: help;
+}
+
+.lane-row.is-strong { border-color: color-mix(in srgb, var(--ok) 55%, var(--card-border)); background: color-mix(in srgb, var(--ok) 8%, transparent); }
+.lane-row.is-weak { border-color: color-mix(in srgb, var(--warn) 55%, var(--card-border)); background: color-mix(in srgb, var(--warn) 8%, transparent); }
+
+.lane-name {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.lane-side {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.lane-side .pool-champ-icon {
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 2px solid var(--ok);
+}
+
+.lane-side.is-theirs .pool-champ-icon { border-color: var(--warn); }
+
+.lane-vs {
+  font-size: 0.7rem;
+  color: var(--text-1);
+}
+
+.lane-verdict {
+  justify-self: end;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lane-row.is-strong .lane-verdict { color: var(--ok); }
+.lane-row.is-weak .lane-verdict { color: var(--warn); }
+.lane-row.is-even .lane-verdict { color: var(--text-1); }
+
+.lane-verdict em {
+  margin-left: 0.3rem;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.lane-confidence {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  font-size: 0.66rem;
+  color: var(--text-1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lane-confidence.is-low { opacity: 0.6; }
+.lane-confidence.is-high { border-color: color-mix(in srgb, var(--accent) 50%, var(--card-border)); color: var(--accent-2); }
+
+.advice-callout.is-plan { margin: 0; }
+
+/* The map says it too: our token glows for the lane we should snowball and
+   dims for the lane to cover. */
+.draft-map-token.is-strong .draft-map-token-img {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 60%, transparent), 0 0 18px color-mix(in srgb, var(--ok) 70%, transparent);
+}
+
+.draft-map-token.is-weak .draft-map-token-img {
+  border-color: var(--warn);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 50%, transparent);
+}
+
 .advice-block.is-gaps { border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border)); }
 .advice-block.is-gaps .advice-head { color: var(--warn); }
 .advice-gaps { display: grid; gap: 0.2rem; margin: 0; font-size: 0.82rem; }
@@ -10927,8 +11610,6 @@ body:has(.draft-stage) .edit-mode-frame {
 }
 
 .opp-swapped .material-symbols-rounded { font-size: 0.95rem; }
-
-
 
 /* A pool that is actually about the seat they hold, rather than their history
    at large. Thinner and far more useful, so it is marked as the better answer. */

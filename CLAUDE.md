@@ -18,6 +18,13 @@ Frontend and backend are separate packages, with the Firebase project at the rep
 to choose. The `firebase deploy --only functions` command is *not* — "functions"
 there is the Firebase product, not the directory.
 
+## Where the reasoning lives
+
+`docs/2026-08-21-session-summary.md`, `HANDOVER.md` (30 Aug) and `docs/handover-2026-09-05.md` record *why* things are the
+way they are — decisions, reversals, open questions — and `docs/global-plan.md` is the
+longer-range plan (multi-link import, multi-tenancy, user-supplied datasets) with its
+legal reasoning. Read them before proposing something they already settled.
+
 ## Commands
 
 ```bash
@@ -79,7 +86,7 @@ In Firebase mode the signals are kept live by `onSnapshot` listeners set up in `
 
 **Firestore security** (`firestore.rules`, at the repo root): public read on everything; writes require `canEdit()` via the catch-all `match /{document=**}`, so a new collection is automatically covered (public read, editor write) — no rules change needed. `access` and `meta/settings` have their own stricter rules.
 
-**Cloud Functions** (`api/src/`): `enrichPlayer`, `getTeamSynergy`, `getCompAnalysis` and `riotKeyHealth` are `onRequest` with `cors: true`; `checkRiotKey` is a scheduled probe. All use the `RIOT_API_KEY` secret and deploy to region `europe-west1` (see `SynergyService.functionUrl()`). `index.ts` holds the handlers and the Riot I/O; the logic they call sits in tested modules beside it (`parse-request`, `riot-errors`, `match-stats`, `insights`, `analysis-cache`, `comp-match`). Deploy **all** of them with `npm run deploy:functions` from the repo root.
+**Cloud Functions** (`api/src/`): `enrichPlayer`, `getTeamSynergy`, `getCompAnalysis`, `riotKeyHealth` and `draftAdvice` are `onRequest` with `cors: true` (`draftAdvice` asks Claude — `claude-opus-5` through `@anthropic-ai/sdk` — for ranked picks or bans from a candidate list the draft room builds; needs the `ANTHROPIC_API_KEY` secret and refuses clearly without it; the prompt, schema and validation are pure in `draft-advice.ts`); `checkRiotKey` is a scheduled probe, and `refreshTeamData` (06:30 Europe/Amsterdam; `refreshTeamDataOnce` for an editor to run it by hand) re-reads every player and re-runs the analysis each morning, writing what it did to `meta/refreshLog` — the pure parts are in `daily-refresh.ts`. All use the `RIOT_API_KEY` secret and deploy to region `europe-west1` (see `SynergyService.functionUrl()`). `index.ts` holds the handlers and the Riot I/O; the logic they call sits in tested modules beside it (`parse-request`, `riot-errors`, `match-stats`, `insights`, `analysis-cache`, `comp-match`). Deploy **all** of them with `npm run deploy:functions` from the repo root.
 
 **Pages and routes** (`frontend/src/app/app.routes.ts`, nav in `app/app.html`): every
 route is lazy via `loadComponent`, and every content route is behind `viewerGuard`
@@ -329,7 +336,7 @@ Two questions are asked of a cached entry, and conflating them makes a
 
 - **Angular 22, standalone components, signals throughout.** No NgModules; components declare their own `imports`. State is signals + `computed`; prefer this over RxJS for view state.
 - Forms use `[ngModel]` + `(ngModelChange)` with `FormsModule` (template-driven, one-way bound to signals), not reactive forms — see `admin.component.html`.
-- Styling is one global `frontend/src/styles.css` (no per-component styles) built on CSS custom properties. Theme is switched via `body[data-theme="..."]` (`bomb` — the default, built on the team mark in `public/assets/brand/` — `dark`, `dark-blue`, `dark-red`, `hextech`, `void`, `light`); **always style through tokens** (`--accent`, `--text-0/1`, `--ok` for wins/positive, `--warn` for losses/negative, `--card-border`, `--surface-*`) so every theme works.
+- Styling is one global `frontend/src/styles.css` (no per-component styles) built on CSS custom properties. Theme is switched via `body[data-theme="..."]` (`bomb` — the default, built on the team mark in `public/assets/brand/` — then League regions `hextech`, `demacia`, `noxus`, `freljord`, `ionia`, `shadow-isles`, `shurima`, `void`, and `light`; the list and labels live in `ThemeService`, and retired names are mapped there so a stored choice never goes blank); **always style through tokens** (`--accent`, `--text-0/1`, `--ok` for wins/positive, `--warn` for losses/negative, `--card-border`, `--surface-*`) so every theme works.
 - **One champion filter, followed across pages.** `ChampionFilterService` holds
   the name (a root signal, kept in `sessionStorage`), `<app-champion-filter>`
   is the box, and each page passes its own count and noun so the line reads
