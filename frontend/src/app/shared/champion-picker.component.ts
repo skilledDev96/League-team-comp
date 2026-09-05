@@ -10,6 +10,26 @@ import { NgModelNameDirective } from './ng-model-name.directive';
  * spelling always matches Data Dragon and nothing depends on the user
  * remembering punctuation like "Kai'Sa".
  */
+/** Letters and digits only, lower case — the same key the champion data uses. */
+export function championKey(value: string): string {
+  return (value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Does a typed query find this champion? A substring of the key, or of the
+ * key with doubled letters collapsed — "lilia" for Lillia, "anie" for Annie,
+ * "kasadin" for Kassadin — because a draft is typed in a hurry and a miss was
+ * silent until 5 Sep 2026.
+ */
+export function championMatches(name: string, query: string): boolean {
+  const key = championKey(name);
+  const q = championKey(query);
+  if (!q) return true;
+  if (key.includes(q)) return true;
+  const squash = (s: string) => s.replace(/(.)\1+/g, '$1');
+  return squash(key).includes(squash(q));
+}
+
 @Component({
   selector: 'app-champion-picker',
   imports: [FormsModule, NgModelNameDirective],
@@ -65,26 +85,6 @@ import { NgModelNameDirective } from './ng-model-name.directive';
     </div>
   `
 })
-/** Letters and digits only, lower case — the same key the champion data uses. */
-export function championKey(value: string): string {
-  return (value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-/**
- * Does a typed query find this champion? A substring of the key, or of the
- * key with doubled letters collapsed — "lilia" for Lillia, "anie" for Annie,
- * "kasadin" for Kassadin — because a draft is typed in a hurry and a miss was
- * silent until 5 Sep 2026.
- */
-export function championMatches(name: string, query: string): boolean {
-  const key = championKey(name);
-  const q = championKey(query);
-  if (!q) return true;
-  if (key.includes(q)) return true;
-  const squash = (s: string) => s.replace(/(.)\1+/g, '$1');
-  return squash(key).includes(squash(q));
-}
-
 export class ChampionPickerComponent {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly champData = inject(ChampionDataService);
