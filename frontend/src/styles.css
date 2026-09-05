@@ -12873,13 +12873,10 @@ body:has(.draft-stage) .edit-mode-frame {
   /* Specificity matched on purpose: the desktop placements use
      :nth-child() and .is-map, and a plainer selector here loses to them
      whatever the order. */
-  .draft-stage .draft-grid,
-  .draft-stage.is-map .draft-grid,
-  .draft-stage .draft-advice,
-  .draft-stage.is-map .draft-advice,
+  .draft-stage > :nth-child(n),
+  .draft-stage.is-map > :nth-child(n),
   .draft-stage .draft-inputs > .field:nth-child(n),
-  .draft-stage.is-map .draft-inputs > .field:nth-child(n),
-  .draft-stage.is-map .draft-map {
+  .draft-stage.is-map .draft-inputs > .field:nth-child(n) {
     grid-column: 1;
     grid-row: auto;
     width: auto;
