@@ -13233,3 +13233,15 @@ button.opp-more.active {
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 14%, transparent);
 }
+
+/* Measured after the first cut: Lately's icons sat 22px above the Plays
+   icons, and the avatar stacked over the name because the cell inherits a
+   column direction. */
+.opp-table .opp-row > .opp-recent {
+  padding-top: 2.35rem;
+}
+
+.opp-table .opp-row > .opp-who {
+  flex-direction: row;
+  align-items: flex-start;
+}
