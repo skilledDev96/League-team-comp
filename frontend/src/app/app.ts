@@ -13,6 +13,8 @@ import { AuthService } from './services/auth.service';
 import { TeamDataService } from './services/team-data.service';
 import { Theme, ThemeService } from './services/theme.service';
 import { ToastService } from './services/toast.service';
+import { ActivityService } from './services/activity.service';
+import { RefreshService } from './services/refresh.service';
 import { UserMenuComponent } from './shared/user-menu.component';
 import { TooltipDirective } from './shared/tooltip.directive';
 
@@ -27,6 +29,8 @@ export class App {
   protected readonly auth = inject(AuthService);
   protected readonly data = inject(TeamDataService);
   protected readonly toast = inject(ToastService);
+  protected readonly activity = inject(ActivityService);
+  protected readonly refresh = inject(RefreshService);
   private readonly router = inject(Router);
 
   protected readonly navigating = signal(false);
@@ -135,6 +139,14 @@ export class App {
   protected dismissTutorial(): void {
     this.showTutorial.set(false);
     void this.auth.markTourSeen();
+  }
+
+  /** Every running job on one line, for the pill's tooltip. */
+  protected activityNote(): string {
+    return this.activity
+      .jobs()
+      .map((j) => (j.detail ? `${j.label} — ${j.detail}` : j.label))
+      .join('\n');
   }
 
   protected onThemeChange(event: Event): void {

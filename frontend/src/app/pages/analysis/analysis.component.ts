@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 import { ChampionFilterService } from '../../services/champion-filter.service';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
+import { RefreshService } from '../../services/refresh.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { MatchNoteButtonComponent } from '../../shared/match-note-button.component';
@@ -42,6 +43,7 @@ interface LogRow {
 export class AnalysisComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
+  protected readonly refresh = inject(RefreshService);
   protected readonly auth = inject(AuthService);
   private readonly analysis = inject(CompAnalysisService);
   protected readonly filter = inject(ChampionFilterService);

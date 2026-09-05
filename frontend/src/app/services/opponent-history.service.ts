@@ -1,7 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { getAuthInstance, isFirebaseConfigured } from '../core/firebase';
 import { OpponentPlayer, OpponentTeamHistory } from '../models/team.models';
+import { ActivityService } from './activity.service';
 
 /**
  * What their five did as a team lately — the games with three or more of them
@@ -13,7 +14,39 @@ import { OpponentPlayer, OpponentTeamHistory } from '../models/team.models';
  */
 @Injectable({ providedIn: 'root' })
 export class OpponentHistoryService {
-  async load(players: OpponentPlayer[], days = 30): Promise<OpponentTeamHistory> {
+  private readonly activity = inject(ActivityService);
+
+  /**
+   * The series or scrim opponent whose history is being read, so the button
+   * that started it reads busy from any page and cannot be started twice.
+   */
+  readonly busy = signal('');
+
+  /**
+   * Read their games together, on the board while it runs.
+   *
+   * `key` names the record the result is for and `label` the team, for the
+   * topbar; the read itself is unchanged.
+   */
+  async load(
+    players: OpponentPlayer[],
+    options: { key?: string; label?: string; days?: number } = {}
+  ): Promise<OpponentTeamHistory> {
+    const key = options.key ?? '';
+    if (key && this.busy() === key) throw new Error('Already reading their history.');
+    this.busy.set(key);
+    try {
+      return await this.activity.run(
+        `Reading ${options.label || 'their'} team history`,
+        () => this.fetch(players, options.days ?? 30),
+        { detail: 'last 30 days of flex, Clash and draft' }
+      );
+    } finally {
+      if (this.busy() === key) this.busy.set('');
+    }
+  }
+
+  private async fetch(players: OpponentPlayer[], days: number): Promise<OpponentTeamHistory> {
     if (!isFirebaseConfigured()) {
       throw new Error('Their match history needs the live site — local mode has no Riot access.');
     }

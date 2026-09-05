@@ -2,7 +2,8 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
+import { RefreshService } from '../../services/refresh.service';
+import { ActivityService } from '../../services/activity.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { PlayerQueueStats, QueueMatchStats, RankedQueueStats } from '../../models/team.models';
@@ -21,7 +22,8 @@ export class PlayerProfileComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
-  private readonly enrichment = inject(PlayerEnrichmentService);
+  protected readonly refresh = inject(RefreshService);
+  private readonly activity = inject(ActivityService);
   private readonly route = inject(ActivatedRoute);
 
   private readonly params = toSignal(this.route.paramMap);
@@ -116,27 +118,14 @@ export class PlayerProfileComponent {
     this.refreshing.set(true);
     this.refreshStatus.set('Refreshing from Riot...');
     try {
-      const enriched = await this.enrichment.enrichPlayer({
-        summonerName: p.name,
-        riotTag: p.profile?.riotTag,
-        region: p.profile?.region,
-        role: p.role,
-        mobalyticsSlug: p.profile?.mobalyticsSlug
-      });
-      await this.data.updatePlayer({
-        ...p,
-        role: enriched.role ?? p.role,
-        icon: enriched.iconUrl ?? p.icon,
-        playstyle: enriched.playstyle || p.playstyle,
-        strengths: enriched.strengths.length ? enriched.strengths : p.strengths,
-        weaknesses: enriched.weaknesses.length ? enriched.weaknesses : p.weaknesses,
-        top3: enriched.top3?.length ? enriched.top3 : p.top3,
-        bans: enriched.bans?.length ? enriched.bans : p.bans,
-        queueStats: enriched.queueStats ?? p.queueStats
-      });
-      this.refreshStatus.set(enriched.source === 'provider'
-        ? `Updated from ${enriched.provider}.`
-        : `Couldn't fetch live Riot data: ${enriched.provider.replace(/^template-fallback:\s*/, '')}`);
+      const outcome = await this.activity.run(
+        `Refreshing ${p.name}`,
+        () => this.refresh.refreshPlayer(p),
+        { detail: 'ranked history from Riot' }
+      );
+      this.refreshStatus.set(outcome === 'updated'
+        ? 'Updated from Riot.'
+        : "Couldn't fetch live Riot data for this player — check the Riot ID.");
     } catch (err) {
       this.refreshStatus.set(err instanceof Error ? err.message : 'Refresh failed.');
     } finally {
@@ -144,4 +133,5 @@ export class PlayerProfileComponent {
       setTimeout(() => this.refreshStatus.set(''), 3000);
     }
   }
+
 }

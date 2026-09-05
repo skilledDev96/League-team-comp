@@ -32,6 +32,18 @@
         <a routerLink="/tournaments" routerLinkActive="active">Tournaments</a>
       </nav>
       <div class="user-bar">
+        <!-- What the app is fetching right now, wherever it was started.
+             Every Riot job takes a minute or more and most finish on a page
+             other than the one that began them; this is the one place that
+             always says so. -->
+        @if (activity.primary(); as job) {
+          <span class="activity-pill" role="status" aria-live="polite" [appTip]="activityNote()">
+            <span class="btn-spinner" aria-hidden="true"></span>
+            <span class="activity-label">{{ job.label }}</span>
+            @if (job.detail) { <span class="activity-detail">{{ job.detail }}</span> }
+            @if (activity.others(); as n) { <span class="activity-more">+{{ n }}</span> }
+          </span>
+        }
         @if (auth.canEdit()) {
           <button type="button" class="edit-toggle" [class.active]="auth.editMode()"
                   [attr.aria-pressed]="auth.editMode()"
@@ -54,6 +66,12 @@
         <app-user-menu [email]="auth.userEmail() || ''" [role]="auth.role() || ''">
           @if (auth.canEdit()) {
             <a class="overflow-item" routerLink="/admin">Admin</a>
+            @if (data.mode === 'firebase') {
+              <button type="button" class="overflow-item" [disabled]="refresh.anyRunning()"
+                      (click)="refresh.refreshAll()">
+                {{ refresh.allRunning() ? 'Refreshing everything…' : 'Refresh all from Riot' }}
+              </button>
+            }
           }
           <button type="button" class="overflow-item" (click)="logout()">Log out</button>
         </app-user-menu>

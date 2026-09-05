@@ -17,16 +17,17 @@
     </p>
   }
   @if (auth.editing()) {
-    <button type="button" class="view-btn profiles-refresh-all" [disabled]="refreshingAll()" (click)="refreshAll()">
-      <span class="material-symbols-rounded" aria-hidden="true">sync</span>
+    <button type="button" class="view-btn profiles-refresh-all" [class.is-busy]="refreshingAll()"
+            [disabled]="refresh.anyRunning()" (click)="refreshAll()">
+      @if (refreshingAll()) {
+        <span class="btn-spinner" aria-hidden="true"></span>
+      } @else {
+        <span class="material-symbols-rounded" aria-hidden="true">sync</span>
+      }
       {{ refreshingAll() ? 'Refreshing ' + refreshProgress() + '…' : 'Refresh player data (all)' }}
     </button>
   }
 </section>
-
-@if (refreshMessage()) {
-  <p class="profiles-refresh-msg">{{ refreshMessage() }}</p>
-}
 
 <section class="card" aria-label="Player profiles">
   <div class="profiles-table" role="table">

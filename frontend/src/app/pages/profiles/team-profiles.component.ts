@@ -3,7 +3,7 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Player, QueueMatchStats, RankedQueueStats } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
-import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
+import { RefreshService } from '../../services/refresh.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
@@ -29,7 +29,7 @@ export class TeamProfilesComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
-  private readonly enrichment = inject(PlayerEnrichmentService);
+  protected readonly refresh = inject(RefreshService);
 
   protected readonly selectedQueue = signal<QueueKey>('flex');
 
@@ -84,55 +84,15 @@ export class TeamProfilesComponent {
   }
 
   // ---- Bulk refresh from Riot -------------------------------------------
+  //
+  // Owned by RefreshService so the run outlives this page: it used to live
+  // here, and navigating away lost the progress line while the loop kept
+  // writing. The button reads the service's state and cannot start it twice.
 
-  protected readonly refreshingAll = signal(false);
-  protected readonly refreshProgress = signal('');
-  protected readonly refreshMessage = signal('');
+  protected readonly refreshingAll = this.refresh.playersRunning;
+  protected readonly refreshProgress = this.refresh.playersProgress;
 
-  async refreshAll(): Promise<void> {
-    if (this.refreshingAll()) return;
-    const players = this.data.players();
-    this.refreshingAll.set(true);
-    this.refreshMessage.set('');
-    let done = 0;
-    let failed = 0;
-    for (const [i, p] of players.entries()) {
-      this.refreshProgress.set(`${p.name} (${i + 1}/${players.length})`);
-      try {
-        const enriched = await this.enrichment.enrichPlayer({
-          summonerName: p.name,
-          riotTag: p.profile?.riotTag,
-          region: p.profile?.region,
-          role: p.role,
-          mobalyticsSlug: p.profile?.mobalyticsSlug
-        });
-        if (enriched.source !== 'provider') {
-          failed += 1;
-          continue;
-        }
-        await this.data.updatePlayer({
-          ...p,
-          role: enriched.role ?? p.role,
-          icon: enriched.iconUrl ?? p.icon,
-          playstyle: enriched.playstyle || p.playstyle,
-          strengths: enriched.strengths.length ? enriched.strengths : p.strengths,
-          weaknesses: enriched.weaknesses.length ? enriched.weaknesses : p.weaknesses,
-          top3: this.enrichment.mergeChampionPool(p.top3, enriched.top3),
-          bans: enriched.bans?.length ? enriched.bans : p.bans,
-          queueStats: enriched.queueStats ?? p.queueStats
-        });
-        done += 1;
-      } catch {
-        failed += 1;
-      }
-    }
-    this.refreshProgress.set('');
-    this.refreshingAll.set(false);
-    this.refreshMessage.set(
-      failed
-        ? `Updated ${done}, ${failed} failed — check the Riot key and each player's Riot ID.`
-        : `Updated all ${done} players from Riot.`
-    );
-    setTimeout(() => this.refreshMessage.set(''), 6000);
+  refreshAll(): void {
+    void this.refresh.refreshPlayers();
   }
 }

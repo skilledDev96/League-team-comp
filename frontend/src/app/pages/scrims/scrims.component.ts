@@ -286,19 +286,17 @@ export class ScrimsComponent {
 
 // ---- As a team: their games together lately ---------------------------
 
-  protected readonly historyBusy = signal('');
+  /** Held on the service, so the button reads busy from any page. */
+  protected readonly historyBusy = this.history.busy;
   protected readonly historyError = signal('');
 
   protected async fetchHistory(group: ScrimGroup): Promise<void> {
     this.historyError.set('');
-    this.historyBusy.set(group.id);
     try {
-      const teamHistory = await this.history.load(starters(this.opponentFor(group).opponentPlayers ?? []));
+      const teamHistory = await this.history.load(starters(this.opponentFor(group).opponentPlayers ?? []), { key: group.id, label: group.name });
       this.patchOpponent(group, { teamHistory });
     } catch (error) {
       this.historyError.set(error instanceof Error ? error.message : 'Their match history could not be loaded.');
-    } finally {
-      this.historyBusy.set('');
     }
   }
 

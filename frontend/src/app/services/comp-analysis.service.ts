@@ -3,10 +3,12 @@ import { environment } from '../../environments/environment';
 import { getAuthInstance, isFirebaseConfigured } from '../core/firebase';
 import { CompAnalysis, Comp, Player, ROLES } from '../models/team.models';
 import { UiService } from './ui.service';
+import { ActivityService } from './activity.service';
 
 @Injectable({ providedIn: 'root' })
 export class CompAnalysisService {
   private readonly ui = inject(UiService);
+  private readonly activity = inject(ActivityService);
 
   /**
    * Whether a run is in flight, held here rather than on the Analysis page.
@@ -33,7 +35,11 @@ export class CompAnalysisService {
   ): Promise<CompAnalysis> {
     this.running.set(true);
     try {
-      return await this.run(players, comps, overrides);
+      return await this.activity.run(
+        'Refreshing match analysis',
+        () => this.run(players, comps, overrides),
+        { notify: 'Match analysis refreshed', detail: 'reading recent 5-stack games' }
+      );
     } finally {
       this.running.set(false);
     }

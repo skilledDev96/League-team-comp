@@ -25,6 +25,7 @@
         </select>
       </label>
       <button class="view-btn active" type="button" [disabled]="loading()" (click)="refresh()">
+        @if (loading()) { <span class="btn-spinner" aria-hidden="true"></span> }
         @if (loading()) { <span class="btn-spinner" aria-hidden="true"></span>Refreshing... } @else { Refresh synergy }
       </button>
     }

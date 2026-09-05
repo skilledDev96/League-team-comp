@@ -691,6 +691,55 @@ body {
   margin-left: auto;
 }
 
+.activity-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 24rem;
+  padding: 0.35rem 0.75rem 0.35rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--card-border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-btn));
+  color: var(--text-0);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: default;
+}
+
+.activity-pill .btn-spinner {
+  margin-right: 0;
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+
+.activity-label {
+  font-weight: 600;
+}
+
+.activity-detail {
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-more {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
+.analysis-refresh-all {
+  margin-left: 0.6rem;
+}
+
+.overflow-item:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .topbar-divider {
   width: 1px;
   height: 1.4rem;

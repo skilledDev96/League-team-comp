@@ -8,9 +8,22 @@
        repeating it put the same words twice on one screen. -->
   <div class="analysis-head is-bare">
     @if (auth.editing()) {
-      <button type="button" class="view-btn analysis-refresh" [disabled]="analysisLoading()" (click)="refreshAnalysis()">
-        <span class="material-symbols-rounded" aria-hidden="true">sync</span>
+      <button type="button" class="view-btn analysis-refresh" [disabled]="refresh.anyRunning()" (click)="refreshAnalysis()">
+        @if (analysisLoading()) {
+          <span class="btn-spinner" aria-hidden="true"></span>
+        } @else {
+          <span class="material-symbols-rounded" aria-hidden="true">sync</span>
+        }
         {{ analysisLoading() ? 'Analyzing…' : 'Refresh match data' }}
+      </button>
+      <!-- Players first, then the analysis: enrichment warms the shared match
+           cache, so the analysis after it spends fewer Riot calls. Sequential
+           on purpose — both share the same hundred calls per two minutes. -->
+      <button type="button" class="link-btn analysis-refresh-all" [disabled]="refresh.anyRunning()"
+              appTip="Re-read every player from Riot, then re-run the match analysis. Takes a few minutes."
+              (click)="refresh.refreshAll()">
+        <span class="material-symbols-rounded" aria-hidden="true">cloud_sync</span>
+        {{ refresh.allRunning() ? 'Refreshing everything…' : 'Refresh all' }}
       </button>
     }
   </div>
