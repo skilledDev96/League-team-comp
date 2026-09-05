@@ -591,6 +591,82 @@
            from millions, so every number here carries the games behind it. -->
       @if (auth.editing() && draftGame(); as g) {
         <div class="draft-advice">
+          <!-- Everything the panels below show, weighed at once. The model
+               only ranks champions the app hands it — already legal for this
+               step — and a click on its answer holds the champion exactly as
+               the wall does. Asked, never automatic: each answer costs money
+               and takes seconds, and the drafter decides when it is worth
+               either. -->
+          <div class="advice-block is-advisor" [class.is-stale]="adviceIsStale(g)">
+            <span class="advice-head advisor-head">
+              <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>
+              Advisor
+              <button type="button" class="view-btn advisor-ask" [disabled]="advisor.busy()" (click)="askAdvisor(g)">
+                @if (advisor.busy()) {
+                  <span class="btn-spinner" aria-hidden="true"></span> Thinking…
+                } @else {
+                  {{ advice() ? 'Ask again' : 'Ask what to ' + (step(g)?.action || 'pick') }}
+                }
+              </button>
+              @if (advice()?.tookMs; as ms) {
+                <em class="advisor-took">{{ (ms / 1000).toFixed(1) }}s</em>
+              }
+            </span>
+            @if (adviceError()) {
+              <p class="advisor-error">{{ adviceError() }}</p>
+            }
+            @if (advice(); as a) {
+              @if (adviceIsStale(g)) {
+                <p class="advisor-stale">
+                  <span class="material-symbols-rounded" aria-hidden="true">history</span>
+                  Answered for an earlier step — the board has moved since.
+                </p>
+              }
+              @if (a.summary) { <p class="advisor-summary">{{ a.summary }}</p> }
+              @if (a.picks.length) {
+                <ul class="list-clean advisor-list">
+                  @for (p of a.picks; track p.champion) {
+                    <li class="advisor-row" [class]="'advisor-row is-' + p.confidence">
+                      <button type="button" class="advisor-champ" [appTip]="'Hold ' + p.champion"
+                              (click)="takeAdvice(g, p.champion)">
+                        <img class="pool-champ-icon" [src]="ui.championIconUrl(p.champion)" [alt]="" loading="lazy" />
+                        <b>{{ p.champion }}</b>
+                        @if (p.seat) { <em>{{ p.seat }}</em> }
+                      </button>
+                      <span class="advisor-why">{{ p.why }}</span>
+                      <span class="advisor-confidence">{{ p.confidence }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+              @if (a.bans.length) {
+                <span class="advisor-sub">Ban</span>
+                <ul class="list-clean advisor-list">
+                  @for (b of a.bans; track b.champion) {
+                    <li class="advisor-row">
+                      <button type="button" class="advisor-champ is-ban" [appTip]="'Hold ' + b.champion + ' as the ban'"
+                              (click)="takeAdvice(g, b.champion)">
+                        <img class="pool-champ-icon" [src]="ui.championIconUrl(b.champion)" [alt]="" loading="lazy" />
+                        <b>{{ b.champion }}</b>
+                      </button>
+                      <span class="advisor-why">{{ b.why }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+              @if (a.watch.length) {
+                <ul class="list-clean advisor-watch">
+                  @for (w of a.watch; track w) {
+                    <li><span class="material-symbols-rounded" aria-hidden="true">visibility</span>{{ w }}</li>
+                  }
+                </ul>
+              }
+            } @else if (!adviceError()) {
+              <p class="muted advisor-hint">
+                Weighs our comps, their scouted pools, the matchup rates and the lane read together, and names three champions with a reason each. Takes a few seconds.
+              </p>
+            }
+          </div>
           @if (suggestLane(g); as lane) {
             <div class="advice-block">
               <span class="advice-head">

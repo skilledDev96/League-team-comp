@@ -51,6 +51,8 @@ import { buildIndex, indexDocPath, splitIndexId, RawMatchupDoc } from './matchup
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
 import { ChampionTraits, toTraits } from './champion-traits';
 import { BUILD_SHA } from './build-info';
+import Anthropic from '@anthropic-ai/sdk';
+import { ADVICE_SCHEMA, ADVISOR_SYSTEM, buildDraftPrompt, parseAdvice, parseDraftAdviceRequest } from './draft-advice';
 import {
   PLAYER_BUDGET_SECONDS,
   RefreshLog,
@@ -66,6 +68,8 @@ initializeApp();
 setGlobalOptions({ region: 'europe-west1', maxInstances: 10 });
 
 const RIOT_API_KEY = defineSecret('RIOT_API_KEY');
+/** For the draft advisor. Set with `firebase functions:secrets:set ANTHROPIC_API_KEY`. */
+const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
 
 type AccessRole = 'admin' | 'contributor' | 'viewer';
 type KnownRole = 'Top' | 'Jungle' | 'Mid' | 'ADC' | 'Support';
@@ -1901,6 +1905,122 @@ export const refreshTeamDataOnce = onRequest(
       const log = await runTeamRefresh(RIOT_API_KEY.value(), 'manual');
       res.status(200).json(log);
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unexpected error.';
+      res.status(400).json({ error: message });
+    }
+  }
+);
+
+// ---- The draft advisor -------------------------------------------------------
+//
+// One question at a time, with the clock running: given everything the draft
+// room knows, what do we take and why. The model only ranks the candidates
+// the app sends — it cannot name a banned, burned or off-seat champion, and
+// `parseAdvice` drops anything it tries. The data is the app's own; nothing
+// is fetched from Riot to answer.
+
+/** The model behind the advice. Opus for the judgement; medium effort for the clock. */
+const ADVISOR_MODEL = 'claude-opus-5';
+
+export const draftAdvice = onRequest(
+  { cors: true, secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 120 },
+  async (req, res) => {
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed. Use POST.' });
+      return;
+    }
+    try {
+      const idToken = parseBearerToken(req.headers.authorization);
+      if (!idToken) {
+        res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
+        return;
+      }
+      const decoded = await getAuth().verifyIdToken(idToken);
+      const email = normalizeEmail(decoded.email);
+      const role = await getAccessRoleByEmail(email);
+      // Editors only: each answer costs money, and only an editor can act on it.
+      if (role !== 'admin' && role !== 'contributor') {
+        res.status(403).json({ error: 'Editor access required to ask the draft advisor.' });
+        return;
+      }
+
+      const apiKey = ANTHROPIC_API_KEY.value();
+      if (!apiKey) {
+        res.status(503).json({
+          error:
+            'The draft advisor is not configured: set the ANTHROPIC_API_KEY secret ' +
+            '(firebase functions:secrets:set ANTHROPIC_API_KEY) and redeploy the functions.'
+        });
+        return;
+      }
+
+      const request = parseDraftAdviceRequest(req.body);
+      const client = new Anthropic({ apiKey });
+      const started = Date.now();
+      const response = await client.beta.messages.create({
+        model: ADVISOR_MODEL,
+        max_tokens: 2500,
+        // A refused request is re-run on a fallback model inside the same
+        // call, so the drafter never sees a blank answer for a game of League.
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        // Stable system text first so it caches; the draft itself changes on
+        // every step and goes last.
+        system: [{ type: 'text', text: ADVISOR_SYSTEM, cache_control: { type: 'ephemeral' } }],
+        // Medium effort: a draft has a thirty-second clock, and the reasoning
+        // here is weighing a page of evidence, not solving anything.
+        output_config: { effort: 'medium', format: { type: 'json_schema', schema: ADVICE_SCHEMA } },
+        messages: [{ role: 'user', content: buildDraftPrompt(request) }]
+      });
+
+      if (response.stop_reason === 'refusal') {
+        res.status(200).json({
+          summary: 'The advisor declined to answer this one.',
+          picks: [],
+          bans: [],
+          watch: [],
+          model: response.model
+        });
+        return;
+      }
+      const text = response.content
+        .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === 'text')
+        .map((block) => block.text)
+        .join('');
+      let parsed: unknown = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        throw new Error('The advisor answered in a shape the app could not read.');
+      }
+      const advice = parseAdvice(parsed, request.candidates);
+      res.status(200).json({
+        ...advice,
+        model: response.model,
+        tookMs: Date.now() - started,
+        usage: {
+          input: response.usage.input_tokens,
+          cachedInput: response.usage.cache_read_input_tokens ?? 0,
+          output: response.usage.output_tokens
+        }
+      });
+    } catch (error) {
+      if (error instanceof Anthropic.AuthenticationError) {
+        res.status(503).json({ error: 'The ANTHROPIC_API_KEY secret is not valid — create a new key in the Anthropic console and set it again.' });
+        return;
+      }
+      if (error instanceof Anthropic.RateLimitError) {
+        res.status(429).json({ error: 'The advisor is rate limited right now — try again in a few seconds.' });
+        return;
+      }
+      if (error instanceof Anthropic.APIError) {
+        res.status(502).json({ error: `The advisor could not answer (${error.status}): ${error.message}` });
+        return;
+      }
       const message = error instanceof Error ? error.message : 'Unexpected error.';
       res.status(400).json({ error: message });
     }

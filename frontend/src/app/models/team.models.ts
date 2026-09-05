@@ -447,6 +447,17 @@ export interface TeamData {
   compOverrides: CompOverride[];
 }
 
+/** What the draft advisor answered. Mirrors `api/src/draft-advice.ts`. */
+export interface DraftAdvice {
+  summary: string;
+  picks: { champion: string; seat: Role | null; why: string; confidence: 'high' | 'medium' | 'low' }[];
+  bans: { champion: string; why: string }[];
+  /** What to watch for in their next moves. */
+  watch: string[];
+  model?: string;
+  tookMs?: number;
+}
+
 /** What the last morning refresh did (Firestore `meta/refreshLog`). Mirrors `api/src/daily-refresh.ts`. */
 export interface RefreshLog {
   ranAt: string;

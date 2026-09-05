@@ -44,7 +44,10 @@ import {
 } from '../draft-advice';
 import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
 import { comfortOf, gamePlan, GamePlan, LaneRead, LaneVerdict, readLanes, SeatInput } from '../lane-read';
-import { poolFor, starters } from '../../../core/opponent-view';
+import { countersFor, poolFor, starters } from '../../../core/opponent-view';
+import { playsRole } from '../../../core/champion-lanes';
+import { DraftAdvisorService } from '../../../services/draft-advisor.service';
+import { DraftAdvice } from '../../../models/team.models';
 import { CompIdentity, IDENTITY_ICON, IDENTITY_LABEL, classifyComp } from '../../../core/comp-identity';
 import { ChampionRate, ChampionStatsService, previousPatch } from '../../../services/champion-stats.service';
 import { MatchupRate, MatchupStatsService } from '../../../services/matchup-stats.service';
@@ -1431,6 +1434,164 @@ export class TournamentDraftComponent implements OnInit {
       .slice(this.COMPS_SHOWN)
       .map((c) => this.compNote(c))
       .join('\n');
+  }
+
+  // ---- The advisor --------------------------------------------------------
+  //
+  // Everything the panels above already show, weighed at once by a model on
+  // the backend, answered in three ranked champions with a sentence each. It
+  // only ranks: the candidates it may name are built here, already legal for
+  // the step, and the backend drops anything outside them.
+
+  protected readonly advisor = inject(DraftAdvisorService);
+  protected readonly advice = signal<DraftAdvice | null>(null);
+  protected readonly adviceError = signal('');
+  /** The step the advice was given for, so a stale answer says so. */
+  private readonly adviceStep = signal<number | null>(null);
+
+  protected adviceIsStale(game: SeriesGame): boolean {
+    const at = this.adviceStep();
+    return at !== null && at !== (game.draftStep ?? 0);
+  }
+
+  /** How many champions the advisor may choose from. */
+  private readonly ADVISOR_CANDIDATES = 60;
+
+  /**
+   * The champions the advisor may name for this step.
+   *
+   * For our pick: what fits the seat, our player's own pool and the comps
+   * still reachable first, then the rest of the lane. For a ban: what the
+   * opponents play and what has beaten them, plus their likely next seat's
+   * pool. Everything is already filtered for the burn, the bans and the
+   * board, so the model cannot suggest a champion that cannot be taken.
+   */
+  private advisorCandidates(game: SeriesGame, action: 'ban' | 'pick', seat: Role | null): string[] {
+    const blocked = blockedSet(this.sequenceUnavailable(game));
+    const legal = (name: string) => !!name && !blocked.has(normalizeChampion(name));
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const add = (name: string) => {
+      const key = normalizeChampion(name);
+      if (!legal(name) || seen.has(key) || out.length >= this.ADVISOR_CANDIDATES) return;
+      seen.add(key);
+      out.push(name);
+    };
+
+    if (action === 'pick') {
+      const ourPlayer = seat ? this.data.players().find((p) => p.role === seat) : undefined;
+      for (const champ of ourPlayer?.top3 ?? []) add(champ);
+      for (const comp of this.draftPlayable(game)) {
+        const source = this.data.comps().find((c) => c.id === comp.id);
+        if (!source || !seat) continue;
+        add(this.ui.parseCompLine(source.picks[seat] ?? '').champion);
+      }
+      for (const champ of this.champs.champions().map((c) => c.name)) {
+        if (!seat || playsRole(champ, seat)) add(champ);
+      }
+    } else {
+      for (const player of starters(this.draftSeries()?.opponentPlayers ?? [])) {
+        for (const rec of poolFor(player)) add(rec.champion);
+        for (const rec of countersFor(player)) add(rec.champion);
+        for (const champ of player.recentChampions ?? []) add(champ);
+      }
+      // Their comps' answers to ours: the champions our own comps fear.
+      for (const comp of this.draftPlayable(game)) {
+        const source = this.data.comps().find((c) => c.id === comp.id);
+        for (const champ of source?.bans ?? []) add(champ);
+      }
+    }
+    return out;
+  }
+
+  protected async askAdvisor(game: SeriesGame): Promise<void> {
+    if (this.advisor.busy()) return;
+    const live = this.current(game);
+    const step = this.step(live);
+    const action = step?.action ?? 'pick';
+    const turn = step ? (this.isOurTurn(live) ? 'our' : 'their') : 'our';
+    const seat = action === 'pick' && turn === 'our'
+      ? (this.pendingSeat(live) ?? this.suggestLane(live))
+      : null;
+    const candidates = this.advisorCandidates(live, action, seat);
+    if (!candidates.length) {
+      this.adviceError.set('Nothing left to choose from for this step.');
+      return;
+    }
+
+    const series = this.draftSeries();
+    const theirs = starters(series?.opponentPlayers ?? []);
+    const pickMap = (side: DraftSide) =>
+      Object.fromEntries(this.pickSlots(live, side).filter((s) => s.champion).map((s) => [s.role, s.champion]));
+
+    const soloRates: Record<string, number> = {};
+    for (const champ of candidates) {
+      const r = this.stats.rate(champ);
+      if (r) soloRates[champ] = r.winRate;
+    }
+    const enemy = seat ? this.enemyAt(live, seat) : '';
+    const matchups = seat && enemy
+      ? candidates
+          .map((champ) => {
+            const r = this.matchups.rate(seat, champ, enemy);
+            return r ? { ours: champ, theirs: enemy, winRate: r.winRate, games: r.games } : null;
+          })
+          .filter((m): m is NonNullable<typeof m> => !!m)
+      : [];
+
+    const request = {
+      teamName: this.teamName(),
+      opponent: series?.opponent ?? 'Them',
+      action,
+      turn,
+      stepNumber: (live.draftStep ?? 0) + 1,
+      ourSide: live.ourSide ?? null,
+      seat,
+      ourPicks: pickMap('our'),
+      theirPicks: pickMap('their'),
+      bans: (live.bans ?? []).filter(Boolean),
+      burned: this.burnedBefore(live.seriesId, live.gameNumber),
+      ourRoster: this.data.players().map((p) => ({ name: p.name, role: p.role, pool: (p.top3 ?? []).slice(0, 10) })),
+      theirRoster: theirs.map((p) => ({
+        name: p.name,
+        role: p.role,
+        rank: p.soloRank ?? p.rank,
+        pool: poolFor(p).map((r) => r.champion),
+        records: poolFor(p).filter((r) => r.games > 0),
+        counters: countersFor(p).map((r) => r.champion)
+      })),
+      comps: this.draftComps(live).map((c) => ({
+        name: c.name,
+        champions: this.compLineup(c.id).map((l) => l.champion).filter(Boolean),
+        winRate: c.winRate,
+        games: c.games,
+        playable: c.playable,
+        blocked: c.blocked
+      })),
+      lanes: this.readableLanes(live).map((r) => ({ lane: r.lane, verdict: r.verdict, score: r.score, reasons: r.reasons.slice(0, 3) })),
+      candidates,
+      soloRates,
+      matchups,
+      notes: (series?.notes ?? '').slice(0, 1500) || undefined
+    };
+
+    this.adviceError.set('');
+    try {
+      const answer = await this.advisor.ask(request);
+      this.advice.set(answer);
+      this.adviceStep.set(live.draftStep ?? 0);
+    } catch (error) {
+      this.adviceError.set(error instanceof Error ? error.message : 'The advisor could not answer.');
+    }
+  }
+
+  /** Take an advised champion the same way a click on the wall does. */
+  protected takeAdvice(game: SeriesGame, champion: string): void {
+    if (this.sequenceActive(game)) {
+      this.proposeFromSequence(champion);
+    } else {
+      this.gridPick(game, champion);
+    }
   }
 
   // ---- The lanes ----------------------------------------------------------
