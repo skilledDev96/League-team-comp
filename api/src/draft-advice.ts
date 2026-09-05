@@ -350,7 +350,7 @@ export const ADVICE_SCHEMA = {
     summary: { type: 'string', description: 'One or two sentences: the situation and the call.' },
     picks: {
       type: 'array',
-      maxItems: 3,
+      description: 'At most three, best first.',
       items: {
         type: 'object',
         properties: {
@@ -365,7 +365,7 @@ export const ADVICE_SCHEMA = {
     },
     bans: {
       type: 'array',
-      maxItems: 3,
+      description: 'At most three, best first.',
       items: {
         type: 'object',
         properties: { champion: { type: 'string' }, why: { type: 'string' } },
@@ -373,7 +373,7 @@ export const ADVICE_SCHEMA = {
         additionalProperties: false
       }
     },
-    watch: { type: 'array', maxItems: 3, items: { type: 'string' } }
+    watch: { type: 'array', description: 'At most three.', items: { type: 'string' } }
   },
   required: ['summary', 'picks', 'bans', 'watch'],
   additionalProperties: false

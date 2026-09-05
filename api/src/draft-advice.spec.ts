@@ -104,4 +104,10 @@ describe('ADVICE_SCHEMA', () => {
     expect(ADVICE_SCHEMA.properties.picks.items.additionalProperties).toBe(false);
     expect(ADVICE_SCHEMA.properties.bans.items.additionalProperties).toBe(false);
   });
+
+  it('carries no array-size constraints, which the structured-output API rejects', () => {
+    // Seen live on 5 Sep 2026: "For 'array' type, property 'maxItems' is not
+    // supported" (400). The cap of three lives in parseAdvice and the prompt.
+    expect(JSON.stringify(ADVICE_SCHEMA)).not.toMatch(/maxItems|minItems/);
+  });
 });
