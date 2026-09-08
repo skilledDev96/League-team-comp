@@ -29,8 +29,13 @@ export interface CachedMatch {
  * match. Both are absent on v3 entries until the backfill works through, and
  * every average over them counts its own sample rather than treating a missing
  * number as a zero.
+ *
+ * v5 (8 Sep 2026) added `extras` per participant — Riot's `challenges` block
+ * and a few top-level counters (`participant-extras.ts`) — so the analysis can
+ * read each lane and each player's habits (`lane-read.ts`). Absent below v5;
+ * the Patterns tab says how many games are still waiting on the backfill.
  */
-export const CACHE_VERSION = 4;
+export const CACHE_VERSION = 5;
 
 /** A Summoner's Rift match has ten participants, and always exactly ten. */
 const FULL_LOBBY = 10;

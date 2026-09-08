@@ -252,39 +252,3 @@ export function describeWin(
 }
 
 /** How often one reason appeared across a set of losses. */
-export interface LossPattern {
-  code: LossCode;
-  label: string;
-  games: number;
-  /** Percentage of the losses examined, rounded. */
-  share: number;
-}
-
-/**
- * The headline the per-game view cannot give: one loss is an anecdote, the same
- * factor in most of them is a problem to work on. Sorted by frequency so the
- * recurring failure is read first.
- */
-export function summariseLosses(
-  losses: { objectives: GameObjectives; durationSec: number }[]
-): LossPattern[] {
-  if (losses.length === 0) return [];
-
-  const counts = new Map<LossCode, { label: string; games: number }>();
-  for (const loss of losses) {
-    for (const factor of describeLoss(loss.objectives, loss.durationSec)) {
-      const entry = counts.get(factor.code) ?? { label: factor.label, games: 0 };
-      entry.games += 1;
-      counts.set(factor.code, entry);
-    }
-  }
-
-  return [...counts.entries()]
-    .map(([code, entry]) => ({
-      code,
-      label: entry.label,
-      games: entry.games,
-      share: Math.round((entry.games / losses.length) * 100)
-    }))
-    .sort((a, b) => b.games - a.games || a.label.localeCompare(b.label));
-}

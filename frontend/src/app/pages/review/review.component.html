@@ -58,6 +58,139 @@
 
   <app-champion-filter [count]="filteredGames().length" noun="games" placeholder="Games with a champion — Tristana, Rakan…" />
 
+  <!-- The conclusion first: what to work on and what to keep doing, each
+       sentence carrying the numbers it rests on. Nothing is said below the
+       claim floor on either side. -->
+  <section class="card" aria-label="Work on and keep doing">
+    <div class="advice-columns">
+      <aside class="callout is-advice">
+        <span class="callout-icon material-symbols-rounded" aria-hidden="true">target</span>
+        <div class="callout-body">
+          <p class="advice-head">Work on</p>
+          @for (a of workOnList(); track a.key) {
+            <p class="readout-line tone-loss"><strong>{{ a.strong }}</strong> {{ a.rest }} <small class="advice-n">{{ a.n }}</small></p>
+          } @empty {
+            <p class="muted">Nothing clears the floor yet — it takes {{ claimFloor }} wins and {{ claimFloor }} losses with the numbers behind them.</p>
+          }
+        </div>
+      </aside>
+      <aside class="callout is-good">
+        <span class="callout-icon material-symbols-rounded" aria-hidden="true">thumb_up</span>
+        <div class="callout-body">
+          <p class="advice-head">Keep doing</p>
+          @for (a of keepDoingList(); track a.key) {
+            <p class="readout-line tone-win"><strong>{{ a.strong }}</strong> {{ a.rest }} <small class="advice-n">{{ a.n }}</small></p>
+          } @empty {
+            <p class="muted">Nothing clears the floor yet.</p>
+          }
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Which lane wins and loses, from each seat against the one across it. -->
+  <section class="card" aria-label="Lanes">
+    <h2>Lanes</h2>
+    @if (laneRows(); as t) {
+      <div class="split-scroll">
+        <table class="split-table">
+          <thead>
+            <tr>
+              <th scope="col">Lane</th>
+              <th scope="col" class="num" appTip="Losses where this seat lost its lane, over the losses with a lane read">Lost lane in losses</th>
+              <th scope="col" class="num" appTip="Wins where this seat won its lane, over the wins with a lane read">Won lane in wins</th>
+              <th scope="col" class="num" appTip="Gold per minute against the lane opponent: losses / wins">Gold/min vs lane</th>
+              <th scope="col" class="num" appTip="CS at ten minutes against the lane opponent: losses / wins">CS at 10 vs lane</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of t.rows; track r.role) {
+              <tr>
+                <td>{{ r.role }}</td>
+                <td class="num" [class.neg]="r.lostInLosses.n >= claimFloor && r.lostInLosses.share >= 55">
+                  @if (r.lostInLosses.n) { {{ r.lostInLosses.games }} of {{ r.lostInLosses.n }} <small>({{ r.lostInLosses.share }}%)</small> } @else { — }
+                </td>
+                <td class="num" [class.pos]="r.wonInWins.n >= claimFloor && r.wonInWins.share >= 55">
+                  @if (r.wonInWins.n) { {{ r.wonInWins.games }} of {{ r.wonInWins.n }} <small>({{ r.wonInWins.share }}%)</small> } @else { — }
+                </td>
+                <td class="num">{{ side(r.goldDiff.losses, 'diff') }} <small>/</small> {{ side(r.goldDiff.wins, 'diff') }}</td>
+                <td class="num">{{ side(r.csDiff.losses, 'diff') }} <small>/</small> {{ side(r.csDiff.wins, 'diff') }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="muted split-note">
+        A lane is called on gold per minute, CS at ten and Riot's laning-phase flag against the player across it; two of the three have to agree.
+        @if (t.skipped) { {{ t.skipped }} {{ t.skipped === 1 ? 'replay game has' : 'replay games have' }} totals only and no lane read. }
+        @if (t.waiting) { {{ t.waiting }} {{ t.waiting === 1 ? 'game is' : 'games are' }} still waiting on the cache backfill — each Refresh reads forty more. }
+      </p>
+    }
+  </section>
+
+  <!-- The same metrics in wins and in losses, side by side. -->
+  <section class="card" aria-label="Wins against losses">
+    <h2>What changes when we win</h2>
+    <div class="split-scroll">
+      <table class="split-table">
+        <thead>
+          <tr>
+            <th scope="col">Per game</th>
+            <th scope="col" class="num">Wins</th>
+            <th scope="col" class="num">Losses</th>
+            <th scope="col" class="num" appTip="Wins minus losses">Gap</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (m of teamSplitRows(); track m.key) {
+            <tr [class.is-thin]="m.split.wins.n < claimFloor || m.split.losses.n < claimFloor">
+              <td>{{ m.label }}</td>
+              <td class="num">{{ side(m.split.wins, m.unit) }} <small>{{ m.split.wins.n ? m.split.wins.n : '' }}</small></td>
+              <td class="num">{{ side(m.split.losses, m.unit) }} <small>{{ m.split.losses.n ? m.split.losses.n : '' }}</small></td>
+              <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">{{ gapOf(m) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="muted split-note">The small number is how many games carried the figure. A row goes faint below {{ claimFloor }} on either side.</p>
+  </section>
+
+  <!-- Each player, wins against losses. -->
+  @if (playerSplitRows().length) {
+    <details class="card split-players">
+      <summary class="split-players-head">
+        <h2>Each player, wins against losses</h2>
+        <span class="material-symbols-rounded" aria-hidden="true">expand_more</span>
+      </summary>
+      <div class="split-scroll">
+        <table class="split-table">
+          <thead>
+            <tr>
+              <th scope="col">Player</th>
+              @for (m of playerSplitRows()[0].metrics; track m.key) {
+                <th scope="col" class="num" [appTip]="m.label + ' — wins / losses'">{{ m.label }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of playerSplitRows(); track r.name) {
+              <tr>
+                <td>{{ r.name }} <small>{{ r.role }}</small></td>
+                @for (m of r.metrics; track m.key) {
+                  <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">
+                    {{ side(m.split.wins, m.unit) }} <small>/</small> {{ side(m.split.losses, m.unit) }}
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="muted split-note">Wins first, then losses; green when the gap is in our favour, red when it is not.</p>
+    </details>
+  }
+
   <section class="card" [attr.aria-label]="outcome() === 'win' ? 'What keeps working' : 'Recurring problems'">
     <h2>{{ outcome() === 'win' ? 'What keeps working' : 'Recurring problems' }}</h2>
     @if (summary().analysed === 0) {
@@ -206,6 +339,11 @@
                     <img class="champ-icon" [src]="ui.championIconUrl(row.champion)" [alt]="row.champion"
                          [title]="row.champion" loading="lazy" />
                     <span class="draft-name">{{ row.player }}</span>
+                    @if (row.lane && row.lane.verdict !== 'unknown') {
+                      <span [class]="'draft-lane is-' + row.lane.verdict" [appTip]="'Lane read: ' + row.lane.verdict + (laneNote(row.lane) ? ' · ' + laneNote(row.lane) : '')">
+                        {{ row.lane.verdict }}@if (laneNote(row.lane)) { <small>{{ laneNote(row.lane) }}</small> }
+                      </span>
+                    }
                   </span>
                   <span class="draft-pick">
                     @if (row.theirs) {

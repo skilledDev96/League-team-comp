@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeLoss, describeWin, GameObjectives, summariseLosses, TeamObjectives } from './objectives';
+import { describeLoss, describeWin, GameObjectives, TeamObjectives } from './objectives';
 
 function team(over: Partial<TeamObjectives> = {}): TeamObjectives {
   return {
@@ -76,40 +76,6 @@ describe('describeLoss', () => {
   it('returns nothing rather than inventing a reason for an even loss', () => {
     const even = { firstBlood: true, firstTower: true, dragons: 2, barons: 1, towers: 5 };
     expect(describeLoss(game(even, { dragons: 2, barons: 1, towers: 5 }), SHORT)).toEqual([]);
-  });
-});
-
-describe('summariseLosses', () => {
-  it('has nothing to say about no losses', () => {
-    expect(summariseLosses([])).toEqual([]);
-  });
-
-  it('counts a recurring factor and reports it as a share of the losses', () => {
-    const dragonLoss = {
-      objectives: game({ firstBlood: true }, { dragons: 3 }),
-      durationSec: SHORT
-    };
-    const cleanLoss = {
-      objectives: game({ firstBlood: true, firstTower: true }, {}),
-      durationSec: SHORT
-    };
-
-    const patterns = summariseLosses([dragonLoss, dragonLoss, dragonLoss, cleanLoss]);
-    expect(patterns[0]).toMatchObject({ code: 'dragon_control', games: 3, share: 75 });
-  });
-
-  it('puts the most frequent problem first', () => {
-    const early = {
-      objectives: game({}, { firstBlood: true, firstTower: true }),
-      durationSec: SHORT
-    };
-    const baron = {
-      objectives: game({ firstBlood: true, firstTower: true }, { barons: 1 }),
-      durationSec: SHORT
-    };
-
-    const patterns = summariseLosses([early, early, baron]);
-    expect(patterns.map((p) => p.code)).toEqual(['early_game', 'baron_control']);
   });
 });
 

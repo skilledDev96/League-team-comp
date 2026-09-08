@@ -18,7 +18,7 @@ const analysis = (over: Partial<AnalysisGame> = {}): AnalysisGame => ({
   durationSec: 1800,
   players: [
     { name: 'Go10x', position: 'JUNGLE', champion: 'Vi', kills: 4, deaths: 2, assists: 10, cs: 180, damage: 12_000, killParticipation: 0.7 },
-    { name: 'Zac', position: 'TOP', champion: 'Aatrox', kills: 6, deaths: 3, assists: 4, cs: 240, damage: 18_000 }
+    { name: 'Zac', position: 'TOP', champion: 'Aatrox', kills: 6, deaths: 3, assists: 4, cs: 240, damage: 18_000, visionScore: 25 }
   ],
   enemies: [{ position: 'TOP', champion: 'Renekton' }, { position: 'JUNGLE', champion: 'Lee Sin' }],
   kills: { ours: 20, theirs: 12 },
@@ -100,8 +100,12 @@ describe('game rows', () => {
     expect(zac).toMatchObject({ games: 3, wins: 2, statGames: 2, kills: 8, deaths: 4, assists: 12, kda: 5 });
     expect(zac.champions.map((c) => c.champion)).toEqual(['Aatrox', 'Ornn', 'Sion']);
     expect(zac.csPerMin).toBe(8); // 240 cs over 30 minutes plus 200 over 25
+    expect(zac.visionPerGame).toBe(27.5); // 25 in the Riot game, 30 in the scrim
+    expect(zac.killParticipation).toBe(1); // computed from the row's kills where the source had none
+    expect(lines.map((l) => l.role)).toEqual(['Top', 'Jungle']); // seat order, not games played
     const go = lines.find((l) => l.name === 'Go10x')!;
     expect(go.killParticipation).toBeCloseTo(0.7);
+    expect(go.visionPerGame).toBeUndefined();
     expect(go.damageShare).toBeCloseTo(0.4);
   });
 

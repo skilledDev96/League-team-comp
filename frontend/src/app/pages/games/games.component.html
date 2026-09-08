@@ -144,14 +144,15 @@
               <th scope="col" class="num" appTip="(kills + assists) / deaths">KDA</th>
               <th scope="col" class="num" appTip="CS per minute over the games that know both">CS/min</th>
               <th scope="col" class="num" appTip="Share of the team's damage to champions">DMG share</th>
-              <th scope="col" class="num" appTip="Kill participation, from Riot games">KP</th>
+              <th scope="col" class="num" appTip="Kill participation — share of the team's kills the player was in on">KP</th>
+              <th scope="col" class="num" appTip="Vision score per game, over the games that carry it">Vision</th>
               <th scope="col">Played</th>
             </tr>
           </thead>
           <tbody>
             @for (p of players(); track p.name) {
               <tr>
-                <td>{{ p.name }}</td>
+                <td>{{ p.name }} <small class="muted">{{ p.role }}</small></td>
                 <td class="num">{{ p.games }}</td>
                 <td class="num" [class.pos]="p.winRate >= 50" [class.neg]="p.winRate < 50">{{ p.wins }}&#8211;{{ p.games - p.wins }}</td>
                 <td class="num games-kda">
@@ -163,6 +164,7 @@
                 <td class="num">{{ p.csPerMin ?? '—' }}</td>
                 <td class="num">{{ pct(p.damageShare) }}</td>
                 <td class="num">{{ pct(p.killParticipation) }}</td>
+                <td class="num">{{ p.visionPerGame ?? '—' }}</td>
                 <td>
                   <span class="games-champs">
                     @for (c of p.champions.slice(0, 6); track c.champion) {
@@ -246,6 +248,7 @@
                         <th scope="col" class="num">CS</th>
                         <th scope="col" class="num" appTip="Damage to champions">DMG</th>
                         <th scope="col" class="num" appTip="Damage taken">Taken</th>
+                        <th scope="col" class="num" appTip="Vision score">Vision</th>
                         @if (g.source === 'riot') { <th scope="col" class="num" appTip="Kill participation">KP</th> }
                         @if (g.source === 'scrim') { <th scope="col" class="num">Gold</th> }
                       </tr>
@@ -261,6 +264,7 @@
                           <td class="num">{{ p.stats?.cs }}</td>
                           <td class="num">{{ compact(p.stats?.damage) }}</td>
                           <td class="num">{{ compact(p.stats?.damageTaken) }}</td>
+                          <td class="num">{{ p.stats?.vision ?? '—' }}</td>
                           @if (g.source === 'riot') { <td class="num">{{ pct(p.stats?.killParticipation) }}</td> }
                           @if (g.source === 'scrim') { <td class="num">{{ compact(p.stats?.gold) }}</td> }
                         </tr>
@@ -277,6 +281,7 @@
                             <td class="num">{{ p.stats?.cs }}</td>
                             <td class="num">{{ compact(p.stats?.damage) }}</td>
                             <td class="num">{{ compact(p.stats?.damageTaken) }}</td>
+                          <td class="num">{{ p.stats?.vision ?? '—' }}</td>
                             @if (g.source === 'riot') { <td class="num">{{ pct(p.stats?.killParticipation) }}</td> }
                             @if (g.source === 'scrim') { <td class="num">{{ compact(p.stats?.gold) }}</td> }
                           </tr>

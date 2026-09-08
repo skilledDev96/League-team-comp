@@ -97,7 +97,8 @@ export function fromAnalysis(g: AnalysisGame, comp: { id: string; name: string }
         cs: p.cs,
         damage: p.damage,
         ...(p.damageTaken !== undefined ? { damageTaken: p.damageTaken } : {}),
-        ...(p.killParticipation !== undefined ? { killParticipation: p.killParticipation } : {})
+        ...(p.killParticipation !== undefined ? { killParticipation: p.killParticipation } : {}),
+        ...(p.visionScore !== undefined ? { vision: p.visionScore } : {})
       }
     }))
     .sort(bySeat);
@@ -280,6 +281,8 @@ export function meanLength(rows: readonly GameRow[]): number {
 
 export interface PlayerLine {
   name: string;
+  /** The seat they played most; rows sort Top to Support on it. */
+  role: string;
   games: number;
   wins: number;
   winRate: number;
@@ -296,6 +299,8 @@ export interface PlayerLine {
   damageShare?: number;
   /** Mean kill participation, 0-1, over the games that carry it; absent with none. */
   killParticipation?: number;
+  /** Mean vision score over the games that carry it; absent with none. */
+  visionPerGame?: number;
   /** Champions played, most often first. */
   champions: { champion: string; games: number; wins: number }[];
 }
@@ -309,20 +314,22 @@ export interface PlayerLine {
 export function playerLines(rows: readonly GameRow[]): PlayerLine[] {
   const acc = new Map<
     string,
-    PlayerLine & { csSum: number; csMin: number; shareSum: number; shareN: number; kpSum: number; kpN: number; champs: Map<string, { games: number; wins: number }> }
+    PlayerLine & { csSum: number; csMin: number; shareSum: number; shareN: number; kpSum: number; kpN: number; visionSum: number; visionN: number; seats: Map<string, number>; champs: Map<string, { games: number; wins: number }> }
   >();
   for (const r of rows) {
     const teamDamage = r.ours.reduce((n, p) => n + (p.stats?.damage ?? 0), 0);
+    const teamKills = r.ours.reduce((n, p) => n + (p.stats?.kills ?? 0), 0);
     for (const p of r.ours) {
       if (!p.player) continue;
       const a =
         acc.get(p.player) ??
         {
-          name: p.player, games: 0, wins: 0, winRate: 0, statGames: 0, kills: 0, deaths: 0, assists: 0, kda: 0, champions: [],
-          csSum: 0, csMin: 0, shareSum: 0, shareN: 0, kpSum: 0, kpN: 0, champs: new Map()
+          name: p.player, role: '', games: 0, wins: 0, winRate: 0, statGames: 0, kills: 0, deaths: 0, assists: 0, kda: 0, champions: [],
+          csSum: 0, csMin: 0, shareSum: 0, shareN: 0, kpSum: 0, kpN: 0, visionSum: 0, visionN: 0, seats: new Map(), champs: new Map()
         };
       a.games += 1;
       if (r.win) a.wins += 1;
+      if (p.role) a.seats.set(p.role, (a.seats.get(p.role) ?? 0) + 1);
       const c = a.champs.get(p.champion) ?? { games: 0, wins: 0 };
       c.games += 1;
       if (r.win) c.wins += 1;
@@ -341,25 +348,35 @@ export function playerLines(rows: readonly GameRow[]): PlayerLine[] {
         a.shareSum += p.stats.damage / teamDamage;
         a.shareN += 1;
       }
-      if (p.stats.killParticipation !== undefined) {
-        a.kpSum += p.stats.killParticipation;
+      // Kill participation from the row's own kills when the source did not
+      // compute it — a replay never does, so tournament games showed a dash.
+      const kp = p.stats.killParticipation ?? (teamKills > 0 ? Math.min(1, (p.stats.kills + p.stats.assists) / teamKills) : undefined);
+      if (kp !== undefined) {
+        a.kpSum += kp;
         a.kpN += 1;
+      }
+      if (p.stats.vision !== undefined) {
+        a.visionSum += p.stats.vision;
+        a.visionN += 1;
       }
     }
   }
   return [...acc.values()]
-    .map(({ csSum, csMin, shareSum, shareN, kpSum, kpN, champs, ...line }) => ({
+    .map(({ csSum, csMin, shareSum, shareN, kpSum, kpN, visionSum, visionN, seats, champs, ...line }) => ({
       ...line,
+      role: [...seats.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? '',
       winRate: Math.round((line.wins / line.games) * 100),
       kda: Math.round(((line.kills + line.assists) / Math.max(1, line.deaths)) * 10) / 10,
       ...(csMin > 0 ? { csPerMin: Math.round((csSum / csMin) * 10) / 10 } : {}),
       ...(shareN > 0 ? { damageShare: shareSum / shareN } : {}),
       ...(kpN > 0 ? { killParticipation: kpSum / kpN } : {}),
+      ...(visionN > 0 ? { visionPerGame: Math.round((visionSum / visionN) * 10) / 10 } : {}),
       champions: [...champs.entries()]
         .map(([champion, c]) => ({ champion, ...c }))
         .sort((x, y) => y.games - x.games || y.wins - x.wins)
     }))
-    .sort((x, y) => y.games - x.games || x.name.localeCompare(y.name));
+    // Top to Support, the way the team reads itself; a player with no seat last.
+    .sort((x, y) => seatIndex(x.role) - seatIndex(y.role) || y.games - x.games || x.name.localeCompare(y.name));
 }
 
 export interface ChampionLine {

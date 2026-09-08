@@ -2,7 +2,7 @@ import { ChampionFilterService } from '../../services/champion-filter.service';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
-import { AnalysisGame } from '../../models/team.models';
+import { AnalysisGame, LaneRead } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -19,8 +19,10 @@ import {
   factorsOf,
   Outcome,
   reviewReadout,
-  summarise
+  summarise,
+  MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
+import { keepDoing, laneTable, MetricSplit, playerSplits, SideStat, teamSplits, workOn } from './win-loss-splits';
 
 /**
  * The games, and what they have in common — losses by default, wins on the
@@ -113,9 +115,52 @@ export class ReviewComponent {
    * carries. Capped at three: a review with six action points is a review
    * nobody does.
    */
+  // ---- Wins against losses: the tables and the two lists (8 Sep 2026) ----
+
+  protected readonly workOnList = computed(() => workOn(this.filteredGames()));
+  protected readonly keepDoingList = computed(() => keepDoing(this.filteredGames()));
+  protected readonly laneRows = computed(() => laneTable(this.filteredGames()));
+  protected readonly teamSplitRows = computed(() => teamSplits(this.filteredGames()));
+  protected readonly playerSplitRows = computed(() => playerSplits(this.filteredGames()));
+  protected readonly claimFloor = MIN_FOR_A_CLAIM;
+
+  /** One side of a split, printed in its unit; a dash with no sample. */
+  protected side(s: SideStat, unit: MetricSplit['unit'] | 'diff'): string {
+    if (!s.n) return '—';
+    switch (unit) {
+      case 'pct': return `${Math.round(s.mean * 100)}%`;
+      case 'minutes': return `${s.mean} min`;
+      case 'perMin': return `${s.mean}/min`;
+      case 'diff': return s.mean > 0 ? `+${s.mean}` : `${s.mean}`;
+      default: return `${s.mean}`;
+    }
+  }
+
+  protected gapOf(m: { split: { gap?: number }; unit: MetricSplit['unit'] | 'diff' }): string {
+    const g = m.split.gap;
+    if (g === undefined) return '—';
+    const v = m.unit === 'pct' ? Math.round(g * 100) : g;
+    return `${v > 0 ? '+' : ''}${v}${m.unit === 'pct' ? ' pts' : ''}`;
+  }
+
+  /** Whether the gap reads as good for us, for the tint. */
+  protected gapGood(m: { split: { gap?: number }; higherIsBetter: boolean }): boolean | null {
+    const g = m.split.gap;
+    if (g === undefined || g === 0) return null;
+    return m.higherIsBetter ? g > 0 : g < 0;
+  }
+
+  protected laneNote(lane: LaneRead | undefined): string {
+    if (!lane || lane.verdict === 'unknown') return '';
+    const bits: string[] = [];
+    if (lane.goldPerMinDiff !== undefined) bits.push(`${lane.goldPerMinDiff > 0 ? '+' : ''}${lane.goldPerMinDiff} g/min`);
+    if (lane.csAt10Diff !== undefined) bits.push(`${lane.csAt10Diff > 0 ? '+' : ''}${lane.csAt10Diff} cs@10`);
+    return bits.join(' · ');
+  }
+
   protected adviceFor(game: AnalysisGame): string[] {
     return factorsOf(game)
-      .map((factor) => FACTOR_ADVICE[factor.code])
+      .map((factor) => FACTOR_ADVICE[game.win ? 'win' : 'loss'][factor.code])
       .filter((advice): advice is string => !!advice)
       .slice(0, 3);
   }
@@ -253,7 +298,7 @@ export class ReviewComponent {
    */
   protected draftRows(
     game: AnalysisGame
-  ): { position: string; champion: string; player: string; theirs: string | null }[] {
+  ): { position: string; champion: string; player: string; theirs: string | null; lane?: LaneRead }[] {
     if (!game.enemies?.length) return [];
     const theirs = new Map(game.enemies.map((e) => [e.position, e.champion]));
     return game.players.map((p) => ({
@@ -263,7 +308,8 @@ export class ReviewComponent {
       // puuids would be a Riot call per player per game, and the icon already
       // says who they were.
       player: p.name,
-      theirs: theirs.get(p.position) ?? null
+      theirs: theirs.get(p.position) ?? null,
+      ...(p.lane ? { lane: p.lane } : {})
     }));
   }
 

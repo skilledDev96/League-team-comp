@@ -95,7 +95,8 @@ export function summariseWins(games: AnalysisGame[]): ReviewSummary {
  * says so. They live here so that changing one is a deliberate edit in a single
  * place rather than a string buried in a template.
  */
-export const FACTOR_ADVICE: Record<string, string> = {
+export const FACTOR_ADVICE: Record<Outcome, Record<string, string>> = {
+  loss: {
   early_game:
     'Rewatch the first 8 minutes. Where was the jungler when first blood happened, and did anyone have vision on it?',
   lost_fights:
@@ -108,6 +109,17 @@ export const FACTOR_ADVICE: Record<string, string> = {
     'After winning a fight, take towers instead of looking for the next one. Call the objective out loud before the fight ends.',
   threw_lead:
     'Close on objectives, not kills. With a lead, take an inhibitor and reset rather than re-engaging into their base.'
+  },
+  // Wins get advice too (8 Sep 2026): what to keep doing, said as plainly.
+  win: {
+    early_lead: 'Keep the first ten minutes as they are: the level-two timing and the first back are winning the map early.',
+    won_fights: 'The fights are the win condition. Keep the same engage and the same follow-up; do not change the comp to fix something else.',
+    dragon_control: 'Dragon setups are working. Keep the 4:30 vision and the same call for who contests.',
+    baron_control: 'Baron control is winning games. Keep tracking summoners and resetting before the spawn.',
+    map_control: 'Towers are being taken after the fights. Keep calling the objective before the fight ends.',
+    closed_fast: 'These wins are closed inside 25 minutes. Keep pressing the lead rather than farming it.',
+    comeback: 'Won from behind. Note what turned it — usually one fight — and set the same fight up on purpose.'
+  }
 };
 
 export const FACTOR_GUIDE: Record<string, string> = {
@@ -144,7 +156,7 @@ export type ReviewReadout = ReadoutLine[];
  * Below this many analysed games on a side, a share is not worth a sentence.
  * Three of four losses is 75% and means nothing.
  */
-const MIN_FOR_A_CLAIM = 8;
+export const MIN_FOR_A_CLAIM = 8;
 
 /**
  * The bars in prose: what wins, what loses, and the one place they disagree.

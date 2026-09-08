@@ -13604,3 +13604,77 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 
 .game-replay-pick .material-symbols-rounded { font-size: 1.1rem; }
 .game-replay-note { margin: 0.3rem 0 0; font-size: 0.78rem; }
+
+
+/* ---- Patterns v2 (8 Sep 2026) ------------------------------------------
+   Work on / Keep doing side by side, then three tables of wins against
+   losses: lanes, the team, each player. One table style; the number of
+   games behind a figure sits beside it in small type. */
+.advice-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 0.8rem;
+}
+
+.advice-columns .callout { margin: 0; }
+.advice-n { display: block; margin-top: 0.1rem; font-size: 0.7rem; color: var(--text-1); opacity: 0.8; }
+
+.split-scroll { overflow-x: auto; }
+
+.split-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.split-table th {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-1);
+}
+
+.split-table td {
+  padding: 0.3rem 0.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 45%, transparent);
+  white-space: nowrap;
+}
+
+.split-table .num { text-align: right; }
+.split-table small { font-size: 0.68rem; color: var(--text-1); opacity: 0.8; margin-left: 0.15rem; }
+.split-table td.pos { color: var(--ok); }
+.split-table td.neg { color: var(--warn); }
+.split-table tr.is-thin td { opacity: 0.5; }
+.split-note { margin: 0.5rem 0 0; font-size: 0.76rem; }
+
+.split-players > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+}
+
+.split-players > summary::-webkit-details-marker { display: none; }
+.split-players > summary h2 { margin: 0; }
+.split-players[open] > summary .material-symbols-rounded { transform: rotate(180deg); }
+.split-players .split-scroll { margin-top: 0.6rem; }
+
+.draft-lane {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--card-border) 60%, transparent);
+  color: var(--text-1);
+}
+
+.draft-lane small { text-transform: none; letter-spacing: 0; margin-left: 0.3rem; }
+.draft-lane.is-won { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
+.draft-lane.is-lost { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }

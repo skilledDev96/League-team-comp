@@ -52,6 +52,8 @@ import { buildIndex, indexDocPath, splitIndexId, RawMatchupDoc } from './matchup
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
 import { ChampionTraits, toTraits } from './champion-traits';
 import { BUILD_SHA } from './build-info';
+import { LaneRead, PlayerFacts, playerFacts, readLanes } from './lane-read';
+import { extractExtras, ParticipantExtras } from './participant-extras';
 import Anthropic from '@anthropic-ai/sdk';
 import { ADVICE_SCHEMA, ADVISOR_SYSTEM, buildDraftPrompt, parseAdvice, parseDraftAdviceRequest } from './draft-advice';
 import {
@@ -502,6 +504,16 @@ interface RiotMatchParticipant {
   visionScore: number;
   /** Seconds spent crowd-controlling opponents. */
   timeCCingOthers: number;
+  /** Per-participant challenge stats; absent on remakes and some old matches. */
+  challenges?: Record<string, unknown>;
+  goldEarned?: number;
+  champLevel?: number;
+  totalTimeSpentDead?: number;
+  wardsPlaced?: number;
+  wardsKilled?: number;
+  turretTakedowns?: number;
+  summoner1Id?: number;
+  summoner2Id?: number;
 }
 
 /** One objective type in a match's team block: who took it first, and how many. */
@@ -1250,6 +1262,10 @@ interface AnalysisPlayerResponse {
   visionScore?: number;
   /** Absent below cache v4, and for the same reason. */
   buildingDamage?: number;
+  /** This seat against theirs. Absent below cache v5 and on replays without a lane opponent. */
+  lane?: LaneRead;
+  /** What this player did that a plan can act on. Absent below cache v5. */
+  facts?: PlayerFacts;
 }
 
 interface AnalysisGameResponse {
@@ -1283,6 +1299,12 @@ interface AnalysisGameResponse {
   winFactors?: WinFactor[];
   /** The fight scoreline: our kills against theirs. */
   kills?: { ours: number; theirs: number };
+  /**
+   * Where the lane reads came from: Riot's per-minute figures, or nothing —
+   * a replay has totals only, so its lanes stay unknown and the lane table
+   * counts it as skipped rather than as even.
+   */
+  laneData?: 'riot' | 'none';
 }
 
 /**
@@ -1324,6 +1346,11 @@ interface CachedParticipant {
   damageTaken?: number;
   /** Seconds spent crowd-controlling opponents. Absent below cache v3. */
   ccTime?: number;
+  /** Absent below cache v4. */
+  visionScore?: number;
+  buildingDamage?: number;
+  /** Riot's challenges and a few counters. Absent below cache v5. */
+  extras?: ParticipantExtras;
 }
 
 /** One side's objective haul, cached so a loss can be explained without a re-fetch. */
@@ -1418,10 +1445,12 @@ async function getCachedMatch(
       damageTaken: p.totalDamageTaken ?? 0,
       ccTime: p.timeCCingOthers ?? 0,
       visionScore: p.visionScore ?? 0,
-      buildingDamage: p.damageDealtToBuildings ?? 0
+      buildingDamage: p.damageDealtToBuildings ?? 0,
+      extras: extractExtras(p)
     }))
   };
-  await ref.set(match);
+  // Firestore rejects undefined; extras leaves absent fields absent on purpose.
+  await ref.set(stripUndefinedDeep(match));
   return { match, fromCache: false, healed };
 }
 
@@ -1471,6 +1500,8 @@ interface CompAnalysisResponse {
   /** Git SHA the backend was deployed from, to spot frontend/backend drift. */
   backendSha?: string;
   generatedAt: string;
+  /** Size of this document as JSON; `meta/compAnalysis` is one Firestore document with a 1 MiB cap. */
+  payloadBytes?: number;
 }
 
 async function computeCompAnalysis(
@@ -1658,6 +1689,7 @@ async function computeCompAnalysis(
         champion: displayChampionName(p.championName)
       }))
       .sort((a, b) => (roleOrder[a.position] ?? 9) - (roleOrder[b.position] ?? 9));
+    const lanes = readLanes(match.participants, rosterTeamId, durationSec);
     const players: AnalysisPlayerResponse[] = teamParts
       .map((p) => ({
         name: nameByPuuid.get(p.puuid) ?? 'Unknown',
@@ -1674,9 +1706,14 @@ async function computeCompAnalysis(
           killParticipation: killParticipation(p.kills, p.assists, fights.ours) as number
         }),
         ...(p.damageTaken !== undefined && { damageTaken: p.damageTaken }),
-        ...(p.ccTime !== undefined && { ccTime: p.ccTime })
+        ...(p.ccTime !== undefined && { ccTime: p.ccTime }),
+        ...(p.visionScore !== undefined && { visionScore: p.visionScore }),
+        ...(p.buildingDamage !== undefined && { buildingDamage: p.buildingDamage }),
+        ...(lanes.has(p.puuid) && { lane: lanes.get(p.puuid) as LaneRead }),
+        ...(p.extras && { facts: playerFacts(p, durationSec) })
       }))
       .sort((a, b) => (roleOrder[a.position] ?? 9) - (roleOrder[b.position] ?? 9));
+    const laneData: 'riot' | 'none' = teamParts.some((p) => p.extras?.goldPerMinute !== undefined) ? 'riot' : 'none';
 
     const compMatch = matchComp(
       players.map((p) => p.champion),
@@ -1718,6 +1755,7 @@ async function computeCompAnalysis(
       queue: QUEUE_LABEL[match.queueId] ?? 'Team',
       date: match.gameCreation,
       players,
+      laneData,
       // Conditional spread throughout — Firestore rejects undefined values.
       ...(objectives && {
         objectives,
@@ -1742,7 +1780,7 @@ async function computeCompAnalysis(
 
   games.sort((a, b) => b.date - a.date);
 
-  return {
+  const response: CompAnalysisResponse = {
     comps,
     games,
     totalTeamGames,
@@ -1753,7 +1791,27 @@ async function computeCompAnalysis(
     backendSha: BUILD_SHA,
     generatedAt: new Date().toISOString()
   };
+  // One Firestore document holds all of this. The lane reads and facts are the
+  // only part that grows per player; past the guard they come off the oldest
+  // games first, so the newest keep their story.
+  let bytes = JSON.stringify(response).length;
+  if (bytes > PAYLOAD_GUARD_BYTES) {
+    for (const game of games.slice(PAYLOAD_KEEP_DETAIL)) {
+      for (const player of game.players) {
+        delete player.lane;
+        delete player.facts;
+      }
+    }
+    bytes = JSON.stringify(response).length;
+  }
+  response.payloadBytes = bytes;
+  return response;
 }
+
+/** Well under the 1 MiB document cap, with room for the rest of the document. */
+const PAYLOAD_GUARD_BYTES = 850_000;
+/** How many of the newest games keep their lane reads when the guard trips. */
+const PAYLOAD_KEEP_DETAIL = 120;
 
 export const getCompAnalysis = onRequest(
   { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 300 },
@@ -2391,6 +2449,7 @@ interface StoredScrim {
     name?: string; tag?: string; champion?: string; team?: number; win?: boolean;
     position?: string; kills?: number; deaths?: number; assists?: number;
     cs?: number; damage?: number; damageTaken?: number; ccTime?: number;
+    gold?: number; visionScore?: number;
   }[];
 }
 
@@ -2432,7 +2491,11 @@ function scrimAsMatch(
       cs: p.cs ?? 0,
       damage: p.damage ?? 0,
       damageTaken: p.damageTaken ?? 0,
-      ccTime: p.ccTime ?? 0
+      ccTime: p.ccTime ?? 0,
+      ...(p.visionScore !== undefined && { visionScore: p.visionScore }),
+      // A replay has totals, not per-minute figures: gold and vision per
+      // minute come off the clock downstream, and the lane stays unknown.
+      ...(p.gold !== undefined && { extras: { goldEarned: p.gold } })
     };
   });
 

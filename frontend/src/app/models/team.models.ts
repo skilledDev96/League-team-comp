@@ -195,6 +195,38 @@ export interface CompPerformance {
   winRate: number;
 }
 
+/** One seat against theirs. Mirrors `api/src/lane-read.ts`. */
+export interface LaneRead {
+  position: string;
+  theirChampion: string;
+  verdict: 'won' | 'even' | 'lost' | 'unknown';
+  csAt10Diff?: number;
+  goldPerMinDiff?: number;
+  damagePerMinDiff?: number;
+  visionPerMinDiff?: number;
+  levelLead?: number;
+  earlyLaneAdvantage?: boolean;
+  laneAdvantage?: boolean;
+}
+
+/** What a player did that a plan can act on. Mirrors `api/src/lane-read.ts`. */
+export interface PlayerFacts {
+  goldPerMin?: number;
+  visionPerMin?: number;
+  controlWards?: number;
+  wardTakedowns?: number;
+  soloKills?: number;
+  hasTeleport?: boolean;
+  tpTakedowns?: number;
+  timeDeadSec?: number;
+  csAt10?: number;
+  plates?: number;
+  dragonTakedowns?: number;
+  baronTakedowns?: number;
+  killsNearEnemyTurret?: number;
+  damageShare?: number;
+}
+
 export interface AnalysisPlayer {
   name: string;
   position: string;
@@ -210,6 +242,13 @@ export interface AnalysisPlayer {
   damageTaken?: number;
   /** Seconds spent crowd-controlling opponents. Absent below cache v3. */
   ccTime?: number;
+  /** Vision score. Absent below cache v4. */
+  visionScore?: number;
+  buildingDamage?: number;
+  /** This seat against theirs. Absent below cache v5 and on replays. */
+  lane?: LaneRead;
+  /** Absent below cache v5. */
+  facts?: PlayerFacts;
 }
 
 /** One side's objective haul in a game. Mirrors `api/src/objectives.ts`. */
@@ -288,6 +327,8 @@ export interface AnalysisGame {
   winFactors?: WinFactor[];
   /** The fight scoreline: our kills against theirs. */
   kills?: { ours: number; theirs: number };
+  /** Where lane reads came from: Riot's per-minute figures, or nothing (a replay). */
+  laneData?: 'riot' | 'none';
   /**
    * The enemy five with their roles, sorted, for a lane-by-lane comparison.
    * Absent until the analysis is re-run; `enemyChampions` is the flat list the
@@ -329,6 +370,8 @@ export interface CompAnalysis {
   /** Git SHA the backend was deployed from, to spot frontend/backend drift. */
   backendSha?: string;
   generatedAt: string;
+  /** Size of the document as JSON; one Firestore document, 1 MiB cap. */
+  payloadBytes?: number;
 }
 
 export type PlayPhase = 'Early' | 'Mid' | 'Late';
