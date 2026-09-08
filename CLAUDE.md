@@ -336,6 +336,14 @@ filter rather than none, so it can never become unpickable.
    `docs/ai-provider-note.md` records what leaves the system. Anything on
    Comps that decides which games count as a comp goes through
    `effectiveComp` — `retro()` and "Played out" both do.
+   **Quick actions** (`shared/quick-actions.component.ts`, on the Roster
+   page under the hero) are links into page states: `/games?refresh=1`
+   runs the refresh and marks what came in (`justPracticed`, the param is
+   dropped afterwards), `/admin?tab=comps&add=comp` opens a blank comp,
+   `/tournaments?view=draft` the draft room, `/games?tab=reviews` the
+   Reviews tab. The profile's Coaching notes open on a rule-based digest
+   (`core/coaching-digest.ts`: which themes the notes keep touching) with
+   the game-by-game notes behind a fold.
 
 Adding a field to a cached match means **bumping `CACHE_VERSION`** in
 `analysis-cache.ts`. Old entries then re-fetch once, inside `MAX_NEW_FETCHES` per
