@@ -336,15 +336,17 @@ export class TourService {
 
   measure(): void {
     if (!this.anchorEl) return;
-    cancelAnimationFrame(this.frame);
-    this.frame = requestAnimationFrame(() => {
+    // A timer, not requestAnimationFrame: a tab in the background never
+    // gets a frame, and the ring would wait for one that never comes.
+    clearTimeout(this.frame);
+    this.frame = setTimeout(() => {
       if (!this.anchorEl) return;
       if (!this.anchorEl.isConnected) {
         this.anchorRect.set(null);
         return;
       }
       this.anchorRect.set(this.anchorEl.getBoundingClientRect());
-    });
+    }, 16);
   }
 
   private pause(ms: number): Promise<void> {
