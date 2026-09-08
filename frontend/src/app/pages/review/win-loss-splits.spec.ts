@@ -93,8 +93,8 @@ describe('laneTable', () => {
   it('counts only known verdicts, and says how many games were skipped or are still waiting', () => {
     const games = [
       ...botLaneStory(2),
-      game(false, { laneData: 'none' }, () => ({ lane: { position: 'Top', theirChampion: 'X', verdict: 'unknown', goldPerMinDiff: 12 } })),
-      game(false, { laneData: 'riot' }, () => ({ lane: { position: 'Top', theirChampion: 'X', verdict: 'unknown' } }))
+      game(false, { laneData: 'none' }, (role) => (role === 'Top' ? { lane: { position: 'Top', theirChampion: 'X', verdict: 'unknown', goldPerMinDiff: 12 } } : {})),
+      game(false, { laneData: 'riot' }, (role) => (role === 'Top' ? { lane: { position: 'Top', theirChampion: 'X', verdict: 'unknown' } } : {}))
     ];
     const t = laneTable(games);
     expect(t.read).toBe(4);
