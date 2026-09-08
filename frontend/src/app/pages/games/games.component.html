@@ -280,7 +280,7 @@
     @if (rows().length && listOpen()) {
       <div class="opp-history-games games-list">
         @for (g of rows(); track g.id) {
-          <details data-tour="games-row" class="opp-history-game games-row" [class.is-win]="g.win" [attr.data-row]="g.id" [class.is-new]="isNew(g)" [class.is-focused]="g.id === focus()">
+          <details [attr.data-tour]="g.matchId ? 'games-row' : null" class="opp-history-game games-row" [class.is-win]="g.win" [attr.data-row]="g.id" [class.is-new]="isNew(g)" [class.is-focused]="g.id === focus()">
             <summary class="opp-history-head">
               <span class="opp-history-result">{{ g.win ? 'W' : 'L' }}</span>
               <span class="opp-history-when">{{ day(g.date) }}</span>

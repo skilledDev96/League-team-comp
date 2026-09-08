@@ -213,8 +213,7 @@ export class TourService {
         await this.goTo(nextI, dir);
         return;
       }
-      this.reveal(el);
-      await this.pause(prefersReducedMotion() ? 50 : 420);
+      await this.reveal(el);
       this.attach(el);
     } catch (err) {
       console.warn('Tour step skipped', tour.id, step.anchor, err);
@@ -309,9 +308,22 @@ export class TourService {
     }
   }
 
-  private reveal(el: HTMLElement): void {
+  /**
+   * Bring the anchor on screen. A row's body renders a tick after the row
+   * opens, so the scroll waits for that; and a smooth scroll can be cut
+   * short, so the position is checked afterwards and corrected outright.
+   */
+  private async reveal(el: HTMLElement): Promise<void> {
     this.openAncestors(el);
-    el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    await this.pause(150);
+    const smooth = !prefersReducedMotion();
+    el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: smooth ? 'smooth' : 'auto' });
+    await this.pause(smooth ? 450 : 50);
+    const box = el.getBoundingClientRect();
+    if (box.top < 0 || box.bottom > window.innerHeight) {
+      el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+      await this.pause(50);
+    }
   }
 
   private attach(el: HTMLElement): void {
