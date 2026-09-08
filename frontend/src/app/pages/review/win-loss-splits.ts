@@ -190,13 +190,21 @@ export interface PlayerMetric {
   higherIsBetter: boolean;
 }
 
+export interface SeatSplitRow {
+  role: string;
+  games: number;
+  metrics: PlayerMetric[];
+}
+
 export interface PlayerSplitRow {
   name: string;
-  /** The seat they sat in most; the row counts only games in it. */
+  /** The seat they sat in most, for the sort and the label. */
   role: string;
-  /** Games they played in another seat, left out so the row is a slice of the lane table. */
-  otherSeatGames: number;
+  games: number;
+  /** Every game they played, whatever the seat. */
   metrics: PlayerMetric[];
+  /** The same figures per seat, for each seat with enough games to read. */
+  seats: SeatSplitRow[];
 }
 
 export function playerSplits(games: readonly AnalysisGame[]): PlayerSplitRow[] {
@@ -208,14 +216,11 @@ export function playerSplits(games: readonly AnalysisGame[]): PlayerSplitRow[] {
       names.set(p.name, roles);
     }
   }
-  const rows: PlayerSplitRow[] = [];
-  for (const [name, roles] of names) {
-    const role = [...roles.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
-    // Only their usual seat: a player's row mixing a top game at -9 cs into an
-    // ADC row read as contradicting the lane table (8 Sep 2026). Games in
-    // another seat are counted and named, not silently folded in.
-    const own = (g: AnalysisGame) => g.players.find((p) => p.name === name && p.position === role);
-    const otherSeatGames = [...roles.entries()].filter(([r]) => r !== role).reduce((n, [, c]) => n + c, 0);
+  // The team rotates seats in flex — one player sat Top in 50 games and
+  // elsewhere in 88 (8 Sep 2026) — so the row is every game they played, and
+  // under it the same figures per seat where a seat has enough games to read.
+  // "Vs lane" is always against whoever was across them in that game.
+  const metricsFor = (own: (g: AnalysisGame) => AnalysisPlayer | undefined): PlayerMetric[] => {
     const pm = (key: string, label: string, unit: PlayerMetric['unit'], higherIsBetter: boolean, pick: (p: AnalysisPlayer, g: AnalysisGame) => number | undefined, places = 2): PlayerMetric => ({
       key,
       label,
@@ -223,23 +228,67 @@ export function playerSplits(games: readonly AnalysisGame[]): PlayerSplitRow[] {
       higherIsBetter,
       split: split(games, (g) => { const p = own(g); return p ? pick(p, g) : undefined; }, places)
     });
+    return [
+      pm('deaths', 'Deaths', 'count', false, (p) => p.deaths, 1),
+      pm('kp', 'Kill participation', 'pct', true, (p, g) => killParticipationOf(p, g)),
+      pm('damageShare', 'Damage share', 'pct', true, (p, g) => damageShareOf(p, g)),
+      pm('vision', 'Vision per minute', 'perMin', true, (p) => p.facts?.visionPerMin),
+      pm('goldDiff', 'Gold/min vs lane', 'diff', true, (p) => p.lane?.goldPerMinDiff, 0),
+      pm('csDiff', 'CS at 10 vs lane', 'diff', true, (p) => p.lane?.csAt10Diff, 1),
+      pm('tp', 'Teleport takedowns', 'count', true, (p) => p.facts?.tpTakedowns, 1)
+    ];
+  };
+  const order = (r: string) => { const i = (ROLES as readonly string[]).indexOf(r); return i < 0 ? ROLES.length : i; };
+  const rows: PlayerSplitRow[] = [];
+  for (const [name, roles] of names) {
+    const sorted = [...roles.entries()].sort((a, b) => b[1] - a[1]);
+    const role = sorted[0]?.[0] ?? '';
     rows.push({
       name,
       role,
-      otherSeatGames,
-      metrics: [
-        pm('deaths', 'Deaths', 'count', false, (p) => p.deaths, 1),
-        pm('kp', 'Kill participation', 'pct', true, (p, g) => killParticipationOf(p, g)),
-        pm('damageShare', 'Damage share', 'pct', true, (p, g) => damageShareOf(p, g)),
-        pm('vision', 'Vision per minute', 'perMin', true, (p) => p.facts?.visionPerMin),
-        pm('goldDiff', 'Gold/min vs lane', 'diff', true, (p) => p.lane?.goldPerMinDiff, 0),
-        pm('csDiff', 'CS at 10 vs lane', 'diff', true, (p) => p.lane?.csAt10Diff, 1),
-        pm('tp', 'Teleport takedowns', 'count', true, (p) => p.facts?.tpTakedowns, 1)
-      ]
+      games: sorted.reduce((n, [, c]) => n + c, 0),
+      metrics: metricsFor((g) => g.players.find((p) => p.name === name)),
+      seats: sorted
+        .filter(([seat, count]) => seat && count >= MIN_FOR_A_CLAIM)
+        .sort((a, b) => order(a[0]) - order(b[0]))
+        .map(([seat, count]) => ({
+          role: seat,
+          games: count,
+          metrics: metricsFor((g) => g.players.find((p) => p.name === name && p.position === seat))
+        }))
     });
   }
-  const order = (r: string) => { const i = (ROLES as readonly string[]).indexOf(r); return i < 0 ? ROLES.length : i; };
   return rows.sort((a, b) => order(a.role) - order(b.role) || a.name.localeCompare(b.name));
+}
+
+// ---- Printing a split -----------------------------------------------------------
+
+export type SplitUnit = MetricSplit['unit'] | 'diff';
+
+/** One side of a split in its unit; a dash with no sample. */
+export function formatSide(s: SideStat, unit: SplitUnit): string {
+  if (!s.n) return '—';
+  switch (unit) {
+    case 'pct': return `${Math.round(s.mean * 100)}%`;
+    case 'minutes': return `${s.mean} min`;
+    case 'perMin': return `${s.mean}/min`;
+    case 'diff': return s.mean > 0 ? `+${s.mean}` : `${s.mean}`;
+    default: return `${s.mean}`;
+  }
+}
+
+export function formatGap(m: { split: { gap?: number }; unit: SplitUnit }): string {
+  const g = m.split.gap;
+  if (g === undefined) return '—';
+  const v = m.unit === 'pct' ? Math.round(g * 100) : g;
+  return `${v > 0 ? '+' : ''}${v}${m.unit === 'pct' ? ' pts' : ''}`;
+}
+
+/** Whether the gap reads as good for us; null with no gap. */
+export function gapIsGood(m: { split: { gap?: number }; higherIsBetter: boolean }): boolean | null {
+  const g = m.split.gap;
+  if (g === undefined || g === 0) return null;
+  return m.higherIsBetter ? g > 0 : g < 0;
 }
 
 // ---- Work on / Keep doing -----------------------------------------------------

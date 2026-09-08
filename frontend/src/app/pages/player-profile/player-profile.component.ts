@@ -12,6 +12,8 @@ import { ExternalProfilesComponent } from '../../shared/external-profiles.compon
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
+import { formatSide, gapIsGood, playerSplits, PlayerSplitRow, SideStat, SplitUnit } from '../review/win-loss-splits';
+import { MIN_FOR_A_CLAIM } from '../review/loss-patterns.util';
 
 @Component({
   selector: 'app-player-profile',
@@ -37,6 +39,27 @@ export class PlayerProfileComponent {
     const players = this.data.players();
     return players.find((p) => p.id === id) ?? players[0];
   });
+
+  // ---- With the team: this player, wins against losses (8 Sep 2026) ----
+  //
+  // Over every five-stack game the analysis holds, whatever seat they sat
+  // in, with the same figures per seat underneath. The team's own read of
+  // wins against losses is on Games → Patterns; this is the one player's.
+
+  protected readonly withTeam = computed<PlayerSplitRow | undefined>(() => {
+    const name = this.player()?.name;
+    if (!name) return undefined;
+    return playerSplits(this.data.compAnalysis()?.games ?? []).find((r) => r.name === name);
+  });
+  protected readonly claimFloor = MIN_FOR_A_CLAIM;
+
+  protected side(s: SideStat, unit: SplitUnit): string {
+    return formatSide(s, unit);
+  }
+
+  protected gapGood(m: { split: { gap?: number }; higherIsBetter: boolean }): boolean | null {
+    return gapIsGood(m);
+  }
 
   protected readonly buildCount = computed(() => {
     const p = this.player();

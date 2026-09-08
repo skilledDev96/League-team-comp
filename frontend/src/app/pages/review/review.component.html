@@ -144,44 +144,9 @@
     <p class="muted split-note">The small number is how many games carried the figure. A row goes faint below {{ claimFloor }} on either side.</p>
   </section>
 
-  <!-- Each player, wins against losses. -->
-  @if (playerSplitRows().length) {
-    <details class="card split-players">
-      <summary class="split-players-head">
-        <h2>Each player, wins against losses</h2>
-        <span class="material-symbols-rounded" aria-hidden="true">expand_more</span>
-      </summary>
-      <div class="split-scroll">
-        <table class="split-table">
-          <thead>
-            <tr>
-              <th scope="col">Player</th>
-              @for (m of playerSplitRows()[0].metrics; track m.key) {
-                <th scope="col" class="num" [appTip]="m.label + ' — in wins (W) and in losses (L)'">{{ m.label }}</th>
-              }
-            </tr>
-          </thead>
-          <tbody>
-            @for (r of playerSplitRows(); track r.name) {
-              <tr>
-                <td>{{ r.name }} <small>{{ r.role }}</small>@if (r.otherSeatGames) { <small [appTip]="r.otherSeatGames + ' game' + (r.otherSeatGames === 1 ? '' : 's') + ' in another seat, not counted in this row'">+{{ r.otherSeatGames }} elsewhere</small> }</td>
-                @for (m of r.metrics; track m.key) {
-                  <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">
-                    <small class="wl">W</small>{{ side(m.split.wins, m.unit) }} <small class="wl">L</small>{{ side(m.split.losses, m.unit) }}
-                  </td>
-                }
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-      <p class="muted split-note">W is the mean in wins, L in losses; green when the gap is in our favour, red when it is not. Each row counts only the games in that player's usual seat, so it is a slice of the Lanes table above; "elsewhere" is how many games they sat in another seat.</p>
-    </details>
-  }
+  <!-- Each player's own wins-against-losses lives on their page under
+       Roster; this tab is the team as a five. -->
 
-  <!-- The objective factors, losses beside wins. One readout above them
-       reads both sides at once; the toggle that used to flip this section
-       now lives on the game list, the only thing it still narrows. -->
   <section class="card" aria-label="Recurring problems and what keeps working">
     @if (readout().length) {
       <aside class="callout" aria-label="What these numbers say">

@@ -22,7 +22,7 @@ import {
   summarise,
   MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
-import { keepDoing, laneTable, MetricSplit, playerSplits, SideStat, teamSplits, workOn } from './win-loss-splits';
+import { formatGap, formatSide, gapIsGood, keepDoing, laneTable, MetricSplit, SideStat, teamSplits, workOn } from './win-loss-splits';
 
 /**
  * The games, and what they have in common — losses by default, wins on the
@@ -122,33 +122,18 @@ export class ReviewComponent {
   protected readonly keepDoingList = computed(() => keepDoing(this.filteredGames()));
   protected readonly laneRows = computed(() => laneTable(this.filteredGames()));
   protected readonly teamSplitRows = computed(() => teamSplits(this.filteredGames()));
-  protected readonly playerSplitRows = computed(() => playerSplits(this.filteredGames()));
   protected readonly claimFloor = MIN_FOR_A_CLAIM;
 
-  /** One side of a split, printed in its unit; a dash with no sample. */
   protected side(s: SideStat, unit: MetricSplit['unit'] | 'diff'): string {
-    if (!s.n) return '—';
-    switch (unit) {
-      case 'pct': return `${Math.round(s.mean * 100)}%`;
-      case 'minutes': return `${s.mean} min`;
-      case 'perMin': return `${s.mean}/min`;
-      case 'diff': return s.mean > 0 ? `+${s.mean}` : `${s.mean}`;
-      default: return `${s.mean}`;
-    }
+    return formatSide(s, unit);
   }
 
   protected gapOf(m: { split: { gap?: number }; unit: MetricSplit['unit'] | 'diff' }): string {
-    const g = m.split.gap;
-    if (g === undefined) return '—';
-    const v = m.unit === 'pct' ? Math.round(g * 100) : g;
-    return `${v > 0 ? '+' : ''}${v}${m.unit === 'pct' ? ' pts' : ''}`;
+    return formatGap(m);
   }
 
-  /** Whether the gap reads as good for us, for the tint. */
   protected gapGood(m: { split: { gap?: number }; higherIsBetter: boolean }): boolean | null {
-    const g = m.split.gap;
-    if (g === undefined || g === 0) return null;
-    return m.higherIsBetter ? g > 0 : g < 0;
+    return gapIsGood(m);
   }
 
   protected laneNote(lane: LaneRead | undefined): string {

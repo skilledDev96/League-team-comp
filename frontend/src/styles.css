@@ -13701,3 +13701,12 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .section-head .field { margin: 0; }
 .split-table small.wl { margin: 0 0.15rem 0 0.5rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.65; }
 .split-table small.wl:first-child { margin-left: 0; }
+
+
+/* A player's seat rows sit under their overall row, quieter. */
+.split-table tr.is-seat td { padding-top: 0.15rem; padding-bottom: 0.15rem; border-top: 0; font-size: 0.76rem; opacity: 0.85; }
+.split-table tr.is-seat td:first-child { padding-left: 1.4rem; }
+
+
+/* The player's wins-against-losses card spans the profile's two columns. */
+.grid.two > .card-wide { grid-column: 1 / -1; }

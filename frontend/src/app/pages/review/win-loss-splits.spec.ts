@@ -167,14 +167,20 @@ describe('playerSplits', () => {
     expect(playerSplits(games.filter((g) => g.win))[0].metrics[0].split.losses.n).toBe(0);
   });
 
-  it('counts a player only in their usual seat, and says how many games sat elsewhere', () => {
-    const games = botLaneStory(3, (win) => ({ deaths: win ? 1 : 5 }));
-    // One loss with the ADC and Top swapped: adc sits Top at 9 deaths.
-    const swapped = { ...games[1], players: games[1].players.map((p) => (p.name === 'adc' ? { ...p, position: 'Top', deaths: 9 } : p.name === 'top' ? { ...p, position: 'ADC' } : p)) };
-    const rows = playerSplits([...games.slice(0, 1), swapped, ...games.slice(2)]);
+  it('counts every game a player played, and breaks the seats out once a seat has enough games', () => {
+    // Sixteen games; in eight losses the ADC and Top swap seats, so adc is Top in 8 and ADC in 8.
+    const games = botLaneStory(8, (win) => ({ deaths: win ? 1 : 5 })).map((g) =>
+      !g.win ? { ...g, players: g.players.map((p) => (p.name === 'adc' ? { ...p, position: 'Top', deaths: 9 } : p.name === 'top' ? { ...p, position: 'ADC' } : p)) } : g
+    );
+    const rows = playerSplits(games);
     const adc = rows.find((r) => r.name === 'adc')!;
-    expect(adc.role).toBe('ADC');
-    expect(adc.otherSeatGames).toBe(1);
-    expect(adc.metrics.find((m) => m.key === 'deaths')!.split.losses).toEqual({ mean: 5, n: 2 }); // the Top game is not in the row
+    expect(adc.games).toBe(16);
+    expect(adc.metrics.find((m) => m.key === 'deaths')!.split).toEqual({ wins: { mean: 1, n: 8 }, losses: { mean: 9, n: 8 }, gap: -8 });
+    expect(adc.seats.map((s) => s.role + ':' + s.games)).toEqual(['Top:8', 'ADC:8']);
+    expect(adc.seats[0].metrics.find((m) => m.key === 'deaths')!.split.losses).toEqual({ mean: 9, n: 8 });
+    expect(adc.seats[1].metrics.find((m) => m.key === 'deaths')!.split.wins).toEqual({ mean: 1, n: 8 });
+    // The jungler never moved: one seat, every game, so no breakdown is needed but it is still listed.
+    const jg = rows.find((r) => r.name === 'jungle')!;
+    expect(jg.seats.map((s) => s.role + ':' + s.games)).toEqual(['Jungle:16']);
   });
 });

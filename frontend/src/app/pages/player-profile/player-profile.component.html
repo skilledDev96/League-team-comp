@@ -130,6 +130,49 @@
       </ul>
     </article>
 
+    @if (withTeam(); as w) {
+      <article class="card card-wide">
+        <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>With the team, wins against losses</h2>
+        <div class="split-scroll">
+          <table class="split-table">
+            <thead>
+              <tr>
+                <th scope="col">Games</th>
+                @for (m of w.metrics; track m.key) {
+                  <th scope="col" class="num" [appTip]="m.label + ' — in wins (W) and in losses (L)'">{{ m.label }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>All <small>{{ w.games }}</small></td>
+                @for (m of w.metrics; track m.key) {
+                  <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">
+                    <small class="wl">W</small>{{ side(m.split.wins, m.unit) }} <small class="wl">L</small>{{ side(m.split.losses, m.unit) }}
+                  </td>
+                }
+              </tr>
+              @for (s of w.seats; track s.role) {
+                <tr class="is-seat">
+                  <td><small>at {{ s.role }} · {{ s.games }}</small></td>
+                  @for (m of s.metrics; track m.key) {
+                    <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">
+                      <small class="wl">W</small>{{ side(m.split.wins, m.unit) }} <small class="wl">L</small>{{ side(m.split.losses, m.unit) }}
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="muted split-note">
+          Every five-stack game the analysis holds, whatever the seat; the "at" rows are one seat each, for seats with {{ claimFloor }} or more games.
+          W is the mean in wins, L in losses; green when the gap is in {{ p.name }}'s favour. "Vs lane" is against whoever was across them that game.
+          The team's own read is on Games → Patterns.
+        </p>
+      </article>
+    }
+
     <article class="card">
       <h2 class="title-with-icon"><span class="section-icon">NX</span>Quick Actions</h2>
       @if (refreshStatus()) {
