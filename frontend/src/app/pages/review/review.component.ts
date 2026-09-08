@@ -2,6 +2,7 @@ import { ChampionFilterService } from '../../services/champion-filter.service';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { AnalysisGame, LaneRead } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
@@ -23,7 +24,7 @@ import {
   summarise,
   MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
-import { formatGap, formatSide, gapIsGood, keepDoing, laneTable, MetricSplit, seatFit, SideStat, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { formatGap, formatSide, gapIsGood, keepDoing, laneTable, laneTotals, MetricSplit, PatternSource, seatFit, SideStat, sourceOf, starterCount, teamSplits, workOn } from './win-loss-splits';
 
 /**
  * The games, and what they have in common — losses by default, wins on the
@@ -39,9 +40,11 @@ import { formatGap, formatSide, gapIsGood, keepDoing, laneTable, MetricSplit, se
  * the page kept telling people to go elsewhere for it — but both go through the
  * one service, so a run started on either shows as running on both.
  */
+type SectionKey = 'lanes' | 'changes' | 'recurring' | 'games';
+
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, TooltipDirective, ChampionFilterComponent, GameCheckComponent],
+  imports: [DatePipe, RouterLink, TooltipDirective, ChampionFilterComponent, GameCheckComponent],
   templateUrl: './review.component.html'
 })
 export class ReviewComponent {
@@ -103,11 +106,71 @@ export class ReviewComponent {
     );
   });
 
-  private readonly anyStackGames = computed<AnalysisGame[]>(() => {
+  /** Serious-only applied; both sources still in, for the source badges. */
+  private readonly seriousGames = computed<AnalysisGame[]>(() => {
     if (!this.seriousOnly()) return this.taggedOrNot();
     const practice = this.data.practiceSet();
     return this.taggedOrNot().filter((g) => !practice.has(g.matchId));
   });
+
+  /**
+   * Riot games and replays are read apart (8 Sep 2026): a replay has totals
+   * only, so its lanes cannot be called and its per-minute figures do not
+   * exist. Flex and Clash first, because that is where the lane reads are.
+   */
+  protected readonly source = signal<PatternSource>('riot');
+  protected readonly sourceSteps: { source: PatternSource; label: string; tip: string }[] = [
+    { source: 'riot', label: 'Flex & Clash', tip: 'Games Riot handed us: per-minute figures, lane reads, the lot' },
+    { source: 'replay', label: 'Scrims & tournaments', tip: 'Games from replay files: end-of-game totals, objectives, no lane reads' }
+  ];
+  protected gamesAtSource(source: PatternSource): number {
+    return this.seriousGames().filter((g) => sourceOf(g) === source).length;
+  }
+
+  private readonly anyStackGames = computed<AnalysisGame[]>(() => {
+    const source = this.source();
+    return this.seriousGames().filter((g) => sourceOf(g) === source);
+  });
+
+  /** Tournament games the replay view cannot count, because nobody imported the replay. */
+  protected readonly missingReplays = computed(() => {
+    const series = new Map(this.data.tournamentSeries().map((s) => [s.id, s]));
+    return this.data
+      .seriesGames()
+      .filter((g) => g.win !== undefined && !g.matchId)
+      .map((g) => ({ id: g.id, label: `${series.get(g.seriesId)?.opponent ?? 'series'} game ${g.gameNumber}` }));
+  });
+
+  // ---- The long sections behind chips, remembered per browser ----
+
+  private static readonly SECTIONS_KEY = 'bom-patterns-sections';
+  protected readonly sectionSteps: { key: SectionKey; label: string }[] = [
+    { key: 'lanes', label: 'Lanes' },
+    { key: 'changes', label: 'What changes when we win' },
+    { key: 'recurring', label: 'Recurring problems' },
+    { key: 'games', label: 'Game by game' }
+  ];
+  protected readonly sections = signal<Record<SectionKey, boolean>>(this.storedSections());
+
+  private storedSections(): Record<SectionKey, boolean> {
+    const closed: Record<SectionKey, boolean> = { lanes: false, changes: false, recurring: false, games: false };
+    try {
+      const raw = localStorage.getItem(ReviewComponent.SECTIONS_KEY);
+      const parsed = raw ? (JSON.parse(raw) as Partial<Record<SectionKey, boolean>>) : null;
+      return parsed && typeof parsed === 'object' ? { ...closed, ...parsed } : closed;
+    } catch {
+      return closed;
+    }
+  }
+
+  protected toggleSection(key: SectionKey): void {
+    this.sections.update((s) => ({ ...s, [key]: !s[key] }));
+    try {
+      localStorage.setItem(ReviewComponent.SECTIONS_KEY, JSON.stringify(this.sections()));
+    } catch {
+      // The choice lasts for the page instead.
+    }
+  }
 
   /** Games tagged as practice in the current comp and champion selection. */
   protected readonly practiceCount = computed(() => {
@@ -194,11 +257,25 @@ export class ReviewComponent {
     const seat = (r: string) => { const i = (['Top', 'Jungle', 'Mid', 'ADC', 'Support'] as string[]).indexOf(r); return i < 0 ? 5 : i; };
     return [...this.data.players()].sort((a, b) => Number(!!a.sub) - Number(!!b.sub) || seat(a.role) - seat(b.role)).map((p) => p.name);
   });
-  protected readonly workOnList = computed(() => workOn(this.filteredGames(), 'player', this.rosterOrder()));
-  protected readonly keepDoingList = computed(() => keepDoing(this.filteredGames(), 'player', this.rosterOrder()));
+  protected readonly workOnList = computed(() => workOn(this.filteredGames(), 'player', this.rosterOrder(), this.source()));
+  protected readonly keepDoingList = computed(() => keepDoing(this.filteredGames(), 'player', this.rosterOrder(), this.source()));
   protected readonly laneRows = computed(() => laneTable(this.filteredGames(), 'player', this.rosterOrder()));
+  protected readonly laneTotalRows = computed(() => laneTotals(this.filteredGames(), this.rosterOrder()));
+
+  /** The overview line: what is counted, and the two things most worth a look. */
+  protected readonly atAGlance = computed(() => {
+    const lanes = this.laneRows();
+    const worstLane = [...lanes.rows]
+      .filter((r) => r.lostInLosses.n >= MIN_FOR_A_CLAIM)
+      .sort((a, b) => b.lostInLosses.share - a.lostInLosses.share)[0];
+    const biggest = [...this.teamSplitRows()]
+      .filter((m) => m.split.gap !== undefined && m.split.wins.n >= MIN_FOR_A_CLAIM && m.split.losses.n >= MIN_FOR_A_CLAIM)
+      .map((m) => ({ m, size: Math.abs(m.split.gap as number) / Math.max(Math.abs(m.split.wins.mean), Math.abs(m.split.losses.mean), 0.01) }))
+      .sort((a, b) => b.size - a.size)[0]?.m;
+    return { read: lanes.read, total: lanes.total, waiting: lanes.waiting, skipped: lanes.skipped, worstLane, biggest };
+  });
   private readonly topStarter = computed(() => this.data.starters().find((p) => p.role === 'Top')?.name);
-  protected readonly teamSplitRows = computed(() => teamSplits(this.filteredGames(), this.topStarter()));
+  protected readonly teamSplitRows = computed(() => teamSplits(this.filteredGames(), this.topStarter(), this.source()));
   protected readonly claimFloor = MIN_FOR_A_CLAIM;
 
   protected side(s: SideStat, unit: MetricSplit['unit'] | 'diff'): string {

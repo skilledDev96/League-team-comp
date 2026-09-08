@@ -35,11 +35,13 @@ describe('healthChecks', () => {
       'no objectives stored',
       'cache v3, waiting on the backfill'
     ]);
+    // A sub in: the tally counts the fifth, the players do not, so kills may differ.
     expect(healthChecks(game({ cacheVersion: undefined, players: five().slice(0, 4) })).flags).toEqual([
       '4 of ours in the game, not five',
-      'player kills add to 8, tally says 10',
       'no cache version stamped'
     ]);
+    // A remake has no lane to read, so that flag stays quiet.
+    expect(healthChecks(game({ durationSec: 200 })).flags).toEqual(['only 3 minutes long']);
   });
 
   it('totals the rows by cache state and flags', () => {

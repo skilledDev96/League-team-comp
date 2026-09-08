@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, AnalysisPlayer } from '../../models/team.models';
-import { keepDoing, killParticipationOf, laneTable, mainFiveGames, playerSplits, seatFit, split, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { keepDoing, killParticipationOf, laneTable, laneTotals, mainFiveGames, playerSplits, seatFit, sourceOf, split, starterCount, teamSplits, workOn } from './win-loss-splits';
 
 const player = (name: string, position: string, over: Partial<AnalysisPlayer> = {}): AnalysisPlayer => ({
   name,
@@ -180,6 +180,48 @@ describe('workOn', () => {
     // edge outranks a full vision point over a quarter-point edge.
     expect(advice[0].key).toBe('controlWards');
     expect(advice.map((a) => a.key)).not.toContain('dragons'); // a 2-dragon gap over a 1.0 edge is cut by the cap
+  });
+});
+
+describe('replays', () => {
+  /** A replay: totals only, no lane, no per-minute figures, objectives without first blood or tower. */
+  const replay = (win: boolean, over: Partial<AnalysisGame> = {}): AnalysisGame => ({
+    ...game(win, { queue: 'Scrim', laneData: 'none', durationSec: 1800 }, () => ({ visionScore: win ? 40 : 20, facts: { goldPerMin: win ? 400 : 300 } })),
+    objectives: {
+      ours: { firstBlood: false, firstTower: false, dragons: win ? 3 : 1, barons: win ? 1 : 0, heralds: 0, grubs: 0, towers: win ? 9 : 3, inhibitors: 0 },
+      theirs: { firstBlood: false, firstTower: false, dragons: 1, barons: 0, heralds: 0, grubs: 0, towers: 2, inhibitors: 0 }
+    },
+    ...over
+  });
+  const story = (n: number) => { const out: AnalysisGame[] = []; for (let i = 0; i < n; i += 1) out.push(replay(true), replay(false)); return out; };
+
+  it('tells the sources apart, and keeps only the figures a replay carries', () => {
+    expect(sourceOf(replay(true))).toBe('replay');
+    expect(sourceOf(game(true))).toBe('riot');
+    const keys = teamSplits(story(1), undefined, 'replay').map((m) => m.key);
+    expect(keys).toContain('visionScore');
+    expect(keys).toContain('towers');
+    expect(keys).not.toContain('firstBlood');
+    expect(keys).not.toContain('controlWards');
+    expect(keys).not.toContain('tpTop');
+    expect(teamSplits(story(1)).map((m) => m.key)).toContain('firstBlood');
+  });
+
+  it('reads lane totals per player from the end-of-game figures', () => {
+    const rows = laneTotals(story(2), ['top', 'adc']);
+    expect(rows.map((r) => r.key)).toEqual(['top', 'adc', 'jungle', 'mid', 'support']);
+    expect(rows[0].goldShare.wins).toEqual({ mean: 0.2, n: 2 });
+    expect(rows[0].csPerMin.wins.mean).toBeCloseTo(6.7, 1);
+    expect(rows[0].deaths.losses.n).toBe(2);
+  });
+
+  it('advises from towers, vision score and barons on replays, and never from a lane', () => {
+    const keys = workOn(story(8), 'player', ['top'], 'replay').map((a) => a.key);
+    expect(keys).toContain('towers');
+    expect(keys).toContain('visionScore');
+    expect(keys).toContain('barons');
+    expect(keys.some((k) => k.startsWith('lane-'))).toBe(false);
+    expect(keepDoing(story(8), 'player', ['top'], 'replay').map((a) => a.key)).toContain('towers');
   });
 });
 

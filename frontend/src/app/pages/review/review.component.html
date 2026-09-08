@@ -17,6 +17,17 @@
     <div class="view-controls">
       <!-- Serious games only, unless asked. The count is the games tagged as
            messing around on the Games page. -->
+      <!-- Riot games and replays are two different reads; this decides which. -->
+      <div class="field"><span id="reviewSource">Source</span>
+        <div class="segmented" role="group" aria-labelledby="reviewSource">
+          @for (step of sourceSteps; track step.source) {
+            <button type="button" class="segment" [class.active]="source() === step.source" [attr.aria-pressed]="source() === step.source"
+                    (click)="source.set(step.source)" [appTip]="step.tip">
+              {{ step.label }} <em>{{ gamesAtSource(step.source) }}</em>
+            </button>
+          }
+        </div>
+      </div>
       <div class="field"><span id="reviewSerious">Games</span>
         <div class="segmented" role="group" aria-labelledby="reviewSerious">
           <button type="button" class="segment" [class.active]="seriousOnly()" [attr.aria-pressed]="seriousOnly()"
@@ -113,10 +124,68 @@
     </div>
   </section>
 
+  <!-- The overview stops here. What follows is behind chips, off by default,
+       because the tab had grown past what anyone reads in one sitting. -->
+  <section class="card patterns-glance" aria-label="At a glance">
+    @if (atAGlance(); as g) {
+      <p class="patterns-glance-line">
+        <span><b>{{ g.read }}</b> of <b>{{ g.total }}</b> games with a lane read@if (g.waiting) {, <b>{{ g.waiting }}</b> waiting on the backfill}@if (g.skipped) {, <b>{{ g.skipped }}</b> {{ g.skipped === 1 ? 'replay' : 'replays' }} with totals only}.</span>
+        @if (g.worstLane) {
+          <span>Lane lost most in losses: <b>{{ g.worstLane.label }}</b> ({{ g.worstLane.lostInLosses.games }} of {{ g.worstLane.lostInLosses.n }}).</span>
+        }
+        @if (g.biggest) {
+          <span>Biggest swing: <b>{{ g.biggest.label }}</b>, {{ side(g.biggest.split.wins, g.biggest.unit) }} in wins against {{ side(g.biggest.split.losses, g.biggest.unit) }} in losses.</span>
+        }
+      </p>
+    }
+    @if (source() === 'replay' && missingReplays().length) {
+      <p class="muted patterns-glance-note">
+        Not counted, no replay imported yet: {{ missingReplays().length === 1 ? '' : '' }}
+        @for (m of missingReplays(); track m.id) { <span class="tag">{{ m.label }}</span> }
+        — import them on the <a routerLink="/tournaments" [queryParams]="{ view: 'plan' }">plan page</a>.
+      </p>
+    }
+    <div class="segmented patterns-chips" role="group" aria-label="More sections">
+      @for (step of sectionSteps; track step.key) {
+        <button type="button" class="segment" [class.active]="sections()[step.key]" [attr.aria-pressed]="sections()[step.key]"
+                (click)="toggleSection(step.key)">{{ step.label }}</button>
+      }
+    </div>
+  </section>
+
   <!-- Which lane wins and loses, from each seat against the one across it. -->
+  @if (sections().lanes) {
   <section class="card" aria-label="Lanes">
     <h2>Lanes</h2>
-    @if (laneRows(); as t) {
+    @if (source() === 'replay') {
+      <!-- A replay has the end of the game and nothing of the clock, so no
+           lane can be called; these are the totals it does carry. -->
+      <div class="split-scroll">
+        <table class="split-table">
+          <thead>
+            <tr>
+              <th scope="col">Player</th>
+              <th scope="col" class="num" appTip="Share of the team's gold, in wins (W) and in losses (L)">Gold share</th>
+              <th scope="col" class="num" appTip="CS per minute, in wins (W) and in losses (L)">CS/min</th>
+              <th scope="col" class="num" appTip="Share of the team's damage to champions">Damage share</th>
+              <th scope="col" class="num">Deaths</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of laneTotalRows(); track r.key) {
+              <tr>
+                <td>{{ r.label }} <small>{{ r.seat }}</small></td>
+                <td class="num"><small class="wl">W</small>{{ side(r.goldShare.wins, 'pct') }} <small class="wl">L</small>{{ side(r.goldShare.losses, 'pct') }}</td>
+                <td class="num"><small class="wl">W</small>{{ side(r.csPerMin.wins, 'count') }} <small class="wl">L</small>{{ side(r.csPerMin.losses, 'count') }}</td>
+                <td class="num"><small class="wl">W</small>{{ side(r.damageShare.wins, 'pct') }} <small class="wl">L</small>{{ side(r.damageShare.losses, 'pct') }}</td>
+                <td class="num"><small class="wl">W</small>{{ side(r.deaths.wins, 'count') }} <small class="wl">L</small>{{ side(r.deaths.losses, 'count') }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="muted split-note">A replay has end-of-game totals and nothing of the clock, so no lane can be called won or lost here; these are the totals it does carry, per player, split by result.</p>
+    } @else if (laneRows(); as t) {
       <div class="split-scroll">
         <table class="split-table">
           <thead>
@@ -151,8 +220,10 @@
       </p>
     }
   </section>
+  }
 
   <!-- The same metrics in wins and in losses, side by side. -->
+  @if (sections().changes) {
   <section class="card" aria-label="Wins against losses">
     <h2>What changes when we win</h2>
     <div class="split-scroll">
@@ -179,10 +250,12 @@
     </div>
     <p class="muted split-note">The small number is how many games carried the figure. A row goes faint below {{ claimFloor }} on either side.</p>
   </section>
+  }
 
   <!-- Each player's own wins-against-losses lives on their page under
        Roster; this tab is the team as a five. -->
 
+  @if (sections().recurring) {
   <section class="card" aria-label="Recurring problems and what keeps working">
     @if (readout().length) {
       <aside class="callout" aria-label="What these numbers say">
@@ -230,7 +303,9 @@
       }
     </div>
   </section>
+  }
 
+  @if (sections().games) {
   <section [attr.aria-label]="outcome() === 'win' ? 'Wins' : 'Losses'">
     <div class="section-head">
       <h2 class="section-title">{{ outcome() === 'win' ? 'Wins' : 'Losses' }}, game by game</h2>
@@ -412,4 +487,5 @@
       </details>
     }
   </section>
+  }
 }

@@ -44,12 +44,15 @@ export function healthChecks(game: AnalysisGame): HealthRow {
   const replay = game.queue === 'Scrim';
   const flags: string[] = [];
   if (players !== 5) flags.push(`${players} of ours in the game, not five`);
-  if (killsTally !== undefined && killsSum !== killsTally) flags.push(`player kills add to ${killsSum}, tally says ${killsTally}`);
+  // The tally counts everyone on our side; the players are the roster only,
+  // so with a sub in the two are allowed to differ.
+  if (players === 5 && killsTally !== undefined && killsSum !== killsTally) flags.push(`player kills add to ${killsSum}, tally says ${killsTally}`);
   if (game.durationSec !== undefined && game.durationSec < MIN_DURATION_SEC) flags.push(`only ${Math.round(game.durationSec / 60)} minutes long`);
   if (!hasObjectives) flags.push('no objectives stored');
   if (game.cacheVersion !== undefined && game.cacheVersion < EXPECTED_CACHE_VERSION) flags.push(`cache v${game.cacheVersion}, waiting on the backfill`);
   if (game.cacheVersion === undefined) flags.push('no cache version stamped');
-  if (!replay && game.cacheVersion === EXPECTED_CACHE_VERSION && !hasLanes) flags.push('v5 Riot game with no lane read');
+  const longEnough = game.durationSec === undefined || game.durationSec >= MIN_DURATION_SEC;
+  if (!replay && longEnough && game.cacheVersion === EXPECTED_CACHE_VERSION && !hasLanes) flags.push('v5 Riot game with no lane read');
   return {
     matchId: game.matchId,
     date: game.date,
