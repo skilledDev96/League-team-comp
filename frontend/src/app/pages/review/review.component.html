@@ -15,6 +15,18 @@
 } @else {
   <section class="card review-toolbar" aria-label="Review controls">
     <div class="view-controls">
+      <div class="field"><span id="reviewStack">Games</span>
+        <div class="segmented" role="group" aria-labelledby="reviewStack">
+          <button type="button" class="segment" [class.active]="mainFiveOnly()" [attr.aria-pressed]="mainFiveOnly()"
+                  (click)="mainFiveOnly.set(true)" appTip="Only games where all five current starters were on our side">
+            Main five
+          </button>
+          <button type="button" class="segment" [class.active]="!mainFiveOnly()" [attr.aria-pressed]="!mainFiveOnly()"
+                  (click)="mainFiveOnly.set(false)" appTip="Every game the analysis holds, subs included">
+            Any stack @if (withSub()) { <em>+{{ withSub() }}</em> }
+          </button>
+        </div>
+      </div>
       <label class="field compact-field"><span>Comp</span>
         <select name="reviewComp" [value]="compFilter()" (change)="compFilter.set($any($event.target).value)">
           <option value="all">All comps</option>
@@ -25,7 +37,7 @@
       </label>
       <p class="meta-line">
         <span class="meta-label">Record</span>
-        <span class="meta-value">{{ record().wins }}W / {{ record().losses }}L over {{ record().games }} games</span>
+        <span class="meta-value">{{ record().wins }}W / {{ record().losses }}L over {{ record().games }} games@if (mainFiveOnly() && withSub()) { <small class="muted"> · {{ withSub() }} with a sub left out</small> }</span>
       </p>
     </div>
     <div class="review-refresh" [hidden]="embedded()">

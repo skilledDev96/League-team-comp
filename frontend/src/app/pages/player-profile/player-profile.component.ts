@@ -12,7 +12,7 @@ import { ExternalProfilesComponent } from '../../shared/external-profiles.compon
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
-import { formatSide, gapIsGood, playerSplits, PlayerSplitRow, SideStat, SplitUnit } from '../review/win-loss-splits';
+import { formatSide, gapIsGood, playerSplits, PlayerSplitRow, SideStat, SplitUnit, starterCount } from '../review/win-loss-splits';
 import { MIN_FOR_A_CLAIM } from '../review/loss-patterns.util';
 
 @Component({
@@ -49,7 +49,17 @@ export class PlayerProfileComponent {
   protected readonly withTeam = computed<PlayerSplitRow | undefined>(() => {
     const name = this.player()?.name;
     if (!name) return undefined;
-    return playerSplits(this.data.compAnalysis()?.games ?? []).find((r) => r.name === name);
+    // Their games with the main five: the player plus the other four
+    // starters, so a sub's page reads their games in the team and a
+    // starter's page reads the full five. Strictly the team, no other stack.
+    const starters = this.data.starters().map((p) => p.name);
+    const games = (this.data.compAnalysis()?.games ?? []).filter((g) => {
+      if (!g.players.some((p) => p.name === name)) return false;
+      if (starters.length < 5) return true;
+      const others = starters.filter((s) => s !== name);
+      return starterCount(g, others) >= 4;
+    });
+    return playerSplits(games).find((r) => r.name === name);
   });
   protected readonly claimFloor = MIN_FOR_A_CLAIM;
 

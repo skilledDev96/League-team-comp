@@ -85,6 +85,25 @@ const meanIfAny = (game: AnalysisGame, pick: (p: AnalysisPlayer) => number | und
 
 const topOf = (game: AnalysisGame) => game.players.find((p) => p.position === 'Top');
 
+// ---- Which games are the team's ------------------------------------------------
+
+/** How many of the named starters were on our side in this game. */
+export function starterCount(game: AnalysisGame, starters: readonly string[]): number {
+  const names = new Set(game.players.map((p) => p.name));
+  return starters.filter((s) => names.has(s)).length;
+}
+
+/**
+ * The games the main five played as the main five. Asked for on 8 Sep 2026:
+ * a game with a sub in is that sub's game, not the team's, and the team's
+ * read should not carry it. With fewer than five starters named (a roster
+ * still being set up) nothing is filtered out rather than everything.
+ */
+export function mainFiveGames(games: readonly AnalysisGame[], starters: readonly string[]): AnalysisGame[] {
+  if (starters.length < 5) return [...games];
+  return games.filter((g) => starterCount(g, starters) >= 5);
+}
+
 // ---- Lane table ---------------------------------------------------------------
 
 export interface LaneShare {

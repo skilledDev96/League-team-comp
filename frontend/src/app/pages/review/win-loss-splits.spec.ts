@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, AnalysisPlayer } from '../../models/team.models';
-import { keepDoing, killParticipationOf, laneTable, playerSplits, split, teamSplits, workOn } from './win-loss-splits';
+import { keepDoing, killParticipationOf, laneTable, mainFiveGames, playerSplits, split, starterCount, teamSplits, workOn } from './win-loss-splits';
 
 const player = (name: string, position: string, over: Partial<AnalysisPlayer> = {}): AnalysisPlayer => ({
   name,
@@ -50,6 +50,17 @@ function botLaneStory(n: number, extra: (win: boolean, role: string) => Partial<
   }
   return games;
 }
+
+describe('mainFiveGames', () => {
+  const five = ['top', 'jungle', 'mid', 'adc', 'support'];
+  it('keeps only the games every starter played, and filters nothing while the roster is short', () => {
+    const full = game(true);
+    const withSub = { ...game(false), players: game(false).players.map((p) => (p.name === 'top' ? { ...p, name: 'sub' } : p)) };
+    expect(starterCount(withSub, five)).toBe(4);
+    expect(mainFiveGames([full, withSub], five).map((g) => g.matchId)).toEqual([full.matchId]);
+    expect(mainFiveGames([full, withSub], five.slice(0, 4))).toHaveLength(2);
+  });
+});
 
 describe('split', () => {
   it('means each side over the games that carry the number and leaves the gap off with an empty side', () => {

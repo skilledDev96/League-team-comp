@@ -22,7 +22,7 @@ import {
   summarise,
   MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
-import { formatGap, formatSide, gapIsGood, keepDoing, laneTable, MetricSplit, SideStat, teamSplits, workOn } from './win-loss-splits';
+import { formatGap, formatSide, gapIsGood, keepDoing, laneTable, mainFiveGames, MetricSplit, SideStat, starterCount, teamSplits, workOn } from './win-loss-splits';
 
 /**
  * The games, and what they have in common — losses by default, wins on the
@@ -76,12 +76,31 @@ export class ReviewComponent {
     return effectiveComp(game.compId, this.data.compOverride(game.matchId), this.data.comps());
   }
 
-  protected readonly filteredGames = computed<AnalysisGame[]>(() => {
+  /**
+   * Strictly the five by default: a game with a sub in is left out of the
+   * team's read (8 Sep 2026). The switch widens it to any stack, and the
+   * record line says how many games that would add.
+   */
+  protected readonly mainFiveOnly = signal(true);
+  private readonly starterNames = computed(() => this.data.starters().map((p) => p.name));
+
+  private readonly anyStackGames = computed<AnalysisGame[]>(() => {
     const comp = this.compFilter();
     const games = this.analysis()?.games ?? [];
     return (comp === 'all' ? games : games.filter((game) => this.compFor(game)?.id === comp)).filter((game) =>
       this.filter.passes(game.players.map((p) => p.champion))
     );
+  });
+
+  protected readonly filteredGames = computed<AnalysisGame[]>(() =>
+    this.mainFiveOnly() ? mainFiveGames(this.anyStackGames(), this.starterNames()) : this.anyStackGames()
+  );
+
+  /** Games a sub played in, left out while the switch is on. */
+  protected readonly withSub = computed(() => {
+    const starters = this.starterNames();
+    if (starters.length < 5) return 0;
+    return this.anyStackGames().filter((g) => starterCount(g, starters) < 5).length;
   });
 
   /**
