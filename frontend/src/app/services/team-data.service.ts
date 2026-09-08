@@ -40,7 +40,8 @@ import {
   Scrim,
   ScrimOpponent,
   RefreshLog,
-  DraftEvent
+  DraftEvent,
+  PracticeGame
 } from '../models/team.models';
 import { normalizeEmail } from '../core/access';
 import { describeGameChange } from '../core/draft-diff';
@@ -57,6 +58,7 @@ type EntityKey =
   | 'seriesGames'
   | 'matchNotes'
   | 'compOverrides'
+  | 'practiceGames'
   | 'compResults'
   | 'scrims'
   | 'scrimOpponents'
@@ -88,6 +90,9 @@ export class TeamDataService {
   readonly matchNotes = signal<MatchNote[]>([]);
   /** Games placed under a comp by hand, keyed by match. */
   readonly compOverrides = signal<CompOverride[]>([]);
+  /** Games tagged as messing around, keyed by match; Patterns leaves them out. */
+  readonly practiceGames = signal<PracticeGame[]>([]);
+  readonly practiceSet = computed(() => new Set(this.practiceGames().map((p) => p.matchId)));
   /**
    * What each champion is, refreshed weekly by `refreshChampionTraits`.
    * Empty until that has run once; every reader treats absence as "unknown"
@@ -146,6 +151,7 @@ export class TeamDataService {
     this.seriesGames.set([...(data.seriesGames ?? [])].sort((a, b) => a.order - b.order));
     this.matchNotes.set([...(data.matchNotes ?? [])]);
     this.compOverrides.set([...(data.compOverrides ?? [])]);
+    this.practiceGames.set([...(data.practiceGames ?? [])]);
     this.compAnalysis.set(data.compAnalysis ?? null);
     this.resourceLinks.set(data.resourceLinks);
     this.settings.set(data.settings);
@@ -174,6 +180,7 @@ export class TeamDataService {
       seriesGames: this.seriesGames(),
       matchNotes: this.matchNotes(),
       compOverrides: this.compOverrides(),
+      practiceGames: this.practiceGames(),
       compAnalysis: this.compAnalysis() ?? undefined,
       resourceLinks: this.resourceLinks()
     };
@@ -246,6 +253,9 @@ export class TeamDataService {
       this.compOverrides.set(
         snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CompOverride, 'id'>) }))
       );
+    });
+    onSnapshot(collection(db, 'practiceGames'), (snap) => {
+      this.practiceGames.set(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<PracticeGame, 'id'>) })));
     });
     onSnapshot(collection(db, 'access'), (snap) => {
       const list = snap.docs.map((d) => ({
@@ -459,6 +469,19 @@ export class TeamDataService {
 
   compOverride(matchId: string): string {
     return this.compOverrides().find((entry) => entry.matchId === matchId)?.compId ?? '';
+  }
+
+  /** Tag a game as messing around, or take the tag off. Serious is the absence of a tag. */
+  setPractice(matchId: string, on: boolean): Promise<void> {
+    const tagged = this.practiceGames().some((p) => p.matchId === matchId);
+    if (on === tagged) return Promise.resolve();
+    if (!on) return this.persistRemove('practiceGames', this.practiceGames, matchId);
+    const tag: PracticeGame = { id: matchId, matchId, practice: true, order: 0 };
+    return this.persistUpsert('practiceGames', this.practiceGames, tag);
+  }
+
+  isPractice(matchId: string | undefined): boolean {
+    return !!matchId && this.practiceSet().has(matchId);
   }
 
   /** The shape the analysis request wants: matchId -> compId. */

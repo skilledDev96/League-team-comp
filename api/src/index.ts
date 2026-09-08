@@ -1299,6 +1299,8 @@ interface AnalysisGameResponse {
   winFactors?: WinFactor[];
   /** The fight scoreline: our kills against theirs. */
   kills?: { ours: number; theirs: number };
+  /** The cache schema the match was read from, so the health table can say which games are behind. */
+  cacheVersion?: number;
   /**
    * Where the lane reads came from: Riot's per-minute figures, or nothing —
    * a replay has totals only, so its lanes stay unknown and the lane table
@@ -1763,6 +1765,7 @@ async function computeCompAnalysis(
       date: match.gameCreation,
       players,
       ...(laneData && { laneData }),
+      ...(match.cacheVersion !== undefined && { cacheVersion: match.cacheVersion }),
       // Conditional spread throughout — Firestore rejects undefined values.
       ...(objectives && {
         objectives,

@@ -1,3 +1,4 @@
+import { healthChecks, healthTotals } from '../../core/health-checks';
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
@@ -184,6 +185,19 @@ export class AdminContextService {
   });
 
   readonly analysisGeneratedAt = computed(() => this.data.compAnalysis()?.generatedAt ?? '');
+
+  // One Firestore document holds the whole analysis; the size is the number
+  // that decides whether the lane reads keep fitting.
+  readonly payloadKb = computed(() => {
+    const bytes = this.data.compAnalysis()?.payloadBytes;
+    return bytes === undefined ? null : Math.round(bytes / 1024);
+  });
+
+  /** Every analysed game through the same checks, newest first. */
+  readonly healthRows = computed(() =>
+    [...(this.data.compAnalysis()?.games ?? [])].sort((a, b) => b.date - a.date).map(healthChecks)
+  );
+  readonly healthTotals = computed(() => healthTotals(this.healthRows()));
   addTournamentDraft(): void {
     this.tournamentDrafts.update((list) => [
       ...list,

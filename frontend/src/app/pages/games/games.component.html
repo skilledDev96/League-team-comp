@@ -219,6 +219,7 @@
               <span class="opp-history-result">{{ g.win ? 'W' : 'L' }}</span>
               <span class="opp-history-when">{{ day(g.date) }}</span>
               <span class="games-source" [class]="'games-source is-' + g.source">{{ g.label }}</span>
+              @if (data.isPractice(g.matchId)) { <span class="games-practice" appTip="Tagged as messing around: Patterns leaves it out">practice</span> }
               @if (g.opponent) { <span class="games-opp">vs {{ g.opponent }}</span> }
               @if (g.side) { <span class="opp-history-side" [class.is-blue]="g.side === 'blue'">{{ g.side }}</span> }
               @if (g.rosterCount !== undefined && g.rosterCount < 5) {
@@ -318,6 +319,11 @@
                 <app-match-note [matchId]="g.matchId" />
                 <div class="games-row-actions">
                   <app-match-note-button [matchId]="g.matchId" />
+                  @if (auth.editing()) {
+                    <button type="button" class="games-bench-toggle" [class.active]="data.isPractice(g.matchId)" [attr.aria-pressed]="data.isPractice(g.matchId)"
+                            [appTip]="data.isPractice(g.matchId) ? 'Tagged as messing around — click to count it as a serious game again' : 'Tag as messing around: Patterns leaves it out, whichever source it came from'"
+                            (click)="data.setPractice(g.matchId, !data.isPractice(g.matchId))">{{ data.isPractice(g.matchId) ? 'Practice' : 'Serious' }}</button>
+                  }
                   @if (auth.editing() && data.comps().length) {
                     <label class="field compact-field"><span>Counts as</span>
                       <select [name]="'compfor-' + g.matchId" [ngModel]="data.compOverride(g.matchId)" (ngModelChange)="setGameComp(g.matchId, $event)">
@@ -327,6 +333,7 @@
                     </label>
                   }
                 </div>
+                <app-game-check [game]="analysisOf(g)" />
               }
               @if (g.link) {
                 <div class="games-row-actions">

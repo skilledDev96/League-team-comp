@@ -341,6 +341,8 @@ export interface AnalysisGame {
    * Absent means the matcher's own answer.
    */
   attribution?: 'manual' | 'alias';
+  /** The cache schema the match was read from; absent on entries written before stamping. */
+  cacheVersion?: number;
 }
 
 /** Stage-by-stage audit of one analysis pass, so silent drops are visible. */
@@ -528,6 +530,7 @@ export interface TeamData {
   seriesGames: SeriesGame[];
   matchNotes: MatchNote[];
   compOverrides: CompOverride[];
+  practiceGames: PracticeGame[];
 }
 
 /** What the draft advisor answered. Mirrors `api/src/draft-advice.ts`. */
@@ -932,6 +935,19 @@ export interface MatchNote {
   id: string;
   matchId: string;
   text: string;
+  order: number;
+}
+
+/**
+ * A game the team was messing around in. Tagged by hand on the Games page;
+ * Patterns leaves it out unless asked (8 Sep 2026). Absent means serious —
+ * the tag exists only for the exceptions.
+ */
+export interface PracticeGame {
+  /** Same value as `matchId`, so a match has exactly one tag document. */
+  id: string;
+  matchId: string;
+  practice: true;
   order: number;
 }
 

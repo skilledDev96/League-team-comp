@@ -1,3 +1,4 @@
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ClientError } from '../../../core/error-reporting';
 import { DraftEvent } from '../../../models/team.models';
@@ -9,7 +10,7 @@ import { AdminContextService } from '../admin-context.service';
 /** Build, key health, the analysis funnel, and what the draft room did. */
 @Component({
   selector: 'app-admin-diagnostics',
-  imports: [TooltipDirective],
+  imports: [TooltipDirective, DatePipe, DecimalPipe],
   templateUrl: './diagnostics.component.html'
 })
 export class AdminDiagnosticsComponent implements OnInit {

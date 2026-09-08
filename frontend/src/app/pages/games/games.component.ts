@@ -15,6 +15,7 @@ import { MatchNoteButtonComponent } from '../../shared/match-note-button.compone
 import { MatchNoteComponent } from '../../shared/match-note.component';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 import { TooltipDirective } from '../../shared/tooltip.directive';
+import { GameCheckComponent } from '../../shared/game-check.component';
 import { ReviewComponent } from '../review/review.component';
 import {
   filterRows,
@@ -51,7 +52,8 @@ type Tab = 'games' | 'patterns';
     MatchNoteButtonComponent,
     NgModelNameDirective,
     TooltipDirective,
-    ReviewComponent
+    ReviewComponent,
+    GameCheckComponent
   ],
   templateUrl: './games.component.html'
 })
@@ -250,6 +252,12 @@ export class GamesComponent {
 
   protected sourceLabel(source: GameSource): string {
     return source === 'riot' ? 'Riot' : source === 'scrim' ? 'Scrim' : 'Tournament';
+  }
+
+  /** The analysed game behind a row, for the check drawer. */
+  private readonly analysisById = computed(() => new Map((this.data.compAnalysis()?.games ?? []).map((g) => [g.matchId, g])));
+  protected analysisOf(row: GameRow) {
+    return row.matchId ? this.analysisById().get(row.matchId) : undefined;
   }
 
   protected setGameComp(matchId: string, compId: string): void {

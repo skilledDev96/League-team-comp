@@ -8,6 +8,7 @@ import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { TooltipDirective } from '../../shared/tooltip.directive';
+import { GameCheckComponent } from '../../shared/game-check.component';
 import { effectiveComp } from '../../core/comp-alias';
 import {
   commonestFactor,
@@ -40,7 +41,7 @@ import { formatGap, formatSide, gapIsGood, keepDoing, laneTable, MetricSplit, se
  */
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, TooltipDirective, ChampionFilterComponent],
+  imports: [DatePipe, TooltipDirective, ChampionFilterComponent, GameCheckComponent],
   templateUrl: './review.component.html'
 })
 export class ReviewComponent {
@@ -90,12 +91,28 @@ export class ReviewComponent {
   ];
   private readonly starterNames = computed(() => this.data.starters().map((p) => p.name));
 
-  private readonly anyStackGames = computed<AnalysisGame[]>(() => {
+  /** Serious games only by default; a game tagged as messing around is left out. */
+  protected readonly seriousOnly = signal(true);
+
+  /** Comp and champion filters applied, every game, tagged or not. */
+  private readonly taggedOrNot = computed<AnalysisGame[]>(() => {
     const comp = this.compFilter();
     const games = this.analysis()?.games ?? [];
     return (comp === 'all' ? games : games.filter((game) => this.compFor(game)?.id === comp)).filter((game) =>
       this.filter.passes(game.players.map((p) => p.champion))
     );
+  });
+
+  private readonly anyStackGames = computed<AnalysisGame[]>(() => {
+    if (!this.seriousOnly()) return this.taggedOrNot();
+    const practice = this.data.practiceSet();
+    return this.taggedOrNot().filter((g) => !practice.has(g.matchId));
+  });
+
+  /** Games tagged as practice in the current comp and champion selection. */
+  protected readonly practiceCount = computed(() => {
+    const practice = this.data.practiceSet();
+    return this.taggedOrNot().filter((g) => practice.has(g.matchId)).length;
   });
 
   /** Games with enough starters, before the seat question. */

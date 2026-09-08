@@ -8,6 +8,9 @@
     <span class="material-symbols-rounded" aria-hidden="true">{{ ctx.shaMismatch() ? 'sync_problem' : 'commit' }}</span>
     <span>frontend <code>{{ ctx.frontendSha }}</code></span>
     <span>backend <code>{{ ctx.backendSha() || 'unknown' }}</code></span>
+    @if (ctx.payloadKb() !== null) {
+      <span [appTip]="'The analysis is one Firestore document with a 1024 KB cap; past 850 KB the oldest games lose their lane reads first'">analysis <code>{{ ctx.payloadKb() }} KB</code></span>
+    }
     @if (ctx.shaMismatch()) {
       <span class="build-sha-note">versions differ — redeploy functions</span>
     }
@@ -44,6 +47,50 @@
     }
   } @else {
     <p class="muted">No analysis has run yet. Hit Refresh match data on the Analysis page.</p>
+  }
+</section>
+
+<!-- Every analysed game through the same checks: a wrong number on
+     Patterns is worse than none, so anything odd is named here. -->
+<section class="card" aria-label="Data health">
+  <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">rule</span>Data health</h2>
+  @if (ctx.healthTotals(); as t) {
+    <p class="muted edit-hint">
+      <b>{{ t.games }}</b> games: <b>{{ t.current }}</b> on the current cache, <b>{{ t.behind }}</b> behind (each Refresh match data reads forty more),
+      <b>{{ t.unstamped }}</b> unstamped, <b>{{ t.flagged }}</b> flagged.
+    </p>
+  }
+  @if (ctx.healthRows().length) {
+    <div class="split-scroll">
+      <table class="split-table health-table">
+        <thead>
+          <tr>
+            <th scope="col">Match</th><th scope="col">Date</th><th scope="col">Queue</th>
+            <th scope="col" class="num">Cache</th><th scope="col" class="num">Ours</th>
+            <th scope="col" class="num" appTip="Player kills added up, against the kill tally">Kills</th>
+            <th scope="col" class="num">Length</th><th scope="col">Figures</th><th scope="col">Lanes</th><th scope="col">Flags</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of ctx.healthRows(); track r.matchId) {
+            <tr [class.is-flagged]="r.flags.length">
+              <td><code>{{ r.matchId }}</code></td>
+              <td>{{ r.date | date: 'd MMM' }}</td>
+              <td>{{ r.queue }}</td>
+              <td class="num">{{ r.cacheVersion !== undefined ? 'v' + r.cacheVersion : '—' }}</td>
+              <td class="num">{{ r.players }}</td>
+              <td class="num">{{ r.killsSum }}@if (r.killsTally !== undefined) { <small>/ {{ r.killsTally }}</small> }</td>
+              <td class="num">{{ r.durationSec !== undefined ? (r.durationSec / 60 | number: '1.0-0') + ' min' : '—' }}</td>
+              <td>{{ r.hasExtras ? 'full' : 'basic' }}</td>
+              <td>{{ r.hasLanes ? 'read' : r.queue === 'Scrim' ? 'replay' : '—' }}</td>
+              <td class="health-flags">{{ r.flags.join('; ') || '' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <p class="muted">No analysis yet.</p>
   }
 </section>
 

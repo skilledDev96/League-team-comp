@@ -15,6 +15,20 @@
 } @else {
   <section class="card review-toolbar" aria-label="Review controls">
     <div class="view-controls">
+      <!-- Serious games only, unless asked. The count is the games tagged as
+           messing around on the Games page. -->
+      <div class="field"><span id="reviewSerious">Games</span>
+        <div class="segmented" role="group" aria-labelledby="reviewSerious">
+          <button type="button" class="segment" [class.active]="seriousOnly()" [attr.aria-pressed]="seriousOnly()"
+                  (click)="seriousOnly.set(true)" appTip="Games played to win; anything tagged as practice on the Games page is left out">
+            Serious only
+          </button>
+          <button type="button" class="segment" [class.active]="!seriousOnly()" [attr.aria-pressed]="!seriousOnly()"
+                  (click)="seriousOnly.set(false)" appTip="Every game, the messing-around ones included">
+            All @if (practiceCount()) { <em>+{{ practiceCount() }}</em> }
+          </button>
+        </div>
+      </div>
       <!-- Like the comp strictness used to be: how many of the starters a
            game needs. Strictly the five by default (8 Sep 2026). -->
       <div class="field"><span id="reviewStack">Starters in the game</span>
@@ -48,7 +62,7 @@
       </label>
       <p class="meta-line">
         <span class="meta-label">Record</span>
-        <span class="meta-value">{{ record().wins }}W / {{ record().losses }}L over {{ record().games }} games@if (leftOut()) { <small class="muted"> · {{ leftOut() }} left out by the filters</small> }</span>
+        <span class="meta-value">{{ record().wins }}W / {{ record().losses }}L over {{ record().games }} games@if (leftOut()) { <small class="muted"> · {{ leftOut() }} left out by the filters</small> }@if (seriousOnly() && practiceCount()) { <small class="muted"> · {{ practiceCount() }} practice {{ practiceCount() === 1 ? 'game' : 'games' }} left out</small> }</span>
       </p>
     </div>
     <div class="review-refresh" [hidden]="embedded()">
@@ -374,6 +388,7 @@
               </div>
             </div>
           }
+            <app-game-check [game]="game" />
             @if (adviceFor(game).length) {
               <aside class="callout is-advice" aria-label="What to work on">
                 <span class="callout-icon material-symbols-rounded" aria-hidden="true">target</span>

@@ -13817,3 +13817,27 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 
 .team-column-option input { margin: 0; accent-color: var(--accent); }
 .team-column-option.active { color: var(--text-0); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+
+/* ---- Practice tag, the check drawer, data health (8 Sep 2026) ---------- */
+.games-practice {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  color: var(--warn);
+}
+
+.game-check { margin-top: 0.6rem; }
+.game-check > summary { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-1); }
+.game-check > summary .game-check-chevron { margin-left: auto; transition: transform 0.15s ease; }
+.game-check[open] > summary .game-check-chevron { transform: rotate(180deg); }
+.game-check-body { padding-top: 0.5rem; }
+.game-check-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin: 0 0 0.5rem; font-size: 0.78rem; }
+.game-check-table td:first-child small { display: block; margin-left: 0; }
+
+.health-table code { font-size: 0.72rem; }
+.health-table tr.is-flagged td { background: color-mix(in srgb, var(--warn) 8%, transparent); }
+.health-table .health-flags { white-space: normal; min-width: 14rem; color: var(--warn); font-size: 0.74rem; }

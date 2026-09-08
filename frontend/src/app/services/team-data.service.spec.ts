@@ -33,6 +33,17 @@ describe('TeamDataService in local mode', () => {
     data = makeService();
   });
 
+  it('tags a game as practice, writes it through, and takes the tag off again', async () => {
+    await data.setPractice('EUW1_1', true);
+    expect(data.isPractice('EUW1_1')).toBe(true);
+    expect(stored()['practiceGames'].map((p) => p.id)).toEqual(['EUW1_1']);
+    await data.setPractice('EUW1_1', true); // already on: nothing to do
+    expect(data.practiceGames()).toHaveLength(1);
+    await data.setPractice('EUW1_1', false);
+    expect(data.isPractice('EUW1_1')).toBe(false);
+    expect(stored()['practiceGames']).toEqual([]);
+  });
+
   it('starts in local mode and seeds itself', () => {
     expect(data.mode).toBe('local');
     expect(data.players().length).toBeGreaterThan(0);
