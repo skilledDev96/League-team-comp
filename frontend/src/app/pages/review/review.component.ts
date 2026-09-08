@@ -22,7 +22,7 @@ import {
   summarise,
   MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
-import { formatGap, formatSide, gapIsGood, keepDoing, laneTable, mainFiveGames, MetricSplit, SideStat, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { formatGap, formatSide, gapIsGood, keepDoing, laneTable, MetricSplit, SideStat, starterCount, teamSplits, workOn } from './win-loss-splits';
 
 /**
  * The games, and what they have in common — losses by default, wins on the
@@ -81,7 +81,13 @@ export class ReviewComponent {
    * team's read (8 Sep 2026). The switch widens it to any stack, and the
    * record line says how many games that would add.
    */
-  protected readonly mainFiveOnly = signal(true);
+  /** How many of the current starters a game needs to count: 5 is strictly the team. */
+  protected readonly minStarters = signal<5 | 4 | 3>(5);
+  protected readonly starterSteps: { min: 5 | 4 | 3; label: string; tip: string }[] = [
+    { min: 5, label: 'All five', tip: 'Only games where every current starter was on our side' },
+    { min: 4, label: '4 or more', tip: 'Four starters and a sub count too' },
+    { min: 3, label: '3 or more', tip: 'Any game with three or more starters — the widest the analysis reads' }
+  ];
   private readonly starterNames = computed(() => this.data.starters().map((p) => p.name));
 
   private readonly anyStackGames = computed<AnalysisGame[]>(() => {
@@ -92,16 +98,22 @@ export class ReviewComponent {
     );
   });
 
-  protected readonly filteredGames = computed<AnalysisGame[]>(() =>
-    this.mainFiveOnly() ? mainFiveGames(this.anyStackGames(), this.starterNames()) : this.anyStackGames()
-  );
-
-  /** Games a sub played in, left out while the switch is on. */
-  protected readonly withSub = computed(() => {
+  protected readonly filteredGames = computed<AnalysisGame[]>(() => {
     const starters = this.starterNames();
-    if (starters.length < 5) return 0;
-    return this.anyStackGames().filter((g) => starterCount(g, starters) < 5).length;
+    if (starters.length < 5) return this.anyStackGames();
+    const min = this.minStarters();
+    return this.anyStackGames().filter((g) => starterCount(g, starters) >= min);
   });
+
+  /** How many games each step would count, for the buttons. */
+  protected gamesAtStep(min: number): number {
+    const starters = this.starterNames();
+    if (starters.length < 5) return this.anyStackGames().length;
+    return this.anyStackGames().filter((g) => starterCount(g, starters) >= min).length;
+  }
+
+  /** Games left out by the current step. */
+  protected readonly leftOut = computed(() => this.anyStackGames().length - this.filteredGames().length);
 
   /**
    * Which side of the result the page is showing.

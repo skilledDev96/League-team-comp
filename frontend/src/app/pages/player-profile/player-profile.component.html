@@ -133,6 +133,26 @@
     @if (withTeam(); as w) {
       <article class="card card-wide">
         <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>With the team, wins against losses</h2>
+        @if (teamChampions().length > 1) {
+          <div class="team-champ-filter" role="group" aria-label="Champion">
+            <button type="button" class="view-btn" [class.active]="!teamChampion()" (click)="teamChampion.set('')">Every champion</button>
+            @for (c of teamChampions().slice(0, 8); track c.champion) {
+              <button type="button" class="view-btn team-champ-btn" [class.active]="teamChampion() === c.champion"
+                      (click)="teamChampion.set(teamChampion() === c.champion ? '' : c.champion)"
+                      [appTip]="c.champion + ': ' + c.wins + ' of ' + c.games + ' won with the team'">
+                <img [src]="ui.championIconUrl(c.champion)" [alt]="" loading="lazy" /> {{ c.champion }} <em>{{ c.games }}</em>
+              </button>
+            }
+            @if (teamChampions().length > 8) {
+              <select class="team-champ-more" [value]="teamChampion()" (change)="teamChampion.set($any($event.target).value)" aria-label="Other champions">
+                <option value="">More…</option>
+                @for (c of teamChampions().slice(8); track c.champion) {
+                  <option [value]="c.champion">{{ c.champion }} ({{ c.games }})</option>
+                }
+              </select>
+            }
+          </div>
+        }
         <div class="split-scroll">
           <table class="split-table">
             <thead>
@@ -141,16 +161,25 @@
                 @for (m of w.metrics; track m.key) {
                   <th scope="col" class="num" [appTip]="m.label + ' — in wins (W) and in losses (L)'">{{ m.label }}</th>
                 }
+                <th scope="col">Played</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>All <small>{{ w.games }}</small></td>
+                <td>{{ teamChampion() || 'All' }} <small>{{ w.games }}</small></td>
                 @for (m of w.metrics; track m.key) {
                   <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">
                     <small class="wl">W</small>{{ side(m.split.wins, m.unit) }} <small class="wl">L</small>{{ side(m.split.losses, m.unit) }}
                   </td>
                 }
+                <td>
+                  <span class="games-champs">
+                    @for (c of w.champions.slice(0, 6); track c.champion) {
+                      <img [src]="ui.championIconUrl(c.champion)" [alt]="c.champion" loading="lazy" [appTip]="c.champion + ': ' + c.wins + ' of ' + c.games + ' won'" />
+                    }
+                    @if (w.champions.length > 6) { <small>+{{ w.champions.length - 6 }}</small> }
+                  </span>
+                </td>
               </tr>
               @for (s of w.seats; track s.role) {
                 <tr class="is-seat">
@@ -160,6 +189,14 @@
                       <small class="wl">W</small>{{ side(m.split.wins, m.unit) }} <small class="wl">L</small>{{ side(m.split.losses, m.unit) }}
                     </td>
                   }
+                  <td>
+                    <span class="games-champs">
+                      @for (c of s.champions.slice(0, 6); track c.champion) {
+                        <img [src]="ui.championIconUrl(c.champion)" [alt]="c.champion" loading="lazy" [appTip]="c.champion + ' at ' + s.role + ': ' + c.wins + ' of ' + c.games + ' won'" />
+                      }
+                      @if (s.champions.length > 6) { <small>+{{ s.champions.length - 6 }}</small> }
+                    </span>
+                  </td>
                 </tr>
               }
             </tbody>

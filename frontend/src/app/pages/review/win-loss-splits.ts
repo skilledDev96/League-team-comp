@@ -209,10 +209,18 @@ export interface PlayerMetric {
   higherIsBetter: boolean;
 }
 
+export interface ChampionCount {
+  champion: string;
+  games: number;
+  wins: number;
+}
+
 export interface SeatSplitRow {
   role: string;
   games: number;
   metrics: PlayerMetric[];
+  /** Most played first. */
+  champions: ChampionCount[];
 }
 
 export interface PlayerSplitRow {
@@ -224,6 +232,8 @@ export interface PlayerSplitRow {
   metrics: PlayerMetric[];
   /** The same figures per seat, for each seat with enough games to read. */
   seats: SeatSplitRow[];
+  /** Most played first, every seat. */
+  champions: ChampionCount[];
 }
 
 export function playerSplits(games: readonly AnalysisGame[]): PlayerSplitRow[] {
@@ -257,6 +267,18 @@ export function playerSplits(games: readonly AnalysisGame[]): PlayerSplitRow[] {
       pm('tp', 'Teleport takedowns', 'count', true, (p) => p.facts?.tpTakedowns, 1)
     ];
   };
+  const championsFor = (own: (g: AnalysisGame) => AnalysisPlayer | undefined): ChampionCount[] => {
+    const acc = new Map<string, ChampionCount>();
+    for (const g of games) {
+      const p = own(g);
+      if (!p) continue;
+      const c = acc.get(p.champion) ?? { champion: p.champion, games: 0, wins: 0 };
+      c.games += 1;
+      if (g.win) c.wins += 1;
+      acc.set(p.champion, c);
+    }
+    return [...acc.values()].sort((a, b) => b.games - a.games || b.wins - a.wins || a.champion.localeCompare(b.champion));
+  };
   const order = (r: string) => { const i = (ROLES as readonly string[]).indexOf(r); return i < 0 ? ROLES.length : i; };
   const rows: PlayerSplitRow[] = [];
   for (const [name, roles] of names) {
@@ -267,13 +289,15 @@ export function playerSplits(games: readonly AnalysisGame[]): PlayerSplitRow[] {
       role,
       games: sorted.reduce((n, [, c]) => n + c, 0),
       metrics: metricsFor((g) => g.players.find((p) => p.name === name)),
+      champions: championsFor((g) => g.players.find((p) => p.name === name)),
       seats: sorted
         .filter(([seat, count]) => seat && count >= MIN_FOR_A_CLAIM)
         .sort((a, b) => order(a[0]) - order(b[0]))
         .map(([seat, count]) => ({
           role: seat,
           games: count,
-          metrics: metricsFor((g) => g.players.find((p) => p.name === name && p.position === seat))
+          metrics: metricsFor((g) => g.players.find((p) => p.name === name && p.position === seat)),
+          champions: championsFor((g) => g.players.find((p) => p.name === name && p.position === seat))
         }))
     });
   }

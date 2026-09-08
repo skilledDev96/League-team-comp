@@ -46,19 +46,36 @@ export class PlayerProfileComponent {
   // in, with the same figures per seat underneath. The team's own read of
   // wins against losses is on Games → Patterns; this is the one player's.
 
-  protected readonly withTeam = computed<PlayerSplitRow | undefined>(() => {
+  /** Their games with the main five: the player plus the other four starters. */
+  private readonly teamGames = computed(() => {
     const name = this.player()?.name;
-    if (!name) return undefined;
-    // Their games with the main five: the player plus the other four
-    // starters, so a sub's page reads their games in the team and a
-    // starter's page reads the full five. Strictly the team, no other stack.
+    if (!name) return [];
     const starters = this.data.starters().map((p) => p.name);
-    const games = (this.data.compAnalysis()?.games ?? []).filter((g) => {
+    return (this.data.compAnalysis()?.games ?? []).filter((g) => {
       if (!g.players.some((p) => p.name === name)) return false;
       if (starters.length < 5) return true;
       const others = starters.filter((s) => s !== name);
       return starterCount(g, others) >= 4;
     });
+  });
+
+  /** Every champion they played in those games, most played first, for the filter. */
+  protected readonly teamChampions = computed(() => {
+    const name = this.player()?.name;
+    const all = playerSplits(this.teamGames()).find((r) => r.name === name);
+    return all?.champions ?? [];
+  });
+
+  /** One champion, or every game. Asked for on 8 Sep 2026: the main champ against the rest. */
+  protected readonly teamChampion = signal('');
+
+  protected readonly withTeam = computed<PlayerSplitRow | undefined>(() => {
+    const name = this.player()?.name;
+    if (!name) return undefined;
+    const champ = this.teamChampion();
+    const games = champ
+      ? this.teamGames().filter((g) => g.players.some((p) => p.name === name && p.champion === champ))
+      : this.teamGames();
     return playerSplits(games).find((r) => r.name === name);
   });
   protected readonly claimFloor = MIN_FOR_A_CLAIM;

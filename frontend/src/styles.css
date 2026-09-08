@@ -13710,3 +13710,18 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 
 /* The player's wins-against-losses card spans the profile's two columns. */
 .grid.two > .card-wide { grid-column: 1 / -1; }
+
+
+/* The champion filter on a player's with-the-team card: pills with icons. */
+.team-champ-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0.7rem;
+}
+
+.team-champ-btn { display: inline-flex; align-items: center; gap: 0.35rem; }
+.team-champ-btn img { width: 1.3rem; height: 1.3rem; border-radius: 0.25rem; }
+.team-champ-btn em { font-style: normal; font-size: 0.7rem; opacity: 0.7; }
+.team-champ-more { font: inherit; font-size: 0.8rem; }
