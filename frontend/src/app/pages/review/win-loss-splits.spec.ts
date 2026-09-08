@@ -166,4 +166,15 @@ describe('playerSplits', () => {
     expect(adc.metrics.find((m) => m.key === 'goldDiff')!.split.losses.mean).toBe(-45);
     expect(playerSplits(games.filter((g) => g.win))[0].metrics[0].split.losses.n).toBe(0);
   });
+
+  it('counts a player only in their usual seat, and says how many games sat elsewhere', () => {
+    const games = botLaneStory(3, (win) => ({ deaths: win ? 1 : 5 }));
+    // One loss with the ADC and Top swapped: adc sits Top at 9 deaths.
+    const swapped = { ...games[1], players: games[1].players.map((p) => (p.name === 'adc' ? { ...p, position: 'Top', deaths: 9 } : p.name === 'top' ? { ...p, position: 'ADC' } : p)) };
+    const rows = playerSplits([...games.slice(0, 1), swapped, ...games.slice(2)]);
+    const adc = rows.find((r) => r.name === 'adc')!;
+    expect(adc.role).toBe('ADC');
+    expect(adc.otherSeatGames).toBe(1);
+    expect(adc.metrics.find((m) => m.key === 'deaths')!.split.losses).toEqual({ mean: 5, n: 2 }); // the Top game is not in the row
+  });
 });

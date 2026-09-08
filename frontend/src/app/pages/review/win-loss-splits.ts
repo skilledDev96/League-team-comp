@@ -192,7 +192,10 @@ export interface PlayerMetric {
 
 export interface PlayerSplitRow {
   name: string;
+  /** The seat they sat in most; the row counts only games in it. */
   role: string;
+  /** Games they played in another seat, left out so the row is a slice of the lane table. */
+  otherSeatGames: number;
   metrics: PlayerMetric[];
 }
 
@@ -208,7 +211,11 @@ export function playerSplits(games: readonly AnalysisGame[]): PlayerSplitRow[] {
   const rows: PlayerSplitRow[] = [];
   for (const [name, roles] of names) {
     const role = [...roles.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
-    const own = (g: AnalysisGame) => g.players.find((p) => p.name === name);
+    // Only their usual seat: a player's row mixing a top game at -9 cs into an
+    // ADC row read as contradicting the lane table (8 Sep 2026). Games in
+    // another seat are counted and named, not silently folded in.
+    const own = (g: AnalysisGame) => g.players.find((p) => p.name === name && p.position === role);
+    const otherSeatGames = [...roles.entries()].filter(([r]) => r !== role).reduce((n, [, c]) => n + c, 0);
     const pm = (key: string, label: string, unit: PlayerMetric['unit'], higherIsBetter: boolean, pick: (p: AnalysisPlayer, g: AnalysisGame) => number | undefined, places = 2): PlayerMetric => ({
       key,
       label,
@@ -219,6 +226,7 @@ export function playerSplits(games: readonly AnalysisGame[]): PlayerSplitRow[] {
     rows.push({
       name,
       role,
+      otherSeatGames,
       metrics: [
         pm('deaths', 'Deaths', 'count', false, (p) => p.deaths, 1),
         pm('kp', 'Kill participation', 'pct', true, (p, g) => killParticipationOf(p, g)),
