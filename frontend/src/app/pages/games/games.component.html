@@ -272,7 +272,7 @@
        the same question: who played what, and how did it go. -->
   <section class="card" aria-label="Games">
     <div class="section-head games-list-head">
-      <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">sports_esports</span>Games <small class="muted">{{ rows().length }}</small></h2>
+      <p class="title-with-icon games-list-title"><span class="section-icon material-symbols-rounded">sports_esports</span>Game list <small class="muted">{{ rows().length }}</small></p>
       <button type="button" class="view-btn games-fold" (click)="listOpen.set(!listOpen())" [attr.aria-expanded]="listOpen()">
         <span class="material-symbols-rounded" aria-hidden="true">{{ listOpen() ? 'expand_less' : 'expand_more' }}</span>{{ listOpen() ? 'Hide' : 'Show' }}
       </button>
