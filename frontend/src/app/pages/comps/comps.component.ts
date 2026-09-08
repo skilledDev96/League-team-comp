@@ -13,6 +13,7 @@ import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { CompBoardComponent } from '../../shared/comp-board.component';
 import { compIconFor } from '../../core/comp-identity';
+import { effectiveComp } from '../../core/comp-alias';
 import { EXPECT_AXES, EXPECT_LABEL, ExpectAxis, LEVEL_LABEL, LEVELS } from '../../core/comp-expectation';
 import { CompExpectationService } from '../../services/comp-expectation.service';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
@@ -309,8 +310,31 @@ export class CompsComponent {
   // notes, and the useful part is the pattern across them, not the transcript.
   // What surfaces first is which champions keep getting named when we lose.
 
+  /** The games that count as a comp, overrides and countsUnder applied — never `game.compId` alone. */
+  private gamesOf(compId: string) {
+    const comps = this.data.comps();
+    return (this.data.compAnalysis()?.games ?? []).filter((g) => effectiveComp(g.compId, this.data.compOverride(g.matchId), comps)?.id === compId);
+  }
+
+  /**
+   * What the post-game reviews said about this comp: how many times the
+   * game played out as drafted, and how many times it went off plan.
+   */
+  protected playedOut(compId: string): { reviewed: number; asDrafted: number; offPlan: number; unclear: number; offPlanWhy: string[] } | null {
+    const ids = new Set(this.gamesOf(compId).map((g) => g.matchId));
+    const reviews = this.data.gameReviews().filter((r) => ids.has(r.matchId));
+    if (!reviews.length) return null;
+    return {
+      reviewed: reviews.length,
+      asDrafted: reviews.filter((r) => r.team.compVerdict === 'as drafted').length,
+      offPlan: reviews.filter((r) => r.team.compVerdict === 'off plan').length,
+      unclear: reviews.filter((r) => r.team.compVerdict === 'unclear').length,
+      offPlanWhy: reviews.filter((r) => r.team.compVerdict === 'off plan' && r.team.compWhy).map((r) => r.team.compWhy).slice(0, 3)
+    };
+  }
+
   protected retro(compId: string): NoteRollup | null {
-    const games = (this.data.compAnalysis()?.games ?? []).filter((g) => g.compId === compId);
+    const games = this.gamesOf(compId);
     const notes = games
       .map((game) => ({
         matchId: game.matchId,

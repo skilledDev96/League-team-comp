@@ -6,6 +6,7 @@
 <section class="view-controls" aria-label="Games views">
   <button class="view-btn" type="button" [class.active]="tab() === 'games'" (click)="tab.set('games')">Games</button>
   <button class="view-btn" type="button" [class.active]="tab() === 'patterns'" (click)="tab.set('patterns')">Patterns</button>
+  <button class="view-btn" type="button" [class.active]="tab() === 'reviews'" (click)="tab.set('reviews')">Reviews @if (data.gameReviews().length) { <small>{{ data.gameReviews().length }}</small> }</button>
 </section>
 
 <!-- The Riot data line: who refreshed what, and the button to do it again.
@@ -52,6 +53,49 @@
 
 @if (tab() === 'patterns') {
   <app-review [embedded]="true" />
+} @else if (tab() === 'reviews') {
+  <!-- Every written review, newest first: the summary and the comp verdict,
+       with the row it belongs to one click away. -->
+  <section class="card games-filters" aria-label="Review filters">
+    <label class="field compact-field"><span>Comp</span>
+      <select name="reviewComp" [value]="reviewComp()" (change)="reviewComp.set($any($event.target).value)">
+        <option value="all">All comps</option>
+        @for (comp of data.comps(); track comp.id) { <option [value]="comp.id">{{ comp.name }}</option> }
+      </select>
+    </label>
+    <span class="muted">{{ reviewRows().length }} {{ reviewRows().length === 1 ? 'review' : 'reviews' }}</span>
+  </section>
+  @if (reviewRows().length) {
+    <section class="review-cards" aria-label="Reviews">
+      @for (r of reviewRows(); track r.review.matchId) {
+        <article class="card review-card">
+          <div class="review-card-head">
+            @if (r.game) {
+              <span class="tag" [class.good]="r.game.win" [class.bad]="!r.game.win">{{ r.game.win ? 'Win' : 'Loss' }}</span>
+              <span class="review-card-date">{{ r.game.date | date: 'd MMM' }} · {{ r.game.queue }}</span>
+              @if (r.game.enemyChampions?.length) { <span class="muted review-card-vs">vs {{ r.game.enemyChampions!.join(', ') }}</span> }
+            } @else {
+              <span class="muted">Game no longer in the analysis</span>
+            }
+            <span class="game-review-verdict" [class.is-good]="r.review.team.compVerdict === 'as drafted'" [class.is-bad]="r.review.team.compVerdict === 'off plan'"
+                  [appTip]="r.review.team.compWhy || ''">
+              {{ r.comp?.name || r.review.compName || 'No comp' }}: {{ r.review.team.compVerdict }}
+            </span>
+          </div>
+          <p class="review-card-summary">{{ r.review.team.summary }}</p>
+          @if (r.review.team.workOn.length) {
+            <p class="review-card-workon"><b>Work on:</b> {{ r.review.team.workOn[0].text }}</p>
+          }
+          <div class="games-row-actions">
+            <button type="button" class="view-btn" (click)="openMatch(r.review.matchId)">Open the game</button>
+            <small class="muted">{{ r.review.reviewedAt | date: 'd MMM, HH:mm' }}{{ r.review.tier === 'endOfGame' ? ' · totals only' : '' }}</small>
+          </div>
+        </article>
+      }
+    </section>
+  } @else {
+    <section class="card"><p class="muted">No reviews yet. Open a game on the Games tab and press "Review this game", or switch on the morning reviews under Admin → Settings.</p></section>
+  }
 } @else {
   <!-- One filter row. Source, window, result, opponent; the champion box is
        the same one every page shares. -->

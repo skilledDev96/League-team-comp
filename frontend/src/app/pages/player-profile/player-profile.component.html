@@ -216,6 +216,25 @@
           "All games" is one figure over every game; "Wins vs losses" puts W beside L, green when the gap is in {{ p.name }}'s favour. "Vs lane" is against whoever was across them that game.
           One "at" row per seat they have sat in, with the games behind it. The team's own read is on Games → Patterns.
         </p>
+        @if (coachingNotes().length) {
+          <!-- What the post-game reviews said about this player, one line each way per game. -->
+          <h3 class="coaching-head"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Coaching notes</h3>
+          <ul class="list-clean coaching-notes">
+            @for (n of coachingNotes(); track n.review.matchId) {
+              <li class="coaching-note">
+                <div class="coaching-note-head">
+                  @if (n.game) {
+                    <span class="tag" [class.good]="n.game.win" [class.bad]="!n.game.win">{{ n.game.win ? 'W' : 'L' }}</span>
+                    <span>{{ n.game.date | date: 'd MMM' }} · {{ n.note!.champion }}</span>
+                  } @else { <span>{{ n.note!.champion }}</span> }
+                  <a class="view-btn coaching-open" [routerLink]="['/games']" [queryParams]="{ match: n.review.matchId }">Open the game</a>
+                </div>
+                @if (n.note!.strength.text) { <p class="coaching-line is-ok"><b>Strength</b> {{ n.note!.strength.text }} <small class="advice-n">{{ n.note!.strength.evidence }}</small></p> }
+                @if (n.note!.workOn.text) { <p class="coaching-line is-warn"><b>Work on</b> @if (n.note!.workOn.minute !== null) { <span class="review-minute">{{ n.note!.workOn.minute }} min</span> } {{ n.note!.workOn.text }} <small class="advice-n">{{ n.note!.workOn.evidence }}</small></p> }
+              </li>
+            }
+          </ul>
+        }
       </article>
     } @else if (data.compAnalysis()) {
       <!-- No games in this queue with the main five: say so rather than

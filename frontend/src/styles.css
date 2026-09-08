@@ -13951,3 +13951,26 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .game-review-foot { margin: 0.5rem 0 0; font-size: 0.72rem; }
 .games-review-btn .material-symbols-rounded { font-size: 1.1rem; vertical-align: -0.2rem; }
 .games-review-error { color: var(--warn); font-size: 0.74rem; }
+
+
+/* ---- Reviews tab and coaching notes ------------------------------------- */
+.review-cards { display: grid; gap: 0.75rem; }
+.review-card { padding: 0.9rem 1rem; }
+.review-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; }
+.review-card-date { font-weight: 700; }
+.review-card-vs { font-size: 0.78rem; }
+.review-card-summary { margin: 0.2rem 0 0.35rem; }
+.review-card-workon { margin: 0 0 0.5rem; font-size: 0.86rem; color: var(--text-1); }
+.coaching-head { display: flex; align-items: center; gap: 0.4rem; margin: 1rem 0 0.4rem; }
+.coaching-notes { display: grid; gap: 0.6rem; }
+.coaching-note { padding: 0.6rem 0.75rem; border: 1px solid var(--card-border); border-radius: 10px; }
+.coaching-note-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; font-size: 0.84rem; }
+.coaching-open { margin-left: auto; }
+.coaching-line { margin: 0.15rem 0; font-size: 0.86rem; }
+.coaching-line.is-ok b { color: var(--ok); }
+.coaching-line.is-warn b { color: var(--warn); }
+
+
+.comp-played-out { display: flex; align-items: center; gap: 0.35rem; margin: 0.4rem 0; font-size: 0.82rem; color: var(--text-1); }
+.comp-played-out .material-symbols-rounded { font-size: 1.1rem; color: var(--accent); }
+.comp-played-out b.is-warn { color: var(--warn); }

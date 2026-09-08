@@ -205,6 +205,13 @@
         </div>
       }
 
+      @if (playedOut(comp.id); as po) {
+        <p class="comp-played-out" [appTip]="po.offPlanWhy.length ? 'Off plan: ' + po.offPlanWhy.join(' · ') : 'From the post-game reviews of the games that count as this comp'">
+          <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>
+          Played out as drafted in <b>{{ po.asDrafted }}</b> of <b>{{ po.reviewed }}</b> reviewed {{ po.reviewed === 1 ? 'game' : 'games' }}@if (po.offPlan) {, off plan in <b class="is-warn">{{ po.offPlan }}</b>}@if (po.unclear) {, unclear in {{ po.unclear }}}.
+        </p>
+      }
+
       @if (comp.bans?.length || auth.editing()) {
         <div class="comp-notes comp-bans">
           <div class="comp-record-head">

@@ -36,7 +36,7 @@ import {
   toughest
 } from './game-rows';
 
-type Tab = 'games' | 'patterns';
+type Tab = 'games' | 'patterns' | 'reviews';
 
 /**
  * Every game we played, in one place: tournament games, scrims and the flex
@@ -206,6 +206,7 @@ export class GamesComponent {
         this.days.set(0);
         this.focus.set(`riot-${match}`);
       }
+      if (params.get('tab') === 'reviews') this.tab.set('reviews');
     });
     effect(() => {
       const id = this.focus();
@@ -263,6 +264,32 @@ export class GamesComponent {
   private readonly analysisById = computed(() => new Map((this.data.compAnalysis()?.games ?? []).map((g) => [g.matchId, g])));
   private readonly expectations = inject(CompExpectationService);
   protected readonly reviews = inject(GameReviewService);
+
+  // ---- The Reviews tab: every written review, newest first ----------------
+
+  protected readonly reviewComp = signal<string>('all');
+
+  protected readonly reviewRows = computed(() => {
+    const comps = this.data.comps();
+    const filter = this.reviewComp();
+    return this.data
+      .gameReviews()
+      .map((review) => {
+        const game = this.analysisById().get(review.matchId);
+        const comp = game ? effectiveComp(game.compId, this.data.compOverride(game.matchId), comps) : null;
+        return { review, game, comp };
+      })
+      .filter((r) => filter === 'all' || r.comp?.id === filter)
+      .sort((a, b) => (b.game?.date ?? 0) - (a.game?.date ?? 0));
+  });
+
+  /** Jump from a review to its row on the Games tab. */
+  protected openMatch(matchId: string): void {
+    this.tab.set('games');
+    this.days.set(0);
+    this.revealed = null;
+    this.focus.set(`riot-${matchId}`);
+  }
 
   /** Ask the model for a review of this game; the stored document arrives through the listener. */
   protected reviewGame(row: GameRow): void {

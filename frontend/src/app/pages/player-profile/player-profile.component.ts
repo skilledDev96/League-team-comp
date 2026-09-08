@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -21,7 +22,7 @@ import { MIN_FOR_A_CLAIM } from '../review/loss-patterns.util';
 
 @Component({
   selector: 'app-player-profile',
-  imports: [RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, OverflowMenuComponent, TooltipDirective, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent],
+  imports: [DatePipe, RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, OverflowMenuComponent, TooltipDirective, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent],
   templateUrl: './player-profile.component.html'
 })
 export class PlayerProfileComponent {
@@ -104,6 +105,19 @@ export class PlayerProfileComponent {
 
   protected readonly prefs = inject(TablePrefsService);
   protected readonly playerDefaults = ['kda', 'deaths', 'kp', 'damageShare', 'vision', 'goldDiff', 'csDiff'];
+
+  /** What the reviews said about this player, newest first, the last six. */
+  protected readonly coachingNotes = computed(() => {
+    const name = this.player()?.name;
+    if (!name) return [];
+    const games = new Map((this.data.compAnalysis()?.games ?? []).map((g) => [g.matchId, g]));
+    return this.data
+      .gameReviews()
+      .map((review) => ({ review, note: review.players.find((p) => p.name === name), game: games.get(review.matchId) }))
+      .filter((r) => r.note)
+      .sort((a, b) => (b.game?.date ?? 0) - (a.game?.date ?? 0))
+      .slice(0, 6);
+  });
 
   protected columnOptions(metrics: readonly PlayerMetric[]): ColumnOption[] {
     return metrics.map((m) => ({ key: m.key, label: m.label }));
