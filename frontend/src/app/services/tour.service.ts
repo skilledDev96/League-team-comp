@@ -154,12 +154,16 @@ export class TourService {
   }
 
   async next(): Promise<void> {
+    // One step at a time: a second press while the first is still walking
+    // the page would start two hunts for two anchors at once.
+    if (this.busy()) return;
     const i = stepAfterSkip(this.steps().length, this.index(), 1, this.missing);
     if (i === null) this.finish();
     else await this.goTo(i, 1);
   }
 
   async back(): Promise<void> {
+    if (this.busy()) return;
     const i = stepAfterSkip(this.steps().length, this.index(), -1, this.missing);
     if (i !== null) await this.goTo(i, -1);
   }
@@ -287,18 +291,26 @@ export class TourService {
     for (let tries = 0; tries < 30; tries += 1) {
       for (const sel of selectors) {
         const el = document.querySelector<HTMLElement>(sel);
-        if (el && el.getClientRects().length && !el.closest('[hidden]')) return el;
+        if (!el) continue;
+        // An anchor inside a closed row has no box until the row is open;
+        // open the way to it first, then ask whether it is visible.
+        this.openAncestors(el);
+        if (el.getClientRects().length && !el.closest('[hidden]')) return el;
       }
       await this.pause(100);
     }
     return null;
   }
 
-  private reveal(el: HTMLElement): void {
+  private openAncestors(el: HTMLElement): void {
     let parent: HTMLElement | null = el;
     while ((parent = parent.parentElement)) {
       if (parent instanceof HTMLDetailsElement && !parent.open) parent.open = true;
     }
+  }
+
+  private reveal(el: HTMLElement): void {
+    this.openAncestors(el);
     el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   }
 
