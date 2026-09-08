@@ -129,6 +129,42 @@ export function seatFit(game: AnalysisGame, roster: readonly RosterSeat[]): 'on'
   return game.players.some((p) => byName.has(p.name) && byName.get(p.name) !== p.position) ? 'off' : 'on';
 }
 
+/**
+ * Where a game came from, the way the team sorts them (8 Sep 2026): flex is
+ * the ladder, Clash sits with the scrims as practice, and a replay imported
+ * against a tournament game is a tournament game.
+ */
+export type GameSource = 'flex' | 'scrimClash' | 'tournament';
+
+export function gameSource(game: AnalysisGame, tournamentIds: ReadonlySet<string>): GameSource {
+  if (game.queue === 'Scrim') return tournamentIds.has(game.matchId) ? 'tournament' : 'scrimClash';
+  return game.queue === 'Flex' ? 'flex' : 'scrimClash';
+}
+
+export type RoleMode = 'main' | 'second' | 'any';
+
+export interface RosterRoles {
+  name: string;
+  role: string;
+  secondaryRoles?: readonly string[];
+}
+
+/**
+ * Whether everyone of ours in the game sat where the roster says they may:
+ * their main seat only, their main or a second seat, or anywhere. A player
+ * the roster does not know is never a reason to drop a game.
+ */
+export function roleFit(game: AnalysisGame, roster: readonly RosterRoles[], mode: RoleMode): boolean {
+  if (mode === 'any') return true;
+  const byName = new Map(roster.map((r) => [r.name, r]));
+  return game.players.every((p) => {
+    const r = byName.get(p.name);
+    if (!r) return true;
+    if (p.position === r.role) return true;
+    return mode === 'second' && (r.secondaryRoles ?? []).includes(p.position);
+  });
+}
+
 export function mainFiveGames(games: readonly AnalysisGame[], starters: readonly string[]): AnalysisGame[] {
   if (starters.length < 5) return [...games];
   return games.filter((g) => starterCount(g, starters) >= 5);

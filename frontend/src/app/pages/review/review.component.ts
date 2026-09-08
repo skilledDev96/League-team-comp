@@ -28,7 +28,7 @@ import {
   summarise,
   MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
-import { formatGap, formatSide, gapIsGood, keepDoing, laneTable, laneTotals, MetricSplit, PatternSource, seatFit, SideStat, sourceOf, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { formatGap, formatSide, gameSource, GameSource, gapIsGood, keepDoing, laneTable, laneTotals, MetricSplit, PatternSource, roleFit, RoleMode, SideStat, sourceOf, starterCount, teamSplits, workOn } from './win-loss-splits';
 
 /**
  * The games, and what they have in common — losses by default, wins on the
@@ -85,18 +85,31 @@ export class ReviewComponent {
   }
 
   /**
-   * Strictly the five by default: a game with a sub in is left out of the
-   * team's read (8 Sep 2026). The switch widens it to any stack, and the
-   * record line says how many games that would add.
+   * Who has to be in the game: the A team (everyone not on the bench, set on
+   * the Roster page), or a hand-picked set — tick three players and the games
+   * those three played together count (8 Sep 2026).
    */
-  /** How many of the current starters a game needs to count: 5 is strictly the team. */
-  protected readonly minStarters = signal<5 | 4 | 3>(5);
-  protected readonly starterSteps: { min: 5 | 4 | 3; label: string; tip: string }[] = [
-    { min: 5, label: 'All five', tip: 'Only games where every current starter was on our side' },
-    { min: 4, label: '4 or more', tip: 'Four starters and a sub count too' },
-    { min: 3, label: '3 or more', tip: 'Any game with three or more starters — the widest the analysis reads' }
-  ];
+  protected readonly starterMode = signal<'team' | 'custom'>('team');
+  protected readonly customPlayers = signal<ReadonlySet<string>>(new Set());
   private readonly starterNames = computed(() => this.data.starters().map((p) => p.name));
+
+  protected toggleCustom(name: string): void {
+    this.customPlayers.update((set) => {
+      const next = new Set(set);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
+
+  /** Main seat only, main or a second seat, or anywhere — as set on the Roster page. */
+  protected readonly roleMode = signal<RoleMode>('main');
+  protected readonly roleSteps: { mode: RoleMode; label: string; tip: string }[] = [
+    { mode: 'main', label: 'Main', tip: 'Everyone of ours in their main seat, as set on the Roster page' },
+    { mode: 'second', label: '2nd', tip: 'Main seat or a second seat they are listed for' },
+    { mode: 'any', label: 'Any', tip: 'Whoever sat where' }
+  ];
+  private readonly rosterRoles = computed(() => this.data.players().map((p) => ({ name: p.name, role: p.role, secondaryRoles: p.secondaryRoles })));
 
   /** Serious games only by default; a game tagged as messing around is left out. */
   protected readonly seriousOnly = signal(true);
@@ -118,23 +131,34 @@ export class ReviewComponent {
   });
 
   /**
-   * Riot games and replays are read apart (8 Sep 2026): a replay has totals
-   * only, so its lanes cannot be called and its per-minute figures do not
-   * exist. Flex and Clash first, because that is where the lane reads are.
+   * Where the games came from, the way the team sorts them: the flex ladder,
+   * Clash with the scrims as practice, and tournament games (replays imported
+   * against a series game). Flex first, because that is where the lane
+   * reads are. Whether the read is Riot's or a replay's follows from the
+   * games themselves (`patternSource`).
    */
-  protected readonly source = signal<PatternSource>('riot');
-  protected readonly sourceSteps: { source: PatternSource; label: string; tip: string }[] = [
-    { source: 'riot', label: 'Flex & Clash', tip: 'Games Riot handed us: per-minute figures, lane reads, the lot' },
-    { source: 'replay', label: 'Scrims & tournaments', tip: 'Games from replay files: end-of-game totals, objectives, no lane reads' }
+  protected readonly sourceMode = signal<GameSource>('flex');
+  protected readonly sourceSteps: { source: GameSource; label: string; tip: string }[] = [
+    { source: 'flex', label: 'Flex', tip: 'Ranked flex: per-minute figures, lane reads, the lot' },
+    { source: 'scrimClash', label: 'Scrims + Clash', tip: 'Practice against a team: scrims from replay files and Clash' },
+    { source: 'tournament', label: 'Tournaments', tip: 'Replays imported against a tournament game' }
   ];
-  protected gamesAtSource(source: PatternSource): number {
-    return this.seriousGames().filter((g) => sourceOf(g) === source).length;
+  private readonly tournamentIds = computed(() => new Set(this.data.seriesGames().map((g) => g.matchId).filter((id): id is string => !!id)));
+  protected gamesAtSource(source: GameSource): number {
+    const ids = this.tournamentIds();
+    return this.seriousGames().filter((g) => gameSource(g, ids) === source).length;
   }
 
   private readonly anyStackGames = computed<AnalysisGame[]>(() => {
-    const source = this.source();
-    return this.seriousGames().filter((g) => sourceOf(g) === source);
+    const source = this.sourceMode();
+    const ids = this.tournamentIds();
+    return this.seriousGames().filter((g) => gameSource(g, ids) === source);
   });
+
+  /** Riot's read or a replay's: replays when nothing in the selection carries per-minute figures. */
+  protected readonly patternSource = computed<PatternSource>(() =>
+    this.filteredGames().some((g) => sourceOf(g) === 'riot') ? 'riot' : 'replay'
+  );
 
   /** Tournament games the replay view cannot count, because nobody imported the replay. */
   protected readonly missingReplays = computed(() => {
@@ -182,41 +206,38 @@ export class ReviewComponent {
     return this.taggedOrNot().filter((g) => practice.has(g.matchId)).length;
   });
 
-  /** Games with enough starters, before the seat question. */
+  /** Games with the right people in, before the role question. */
   private readonly starterGames = computed<AnalysisGame[]>(() => {
+    const games = this.anyStackGames();
+    if (this.starterMode() === 'custom') {
+      const picked = [...this.customPlayers()];
+      return picked.length ? games.filter((g) => starterCount(g, picked) >= picked.length) : games;
+    }
     const starters = this.starterNames();
-    if (starters.length < 5) return this.anyStackGames();
-    const min = this.minStarters();
-    return this.anyStackGames().filter((g) => starterCount(g, starters) >= min);
+    return starters.length ? games.filter((g) => starterCount(g, starters) >= starters.length) : games;
   });
-
-  /** Any seat, everyone in their own seat, or at least one of ours off their seat (autofill). */
-  protected readonly seatMode = signal<'any' | 'on' | 'off'>('any');
-  protected readonly seatSteps: { mode: 'any' | 'on' | 'off'; label: string; tip: string }[] = [
-    { mode: 'any', label: 'Any seat', tip: 'Every game, whoever sat where' },
-    { mode: 'on', label: 'On role', tip: 'Only games where everyone of ours sat in their own seat' },
-    { mode: 'off', label: 'Off-seat', tip: 'Only games where at least one of ours was autofilled into another seat' }
-  ];
-  private readonly rosterSeats = computed(() => this.data.players().map((p) => ({ name: p.name, role: p.role })));
 
   protected readonly filteredGames = computed<AnalysisGame[]>(() => {
-    const mode = this.seatMode();
+    const mode = this.roleMode();
     if (mode === 'any') return this.starterGames();
-    const roster = this.rosterSeats();
-    return this.starterGames().filter((g) => seatFit(g, roster) === mode);
+    const roster = this.rosterRoles();
+    return this.starterGames().filter((g) => roleFit(g, roster, mode));
   });
 
-  protected gamesAtSeat(mode: 'any' | 'on' | 'off'): number {
+  protected gamesAtRole(mode: RoleMode): number {
     if (mode === 'any') return this.starterGames().length;
-    const roster = this.rosterSeats();
-    return this.starterGames().filter((g) => seatFit(g, roster) === mode).length;
+    const roster = this.rosterRoles();
+    return this.starterGames().filter((g) => roleFit(g, roster, mode)).length;
   }
 
-  /** How many games each step would count, for the buttons. */
-  protected gamesAtStep(min: number): number {
+  protected gamesAtStarters(mode: 'team' | 'custom'): number {
+    const games = this.anyStackGames();
+    if (mode === 'custom') {
+      const picked = [...this.customPlayers()];
+      return picked.length ? games.filter((g) => starterCount(g, picked) >= picked.length).length : games.length;
+    }
     const starters = this.starterNames();
-    if (starters.length < 5) return this.anyStackGames().length;
-    return this.anyStackGames().filter((g) => starterCount(g, starters) >= min).length;
+    return starters.length ? games.filter((g) => starterCount(g, starters) >= starters.length).length : games.length;
   }
 
   /** Games left out by the current step. */
@@ -261,8 +282,8 @@ export class ReviewComponent {
     const seat = (r: string) => { const i = (['Top', 'Jungle', 'Mid', 'ADC', 'Support'] as string[]).indexOf(r); return i < 0 ? 5 : i; };
     return [...this.data.players()].sort((a, b) => Number(!!a.sub) - Number(!!b.sub) || seat(a.role) - seat(b.role)).map((p) => p.name);
   });
-  protected readonly workOnList = computed(() => workOn(this.filteredGames(), 'player', this.rosterOrder(), this.source()));
-  protected readonly keepDoingList = computed(() => keepDoing(this.filteredGames(), 'player', this.rosterOrder(), this.source()));
+  protected readonly workOnList = computed(() => workOn(this.filteredGames(), 'player', this.rosterOrder(), this.patternSource()));
+  protected readonly keepDoingList = computed(() => keepDoing(this.filteredGames(), 'player', this.rosterOrder(), this.patternSource()));
   protected readonly laneRows = computed(() => laneTable(this.filteredGames(), 'player', this.rosterOrder()));
   protected readonly laneTotalRows = computed(() => laneTotals(this.filteredGames(), this.rosterOrder()));
 
@@ -279,7 +300,7 @@ export class ReviewComponent {
     return { read: lanes.read, total: lanes.total, waiting: lanes.waiting, skipped: lanes.skipped, worstLane, biggest };
   });
   private readonly topStarter = computed(() => this.data.starters().find((p) => p.role === 'Top')?.name);
-  protected readonly teamSplitRows = computed(() => teamSplits(this.filteredGames(), this.topStarter(), this.source()));
+  protected readonly teamSplitRows = computed(() => teamSplits(this.filteredGames(), this.topStarter(), this.patternSource()));
   protected readonly claimFloor = MIN_FOR_A_CLAIM;
 
   // ---- Which columns each table shows, and how the figures read ----

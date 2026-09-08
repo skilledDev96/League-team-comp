@@ -13874,3 +13874,22 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .split-cell .all-n { margin-left: 0.3rem; font-size: 0.66rem; opacity: 0.6; }
 .split-view-toggle { margin: 0; }
 .review-toolbar .split-view-toggle .segment { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+
+
+/* ---- Roster cards: the A team and second seats, set in edit mode --------- */
+.roster-edit {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0.2rem 0 0.4rem;
+}
+
+.roster-edit .games-bench-toggle { margin-left: 0; }
+.roster-edit .games-bench-toggle.active:not(:first-child) { border-color: var(--accent); color: var(--text-0); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.roster-edit-label { margin-left: 0.5rem; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-1); }
+
+.custom-five .team-champ-filter { margin: 0.2rem 0 0; }
+.custom-five .view-btn em { font-style: normal; font-size: 0.68rem; opacity: 0.7; margin-left: 0.25rem; }

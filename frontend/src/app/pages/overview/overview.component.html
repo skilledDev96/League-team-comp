@@ -52,6 +52,26 @@
           <h2>{{ player.role }} - {{ player.name }}</h2>
           @if (player.sub) { <span class="sub-badge" title="On the bench: the draft room follows the starter in this seat.">Sub</span> }
         </div>
+        @if (auth.editing()) {
+          <!-- Above the card's link overlay on purpose: these are controls, not a way in. -->
+          <div class="roster-edit">
+            <button type="button" class="games-bench-toggle" [class.active]="!!player.sub" [attr.aria-pressed]="!!player.sub"
+                    [appTip]="player.sub ? 'On the bench — click to put them in the A team' : 'In the A team — click to bench them; Patterns counts the A team'"
+                    (click)="setBench(player, !player.sub)">{{ player.sub ? 'Bench' : 'A team' }}</button>
+            <span class="roster-edit-label">2nd seat</span>
+            @for (r of roles; track r) {
+              @if (r !== player.role) {
+                <button type="button" class="games-bench-toggle" [class.active]="hasSecondary(player, r)" [attr.aria-pressed]="hasSecondary(player, r)"
+                        (click)="toggleSecondary(player, r)">{{ r }}</button>
+              }
+            }
+          </div>
+        } @else if (player.secondaryRoles?.length) {
+          <p class="meta-line">
+            <span class="meta-label">2nd seat</span>
+            <span class="meta-value">{{ player.secondaryRoles!.join(', ') }}</span>
+          </p>
+        }
         <p class="meta-line meta-playstyle">
           <span class="meta-label">Playstyle</span>
           <span class="meta-value">{{ player.playstyle || 'Unknown' }}</span>

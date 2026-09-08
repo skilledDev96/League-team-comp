@@ -1,14 +1,17 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { Player, Role, ROLES } from '../../models/team.models';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ExternalProfilesComponent } from '../../shared/external-profiles.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
+import { TooltipDirective } from '../../shared/tooltip.directive';
 
 @Component({
   selector: 'app-overview',
-  imports: [RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent],
+  imports: [RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, TooltipDirective],
   templateUrl: './overview.component.html'
 })
 export class OverviewComponent {
@@ -17,6 +20,27 @@ export class OverviewComponent {
 
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
+  protected readonly auth = inject(AuthService);
+  protected readonly roles = ROLES;
+
+  // ---- The A team and the second seats, set here because this is where the
+  // team looks at itself; Patterns reads both (8 Sep 2026). The same sub
+  // flag Admin sets, so the five stay one thing everywhere.
+
+  protected setBench(player: Player, sub: boolean): void {
+    void this.data.updatePlayer({ ...player, sub: sub || undefined, curated: true });
+  }
+
+  protected hasSecondary(player: Player, role: Role): boolean {
+    return (player.secondaryRoles ?? []).includes(role);
+  }
+
+  protected toggleSecondary(player: Player, role: Role): void {
+    if (role === player.role) return;
+    const now = player.secondaryRoles ?? [];
+    const next = now.includes(role) ? now.filter((r) => r !== role) : [...now, role];
+    void this.data.updatePlayer({ ...player, secondaryRoles: next.length ? next : undefined, curated: true });
+  }
 
   protected readonly fullView = signal(false);
   private readonly expanded = signal<Set<string>>(new Set());

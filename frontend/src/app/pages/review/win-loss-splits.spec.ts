@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, AnalysisPlayer } from '../../models/team.models';
-import { keepDoing, killParticipationOf, laneTable, laneTotals, mainFiveGames, playerSplits, seatFit, sourceOf, split, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { gameSource, keepDoing, killParticipationOf, laneTable, laneTotals, mainFiveGames, playerSplits, roleFit, seatFit, sourceOf, split, starterCount, teamSplits, workOn } from './win-loss-splits';
 
 const player = (name: string, position: string, over: Partial<AnalysisPlayer> = {}): AnalysisPlayer => ({
   name,
@@ -59,6 +59,28 @@ describe('mainFiveGames', () => {
     expect(starterCount(withSub, five)).toBe(4);
     expect(mainFiveGames([full, withSub], five).map((g) => g.matchId)).toEqual([full.matchId]);
     expect(mainFiveGames([full, withSub], five.slice(0, 4))).toHaveLength(2);
+  });
+});
+
+describe('gameSource and roleFit', () => {
+  it('sorts flex, Clash with the scrims, and a replay imported against a tournament game', () => {
+    const ids = new Set(['EUW1-1']);
+    expect(gameSource(game(true), ids)).toBe('flex');
+    expect(gameSource(game(true, { queue: 'Clash' }), ids)).toBe('scrimClash');
+    expect(gameSource(game(true, { queue: 'Scrim', matchId: 'EUW1-2' }), ids)).toBe('scrimClash');
+    expect(gameSource(game(true, { queue: 'Scrim', matchId: 'EUW1-1' }), ids)).toBe('tournament');
+  });
+
+  it('reads a seat as main, second, or anything', () => {
+    const roster = [{ name: 'adc', role: 'ADC', secondaryRoles: ['Mid'] }, { name: 'top', role: 'Top' }];
+    const g = game(true);
+    expect(roleFit(g, roster, 'main')).toBe(true);
+    const atMid = { ...g, players: g.players.map((p) => (p.name === 'adc' ? { ...p, position: 'Mid' } : p.name === 'mid' ? { ...p, position: 'ADC' } : p)) };
+    expect(roleFit(atMid, roster, 'main')).toBe(false);
+    expect(roleFit(atMid, roster, 'second')).toBe(true);
+    const atJungle = { ...g, players: g.players.map((p) => (p.name === 'adc' ? { ...p, position: 'Jungle' } : p)) };
+    expect(roleFit(atJungle, roster, 'second')).toBe(false);
+    expect(roleFit(atJungle, roster, 'any')).toBe(true);
   });
 });
 

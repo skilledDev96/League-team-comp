@@ -15,50 +15,51 @@
 } @else {
   <section class="card review-toolbar" aria-label="Review controls">
     <div class="view-controls">
-      <!-- Serious games only, unless asked. The count is the games tagged as
-           messing around on the Games page. -->
-      <!-- Riot games and replays are two different reads; this decides which. -->
+      <!-- Where the games came from, the way the team sorts them. -->
       <div class="field"><span id="reviewSource">Source</span>
         <div class="segmented" role="group" aria-labelledby="reviewSource">
           @for (step of sourceSteps; track step.source) {
-            <button type="button" class="segment" [class.active]="source() === step.source" [attr.aria-pressed]="source() === step.source"
-                    (click)="source.set(step.source)" [appTip]="step.tip">
+            <button type="button" class="segment" [class.active]="sourceMode() === step.source" [attr.aria-pressed]="sourceMode() === step.source"
+                    (click)="sourceMode.set(step.source)" [appTip]="step.tip">
               {{ step.label }} <em>{{ gamesAtSource(step.source) }}</em>
             </button>
           }
         </div>
       </div>
+      <!-- Prep is the games played to win; a game tagged as messing around
+           on the Games page is out of it. -->
       <div class="field"><span id="reviewSerious">Games</span>
         <div class="segmented" role="group" aria-labelledby="reviewSerious">
-          <button type="button" class="segment" [class.active]="seriousOnly()" [attr.aria-pressed]="seriousOnly()"
-                  (click)="seriousOnly.set(true)" appTip="Games played to win; anything tagged as practice on the Games page is left out">
-            Serious only
-          </button>
           <button type="button" class="segment" [class.active]="!seriousOnly()" [attr.aria-pressed]="!seriousOnly()"
                   (click)="seriousOnly.set(false)" appTip="Every game, the messing-around ones included">
             All @if (practiceCount()) { <em>+{{ practiceCount() }}</em> }
           </button>
+          <button type="button" class="segment" [class.active]="seriousOnly()" [attr.aria-pressed]="seriousOnly()"
+                  (click)="seriousOnly.set(true)" appTip="Games played to win; anything tagged as practice on the Games page is left out">
+            Prep
+          </button>
         </div>
       </div>
-      <!-- Like the comp strictness used to be: how many of the starters a
-           game needs. Strictly the five by default (8 Sep 2026). -->
+      <!-- Who has to be in the game: the A team from the Roster page, or a hand-picked set. -->
       <div class="field"><span id="reviewStack">Starters in the game</span>
         <div class="segmented" role="group" aria-labelledby="reviewStack">
-          @for (step of starterSteps; track step.min) {
-            <button type="button" class="segment" [class.active]="minStarters() === step.min" [attr.aria-pressed]="minStarters() === step.min"
-                    (click)="minStarters.set(step.min)" [appTip]="step.tip">
-              {{ step.label }} <em>{{ gamesAtStep(step.min) }}</em>
-            </button>
-          }
+          <button type="button" class="segment" [class.active]="starterMode() === 'team'" [attr.aria-pressed]="starterMode() === 'team'"
+                  (click)="starterMode.set('team')" appTip="Every A-team player was on our side — the A team is whoever is not on the bench on the Roster page">
+            A team <em>{{ gamesAtStarters('team') }}</em>
+          </button>
+          <button type="button" class="segment" [class.active]="starterMode() === 'custom'" [attr.aria-pressed]="starterMode() === 'custom'"
+                  (click)="starterMode.set('custom')" appTip="Pick the players; a game counts when everyone picked was on our side">
+            Custom <em>{{ gamesAtStarters('custom') }}</em>
+          </button>
         </div>
       </div>
-      <!-- On role or autofilled: whether everyone of ours sat in their own seat. -->
-      <div class="field"><span id="reviewSeats">Seats</span>
+      <!-- Which seat everyone sat in, against the roles set on the Roster page. -->
+      <div class="field"><span id="reviewSeats">Roles</span>
         <div class="segmented" role="group" aria-labelledby="reviewSeats">
-          @for (step of seatSteps; track step.mode) {
-            <button type="button" class="segment" [class.active]="seatMode() === step.mode" [attr.aria-pressed]="seatMode() === step.mode"
-                    (click)="seatMode.set(step.mode)" [appTip]="step.tip">
-              {{ step.label }} <em>{{ gamesAtSeat(step.mode) }}</em>
+          @for (step of roleSteps; track step.mode) {
+            <button type="button" class="segment" [class.active]="roleMode() === step.mode" [attr.aria-pressed]="roleMode() === step.mode"
+                    (click)="roleMode.set(step.mode)" [appTip]="step.tip">
+              {{ step.label }} <em>{{ gamesAtRole(step.mode) }}</em>
             </button>
           }
         </div>
@@ -72,6 +73,17 @@
           }
         </select>
       </label>
+      @if (starterMode() === 'custom') {
+        <div class="field custom-five"><span>Who has to be in</span>
+          <div class="team-champ-filter" role="group" aria-label="Players">
+            @for (p of data.players(); track p.id) {
+              <button type="button" class="view-btn" [class.active]="customPlayers().has(p.name)" [attr.aria-pressed]="customPlayers().has(p.name)"
+                      (click)="toggleCustom(p.name)">{{ p.name }} <em>{{ p.role }}</em></button>
+            }
+            @if (!customPlayers().size) { <small class="muted">Nobody picked: every game counts.</small> }
+          </div>
+        </div>
+      }
       <p class="meta-line">
         <span class="meta-label">Record</span>
         <span class="meta-value">{{ record().wins }}W / {{ record().losses }}L over {{ record().games }} games@if (leftOut()) { <small class="muted"> · {{ leftOut() }} left out by the filters</small> }@if (seriousOnly() && practiceCount()) { <small class="muted"> · {{ practiceCount() }} practice {{ practiceCount() === 1 ? 'game' : 'games' }} left out</small> }</span>
@@ -165,7 +177,7 @@
         }
       </p>
     }
-    @if (source() === 'replay' && missingReplays().length) {
+    @if (patternSource() === 'replay' && missingReplays().length) {
       <p class="muted patterns-glance-note">
         Not counted, no replay imported yet: {{ missingReplays().length === 1 ? '' : '' }}
         @for (m of missingReplays(); track m.id) { <span class="tag">{{ m.label }}</span> }
@@ -184,7 +196,7 @@
   @if (sections().lanes) {
   <section class="card" aria-label="Lanes">
     <h2>Lanes</h2>
-    @if (source() === 'replay') {
+    @if (patternSource() === 'replay') {
       <!-- A replay has the end of the game and nothing of the clock, so no
            lane can be called; these are the totals it does carry. -->
       <app-column-picker table="laneTotals" [options]="totalColumns" [defaults]="totalDefaults" />
