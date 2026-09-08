@@ -13893,3 +13893,27 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 
 .custom-five .team-champ-filter { margin: 0.2rem 0 0; }
 .custom-five .view-btn em { font-style: normal; font-size: 0.68rem; opacity: 0.7; margin-left: 0.25rem; }
+
+
+/* ---- Comp expectation: four axes, low / mid / high --------------------- */
+.comp-expect-source { margin-left: 0.4rem; font-size: 0.72rem; }
+.comp-expect-reset { margin-left: auto; }
+.comp-expect-edit { display: grid; gap: 0.35rem; margin-top: 0.4rem; }
+.comp-expect-row { display: grid; grid-template-columns: 7rem 1fr; align-items: center; gap: 0.5rem; }
+.comp-expect-segment button { padding: 0.3rem 0.8rem; font-size: 0.74rem; }
+.comp-expect-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.35rem; }
+.comp-expect-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  font-size: 0.74rem;
+  color: var(--text-1);
+}
+.comp-expect-chip b { color: var(--text-0); }
+.comp-expect-chip.is-high { border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
+.comp-expect-chip.is-high b { color: var(--ok); }
+.comp-expect-chip.is-low { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.comp-expect-chip.is-low b { color: var(--warn); }

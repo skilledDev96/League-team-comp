@@ -4,7 +4,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ChampionTraits, Comp, CompOutcome, CompPerformance, CompPicks, CompRecord, CompResult, Play, Role, ROLES } from '../../models/team.models';
+import { ChampionTraits, Comp, CompExpectation, CompOutcome, CompPerformance, CompPicks, CompRecord, CompResult, ExpectLevel, Play, Role, ROLES } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -13,6 +13,7 @@ import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { CompBoardComponent } from '../../shared/comp-board.component';
 import { compIconFor } from '../../core/comp-identity';
+import { deriveExpectation, EXPECT_AXES, EXPECT_LABEL, ExpectAxis, expectationFor, LEVEL_LABEL, LEVELS } from '../../core/comp-expectation';
 import { indexTraits, traitsFor } from '../../shared/comp-board.util';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { TacticalBoardComponent } from './tactical-board.component';
@@ -110,13 +111,62 @@ export class CompsComponent {
    * how the rest of edit mode already behaves.
    */
   protected savePicks(comp: Comp, picks: CompPicks): void {
-    void this.data.updateComp({ ...comp, picks });
+    void this.data.updateComp(this.stamped({ ...comp, picks }));
   }
 
   protected setCountsUnder(comp: Comp, value: string): void {
     const countsUnder = value || null;
     if ((comp.countsUnder ?? null) === countsUnder) return;
-    void this.data.updateComp({ ...comp, countsUnder });
+    void this.data.updateComp(this.stamped({ ...comp, countsUnder }));
+  }
+
+  // ---- What the comp is expected to do ------------------------------------
+  //
+  // Four axes read off the champions, overruled by hand on the panel. Written
+  // on every save so the review function always finds a value on the comp;
+  // rendered live so a trait refresh flows through the comps nobody edited.
+
+  protected readonly expectAxes = EXPECT_AXES;
+  protected readonly expectLabel = EXPECT_LABEL;
+  protected readonly levelLabel = LEVEL_LABEL;
+  protected readonly levels = LEVELS;
+
+  protected expectationOf(comp: Comp): { expect: CompExpectation; source: 'derived' | 'edited' } | null {
+    return expectationFor(comp, this.compTraits(comp), this.junglerIdOf(comp));
+  }
+
+  protected setExpectation(comp: Comp, axis: ExpectAxis, level: ExpectLevel, current: CompExpectation): void {
+    if (current[axis] === level && comp.expectSource === 'edited') return;
+    void this.data.updateComp({ ...comp, expect: { ...current, [axis]: level }, expectSource: 'edited' });
+  }
+
+  protected resetExpectation(comp: Comp): void {
+    const derived = deriveExpectation(this.compTraits(comp), { junglerId: this.junglerIdOf(comp), name: comp.name });
+    void this.data.updateComp({ ...comp, expect: derived ?? undefined, expectSource: 'derived' });
+  }
+
+  /** The comp with its derived expectation on it, unless a person set one. */
+  private stamped(comp: Comp): Comp {
+    if (comp.expectSource === 'edited' && comp.expect) return comp;
+    const derived = deriveExpectation(this.compTraits(comp), { junglerId: this.junglerIdOf(comp), name: comp.name });
+    return derived ? { ...comp, expect: derived, expectSource: 'derived' } : comp;
+  }
+
+  private junglerIdOf(comp: Comp): string | undefined {
+    const champion = this.ui.parseCompLine(comp.picks['Jungle'] ?? '').champion;
+    return champion ? this.champData.resolve(champion)?.id : undefined;
+  }
+
+  private compTraits(comp: Comp): ChampionTraits[] {
+    const index = indexTraits(this.data.championTraits());
+    const traits: ChampionTraits[] = [];
+    for (const role of this.roles) {
+      const champion = this.ui.parseCompLine(comp.picks[role] ?? '').champion;
+      if (!champion) continue;
+      const found = traitsFor(index, this.champData.resolve(champion)?.id);
+      if (found) traits.push(found);
+    }
+    return traits;
   }
 
   protected setNotesDraft(comp: Comp, value: string): void {
@@ -183,13 +233,15 @@ export class CompsComponent {
     ) {
       return;
     }
-    void this.data.updateComp({
-      ...comp,
-      category: category || undefined,
-      notes: notes || undefined,
-      gamePlan,
-      bans
-    });
+    void this.data.updateComp(
+      this.stamped({
+        ...comp,
+        category: category || undefined,
+        notes: notes || undefined,
+        gamePlan,
+        bans
+      })
+    );
   }
 
   // Which roster players can fill a given role, so a comp shows its cover:
@@ -404,14 +456,6 @@ export class CompsComponent {
    * keyword while their champions say plainly what they are.
    */
   protected compIcon(comp: Comp): string {
-    const index = indexTraits(this.data.championTraits());
-    const traits: ChampionTraits[] = [];
-    for (const role of this.roles) {
-      const champion = this.ui.parseCompLine(comp.picks[role] ?? '').champion;
-      if (!champion) continue;
-      const found = traitsFor(index, this.champData.resolve(champion)?.id);
-      if (found) traits.push(found);
-    }
-    return compIconFor(traits, comp.name);
+    return compIconFor(this.compTraits(comp), comp.name);
   }
 }

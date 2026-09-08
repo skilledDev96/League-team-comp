@@ -142,7 +142,23 @@ export interface Comp {
   countsUnder?: string | null;
   // Champions to ban when running this comp (counters / hard matchups).
   bans?: string[];
+  /**
+   * What the comp is expected to do, on four axes (`core/comp-expectation.ts`).
+   * Derived from the champions and written on every save so the review
+   * function always has a value; `edited` means a person set it.
+   */
+  expect?: CompExpectation;
+  expectSource?: 'derived' | 'edited';
   order: number;
+}
+
+export type ExpectLevel = 'low' | 'mid' | 'high';
+
+export interface CompExpectation {
+  early: ExpectLevel;
+  scaling: ExpectLevel;
+  objectives: ExpectLevel;
+  teamfight: ExpectLevel;
 }
 
 export type CompOutcome = 'win' | 'loss';

@@ -50,7 +50,22 @@ export interface EnrichedPlayer {
   queueStats?: unknown;
 }
 
+export type ExpectLevel = 'low' | 'mid' | 'high';
+
+/** Mirrors `CompExpectation` in the frontend models; read by the review. */
+export interface CompExpectation {
+  early: ExpectLevel;
+  scaling: ExpectLevel;
+  objectives: ExpectLevel;
+  teamfight: ExpectLevel;
+}
+
 export interface StoredComp {
+  /** What the comp is expected to do, written by the Comps page on every save. */
+  expect?: CompExpectation;
+  expectSource?: 'derived' | 'edited';
+  gamePlan?: { early?: string; mid?: string; late?: string };
+  notes?: string;
   id: string;
   name?: string;
   picks?: Partial<Record<KnownRole, string>>;

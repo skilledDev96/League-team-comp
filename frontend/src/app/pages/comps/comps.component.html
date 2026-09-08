@@ -166,6 +166,45 @@
         </div>
       }
 
+      <!-- What the comp is built to do, on four axes: read off the champions,
+           overruled by hand. The post-game review checks the game against it. -->
+      @if (expectationOf(comp); as ex) {
+        <div class="comp-notes comp-expect">
+          <div class="comp-record-head">
+            <span class="comp-record-title material-symbols-rounded" aria-hidden="true">insights</span>
+            <span class="comp-record-label">What we expect from it</span>
+            <small class="muted comp-expect-source">{{ ex.source === 'edited' ? 'set by hand' : 'from the champions' }}</small>
+            @if (auth.editing() && ex.source === 'edited') {
+              <button type="button" class="games-bench-toggle comp-expect-reset" (click)="resetExpectation(comp)"
+                      appTip="Drop what was set by hand and read the four axes off the champions again">Back to the champions</button>
+            }
+          </div>
+          @if (auth.editing()) {
+            <div class="comp-expect-edit">
+              @for (axis of expectAxes; track axis) {
+                <div class="comp-expect-row">
+                  <span class="comp-gameplan-phase">{{ expectLabel[axis] }}</span>
+                  <div class="view-segment comp-expect-segment" role="group" [attr.aria-label]="expectLabel[axis]">
+                    @for (level of levels; track level) {
+                      <button type="button" [class.active]="ex.expect[axis] === level" [attr.aria-pressed]="ex.expect[axis] === level"
+                              (click)="setExpectation(comp, axis, level, ex.expect)">{{ levelLabel[level] }}</button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="comp-expect-chips">
+              @for (axis of expectAxes; track axis) {
+                <span class="comp-expect-chip" [class.is-high]="ex.expect[axis] === 'high'" [class.is-low]="ex.expect[axis] === 'low'">
+                  {{ expectLabel[axis] }} <b>{{ levelLabel[ex.expect[axis]] }}</b>
+                </span>
+              }
+            </div>
+          }
+        </div>
+      }
+
       @if (comp.bans?.length || auth.editing()) {
         <div class="comp-notes comp-bans">
           <div class="comp-record-head">
