@@ -296,6 +296,46 @@ filter rather than none, so it can never become unpickable.
    same `sub` flag Admin sets, so the five stay one thing everywhere. Whether
    the read is Riot's or a replay's is no longer a switch: `patternSource`
    follows from the games selected.
+8. **The post-game review has two tiers** (8 Sep 2026). *Timeline tier*:
+   the morning run fetches up to `MAX_TIMELINE_FETCHES` (20) Match-V5
+   timelines for prep Flex and Clash games, newest first, after the players
+   and the analysis and inside `TIMELINE_BUDGET_SECONDS`; each is reduced by
+   `api/src/timeline-features.ts` to `matchTimeline/{matchId}` (its own
+   `TIMELINE_VERSION`; a bump rebuilds twenty a run) and **never stored
+   raw**. Frames are sixty seconds apart, so "near an objective" and
+   "warded" are approximate by construction and say so. The facts read off
+   it (`api/src/game-facts.ts`: curve shape, lanes with the minute, fights,
+   solo deaths, objectives given up, vision) ride on the same document as
+   `facts`, render as the "How the game went" drawer on a Games row
+   (`shared/game-story.component.ts`, read on demand through
+   `MatchTimelineService`, not a listener), and are what the model sees.
+   *End-of-game tier*: a replay has totals only; `endOfGameFacts` says what
+   it can and the review is labelled as such. `AnalysisGame.timelineData`
+   marks coverage like `laneData`; Diagnostics counts it.
+   **The review itself** (`api/src/game-review.ts`, handler `gameReview`)
+   is two calls over the facts: Opus (`TEAM_MODEL`) for the team, the draft
+   and the comp verdict, Sonnet (`PLAYER_MODEL`) for a note per player,
+   both JSON-schema output, both validated (caps, evidence required, a
+   minute outside the game nulled, unknown player names dropped, seats
+   re-stamped from the context). Stored at `gameReviews/{matchId}` **by the
+   function only**; the app listens (`TeamDataService.gameReviews`,
+   `reviewFor`). Trigger: the "Review this game" pill on a row (editors),
+   or `Settings.autoReview` (off by default) which reviews at most
+   `MAX_AUTO_REVIEWS` (3) new prep games in the morning run and logs the
+   cost to `meta/refreshLog.reviews`. Surfaces: the panel on the row, the
+   Reviews tab on `/games` (`?tab=reviews`), Coaching notes on the player
+   profile, and "Played out as drafted in n of m" on each Comps panel.
+   **Comp expectation**: `Comp.expect` (early, scaling, objectives,
+   teamfight; low/mid/high) is derived from champion traits in
+   `core/comp-expectation.ts`, editable on the Comps panel
+   (`expectSource: 'edited'`), and written on every comp save through
+   `CompExpectationService.stamped` so the function always finds one.
+   `compareCurve` is mirrored in `api/src/game-facts.ts` on purpose; keep
+   the two identical. The Riot policy lines (own players only, choices not
+   orders, post-game only) are in the prompt and the validators;
+   `docs/ai-provider-note.md` records what leaves the system. Anything on
+   Comps that decides which games count as a comp goes through
+   `effectiveComp` — `retro()` and "Played out" both do.
 
 Adding a field to a cached match means **bumping `CACHE_VERSION`** in
 `analysis-cache.ts`. Old entries then re-fetch once, inside `MAX_NEW_FETCHES` per
