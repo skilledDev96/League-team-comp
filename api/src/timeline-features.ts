@@ -183,10 +183,12 @@ export interface MatchTimeline {
   plates: { ours: Record<LaneName, number>; theirs: Record<LaneName, number> };
   deaths: TimelineDeath[];
   /** Only enough for fight clusters. */
-  theirDeaths: { minute: number; zone: MapZone }[];
+  theirDeaths: { sec: number; minute: number; zone: MapZone }[];
   /** Per five-minute bucket. */
   vision: { seat: LaneRole; placed: number[]; killed: number[] }[];
   spend: { seat: LaneRole; firstItemMinute?: number; secondItemMinute?: number; backs: number[] }[];
+  /** The facts read off the figures above (`game-facts.ts`), stored beside them. */
+  facts?: unknown;
   bytes: number;
 }
 
@@ -482,7 +484,7 @@ export function buildMatchTimeline(
             });
           }
         } else if (victimSide === 'them') {
-          theirDeaths.push({ minute, zone });
+          theirDeaths.push({ sec: Math.round(e.timestamp / 1000), minute, zone });
         }
         break;
       }

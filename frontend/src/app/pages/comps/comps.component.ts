@@ -4,7 +4,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ChampionTraits, Comp, CompExpectation, CompOutcome, CompPerformance, CompPicks, CompRecord, CompResult, ExpectLevel, Play, Role, ROLES } from '../../models/team.models';
+import { Comp, CompExpectation, CompOutcome, CompPerformance, CompPicks, CompRecord, CompResult, ExpectLevel, Play, Role, ROLES } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -13,8 +13,8 @@ import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { CompBoardComponent } from '../../shared/comp-board.component';
 import { compIconFor } from '../../core/comp-identity';
-import { deriveExpectation, EXPECT_AXES, EXPECT_LABEL, ExpectAxis, expectationFor, LEVEL_LABEL, LEVELS } from '../../core/comp-expectation';
-import { indexTraits, traitsFor } from '../../shared/comp-board.util';
+import { EXPECT_AXES, EXPECT_LABEL, ExpectAxis, LEVEL_LABEL, LEVELS } from '../../core/comp-expectation';
+import { CompExpectationService } from '../../services/comp-expectation.service';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { TacticalBoardComponent } from './tactical-board.component';
 import { NoteRollup, rollupNotes } from './note-insights.util';
@@ -131,8 +131,10 @@ export class CompsComponent {
   protected readonly levelLabel = LEVEL_LABEL;
   protected readonly levels = LEVELS;
 
+  private readonly expectations = inject(CompExpectationService);
+
   protected expectationOf(comp: Comp): { expect: CompExpectation; source: 'derived' | 'edited' } | null {
-    return expectationFor(comp, this.compTraits(comp), this.junglerIdOf(comp));
+    return this.expectations.forComp(comp);
   }
 
   protected setExpectation(comp: Comp, axis: ExpectAxis, level: ExpectLevel, current: CompExpectation): void {
@@ -141,32 +143,12 @@ export class CompsComponent {
   }
 
   protected resetExpectation(comp: Comp): void {
-    const derived = deriveExpectation(this.compTraits(comp), { junglerId: this.junglerIdOf(comp), name: comp.name });
-    void this.data.updateComp({ ...comp, expect: derived ?? undefined, expectSource: 'derived' });
+    void this.data.updateComp({ ...comp, expect: this.expectations.derived(comp) ?? undefined, expectSource: 'derived' });
   }
 
   /** The comp with its derived expectation on it, unless a person set one. */
   private stamped(comp: Comp): Comp {
-    if (comp.expectSource === 'edited' && comp.expect) return comp;
-    const derived = deriveExpectation(this.compTraits(comp), { junglerId: this.junglerIdOf(comp), name: comp.name });
-    return derived ? { ...comp, expect: derived, expectSource: 'derived' } : comp;
-  }
-
-  private junglerIdOf(comp: Comp): string | undefined {
-    const champion = this.ui.parseCompLine(comp.picks['Jungle'] ?? '').champion;
-    return champion ? this.champData.resolve(champion)?.id : undefined;
-  }
-
-  private compTraits(comp: Comp): ChampionTraits[] {
-    const index = indexTraits(this.data.championTraits());
-    const traits: ChampionTraits[] = [];
-    for (const role of this.roles) {
-      const champion = this.ui.parseCompLine(comp.picks[role] ?? '').champion;
-      if (!champion) continue;
-      const found = traitsFor(index, this.champData.resolve(champion)?.id);
-      if (found) traits.push(found);
-    }
-    return traits;
+    return this.expectations.stamped(comp);
   }
 
   protected setNotesDraft(comp: Comp, value: string): void {
@@ -456,6 +438,6 @@ export class CompsComponent {
    * keyword while their champions say plainly what they are.
    */
   protected compIcon(comp: Comp): string {
-    return compIconFor(this.compTraits(comp), comp.name);
+    return compIconFor(this.expectations.traitsOf(comp), comp.name);
   }
 }

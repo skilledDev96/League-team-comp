@@ -57,6 +57,7 @@ import { extractExtras, ParticipantExtras } from './participant-extras';
 import Anthropic from '@anthropic-ai/sdk';
 import { ADVICE_SCHEMA, ADVISOR_SYSTEM, buildDraftPrompt, parseAdvice, parseDraftAdviceRequest } from './draft-advice';
 import { buildMatchTimeline, isTimelineCurrent, MatchTimeline } from './timeline-features';
+import { AnalysisGameLike, gameFacts } from './game-facts';
 import {
   MAX_TIMELINE_FETCHES,
   PLAYER_BUDGET_SECONDS,
@@ -1486,13 +1487,21 @@ async function getMatchTimeline(
   const db = getFirestore();
   const ref = db.doc(`matchTimeline/${matchId}`);
   const snap = await ref.get();
-  if (snap.exists) {
-    const stored = snap.data() as MatchTimeline;
-    if (isTimelineCurrent(stored)) return { timeline: stored, fromCache: true };
-  }
   const matchSnap = await db.doc(`matchCache/${matchId}`).get();
   if (!matchSnap.exists) return { timeline: null, fromCache: false };
   const match = matchSnap.data() as CachedMatch;
+  if (snap.exists) {
+    const stored = snap.data() as MatchTimeline;
+    if (isTimelineCurrent(stored)) {
+      // A document written before the facts rode along gets them without a
+      // second Riot call: the figures are all here.
+      if (!stored.facts) {
+        stored.facts = gameFacts(stored, gameLikeFromMatch(match, roster));
+        await ref.set(stripUndefinedDeep(stored));
+      }
+      return { timeline: stored, fromCache: true };
+    }
+  }
   const raw = await riotFetch<RiotTimelineResponse>(
     `https://${roster.routing.regional}.api.riotgames.com/lol/match/v5/matches/${matchId}/timeline`,
     apiKey
@@ -1506,8 +1515,40 @@ async function getMatchTimeline(
     new Date().toISOString()
   );
   if (!timeline) return { timeline: null, fromCache: false };
+  // The facts ride on the same document, so the drawer and the review read
+  // one thing and say the same thing.
+  timeline.facts = gameFacts(timeline, gameLikeFromMatch(match, roster));
   await ref.set(stripUndefinedDeep(timeline));
   return { timeline, fromCache: false };
+}
+
+/** The slice of an analysis game the facts need, read straight off the cached match. */
+function gameLikeFromMatch(match: CachedMatch, roster: ResolvedRoster): AnalysisGameLike {
+  const ours = match.participants.filter((p) => roster.rosterPuuids.has(p.puuid));
+  const teamId = ours[0]?.teamId ?? 100;
+  const durationSec = match.durationSec ?? 0;
+  const lanes = readLanes(match.participants, teamId, durationSec);
+  const fights = tallyKills(match.participants, teamId);
+  const objectives = gameObjectives(match, teamId);
+  return {
+    win: ours[0]?.win ?? false,
+    durationSec,
+    side: teamId === 100 ? 'blue' : 'red',
+    queue: QUEUE_LABEL[match.queueId] ?? 'Team',
+    players: match.participants
+      .filter((p) => p.teamId === teamId)
+      .map((p) => ({
+        name: roster.nameByPuuid.get(p.puuid) ?? p.championName,
+        position: TEAM_POSITION_TO_ROLE[p.teamPosition] ?? p.teamPosition ?? '',
+        champion: displayChampionName(p.championName),
+        deaths: p.deaths,
+        ...(lanes.has(p.puuid) && { lane: lanes.get(p.puuid) as LaneRead }),
+        ...(p.extras && { facts: playerFacts(p, durationSec) }),
+        ...(p.visionScore !== undefined && { visionScore: p.visionScore })
+      })),
+    ...(objectives && { objectives }),
+    kills: fights
+  };
 }
 
 /**

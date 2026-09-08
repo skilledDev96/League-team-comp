@@ -663,10 +663,60 @@ export interface MatchTimeline {
   objectives: TimelineObjective[];
   plates: { ours: Record<LaneName, number>; theirs: Record<LaneName, number> };
   deaths: TimelineDeath[];
-  theirDeaths: { minute: number; zone: MapZone }[];
+  theirDeaths: { sec: number; minute: number; zone: MapZone }[];
   vision: { seat: Role; placed: number[]; killed: number[] }[];
   spend: { seat: Role; firstItemMinute?: number; secondItemMinute?: number; backs: number[] }[];
+  /** The facts read off the figures, stored beside them; mirrors `api/src/game-facts.ts`. */
+  facts?: GameFacts;
   bytes: number;
+}
+
+export type CurveShape = 'led throughout' | 'trailed throughout' | 'came back' | 'threw' | 'swung' | 'even' | 'unknown';
+
+/** How a game went, in sentences and the figures behind them. Mirrors `api/src/game-facts.ts`. */
+export interface GameFacts {
+  factsVersion: number;
+  tier: 'timeline' | 'endOfGame';
+  result: 'win' | 'loss';
+  durationMin: number;
+  side?: 'blue' | 'red';
+  curve: {
+    at10?: number;
+    at15?: number;
+    at20?: number;
+    at25?: number;
+    peakLead?: { gold: number; minute: number };
+    worstDeficit?: { gold: number; minute: number };
+    shape: CurveShape;
+  };
+  lanes: {
+    seat: Role;
+    name?: string;
+    champion: string;
+    theirChampion: string;
+    verdict: 'won' | 'even' | 'lost' | 'unknown';
+    goldAt10?: number;
+    csAt10?: number;
+    xpAt10?: number;
+    flippedAt?: number;
+    line: string;
+  }[];
+  firsts: MatchTimeline['firsts'];
+  objectives: {
+    minute: number;
+    type: TimelineObjective['type'];
+    subType?: string;
+    side: TimelineSide;
+    ourNearCount: number;
+    ourInvolved: Role[];
+    setup: 'taken' | 'contested' | 'uncontested' | 'traded';
+    line: string;
+  }[];
+  deathClusters: { fromMinute: number; toMinute: number; zone: MapZone; ours: number; theirs: number; seats: Role[]; line: string }[];
+  soloDeaths: { minute: number; seat: Role; zone: MapZone; warded: boolean; theirSide: boolean; line: string }[];
+  vision: { seat: Role; name?: string; placedPer5: number[]; darkDeaths: number; line: string }[];
+  spend: { seat: Role; firstItemMinute?: number; backs: number }[];
+  lines: string[];
 }
 
 /** Result of the scheduled Riot API key probe (Firestore `meta/keyHealth`). */

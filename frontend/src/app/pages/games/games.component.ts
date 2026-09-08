@@ -16,6 +16,9 @@ import { MatchNoteComponent } from '../../shared/match-note.component';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { GameCheckComponent } from '../../shared/game-check.component';
+import { GameStoryComponent } from '../../shared/game-story.component';
+import { CompExpectationService } from '../../services/comp-expectation.service';
+import { CompExpectation } from '../../models/team.models';
 import { ReviewComponent } from '../review/review.component';
 import {
   filterRows,
@@ -53,7 +56,7 @@ type Tab = 'games' | 'patterns';
     NgModelNameDirective,
     TooltipDirective,
     ReviewComponent,
-    GameCheckComponent
+    GameCheckComponent, GameStoryComponent
   ],
   templateUrl: './games.component.html'
 })
@@ -256,6 +259,16 @@ export class GamesComponent {
 
   /** The analysed game behind a row, for the check drawer. */
   private readonly analysisById = computed(() => new Map((this.data.compAnalysis()?.games ?? []).map((g) => [g.matchId, g])));
+  private readonly expectations = inject(CompExpectationService);
+
+  /** The four axes of the comp this game counts as, for the story's curve lines. */
+  protected expectFor(row: GameRow): CompExpectation | null {
+    if (!row.matchId) return null;
+    const comp = effectiveComp(row.compId ?? null, this.data.compOverride(row.matchId), this.data.comps());
+    const full = comp ? this.data.comps().find((c) => c.id === comp.id) : undefined;
+    return full ? (this.expectations.forComp(full)?.expect ?? null) : null;
+  }
+
   protected analysisOf(row: GameRow) {
     return row.matchId ? this.analysisById().get(row.matchId) : undefined;
   }

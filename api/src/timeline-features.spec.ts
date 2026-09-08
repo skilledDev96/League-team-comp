@@ -190,7 +190,7 @@ describe('buildMatchTimeline', () => {
     const frames = plainFrames(12);
     put(frames, 6, [kill(1, 6, 2000, 9000)]);
     const t = build(frames)!;
-    expect(t.theirDeaths).toEqual([{ minute: 6, zone: 'top' }]);
+    expect(t.theirDeaths).toEqual([{ sec: 360, minute: 6, zone: 'top' }]);
     expect(t.firsts.blood).toEqual({ minute: 6, side: 'us' });
     expect(JSON.stringify(t)).not.toContain('Top2');
     expect(JSON.stringify(t)).not.toContain('p6');

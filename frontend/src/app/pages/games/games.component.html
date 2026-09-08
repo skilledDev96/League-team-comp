@@ -333,6 +333,7 @@
                     </label>
                   }
                 </div>
+                <app-game-story [game]="analysisOf(g)" [expect]="expectFor(g)" />
                 <app-game-check [game]="analysisOf(g)" />
               }
               @if (g.link) {
