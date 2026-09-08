@@ -139,13 +139,13 @@ export const TEAM_SYSTEM = `You are the coach reviewing one finished League of L
 
 ${RULES}
 
-Length: "summary" is two sentences at most. "workOn" is at most three items and "keepDoing" at most two, each a sentence with the evidence beside it. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence.`;
+Length: "summary" is two sentences at most. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence.`;
 
 export const PLAYER_SYSTEM = `You are the coach writing one short note per player after one finished League of Legends game for an amateur five-stack. For each of OUR players you are given their seat, champion, line, lane read, habits and deaths. You write one strength and one thing to work on per player, each tied to a fact.
 
 ${RULES}
 
-Length: one entry per player in OUR PLAYERS, in the same order, using exactly the name given. "strength" and "workOn" are each one sentence with the evidence beside it. A player with nothing to fault still gets a "workOn" phrased as a question to ask themselves.`;
+Length: one entry per player in OUR PLAYERS, in the same order, using exactly the name given. "strength" and "workOn" are each one sentence of at most 35 words, with the evidence beside it in at most 25 words. A player with nothing to fault still gets a "workOn" phrased as a question to ask themselves.`;
 
 function dateOf(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
@@ -348,7 +348,7 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 function evidencedOf(v: unknown, textMax: number, durationMin: number): Evidenced | null {
   const row = (v ?? {}) as Record<string, unknown>;
   const text = str(row.text, textMax);
-  const evidence = str(row.evidence, 160);
+  const evidence = str(row.evidence, 220);
   if (!text || !evidence) return null;
   const m = typeof row.minute === 'number' && Number.isFinite(row.minute) ? Math.round(row.minute) : null;
   const minute = m !== null && m >= 0 && m <= Math.max(durationMin, 1) ? m : null;
@@ -362,7 +362,7 @@ export function parseTeamReview(value: unknown, ctx: ReviewContext): TeamReview 
   const items = (list: unknown, max: number) =>
     Array.isArray(list)
       ? list
-          .map((x) => evidencedOf(x, 240, d))
+          .map((x) => evidencedOf(x, 320, d))
           .filter((x): x is Evidenced => !!x)
           .slice(0, max)
       : [];
@@ -386,8 +386,8 @@ export function parsePlayerNotes(value: unknown, ctx: ReviewContext): PlayerNote
     const row = (raw ?? {}) as Record<string, unknown>;
     const player = typeof row.name === 'string' ? known.get(norm(row.name)) : undefined;
     if (!player || seen.has(player.name)) continue;
-    const strength = evidencedOf(row.strength, 200, ctx.facts.durationMin);
-    const workOn = evidencedOf(row.workOn, 200, ctx.facts.durationMin);
+    const strength = evidencedOf(row.strength, 320, ctx.facts.durationMin);
+    const workOn = evidencedOf(row.workOn, 320, ctx.facts.durationMin);
     if (!strength && !workOn) continue;
     seen.add(player.name);
     const blank: Evidenced = { text: '', evidence: '', minute: null };
