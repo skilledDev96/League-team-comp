@@ -258,6 +258,15 @@ export class TourService {
         await this.pause(60);
         return;
       }
+      case 'openGameList': {
+        // The game list is folded by default; the row steps need it open.
+        const fold = document.querySelector<HTMLElement>('[data-tour="games-list-fold"]');
+        if (fold && fold.getAttribute('aria-expanded') === 'false') {
+          fold.click();
+          await this.pause(150);
+        }
+        return;
+      }
       case 'openCompMore': {
         document.querySelector<HTMLElement>('details.comp-more')?.setAttribute('open', '');
         await this.pause(40);

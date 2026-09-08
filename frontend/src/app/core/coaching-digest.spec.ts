@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { digestNotes } from './coaching-digest';
+import { digestNotes, touches } from './coaching-digest';
 
 describe('digestNotes', () => {
   const notes = [
@@ -28,5 +28,11 @@ describe('digestNotes', () => {
     const d = digestNotes([]);
     expect(d).toEqual({ games: 0, wins: 0, workOn: [], strengths: [] });
     expect(digestNotes([{ win: true, date: 1, strength: '', workOn: 'Nothing in particular.' }]).workOn).toEqual([]);
+  });
+
+  it('touches says whether one note mentions a theme, by the words the digest counts', () => {
+    expect(touches('vision', 'No wards on the river side after 20')).toBe(true);
+    expect(touches('vision', 'Took the fight two for nothing')).toBe(false);
+    expect(touches('nothing-of-the-sort', 'wards')).toBe(false);
   });
 });

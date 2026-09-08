@@ -376,6 +376,23 @@ used by Admin and by the drawer opened from a profile or a roster card; the
 bench flag is labelled **A team / Bench** everywhere; every Riot refresh is
 "Refresh … from Riot" with its scope.
 
+**Native checkboxes and selects are styled once, globally** (`styles.css`, the
+"Native checkboxes and selects" block): `appearance: none` with the app's
+tokens and a neutral chevron forced with `!important`, because older
+per-page rules paint `background` shorthand over it. Do not restyle them
+per page. Other 8 Sep 2026 decisions from the same batch: the Games list
+starts folded (a `?match=` link, a refresh with new games and the tour's
+`openGameList` action open it); an editor can **remove a review**
+(`TeamDataService.deleteGameReview`, the function still writes them); the
+roster card sets the **main seat** as well as the second (the same
+`Player.role` the editor sets, so Patterns' Main has something to count);
+the coaching pills on a profile are buttons that open the notes behind
+them (`touches` in `core/coaching-digest.ts`); and **Draft against them** on
+a Scrims panel makes or reopens a series under a tournament named
+"Scrims" (bestOf 5, the scouting copied across; `createTournament`,
+`createSeries` and `createSeriesGame` return the id they made, and
+`openDraft` selects the series' tournament).
+
 Adding a field to a cached match means **bumping `CACHE_VERSION`** in
 `analysis-cache.ts`. Old entries then re-fetch once, inside `MAX_NEW_FETCHES` per
 run — so the field is *absent* on some matches for several refreshes, and any UI

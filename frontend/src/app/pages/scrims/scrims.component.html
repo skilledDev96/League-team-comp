@@ -608,6 +608,12 @@
               </section>
 
               @if (auth.editing()) {
+                <div class="action-row scrim-draft-row">
+                  <button type="button" class="view-btn active" data-tour="scrims-draft" [disabled]="drafting() === group.id" (click)="draftAgainst(group)"
+                          appTip="Opens the draft room against this team with the bans, roster and notes scouted here. Up to five games a block.">
+                    <span class="material-symbols-rounded" aria-hidden="true">swords</span> {{ drafting() === group.id ? 'Opening…' : 'Draft against ' + group.name }}
+                  </button>
+                </div>
                 <div class="field"><span>Target bans</span>
                   <app-champion-picker [champions]="o.bans || []"
                                        [inputName]="'scrimbans-' + group.id" placeholder="Add a ban…"

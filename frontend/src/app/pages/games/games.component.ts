@@ -205,6 +205,7 @@ export class GamesComponent {
       if (match) {
         this.tab.set('games');
         this.days.set(0);
+        this.listOpen.set(true);
         this.focus.set(`riot-${match}`);
       }
       const tab = params.get('tab');
@@ -305,12 +306,19 @@ export class GamesComponent {
     void this.reviews.review(row.matchId, this.expectFor(row));
   }
 
+  protected removeReview(row: GameRow): void {
+    if (!row.matchId || !this.data.reviewFor(row.matchId)) return;
+    if (!confirm('Remove this review? The facts stay; writing it again costs about a dime.')) return;
+    void this.data.deleteGameReview(row.matchId);
+  }
+
   protected blockReason(row: GameRow): string | null {
     return reviewBlockReason(row);
   }
 
-  /** The game list and the player table fold away, so the page can be the record and the form. */
-  protected readonly listOpen = signal(true);
+  /** The game list and the player table fold away, so the page can be the record and the form.
+   *  The list starts folded (8 Sep 2026); a link to a game, a refresh with new games, or Show opens it. */
+  protected readonly listOpen = signal(false);
   protected readonly playersOpen = signal(true);
 
   /** The four axes of the comp this game counts as, for the story's curve lines. */
@@ -367,6 +375,7 @@ export class GamesComponent {
     this.days.set(7);
     const first = [...fresh][0];
     if (first) {
+      this.listOpen.set(true);
       this.revealed = null;
       this.focus.set(`riot-${first}`);
     }

@@ -37,6 +37,13 @@ export class OverviewComponent {
     return (player.secondaryRoles ?? []).includes(role);
   }
 
+  /** The seat in the title. A second seat that becomes the main stops being a second. */
+  protected setMain(player: Player, role: Role): void {
+    if (role === player.role) return;
+    const seconds = (player.secondaryRoles ?? []).filter((r) => r !== role);
+    void this.editor.patch(player, { role, secondaryRoles: seconds.length ? seconds : undefined });
+  }
+
   protected toggleSecondary(player: Player, role: Role): void {
     if (role === player.role) return;
     const now = player.secondaryRoles ?? [];

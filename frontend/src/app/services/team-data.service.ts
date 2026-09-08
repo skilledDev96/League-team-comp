@@ -98,6 +98,14 @@ export class TeamDataService {
   readonly gameReviews = signal<GameReview[]>([]);
   private readonly reviewMap = computed(() => new Map(this.gameReviews().map((r) => [r.matchId, r])));
 
+  /** Take a review down. The function writes them; an editor may remove one that no longer says anything true. */
+  async deleteGameReview(matchId: string): Promise<void> {
+    this.gameReviews.set(this.gameReviews().filter((r) => r.matchId !== matchId));
+    if (this.mode !== 'firebase') return;
+    const db = getDb();
+    if (db) await deleteDoc(doc(db, 'gameReviews', matchId));
+  }
+
   reviewFor(matchId: string | undefined): GameReview | undefined {
     return matchId ? this.reviewMap().get(matchId) : undefined;
   }
@@ -502,9 +510,10 @@ export class TeamDataService {
     return map;
   }
 
-  createTournament(data: Omit<Tournament, 'id' | 'order'>): Promise<void> {
+  async createTournament(data: Omit<Tournament, 'id' | 'order'>): Promise<string> {
     const entity: Tournament = { ...data, id: this.newId('tournament'), order: this.nextOrder(this.tournaments()) };
-    return this.persistUpsert('tournaments', this.tournaments, entity);
+    await this.persistUpsert('tournaments', this.tournaments, entity);
+    return entity.id;
   }
 
   updateTournament(entity: Tournament): Promise<void> {
@@ -515,9 +524,10 @@ export class TeamDataService {
     return this.persistRemove('tournaments', this.tournaments, id);
   }
 
-  createSeries(data: Omit<TournamentSeries, 'id' | 'order'>): Promise<void> {
+  async createSeries(data: Omit<TournamentSeries, 'id' | 'order'>): Promise<string> {
     const entity: TournamentSeries = { ...data, id: this.newId('series'), order: this.nextOrder(this.tournamentSeries()) };
-    return this.persistUpsert('tournamentSeries', this.tournamentSeries, entity);
+    await this.persistUpsert('tournamentSeries', this.tournamentSeries, entity);
+    return entity.id;
   }
 
   updateSeries(entity: TournamentSeries): Promise<void> {
@@ -528,9 +538,10 @@ export class TeamDataService {
     return this.persistRemove('tournamentSeries', this.tournamentSeries, id);
   }
 
-  createSeriesGame(data: Omit<SeriesGame, 'id' | 'order'>): Promise<void> {
+  async createSeriesGame(data: Omit<SeriesGame, 'id' | 'order'>): Promise<string> {
     const entity: SeriesGame = { ...data, id: this.newId('game'), order: this.nextOrder(this.seriesGames()) };
-    return this.persistUpsert('seriesGames', this.seriesGames, entity);
+    await this.persistUpsert('seriesGames', this.seriesGames, entity);
+    return entity.id;
   }
 
   async updateSeriesGame(entity: SeriesGame): Promise<void> {

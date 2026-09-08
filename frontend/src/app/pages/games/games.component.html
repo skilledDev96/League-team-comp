@@ -129,20 +129,20 @@
       <button type="button" [class.active]="result() === 'win'" (click)="result.set('win')">Wins</button>
       <button type="button" [class.active]="result() === 'loss'" (click)="result.set('loss')">Losses</button>
     </div>
-    @if (opponents().length) {
-      <label class="field compact-field games-opponent"><span>Opponent</span>
-        <select [ngModel]="opponent()" (ngModelChange)="opponent.set($event)" name="gamesOpponent">
-          <option value="">Anyone</option>
-          @for (o of opponents(); track o) { <option [value]="o">{{ o }}</option> }
-        </select>
-      </label>
-    }
     @if (comp()) {
       <button type="button" class="view-btn active" (click)="clearComp()" appTip="Showing only the games under this comp — click to show every game">
         {{ compName() || 'comp' }} <span class="material-symbols-rounded" aria-hidden="true">close</span>
       </button>
     }
     <app-champion-filter [count]="rows().length" noun="games" placeholder="Games with a champion, either side — Tristana, Rakan…" />
+    @if (opponents().length) {
+      <label class="field games-opponent"><span>Opponent</span>
+        <select [ngModel]="opponent()" (ngModelChange)="opponent.set($event)" name="gamesOpponent">
+          <option value="">Anyone</option>
+          @for (o of opponents(); track o) { <option [value]="o">{{ o }}</option> }
+        </select>
+      </label>
+    }
   </section>
 
   <!-- The record, then where it comes from. -->
@@ -273,7 +273,7 @@
   <section class="card" aria-label="Games">
     <div class="section-head games-list-head">
       <p class="title-with-icon games-list-title"><span class="section-icon material-symbols-rounded">sports_esports</span>Game list <small class="muted">{{ rows().length }}</small></p>
-      <button type="button" class="view-btn games-fold" (click)="listOpen.set(!listOpen())" [attr.aria-expanded]="listOpen()">
+      <button type="button" class="view-btn games-fold" data-tour="games-list-fold" (click)="listOpen.set(!listOpen())" [attr.aria-expanded]="listOpen()">
         <span class="material-symbols-rounded" aria-hidden="true">{{ listOpen() ? 'expand_less' : 'expand_more' }}</span>{{ listOpen() ? 'Hide' : 'Show' }}
       </button>
     </div>
@@ -397,6 +397,11 @@
                       @if (reviews.isBusy(g.matchId)) { <span class="btn-spinner" aria-hidden="true"></span> Reviewing… }
                       @else { <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span> {{ data.reviewFor(g.matchId) ? 'Re-review' : 'Review this game' }} }
                     </button>
+                    @if (data.reviewFor(g.matchId) && !reviews.isBusy(g.matchId)) {
+                      <button type="button" class="view-btn games-review-remove" appTip="Take the review down. The facts stay; it can be written again." (click)="removeReview(g)">
+                        <span class="material-symbols-rounded" aria-hidden="true">delete</span> Remove review
+                      </button>
+                    }
                     @if (reviews.errorFor(g.matchId); as err) { <small class="games-review-error">{{ err }}</small> }
                   }
                   @if (auth.editing() && data.comps().length) {

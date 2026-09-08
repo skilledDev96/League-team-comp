@@ -2,8 +2,9 @@ import { ChampionFilterService } from '../../services/champion-filter.service';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { OpponentPlayer, Role, Scrim, ScrimOpponent, ScrimPlayer } from '../../models/team.models';
+import { ToastService } from '../../services/toast.service';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
@@ -73,6 +74,61 @@ export class ScrimsComponent {
   protected readonly filter = inject(ChampionFilterService);
   private readonly history = inject(OpponentHistoryService);
   protected readonly scout = inject(OpponentScoutService);
+  private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
+  protected readonly drafting = signal<string>('');
+
+  /**
+   * Draft against this team. A draft lives on a series, so the first press
+   * makes one under a "Scrims" tournament, copying the notes, bans, roster
+   * and team history scouted here; the next press reopens it while it has
+   * games left (8 Sep 2026).
+   */
+  protected async draftAgainst(group: ScrimGroup): Promise<void> {
+    if (this.drafting()) return;
+    this.drafting.set(group.id);
+    try {
+      let block = this.data.tournaments().find((t) => t.name === 'Scrims');
+      let blockId = block?.id;
+      if (!blockId) {
+        blockId = await this.data.createTournament({ name: 'Scrims', format: 'Scrim blocks, up to five games each', notes: 'Made by "Draft against them" on the Scrims page.' });
+      }
+      const open = this.data
+        .tournamentSeries()
+        .filter((s) => s.tournamentId === blockId && slugOpponent(s.opponent) === group.id && s.status !== 'played')
+        .find((s) => this.data.seriesGames().filter((g) => g.seriesId === s.id).length < s.bestOf);
+      const record = this.data.scrimOpponents().find((o) => o.id === group.id);
+      const fallback = this.fallbackFor(group);
+      const seriesId =
+        open?.id ??
+        (await this.data.createSeries({
+          tournamentId: blockId,
+          opponent: group.name,
+          bestOf: 5,
+          status: 'scheduled',
+          notes: record?.notes ?? fallback?.notes,
+          bans: record?.bans ?? fallback?.bans,
+          opponentPlayers: record?.opponentPlayers ?? fallback?.opponentPlayers,
+          teamHistory: record?.teamHistory ?? fallback?.teamHistory
+        }));
+      const games = this.data.seriesGames().filter((g) => g.seriesId === seriesId).sort((a, b) => a.gameNumber - b.gameNumber);
+      const unfinished = games.find((g) => g.win === undefined);
+      const gameId = unfinished?.id ?? (await this.data.createSeriesGame({ seriesId, gameNumber: games.length + 1, ourChampions: [], theirChampions: [] }));
+      this.toast.show(open ? `Back to the draft against ${group.name}` : `Draft against ${group.name}`, {
+        text: open ? 'The block already had a game open.' : 'Their bans, roster and notes came along. Results typed in the draft room count as tournament games on the Games page.',
+        kind: 'ok',
+        timeout: 6000
+      });
+      await this.router.navigate(['/tournaments'], { queryParams: { view: 'draft', series: seriesId, game: gameId } });
+    } finally {
+      this.drafting.set('');
+    }
+  }
+
+  /** What a series against the same team already knows, when this page has no record of its own. */
+  private fallbackFor(group: ScrimGroup) {
+    return this.data.tournamentSeries().find((s) => slugOpponent(s.opponent) === group.id && (s.opponentPlayers?.length || s.bans?.length || s.notes));
+  }
 
   protected readonly importing = signal(false);
   protected readonly importNote = signal('');

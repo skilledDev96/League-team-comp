@@ -106,7 +106,7 @@ export class ReviewComponent {
   /** Main seat only, main or a second seat, or anywhere — as set on the Roster page. */
   protected readonly roleMode = signal<RoleMode>('main');
   protected readonly roleSteps: { mode: RoleMode; label: string; tip: string }[] = [
-    { mode: 'main', label: 'Main', tip: 'Everyone of ours in their main seat, as set on the Roster page' },
+    { mode: 'main', label: 'Main', tip: 'Games where all of ours sat in their main seat — the role in each player’s title, set on the Roster card in edit mode. A 0 means every game had someone off-role.' },
     { mode: 'second', label: '2nd', tip: 'Main seat or a second seat they are listed for' },
     { mode: 'any', label: 'Any', tip: 'Whoever sat where' }
   ];

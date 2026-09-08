@@ -5,6 +5,32 @@
     <app-tour-pill />
 </section>
 
+    <article class="card profile-actions">
+      <h2 data-tour="player-edit" class="title-with-icon"><span class="section-icon">NX</span>Quick actions</h2>
+      @if (refreshStatus()) {
+        <p class="tag good" role="status">{{ refreshStatus() }}</p>
+      }
+      <div class="links action-row">
+        @if (auth.editing()) {
+          <button class="view-btn active" type="button" [disabled]="refreshing()" (click)="refreshData()">
+            @if (refreshing()) {
+              <span class="btn-spinner" aria-hidden="true"></span>
+              Refreshing...
+            } @else {
+              Refresh this player from Riot
+            }
+          </button>
+        }
+        <app-overflow-menu>
+          @if (auth.editing()) {
+            <button type="button" class="overflow-item" (click)="editor.open(p.id)">Edit this player</button>
+          }
+          <a class="overflow-item" routerLink="/roster">Back to Roster</a>
+          <a class="overflow-item" routerLink="/comps">Open team comps</a>
+        </app-overflow-menu>
+      </div>
+    </article>
+
   <section class="grid two">
     <article class="card card-loadable">
       @if (refreshing()) {
@@ -220,19 +246,32 @@
         @if (coachingNotes().length) {
           <!-- What the post-game reviews said about this player, one line each way per game. -->
           <h3 class="coaching-head"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Coaching notes
-            <small class="muted">{{ coachingDigest().games }} reviewed {{ coachingDigest().games === 1 ? 'game' : 'games' }}, {{ coachingDigest().wins }} won</small></h3>
+            <small class="muted">{{ coachingDigest().games }} reviewed {{ coachingDigest().games === 1 ? 'game' : 'games' }}, {{ coachingDigest().wins }} won</small>
+            <app-info-tip text="Each pill is a theme the reviews keep touching, counted by the words in the notes: Vision 2/3 means vision came up in the work-on note of two of the three reviewed games. Click a pill to read those notes. It is a reading aid over the model's notes, not a measurement." label="How to read the coaching notes" /></h3>
           @let cd = coachingDigest();
           <!-- The digest is the default view: what keeps coming up, then the newest note. -->
           <div class="coaching-digest">
             @if (cd.workOn.length) {
               <p class="coaching-theme-line"><b class="is-warn">Keeps coming up</b>
-                @for (t of cd.workOn; track t.key) { <span class="coaching-theme is-warn" [appTip]="'Work-on notes touching this in ' + t.games + ' of ' + cd.games + ' reviewed games'">{{ t.label }} <b>{{ t.games }}/{{ cd.games }}</b></span> }
+                @for (t of cd.workOn; track t.key) { <button type="button" class="coaching-theme is-warn" [class.is-on]="themeOn('workOn', t.key)" [attr.aria-pressed]="themeOn('workOn', t.key)" [appTip]="'Work-on notes touching this in ' + t.games + ' of ' + cd.games + ' reviewed games — click to read them'" (click)="pickTheme('workOn', t.key)">{{ t.label }} <b>{{ t.games }}/{{ cd.games }}</b></button> }
               </p>
             }
             @if (cd.strengths.length) {
               <p class="coaching-theme-line"><b class="is-ok">Strengths</b>
-                @for (t of cd.strengths; track t.key) { <span class="coaching-theme is-ok" [appTip]="'Strength notes touching this in ' + t.games + ' of ' + cd.games + ' reviewed games'">{{ t.label }} <b>{{ t.games }}/{{ cd.games }}</b></span> }
+                @for (t of cd.strengths; track t.key) { <button type="button" class="coaching-theme is-ok" [class.is-on]="themeOn('strength', t.key)" [attr.aria-pressed]="themeOn('strength', t.key)" [appTip]="'Strength notes touching this in ' + t.games + ' of ' + cd.games + ' reviewed games — click to read them'" (click)="pickTheme('strength', t.key)">{{ t.label }} <b>{{ t.games }}/{{ cd.games }}</b></button> }
               </p>
+            }
+            @if (pickedTheme(); as picked) {
+              <ul class="list-clean coaching-theme-notes" [class.is-warn]="picked.side === 'workOn'" [class.is-ok]="picked.side === 'strength'">
+                @for (n of themeNotes(); track n.review.matchId) {
+                  @let line = picked.side === 'workOn' ? n.note!.workOn : n.note!.strength;
+                  <li>
+                    @if (n.game) { <span class="tag" [class.good]="n.game.win" [class.bad]="!n.game.win">{{ n.game.win ? 'W' : 'L' }}</span> <span class="muted">{{ n.game.date | date: 'd MMM' }} · {{ n.note!.champion }}</span> } @else { <span class="muted">{{ n.note!.champion }}</span> }
+                    {{ line.text }} <small class="advice-n">{{ line.evidence }}</small>
+                    <a class="view-btn coaching-open" [routerLink]="['/games']" [queryParams]="{ match: n.review.matchId }">Open the game</a>
+                  </li>
+                } @empty { <li class="muted">No note mentions this.</li> }
+              </ul>
             }
             @if (cd.latestWorkOn) { <p class="coaching-line is-warn"><b>Latest</b> {{ coachingNotes()[0].note!.workOn.text }}</p> }
           </div>
@@ -268,31 +307,6 @@
       </article>
     }
 
-    <article class="card">
-      <h2 data-tour="player-edit" class="title-with-icon"><span class="section-icon">NX</span>Quick Actions</h2>
-      @if (refreshStatus()) {
-        <p class="tag good" role="status">{{ refreshStatus() }}</p>
-      }
-      <div class="links action-row">
-        @if (auth.editing()) {
-          <button class="view-btn active" type="button" [disabled]="refreshing()" (click)="refreshData()">
-            @if (refreshing()) {
-              <span class="btn-spinner" aria-hidden="true"></span>
-              Refreshing...
-            } @else {
-              Refresh this player from Riot
-            }
-          </button>
-        }
-        <app-overflow-menu>
-          @if (auth.editing()) {
-            <button type="button" class="overflow-item" (click)="editor.open(p.id)">Edit this player</button>
-          }
-          <a class="overflow-item" routerLink="/roster">Back to Roster</a>
-          <a class="overflow-item" routerLink="/comps">Open team comps</a>
-        </app-overflow-menu>
-      </div>
-    </article>
   </section>
 } @else {
   <section class="hero">

@@ -22,7 +22,7 @@ import { formatSide, PLAYER_METRIC_KEYS, PlayerMetric, playerSplits, PlayerSplit
 import { MIN_FOR_A_CLAIM } from '../review/loss-patterns.util';
 import { InfoTipComponent } from '../../shared/info-tip.component';
 import { TourPillComponent } from '../../shared/tour-pill.component';
-import { digestNotes } from '../../core/coaching-digest';
+import { digestNotes, touches } from '../../core/coaching-digest';
 
 @Component({
   selector: 'app-player-profile',
@@ -134,6 +134,28 @@ export class PlayerProfileComponent {
       }))
     )
   );
+
+  /** A pill on the digest, pressed: the notes that mention that theme. */
+  protected readonly pickedTheme = signal<{ side: 'workOn' | 'strength'; key: string } | null>(null);
+
+  protected pickTheme(side: 'workOn' | 'strength', key: string): void {
+    const now = this.pickedTheme();
+    this.pickedTheme.set(now && now.side === side && now.key === key ? null : { side, key });
+  }
+
+  protected themeOn(side: 'workOn' | 'strength', key: string): boolean {
+    const now = this.pickedTheme();
+    return !!now && now.side === side && now.key === key;
+  }
+
+  protected readonly themeNotes = computed(() => {
+    const picked = this.pickedTheme();
+    if (!picked) return [];
+    return this.coachingNotes().filter((n) => {
+      const line = picked.side === 'workOn' ? n.note!.workOn : n.note!.strength;
+      return touches(picked.key, [line.text, line.evidence].join(' '));
+    });
+  });
 
   protected columnOptions(metrics: readonly PlayerMetric[]): ColumnOption[] {
     return metrics.map((m) => ({ key: m.key, label: m.label }));

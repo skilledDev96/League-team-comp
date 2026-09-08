@@ -151,6 +151,7 @@ export const TOURS: readonly Tour[] = [
     steps: [
       { anchor: 'roster-card', title: 'A player card', text: 'Role, playstyle and main champion. Quick look opens the pool and the links; Profile opens the full page with the stats and the coaching notes.', query: { view: 'cards' } },
       { anchor: 'roster-ateam', title: 'A team for Patterns', text: 'The A team is the five Patterns counts by default and the five the draft room follows. Bench leaves a player out. Same flag Admin sets, so the five stay one thing everywhere.', editMode: true, query: { view: 'cards' } },
+      { anchor: 'roster-main-seat', title: 'Main seat', text: 'The seat in the title. Patterns’ Main counts a game only when all five sat in their main seat, so set these before reading it.', editMode: true, query: { view: 'cards' } },
       { anchor: 'roster-second-seat', title: 'Second seat', text: 'The roles a player also covers. Patterns’ Roles filter and the draft room’s seat proposals read this.', editMode: true, query: { view: 'cards' } },
       { anchor: 'roster-detail-level', title: 'Starter and Full', text: 'Full adds the team identity, the fill-ins and the resource links under the cards.', query: { view: 'cards' } },
       { anchor: 'table-queue', title: 'The table', text: 'Rank and recent form per queue, one row per player. Recent is the last games scanned, not the ladder record beside it.', query: { view: 'table' } },
@@ -205,12 +206,12 @@ export const TOURS: readonly Tour[] = [
       { anchor: 'games-refresh', title: 'Refresh matches from Riot', text: 'Pulls in the flex and Clash games we played. Scrims come from replays and tournament games from the draft room.', editMode: true, query: { tab: 'games' } },
       { anchor: 'games-filters', title: 'Filters', text: 'Source, window, result and opponent, plus the champion box every page shares.', query: { tab: 'games' } },
       { anchor: 'games-record', title: 'The record', text: 'Wins and losses over what is filtered, by source and by side.', query: { tab: 'games' } },
-      { anchor: 'games-row', title: 'A game', text: 'Open a row for the objectives, the scoreboard and everything below it.', query: { tab: 'games' } },
-      { anchor: 'games-note', title: 'Match note', text: 'A sentence about the game. Comps collect these under Notes from its games, and the review reads them too.', editMode: true, query: { tab: 'games' } },
-      { anchor: 'games-practice', title: 'Practice', text: 'Mark a game as practice and Patterns leaves it out.', editMode: true, query: { tab: 'games' } },
-      { anchor: 'games-counts-as', title: 'Counts as', text: 'Which comp the game counts towards. Auto is the matcher’s read of the five champions; pick a comp to overrule it.', editMode: true, query: { tab: 'games' } },
-      { anchor: 'games-story', title: 'How the game went', text: 'Minute by minute from Riot’s timeline, when there is one: the gold curve, the lanes, the fights and the deaths nobody was near.', query: { tab: 'games' } },
-      { anchor: 'games-review-btn', title: 'Review this game', text: 'Two model calls, about a dime, after you confirm. The review lands on the row, on the Reviews tab and on each player’s profile.', editMode: true, query: { tab: 'games' } },
+      { anchor: 'games-row', title: 'A game', text: 'Open a row for the objectives, the scoreboard and everything below it.', query: { tab: 'games' }, before: 'openGameList' },
+      { anchor: 'games-note', title: 'Match note', text: 'A sentence about the game. Comps collect these under Notes from its games, and the review reads them too.', editMode: true, query: { tab: 'games' }, before: 'openGameList' },
+      { anchor: 'games-practice', title: 'Practice', text: 'Mark a game as practice and Patterns leaves it out.', editMode: true, query: { tab: 'games' }, before: 'openGameList' },
+      { anchor: 'games-counts-as', title: 'Counts as', text: 'Which comp the game counts towards. Auto is the matcher’s read of the five champions; pick a comp to overrule it.', editMode: true, query: { tab: 'games' }, before: 'openGameList' },
+      { anchor: 'games-story', title: 'How the game went', text: 'Minute by minute from Riot’s timeline, when there is one: the gold curve, the lanes, the fights and the deaths nobody was near.', query: { tab: 'games' }, before: 'openGameList' },
+      { anchor: 'games-review-btn', title: 'Review this game', text: 'Two model calls, about a dime, after you confirm. The review lands on the row, on the Reviews tab and on each player’s profile.', editMode: true, query: { tab: 'games' }, before: 'openGameList' },
       { anchor: 'games-tabs', title: 'Patterns and Reviews', text: 'Patterns is what keeps happening across the games. Reviews is every written review, newest first.', query: { tab: 'games' } }
     ]
   },

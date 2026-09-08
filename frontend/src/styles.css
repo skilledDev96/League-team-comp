@@ -5203,6 +5203,56 @@ body.intel-page #fillInSection {
   outline-offset: 1px;
 }
 
+/* ---- Native checkboxes and selects in the app's own clothes (8 Sep 2026) ----
+   The browser's defaults ignored every theme. One rule each, so a new form
+   never has to remember. The select's chevron is a neutral grey that reads
+   on the dark themes and on light; the properties are forced because the
+   older per-page rules paint `background` shorthand over it. */
+input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  flex: none;
+  display: inline-grid;
+  place-content: center;
+  border: 1px solid var(--card-border);
+  border-radius: 5px;
+  background: var(--surface-btn);
+  vertical-align: -0.2rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+input[type='checkbox']::before {
+  content: '';
+  width: 0.62rem;
+  height: 0.62rem;
+  clip-path: polygon(14% 44%, 0 65%, 40% 100%, 100% 18%, 82% 0, 40% 64%);
+  background: var(--accent);
+  transform: scale(0);
+  transition: transform 0.12s;
+}
+input[type='checkbox']:checked { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--surface-btn)); }
+input[type='checkbox']:checked::before { transform: scale(1); }
+input[type='checkbox']:hover { border-color: var(--accent); }
+input[type='checkbox']:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type='checkbox']:disabled { opacity: 0.5; cursor: default; }
+
+select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  padding-right: 1.9rem !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%239aa3ad' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.6rem center !important;
+  background-size: 0.75rem !important;
+  cursor: pointer;
+  color-scheme: dark;
+}
+select:hover { border-color: var(--accent); }
+body[data-theme='light'] select { color-scheme: light; }
+
 .comp-panel > summary {
   cursor: pointer;
   font-family: "Sora", sans-serif;
@@ -13506,7 +13556,9 @@ button.opp-more.active {
 }
 
 .games-filters .champ-filter { margin: 0; flex: 1 1 18rem; }
-.games-opponent { margin: 0; }
+.games-opponent { margin: 0 0 0 auto; flex-direction: row; align-items: center; gap: 0.45rem; }
+.games-opponent > span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.games-opponent select { padding-block: 0.32rem; min-width: 9rem; }
 
 .games-tiles { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
 
@@ -14050,7 +14102,8 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .roster-edit-field { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.3rem; }
 .roster-edit-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-1); margin-right: 0.15rem; }
 .roster-edit .role-flex-toggle { padding: 0.15rem 0.55rem; font-size: 0.72rem; }
-.roster-edit-open { margin-left: auto; }
+.roster-edit-open { margin-left: auto; padding: 0.12rem 0.5rem; font-size: 0.72rem; border-color: transparent; background: transparent; color: var(--text-1); }
+.roster-edit-open:hover, .roster-edit-open:focus-visible { border-color: var(--card-border); color: var(--text-0); }
 .roster-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.78rem; position: relative; z-index: 3; }
 .roster-card-foot .role-toggle { margin: 0; }
 .roster-profile-chip { display: inline-flex; align-items: center; gap: 0.2rem; text-decoration: none; }
@@ -14179,3 +14232,24 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 app-tour-pill.is-inline .hero-tools { position: static; margin: 0.2rem 0 0.6rem; justify-content: flex-start; }
 
 .games-list-title { margin: 0; font-weight: 700; font-size: 1.05rem; display: inline-flex; align-items: center; gap: 0.4rem; }
+
+/* ---- The profile's quick actions, first thing under the hero (8 Sep 2026) ---- */
+.profile-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.2rem; padding: 0.7rem 1rem; margin-bottom: 0.9rem; }
+.profile-actions h2 { margin: 0; font-size: 1rem; }
+.profile-actions .action-row { margin: 0; }
+.profile-actions .tag { margin: 0; }
+
+/* ---- Coaching pills are buttons: pressed, they open the notes behind them ---- */
+button.coaching-theme { font: inherit; font-size: 0.76rem; background: transparent; cursor: pointer; align-items: center; }
+button.coaching-theme:hover, button.coaching-theme:focus-visible { color: var(--text-0); border-color: var(--accent); }
+.coaching-theme.is-on { background: color-mix(in srgb, var(--accent) 16%, transparent); border-color: var(--accent); color: var(--text-0); }
+.coaching-theme-notes { display: grid; gap: 0.3rem; margin: 0.35rem 0 0.2rem; padding: 0.5rem 0.65rem; border-left: 2px solid var(--card-border); font-size: 0.82rem; }
+.coaching-theme-notes.is-warn { border-left-color: var(--warn); }
+.coaching-theme-notes.is-ok { border-left-color: var(--ok); }
+.coaching-theme-notes li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.coaching-theme-notes .coaching-open { margin-left: auto; }
+.coaching-head .info-tip { margin-left: 0.3rem; }
+
+.games-review-remove { color: var(--text-1); }
+.games-review-remove:hover { border-color: var(--warn); color: var(--warn); }
+.scrim-draft-row { margin: 0.6rem 0 0.2rem; }

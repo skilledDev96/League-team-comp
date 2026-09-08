@@ -32,6 +32,12 @@ export const THEMES: readonly Theme[] = [
   { key: 'damage', label: 'Damage and carrying', words: /\b(damage|kill participation|carr\w+|dps|solo kills?|kills)\b/i }
 ];
 
+/** Whether one note touches a theme, by the same words the digest counts. */
+export function touches(themeKey: string, text: string): boolean {
+  const theme = THEMES.find((t) => t.key === themeKey);
+  return !!theme && theme.words.test(text);
+}
+
 export interface ThemeCount {
   key: string;
   label: string;

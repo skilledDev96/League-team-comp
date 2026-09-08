@@ -176,6 +176,9 @@ export class TournamentContextService {
 
   /** Open a specific game on the draft view, as a shared link does. */
   openDraft(seriesId: string, gameId: string): void {
+    // A series from another tournament (a scrim block, say) brings its tournament along.
+    const series = seriesId ? this.data.tournamentSeries().find((s) => s.id === seriesId) : undefined;
+    if (series && series.tournamentId !== this.currentTournament()?.id) this.chosenTournamentId.set(series.tournamentId);
     this.draftSeriesId.set(seriesId);
     this.draftGameId.set(gameId);
     this.view.set('draft');

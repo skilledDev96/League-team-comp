@@ -63,6 +63,14 @@
                       (click)="setBench(player, !player.sub)">{{ player.sub ? 'Bench' : 'A team' }}</button>
             </span>
             <span class="roster-edit-field">
+              <span data-tour="roster-main-seat" class="roster-edit-label" appTip="The seat in their title: Patterns’ Main counts them here and the draft room seats them here">Main seat</span>
+              @for (r of roles; track r) {
+                <button type="button" class="role-flex-toggle" [class.on]="r === player.role" [attr.aria-pressed]="r === player.role"
+                        [appTip]="r === player.role ? 'Their main seat' : 'Make ' + r + ' their main seat'"
+                        (click)="setMain(player, r)">{{ r }}</button>
+              }
+            </span>
+            <span class="roster-edit-field">
               <span data-tour="roster-second-seat" class="roster-edit-label" appTip="The seats they also cover; Patterns’ Roles filter and the draft room read these">2nd seat</span>
               @for (r of roles; track r) {
                 @if (r !== player.role) {
@@ -71,8 +79,8 @@
                 }
               }
             </span>
-            <button type="button" class="view-btn roster-edit-open" (click)="editor.open(player.id)" appTip="Name, role, pool, bans, playstyle and links, in a drawer">
-              <span class="material-symbols-rounded" aria-hidden="true">edit</span> Edit player
+            <button type="button" class="view-btn roster-edit-open" (click)="editor.open(player.id)" appTip="Name, tag, pool, bans, playstyle and links, in a drawer">
+              <span class="material-symbols-rounded" aria-hidden="true">edit</span> More
             </button>
           </div>
         } @else if (player.secondaryRoles?.length) {
