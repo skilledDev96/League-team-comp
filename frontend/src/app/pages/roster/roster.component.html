@@ -24,14 +24,21 @@
         </button>
       </div>
     </div>
+    @if (view() === 'cards') {
+      <div data-tour="roster-detail-level" class="field"><span>Detail</span>
+        <div class="view-segment" role="group" aria-label="Detail level">
+          <button type="button" [class.active]="!detailFull()" (click)="detailFull.set(false)" appTip="The cards only">Starter</button>
+          <button type="button" [class.active]="detailFull()" (click)="detailFull.set(true)" appTip="Adds team identity, fill-ins and the resource links">Full</button>
+        </div>
+      </div>
+    }
     <p class="meta-line">
       <span class="meta-label">Roster</span>
       <span class="meta-value">{{ data.players().length }} players</span>
     </p>
+    <app-champion-filter class="roster-toolbar-filter" [count]="playersWith().length" noun="players" placeholder="Who on our side plays a champion — Tristana, Rakan…" />
   </div>
 </section>
-
-<app-champion-filter [count]="playersWith().length" noun="players" placeholder="Who on our side plays a champion — Tristana, Rakan…" />
 @if (filter.active()) {
   <p class="champ-filter-answer">
     @if (playersWith().length) {
@@ -57,6 +64,6 @@
     <app-player-intel [embedded]="true" />
   }
   @default {
-    <app-overview [embedded]="true" />
+    <app-overview [embedded]="true" [full]="detailFull()" />
   }
 }

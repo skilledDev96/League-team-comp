@@ -74,7 +74,8 @@
             @if (r.game) {
               <span class="tag" [class.good]="r.game.win" [class.bad]="!r.game.win">{{ r.game.win ? 'Win' : 'Loss' }}</span>
               <span class="review-card-date">{{ r.game.date | date: 'd MMM' }} · {{ r.game.queue }}</span>
-              @if (r.game.enemyChampions?.length) { <span class="muted review-card-vs">vs {{ r.game.enemyChampions!.join(', ') }}</span> }
+              @if (r.opponent) { <span class="review-card-vs">vs <b>{{ r.opponent }}</b></span> }
+              @else if (r.game.enemyChampions?.length) { <span class="muted review-card-vs">vs {{ r.game.enemyChampions!.join(', ') }}</span> }
             } @else {
               <span class="muted">Game no longer in the analysis</span>
             }
@@ -134,6 +135,7 @@
         {{ compName() || 'comp' }} <span class="material-symbols-rounded" aria-hidden="true">close</span>
       </button>
     }
+    <div class="games-filters-row">
     <app-champion-filter [count]="rows().length" noun="games" placeholder="Games with a champion, either side — Tristana, Rakan…" />
     @if (opponents().length) {
       <label class="field games-opponent"><span>Opponent</span>
@@ -143,6 +145,7 @@
         </select>
       </label>
     }
+    </div>
   </section>
 
   <!-- The record, then where it comes from. -->

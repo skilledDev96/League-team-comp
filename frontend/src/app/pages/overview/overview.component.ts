@@ -51,7 +51,8 @@ export class OverviewComponent {
     void this.editor.patch(player, { secondaryRoles: next.length ? next : undefined });
   }
 
-  protected readonly fullView = signal(false);
+  /** Full adds the team identity, the fill-ins and the links; the shell's toolbar sets it. */
+  readonly full = input(false);
   private readonly expanded = signal<Set<string>>(new Set());
 
   protected readonly resourceGroups = computed(() => Object.entries(this.data.resourceLinks()));

@@ -5,16 +5,7 @@
   </section>
 }
 
-<section class="view-controls" aria-label="View controls">
-  <div data-tour="roster-detail-level" class="field"><span>Detail</span>
-    <div class="view-segment" role="group" aria-label="Detail level">
-      <button type="button" [class.active]="!fullView()" (click)="fullView.set(false)" appTip="The cards only">Starter</button>
-      <button type="button" [class.active]="fullView()" (click)="fullView.set(true)" appTip="Adds team identity, fill-ins and the resource links">Full</button>
-    </div>
-  </div>
-</section>
-
-@if (fullView()) {
+@if (full()) {
   <section class="grid two" aria-label="Team snapshot">
     <article class="card">
       <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">shield</span>Team Identity</h2>
@@ -132,7 +123,7 @@
   </div>
 </section>
 
-@if (fullView()) {
+@if (full()) {
   @if (data.fillIns().length) {
     <section aria-label="Fill-in players">
       <h2 class="section-title"><span class="section-icon material-symbols-rounded">person_add</span>Fill-in Roster</h2>

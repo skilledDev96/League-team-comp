@@ -1,5 +1,6 @@
 import { ChampionFilterService } from '../../services/champion-filter.service';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
+import { TooltipDirective } from '../../shared/tooltip.directive';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -30,7 +31,7 @@ const VIEWS: RosterView[] = ['cards', 'table', 'scouting'];
  */
 @Component({
   selector: 'app-roster',
-  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ChampionFilterComponent, QuickActionsComponent, TourPillComponent],
+  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ChampionFilterComponent, QuickActionsComponent, TourPillComponent, TooltipDirective],
   templateUrl: './roster.component.html'
 })
 export class RosterComponent {
@@ -46,6 +47,8 @@ export class RosterComponent {
   private readonly router = inject(Router);
 
   protected readonly view = signal<RosterView>('cards');
+  /** Cards view: Starter is the cards only, Full adds the identity, fill-ins and links. */
+  protected readonly detailFull = signal(false);
 
   protected readonly heading = computed(() => {
     const team = this.data.settings().teamName || 'Bom Squad';

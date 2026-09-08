@@ -19,10 +19,14 @@
         <label class="field"><span>Mobalytics slug</span>
           <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event; ctx.touchFillIn(draft)" name="fmoba" /></label>
       </div>
-      <label class="field"><span>Icon file</span>
+      <label class="field"><span>Icon URL <small class="muted">filled from Riot</small></span>
         <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event; ctx.touchFillIn(draft)" name="ficon" /></label>
       <div class="links action-row">
         <button class="view-btn active" type="button" (click)="ctx.closeFillIn()">Done</button>
+        <button class="view-btn" type="button" [disabled]="ctx.fillInBusy() || !draft.summoner.trim()" (click)="ctx.fillFromRiot(draft)"
+                appTip="Reads their icon and the seats they play lately. Name#TAG in the summoner box.">
+          @if (ctx.fillInBusy()) { <span class="btn-spinner" aria-hidden="true"></span> Reading… } @else { Fill from Riot }
+        </button>
         @if (auth.canManageUsers() && draft.id) {
           <app-overflow-menu>
             <button class="overflow-item danger" type="button" (click)="ctx.closeFillIn(); ctx.deleteFillIn(draft)">Delete fill-in</button>

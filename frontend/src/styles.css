@@ -13559,6 +13559,8 @@ button.opp-more.active {
 }
 
 .games-filters .champ-filter { margin: 0; flex: 1 1 18rem; }
+.games-filters-row { flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 0.9rem; }
+.games-filters-row .champ-filter { margin: 0; flex: 1 1 18rem; }
 .games-opponent { margin: 0 0 0 auto; flex-direction: row; align-items: center; gap: 0.45rem; }
 .games-opponent > span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .games-opponent select { padding-block: 0.32rem; min-width: 9rem; }
@@ -14265,3 +14267,9 @@ button.coaching-theme:hover, button.coaching-theme:focus-visible { color: var(--
 .fillin-row .fillin-name { font-weight: 700; color: var(--text-0); }
 .fillin-row .fillin-meta { color: var(--text-1); font-size: 0.82rem; }
 .fillin-row .action-row { margin: 0 0 0 auto; }
+
+/* ---- Toolbars, 9 Sep 2026: the call to action at the row's end, the champion box in the row ---- */
+.view-controls-cta { margin-left: auto; }
+.review-toolbar .roster-toolbar-filter { flex: 1 1 18rem; margin-left: auto; }
+.review-toolbar .roster-toolbar-filter .champ-filter { margin: 0; }
+.review-card-vs b { color: var(--text-0); }

@@ -400,6 +400,32 @@ export class AdminContextService {
     this.openFillIn.set(draft);
   }
 
+  readonly fillInBusy = signal(false);
+
+  /** Read the icon and the seats they play from Riot; Name#TAG in the summoner box. */
+  async fillFromRiot(draft: FillInDraft): Promise<void> {
+    const [name, tag] = draft.summoner.split('#').map((part) => part.trim());
+    if (!name) {
+      this.flash('Type the summoner name first.');
+      return;
+    }
+    if (this.fillInBusy()) return;
+    this.fillInBusy.set(true);
+    try {
+      const got = await this.enrichment.enrichPlayer({ summonerName: name, riotTag: tag || undefined, region: draft.region.trim() || 'euw' });
+      if (got.iconUrl) draft.icon = got.iconUrl;
+      if (got.positions?.length && !draft.preferredRoles.trim()) {
+        draft.preferredRoles = got.positions.slice(0, 2).map((p) => p.role).join(', ');
+      }
+      this.touchFillIn(draft);
+      this.flash(`Read ${name} from Riot.`);
+    } catch (error) {
+      this.flash(error instanceof Error ? error.message : 'Riot lookup failed.');
+    } finally {
+      this.fillInBusy.set(false);
+    }
+  }
+
   closeFillIn(): void {
     const draft = this.openFillIn();
     this.openFillIn.set(null);

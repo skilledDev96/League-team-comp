@@ -14,11 +14,6 @@
       <button type="button" [class.active]="fullView()" (click)="setView(true)" appTip="Every comp open, with its picks and ban recommendations">Full</button>
     </div>
   </div>
-  @if (auth.editing()) {
-    <button data-tour="comps-add" type="button" class="view-btn active" (click)="addComp()" appTip="A blank comp, opened with its board so the picks go straight in">
-      <span class="material-symbols-rounded" aria-hidden="true">add_circle</span> Add a comp
-    </button>
-  }
   @if (compCategories().length) {
     <label class="comp-cat-filter">
       <span>Category</span>
@@ -27,6 +22,11 @@
         @for (cat of compCategories(); track cat) { <option [value]="cat">{{ cat }}</option> }
       </select>
     </label>
+  }
+  @if (auth.editing()) {
+    <button data-tour="comps-add" type="button" class="view-btn active view-controls-cta" (click)="addComp()" appTip="A blank comp, opened with its board so the picks go straight in">
+      <span class="material-symbols-rounded" aria-hidden="true">add_circle</span> Add a comp
+    </button>
   }
 </section>
 

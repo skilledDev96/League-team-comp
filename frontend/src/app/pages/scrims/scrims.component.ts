@@ -227,7 +227,7 @@ export class ScrimsComponent {
   }
 
   protected toggleGroup(group: ScrimGroup): void {
-    const current = this.openGroups() ?? new Set(this.groups()[0] ? [this.groups()[0].id] : []);
+    const current = this.openGroups() ?? new Set<string>();
     const next = new Set(current);
     next.has(group.id) ? next.delete(group.id) : next.add(group.id);
     this.openGroups.set(next);

@@ -212,6 +212,13 @@ export class GamesComponent {
       if (tab === 'reviews' || tab === 'patterns' || tab === 'games') this.tab.set(tab);
       if (params.get('refresh') === '1') void this.justPracticed();
     });
+    // The address bar follows the tab, so a link to ?tab=games works from
+    // Patterns every time, not only the first (9 Sep 2026).
+    effect(() => {
+      const tab = this.tab();
+      if (this.route.snapshot.queryParamMap.get('tab') === tab) return;
+      void this.router.navigate([], { relativeTo: this.route, queryParams: { tab }, queryParamsHandling: 'merge', replaceUrl: true });
+    });
     effect(() => {
       const id = this.focus();
       if (!id || this.revealed === id) return;
@@ -278,12 +285,15 @@ export class GamesComponent {
   protected readonly reviewRows = computed(() => {
     const comps = this.data.comps();
     const filter = this.reviewComp();
+    const rowByMatch = new Map(this.allRows().filter((r) => r.matchId).map((r) => [r.matchId!, r]));
     return this.data
       .gameReviews()
       .map((review) => {
         const game = this.analysisById().get(review.matchId);
+        // The team name comes off the row (a scrim or a series game), not the analysis.
+        const opponent = rowByMatch.get(review.matchId)?.opponent;
         const comp = game ? effectiveComp(game.compId, this.data.compOverride(game.matchId), comps) : null;
-        return { review, game, comp };
+        return { review, game, comp, opponent };
       })
       .filter((r) => filter === 'all' || r.comp?.id === filter)
       .sort((a, b) => (b.game?.date ?? 0) - (a.game?.date ?? 0));
@@ -293,6 +303,7 @@ export class GamesComponent {
   protected openMatch(matchId: string): void {
     this.tab.set('games');
     this.days.set(0);
+    this.listOpen.set(true);
     this.revealed = null;
     this.focus.set(`riot-${matchId}`);
   }

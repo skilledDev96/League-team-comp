@@ -371,8 +371,8 @@
               <button type="button" class="view-btn" (click)="undoStep(game)">Undo last</button>
               <button type="button" class="view-btn draft-reset" (click)="resetDraft(game)">Reset</button>
               <button type="button" class="view-btn draft-replay-hint" data-tour="draft-replay-hint" (click)="ctx.openPrep(series.id)"
-                      appTip="The numbers for this game come from its replay: import it against the game on the Plan view">
-                <span class="material-symbols-rounded" aria-hidden="true">upload_file</span> Replay
+                      appTip="Opens this game on the Plan view, where the .rofl drops in and fills the picks and the result">
+                <span class="material-symbols-rounded" aria-hidden="true">upload_file</span> Import the replay
               </button>
             </p>
           } @else {
