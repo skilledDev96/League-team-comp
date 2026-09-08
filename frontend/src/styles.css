@@ -13974,3 +13974,12 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .comp-played-out { display: flex; align-items: center; gap: 0.35rem; margin: 0.4rem 0; font-size: 0.82rem; color: var(--text-1); }
 .comp-played-out .material-symbols-rounded { font-size: 1.1rem; color: var(--accent); }
 .comp-played-out b.is-warn { color: var(--warn); }
+
+/* The review's player notes are prose, not figures: they wrap, and the
+   panel never widens the row (a nowrap table did exactly that on 8 Sep 2026). */
+.game-review { min-width: 0; max-width: 100%; }
+.game-review-players { table-layout: fixed; }
+.game-review-players th,
+.game-review-players td { white-space: normal; overflow-wrap: anywhere; }
+.game-review-players th:first-child,
+.game-review-players td:first-child { width: 11rem; }
