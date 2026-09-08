@@ -94,7 +94,8 @@ export class ReviewComponent {
    */
   protected readonly outcome = signal<Outcome>('loss');
 
-  protected readonly summary = computed(() => summarise(this.filteredGames(), this.outcome()));
+  protected readonly summaryLoss = computed(() => summarise(this.filteredGames(), 'loss'));
+  protected readonly summaryWin = computed(() => summarise(this.filteredGames(), 'win'));
 
   /**
    * The bars stated as a conclusion, reading both sides at once.
@@ -103,7 +104,7 @@ export class ReviewComponent {
    * against losses, and having to flip tabs to assemble it is the work this is
    * meant to remove.
    */
-  protected readonly readout = computed(() => reviewReadout(this.filteredGames(), this.outcome()));
+  protected readonly readout = computed(() => reviewReadout(this.filteredGames(), 'loss'));
 
   /** One line per factor, shown on hover rather than taking up layout. */
   protected factorHint(code: string): string {

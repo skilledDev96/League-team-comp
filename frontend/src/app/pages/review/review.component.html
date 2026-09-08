@@ -15,18 +15,6 @@
 } @else {
   <section class="card review-toolbar" aria-label="Review controls">
     <div class="view-controls">
-      <div class="field"><span id="reviewShowing">Showing</span>
-        <div class="segmented" role="group" aria-labelledby="reviewShowing">
-          <button type="button" class="segment is-loss" [class.active]="outcome() === 'loss'"
-                  [attr.aria-pressed]="outcome() === 'loss'" (click)="outcome.set('loss')">
-            Losses <em>{{ record().losses }}</em>
-          </button>
-          <button type="button" class="segment is-win" [class.active]="outcome() === 'win'"
-                  [attr.aria-pressed]="outcome() === 'win'" (click)="outcome.set('win')">
-            Wins <em>{{ record().wins }}</em>
-          </button>
-        </div>
-      </div>
       <label class="field compact-field"><span>Comp</span>
         <select name="reviewComp" [value]="compFilter()" (change)="compFilter.set($any($event.target).value)">
           <option value="all">All comps</option>
@@ -99,8 +87,8 @@
               <th scope="col">Lane</th>
               <th scope="col" class="num" appTip="Losses where this seat lost its lane, over the losses with a lane read">Lost lane in losses</th>
               <th scope="col" class="num" appTip="Wins where this seat won its lane, over the wins with a lane read">Won lane in wins</th>
-              <th scope="col" class="num" appTip="Gold per minute against the lane opponent: losses / wins">Gold/min vs lane</th>
-              <th scope="col" class="num" appTip="CS at ten minutes against the lane opponent: losses / wins">CS at 10 vs lane</th>
+              <th scope="col" class="num" appTip="Gold per minute against the lane opponent, in wins (W) and in losses (L)">Gold/min vs lane</th>
+              <th scope="col" class="num" appTip="CS at ten minutes against the lane opponent, in wins (W) and in losses (L)">CS at 10 vs lane</th>
             </tr>
           </thead>
           <tbody>
@@ -113,8 +101,8 @@
                 <td class="num" [class.pos]="r.wonInWins.n >= claimFloor && r.wonInWins.share >= 55">
                   @if (r.wonInWins.n) { {{ r.wonInWins.games }} of {{ r.wonInWins.n }} <small>({{ r.wonInWins.share }}%)</small> } @else { — }
                 </td>
-                <td class="num">{{ side(r.goldDiff.losses, 'diff') }} <small>/</small> {{ side(r.goldDiff.wins, 'diff') }}</td>
-                <td class="num">{{ side(r.csDiff.losses, 'diff') }} <small>/</small> {{ side(r.csDiff.wins, 'diff') }}</td>
+                <td class="num"><small class="wl">W</small>{{ side(r.goldDiff.wins, 'diff') }} <small class="wl">L</small>{{ side(r.goldDiff.losses, 'diff') }}</td>
+                <td class="num"><small class="wl">W</small>{{ side(r.csDiff.wins, 'diff') }} <small class="wl">L</small>{{ side(r.csDiff.losses, 'diff') }}</td>
               </tr>
             }
           </tbody>
@@ -169,7 +157,7 @@
             <tr>
               <th scope="col">Player</th>
               @for (m of playerSplitRows()[0].metrics; track m.key) {
-                <th scope="col" class="num" [appTip]="m.label + ' — wins / losses'">{{ m.label }}</th>
+                <th scope="col" class="num" [appTip]="m.label + ' — in wins (W) and in losses (L)'">{{ m.label }}</th>
               }
             </tr>
           </thead>
@@ -179,7 +167,7 @@
                 <td>{{ r.name }} <small>{{ r.role }}</small></td>
                 @for (m of r.metrics; track m.key) {
                   <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">
-                    {{ side(m.split.wins, m.unit) }} <small>/</small> {{ side(m.split.losses, m.unit) }}
+                    <small class="wl">W</small>{{ side(m.split.wins, m.unit) }} <small class="wl">L</small>{{ side(m.split.losses, m.unit) }}
                   </td>
                 }
               </tr>
@@ -187,70 +175,77 @@
           </tbody>
         </table>
       </div>
-      <p class="muted split-note">Wins first, then losses; green when the gap is in our favour, red when it is not.</p>
+      <p class="muted split-note">W is the mean in wins, L in losses; green when the gap is in our favour, red when it is not.</p>
     </details>
   }
 
-  <section class="card" [attr.aria-label]="outcome() === 'win' ? 'What keeps working' : 'Recurring problems'">
-    <h2>{{ outcome() === 'win' ? 'What keeps working' : 'Recurring problems' }}</h2>
-    @if (summary().analysed === 0) {
-      <p class="empty-state">
-        @if (summary().pending > 0) {
-          {{ summary().pending }} {{ outcome() === 'win' ? 'wins are' : 'losses are' }} waiting on
-          objective data. Hit <strong>Refresh match data</strong> above to pull it —
-          older cached matches fill in a batch at a time.
-        } @else if (outcome() === 'win') {
-          No wins in this selection yet.
-        } @else {
-          No losses in this selection. Nothing to review, which is the good outcome.
-        }
-      </p>
-    } @else {
-      <!-- The conclusion first, the bars as the evidence for it. Reads both
-           sides at once, which is the sentence the toggle cannot give. -->
-      @if (readout().length) {
-        <aside class="callout" aria-label="What these numbers say">
-          <span class="callout-icon material-symbols-rounded" aria-hidden="true">lightbulb</span>
-          <div class="callout-body">
-            @for (line of readout(); track line.strong) {
-              <p class="readout-line" [class]="'tone-' + line.tone">
-                <strong>{{ line.strong }}</strong> {{ line.rest }}
-              </p>
+  <!-- The objective factors, losses beside wins. One readout above them
+       reads both sides at once; the toggle that used to flip this section
+       now lives on the game list, the only thing it still narrows. -->
+  <section class="card" aria-label="Recurring problems and what keeps working">
+    @if (readout().length) {
+      <aside class="callout" aria-label="What these numbers say">
+        <span class="callout-icon material-symbols-rounded" aria-hidden="true">lightbulb</span>
+        <div class="callout-body">
+          @for (line of readout(); track line.strong) {
+            <p class="readout-line" [class]="'tone-' + line.tone">
+              <strong>{{ line.strong }}</strong> {{ line.rest }}
+            </p>
+          }
+        </div>
+      </aside>
+    }
+    <div class="pattern-columns">
+      @for (side of ['loss', 'win']; track side) {
+        @let s = side === 'win' ? summaryWin() : summaryLoss();
+        <div class="pattern-column">
+          <h2>{{ side === 'win' ? 'What keeps working' : 'Recurring problems' }}</h2>
+          @if (s.analysed === 0) {
+            <p class="empty-state">
+              @if (s.pending > 0) {
+                {{ s.pending }} {{ side === 'win' ? 'wins are' : 'losses are' }} waiting on objective data — Refresh match data pulls it in batches.
+              } @else if (side === 'win') {
+                No wins in this selection yet.
+              } @else {
+                No losses in this selection. Nothing to review, which is the good outcome.
+              }
+            </p>
+          } @else {
+            <p class="muted">Across {{ s.analysed }} analysed {{ side === 'win' ? (s.analysed === 1 ? 'win' : 'wins') : (s.analysed === 1 ? 'loss' : 'losses') }}.</p>
+            @for (pattern of s.patterns; track pattern.code) {
+              <div class="pattern-row">
+                <span class="pattern-label" [appTip]="factorHint(pattern.code)">{{ pattern.label }}</span>
+                <span class="pattern-bar" [attr.aria-label]="pattern.share + '% of ' + (side === 'win' ? 'wins' : 'losses')">
+                  <span class="pattern-fill" [class.is-win]="side === 'win'" [style.width.%]="pattern.share"></span>
+                </span>
+                <span class="pattern-count">{{ pattern.games }} of {{ s.analysed }} ({{ pattern.share }}%)</span>
+              </div>
             }
-          </div>
-        </aside>
-      }
-
-      <p class="muted">
-        Across {{ summary().analysed }} analysed
-        {{ outcome() === 'win' ? (summary().analysed === 1 ? 'win' : 'wins') : (summary().analysed === 1 ? 'loss' : 'losses') }}.
-      </p>
-      @for (pattern of summary().patterns; track pattern.code) {
-        <div class="pattern-row">
-          <span class="pattern-label" [appTip]="factorHint(pattern.code)">{{ pattern.label }}</span>
-          <span class="pattern-bar" [attr.aria-label]="pattern.share + '% of ' + (outcome() === 'win' ? 'wins' : 'losses')">
-            <span class="pattern-fill" [class.is-win]="outcome() === 'win'" [style.width.%]="pattern.share"></span>
-          </span>
-          <span class="pattern-count">{{ pattern.games }} of {{ summary().analysed }} ({{ pattern.share }}%)</span>
+            @if (s.pending > 0) {
+              <p class="muted split-note">{{ s.pending }} more {{ side === 'win' ? (s.pending === 1 ? 'win' : 'wins') : (s.pending === 1 ? 'loss' : 'losses') }} not counted yet — cached before objectives were stored; they fill in over the next refreshes.</p>
+            }
+          }
         </div>
       }
-      @if (summary().pending > 0) {
-        <aside class="callout is-warn">
-          <span class="callout-icon material-symbols-rounded" aria-hidden="true">hourglass_top</span>
-          <div class="callout-body">
-            <p>
-              <strong>{{ summary().pending }} further {{ outcome() === 'win' ? (summary().pending === 1 ? 'win' : 'wins') : (summary().pending === 1 ? 'loss' : 'losses') }}</strong>
-              not counted yet — those matches were cached before objectives were stored, and fill in
-              over the next few refreshes.
-            </p>
-          </div>
-        </aside>
-      }
-    }
+    </div>
   </section>
 
   <section [attr.aria-label]="outcome() === 'win' ? 'Wins' : 'Losses'">
-    <h2 class="section-title">{{ outcome() === 'win' ? 'Wins' : 'Losses' }}</h2>
+    <div class="section-head">
+      <h2 class="section-title">{{ outcome() === 'win' ? 'Wins' : 'Losses' }}, game by game</h2>
+      <div class="field"><span id="reviewShowing" class="visually-hidden">Showing</span>
+        <div class="segmented" role="group" aria-labelledby="reviewShowing">
+          <button type="button" class="segment is-loss" [class.active]="outcome() === 'loss'"
+                  [attr.aria-pressed]="outcome() === 'loss'" (click)="outcome.set('loss')">
+            Losses <em>{{ record().losses }}</em>
+          </button>
+          <button type="button" class="segment is-win" [class.active]="outcome() === 'win'"
+                  [attr.aria-pressed]="outcome() === 'win'" (click)="outcome.set('win')">
+            Wins <em>{{ record().wins }}</em>
+          </button>
+        </div>
+      </div>
+    </div>
     @if (losses().length === 0) {
       <p class="empty-state">
         @if (pendingLosses().length > 0) {

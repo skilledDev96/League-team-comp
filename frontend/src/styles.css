@@ -13678,3 +13678,26 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .draft-lane small { text-transform: none; letter-spacing: 0; margin-left: 0.3rem; }
 .draft-lane.is-won { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
 .draft-lane.is-lost { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
+
+
+/* Patterns: losses beside wins; the toggle sits on the game list now. */
+.pattern-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 0.6rem 1.6rem;
+  margin-top: 0.6rem;
+}
+
+.pattern-column h2 { margin-top: 0.2rem; }
+
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+}
+
+.section-head .field { margin: 0; }
+.split-table small.wl { margin: 0 0.15rem 0 0.5rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.65; }
+.split-table small.wl:first-child { margin-left: 0; }
