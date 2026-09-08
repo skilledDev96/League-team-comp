@@ -2454,14 +2454,19 @@ async function reviewGame(
 
   const client = new Anthropic({ apiKey: opts.anthropicKey });
   const started = Date.now();
+  // The server-side fallback and the effort dial are Opus features; Sonnet 5
+  // rejects `fallbacks` outright (a 400, seen live on 8 Sep 2026), so the
+  // player call goes plain.
   const ask = (model: string, system: string, schema: unknown, prompt: string, effort: 'low' | 'medium') =>
     client.beta.messages.create({
       model,
       max_tokens: 4000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
+      ...(model === TEAM_MODEL && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' }),
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-      output_config: { effort, format: { type: 'json_schema', schema: schema as Record<string, unknown> } },
+      output_config: {
+        ...(model === TEAM_MODEL && { effort }),
+        format: { type: 'json_schema', schema: schema as Record<string, unknown> }
+      },
       messages: [{ role: 'user', content: prompt }]
     });
   const [teamRes, playersRes] = await Promise.all([
