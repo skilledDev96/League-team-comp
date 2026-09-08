@@ -69,7 +69,9 @@ export class UserPrefsService {
     const db = isFirebaseConfigured() ? getDb() : null;
     if (!db) return;
     try {
-      await setDoc(doc(db, 'userPrefs', email), { toursSeen: {}, tourSeen: false }, { merge: true });
+      // No merge: a merged empty map keeps every old key, which is the
+      // opposite of a reset. The document holds nothing but these two fields.
+      await setDoc(doc(db, 'userPrefs', email), { toursSeen: {}, tourSeen: false });
     } catch {
       /* the local copy already says so */
     }
