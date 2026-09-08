@@ -132,7 +132,15 @@
        here: they have no numbers. -->
   @if (players().length) {
     <section class="card games-players" aria-label="Player lines">
-      <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>Players</h2>
+      <div class="section-head">
+        <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>Players</h2>
+        @if (benchCount()) {
+          <button type="button" class="view-btn" [class.active]="showBench()" (click)="showBench.set(!showBench())"
+                  [appTip]="showBench() ? 'Back to the five starters' : 'Add the bench players who appear in these games'">
+            {{ showBench() ? 'Starters only' : 'Show bench' }} <small>{{ benchCount() }}</small>
+          </button>
+        }
+      </div>
       <div class="games-scroll">
         <table class="opp-history-stats games-player-table">
           <thead>

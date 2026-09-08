@@ -154,7 +154,19 @@ export class GamesComponent {
   }));
   protected readonly form = computed(() => this.rows().slice(0, 10));
   protected readonly length = computed(() => meanLength(this.rows()));
-  protected readonly players = computed(() => playerLines(this.rows()));
+  /** The five starters by default; the bench joins on request (8 Sep 2026). */
+  protected readonly showBench = signal(false);
+  private readonly allPlayerLines = computed(() => playerLines(this.rows()));
+  protected readonly benchCount = computed(() => {
+    const starters = new Set(this.data.starters().map((p) => p.name));
+    return this.allPlayerLines().filter((l) => !starters.has(l.name)).length;
+  });
+  protected readonly players = computed(() => {
+    const lines = this.allPlayerLines();
+    if (this.showBench()) return lines;
+    const starters = new Set(this.data.starters().map((p) => p.name));
+    return starters.size ? lines.filter((l) => starters.has(l.name)) : lines;
+  });
   protected readonly toughest = computed(() => toughest(this.rows()));
 
   // ---- Deep links: ?match= opens one Riot game, ?comp= narrows to a comp ----
