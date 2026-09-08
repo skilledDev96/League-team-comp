@@ -255,6 +255,8 @@ html {
 
 .modal-card {
   width: min(26.25rem, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
   border: 1px solid var(--card-border);
   background: var(--card);
   border-radius: 14px;
@@ -14254,3 +14256,12 @@ button.coaching-theme:hover, button.coaching-theme:focus-visible { color: var(--
 .games-review-remove { color: var(--text-1); }
 .games-review-remove:hover { border-color: var(--warn); color: var(--warn); }
 .scrim-draft-row { margin: 0.6rem 0 0.2rem; }
+
+/* A card whose overflow menu is open paints above the cards after it; every
+   card is its own stacking context, so the panel's z-index alone cannot. */
+.card:has(.overflow-panel) { z-index: 40; }
+.modal-card.is-wide { width: min(40rem, 100%); }
+.fillin-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; }
+.fillin-row .fillin-name { font-weight: 700; color: var(--text-0); }
+.fillin-row .fillin-meta { color: var(--text-1); font-size: 0.82rem; }
+.fillin-row .action-row { margin: 0 0 0 auto; }

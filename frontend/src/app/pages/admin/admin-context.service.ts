@@ -120,7 +120,7 @@ export class AdminContextService {
       if (!this.initialized) return;
       untracked(() =>
         this.compDrafts.update((list) => [
-          ...comps.map((c) => ({ id: c.id, name: c.name, picks: { ...c.picks } })),
+          ...comps.map((c) => (this.dirtyComps.has(c.id) && list.find((d) => d.id === c.id)) || { id: c.id, name: c.name, picks: { ...c.picks } }),
           ...list.filter((d) => !d.id)
         ])
       );
@@ -390,15 +390,49 @@ export class AdminContextService {
 
   // ---- Fill-ins ---------------------------------------------------------
 
+  /** The fill-in open in the dialog. */
+  readonly openFillIn = signal<FillInDraft | null>(null);
+
   addFillIn(): void {
     this.openTab('fillins');
-    this.fillInDrafts.update((list) => [
-      ...list,
-      { id: '', summoner: '', status: 'provisional', preferredRoles: '', note: '', icon: '', region: 'euw', mobalyticsSlug: '' }
-    ]);
+    const draft: FillInDraft = { id: '', summoner: '', status: 'provisional', preferredRoles: '', note: '', icon: '', region: 'euw', mobalyticsSlug: '' };
+    this.fillInDrafts.update((list) => [...list, draft]);
+    this.openFillIn.set(draft);
   }
 
-  async saveFillIn(draft: FillInDraft): Promise<void> {
+  closeFillIn(): void {
+    const draft = this.openFillIn();
+    this.openFillIn.set(null);
+    // A dialog closed with nothing typed leaves nothing behind.
+    if (draft && !draft.id && !draft.summoner.trim()) this.fillInDrafts.update((list) => list.filter((d) => d !== draft));
+  }
+
+  // ---- Save as you type (9 Sep 2026): comps and fill-ins have no Save button ----
+  private readonly saveTimers = new Map<object, ReturnType<typeof setTimeout>>();
+  private readonly dirtyComps = new Set<string>();
+
+  private queueSave(key: object, run: () => Promise<void>): void {
+    const pending = this.saveTimers.get(key);
+    if (pending) clearTimeout(pending);
+    this.saveTimers.set(
+      key,
+      setTimeout(() => {
+        this.saveTimers.delete(key);
+        void run();
+      }, 700)
+    );
+  }
+
+  touchFillIn(draft: FillInDraft): void {
+    this.queueSave(draft, () => this.saveFillIn(draft, true));
+  }
+
+  touchComp(draft: CompDraft): void {
+    if (draft.id) this.dirtyComps.add(draft.id);
+    this.queueSave(draft, () => this.saveComp(draft, true));
+  }
+
+  async saveFillIn(draft: FillInDraft, quiet = false): Promise<void> {
     const base = {
       summoner: draft.summoner.trim(),
       status: draft.status.trim() || 'provisional',
@@ -408,15 +442,15 @@ export class AdminContextService {
       profile: { region: draft.region.trim() || 'euw', mobalyticsSlug: draft.mobalyticsSlug.trim() }
     };
     if (!base.summoner) {
-      this.flash('Summoner name is required.');
+      if (!quiet) this.flash('Summoner name is required.');
       return;
     }
     if (draft.id) {
       const existing = this.data.fillIns().find((f) => f.id === draft.id);
       await this.data.updateFillIn({ ...base, id: draft.id, order: existing?.order ?? 0 });
     } else {
-      await this.data.createFillIn(base);
-      this.initialized = false;
+      // The draft keeps its object and learns its id, so the dialog stays on it.
+      draft.id = await this.data.createFillIn(base);
     }
     this.flash(`Saved ${base.summoner}.`);
   }
@@ -445,10 +479,10 @@ export class AdminContextService {
     this.compDrafts.update((list) => [...list, { id: '', name: '', picks: emptyPicks() }]);
   }
 
-  async saveComp(draft: CompDraft): Promise<void> {
+  async saveComp(draft: CompDraft, quiet = false): Promise<void> {
     const name = draft.name.trim();
     if (!name) {
-      this.flash('Comp name is required.');
+      if (!quiet) this.flash('Comp name is required.');
       return;
     }
     if (draft.id) {
@@ -463,9 +497,9 @@ export class AdminContextService {
         order: existing?.order ?? 0
       });
     } else {
-      await this.data.createComp({ name, picks: draft.picks } as Omit<Comp, 'id' | 'order'>);
-      this.initialized = false;
+      draft.id = await this.data.createComp({ name, picks: draft.picks } as Omit<Comp, 'id' | 'order'>);
     }
+    this.dirtyComps.delete(draft.id);
     this.flash(`Saved ${name}.`);
   }
 

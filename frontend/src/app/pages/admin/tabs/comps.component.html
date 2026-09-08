@@ -9,13 +9,13 @@
   @for (draft of ctx.compDrafts(); track draft) {
     <article class="card" [id]="'comp-draft-' + $index">
       <label class="field"><span>Comp name</span>
-        <input type="text" [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'cname' + $index" /></label>
+        <input type="text" [ngModel]="draft.name" (ngModelChange)="draft.name = $event; ctx.touchComp(draft)" [name]="'cname' + $index" /></label>
       @for (role of ctx.roles; track role) {
         <label class="field"><span>{{ role }} (Champion - note)</span>
-          <input type="text" [ngModel]="draft.picks[role]" (ngModelChange)="draft.picks[role] = $event" [name]="'cpick' + $index + role" /></label>
+          <input type="text" [ngModel]="draft.picks[role]" (ngModelChange)="draft.picks[role] = $event; ctx.touchComp(draft)" [name]="'cpick' + $index + role" /></label>
       }
       <div class="links action-row">
-        <button class="view-btn active" type="button" (click)="ctx.saveComp(draft)">Save</button>
+        <small class="muted">Saves as you type.</small>
         @if (auth.canManageUsers()) {
           <app-overflow-menu>
             <button class="overflow-item danger" type="button" (click)="ctx.deleteComp(draft)">Delete comp</button>

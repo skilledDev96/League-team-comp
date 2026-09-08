@@ -28,7 +28,7 @@
       </div>
       <!-- Prep is the games played to win; a game tagged as messing around
            on the Games page is out of it. -->
-      <div data-tour="patterns-prep" class="field"><span id="reviewSerious">Games <a class="field-help" routerLink="/games" appTip="Practice games are marked on a game's row on the Games tab">marked on Games</a></span>
+      <div data-tour="patterns-prep" class="field"><span id="reviewSerious">Games <a class="field-help" routerLink="/games" [queryParams]="{ tab: 'games' }" appTip="Practice games are marked on a game's row on the Games tab">marked on Games</a></span>
         <div class="segmented" role="group" aria-labelledby="reviewSerious">
           <button type="button" class="segment" [class.active]="!seriousOnly()" [attr.aria-pressed]="!seriousOnly()"
                   (click)="seriousOnly.set(false)" appTip="Every game, the messing-around ones included">

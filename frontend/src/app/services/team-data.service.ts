@@ -428,9 +428,10 @@ export class TeamDataService {
 
   // ---- Fill-ins ---------------------------------------------------------
 
-  createFillIn(data: Omit<FillIn, 'id' | 'order'>): Promise<void> {
+  async createFillIn(data: Omit<FillIn, 'id' | 'order'>): Promise<string> {
     const fill: FillIn = { ...data, id: this.newId('fill'), order: this.nextOrder(this.fillIns()) };
-    return this.persistUpsert('fillIns', this.fillIns, fill);
+    await this.persistUpsert('fillIns', this.fillIns, fill);
+    return fill.id;
   }
 
   updateFillIn(fill: FillIn): Promise<void> {

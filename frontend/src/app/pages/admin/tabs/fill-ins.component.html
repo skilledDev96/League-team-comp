@@ -1,31 +1,56 @@
+@if (ctx.openFillIn(); as draft) {
+  <div class="modal-backdrop" (click)="ctx.closeFillIn()">
+    <div class="modal-card is-wide" role="dialog" aria-modal="true" [attr.aria-label]="draft.summoner || 'New fill-in'" (click)="$event.stopPropagation()">
+      <h2 class="title-with-icon"><span class="section-icon">FI</span>{{ draft.summoner || 'New fill-in' }}</h2>
+      <p class="muted">A stand-in for when the roster is short. Saves as you type, for everyone.</p>
+      <label class="field"><span>Summoner</span>
+        <input type="text" [ngModel]="draft.summoner" (ngModelChange)="draft.summoner = $event; ctx.touchFillIn(draft)" name="fname" placeholder="Name#TAG" /></label>
+      <div class="grid two">
+        <label class="field"><span>Status</span>
+          <input type="text" [ngModel]="draft.status" (ngModelChange)="draft.status = $event; ctx.touchFillIn(draft)" name="fstatus" placeholder="provisional, confirmed…" /></label>
+        <label class="field"><span>Preferred roles (comma separated)</span>
+          <input type="text" [ngModel]="draft.preferredRoles" (ngModelChange)="draft.preferredRoles = $event; ctx.touchFillIn(draft)" name="froles" placeholder="Top, Jungle" /></label>
+      </div>
+      <label class="field"><span>Note</span>
+        <input type="text" [ngModel]="draft.note" (ngModelChange)="draft.note = $event; ctx.touchFillIn(draft)" name="fnote" placeholder="Availability, what they play…" /></label>
+      <div class="grid two">
+        <label class="field"><span>Region</span>
+          <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event; ctx.touchFillIn(draft)" name="freg" /></label>
+        <label class="field"><span>Mobalytics slug</span>
+          <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event; ctx.touchFillIn(draft)" name="fmoba" /></label>
+      </div>
+      <label class="field"><span>Icon file</span>
+        <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event; ctx.touchFillIn(draft)" name="ficon" /></label>
+      <div class="links action-row">
+        <button class="view-btn active" type="button" (click)="ctx.closeFillIn()">Done</button>
+        @if (auth.canManageUsers() && draft.id) {
+          <app-overflow-menu>
+            <button class="overflow-item danger" type="button" (click)="ctx.closeFillIn(); ctx.deleteFillIn(draft)">Delete fill-in</button>
+          </app-overflow-menu>
+        }
+      </div>
+    </div>
+  </div>
+}
+
 <section aria-label="Fill-ins">
 <div class="view-controls edit-toolbar">
   <h2 class="title-with-icon"><span class="section-icon">FI</span>Fill-ins</h2>
-  <p class="muted edit-hint">Add substitute players who can step in, with their preferred ctx.roles and availability.</p>
+  <p class="muted edit-hint">Substitutes who can step in when the roster is short.</p>
   <button class="view-btn active btn-cta" type="button" (click)="ctx.addFillIn()">+ Add fill-in</button>
 </div>
 
 <div class="grid two">
   @for (draft of ctx.fillInDrafts(); track draft) {
-    <article class="card" [id]="'fillin-draft-' + $index">
-      <label class="field"><span>Summoner</span>
-        <input type="text" [ngModel]="draft.summoner" (ngModelChange)="draft.summoner = $event" [name]="'fname' + $index" /></label>
-      <label class="field"><span>Status</span>
-        <input type="text" [ngModel]="draft.status" (ngModelChange)="draft.status = $event" [name]="'fstatus' + $index" /></label>
-      <label class="field"><span>Preferred ctx.roles (comma separated)</span>
-        <input type="text" [ngModel]="draft.preferredRoles" (ngModelChange)="draft.preferredRoles = $event" [name]="'froles' + $index" /></label>
-      <label class="field"><span>Note</span>
-        <input type="text" [ngModel]="draft.note" (ngModelChange)="draft.note = $event" [name]="'fnote' + $index" /></label>
-      <label class="field"><span>Icon file</span>
-        <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event" [name]="'ficon' + $index" /></label>
-      <div class="grid two">
-        <label class="field"><span>Region</span>
-          <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event" [name]="'freg' + $index" /></label>
-        <label class="field"><span>Mobalytics slug</span>
-          <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event" [name]="'fmoba' + $index" /></label>
-      </div>
+    <article class="card fillin-row" [id]="'fillin-draft-' + $index">
+      <span class="fillin-name">{{ draft.summoner || 'New fill-in' }}</span>
+      <span class="tag">{{ draft.status || 'provisional' }}</span>
+      @if (draft.preferredRoles) { <span class="fillin-meta">{{ draft.preferredRoles }}</span> }
+      @if (draft.note) { <span class="fillin-meta">{{ draft.note }}</span> }
       <div class="links action-row">
-        <button class="view-btn active" type="button" (click)="ctx.saveFillIn(draft)">Save</button>
+        <button class="view-btn" type="button" (click)="ctx.openFillIn.set(draft)">
+          <span class="material-symbols-rounded" aria-hidden="true">edit</span> Edit
+        </button>
         @if (auth.canManageUsers()) {
           <app-overflow-menu>
             <button class="overflow-item danger" type="button" (click)="ctx.deleteFillIn(draft)">Delete fill-in</button>
@@ -33,6 +58,8 @@
         }
       </div>
     </article>
+  } @empty {
+    <p class="muted">No fill-ins yet. Add one and they can be pencilled in when someone cannot make it.</p>
   }
 </div>
 </section>
