@@ -11,6 +11,13 @@
       <small class="muted">Off: the room only answers when someone presses "Ask what to pick". Either way an answer costs one model call.</small>
     </span>
   </label>
+  <label class="field field-check">
+    <input type="checkbox" [ngModel]="ctx.autoReview()" (ngModelChange)="ctx.autoReview.set($event)" name="ctx.autoReview" />
+    <span>
+      Review new prep Flex and Clash games each morning
+      <small class="muted">Off: a game is reviewed only when someone presses "Review this game". On: the morning run reviews up to three new games with a timeline, about a dime each; Diagnostics shows what it spent.</small>
+    </span>
+  </label>
   <button class="view-btn active" type="button" (click)="ctx.saveSettings()">Save settings</button>
 
   <div class="links" style="margin-top: 12px;">

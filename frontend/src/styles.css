@@ -13934,3 +13934,20 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .game-story-lines li::before { content: '·'; position: absolute; left: 0.2rem; color: var(--accent); }
 .game-story-lanes td small { margin-left: 0.3rem; }
 .game-story-caveat { font-size: 0.72rem; margin: 0.5rem 0 0; }
+
+
+/* ---- The written review on a game --------------------------------------- */
+.game-review { margin: 0.6rem 0; padding: 0.8rem 0.9rem; border: 1px solid var(--card-border); border-radius: 12px; background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.game-review-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
+.game-review-head .material-symbols-rounded { color: var(--accent); }
+.game-review-verdict { margin-left: auto; padding: 0.15rem 0.6rem; border-radius: 999px; border: 1px solid var(--card-border); font-size: 0.74rem; color: var(--text-1); }
+.game-review-verdict.is-good { border-color: color-mix(in srgb, var(--ok) 55%, transparent); color: var(--ok); }
+.game-review-verdict.is-bad { border-color: color-mix(in srgb, var(--warn) 55%, transparent); color: var(--warn); }
+.game-review-summary { margin: 0.2rem 0 0.35rem; font-size: 0.92rem; }
+.game-review-why { margin: 0 0 0.5rem; font-size: 0.8rem; }
+.review-minute { display: inline-block; padding: 0 0.4rem; margin-right: 0.3rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 18%, transparent); font-size: 0.7rem; font-weight: 700; color: var(--text-0); }
+.game-review-players td { vertical-align: top; }
+.game-review-players td small.muted { display: block; }
+.game-review-foot { margin: 0.5rem 0 0; font-size: 0.72rem; }
+.games-review-btn .material-symbols-rounded { font-size: 1.1rem; vertical-align: -0.2rem; }
+.games-review-error { color: var(--warn); font-size: 0.74rem; }

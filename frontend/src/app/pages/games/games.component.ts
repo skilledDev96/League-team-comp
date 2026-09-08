@@ -17,6 +17,8 @@ import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { GameCheckComponent } from '../../shared/game-check.component';
 import { GameStoryComponent } from '../../shared/game-story.component';
+import { GameReviewComponent } from '../../shared/game-review.component';
+import { GameReviewService } from '../../services/game-review.service';
 import { CompExpectationService } from '../../services/comp-expectation.service';
 import { CompExpectation } from '../../models/team.models';
 import { ReviewComponent } from '../review/review.component';
@@ -56,7 +58,7 @@ type Tab = 'games' | 'patterns';
     NgModelNameDirective,
     TooltipDirective,
     ReviewComponent,
-    GameCheckComponent, GameStoryComponent
+    GameCheckComponent, GameStoryComponent, GameReviewComponent
   ],
   templateUrl: './games.component.html'
 })
@@ -260,6 +262,13 @@ export class GamesComponent {
   /** The analysed game behind a row, for the check drawer. */
   private readonly analysisById = computed(() => new Map((this.data.compAnalysis()?.games ?? []).map((g) => [g.matchId, g])));
   private readonly expectations = inject(CompExpectationService);
+  protected readonly reviews = inject(GameReviewService);
+
+  /** Ask the model for a review of this game; the stored document arrives through the listener. */
+  protected reviewGame(row: GameRow): void {
+    if (!row.matchId) return;
+    void this.reviews.review(row.matchId, this.expectFor(row));
+  }
 
   /** The four axes of the comp this game counts as, for the story's curve lines. */
   protected expectFor(row: GameRow): CompExpectation | null {

@@ -45,6 +45,7 @@ export class AdminContextService {
 
   readonly teamName = signal('');
   readonly autoAdvisor = signal(false);
+  readonly autoReview = signal(false);
   readonly fillInDrafts = signal<FillInDraft[]>([]);
   readonly compDrafts = signal<CompDraft[]>([]);
   readonly accessDrafts = signal<AccessDraft[]>([]);
@@ -104,6 +105,7 @@ export class AdminContextService {
       this.lastResync = resync;
       this.teamName.set(this.data.settings().teamName);
       this.autoAdvisor.set(this.data.settings().autoAdvisor === true);
+      this.autoReview.set(this.data.settings().autoReview === true);
       this.players.load(players);
       this.fillInDrafts.set(fillIns.map((f) => toFillInDraft(f)));
       this.compDrafts.set(comps.map((c) => ({ id: c.id, name: c.name, picks: { ...c.picks } })));
@@ -337,7 +339,7 @@ export class AdminContextService {
       this.flash('Only admins can edit team settings.');
       return;
     }
-    await this.data.updateSettings({ teamName: this.teamName().trim() || 'Bom Squad', autoAdvisor: this.autoAdvisor() });
+    await this.data.updateSettings({ teamName: this.teamName().trim() || 'Bom Squad', autoAdvisor: this.autoAdvisor(), autoReview: this.autoReview() });
     this.flash('Settings saved.');
   }
 

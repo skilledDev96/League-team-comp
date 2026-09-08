@@ -470,6 +470,11 @@ export interface Settings {
    * 2026) — "Ask what to pick" always works either way.
    */
   autoAdvisor?: boolean;
+  /**
+   * Review new prep Flex and Clash games each morning, a few at a time,
+   * with the model. Off by default: each review is a paid call.
+   */
+  autoReview?: boolean;
 }
 
 /**
@@ -580,6 +585,41 @@ export interface RefreshLog {
   analysis: { ok: boolean; games?: number; newMatches?: number; pending?: number; error?: string };
   /** The timeline step: derived documents written, and prep games still waiting. */
   timelines?: { fetched: number; failed: number; pending: number; skipped?: 'time' | 'analysis' };
+  /** The review step: which games the model reviewed and what it cost. */
+  reviews?: { attempted: string[]; written: string[]; failed: string[]; costUsd: number; skipped?: 'off' | 'noKey' | 'time' | 'analysis' };
+}
+
+// ---- Game reviews -----------------------------------------------------------
+//
+// Mirrors `api/src/game-review.ts`. One document per game at
+// `gameReviews/{matchId}`, written by the review function only; the app
+// listens. No email, no puuid, nothing about a person on the other team.
+
+export interface ReviewPoint {
+  text: string;
+  evidence: string;
+  minute: number | null;
+}
+
+export interface GameReview {
+  matchId: string;
+  reviewedAt: string;
+  reviewVersion: number;
+  tier: 'timeline' | 'endOfGame';
+  trigger: 'manual' | 'auto';
+  models: { team: string; players: string };
+  compId: string | null;
+  compName: string | null;
+  expect?: CompExpectation;
+  team: {
+    summary: string;
+    workOn: ReviewPoint[];
+    keepDoing: ReviewPoint[];
+    compVerdict: 'as drafted' | 'off plan' | 'unclear';
+    compWhy: string;
+  };
+  players: { name: string; seat: Role; champion: string; strength: ReviewPoint; workOn: ReviewPoint }[];
+  usage: { team: { input: number; cachedInput: number; output: number }; players: { input: number; cachedInput: number; output: number }; costUsd: number; tookMs: number };
 }
 
 // ---- Match timelines --------------------------------------------------------

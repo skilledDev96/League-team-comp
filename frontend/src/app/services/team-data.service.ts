@@ -41,6 +41,7 @@ import {
   ScrimOpponent,
   RefreshLog,
   DraftEvent,
+  GameReview,
   PracticeGame
 } from '../models/team.models';
 import { normalizeEmail } from '../core/access';
@@ -93,6 +94,13 @@ export class TeamDataService {
   /** Games tagged as messing around, keyed by match; Patterns leaves them out. */
   readonly practiceGames = signal<PracticeGame[]>([]);
   readonly practiceSet = computed(() => new Set(this.practiceGames().map((p) => p.matchId)));
+  /** Written reviews, one per game; only the review function writes these. */
+  readonly gameReviews = signal<GameReview[]>([]);
+  private readonly reviewMap = computed(() => new Map(this.gameReviews().map((r) => [r.matchId, r])));
+
+  reviewFor(matchId: string | undefined): GameReview | undefined {
+    return matchId ? this.reviewMap().get(matchId) : undefined;
+  }
   /**
    * What each champion is, refreshed weekly by `refreshChampionTraits`.
    * Empty until that has run once; every reader treats absence as "unknown"
@@ -256,6 +264,9 @@ export class TeamDataService {
     });
     onSnapshot(collection(db, 'practiceGames'), (snap) => {
       this.practiceGames.set(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<PracticeGame, 'id'>) })));
+    });
+    onSnapshot(collection(db, 'gameReviews'), (snap) => {
+      this.gameReviews.set(snap.docs.map((d) => d.data() as GameReview).sort((a, b) => b.reviewedAt.localeCompare(a.reviewedAt)));
     });
     onSnapshot(collection(db, 'access'), (snap) => {
       const list = snap.docs.map((d) => ({

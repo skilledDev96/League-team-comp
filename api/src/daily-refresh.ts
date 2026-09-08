@@ -214,6 +214,8 @@ export interface RefreshLog {
   analysis: { ok: boolean; games?: number; newMatches?: number; pending?: number; error?: string };
   /** The timeline step: how many derived documents were written, and how many prep games still wait. */
   timelines?: { fetched: number; failed: number; pending: number; skipped?: 'time' | 'analysis' };
+  /** The review step: which games were reviewed by the model and what it cost. */
+  reviews?: { attempted: string[]; written: string[]; failed: string[]; costUsd: number; skipped?: 'off' | 'noKey' | 'time' | 'analysis' };
 }
 
 // ---- Timelines ----------------------------------------------------------------

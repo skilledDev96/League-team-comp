@@ -57,8 +57,29 @@ import { extractExtras, ParticipantExtras } from './participant-extras';
 import Anthropic from '@anthropic-ai/sdk';
 import { ADVICE_SCHEMA, ADVISOR_SYSTEM, buildDraftPrompt, parseAdvice, parseDraftAdviceRequest } from './draft-advice';
 import { buildMatchTimeline, isTimelineCurrent, MatchTimeline } from './timeline-features';
-import { AnalysisGameLike, gameFacts } from './game-facts';
+import { AnalysisGameLike, endOfGameFacts, gameFacts, GameFacts } from './game-facts';
 import {
+  buildPlayerPrompt,
+  buildTeamPrompt,
+  costUsd,
+  GameReview,
+  parseGameReviewRequest,
+  parsePlayerNotes,
+  parseTeamReview,
+  PLAYER_MODEL,
+  PLAYER_SCHEMA,
+  PLAYER_SYSTEM,
+  reviewCandidates,
+  ReviewContext,
+  reviewPlayers,
+  REVIEW_VERSION,
+  TEAM_MODEL,
+  TEAM_SCHEMA,
+  TEAM_SYSTEM,
+  Usage
+} from './game-review';
+import {
+  CompExpectation,
   MAX_TIMELINE_FETCHES,
   PLAYER_BUDGET_SECONDS,
   RefreshLog,
@@ -2136,6 +2157,10 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
     }
   }
 
+  // Reviews last of all, and only when the team switched them on: each one
+  // is a paid model call, so the morning writes a few and says what it spent.
+  await autoReviews(log, analysed?.analysis.games ?? null, startedAt);
+
   log.finishedAt = new Date().toISOString();
   await db.doc('meta/refreshLog').set(stripUndefinedDeep(log));
   return log;
@@ -2147,7 +2172,7 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
  * loudly into the log on its own.
  */
 export const refreshTeamData = onSchedule(
-  { schedule: 'every day 06:30', timeZone: 'Europe/Amsterdam', secrets: [RIOT_API_KEY], timeoutSeconds: 540, memory: '512MiB' },
+  { schedule: 'every day 06:30', timeZone: 'Europe/Amsterdam', secrets: [RIOT_API_KEY, ANTHROPIC_API_KEY], timeoutSeconds: 540, memory: '512MiB' },
   async () => {
     const log = await runTeamRefresh(RIOT_API_KEY.value(), 'schedule');
     console.log(
@@ -2163,7 +2188,7 @@ export const refreshTeamData = onSchedule(
  * own Refresh all, and the reason both exist.
  */
 export const refreshTeamDataOnce = onRequest(
-  { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 540, memory: '512MiB' },
+  { cors: true, secrets: [RIOT_API_KEY, ANTHROPIC_API_KEY], timeoutSeconds: 540, memory: '512MiB' },
   async (req, res) => {
     if (req.method === 'OPTIONS') {
       res.status(204).send('');
@@ -2304,6 +2329,284 @@ export const draftAdvice = onRequest(
       }
       if (error instanceof Anthropic.APIError) {
         res.status(502).json({ error: `The advisor could not answer (${error.status}): ${error.message}` });
+        return;
+      }
+      const message = error instanceof Error ? error.message : 'Unexpected error.';
+      res.status(400).json({ error: message });
+    }
+  }
+);
+
+// ---- The post-game review ------------------------------------------------
+//
+// Two model calls per game over the facts the Games page shows: the team
+// and the draft to Opus, a note per player to Sonnet (`game-review.ts`).
+// Written to `gameReviews/{matchId}` by this function only; the browser
+// listens. The button on a game and the morning run share `reviewGame`.
+
+/** Past this many seconds into the morning run no review is started. */
+const REVIEW_BUDGET_SECONDS = 500;
+
+interface StoredSettings {
+  teamName?: string;
+  autoReview?: boolean;
+}
+
+async function readSettings(): Promise<StoredSettings> {
+  const snap = await getFirestore().doc('meta/settings').get();
+  return (snap.data() as StoredSettings | undefined) ?? {};
+}
+
+/** The roster resolved from the players collection, for a timeline fetched on demand. */
+async function rosterFromPlayers(apiKey: string): Promise<ResolvedRoster> {
+  const db = getFirestore();
+  const [playersSnap, compsSnap, overridesSnap] = await Promise.all([
+    db.collection('players').get(),
+    db.collection('comps').get(),
+    db.collection('compOverrides').get()
+  ]);
+  const players = playersSnap.docs.map((d) => ({ ...(d.data() as Omit<StoredPlayer, 'id'>), id: d.id }));
+  const comps = compsSnap.docs.map((d) => ({ ...(d.data() as Omit<StoredComp, 'id'>), id: d.id }));
+  const overrides = overridesSnap.docs.map((d) => d.data() as StoredOverride);
+  const request = analysisRequestFrom(players, comps, overrides);
+  return resolveRoster(request.players, apiKey);
+}
+
+function textOf(response: Anthropic.Beta.BetaMessage): unknown {
+  const text = response.content
+    .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error('The reviewer answered in a shape the app could not read.');
+  }
+}
+
+function usageOf(response: Anthropic.Beta.BetaMessage): Usage {
+  return {
+    input: response.usage.input_tokens,
+    cachedInput: response.usage.cache_read_input_tokens ?? 0,
+    output: response.usage.output_tokens
+  };
+}
+
+/**
+ * Review one game and store it. Throws on a model or data error; returns
+ * null when the model declined, in which case nothing is written.
+ */
+async function reviewGame(
+  matchId: string,
+  opts: { anthropicKey: string; riotKey: string; trigger: GameReview['trigger']; expect?: CompExpectation | null; games?: AnalysisGameResponse[] }
+): Promise<GameReview | null> {
+  const db = getFirestore();
+  const games = opts.games ?? ((await db.doc('meta/compAnalysis').get()).data() as CompAnalysisResponse | undefined)?.games ?? [];
+  const game = games.find((g) => g.matchId === matchId);
+  if (!game) throw new Error(`${matchId} is not in the analysis. Refresh match data first.`);
+  const tier: GameReview['tier'] = game.queue === 'Scrim' ? 'endOfGame' : 'timeline';
+
+  let facts: GameFacts;
+  let deaths: ReviewContext['deaths'];
+  if (tier === 'timeline') {
+    const stored = (await db.doc(`matchTimeline/${matchId}`).get()).data() as MatchTimeline | undefined;
+    let timeline: MatchTimeline | null = stored && isTimelineCurrent(stored) && stored.facts ? stored : null;
+    if (!timeline) {
+      const roster = await rosterFromPlayers(opts.riotKey);
+      timeline = (await getMatchTimeline(matchId, roster, opts.riotKey)).timeline;
+    }
+    if (!timeline) throw new Error(`No timeline could be read for ${matchId}.`);
+    facts = (timeline.facts as GameFacts | undefined) ?? gameFacts(timeline, game);
+    deaths = timeline.deaths.map((d) => ({ seat: d.seat, minute: d.minute, zone: d.zone, killers: d.killers, warded: d.warded, executed: d.executed }));
+  } else {
+    facts = endOfGameFacts(game);
+  }
+
+  const [settings, compSnap, noteSnap] = await Promise.all([
+    readSettings(),
+    game.compId ? db.doc(`comps/${game.compId}`).get() : Promise.resolve(null),
+    db.doc(`matchNotes/${matchId}`).get()
+  ]);
+  const storedComp = compSnap?.exists ? (compSnap.data() as Omit<StoredComp, 'id'>) : null;
+  const comp: ReviewContext['comp'] =
+    game.compId && (storedComp || game.compName)
+      ? {
+          id: game.compId,
+          name: storedComp?.name ?? game.compName ?? game.compId,
+          expect: opts.expect !== undefined ? opts.expect : storedComp?.expect ?? null,
+          ...(opts.expect !== undefined ? { expectSource: 'edited' } : storedComp?.expectSource && { expectSource: storedComp.expectSource }),
+          ...(storedComp?.gamePlan && { gamePlan: storedComp.gamePlan }),
+          ...(storedComp?.notes && { notes: storedComp.notes })
+        }
+      : null;
+  const note = String((noteSnap.data() as { text?: string } | undefined)?.text ?? '').trim().slice(0, 1500);
+
+  const ctx: ReviewContext = {
+    teamName: settings.teamName || 'the team',
+    tier,
+    game,
+    facts,
+    ...(deaths && { deaths }),
+    comp,
+    note,
+    players: reviewPlayers(game)
+  };
+
+  const client = new Anthropic({ apiKey: opts.anthropicKey });
+  const started = Date.now();
+  const ask = (model: string, system: string, schema: unknown, prompt: string, effort: 'low' | 'medium') =>
+    client.beta.messages.create({
+      model,
+      max_tokens: 4000,
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+      output_config: { effort, format: { type: 'json_schema', schema: schema as Record<string, unknown> } },
+      messages: [{ role: 'user', content: prompt }]
+    });
+  const [teamRes, playersRes] = await Promise.all([
+    ask(TEAM_MODEL, TEAM_SYSTEM, TEAM_SCHEMA, buildTeamPrompt(ctx), 'medium'),
+    ask(PLAYER_MODEL, PLAYER_SYSTEM, PLAYER_SCHEMA, buildPlayerPrompt(ctx), 'low')
+  ]);
+  if (teamRes.stop_reason === 'refusal' && playersRes.stop_reason === 'refusal') return null;
+
+  const team = teamRes.stop_reason === 'refusal' ? parseTeamReview({}, ctx) : parseTeamReview(textOf(teamRes), ctx);
+  const players = playersRes.stop_reason === 'refusal' ? [] : parsePlayerNotes(textOf(playersRes), ctx);
+  const teamUsage = usageOf(teamRes);
+  const playersUsage = usageOf(playersRes);
+  const review: GameReview = {
+    matchId,
+    reviewedAt: new Date().toISOString(),
+    reviewVersion: REVIEW_VERSION,
+    tier,
+    trigger: opts.trigger,
+    models: { team: teamRes.model, players: playersRes.model },
+    compId: game.compId,
+    compName: comp?.name ?? game.compName,
+    ...(comp?.expect && { expect: comp.expect }),
+    team,
+    players,
+    usage: {
+      team: teamUsage,
+      players: playersUsage,
+      costUsd: Math.round((costUsd(teamRes.model, teamUsage) + costUsd(playersRes.model, playersUsage)) * 1000) / 1000,
+      tookMs: Date.now() - started
+    }
+  };
+  await db.doc(`gameReviews/${matchId}`).set(stripUndefinedDeep(review));
+  return review;
+}
+
+/** The morning's reviews, when switched on; writes what it did to the log. */
+async function autoReviews(log: RefreshLog, games: AnalysisGameResponse[] | null, startedAt: number): Promise<void> {
+  const empty = { attempted: [], written: [], failed: [], costUsd: 0 };
+  if (!games) {
+    log.reviews = { ...empty, skipped: 'analysis' };
+    return;
+  }
+  try {
+    const settings = await readSettings();
+    if (settings.autoReview !== true) {
+      log.reviews = { ...empty, skipped: 'off' };
+      return;
+    }
+    const anthropicKey = ANTHROPIC_API_KEY.value();
+    if (!anthropicKey) {
+      log.reviews = { ...empty, skipped: 'noKey' };
+      return;
+    }
+    const db = getFirestore();
+    const [practiceSnap, timelineSnap, reviewSnap] = await Promise.all([
+      db.collection('practiceGames').get(),
+      db.collection('matchTimeline').select('timelineVersion').get(),
+      db.collection('gameReviews').select('reviewVersion').get()
+    ]);
+    const practiceIds = new Set(practiceSnap.docs.map((d) => d.id));
+    const timelineIds = new Set(timelineSnap.docs.filter((d) => isTimelineCurrent(d.data() as { timelineVersion?: number })).map((d) => d.id));
+    const reviewedIds = new Set(reviewSnap.docs.map((d) => d.id));
+    const reviews: NonNullable<RefreshLog['reviews']> = { ...empty };
+    for (const game of reviewCandidates(games, practiceIds, timelineIds, reviewedIds)) {
+      if ((Date.now() - startedAt) / 1000 > REVIEW_BUDGET_SECONDS) {
+        reviews.skipped = 'time';
+        break;
+      }
+      reviews.attempted.push(game.matchId);
+      try {
+        const review = await reviewGame(game.matchId, { anthropicKey, riotKey: RIOT_API_KEY.value(), trigger: 'auto', games });
+        if (review) {
+          reviews.written.push(game.matchId);
+          reviews.costUsd = Math.round((reviews.costUsd + review.usage.costUsd) * 1000) / 1000;
+        } else {
+          reviews.failed.push(game.matchId);
+        }
+      } catch (error) {
+        reviews.failed.push(game.matchId);
+        console.error(`Morning review of ${game.matchId} failed`, error);
+      }
+    }
+    log.reviews = reviews;
+  } catch (error) {
+    console.error('Morning refresh: reviews failed', error);
+  }
+}
+
+export const gameReview = onRequest(
+  { cors: true, secrets: [ANTHROPIC_API_KEY, RIOT_API_KEY], timeoutSeconds: 180 },
+  async (req, res) => {
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed. Use POST.' });
+      return;
+    }
+    try {
+      const idToken = parseBearerToken(req.headers.authorization);
+      if (!idToken) {
+        res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
+        return;
+      }
+      const decoded = await getAuth().verifyIdToken(idToken);
+      const email = normalizeEmail(decoded.email);
+      const role = await getAccessRoleByEmail(email);
+      // Editors only: each review costs money.
+      if (role !== 'admin' && role !== 'contributor') {
+        res.status(403).json({ error: 'Editor access required to review a game.' });
+        return;
+      }
+      const anthropicKey = ANTHROPIC_API_KEY.value();
+      if (!anthropicKey) {
+        res.status(503).json({
+          error:
+            'The reviewer is not configured: set the ANTHROPIC_API_KEY secret ' +
+            '(firebase functions:secrets:set ANTHROPIC_API_KEY) and redeploy the functions.'
+        });
+        return;
+      }
+      const request = parseGameReviewRequest(req.body);
+      const review = await reviewGame(request.matchId, {
+        anthropicKey,
+        riotKey: RIOT_API_KEY.value(),
+        trigger: 'manual',
+        ...(request.expect !== undefined && { expect: request.expect })
+      });
+      if (!review) {
+        res.status(200).json({ declined: true });
+        return;
+      }
+      res.status(200).json(review);
+    } catch (error) {
+      if (error instanceof Anthropic.AuthenticationError) {
+        res.status(503).json({ error: 'The ANTHROPIC_API_KEY secret is not valid — create a new key in the Anthropic console and set it again.' });
+        return;
+      }
+      if (error instanceof Anthropic.RateLimitError) {
+        res.status(429).json({ error: 'The reviewer is rate limited right now — try again in a few seconds.' });
+        return;
+      }
+      if (error instanceof Anthropic.APIError) {
+        res.status(502).json({ error: `The reviewer could not answer (${error.status}): ${error.message}` });
         return;
       }
       const message = error instanceof Error ? error.message : 'Unexpected error.';

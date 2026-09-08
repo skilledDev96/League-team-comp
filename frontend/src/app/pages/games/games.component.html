@@ -324,6 +324,15 @@
                             [appTip]="data.isPractice(g.matchId) ? 'Tagged as messing around — click to count it as a serious game again' : 'Tag as messing around: Patterns leaves it out, whichever source it came from'"
                             (click)="data.setPractice(g.matchId, !data.isPractice(g.matchId))">{{ data.isPractice(g.matchId) ? 'Practice' : 'Serious' }}</button>
                   }
+                  @if (auth.editing() && g.source !== 'tournament') {
+                    <button type="button" class="view-btn games-review-btn" [disabled]="reviews.isBusy(g.matchId) || !reviews.available"
+                            [appTip]="!reviews.available ? 'The reviewer runs on the live site; local mode has no backend' : data.reviewFor(g.matchId) ? 'Write the review again, over the facts as they are now' : 'Two model calls over the facts in \'How the game went\': the team and the draft, then a note per player. About a dime.'"
+                            (click)="reviewGame(g)">
+                      @if (reviews.isBusy(g.matchId)) { <span class="btn-spinner" aria-hidden="true"></span> Reviewing… }
+                      @else { <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span> {{ data.reviewFor(g.matchId) ? 'Re-review' : 'Review this game' }} }
+                    </button>
+                    @if (reviews.errorFor(g.matchId); as err) { <small class="games-review-error">{{ err }}</small> }
+                  }
                   @if (auth.editing() && data.comps().length) {
                     <label class="field compact-field"><span>Counts as</span>
                       <select [name]="'compfor-' + g.matchId" [ngModel]="data.compOverride(g.matchId)" (ngModelChange)="setGameComp(g.matchId, $event)">
@@ -333,6 +342,7 @@
                     </label>
                   }
                 </div>
+                <app-game-review [review]="data.reviewFor(g.matchId)" />
                 <app-game-story [game]="analysisOf(g)" [expect]="expectFor(g)" />
                 <app-game-check [game]="analysisOf(g)" />
               }
