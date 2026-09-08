@@ -236,7 +236,10 @@ filter rather than none, so it can never become unpickable.
 4. `/games` owns the Refresh button and lists every game from every source
    (`pages/games/game-rows.ts`, pure and tested: Riot games, scrims from
    replays, tournament games typed in from the draft room — each row says
-   what its source knows). Review is its **Patterns** tab (`ReviewComponent`,
+   what its source knows). Note that `getCompAnalysis` already folds the
+   stored scrims in as queue 0 games labelled `Scrim`, so most scrims reach
+   the page through the analysis; the page reads them as source `scrim` by
+   that label and drops the duplicate from the `scrims` collection. Review is its **Patterns** tab (`ReviewComponent`,
    `embedded`), read-only over the same payload and answering a different
    question (why the games went the way they did). The comp-first Analysis
    page was retired on 8 Sep 2026 — comps keep their records on Comps, and

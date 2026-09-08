@@ -107,7 +107,9 @@ export function fromAnalysis(g: AnalysisGame, comp: { id: string; name: string }
   ).sort(bySeat);
   const row: GameRow = {
     id: `riot-${g.matchId}`,
-    source: 'riot',
+    // A custom game Riot did hand us (queue 0, tagged Scrim by the backend) is a
+    // scrim wherever it came from; the tiles and the source filter treat it so.
+    source: g.queue === 'Scrim' ? 'scrim' : 'riot',
     label: g.queue || 'Riot',
     date: g.date,
     win: g.win,

@@ -174,12 +174,14 @@ export class GamesComponent {
       if (!id || this.revealed === id) return;
       if (!this.rows().some((r) => r.id === id)) return;
       this.revealed = id;
-      requestAnimationFrame(() => {
+      // A timer, not requestAnimationFrame: a tab opened in the background
+      // never gets a frame, and the link would land on a closed row.
+      setTimeout(() => {
         const panel = document.querySelector<HTMLDetailsElement>(`[data-row="${CSS.escape(id)}"]`);
         if (!panel) return;
         panel.open = true;
         panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
+      }, 50);
     });
   }
 
