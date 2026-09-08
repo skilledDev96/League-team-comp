@@ -75,6 +75,11 @@
                name="newOpponent" placeholder="Opponent team name" />
         <input type="datetime-local" [ngModel]="newScheduledAt()" (ngModelChange)="newScheduledAt.set($event)"
                name="newScheduledAt" aria-label="Scheduled date and time" />
+        <span class="view-segment series-bestof" role="group" aria-label="Best of">
+          @for (n of bestOfOptions; track n) {
+            <button type="button" [class.active]="newBestOf() === n" (click)="newBestOf.set(n)">Bo{{ n }}</button>
+          }
+        </span>
         <button type="button" class="view-btn active" [disabled]="!newOpponent().trim() || saving()"
                 (click)="addSeries()">Add series</button>
       </div>
@@ -159,6 +164,13 @@
             <div class="comp-record-head">
               <span class="comp-record-title material-symbols-rounded" aria-hidden="true">stadium</span>
               <span class="comp-record-label">Games</span>
+              @if (auth.editing()) {
+                <span class="view-segment series-bestof is-small" role="group" aria-label="Best of" data-tour="plan-bestof">
+                  @for (n of bestOfOptions; track n) {
+                    <button type="button" [class.active]="series.bestOf === n" (click)="patchSeries(series, { bestOf: n })">Bo{{ n }}</button>
+                  }
+                </span>
+              }
               @if (auth.editing() && gamesFor(series.id).length < series.bestOf) {
                 <button type="button" class="comp-log-trigger" aria-label="Add game" appTip="Add game"
                         (click)="addGame(series)">
@@ -207,12 +219,19 @@
                   } @else {
                     <!-- A custom game never reaches Riot; the replay file is
                          the record. Same files as the Scrims page takes. -->
-                    <label class="scrim-pick game-replay-pick" appTip="Documents › League of Legends › Replays — the .rofl of this game. Fills both sides, the side and the result.">
+                    <label class="scrim-pick game-replay-pick" data-tour="plan-game-replay" [appTip]="'The .rofl of this game. Fills both sides, the side and the result. ' + replayRequirements">
                       <input type="file" accept=".rofl"
                              (change)="importReplay(game, series, $any($event.target).files); $any($event.target).value = ''" />
                       <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>
                       Import replay
                     </label>
+                  }
+                  @if (replayPending()[game.id]; as pending) {
+                    <p class="game-replay-side">
+                      Which side were we?
+                      <button type="button" class="view-btn" (click)="finishReplay(game, series, pending, 'blue')">Blue</button>
+                      <button type="button" class="view-btn" (click)="finishReplay(game, series, pending, 'red')">Red</button>
+                    </p>
                   }
                   @if (replayNote()[game.id]; as note) {
                     <p class="muted game-replay-note">{{ note }}</p>
@@ -283,10 +302,11 @@
                   @if (auth.editing() && series.opponentPlayers?.length && scoutedAt(series)) {
                     <!-- Once there is data the button is a refresh, so it steps
                          back down to a chip. -->
-                    <button type="button" class="tag" [disabled]="scout.scouting() === series.id"
-                            [appTip]="'Look each of them up through Riot again. Costs a few API calls.'"
+                    <button type="button" class="view-btn opp-scout-again" [disabled]="scout.scouting() === series.id"
+                            [appTip]="'Look each of them up through Riot again; reads the next forty games per player'"
                             (click)="scoutOpponents(series)">
-                      {{ scout.scouting() === series.id ? 'Scouting…' : 'Re-scout' }}
+                      <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
+                      {{ scout.scouting() === series.id ? 'Scouting…' : 'Scout again from Riot' }}
                     </button>
                   }
                 </div>
@@ -464,10 +484,10 @@
                              target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
                         </span>
                         @if (auth.editing()) {
-                          <button type="button" class="opp-sub-toggle" [class.active]="opp.sub"
+                          <button type="button" class="ateam-toggle is-small" [class.is-bench]="opp.sub"
                                   [attr.aria-pressed]="!!opp.sub"
-                                  [appTip]="opp.sub ? 'Their substitute — click to make them the starter' : 'Mark as their substitute for this seat'"
-                                  (click)="setOpponentSub(series, opp, !opp.sub)">{{ opp.sub ? 'Substitute' : 'Bench' }}</button>
+                                  [appTip]="opp.sub ? 'On their bench — click to make them a starter' : 'In their five — click to bench them, so As a team reads the right five'"
+                                  (click)="setOpponentSub(series, opp, !opp.sub)">{{ opp.sub ? 'Bench' : 'A team' }}</button>
                         }
                         <!-- Where they actually play, under the name rather than
                              beside it: a main with a fallback reads differently
@@ -625,7 +645,10 @@
                     <span class="muted opp-history-sum">Not fetched yet — flex, Clash and draft games with three or more of them on one side.</span>
                   }
                   @if (auth.editing()) {
-                    <button type="button" class="view-btn" [disabled]="historyBusy() === series.id" (click)="fetchHistory(series)">
+                    @if (sixOnTable(series.opponentPlayers)) {
+                      <span class="tag bad" appTip="Their roster has six names; As a team needs to know which five to read">Six on the table — mark their bench first</span>
+                    }
+                    <button type="button" class="view-btn" [disabled]="historyBusy() === series.id || sixOnTable(series.opponentPlayers)" (click)="fetchHistory(series)">
                       @if (historyBusy() === series.id) {
                         <span class="btn-spinner" aria-hidden="true"></span> Reading Riot…
                       } @else {

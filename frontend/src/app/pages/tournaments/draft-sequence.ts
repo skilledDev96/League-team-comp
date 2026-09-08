@@ -178,3 +178,17 @@ export function picksLeftInPhase(position: number): number {
   }
   return left;
 }
+
+/** What Undo would take back from a game at its current step, so the room can ask before removing a pick. */
+export function undoTarget(game: { draftStep?: number; bans?: string[]; pickLog?: string[] }): { action: DraftAction; champion: string | null } | null {
+  const position = game.draftStep ?? 0;
+  if (position <= 0) return null;
+  const previous = stepAt(position - 1);
+  if (!previous) return null;
+  if (previous.action === 'ban') {
+    const bans = game.bans ?? [];
+    return { action: 'ban', champion: bans[bans.length - 1] ?? null };
+  }
+  const log = game.pickLog ?? [];
+  return { action: 'pick', champion: log[log.length - 1] ?? null };
+}

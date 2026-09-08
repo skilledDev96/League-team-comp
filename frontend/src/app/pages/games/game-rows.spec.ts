@@ -119,3 +119,13 @@ describe('game rows', () => {
     expect(toughest(rows)[1]).toMatchObject({ champion: 'Renekton', games: 3, winRate: 33 });
   });
 });
+
+import { reviewBlockReason } from './game-rows';
+
+describe('reviewBlockReason', () => {
+  it('blocks a tournament game with no replay and allows anything with a match id', () => {
+    expect(reviewBlockReason({ source: 'tournament' })).toMatch(/import its replay/);
+    expect(reviewBlockReason({ source: 'tournament', matchId: 'EUW1-1' })).toBeNull();
+    expect(reviewBlockReason({ source: 'riot', matchId: 'EUW1_1' })).toBeNull();
+  });
+});

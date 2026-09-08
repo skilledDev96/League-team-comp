@@ -20,6 +20,7 @@ import { GameStoryComponent } from '../../shared/game-story.component';
 import { GameReviewComponent } from '../../shared/game-review.component';
 import { GameReviewService } from '../../services/game-review.service';
 import { PlayerEditorService } from '../../services/player-editor.service';
+import { ToastService } from '../../services/toast.service';
 import { CompExpectationService } from '../../services/comp-expectation.service';
 import { CompExpectation } from '../../models/team.models';
 import { ReviewComponent } from '../review/review.component';
@@ -34,8 +35,7 @@ import {
   playerLines,
   record,
   rosterIds,
-  toughest
-} from './game-rows';
+  toughest, reviewBlockReason } from './game-rows';
 
 type Tab = 'games' | 'patterns' | 'reviews';
 
@@ -208,7 +208,8 @@ export class GamesComponent {
         this.days.set(0);
         this.focus.set(`riot-${match}`);
       }
-      if (params.get('tab') === 'reviews') this.tab.set('reviews');
+      const tab = params.get('tab');
+      if (tab === 'reviews' || tab === 'patterns' || tab === 'games') this.tab.set(tab);
       if (params.get('refresh') === '1') void this.justPracticed();
     });
     effect(() => {
@@ -268,6 +269,7 @@ export class GamesComponent {
   private readonly expectations = inject(CompExpectationService);
   protected readonly reviews = inject(GameReviewService);
   private readonly editor = inject(PlayerEditorService);
+  private readonly toast = inject(ToastService);
 
   // ---- The Reviews tab: every written review, newest first ----------------
 
@@ -297,9 +299,20 @@ export class GamesComponent {
 
   /** Ask the model for a review of this game; the stored document arrives through the listener. */
   protected reviewGame(row: GameRow): void {
-    if (!row.matchId) return;
+    if (!row.matchId || reviewBlockReason(row)) return;
+    const again = !!this.data.reviewFor(row.matchId);
+    // It spends money: say so before, not only in a tooltip.
+    if (!confirm(again ? 'Write the review again? Two model calls, about a dime.' : 'Review this game? Two model calls over the facts, about a dime.')) return;
     void this.reviews.review(row.matchId, this.expectFor(row));
   }
+
+  protected blockReason(row: GameRow): string | null {
+    return reviewBlockReason(row);
+  }
+
+  /** The game list and the player table fold away, so the page can be the record and the form. */
+  protected readonly listOpen = signal(true);
+  protected readonly playersOpen = signal(true);
 
   /** The four axes of the comp this game counts as, for the story's curve lines. */
   protected expectFor(row: GameRow): CompExpectation | null {
@@ -339,7 +352,11 @@ export class GamesComponent {
    */
   protected async justPracticed(): Promise<void> {
     void this.router.navigate([], { relativeTo: this.route, queryParams: { refresh: null }, queryParamsHandling: 'merge', replaceUrl: true });
-    if (!this.auth.canEdit() || this.analysisLoading()) return;
+    if (!this.auth.canEdit()) {
+      this.toast.show('Refreshing needs edit rights', { text: 'Ask an editor to press "Refresh matches from Riot"; the games then appear here for everyone.', kind: 'info', timeout: 6000 });
+      return;
+    }
+    if (this.analysisLoading()) return;
     const before = new Set((this.data.compAnalysis()?.games ?? []).map((g) => g.matchId));
     this.tab.set('games');
     await this.refreshAnalysis();

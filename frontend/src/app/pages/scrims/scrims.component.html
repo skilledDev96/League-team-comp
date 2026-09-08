@@ -35,12 +35,36 @@
       </label>
       <button type="button" class="view-btn active" [disabled]="!newOpponentName().trim()"
               (click)="addOpponent()">Add opponent</button>
-      <small class="muted">Scout now, import the replays after.</small>
+      <small class="muted">Scout now, drop the replays in after — here, or straight into the team's panel below.</small>
       <!-- Names already on the page, for the mover in the Unnamed group. -->
       <datalist id="scrim-known-opponents">
         @for (name of knownOpponents(); track name) { <option [value]="name"></option> }
       </datalist>
     </div>
+
+    <!-- The page's own drop zone: files first, the name after. An opponent
+         panel takes files too, already named; this one asks (8 Sep 2026). -->
+    <div class="scrim-drop scrim-drop-page" data-tour="scrims-dropzone" [class.is-over]="dragTarget() === '__page'"
+         (dragover)="onPageDragOver($event)" (dragleave)="dragTarget.set('')" (drop)="onPageDrop($event)">
+      <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>
+      <div>
+        <strong>Drop .rofl replays here</strong>
+        <small>{{ replayRequirements }}</small>
+      </div>
+      <label class="scrim-pick">
+        <input type="file" multiple accept=".rofl" (change)="holdFiles($any($event.target).files); $any($event.target).value = ''" />
+        Choose files
+      </label>
+    </div>
+    @if (pendingFiles(); as files) {
+      <div class="scrim-pending">
+        <span><b>{{ files.length }}</b> {{ files.length === 1 ? 'replay' : 'replays' }} ready. Who was it against?</span>
+        <input type="text" [ngModel]="pendingOpponent()" (ngModelChange)="pendingOpponent.set($event)" name="scrimPendingOpponent"
+               list="scrim-known-opponents" placeholder="Opponent team name (or leave blank)" (keydown.enter)="importPending()" />
+        <button type="button" class="view-btn active" [disabled]="importing()" (click)="importPending()">Import {{ files.length }}</button>
+        <button type="button" class="view-btn" (click)="pendingFiles.set(null)">Cancel</button>
+      </div>
+    }
 
     <!-- Feedback for whichever panel took the files. Named rather than dropped
          in silence: a replay folder always has a stray file in it, and
@@ -159,10 +183,11 @@
                     </button>
                   }
                   @if (auth.editing() && o.opponentPlayers?.length && scoutedAt(group)) {
-                    <button type="button" class="tag" [disabled]="scout.scouting() === group.id"
-                            [appTip]="'Look each of them up through Riot again. Costs a few API calls.'"
+                    <button type="button" class="view-btn opp-scout-again" [disabled]="scout.scouting() === group.id"
+                            [appTip]="'Look each of them up through Riot again; reads the next forty games per player'"
                             (click)="scoutOpponents(group)">
-                      {{ scout.scouting() === group.id ? 'Scouting…' : 'Re-scout' }}
+                      <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
+                      {{ scout.scouting() === group.id ? 'Scouting…' : 'Scout again from Riot' }}
                     </button>
                   }
                 </div>
@@ -311,10 +336,10 @@
                                target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
                           </span>
                           @if (auth.editing()) {
-                            <button type="button" class="opp-sub-toggle" [class.active]="opp.sub"
+                            <button type="button" class="ateam-toggle is-small" [class.is-bench]="opp.sub"
                                     [attr.aria-pressed]="!!opp.sub"
-                                    [appTip]="opp.sub ? 'Their substitute — click to make them the starter' : 'Mark as their substitute for this seat'"
-                                    (click)="setOpponentSub(group, opp, !opp.sub)">{{ opp.sub ? 'Substitute' : 'Bench' }}</button>
+                                    [appTip]="opp.sub ? 'On their bench — click to make them a starter' : 'In their five — click to bench them, so As a team reads the right five'"
+                                    (click)="setOpponentSub(group, opp, !opp.sub)">{{ opp.sub ? 'Bench' : 'A team' }}</button>
                           }
                           <span class="opp-sub">
                             @for (p of opp.positions ?? []; track p.role) {
@@ -450,7 +475,10 @@
                     <span class="muted opp-history-sum">Not fetched yet — flex, Clash and draft games with three or more of them on one side.</span>
                   }
                   @if (auth.editing()) {
-                    <button type="button" class="view-btn" [disabled]="historyBusy() === group.id" (click)="fetchHistory(group)">
+                    @if (sixOnTable(o.opponentPlayers)) {
+                      <span class="tag bad" appTip="Their roster has six names; As a team needs to know which five to read">Six on the table — mark their bench first</span>
+                    }
+                    <button type="button" class="view-btn" [disabled]="historyBusy() === group.id || sixOnTable(o.opponentPlayers)" (click)="fetchHistory(group)">
                       @if (historyBusy() === group.id) {
                         <span class="btn-spinner" aria-hidden="true"></span> Reading Riot…
                       } @else {
@@ -719,8 +747,8 @@
     }
   } @else {
     <p class="muted">
-      No scrims imported yet.
-      @if (!auth.editing()) { Turn on Edit mode to import replay files. }
+      No scrims yet.
+      @if (auth.editing()) { Drop .rofl files above, or prep an opponent first. } @else { An editor can turn on Edit mode and drop the replay files in. }
     </p>
   }
 </section>

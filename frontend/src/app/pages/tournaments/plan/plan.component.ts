@@ -11,7 +11,9 @@ import { TeamDataService } from '../../../services/team-data.service';
 import { UiService } from '../../../services/ui.service';
 import { noteLines } from '../../../core/note-lines';
 import { parseRiotIds } from '../../../core/riot-id';
-import { looksLikeFiveOnFive, matchIdFromFilename, parseReplay, seatChampions } from '../../../core/replay-parse';
+import { seatChampions } from '../../../core/replay-parse';
+import { readReplay, ReplayRead, REPLAY_REQUIREMENTS } from '../../../core/replay-import';
+import { ToastService } from '../../../services/toast.service';
 import { rosterIds, scrimSide } from '../../games/game-rows';
 import {
   appendToRoster,
@@ -127,7 +129,10 @@ export class TournamentPlanComponent {
     // writing notes — and the controls for all three only render in edit mode.
     // Sending someone to a panel where every control is missing is the same
     // failure as not sending them at all. The draft view does this too.
-    if (this.auth.canEdit()) this.auth.editMode.set(true);
+    if (this.auth.canEdit() && !this.auth.editMode()) {
+      this.auth.editMode.set(true);
+      this.toast.show('Edit mode on', { text: 'Scouting writes their roster, bans and notes. Press Done editing when you are finished.', kind: 'info', timeout: 5000 });
+    }
 
     this.openSeriesId.set(id);
     this.openPrepIds.set(new Set([...this.openPrepIds(), id]));
@@ -217,7 +222,7 @@ export class TournamentPlanComponent {
         tournamentId: t.id,
         opponent,
         scheduledAt: this.newScheduledAt().trim() || undefined,
-        bestOf: 3,
+        bestOf: this.newBestOf(),
         status: 'scheduled'
       });
       this.newOpponent.set('');
@@ -225,6 +230,16 @@ export class TournamentPlanComponent {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  protected readonly bestOfOptions: (1 | 3 | 5)[] = [1, 3, 5];
+  protected readonly newBestOf = signal<1 | 3 | 5>(3);
+  protected readonly replayRequirements = REPLAY_REQUIREMENTS;
+  private readonly toast = inject(ToastService);
+
+  /** Six names and no bench marked: As a team cannot pick the five. */
+  protected sixOnTable(players: OpponentPlayer[] | undefined): boolean {
+    return starters(players ?? []).length > 5;
   }
 
   protected patchSeries(series: TournamentSeries, patch: Partial<TournamentSeries>): void {
@@ -503,48 +518,47 @@ export class TournamentPlanComponent {
 
   protected readonly replayNote = signal<Record<string, string>>({});
 
+  /** A parsed replay waiting for someone to say which side was ours. */
+  protected readonly replayPending = signal<Record<string, Extract<ReplayRead, { ok: true }> & { fileName: string }>>({});
+
   protected async importReplay(game: SeriesGame, series: TournamentSeries, files: FileList | null): Promise<void> {
     const file = files?.[0];
     if (!file) return;
     const note = (text: string) => this.replayNote.update((s) => ({ ...s, [game.id]: text }));
     note(`Reading ${file.name}…`);
-    const id = matchIdFromFilename(file.name);
-    if (!id) {
-      note(`${file.name}: no match id in the filename.`);
+    const read = readReplay(file.name, await file.arrayBuffer(), { opponent: series.opponent, lastModified: file.lastModified, order: this.data.scrims().length + 1 });
+    if (!read.ok) {
+      note(read.line);
       return;
     }
-    const replay = parseReplay(await file.arrayBuffer());
-    if (!replay || !looksLikeFiveOnFive(replay)) {
-      note(`${file.name}: not a readable 5v5 replay.`);
-      return;
-    }
-    const scrim = {
-      id,
-      opponent: series.opponent,
-      playedOn: new Date(file.lastModified).toISOString(),
-      durationSec: replay.durationSec,
-      blueWon: replay.blueWon,
-      surrendered: replay.surrendered,
-      players: replay.players.map((p) => ({ ...p })),
-      objectives: { blue: { ...replay.objectives.blue }, red: { ...replay.objectives.red } },
-      order: this.data.scrims().length + 1
-    };
-    const side = game.ourSide ?? scrimSide(scrim, rosterIds(this.data.players()));
+    const side = game.ourSide ?? scrimSide(read.scrim, rosterIds(this.data.players()));
     if (!side) {
-      note('Could not tell which side was ours — set the side on the draft first, then import again.');
+      // Nobody of ours by name in the file and no side on the draft: ask,
+      // rather than send the person off to set it and come back.
+      this.replayPending.update((s) => ({ ...s, [game.id]: { ...read, fileName: file.name } }));
+      note('Could not tell which side was ours from the names in the file.');
       return;
     }
+    await this.finishReplay(game, series, { ...read, fileName: file.name }, side);
+  }
+
+  protected async finishReplay(game: SeriesGame, series: TournamentSeries, read: Extract<ReplayRead, { ok: true }> & { fileName: string }, side: 'blue' | 'red'): Promise<void> {
+    this.replayPending.update((s) => {
+      const next = { ...s };
+      delete next[game.id];
+      return next;
+    });
     const team = side === 'blue' ? 100 : 200;
-    await this.data.saveScrim({ ...scrim, ourSide: side });
+    await this.data.saveScrim({ ...read.scrim, opponent: series.opponent, ourSide: side });
     await this.data.updateSeriesGame({
       ...game,
-      ourChampions: seatChampions(replay.players, team),
-      theirChampions: seatChampions(replay.players, team === 100 ? 200 : 100),
+      ourChampions: seatChampions(read.replay.players, team),
+      theirChampions: seatChampions(read.replay.players, team === 100 ? 200 : 100),
       ourSide: side,
-      win: side === 'blue' ? replay.blueWon : !replay.blueWon,
-      matchId: id
+      win: side === 'blue' ? read.replay.blueWon : !read.replay.blueWon,
+      matchId: read.id
     });
-    note(`Filled from ${file.name}.`);
+    this.replayNote.update((s) => ({ ...s, [game.id]: `Filled from ${read.fileName}.` }));
   }
 
   protected candidateLabel(game: AnalysisGame): string {

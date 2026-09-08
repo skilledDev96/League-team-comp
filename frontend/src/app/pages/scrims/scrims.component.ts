@@ -11,7 +11,7 @@ import { OpponentScoutService } from '../../services/opponent-scout.service';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
-import { looksLikeFiveOnFive, matchIdFromFilename, parseReplay } from '../../core/replay-parse';
+import { importReport, readReplay, REPLAY_REQUIREMENTS } from '../../core/replay-import';
 import { noteLines } from '../../core/note-lines';
 import { parseRiotIds } from '../../core/riot-id';
 import {
@@ -544,8 +544,45 @@ export class ScrimsComponent {
    * because a folder always has a stray file in it and "nothing happened" is
    * the worst possible answer to a drag-and-drop.
    */
-  protected async importFiles(files: FileList | null, opponent: string): Promise<void> {
-    if (!files?.length || this.importing()) return;
+  protected readonly replayRequirements = REPLAY_REQUIREMENTS;
+
+  /** Files dropped on the page, waiting for a name. */
+  protected readonly pendingFiles = signal<File[] | null>(null);
+  protected readonly pendingOpponent = signal('');
+
+  protected onPageDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.dragTarget.set('__page');
+  }
+
+  protected onPageDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragTarget.set('');
+    this.holdFiles(event.dataTransfer?.files ?? null);
+  }
+
+  protected holdFiles(files: FileList | null): void {
+    const list = Array.from(files ?? []).filter((f) => /\.rofl$/i.test(f.name));
+    if (!list.length) return;
+    this.pendingFiles.set(list);
+  }
+
+  protected async importPending(): Promise<void> {
+    const files = this.pendingFiles();
+    if (!files) return;
+    this.pendingFiles.set(null);
+    await this.importFiles(files, this.pendingOpponent().trim());
+    this.pendingOpponent.set('');
+  }
+
+  /** Six names and no bench marked: As a team cannot pick the five. */
+  protected sixOnTable(players: OpponentPlayer[] | undefined): boolean {
+    return starters(players ?? []).length > 5;
+  }
+
+  protected async importFiles(files: FileList | File[] | null, opponent: string): Promise<void> {
+    const list = files ? Array.from(files as ArrayLike<File>) : [];
+    if (!list.length || this.importing()) return;
 
     this.importing.set(true);
     this.skipped.set([]);
@@ -553,49 +590,19 @@ export class ScrimsComponent {
     let saved = 0;
 
     try {
-      for (const file of Array.from(files)) {
+      for (const file of list) {
         this.importNote.set(`Reading ${file.name}…`);
-
-        const id = matchIdFromFilename(file.name);
-        if (!id) {
-          failed.push(`${file.name} — no match id in the filename`);
+        const read = readReplay(file.name, await file.arrayBuffer(), { opponent, lastModified: file.lastModified, order: this.data.scrims().length + saved });
+        if (!read.ok) {
+          failed.push(read.line);
           continue;
         }
-
-        const game = parseReplay(await file.arrayBuffer());
-        if (!game) {
-          failed.push(`${file.name} — not a readable replay`);
-          continue;
-        }
-        if (!looksLikeFiveOnFive(game)) {
-          failed.push(`${file.name} — not a full 5v5`);
-          continue;
-        }
-
-        await this.data.saveScrim({
-          id,
-          opponent: opponent || undefined,
-          // The replay knows how long the game ran but never when it started,
-          // so the file's own timestamp is the closest thing to a date. It is
-          // a few minutes late, which matters to nobody.
-          playedOn: new Date(file.lastModified).toISOString(),
-          durationSec: game.durationSec,
-          blueWon: game.blueWon,
-          surrendered: game.surrendered,
-          players: game.players.map((p) => ({ ...p })),
-          objectives: { blue: { ...game.objectives.blue }, red: { ...game.objectives.red } },
-          order: this.data.scrims().length + saved
-        });
+        await this.data.saveScrim(read.scrim);
         saved += 1;
       }
     } finally {
       this.importing.set(false);
-      const against = opponent;
-      this.importNote.set(
-        saved
-          ? `Imported ${saved} ${saved === 1 ? 'scrim' : 'scrims'}${against ? ` against ${against}` : ''}.`
-          : 'Nothing imported.'
-      );
+      this.importNote.set(importReport(saved, opponent));
       this.skipped.set(failed);
     }
   }

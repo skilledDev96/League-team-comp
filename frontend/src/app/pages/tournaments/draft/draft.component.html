@@ -370,6 +370,10 @@
               </button>
               <button type="button" class="view-btn" (click)="undoStep(game)">Undo last</button>
               <button type="button" class="view-btn draft-reset" (click)="resetDraft(game)">Reset</button>
+              <button type="button" class="view-btn draft-replay-hint" data-tour="draft-replay-hint" (click)="ctx.openPrep(series.id)"
+                      appTip="The numbers for this game come from its replay: import it against the game on the Plan view">
+                <span class="material-symbols-rounded" aria-hidden="true">upload_file</span> Replay
+              </button>
             </p>
           } @else {
             <div class="draft-step-bar" [class.is-ours]="isOurTurn(game)">
@@ -379,6 +383,17 @@
                 {{ step(game)?.action }}
               </span>
               <span class="draft-step-turn">{{ stepLabel(game) }}</span>
+              <!-- The opponent's target bans from scouting, on our ban steps only:
+                   one click holds one. Inline in the bar, so the bar keeps its height. -->
+              @if (auth.editing() && step(game)?.action === 'ban' && isOurTurn(game) && targetBans(series, game).length) {
+                <span class="draft-target-bans" data-tour="draft-target-bans" [appTip]="'Target bans from scouting ' + series.opponent + ' — click one to hold it'">
+                  @for (ban of targetBans(series, game); track ban) {
+                    <button type="button" class="draft-target-ban" (click)="takeAdvice(game, ban)">
+                      <img [src]="ui.championIconUrl(ban)" [alt]="ban" loading="lazy" />
+                    </button>
+                  }
+                </span>
+              }
 
               <!-- A reminder, not a referee: it never advances the draft or
                    discards a pick, because the real clock is in the client and
@@ -421,7 +436,7 @@
               <!-- Test aids. Reaching the interesting part of this screen means
                    clicking through ten bans first, and doing that by hand every
                    time is how a layout bug survives to match night. -->
-              @if (auth.editing()) {
+              @if (auth.editing() && devAids()) {
                 @if (step(game)?.action === 'ban') {
                   <button type="button" class="view-btn draft-auto" [disabled]="autoFilling()"
                           [appTip]="'Ban at random through to the first pick. For testing.'"
@@ -634,7 +649,8 @@
             <span class="advice-head advisor-head">
               <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>
               Advisor
-              <button type="button" class="view-btn advisor-ask" [disabled]="advisor.busy()" (click)="askAdvisor(g)">
+              <button type="button" class="view-btn advisor-ask" [disabled]="advisor.busy()" (click)="askAdvisor(g)"
+                      appTip="One model call, a few cents. The answer is saved on the game for everyone on the link.">
                 @if (advisor.busy()) {
                   <span class="btn-spinner" aria-hidden="true"></span> Thinking…
                 } @else {

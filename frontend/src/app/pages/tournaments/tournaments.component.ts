@@ -1,4 +1,5 @@
 import { Component, effect, inject, untracked } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TournamentDraftComponent } from './draft/draft.component';
 import { TournamentPlanComponent } from './plan/plan.component';
@@ -41,6 +42,20 @@ export class TournamentsComponent {
       this.ctx.openDraft(series, game);
     }
     if (params.get('view') === 'plan') this.ctx.view.set('plan');
+
+    // A quick action pressed while already here changes only the query, and
+    // the snapshot above has already been read; follow later changes too,
+    // guarded so the effect below writing the address back does not loop.
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((p) => {
+      const view = p.get('view');
+      const seriesId = p.get('series') ?? '';
+      const gameId = p.get('game') ?? '';
+      if (view === 'draft' && (this.ctx.view() !== 'draft' || (seriesId && seriesId !== this.ctx.draftSeriesId()))) {
+        this.ctx.openDraft(seriesId, gameId);
+      } else if (view === 'plan' && this.ctx.view() !== 'plan') {
+        this.ctx.view.set('plan');
+      }
+    });
 
     // Keep the address bar current, so copying it always shares what is on
     // screen. Replaced rather than pushed: each pick is not a page in the

@@ -403,3 +403,13 @@ export function toughest(rows: readonly GameRow[], min = 2, take = 6): ChampionL
     .sort((a, b) => a.winRate - b.winRate || b.games - a.games)
     .slice(0, take);
 }
+
+/**
+ * Why a row cannot be reviewed, or null when it can. A tournament game typed
+ * in from the draft room has no numbers until its replay is imported; a
+ * replay-backed game can be reviewed, on the end-of-game tier.
+ */
+export function reviewBlockReason(row: { source: GameSource; matchId?: string }): string | null {
+  if (!row.matchId) return 'Typed in from the draft room: import its replay on the Plan view first, then it can be reviewed.';
+  return null;
+}

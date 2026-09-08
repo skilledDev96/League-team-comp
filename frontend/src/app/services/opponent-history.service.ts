@@ -51,7 +51,7 @@ export class OpponentHistoryService {
       throw new Error('Their match history needs the live site — local mode has no Riot access.');
     }
     if (players.length > 5) {
-      throw new Error('Six on the table — mark their substitute first, so this reads the right five.');
+      throw new Error('Six on the table — mark their bench first, so this reads the right five.');
     }
     if (players.length < 2) {
       throw new Error('Paste their roster first.');

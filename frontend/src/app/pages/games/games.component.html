@@ -190,6 +190,9 @@
     <section class="card games-players" aria-label="Player lines">
       <div class="section-head">
         <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>Players</h2>
+        <button type="button" class="view-btn games-fold" (click)="playersOpen.set(!playersOpen())" [attr.aria-expanded]="playersOpen()">
+          <span class="material-symbols-rounded" aria-hidden="true">{{ playersOpen() ? 'expand_less' : 'expand_more' }}</span>{{ playersOpen() ? 'Hide' : 'Show' }}
+        </button>
         @if (benchCount()) {
           <button type="button" class="view-btn" [class.active]="showBench()" (click)="showBench.set(!showBench())"
                   [appTip]="showBench() ? 'Back to the five starters' : 'Add the bench players who appear in these games'">
@@ -197,7 +200,7 @@
           </button>
         }
       </div>
-      <div class="games-scroll">
+      <div class="games-scroll" [hidden]="!playersOpen()">
         <table class="opp-history-stats games-player-table">
           <thead>
             <tr>
@@ -267,7 +270,13 @@
   <!-- The games themselves. Same row as the opponent history, because it is
        the same question: who played what, and how did it go. -->
   <section class="card" aria-label="Games">
-    @if (rows().length) {
+    <div class="section-head games-list-head">
+      <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">sports_esports</span>Games <small class="muted">{{ rows().length }}</small></h2>
+      <button type="button" class="view-btn games-fold" (click)="listOpen.set(!listOpen())" [attr.aria-expanded]="listOpen()">
+        <span class="material-symbols-rounded" aria-hidden="true">{{ listOpen() ? 'expand_less' : 'expand_more' }}</span>{{ listOpen() ? 'Hide' : 'Show' }}
+      </button>
+    </div>
+    @if (rows().length && listOpen()) {
       <div class="opp-history-games games-list">
         @for (g of rows(); track g.id) {
           <details class="opp-history-game games-row" [class.is-win]="g.win" [attr.data-row]="g.id" [class.is-new]="isNew(g)" [class.is-focused]="g.id === focus()">
@@ -376,13 +385,13 @@
                 <div class="games-row-actions">
                   <app-match-note-button [matchId]="g.matchId" />
                   @if (auth.editing()) {
-                    <button type="button" class="games-bench-toggle" [class.active]="data.isPractice(g.matchId)" [attr.aria-pressed]="data.isPractice(g.matchId)"
-                            [appTip]="data.isPractice(g.matchId) ? 'Tagged as messing around — click to count it as a serious game again' : 'Tag as messing around: Patterns leaves it out, whichever source it came from'"
-                            (click)="data.setPractice(g.matchId, !data.isPractice(g.matchId))">{{ data.isPractice(g.matchId) ? 'Practice' : 'Serious' }}</button>
+                    <button type="button" class="games-bench-toggle" data-tour="games-practice" [class.active]="data.isPractice(g.matchId)" [attr.aria-pressed]="data.isPractice(g.matchId)"
+                            [appTip]="data.isPractice(g.matchId) ? 'Marked as practice, so Patterns leaves it out — click to count it again' : 'Mark as practice: Patterns leaves it out, whichever source it came from'"
+                            (click)="data.setPractice(g.matchId, !data.isPractice(g.matchId))">{{ data.isPractice(g.matchId) ? 'Marked practice — unmark' : 'Mark as practice' }}</button>
                   }
-                  @if (auth.editing() && g.source !== 'tournament') {
-                    <button type="button" class="view-btn games-review-btn" [disabled]="reviews.isBusy(g.matchId) || !reviews.available"
-                            [appTip]="!reviews.available ? 'The reviewer runs on the live site; local mode has no backend' : data.reviewFor(g.matchId) ? 'Write the review again, over the facts as they are now' : 'Two model calls over the facts in \'How the game went\': the team and the draft, then a note per player. About a dime.'"
+                  @if (auth.editing()) {
+                    <button type="button" class="view-btn games-review-btn" data-tour="games-review-btn" [disabled]="reviews.isBusy(g.matchId) || !reviews.available || !!blockReason(g)"
+                            [appTip]="blockReason(g) || (!reviews.available ? 'The reviewer runs on the live site; local mode has no backend' : data.reviewFor(g.matchId) ? 'Write the review again, over the facts as they are now' : 'Two model calls over the facts in \'How the game went\': the team and the draft, then a note per player. About a dime, after you confirm.')"
                             (click)="reviewGame(g)">
                       @if (reviews.isBusy(g.matchId)) { <span class="btn-spinner" aria-hidden="true"></span> Reviewing… }
                       @else { <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span> {{ data.reviewFor(g.matchId) ? 'Re-review' : 'Review this game' }} }
@@ -390,9 +399,10 @@
                     @if (reviews.errorFor(g.matchId); as err) { <small class="games-review-error">{{ err }}</small> }
                   }
                   @if (auth.editing() && data.comps().length) {
-                    <label class="field compact-field"><span>Counts as</span>
+                    <label class="field compact-field" data-tour="games-counts-as" appTip="Which comp this game counts towards in the records. Auto is what the matcher decided from the five champions; pick a comp to overrule it for this game.">
+                      <span>Counts as</span>
                       <select [name]="'compfor-' + g.matchId" [ngModel]="data.compOverride(g.matchId)" (ngModelChange)="setGameComp(g.matchId, $event)">
-                        <option value="">Auto — {{ g.compName || 'off the books' }}</option>
+                        <option value="">Auto — {{ g.compName || 'not a known comp' }}</option>
                         @for (comp of data.comps(); track comp.id) { <option [value]="comp.id">{{ comp.name }}</option> }
                       </select>
                     </label>
@@ -414,7 +424,7 @@
           </details>
         }
       </div>
-    } @else {
+    } @else if (!rows().length) {
       <p class="muted games-empty">
         No games for this filter.
         @if (!allRows().length) {

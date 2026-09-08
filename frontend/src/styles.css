@@ -14103,3 +14103,25 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .quick-actions-also { flex-basis: 100%; margin: 0; font-size: 0.78rem; }
 .quick-actions-also a { color: var(--text-1); }
 .quick-actions-also a:hover { color: var(--accent); }
+
+
+/* ---- Game-day friction (8 Sep 2026) --------------------------------------- */
+.series-bestof button { padding: 0.32rem 0.7rem; }
+.series-bestof.is-small { margin-left: 0.5rem; }
+.series-bestof.is-small button { padding: 0.15rem 0.5rem; font-size: 0.72rem; }
+.opp-scout-again { display: inline-flex; align-items: center; gap: 0.3rem; }
+.draft-target-bans { display: inline-flex; align-items: center; gap: 0.2rem; margin-left: 0.4rem; }
+.draft-target-ban { padding: 0; border: 1px solid var(--card-border); border-radius: 6px; background: none; cursor: pointer; line-height: 0; }
+.draft-target-ban img { width: 1.5rem; height: 1.5rem; border-radius: 5px; display: block; }
+.draft-target-ban:hover, .draft-target-ban:focus-visible { border-color: var(--accent); }
+.draft-replay-hint { margin-left: 0.25rem; }
+.game-replay-side { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin: 0.3rem 0; font-size: 0.82rem; }
+.scrim-drop-page { margin: 0.6rem 0; }
+.scrim-pending { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.4rem 0 0.6rem; }
+.scrim-pending input { flex: 1 1 14rem; }
+.games-fold { margin-left: auto; padding: 0.25rem 0.6rem; }
+.games-fold .material-symbols-rounded { font-size: 1.1rem; vertical-align: -0.25rem; }
+.games-list-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
+.games-list-head h2 { margin: 0; }
+.field-help { margin-left: 0.4rem; font-size: 0.68rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-1); text-decoration: underline dotted; }
+.field-help:hover { color: var(--accent); }

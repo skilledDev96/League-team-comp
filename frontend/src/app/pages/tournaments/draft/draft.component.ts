@@ -26,7 +26,8 @@ import {
   lastPickOfPhase,
   picksLeftInPhase,
   seatFor,
-  stepAt
+  stepAt,
+  undoTarget
 } from '../draft-sequence';
 import {
   BanSuggestion,
@@ -206,6 +207,19 @@ export class TournamentDraftComponent implements OnInit {
   // worse than not having one.
 
   protected readonly PICK_SECONDS = 30;
+
+  /**
+   * The test aids (skip the bans, fill the draft) used to sit in the live
+   * bar for every editor. They show only for a browser that asked: a
+   * Diagnostics checkbox, or any page opened with ?dev=1 (8 Sep 2026).
+   */
+  protected readonly devAids = signal(readDevAids());
+
+  /** Their target bans from scouting that are still on the table. */
+  protected targetBans(series: TournamentSeries, game: SeriesGame): string[] {
+    const gone = new Set([...(game.bans ?? []), ...(game.ourChampions ?? []), ...(game.theirChampions ?? [])].filter(Boolean).map((c) => normalizeChampion(c)));
+    return (series.bans ?? []).filter((b) => b && !gone.has(normalizeChampion(b))).slice(0, 5);
+  }
   private readonly now = signal(Date.now());
   private readonly stepStartedAt = signal(Date.now());
 
@@ -231,7 +245,7 @@ export class TournamentDraftComponent implements OnInit {
   protected readonly stats = inject(ChampionStatsService);
   protected readonly matchups = inject(MatchupStatsService);
 
-  private readonly ctx = inject(TournamentContextService);
+  protected readonly ctx = inject(TournamentContextService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   // Shared with the other view; re-exposed so the template reads the same.
@@ -1249,6 +1263,9 @@ export class TournamentDraftComponent implements OnInit {
     if (position <= 0) return;
     const previous = stepAt(position - 1);
     if (!previous) return;
+    // A ban comes back without asking; a pick is a decision someone made.
+    const target = undoTarget(live);
+    if (target?.action === 'pick' && target.champion && !confirm(`Undo the last pick, ${target.champion}?`)) return;
 
     const patch: Partial<SeriesGame> = { draftStep: position - 1, holding: undefined };
     if (previous.action === 'ban') {
@@ -2003,4 +2020,15 @@ export class TournamentDraftComponent implements OnInit {
     return games.find((g) => g.win === undefined)?.id === game.id;
   }
 
+}
+
+
+/** Whether this browser asked for the draft room's test aids. */
+function readDevAids(): boolean {
+  try {
+    if (new URLSearchParams(location.search).get('dev') === '1') localStorage.setItem('bom-dev-aids', '1');
+    return localStorage.getItem('bom-dev-aids') === '1';
+  } catch {
+    return false;
+  }
 }

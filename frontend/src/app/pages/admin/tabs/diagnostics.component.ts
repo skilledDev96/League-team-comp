@@ -14,6 +14,18 @@ import { AdminContextService } from '../admin-context.service';
   templateUrl: './diagnostics.component.html'
 })
 export class AdminDiagnosticsComponent implements OnInit {
+  /** The draft room's test aids, per browser. */
+  protected readonly devAids = signal(localStorage.getItem('bom-dev-aids') === '1');
+  protected setDevAids(on: boolean): void {
+    this.devAids.set(on);
+    try {
+      if (on) localStorage.setItem('bom-dev-aids', '1');
+      else localStorage.removeItem('bom-dev-aids');
+    } catch {
+      /* private mode */
+    }
+  }
+
   protected readonly ctx = inject(AdminContextService);
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);

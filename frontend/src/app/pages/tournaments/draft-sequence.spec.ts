@@ -219,3 +219,14 @@ describe('picksLeftInPhase', () => {
     expect(picksLeftInPhase(0)).toBe(0);
   });
 });
+
+import { undoTarget } from './draft-sequence';
+
+describe('undoTarget', () => {
+  it('is nothing at the start, the last ban during the ban phase, and the last logged pick after', () => {
+    expect(undoTarget({ draftStep: 0 })).toBeNull();
+    expect(undoTarget({ draftStep: 2, bans: ['Ahri', 'Zed'] })).toEqual({ action: 'ban', champion: 'Zed' });
+    expect(undoTarget({ draftStep: 7, bans: ['A', 'B', 'C', 'D', 'E', 'F'], pickLog: ['Ornn'] })).toEqual({ action: 'pick', champion: 'Ornn' });
+    expect(undoTarget({ draftStep: 7, bans: [] })).toEqual({ action: 'pick', champion: null });
+  });
+});
