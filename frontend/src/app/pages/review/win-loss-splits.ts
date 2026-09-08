@@ -21,11 +21,21 @@ export interface SideStat {
   n: number;
 }
 
+/** One game's contribution to a split, kept so a sentence can show its workings. */
+export interface Sample {
+  matchId: string;
+  date: number;
+  win: boolean;
+  value: number;
+}
+
 export interface Split {
   wins: SideStat;
   losses: SideStat;
   /** wins − losses, only when both sides have a sample. */
   gap?: number;
+  /** The games behind the means, newest first. Absent on a literal built by hand. */
+  samples?: Sample[];
 }
 
 const round = (v: number, places = 1) => Math.round(v * 10 ** places) / 10 ** places;
@@ -39,14 +49,17 @@ function stat(values: number[], places = 2): SideStat {
 export function split(games: readonly AnalysisGame[], pick: (g: AnalysisGame) => number | undefined, places = 2): Split {
   const wins: number[] = [];
   const losses: number[] = [];
+  const samples: Sample[] = [];
   for (const g of games) {
     const v = pick(g);
     if (v === undefined || Number.isNaN(v)) continue;
     (g.win ? wins : losses).push(v);
+    samples.push({ matchId: g.matchId, date: g.date, win: g.win, value: round(v, places) });
   }
   const w = stat(wins, places);
   const l = stat(losses, places);
-  return { wins: w, losses: l, ...(w.n && l.n ? { gap: round(w.mean - l.mean, places) } : {}) };
+  samples.sort((a, b) => b.date - a.date);
+  return { wins: w, losses: l, ...(w.n && l.n ? { gap: round(w.mean - l.mean, places) } : {}), samples };
 }
 
 const enough = (s: Split) => s.wins.n >= MIN_FOR_A_CLAIM && s.losses.n >= MIN_FOR_A_CLAIM;
@@ -494,6 +507,10 @@ export interface Advice {
   rest: string;
   /** "over 12 losses and 17 wins" */
   n: string;
+  /** The games the figure was averaged over, newest first, capped — the sentence's workings. */
+  evidence?: Sample[];
+  /** How to print an evidence value. */
+  evidenceUnit?: MetricSplit['unit'] | 'diff';
 }
 
 interface Scored extends Advice {
@@ -538,6 +555,48 @@ const BARON_GAP = 0.6;
 const GOLD_TOP_HEAVY = 0.28;
 const GOLD_SPREAD = 0.24;
 const TAKE = 4;
+/** Enough games to check a claim against, not the whole season. */
+const EVIDENCE_TAKE = 12;
+
+/** Which metric a rule's key averaged, so its games can be shown. */
+const EVIDENCE_METRIC: Record<string, string> = {
+  vision: 'vision', controlWards: 'controlWards', tp: 'tpTop', deaths: 'deaths', early: 'firstBlood', dragons: 'dragons',
+  solo: 'soloKills', damage: 'damageBalance', plates: 'plates', towers: 'towers', visionScore: 'visionScore',
+  barons: 'barons', gold: 'goldBalance'
+};
+
+/**
+ * Attach the games behind each line. A lane line shows the games where that
+ * seat was called the way the line says; every other line shows the games
+ * its metric was averaged over. Capped, newest first.
+ */
+function withEvidence(
+  out: Scored[],
+  games: readonly AnalysisGame[],
+  subjects: readonly LaneSubject[],
+  team: Map<string, MetricSplit>,
+  laneVerdict: 'lost' | 'won'
+): Advice[] {
+  return out
+    .sort((a, b) => b.effect - a.effect)
+    .slice(0, TAKE)
+    .map(({ effect: _e, ...a }) => {
+      if (a.key.startsWith('lane-')) {
+        const subject = subjects.find((s) => `lane-${s.key}` === a.key);
+        const evidence: Sample[] = [];
+        for (const g of games) {
+          const lane = subject?.pick(g)?.lane;
+          if (lane?.verdict === laneVerdict) evidence.push({ matchId: g.matchId, date: g.date, win: g.win, value: lane.goldPerMinDiff ?? 0 });
+        }
+        evidence.sort((x, y) => y.date - x.date);
+        return { ...a, evidence: evidence.slice(0, EVIDENCE_TAKE), evidenceUnit: 'diff' as const };
+      }
+      const metric = team.get(EVIDENCE_METRIC[a.key] ?? '');
+      return metric?.split.samples
+        ? { ...a, evidence: metric.split.samples.slice(0, EVIDENCE_TAKE), evidenceUnit: metric.unit }
+        : a;
+    });
+}
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const signed = (v: number) => (v > 0 ? `+${v}` : `${v}`);
@@ -572,8 +631,8 @@ export function workOn(games: readonly AnalysisGame[], by: LaneBy = 'seat', rost
     }
   }
 
-  const team = new Map(teamSplits(games, undefined, source).map((m) => [m.key, m.split]));
-  const s = (key: string) => team.get(key) ?? { wins: { mean: 0, n: 0 }, losses: { mean: 0, n: 0 } };
+  const metrics = new Map(teamSplits(games, undefined, source).map((m) => [m.key, m]));
+  const s = (key: string): Split => metrics.get(key)?.split ?? { wins: { mean: 0, n: 0 }, losses: { mean: 0, n: 0 } };
 
   const vision = s('vision');
   if (enough(vision) && vision.gap !== undefined && vision.gap >= VISION_GAP) {
@@ -642,7 +701,7 @@ export function workOn(games: readonly AnalysisGame[], by: LaneBy = 'seat', rost
   if (enough(gold) && gold.losses.mean >= GOLD_TOP_HEAVY && gold.wins.mean < GOLD_SPREAD) {
     out.push({ key: 'gold', strong: `One player holds ${pct(gold.losses.mean)} of the gold in losses`, rest: `against ${pct(gold.wins.mean)} in wins: the gold is going to one lane and the rest cannot fight.`, n: nOf(gold), effect: (gold.losses.mean - gold.wins.mean) / (GOLD_TOP_HEAVY - GOLD_SPREAD) });
   }
-  return out.sort((a, b) => b.effect - a.effect).slice(0, TAKE).map(({ effect: _e, ...a }) => a);
+  return withEvidence(out, games, source === 'replay' ? [] : laneSubjects(games, by, roster), metrics, 'lost');
 }
 
 export function keepDoing(games: readonly AnalysisGame[], by: LaneBy = 'seat', roster: readonly string[] = [], source: PatternSource = 'riot'): Advice[] {
@@ -658,8 +717,8 @@ export function keepDoing(games: readonly AnalysisGame[], by: LaneBy = 'seat', r
       out.push({ key: `lane-${row.key}`, strong: `${who} wins lane in ${w.games} of ${w.n} wins`, rest: `(${wonInLosses.share}% of losses). Keep playing through it — the lane win is the win condition.`, n: `over ${wonInLosses.n} losses and ${w.n} wins with a lane read`, effect: points / LANE_GAP_POINTS });
     }
   }
-  const team = new Map(teamSplits(games, undefined, source).map((m) => [m.key, m.split]));
-  const s = (key: string) => team.get(key) ?? { wins: { mean: 0, n: 0 }, losses: { mean: 0, n: 0 } };
+  const metrics = new Map(teamSplits(games, undefined, source).map((m) => [m.key, m]));
+  const s = (key: string): Split => metrics.get(key)?.split ?? { wins: { mean: 0, n: 0 }, losses: { mean: 0, n: 0 } };
   const vision = s('vision');
   if (enough(vision) && vision.wins.mean >= VISION_GOOD && vision.losses.mean >= vision.wins.mean - 0.1) {
     out.push({ key: 'vision', strong: 'Vision holds up', rest: `${vision.losses.mean}/min per player even in losses (${vision.wins.mean}/min in wins).`, n: nOf(vision), effect: vision.wins.mean / VISION_GOOD });
@@ -700,5 +759,5 @@ export function keepDoing(games: readonly AnalysisGame[], by: LaneBy = 'seat', r
   if (enough(barons) && barons.gap !== undefined && barons.gap >= BARON_GAP) {
     out.push({ key: 'barons', strong: 'Baron control wins games', rest: `${barons.wins.mean} a game in wins against ${barons.losses.mean} in losses.`, n: nOf(barons), effect: barons.gap / BARON_GAP });
   }
-  return out.sort((a, b) => b.effect - a.effect).slice(0, TAKE).map(({ effect: _e, ...a }) => a);
+  return withEvidence(out, games, source === 'replay' ? [] : laneSubjects(games, by, roster), metrics, 'won');
 }

@@ -13850,3 +13850,16 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .patterns-glance-note { margin: 0 0 0.6rem; font-size: 0.78rem; }
 .patterns-glance-note .tag { margin: 0 0.2rem; }
 .patterns-chips { flex-wrap: wrap; }
+
+
+/* The games behind a Work on line, folded under it. */
+.advice-item + .advice-item { margin-top: 0.35rem; }
+.advice-evidence { margin: 0.1rem 0 0.3rem; font-size: 0.76rem; }
+.advice-evidence > summary { cursor: pointer; color: var(--text-1); list-style: none; }
+.advice-evidence > summary::-webkit-details-marker { display: none; }
+.advice-evidence > summary::before { content: '›'; display: inline-block; margin-right: 0.3rem; transition: transform 0.15s ease; }
+.advice-evidence[open] > summary::before { transform: rotate(90deg); }
+.advice-evidence > summary small { margin-left: 0.25rem; opacity: 0.7; }
+.advice-evidence-list { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; margin: 0.3rem 0 0; }
+.advice-evidence-list li { display: inline-flex; align-items: center; gap: 0.35rem; }
+.advice-evidence-list .form-pip { width: 1.1rem; height: 1.1rem; font-size: 0.62rem; }

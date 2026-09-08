@@ -76,7 +76,8 @@ describe('split', () => {
   it('means each side over the games that carry the number and leaves the gap off with an empty side', () => {
     const games = [game(true), game(true), game(false)];
     const s = split(games, (g) => g.kills!.ours, 1);
-    expect(s).toEqual({ wins: { mean: 20, n: 2 }, losses: { mean: 8, n: 1 }, gap: 12 });
+    expect(s).toMatchObject({ wins: { mean: 20, n: 2 }, losses: { mean: 8, n: 1 }, gap: 12 });
+    expect(s.samples!.map((x) => x.value)).toEqual([20, 20, 8]);
     expect(split([game(true)], () => undefined).gap).toBeUndefined();
   });
 });
@@ -124,9 +125,9 @@ describe('laneTable', () => {
 describe('teamSplits', () => {
   it('reports n per side and the gap sign, and leaves a metric empty when no game carries it', () => {
     const m = new Map(teamSplits([game(true), game(false)]).map((x) => [x.key, x]));
-    expect(m.get('dragons')!.split).toEqual({ wins: { mean: 3, n: 1 }, losses: { mean: 1, n: 1 }, gap: 2 });
+    expect(m.get('dragons')!.split).toMatchObject({ wins: { mean: 3, n: 1 }, losses: { mean: 1, n: 1 }, gap: 2 });
     expect(m.get('killShare')!.split.gap).toBe(0.42); // means rounded first, then the gap
-    expect(m.get('vision')!.split).toEqual({ wins: { mean: 0, n: 0 }, losses: { mean: 0, n: 0 } });
+    expect(m.get('vision')!.split).toMatchObject({ wins: { mean: 0, n: 0 }, losses: { mean: 0, n: 0 } });
     expect(m.get('deaths')!.higherIsBetter).toBe(false);
   });
 });
@@ -225,6 +226,21 @@ describe('replays', () => {
   });
 });
 
+describe('evidence', () => {
+  it('lists the games a line was averaged over, newest first and capped at twelve', () => {
+    const games = botLaneStory(8, (win) => ({ deaths: win ? 1 : 6 })).map((g, i) => ({ ...g, date: i }));
+    const deaths = workOn(games).find((a) => a.key === 'deaths')!;
+    expect(deaths.evidence).toHaveLength(12);
+    expect(deaths.evidenceUnit).toBe('count');
+    expect(deaths.evidence![0].date).toBe(15);
+    expect(deaths.evidence!.find((e) => !e.win)!.value).toBe(30); // five players at six deaths
+    const lane = workOn(games).find((a) => a.key === 'lane-ADC')!;
+    expect(lane.evidence!.every((e) => !e.win)).toBe(true); // the losses where the lane was lost
+    expect(lane.evidence![0].value).toBe(-45);
+    expect(lane.evidenceUnit).toBe('diff');
+  });
+});
+
 describe('keepDoing', () => {
   it('mirrors the lane rule and the early game from the wins', () => {
     const advice = keepDoing(botLaneStory(8));
@@ -239,7 +255,7 @@ describe('playerSplits', () => {
     const rows = playerSplits(games);
     expect(rows.map((r) => r.role)).toEqual(['Top', 'Jungle', 'Mid', 'ADC', 'Support']);
     const adc = rows.find((r) => r.role === 'ADC')!;
-    expect(adc.metrics.find((m) => m.key === 'deaths')!.split).toEqual({ wins: { mean: 1, n: 2 }, losses: { mean: 5, n: 2 }, gap: -4 });
+    expect(adc.metrics.find((m) => m.key === 'deaths')!.split).toMatchObject({ wins: { mean: 1, n: 2 }, losses: { mean: 5, n: 2 }, gap: -4 });
     expect(adc.metrics.find((m) => m.key === 'goldDiff')!.split.losses.mean).toBe(-45);
     expect(playerSplits(games.filter((g) => g.win))[0].metrics[0].split.losses.n).toBe(0);
   });
@@ -252,7 +268,7 @@ describe('playerSplits', () => {
     const rows = playerSplits(games);
     const adc = rows.find((r) => r.name === 'adc')!;
     expect(adc.games).toBe(16);
-    expect(adc.metrics.find((m) => m.key === 'deaths')!.split).toEqual({ wins: { mean: 1, n: 8 }, losses: { mean: 9, n: 8 }, gap: -8 });
+    expect(adc.metrics.find((m) => m.key === 'deaths')!.split).toMatchObject({ wins: { mean: 1, n: 8 }, losses: { mean: 9, n: 8 }, gap: -8 });
     expect(adc.seats.map((s) => s.role + ':' + s.games)).toEqual(['Top:8', 'ADC:8']);
     expect(adc.seats[0].metrics.find((m) => m.key === 'deaths')!.split.losses).toEqual({ mean: 9, n: 8 });
     expect(adc.seats[1].metrics.find((m) => m.key === 'deaths')!.split.wins).toEqual({ mean: 1, n: 8 });

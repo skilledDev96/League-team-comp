@@ -1,6 +1,6 @@
 import { ChampionFilterService } from '../../services/champion-filter.service';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AnalysisGame, LaneRead } from '../../models/team.models';
@@ -44,7 +44,7 @@ type SectionKey = 'lanes' | 'changes' | 'recurring' | 'games';
 
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, RouterLink, TooltipDirective, ChampionFilterComponent, GameCheckComponent],
+  imports: [DatePipe, NgTemplateOutlet, RouterLink, TooltipDirective, ChampionFilterComponent, GameCheckComponent],
   templateUrl: './review.component.html'
 })
 export class ReviewComponent {

@@ -104,7 +104,10 @@
         <div class="callout-body">
           <p class="advice-head">Work on</p>
           @for (a of workOnList(); track a.key) {
-            <p class="readout-line tone-loss"><strong>{{ a.strong }}</strong> {{ a.rest }} <small class="advice-n">{{ a.n }}</small></p>
+            <div class="advice-item">
+              <p class="readout-line tone-loss"><strong>{{ a.strong }}</strong> {{ a.rest }} <small class="advice-n">{{ a.n }}</small></p>
+              <ng-container *ngTemplateOutlet="evidence; context: { $implicit: a }"></ng-container>
+            </div>
           } @empty {
             <p class="muted">Nothing clears the floor yet — it takes {{ claimFloor }} wins and {{ claimFloor }} losses with the numbers behind them.</p>
           }
@@ -115,7 +118,10 @@
         <div class="callout-body">
           <p class="advice-head">Keep doing</p>
           @for (a of keepDoingList(); track a.key) {
-            <p class="readout-line tone-win"><strong>{{ a.strong }}</strong> {{ a.rest }} <small class="advice-n">{{ a.n }}</small></p>
+            <div class="advice-item">
+              <p class="readout-line tone-win"><strong>{{ a.strong }}</strong> {{ a.rest }} <small class="advice-n">{{ a.n }}</small></p>
+              <ng-container *ngTemplateOutlet="evidence; context: { $implicit: a }"></ng-container>
+            </div>
           } @empty {
             <p class="muted">Nothing clears the floor yet.</p>
           }
@@ -123,6 +129,26 @@
       </aside>
     </div>
   </section>
+
+  <!-- The games a line rests on, so a sentence can be checked before it is
+       believed. Each links to its row on Games. -->
+  <ng-template #evidence let-a>
+    @if (a.evidence?.length) {
+      <details class="advice-evidence">
+        <summary>show the games <small>{{ a.evidence.length }}</small></summary>
+        <ul class="list-clean advice-evidence-list">
+          @for (e of a.evidence; track e.matchId) {
+            <li>
+              <span class="form-pip" [class.win]="e.win" [class.loss]="!e.win">{{ e.win ? 'W' : 'L' }}</span>
+              <span class="muted">{{ e.date | date: 'd MMM' }}</span>
+              <b>{{ side({ mean: e.value, n: 1 }, a.evidenceUnit ?? 'count') }}</b>
+              <a [routerLink]="['/games']" [queryParams]="{ match: e.matchId }">open</a>
+            </li>
+          }
+        </ul>
+      </details>
+    }
+  </ng-template>
 
   <!-- The overview stops here. What follows is behind chips, off by default,
        because the tab had grown past what anyone reads in one sitting. -->
