@@ -1,0 +1,326 @@
+<section class="hero">
+  <h1>Games</h1>
+  <p>Every game we played — tournament, scrims, flex and Clash — and what keeps happening in them.</p>
+</section>
+
+<section class="view-controls" aria-label="Games views">
+  <button class="view-btn" type="button" [class.active]="tab() === 'games'" (click)="tab.set('games')">Games</button>
+  <button class="view-btn" type="button" [class.active]="tab() === 'patterns'" (click)="tab.set('patterns')">Patterns</button>
+</section>
+
+<!-- The Riot data line: who refreshed what, and the button to do it again.
+     Small on purpose — it used to be the top third of the Analysis page. -->
+<section class="card games-data" aria-label="Riot match data">
+  <div class="games-data-line">
+    @if (data.compAnalysis(); as a) {
+      <span class="muted">
+        Riot: <b>{{ a.totalTeamGames }}</b> stacked games, updated {{ a.generatedAt | date: 'MMM d, HH:mm' }}
+        @if (a.pendingMatches) { · <b>{{ a.pendingMatches }}</b> more still to fetch }
+      </span>
+    } @else {
+      <span class="muted">No Riot match data yet.</span>
+    }
+    @if (data.refreshLog(); as log) {
+      <span class="muted games-refresh-log" [class.is-bad]="!log.analysis.ok || log.playersFailed.length">
+        <span class="material-symbols-rounded" aria-hidden="true">{{ log.analysis.ok ? 'schedule' : 'error' }}</span>
+        {{ log.trigger === 'schedule' ? 'Morning refresh' : 'Server refresh' }} {{ log.ranAt | date: 'MMM d, HH:mm' }}:
+        {{ log.playersUpdated.length }} players updated@if (log.playersFailed.length) {, {{ log.playersFailed.length }} failed}@if (log.analysis.ok) {, {{ log.analysis.games }} games} @else {, analysis failed}
+      </span>
+    }
+    @if (data.keyHealth(); as k) {
+      @if (!k.ok) {
+        <span class="key-health is-bad"><span class="material-symbols-rounded" aria-hidden="true">key_off</span>{{ k.message }}</span>
+      }
+    }
+    @if (auth.editing()) {
+      <span class="games-data-actions">
+        <button type="button" class="view-btn" [disabled]="refresh.anyRunning()" (click)="refreshAnalysis()">
+          @if (analysisLoading()) { <span class="btn-spinner" aria-hidden="true"></span> } @else { <span class="material-symbols-rounded" aria-hidden="true">sync</span> }
+          {{ analysisLoading() ? 'Analyzing…' : 'Refresh match data' }}
+        </button>
+        <button type="button" class="view-btn" [disabled]="refresh.anyRunning()"
+                appTip="Re-read every player from Riot, then re-run the match analysis. Takes a few minutes."
+                (click)="refresh.refreshAll()">
+          <span class="material-symbols-rounded" aria-hidden="true">cloud_sync</span>
+          {{ refresh.allRunning() ? 'Refreshing everything…' : 'Refresh all' }}
+        </button>
+      </span>
+    }
+  </div>
+  @if (analysisError()) { <p class="analysis-error">{{ analysisError() }}</p> }
+</section>
+
+@if (tab() === 'patterns') {
+  <app-review [embedded]="true" />
+} @else {
+  <!-- One filter row. Source, window, result, opponent; the champion box is
+       the same one every page shares. -->
+  <section class="card games-filters" aria-label="Filters">
+    <div class="view-segment" role="group" aria-label="Source">
+      <button type="button" [class.active]="source() === 'all'" (click)="source.set('all')">All</button>
+      <button type="button" [class.active]="source() === 'tournament'" (click)="source.set('tournament')">Tournament</button>
+      <button type="button" [class.active]="source() === 'scrim'" (click)="source.set('scrim')">Scrims</button>
+      <button type="button" [class.active]="source() === 'riot'" (click)="source.set('riot')">Flex &amp; Clash</button>
+    </div>
+    <div class="view-segment" role="group" aria-label="Window">
+      @for (w of windows; track w.days) {
+        <button type="button" [class.active]="days() === w.days" (click)="days.set(w.days)">{{ w.label }}</button>
+      }
+    </div>
+    <div class="view-segment" role="group" aria-label="Result">
+      <button type="button" [class.active]="result() === 'all'" (click)="result.set('all')">All</button>
+      <button type="button" [class.active]="result() === 'win'" (click)="result.set('win')">Wins</button>
+      <button type="button" [class.active]="result() === 'loss'" (click)="result.set('loss')">Losses</button>
+    </div>
+    @if (opponents().length) {
+      <label class="field compact-field games-opponent"><span>Opponent</span>
+        <select [ngModel]="opponent()" (ngModelChange)="opponent.set($event)" name="gamesOpponent">
+          <option value="">Anyone</option>
+          @for (o of opponents(); track o) { <option [value]="o">{{ o }}</option> }
+        </select>
+      </label>
+    }
+    @if (comp()) {
+      <button type="button" class="view-btn active" (click)="clearComp()" appTip="Showing only the games under this comp — click to show every game">
+        {{ compName() || 'comp' }} <span class="material-symbols-rounded" aria-hidden="true">close</span>
+      </button>
+    }
+    <app-champion-filter [count]="rows().length" noun="games" placeholder="Games with a champion, either side — Tristana, Rakan…" />
+  </section>
+
+  <!-- The record, then where it comes from. -->
+  <section class="card games-record" aria-label="Record">
+    <div class="insight-tiles games-tiles">
+      <div class="insight-tile is-lead">
+        <span class="insight-label">Record</span>
+        <span class="insight-value" [class.pos]="overall().games && overall().winRate >= 50" [class.neg]="overall().games && overall().winRate < 50">
+          {{ overall().wins }}W&#8211;{{ overall().losses }}L @if (overall().games) { · {{ overall().winRate }}% }
+        </span>
+        <span class="insight-sub">{{ overall().games }} game{{ overall().games === 1 ? '' : 's' }}@if (length()) { · {{ clock(length()) }} average }</span>
+      </div>
+      @for (s of bySource(); track s.source) {
+        <button type="button" class="insight-tile is-source" [class.active]="source() === s.source"
+                (click)="source.set(source() === s.source ? 'all' : s.source)">
+          <span class="insight-label">{{ s.label }}</span>
+          <span class="insight-value" [class.pos]="s.games && s.winRate >= 50" [class.neg]="s.games && s.winRate < 50">
+            @if (s.games) { {{ s.wins }}W&#8211;{{ s.losses }}L · {{ s.winRate }}% } @else { — }
+          </span>
+        </button>
+      }
+      <div class="insight-tile">
+        <span class="insight-label">Blue · Red</span>
+        <span class="insight-value">
+          <span [class.pos]="sides().blue.games && sides().blue.winRate >= 50" [class.neg]="sides().blue.games && sides().blue.winRate < 50">{{ sides().blue.games ? sides().blue.winRate + '%' : '—' }}</span>
+          <span class="muted"> · </span>
+          <span [class.pos]="sides().red.games && sides().red.winRate >= 50" [class.neg]="sides().red.games && sides().red.winRate < 50">{{ sides().red.games ? sides().red.winRate + '%' : '—' }}</span>
+        </span>
+        <span class="insight-sub">{{ sides().blue.games }} blue, {{ sides().red.games }} red</span>
+      </div>
+      <div class="insight-tile insight-form">
+        <span class="insight-label">Form, newest first</span>
+        <span class="form-strip">
+          @for (g of form(); track g.id) {
+            <span class="form-pip" [class.win]="g.win" [class.loss]="!g.win" [appTip]="(g.win ? 'Win' : 'Loss') + ' · ' + g.label + (g.opponent ? ' vs ' + g.opponent : '')">{{ g.win ? 'W' : 'L' }}</span>
+          }
+          @if (!form().length) { <span class="muted">—</span> }
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Who is carrying, over whatever is filtered. Tournament games add nothing
+       here: they have no numbers. -->
+  @if (players().length) {
+    <section class="card games-players" aria-label="Player lines">
+      <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>Players</h2>
+      <div class="games-scroll">
+        <table class="opp-history-stats games-player-table">
+          <thead>
+            <tr>
+              <th scope="col">Player</th>
+              <th scope="col" class="num">Games</th>
+              <th scope="col" class="num" appTip="Wins and losses over these games">Record</th>
+              <th scope="col" class="num" appTip="Kills / deaths / assists, totals, and the ratio">KDA</th>
+              <th scope="col" class="num" appTip="CS per minute over the games that know both">CS/min</th>
+              <th scope="col" class="num" appTip="Share of the team's damage to champions">DMG share</th>
+              <th scope="col" class="num" appTip="Kill participation, from Riot games">KP</th>
+              <th scope="col">Played</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of players(); track p.name) {
+              <tr>
+                <td>{{ p.name }}</td>
+                <td class="num">{{ p.games }}</td>
+                <td class="num" [class.pos]="p.winRate >= 50" [class.neg]="p.winRate < 50">{{ p.wins }}&#8211;{{ p.games - p.wins }}</td>
+                <td class="num">{{ p.kills }}/{{ p.deaths }}/{{ p.assists }} <small class="muted">{{ p.kda }}</small></td>
+                <td class="num">{{ p.csPerMin ?? '—' }}</td>
+                <td class="num">{{ pct(p.damageShare) }}</td>
+                <td class="num">{{ pct(p.killParticipation) }}</td>
+                <td>
+                  <span class="games-champs">
+                    @for (c of p.champions.slice(0, 6); track c.champion) {
+                      <img [src]="ui.championIconUrl(c.champion)" [alt]="c.champion" loading="lazy"
+                           [appTip]="c.champion + ': ' + c.wins + ' of ' + c.games + ' won'" />
+                    }
+                    @if (p.champions.length > 6) { <span class="muted">+{{ p.champions.length - 6 }}</span> }
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (toughest().length) {
+        <p class="games-toughest">
+          <span class="insight-label">Beats us most</span>
+          @for (t of toughest(); track t.champion) {
+            <span class="games-tough" [appTip]="t.champion + ': we won ' + t.wins + ' of ' + t.games + ' against it'">
+              <img [src]="ui.championIconUrl(t.champion)" [alt]="" loading="lazy" />
+              <b class="neg">{{ t.winRate }}%</b><small>{{ t.games }}</small>
+            </span>
+          }
+        </p>
+      }
+    </section>
+  }
+
+  <!-- The games themselves. Same row as the opponent history, because it is
+       the same question: who played what, and how did it go. -->
+  <section class="card" aria-label="Games">
+    @if (rows().length) {
+      <div class="opp-history-games games-list">
+        @for (g of rows(); track g.id) {
+          <details class="opp-history-game games-row" [class.is-win]="g.win" [attr.data-row]="g.id" [class.is-focused]="g.id === focus()">
+            <summary class="opp-history-head">
+              <span class="opp-history-result">{{ g.win ? 'W' : 'L' }}</span>
+              <span class="opp-history-when">{{ day(g.date) }}</span>
+              <span class="games-source" [class]="'games-source is-' + g.source">{{ g.label }}</span>
+              @if (g.opponent) { <span class="games-opp">vs {{ g.opponent }}</span> }
+              @if (g.side) { <span class="opp-history-side" [class.is-blue]="g.side === 'blue'">{{ g.side }}</span> }
+              @if (g.rosterCount !== undefined && g.rosterCount < 5) {
+                <span class="opp-history-count" [appTip]="g.rosterCount + ' of the roster on our side'">{{ g.rosterCount }}/5</span>
+              }
+              <span class="opp-history-lineup">
+                @for (p of g.ours; track p.role + p.champion) {
+                  <img [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" [class.is-other]="g.source !== 'tournament' && !p.player" loading="lazy"
+                       [appTip]="(p.player || (g.source === 'tournament' ? 'us' : 'not on the roster')) + ' — ' + p.champion + (p.role ? ' (' + p.role + ')' : '')" />
+                }
+              </span>
+              <span class="opp-history-vs">vs</span>
+              <span class="opp-history-lineup is-enemy">
+                @for (p of g.theirs; track p.role + p.champion) {
+                  <img [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" loading="lazy" [appTip]="p.champion + (p.role ? ' (' + p.role + ')' : '')" />
+                }
+              </span>
+              @if (g.kills) { <span class="games-kills" [appTip]="'Kills, ours first'">{{ g.kills.ours }}&ndash;{{ g.kills.theirs }}</span> }
+              @if (g.durationSec) { <span class="opp-history-when">{{ clock(g.durationSec) }}</span> }
+              @if (g.compName) { <span class="games-comp" [appTip]="'Counted under this comp'">{{ g.compName }}</span> }
+              <span class="opp-history-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+            </summary>
+            <div class="opp-history-detail">
+              @if (g.objectives; as o) {
+                <div class="opp-history-line" aria-label="Objectives, ours first">
+                  <span><small>Dragons</small><b>{{ o.ours.dragons }}</b>&ndash;{{ o.theirs.dragons }}</span>
+                  <span><small>Barons</small><b>{{ o.ours.barons }}</b>&ndash;{{ o.theirs.barons }}</span>
+                  <span><small>Towers</small><b>{{ o.ours.towers }}</b>&ndash;{{ o.theirs.towers }}</span>
+                  <span><small>Grubs</small><b>{{ o.ours.grubs }}</b>&ndash;{{ o.theirs.grubs }}</span>
+                  <span><small>Heralds</small><b>{{ o.ours.heralds }}</b>&ndash;{{ o.theirs.heralds }}</span>
+                  @if (o.ours.firstBlood || o.theirs.firstBlood) { <span><small>First blood</small>{{ o.ours.firstBlood ? 'us' : 'them' }}</span> }
+                  @if (o.ours.firstTower || o.theirs.firstTower) { <span><small>First tower</small>{{ o.ours.firstTower ? 'us' : 'them' }}</span> }
+                </div>
+              }
+              @if (g.ours[0]?.stats) {
+                <div class="games-scroll">
+                  <table class="opp-history-stats">
+                    <thead>
+                      <tr>
+                        <th scope="col">Seat</th><th scope="col" colspan="2">Champion</th><th scope="col">Player</th>
+                        <th scope="col" class="num">KDA</th>
+                        <th scope="col" class="num">CS</th>
+                        <th scope="col" class="num" appTip="Damage to champions">DMG</th>
+                        <th scope="col" class="num" appTip="Damage taken">Taken</th>
+                        @if (g.source === 'riot') { <th scope="col" class="num" appTip="Kill participation">KP</th> }
+                        @if (g.source === 'scrim') { <th scope="col" class="num">Gold</th> }
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (p of g.ours; track p.role + p.champion) {
+                        <tr [class.is-other]="!p.player">
+                          <td>{{ p.role || '—' }}</td>
+                          <td class="icon"><img [src]="ui.championIconUrl(p.champion)" [alt]="" loading="lazy" /></td>
+                          <td>{{ p.champion }}</td>
+                          <td>{{ p.player || 'not on the roster' }}</td>
+                          <td class="num">{{ p.stats?.kills }}/{{ p.stats?.deaths }}/{{ p.stats?.assists }}</td>
+                          <td class="num">{{ p.stats?.cs }}</td>
+                          <td class="num">{{ compact(p.stats?.damage) }}</td>
+                          <td class="num">{{ compact(p.stats?.damageTaken) }}</td>
+                          @if (g.source === 'riot') { <td class="num">{{ pct(p.stats?.killParticipation) }}</td> }
+                          @if (g.source === 'scrim') { <td class="num">{{ compact(p.stats?.gold) }}</td> }
+                        </tr>
+                      }
+                      @if (g.theirs[0]?.stats) {
+                        <tr class="opp-history-split"><td colspan="10">The other side</td></tr>
+                        @for (p of g.theirs; track p.role + p.champion) {
+                          <tr class="is-enemy">
+                            <td>{{ p.role || '—' }}</td>
+                            <td class="icon"><img [src]="ui.championIconUrl(p.champion)" [alt]="" loading="lazy" /></td>
+                            <td>{{ p.champion }}</td>
+                            <td></td>
+                            <td class="num">{{ p.stats?.kills }}/{{ p.stats?.deaths }}/{{ p.stats?.assists }}</td>
+                            <td class="num">{{ p.stats?.cs }}</td>
+                            <td class="num">{{ compact(p.stats?.damage) }}</td>
+                            <td class="num">{{ compact(p.stats?.damageTaken) }}</td>
+                            @if (g.source === 'riot') { <td class="num">{{ pct(p.stats?.killParticipation) }}</td> }
+                            @if (g.source === 'scrim') { <td class="num">{{ compact(p.stats?.gold) }}</td> }
+                          </tr>
+                        }
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <p class="muted opp-history-nostats">
+                  @if (g.source === 'tournament') {
+                    Typed in from the draft room: champions and the result only. Riot cannot see a custom game, so there are no numbers to show.
+                  } @else {
+                    No numbers on this game yet.
+                  }
+                </p>
+              }
+              @if (g.matchId) {
+                <app-match-note [matchId]="g.matchId" />
+                <div class="games-row-actions">
+                  <app-match-note-button [matchId]="g.matchId" />
+                  @if (auth.editing() && data.comps().length) {
+                    <label class="field compact-field"><span>Counts as</span>
+                      <select [name]="'compfor-' + g.matchId" [ngModel]="data.compOverride(g.matchId)" (ngModelChange)="setGameComp(g.matchId, $event)">
+                        <option value="">Auto — {{ g.compName || 'off the books' }}</option>
+                        @for (comp of data.comps(); track comp.id) { <option [value]="comp.id">{{ comp.name }}</option> }
+                      </select>
+                    </label>
+                  }
+                </div>
+              }
+              @if (g.link) {
+                <div class="games-row-actions">
+                  <a class="view-btn" [routerLink]="[g.link.path]" [queryParams]="g.link.query ?? {}">
+                    {{ g.source === 'scrim' ? 'Open on Scrims' : 'Open the draft' }}
+                    <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                  </a>
+                </div>
+              }
+            </div>
+          </details>
+        }
+      </div>
+    } @else {
+      <p class="muted games-empty">
+        No games for this filter.
+        @if (!allRows().length) {
+          Tournament games appear once a result is set on the plan page, scrims once a replay is dropped on Scrims, and flex or Clash games after Refresh match data.
+        }
+      </p>
+    }
+  </section>
+}

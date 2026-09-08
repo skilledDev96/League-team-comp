@@ -1,14 +1,15 @@
-<section class="hero">
-  <h1>Match Review</h1>
-  <p>What keeps happening in your games, read from the objectives both teams took.</p>
-</section>
+@if (!embedded()) {
+  <section class="hero">
+    <h1>Match Review</h1>
+    <p>What keeps happening in your games, read from the objectives both teams took.</p>
+  </section>
+}
 
 @if (!analysis()) {
   <section class="card">
     <p class="empty-state">
-      No match data yet. Run <strong>Refresh match data</strong> on the
-      <a routerLink="/analysis">Analysis</a> page first — it is the same scan this
-      page reads, and the button here appears once there are games to review.
+      No match data yet. Run <strong>Refresh match data</strong> at the top of this
+      page first — the patterns read the same scan.
     </p>
   </section>
 } @else {
@@ -39,7 +40,7 @@
         <span class="meta-value">{{ record().wins }}W / {{ record().losses }}L over {{ record().games }} games</span>
       </p>
     </div>
-    <div class="review-refresh">
+    <div class="review-refresh" [hidden]="embedded()">
       @if (analysis()?.generatedAt; as generated) {
         <p class="meta-line"><span class="meta-label">Last refreshed</span><span class="meta-value">{{ generated | date: 'medium' }}</span></p>
       }

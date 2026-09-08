@@ -905,8 +905,8 @@
         @for (m of recentGames(); track m.matchId) {
           <li class="prep-row" [class.is-tagged]="isPrep(m.matchId)">
             <div class="prep-row-head">
-              <a class="prep-link" [routerLink]="['/analysis']" [queryParams]="{ match: m.matchId }"
-                 appTip="Open this game in Analysis">
+              <a class="prep-link" [routerLink]="['/games']" [queryParams]="{ match: m.matchId }"
+                 appTip="Open this game on Games">
                 <span class="prep-outcome" [class.is-win]="m.win" [class.is-loss]="!m.win">{{ m.win ? 'W' : 'L' }}</span>
                 <span class="prep-when">{{ candidateLabel(m) }}</span>
                 <span class="prep-champs">{{ candidateChampions(m).join(', ') }}</span>

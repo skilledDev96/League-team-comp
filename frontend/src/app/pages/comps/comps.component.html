@@ -206,7 +206,7 @@
         </div>
 
         @if (rankedRecord(comp.id); as ranked) {
-          <a class="comp-ranked-record" [routerLink]="['/analysis']" [queryParams]="{ comp: comp.id }"
+          <a class="comp-ranked-record" [routerLink]="['/games']" [queryParams]="{ comp: comp.id }"
              appTip="Open this comp&rsquo;s games on the Analysis page">
             <span class="material-symbols-rounded" aria-hidden="true">query_stats</span>
             <span class="comp-ranked-label">Match history</span>
@@ -248,7 +248,7 @@
             <ul class="comp-retro-notes">
               @for (n of (retroExpanded(comp.id) ? r.notes : r.notes.slice(0, retroPreviewSize)); track n.matchId) {
                 <li class="comp-retro-note" [class.is-win]="n.win" [class.is-loss]="!n.win">
-                  <a class="comp-retro-note-link" [routerLink]="['/analysis']" [queryParams]="{ match: n.matchId }"
+                  <a class="comp-retro-note-link" [routerLink]="['/games']" [queryParams]="{ match: n.matchId }"
                      appTip="Open the game this note is about">
                     <span class="comp-retro-note-outcome">{{ n.win ? 'W' : 'L' }}</span>
                     <span class="comp-retro-note-body">

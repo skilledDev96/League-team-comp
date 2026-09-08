@@ -91,7 +91,8 @@ In Firebase mode the signals are kept live by `onSnapshot` listeners set up in `
 **Pages and routes** (`frontend/src/app/app.routes.ts`, nav in `app/app.html`): every
 route is lazy via `loadComponent`, and every content route is behind `viewerGuard`
 (`/admin` uses `authGuard`). `/` and `/login` are the login page; the rest are
-`/roster`, `/player/:id`, `/comps`, `/analysis`, `/review`, `/tournaments`,
+`/roster`, `/player/:id`, `/comps`, `/games` (with `/analysis` and `/review`
+still resolving to it), `/tournaments`,
 `/synergy`, `/admin`. Adding a page means touching both files — the route alone
 leaves it unreachable.
 
@@ -232,9 +233,14 @@ filter rather than none, so it can never become unpickable.
    `CACHE_VERSION`, attributes games to comps, and returns a `CompAnalysis`.
 3. That result is persisted into `TeamData.compAnalysis`, so pages read it from
    `TeamDataService.compAnalysis()` — **no page calls Riot directly.**
-4. `/analysis` owns the Refresh button. `/review` is read-only over the same
-   payload and answers a different question (why the games went the way they
-   did), which is why it is a separate page rather than another panel. It
+4. `/games` owns the Refresh button and lists every game from every source
+   (`pages/games/game-rows.ts`, pure and tested: Riot games, scrims from
+   replays, tournament games typed in from the draft room — each row says
+   what its source knows). Review is its **Patterns** tab (`ReviewComponent`,
+   `embedded`), read-only over the same payload and answering a different
+   question (why the games went the way they did). The comp-first Analysis
+   page was retired on 8 Sep 2026 — comps keep their records on Comps, and
+   here a comp is a tag on a game. Review
    toggles between losses and wins; `describeLoss` and `describeWin` in
    `api/src/objectives.ts` are deliberate mirrors on shared thresholds, and the
    page counts both through one `summarise` so the two cannot drift.
@@ -334,7 +340,7 @@ two separate edits can create one.
 
 **The rules are applied twice, and both are needed.** The backend applies them so
 the stored analysis and `perComp` are right. The browser applies them again in
-`core/comp-alias.ts`, because the Analysis page re-derives comp membership from
+`core/comp-alias.ts`, because the Games page derives comp membership from
 `nearCompName` on every render so the strictness slider can respond without a
 Riot call — and that re-derivation ignores `game.compId` entirely. Wiring only
 the backend leaves an override visibly doing nothing: the game stays off the

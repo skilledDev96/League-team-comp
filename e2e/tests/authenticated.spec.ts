@@ -54,12 +54,17 @@ test('the comps page renders comps', async ({ page }) => {
   await expect(page.locator('.comp-card').first()).toBeVisible({ timeout: 30_000 });
 });
 
-test('the analysis page renders', async ({ page }) => {
-  await page.goto('./analysis');
-  // Either a comp breakdown or the empty state — both mean the page worked.
-  await expect(page.locator('.analysis-list, .analysis-empty, .log-list').first()).toBeVisible({
+test('the games page renders', async ({ page }) => {
+  await page.goto('./games');
+  // A list of games or the line saying there are none — both mean the page worked.
+  await expect(page.locator('.games-list, .games-empty').first()).toBeVisible({
     timeout: 30_000
   });
+});
+
+test('the old analysis path still lands on games', async ({ page }) => {
+  await page.goto('./analysis');
+  await expect(page.getByRole('heading', { name: 'Games' })).toBeVisible({ timeout: 30_000 });
 });
 
 test('the tournaments page offers both views', async ({ page }) => {
@@ -79,7 +84,7 @@ test('the draft board loads', async ({ page }) => {
   ).toBeVisible({ timeout: 30_000 });
 });
 
-test('the review page renders', async ({ page }) => {
+test('the review path opens the patterns tab', async ({ page }) => {
   await page.goto('./review');
   // The toolbar means there are games to review; the empty state means nobody
   // has refreshed on Analysis yet. Both are the page working, and which one
@@ -106,7 +111,7 @@ test('no console errors while moving around signed in', async ({ page }) => {
     errors.push(`404: ${response.url()}`);
   });
 
-  for (const path of ['./', './comps', './analysis', './review', './tournaments']) {
+  for (const path of ['./', './comps', './games', './review', './tournaments']) {
     await page.goto(path);
     await expect(page.getByRole('link', { name: 'Comps' })).toBeVisible({ timeout: 30_000 });
   }

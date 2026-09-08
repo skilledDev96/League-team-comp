@@ -1,8 +1,7 @@
 import { ChampionFilterService } from '../../services/champion-filter.service';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { AnalysisGame } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
@@ -39,10 +38,12 @@ import {
  */
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, RouterLink, TooltipDirective, ChampionFilterComponent],
+  imports: [DatePipe, TooltipDirective, ChampionFilterComponent],
   templateUrl: './review.component.html'
 })
 export class ReviewComponent {
+  /** Hosted as the Patterns tab of the Games page: no hero, no refresh button of its own. */
+  readonly embedded = input(false);
   protected readonly data = inject(TeamDataService);
   protected readonly auth = inject(AuthService);
   protected readonly ui = inject(UiService);

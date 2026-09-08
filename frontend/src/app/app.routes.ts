@@ -43,14 +43,23 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/comps/comps.component').then((m) => m.CompsComponent)
   },
   {
+    // Every game we played, from every source, with Review folded in as its
+    // Patterns tab (8 Sep 2026). The two old paths still resolve so links in
+    // notes and the e2e suite land where they always did.
+    path: 'games',
+    canActivate: [viewerGuard],
+    loadComponent: () => import('./pages/games/games.component').then((m) => m.GamesComponent)
+  },
+  {
     path: 'analysis',
     canActivate: [viewerGuard],
-    loadComponent: () => import('./pages/analysis/analysis.component').then((m) => m.AnalysisComponent)
+    loadComponent: () => import('./pages/games/games.component').then((m) => m.GamesComponent)
   },
   {
     path: 'review',
     canActivate: [viewerGuard],
-    loadComponent: () => import('./pages/review/review.component').then((m) => m.ReviewComponent)
+    data: { tab: 'patterns' },
+    loadComponent: () => import('./pages/games/games.component').then((m) => m.GamesComponent)
   },
   {
     // Scrims are practice, not competition: no bracket, no best-of, no fearless

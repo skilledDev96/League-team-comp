@@ -13477,3 +13477,111 @@ button.opp-more.active {
   .draft-log-row { grid-template-columns: 1fr 1fr; }
   .draft-log-changes { grid-column: 1 / -1; }
 }
+
+
+/* ---- Games (8 Sep 2026) ----------------------------------------------------
+   One page for every game we played. The rows are the opponent-history rows;
+   above them one filter line and the record, with a player table between. */
+.games-data { padding: 0.6rem 0.9rem; }
+
+.games-data-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.2rem;
+  font-size: 0.8rem;
+}
+
+.games-data-line b { color: var(--text-0); }
+.games-refresh-log .material-symbols-rounded { font-size: 1rem; vertical-align: -0.2rem; margin-right: 0.2rem; }
+.games-refresh-log.is-bad { color: var(--warn); }
+.games-data-actions { margin-left: auto; display: inline-flex; gap: 0.5rem; }
+
+.games-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.9rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.games-filters .champ-filter { margin: 0; flex: 1 1 18rem; }
+.games-opponent { margin: 0; }
+
+.games-tiles { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+
+.insight-tile.is-lead .insight-value { font-size: 1.25rem; }
+.insight-sub { display: block; margin-top: 0.15rem; font-size: 0.7rem; color: var(--text-1); }
+
+button.insight-tile {
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+}
+
+button.insight-tile:hover { border-color: var(--accent); }
+button.insight-tile.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+.games-scroll { overflow-x: auto; }
+
+.games-player-table td.pos, .games-player-table .pos { color: var(--ok); }
+.games-player-table td.neg, .games-player-table .neg { color: var(--warn); }
+
+.games-champs { display: inline-flex; align-items: center; gap: 0.2rem; }
+
+.games-champs img,
+.games-tough img {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.3rem;
+  border: 1px solid var(--card-border);
+}
+
+.games-toughest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.8rem;
+  margin: 0.7rem 0 0;
+  font-size: 0.78rem;
+}
+
+.games-tough { display: inline-flex; align-items: center; gap: 0.3rem; }
+.games-tough small { color: var(--text-1); }
+
+.games-source {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--card-border) 60%, transparent);
+  color: var(--text-1);
+}
+
+.games-source.is-tournament { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text-0); }
+.games-source.is-scrim { background: color-mix(in srgb, var(--accent-2) 20%, transparent); color: var(--text-0); }
+
+.games-opp { color: var(--text-0); font-weight: 600; }
+.games-kills { font-variant-numeric: tabular-nums; color: var(--text-1); }
+.games-comp {
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  color: var(--text-1);
+}
+
+.games-row.is-focused { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+
+.games-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.games-row-actions .field { margin: 0; }
+.games-empty { margin: 0.3rem 0; }
