@@ -56,9 +56,13 @@ import { LaneRead, PlayerFacts, playerFacts, readLanes } from './lane-read';
 import { extractExtras, ParticipantExtras } from './participant-extras';
 import Anthropic from '@anthropic-ai/sdk';
 import { ADVICE_SCHEMA, ADVISOR_SYSTEM, buildDraftPrompt, parseAdvice, parseDraftAdviceRequest } from './draft-advice';
+import { buildMatchTimeline, isTimelineCurrent, MatchTimeline } from './timeline-features';
 import {
+  MAX_TIMELINE_FETCHES,
   PLAYER_BUDGET_SECONDS,
   RefreshLog,
+  TIMELINE_BUDGET_SECONDS,
+  timelineCandidates,
   StoredComp,
   StoredOverride,
   StoredPlayer,
@@ -1307,6 +1311,12 @@ interface AnalysisGameResponse {
    * counts it as skipped rather than as even.
    */
   laneData?: 'riot' | 'none';
+  /**
+   * Whether a derived timeline document exists for the game: 'riot' when one
+   * is current, 'none' for a replay (which never has one), absent while a Riot
+   * game waits its turn in the morning backfill.
+   */
+  timelineData?: 'riot' | 'none';
 }
 
 /**
@@ -1456,6 +1466,84 @@ async function getCachedMatch(
   return { match, fromCache: false, healed };
 }
 
+// ---- Timelines ---------------------------------------------------------------
+//
+// Match-V5's second document per game: a frame a minute and the event log.
+// Fetched once, reduced by `timeline-features.ts` to a document a few
+// kilobytes long, and never stored raw. A game needs its match in the cache
+// first — that is where the seats and the sides come from.
+
+interface RiotTimelineResponse {
+  info: { frameInterval?: number; participants?: { participantId: number; puuid: string }[]; frames: unknown[] };
+}
+
+/** The derived timeline for one game, from Firestore when current, else from Riot. */
+async function getMatchTimeline(
+  matchId: string,
+  roster: ResolvedRoster,
+  apiKey: string
+): Promise<{ timeline: MatchTimeline | null; fromCache: boolean }> {
+  const db = getFirestore();
+  const ref = db.doc(`matchTimeline/${matchId}`);
+  const snap = await ref.get();
+  if (snap.exists) {
+    const stored = snap.data() as MatchTimeline;
+    if (isTimelineCurrent(stored)) return { timeline: stored, fromCache: true };
+  }
+  const matchSnap = await db.doc(`matchCache/${matchId}`).get();
+  if (!matchSnap.exists) return { timeline: null, fromCache: false };
+  const match = matchSnap.data() as CachedMatch;
+  const raw = await riotFetch<RiotTimelineResponse>(
+    `https://${roster.routing.regional}.api.riotgames.com/lol/match/v5/matches/${matchId}/timeline`,
+    apiKey
+  );
+  const timeline = buildMatchTimeline(
+    matchId,
+    raw as Parameters<typeof buildMatchTimeline>[1],
+    match,
+    roster.rosterPuuids,
+    roster.nameByPuuid,
+    new Date().toISOString()
+  );
+  if (!timeline) return { timeline: null, fromCache: false };
+  await ref.set(stripUndefinedDeep(timeline));
+  return { timeline, fromCache: false };
+}
+
+/**
+ * The morning's share of timelines: newest prep games first, inside the
+ * fetch cap and the run's deadline. Failures are counted, never thrown — a
+ * timeline is a nicety on top of an analysis that already stands.
+ */
+async function backfillTimelines(
+  games: readonly AnalysisGameResponse[],
+  practiceIds: ReadonlySet<string>,
+  roster: ResolvedRoster,
+  apiKey: string,
+  deadlineMs: number
+): Promise<NonNullable<RefreshLog['timelines']>> {
+  const wanted = timelineCandidates(games, practiceIds, Number.MAX_SAFE_INTEGER);
+  const batch = wanted.slice(0, MAX_TIMELINE_FETCHES);
+  let fetched = 0;
+  let failed = 0;
+  let stopped = false;
+  for (const game of batch) {
+    if (Date.now() > deadlineMs) {
+      stopped = true;
+      break;
+    }
+    try {
+      const { timeline } = await getMatchTimeline(game.matchId, roster, apiKey);
+      if (timeline) fetched += 1;
+      else failed += 1;
+    } catch (error) {
+      failed += 1;
+      console.error(`Timeline for ${game.matchId} failed`, error);
+    }
+  }
+  return { fetched, failed, pending: Math.max(0, wanted.length - fetched), ...(stopped && { skipped: 'time' as const }) };
+}
+
 /**
  * Firestore rejects undefined values outright, which fails the whole write. The
  * frontend already strips before persisting; do the same here so one optional
@@ -1506,15 +1594,20 @@ interface CompAnalysisResponse {
   payloadBytes?: number;
 }
 
-async function computeCompAnalysis(
-  payload: CompAnalysisRequest,
-  apiKey: string
-): Promise<CompAnalysisResponse> {
-  const firstRegion = payload.players[0]?.region ?? 'euw';
-  const routing = REGION_ROUTING[firstRegion] ?? REGION_ROUTING.euw;
+/** The roster with Riot's ids attached, resolved once per run. */
+interface ResolvedRoster {
+  firstRegion: string;
+  routing: { platform: string; regional: string };
+  identities: (SynergyPlayerRequest & { puuid: string })[];
+  rosterPuuids: Set<string>;
+  nameByPuuid: Map<string, string>;
+}
 
+async function resolveRoster(players: SynergyPlayerRequest[], apiKey: string): Promise<ResolvedRoster> {
+  const firstRegion = players[0]?.region ?? 'euw';
+  const routing = REGION_ROUTING[firstRegion] ?? REGION_ROUTING.euw;
   const identities = await Promise.all(
-    payload.players.map(async (player) => {
+    players.map(async (player) => {
       const tagLine = (player.riotTag || firstRegion.toUpperCase()).replace(/^#/, '');
       const account = await riotFetch<RiotAccount>(
         `https://${routing.regional}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(player.name)}/${encodeURIComponent(tagLine)}`,
@@ -1523,8 +1616,21 @@ async function computeCompAnalysis(
       return { ...player, puuid: account.puuid };
     })
   );
-  const rosterPuuids = new Set(identities.map((i) => i.puuid));
-  const nameByPuuid = new Map(identities.map((i) => [i.puuid, i.name]));
+  return {
+    firstRegion,
+    routing,
+    identities,
+    rosterPuuids: new Set(identities.map((i) => i.puuid)),
+    nameByPuuid: new Map(identities.map((i) => [i.puuid, i.name]))
+  };
+}
+
+async function computeCompAnalysis(
+  payload: CompAnalysisRequest,
+  apiKey: string,
+  resolved?: ResolvedRoster
+): Promise<CompAnalysisResponse> {
+  const { routing, identities, rosterPuuids, nameByPuuid } = resolved ?? (await resolveRoster(payload.players, apiKey));
 
   // Scrims, imported from replay files by the browser. Custom games never enter
   // the Riot API, so this is the only way they reach the analysis — and they are
@@ -1790,6 +1896,19 @@ async function computeCompAnalysis(
 
   games.sort((a, b) => b.date - a.date);
 
+  // Which games have a derived timeline. One query over one field, so the
+  // pages can say "no timeline yet" without reading two hundred documents.
+  try {
+    const snap = await getFirestore().collection('matchTimeline').select('timelineVersion').get();
+    const current = new Set(snap.docs.filter((d) => isTimelineCurrent(d.data() as { timelineVersion?: number })).map((d) => d.id));
+    for (const game of games) {
+      if (game.queue === 'Scrim') game.timelineData = 'none';
+      else if (current.has(game.matchId)) game.timelineData = 'riot';
+    }
+  } catch (error) {
+    console.error('Timeline coverage read failed', error);
+  }
+
   const response: CompAnalysisResponse = {
     comps,
     games,
@@ -1933,13 +2052,16 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
     }
   }
 
+  let analysed: { analysis: CompAnalysisResponse; roster: ResolvedRoster } | null = null;
   try {
     const request = analysisRequestFrom(players, comps, overrides);
     if (request.players.length < 5) {
       throw new Error(`Only ${request.players.length} roster players; the analysis needs five.`);
     }
-    const analysis = await computeCompAnalysis(request, apiKey ?? '');
+    const roster = await resolveRoster(request.players, apiKey ?? '');
+    const analysis = await computeCompAnalysis(request, apiKey ?? '', roster);
     await db.doc('meta/compAnalysis').set(stripUndefinedDeep(analysis));
+    analysed = { analysis, roster };
     log.analysis = {
       ok: true,
       games: analysis.totalTeamGames,
@@ -1949,6 +2071,28 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
   } catch (error) {
     log.analysis = { ok: false, error: error instanceof Error ? error.message : 'Analysis failed.' };
     console.error('Morning refresh: analysis failed', error);
+  }
+
+  // Timelines last: they are read by the review, not by the pages, so they
+  // take whatever time the players and the analysis left.
+  if (!analysed) {
+    log.timelines = { fetched: 0, failed: 0, pending: 0, skipped: 'analysis' };
+  } else if ((Date.now() - startedAt) / 1000 > TIMELINE_BUDGET_SECONDS) {
+    log.timelines = { fetched: 0, failed: 0, pending: timelineCandidates(analysed.analysis.games, new Set(), Number.MAX_SAFE_INTEGER).length, skipped: 'time' };
+  } else {
+    try {
+      const practiceSnap = await db.collection('practiceGames').get();
+      const practiceIds = new Set(practiceSnap.docs.map((d) => d.id));
+      log.timelines = await backfillTimelines(
+        analysed.analysis.games,
+        practiceIds,
+        analysed.roster,
+        apiKey ?? '',
+        startedAt + TIMELINE_BUDGET_SECONDS * 1000 + 30_000
+      );
+    } catch (error) {
+      console.error('Morning refresh: timelines failed', error);
+    }
   }
 
   log.finishedAt = new Date().toISOString();

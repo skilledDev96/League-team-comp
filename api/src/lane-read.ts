@@ -67,7 +67,7 @@ export interface PlayerFacts {
   damageShare?: number;
 }
 
-const POSITION_ROLE: Record<string, LaneRole> = {
+export const POSITION_ROLE: Record<string, LaneRole> = {
   TOP: 'Top',
   JUNGLE: 'Jungle',
   MIDDLE: 'Mid',

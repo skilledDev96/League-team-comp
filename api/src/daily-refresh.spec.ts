@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   analysisRequestFrom,
   championOfLine,
+  MAX_TIMELINE_FETCHES,
   mergeChampionPool,
   mergePlayer,
   refreshOrder,
-  StoredPlayer
+  StoredPlayer,
+  timelineCandidates
 } from './daily-refresh';
 
 describe('championOfLine', () => {
@@ -118,6 +120,34 @@ describe('mergePlayer', () => {
       queueStats: { solo: { games: 3 } },
       refreshedAt: '2026-09-06T05:00:00Z'
     });
+  });
+});
+
+describe('timelineCandidates', () => {
+  const g = (matchId: string, date: number, over: Partial<{ queue: string; timelineData: 'riot' | 'none' }> = {}) => ({
+    matchId,
+    date,
+    queue: 'Flex',
+    ...over
+  });
+
+  it('wants Riot games without a current timeline, newest first, practice games left out, capped', () => {
+    const games = [
+      g('old', 1),
+      g('new', 5),
+      g('done', 4, { timelineData: 'riot' }),
+      g('replay', 3, { queue: 'Scrim', timelineData: 'none' }),
+      g('practice', 6),
+      g('mid', 2)
+    ];
+    expect(timelineCandidates(games, new Set(['practice'])).map((x) => x.matchId)).toEqual(['new', 'mid', 'old']);
+    expect(timelineCandidates(games, new Set(['practice']), 2).map((x) => x.matchId)).toEqual(['new', 'mid']);
+  });
+
+  it('caps at twenty by default', () => {
+    const games = Array.from({ length: 30 }, (_, i) => g(`m${i}`, i));
+    expect(timelineCandidates(games, new Set())).toHaveLength(MAX_TIMELINE_FETCHES);
+    expect(MAX_TIMELINE_FETCHES).toBe(20);
   });
 });
 

@@ -329,6 +329,8 @@ export interface AnalysisGame {
   kills?: { ours: number; theirs: number };
   /** Where lane reads came from: Riot's per-minute figures, or nothing (a replay). */
   laneData?: 'riot' | 'none';
+  /** 'riot' when a derived timeline document exists, 'none' for a replay, absent while waiting on the backfill. */
+  timelineData?: 'riot' | 'none';
   /**
    * The enemy five with their roles, sorted, for a lane-by-lane comparison.
    * Absent until the analysis is re-run; `enemyChampions` is the flat list the
@@ -560,6 +562,95 @@ export interface RefreshLog {
   playersFailed: string[];
   playersSkipped: string[];
   analysis: { ok: boolean; games?: number; newMatches?: number; pending?: number; error?: string };
+  /** The timeline step: derived documents written, and prep games still waiting. */
+  timelines?: { fetched: number; failed: number; pending: number; skipped?: 'time' | 'analysis' };
+}
+
+// ---- Match timelines --------------------------------------------------------
+//
+// Mirrors `api/src/timeline-features.ts`. One document per Riot game at
+// `matchTimeline/{matchId}`, derived from Match-V5's timeline: a figure a
+// minute, the events that matter, nothing raw. Frames are sixty seconds
+// apart, so anything read off a position is approximate.
+
+export type MapZone = 'ourBase' | 'theirBase' | 'top' | 'mid' | 'bot' | 'river' | 'ourJungle' | 'theirJungle';
+export type TimelineSide = 'us' | 'them';
+export type LaneName = 'top' | 'mid' | 'bot';
+
+export interface TimelineMark {
+  minute: number;
+  side: TimelineSide;
+}
+
+export interface TimelineLaneDiff {
+  gold: number;
+  xp: number;
+  cs: number;
+}
+
+export interface TimelineLane {
+  seat: Role;
+  name?: string;
+  champion: string;
+  theirChampion: string;
+  at5?: TimelineLaneDiff;
+  at10?: TimelineLaneDiff;
+  at15?: TimelineLaneDiff;
+  flippedAt?: number;
+}
+
+export interface TimelineObjective {
+  minute: number;
+  type: 'dragon' | 'herald' | 'grubs' | 'baron' | 'elder' | 'atakhan';
+  subType?: string;
+  side: TimelineSide;
+  ourInvolved: Role[];
+  ourNear: Role[];
+}
+
+export interface TimelineDeath {
+  sec: number;
+  minute: number;
+  seat: Role;
+  zone: MapZone;
+  theirSide: boolean;
+  killers: number;
+  executed: boolean;
+  warded: boolean;
+}
+
+export interface MatchTimeline {
+  matchId: string;
+  timelineVersion: number;
+  builtAt: string;
+  ourSide: 'blue' | 'red';
+  durationSec: number;
+  frameSec: number;
+  goldDiff: number[];
+  curve: {
+    at10?: number;
+    at15?: number;
+    at20?: number;
+    at25?: number;
+    leadAt: Partial<Record<'10' | '15' | '20' | '25', TimelineSide | 'even'>>;
+    biggestLead: { gold: number; minute: number };
+    biggestDeficit: { gold: number; minute: number };
+  };
+  lanes: TimelineLane[];
+  firsts: {
+    blood?: TimelineMark;
+    tower?: TimelineMark & { lane: LaneName };
+    dragon?: TimelineMark;
+    grubs?: TimelineMark;
+    herald?: TimelineMark;
+  };
+  objectives: TimelineObjective[];
+  plates: { ours: Record<LaneName, number>; theirs: Record<LaneName, number> };
+  deaths: TimelineDeath[];
+  theirDeaths: { minute: number; zone: MapZone }[];
+  vision: { seat: Role; placed: number[]; killed: number[] }[];
+  spend: { seat: Role; firstItemMinute?: number; secondItemMinute?: number; backs: number[] }[];
+  bytes: number;
 }
 
 /** Result of the scheduled Riot API key probe (Firestore `meta/keyHealth`). */

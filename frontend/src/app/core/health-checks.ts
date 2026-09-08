@@ -31,6 +31,8 @@ export interface HealthRow {
   killsTally?: number;
   durationSec?: number;
   hasObjectives: boolean;
+  /** A derived timeline document exists for the game. */
+  hasTimeline: boolean;
   flags: string[];
 }
 
@@ -65,6 +67,7 @@ export function healthChecks(game: AnalysisGame): HealthRow {
     ...(killsTally !== undefined ? { killsTally } : {}),
     ...(game.durationSec !== undefined ? { durationSec: game.durationSec } : {}),
     hasObjectives,
+    hasTimeline: game.timelineData === 'riot',
     flags
   };
 }
@@ -75,6 +78,9 @@ export interface HealthTotals {
   behind: number;
   unstamped: number;
   flagged: number;
+  /** Games with a derived timeline, and Riot games still waiting for one. */
+  withTimeline: number;
+  waitingTimeline: number;
 }
 
 export function healthTotals(rows: readonly HealthRow[]): HealthTotals {
@@ -83,6 +89,8 @@ export function healthTotals(rows: readonly HealthRow[]): HealthTotals {
     current: rows.filter((r) => r.cacheVersion === EXPECTED_CACHE_VERSION).length,
     behind: rows.filter((r) => r.cacheVersion !== undefined && r.cacheVersion < EXPECTED_CACHE_VERSION).length,
     unstamped: rows.filter((r) => r.cacheVersion === undefined).length,
-    flagged: rows.filter((r) => r.flags.length > 0).length
+    flagged: rows.filter((r) => r.flags.length > 0).length,
+    withTimeline: rows.filter((r) => r.hasTimeline).length,
+    waitingTimeline: rows.filter((r) => !r.hasTimeline && r.queue !== 'Scrim').length
   };
 }

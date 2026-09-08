@@ -50,6 +50,16 @@ describe('healthChecks', () => {
       healthChecks(game({ cacheVersion: 4 })),
       healthChecks(game({ cacheVersion: undefined }))
     ];
-    expect(healthTotals(rows)).toEqual({ games: 3, current: 1, behind: 1, unstamped: 1, flagged: 2 });
+    expect(healthTotals(rows)).toEqual({ games: 3, current: 1, behind: 1, unstamped: 1, flagged: 2, withTimeline: 0, waitingTimeline: 3 });
+  });
+
+  it('counts the timelines written and the Riot games still waiting, never a replay', () => {
+    const rows = [
+      healthChecks(game({ timelineData: 'riot' })),
+      healthChecks(game({ queue: 'Scrim', timelineData: 'none' })),
+      healthChecks(game())
+    ];
+    expect(rows[0].hasTimeline).toBe(true);
+    expect(healthTotals(rows)).toMatchObject({ withTimeline: 1, waitingTimeline: 1 });
   });
 });

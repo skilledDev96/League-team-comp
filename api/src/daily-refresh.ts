@@ -197,6 +197,41 @@ export interface RefreshLog {
   /** Players left for the next run because the time budget ran out. */
   playersSkipped: string[];
   analysis: { ok: boolean; games?: number; newMatches?: number; pending?: number; error?: string };
+  /** The timeline step: how many derived documents were written, and how many prep games still wait. */
+  timelines?: { fetched: number; failed: number; pending: number; skipped?: 'time' | 'analysis' };
+}
+
+// ---- Timelines ----------------------------------------------------------------
+//
+// A Riot timeline is a second call per game, reduced to a small document
+// (`timeline-features.ts`). Twenty a morning, newest prep game first, after
+// the players and the analysis have had their turn: the analysis is what the
+// pages open on, the timelines are what the review reads.
+
+export const MAX_TIMELINE_FETCHES = 20;
+/** Past this many seconds into the run the timeline step is skipped. */
+export const TIMELINE_BUDGET_SECONDS = 480;
+
+export interface TimelineCandidateLike {
+  matchId: string;
+  queue: string;
+  date: number;
+  timelineData?: 'riot' | 'none';
+}
+
+/**
+ * Which games want a timeline this run: Riot games (a replay has none), not
+ * tagged practice, without a current document, newest first, capped.
+ */
+export function timelineCandidates<T extends TimelineCandidateLike>(
+  games: readonly T[],
+  practiceIds: ReadonlySet<string>,
+  max = MAX_TIMELINE_FETCHES
+): T[] {
+  return games
+    .filter((g) => g.queue !== 'Scrim' && g.timelineData !== 'riot' && !practiceIds.has(g.matchId))
+    .sort((a, b) => b.date - a.date)
+    .slice(0, max);
 }
 
 /** Seconds of the run given to players before the analysis has to start. */

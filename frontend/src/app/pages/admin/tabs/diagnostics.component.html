@@ -59,6 +59,10 @@
       <b>{{ t.games }}</b> games: <b>{{ t.current }}</b> on the current cache, <b>{{ t.behind }}</b> behind (each Refresh match data reads forty more),
       <b>{{ t.unstamped }}</b> unstamped, <b>{{ t.flagged }}</b> flagged.
     </p>
+    <!-- Timelines arrive twenty a morning, newest prep game first; a replay never has one. -->
+    <p class="muted edit-hint">
+      <b>{{ t.withTimeline }}</b> games with a minute-by-minute timeline, <b>{{ t.waitingTimeline }}</b> Riot games waiting (twenty more each morning, practice games left out)@if (data.refreshLog()?.timelines; as tl) {; last run wrote <b>{{ tl.fetched }}</b>@if (tl.failed) {, <b>{{ tl.failed }}</b> failed}@if (tl.skipped === 'time') { and stopped for time}@if (tl.skipped === 'analysis') { — skipped, the analysis failed}}.
+    </p>
   }
   @if (ctx.healthRows().length) {
     <div class="split-scroll">
