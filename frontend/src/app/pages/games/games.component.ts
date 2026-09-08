@@ -206,7 +206,7 @@ export class GamesComponent {
         this.tab.set('games');
         this.days.set(0);
         this.listOpen.set(true);
-        this.focus.set(`riot-${match}`);
+        this.matchFocus.set(match);
       }
       const tab = params.get('tab');
       if (tab === 'reviews' || tab === 'patterns' || tab === 'games') this.tab.set(tab);
@@ -236,6 +236,20 @@ export class GamesComponent {
   }
 
   protected readonly focus = signal<string | null>(null);
+
+  /**
+   * A match id to land on. Resolved to the row once the rows exist, because a
+   * scrim replay's row is keyed by the scrim, not by riot-<match> (9 Sep 2026).
+   */
+  private readonly matchFocus = signal<string | null>(null);
+  private readonly resolveMatchFocus = effect(() => {
+    const match = this.matchFocus();
+    if (!match) return;
+    const row = this.allRows().find((r) => r.matchId === match);
+    if (!row) return;
+    this.matchFocus.set(null);
+    this.focus.set(row.id);
+  });
 
   protected clearComp(): void {
     this.comp.set('');
@@ -305,7 +319,7 @@ export class GamesComponent {
     this.days.set(0);
     this.listOpen.set(true);
     this.revealed = null;
-    this.focus.set(`riot-${matchId}`);
+    this.matchFocus.set(matchId);
   }
 
   /** Ask the model for a review of this game; the stored document arrives through the listener. */
