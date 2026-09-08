@@ -22,6 +22,7 @@ import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { TacticalBoardComponent } from './tactical-board.component';
 import { NoteRollup, rollupNotes } from './note-insights.util';
 import { TooltipDirective } from '../../shared/tooltip.directive';
+import { TourPillComponent } from '../../shared/tour-pill.component';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 
 interface ResultDraft {
@@ -33,7 +34,7 @@ interface ResultDraft {
 
 @Component({
   selector: 'app-comps',
-  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective, NgModelNameDirective, ChampionFilterComponent],
+  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective, NgModelNameDirective, ChampionFilterComponent, TourPillComponent],
   templateUrl: './comps.component.html'
 })
 export class CompsComponent {

@@ -4,7 +4,7 @@
     <span>Team name</span>
     <input type="text" [ngModel]="ctx.teamName()" (ngModelChange)="ctx.setTeamName($event)" name="ctx.teamName" />
   </label>
-  <label class="field field-check">
+  <label data-tour="admin-setting-advisor" class="field field-check">
     <input type="checkbox" [ngModel]="ctx.autoAdvisor()" (ngModelChange)="ctx.setAutoAdvisor($event)" name="ctx.autoAdvisor" />
     <span>
       Ask the advisor automatically when a draft step becomes ours

@@ -1,9 +1,10 @@
 <section class="hero">
   <h1>Games</h1>
   <p>Every game we played — tournament, scrims, flex and Clash — and what keeps happening in them.</p>
+  <app-tour-pill />
 </section>
 
-<section class="view-controls" aria-label="Games views">
+<section data-tour="games-tabs" class="view-controls" aria-label="Games views">
   <button class="view-btn" type="button" [class.active]="tab() === 'games'" (click)="tab.set('games')">Games</button>
   <button class="view-btn" type="button" [class.active]="tab() === 'patterns'" (click)="tab.set('patterns')">Patterns</button>
   <button class="view-btn" type="button" [class.active]="tab() === 'reviews'" (click)="tab.set('reviews')">Reviews @if (data.gameReviews().length) { <small>{{ data.gameReviews().length }}</small> }</button>
@@ -35,7 +36,7 @@
     }
     @if (auth.editing()) {
       <span class="games-data-actions">
-        <button type="button" class="view-btn" [disabled]="refresh.anyRunning()" (click)="refreshAnalysis()">
+        <button data-tour="games-refresh" type="button" class="view-btn" [disabled]="refresh.anyRunning()" (click)="refreshAnalysis()">
           @if (analysisLoading()) { <span class="btn-spinner" aria-hidden="true"></span> } @else { <span class="material-symbols-rounded" aria-hidden="true">sync</span> }
           {{ analysisLoading() ? 'Analyzing…' : 'Refresh matches from Riot' }}
         </button>
@@ -111,7 +112,7 @@
       <button type="button" class="view-btn" (click)="dismissNew()">Got it</button>
     </section>
   }
-  <section class="card games-filters" aria-label="Filters">
+  <section data-tour="games-filters" class="card games-filters" aria-label="Filters">
     <div class="view-segment" role="group" aria-label="Source">
       <button type="button" [class.active]="source() === 'all'" (click)="source.set('all')">All</button>
       <button type="button" [class.active]="source() === 'tournament'" (click)="source.set('tournament')">Tournament</button>
@@ -146,7 +147,7 @@
 
   <!-- The record, then where it comes from. -->
   <section class="card games-record" aria-label="Record">
-    <div class="insight-tiles games-tiles">
+    <div data-tour="games-record" class="insight-tiles games-tiles">
       <div class="insight-tile is-lead">
         <span class="insight-label">Record</span>
         <span class="insight-value" [class.pos]="overall().games && overall().winRate >= 50" [class.neg]="overall().games && overall().winRate < 50">
@@ -279,7 +280,7 @@
     @if (rows().length && listOpen()) {
       <div class="opp-history-games games-list">
         @for (g of rows(); track g.id) {
-          <details class="opp-history-game games-row" [class.is-win]="g.win" [attr.data-row]="g.id" [class.is-new]="isNew(g)" [class.is-focused]="g.id === focus()">
+          <details data-tour="games-row" class="opp-history-game games-row" [class.is-win]="g.win" [attr.data-row]="g.id" [class.is-new]="isNew(g)" [class.is-focused]="g.id === focus()">
             <summary class="opp-history-head">
               <span class="opp-history-result">{{ g.win ? 'W' : 'L' }}</span>
               <span class="opp-history-when">{{ day(g.date) }}</span>
@@ -383,7 +384,7 @@
               @if (g.matchId) {
                 <app-match-note [matchId]="g.matchId" />
                 <div class="games-row-actions">
-                  <app-match-note-button [matchId]="g.matchId" />
+                  <app-match-note-button data-tour="games-note" [matchId]="g.matchId" />
                   @if (auth.editing()) {
                     <button type="button" class="games-bench-toggle" data-tour="games-practice" [class.active]="data.isPractice(g.matchId)" [attr.aria-pressed]="data.isPractice(g.matchId)"
                             [appTip]="data.isPractice(g.matchId) ? 'Marked as practice, so Patterns leaves it out — click to count it again' : 'Mark as practice: Patterns leaves it out, whichever source it came from'"
@@ -409,7 +410,7 @@
                   }
                 </div>
                 <app-game-review [review]="data.reviewFor(g.matchId)" />
-                <app-game-story [game]="analysisOf(g)" [expect]="expectFor(g)" />
+                <app-game-story data-tour="games-story" [game]="analysisOf(g)" [expect]="expectFor(g)" />
                 <app-game-check [game]="analysisOf(g)" />
               }
               @if (g.link) {

@@ -3,13 +3,14 @@
     <span class="section-icon material-symbols-rounded">sports_esports</span>
     Scrims
   </h2>
+  <app-tour-pill class="is-inline" />
 
   <!-- Importing stores the scrim; the analysis is recomputed on the Analysis
        page. Saying so beats a comp record that quietly does not move. -->
   @if (groups().length) {
     <!-- One line and a button. The caveat about partial rosters is real but
          rarely needed, so it lives on hover rather than in the sentence. -->
-    <p class="muted scrim-refresh-hint">
+    <p data-tour="scrims-refresh" class="muted scrim-refresh-hint">
       <span class="material-symbols-rounded" aria-hidden="true">sync</span>
       <span [appTip]="'Games where fewer than four of the roster played are left out, so a solo queue replay imported by mistake cannot move the numbers.'">
         Scrims count towards the comp records once the matches are refreshed on Games.
@@ -25,7 +26,7 @@
        so an opponent can exist by name alone; replays dropped in afterwards
        under that name fold into the same record. -->
   @if (auth.editing()) {
-    <div class="scrim-add">
+    <div data-tour="scrims-add-opponent" class="scrim-add">
       <span class="material-symbols-rounded" aria-hidden="true">add_circle</span>
       <label class="field scrim-add-field">
         <span>Prep a scrim</span>
@@ -86,7 +87,7 @@
     <app-champion-filter [count]="matchedScrims()" noun="scrims" placeholder="Scrims with a champion, either side — Tristana, Rakan…" />
 
     @for (group of groups(); track group.id) {
-      <details class="card scrim-group" [open]="isGroupOpen(group)">
+      <details data-tour="scrims-group" class="card scrim-group" [open]="isGroupOpen(group)">
         <summary class="scrim-group-head" (click)="$event.preventDefault(); toggleGroup(group)">
           <span class="scrim-group-name">{{ group.name }}</span>
           @if (group.scrims.length) {

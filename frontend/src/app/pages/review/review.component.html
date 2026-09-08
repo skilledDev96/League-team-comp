@@ -16,7 +16,7 @@
   <section class="card review-toolbar" aria-label="Review controls">
     <div class="view-controls">
       <!-- Where the games came from, the way the team sorts them. -->
-      <div class="field"><span id="reviewSource">Source</span>
+      <div data-tour="patterns-source" class="field"><span id="reviewSource">Source</span>
         <div class="segmented" role="group" aria-labelledby="reviewSource">
           @for (step of sourceSteps; track step.source) {
             <button type="button" class="segment" [class.active]="sourceMode() === step.source" [attr.aria-pressed]="sourceMode() === step.source"
@@ -28,7 +28,7 @@
       </div>
       <!-- Prep is the games played to win; a game tagged as messing around
            on the Games page is out of it. -->
-      <div class="field"><span id="reviewSerious">Games <a class="field-help" routerLink="/games" appTip="Practice games are marked on a game's row on the Games tab">marked on Games</a></span>
+      <div data-tour="patterns-prep" class="field"><span id="reviewSerious">Games <a class="field-help" routerLink="/games" appTip="Practice games are marked on a game's row on the Games tab">marked on Games</a></span>
         <div class="segmented" role="group" aria-labelledby="reviewSerious">
           <button type="button" class="segment" [class.active]="!seriousOnly()" [attr.aria-pressed]="!seriousOnly()"
                   (click)="seriousOnly.set(false)" appTip="Every game, the messing-around ones included">
@@ -41,7 +41,7 @@
         </div>
       </div>
       <!-- Who has to be in the game: the A team from the Roster page, or a hand-picked set. -->
-      <div class="field"><span id="reviewStack">Starters in the game <a class="field-help" routerLink="/roster" appTip="The A team is whoever is not on the bench on the Roster cards, in edit mode">set on Roster</a></span>
+      <div data-tour="patterns-starters" class="field"><span id="reviewStack">Starters in the game <a class="field-help" routerLink="/roster" appTip="The A team is whoever is not on the bench on the Roster cards, in edit mode">set on Roster</a></span>
         <div class="segmented" role="group" aria-labelledby="reviewStack">
           <button type="button" class="segment" [class.active]="starterMode() === 'team'" [attr.aria-pressed]="starterMode() === 'team'"
                   (click)="starterMode.set('team')" appTip="Every A-team player was on our side — the A team is whoever is not on the bench on the Roster page">
@@ -54,7 +54,7 @@
         </div>
       </div>
       <!-- Which seat everyone sat in, against the roles set on the Roster page. -->
-      <div class="field"><span id="reviewSeats">Roles <a class="field-help" routerLink="/roster" appTip="Main and 2nd seats are set on the Roster cards or in the player editor">set on Roster</a></span>
+      <div data-tour="patterns-roles" class="field"><span id="reviewSeats">Roles <a class="field-help" routerLink="/roster" appTip="Main and 2nd seats are set on the Roster cards or in the player editor">set on Roster</a></span>
         <div class="segmented" role="group" aria-labelledby="reviewSeats">
           @for (step of roleSteps; track step.mode) {
             <button type="button" class="segment" [class.active]="roleMode() === step.mode" [attr.aria-pressed]="roleMode() === step.mode"
@@ -111,7 +111,7 @@
        sentence carrying the numbers it rests on. Nothing is said below the
        claim floor on either side. -->
   <section class="card" aria-label="Work on and keep doing">
-    <div class="advice-columns">
+    <div data-tour="patterns-workon" class="advice-columns">
       <aside class="callout is-advice">
         <span class="callout-icon material-symbols-rounded" aria-hidden="true">target</span>
         <div class="callout-body">
@@ -184,7 +184,7 @@
         — import them on the <a routerLink="/tournaments" [queryParams]="{ view: 'plan' }">plan page</a>.
       </p>
     }
-    <div class="segmented patterns-chips" role="group" aria-label="More sections">
+    <div data-tour="patterns-sections" class="segmented patterns-chips" role="group" aria-label="More sections">
       @for (step of sectionSteps; track step.key) {
         <button type="button" class="segment" [class.active]="sections()[step.key]" [attr.aria-pressed]="sections()[step.key]"
                 (click)="toggleSection(step.key)">{{ step.label }}</button>

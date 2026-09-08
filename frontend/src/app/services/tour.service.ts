@@ -3,6 +3,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 import { anchorSelectors, canRun, dueTours, isSeen, roleOf, routeMatches, stepAfterSkip, stepsFor, Tour, tourById, TourNeed, TOURS, TourStep } from '../core/tours';
 import { AuthService } from './auth.service';
+import { PlayerEditorService } from './player-editor.service';
 import { TeamDataService } from './team-data.service';
 import { UserPrefsService } from './user-prefs.service';
 
@@ -21,6 +22,7 @@ export class TourService {
   private readonly auth = inject(AuthService);
   private readonly data = inject(TeamDataService);
   private readonly prefs = inject(UserPrefsService);
+  private readonly editor = inject(PlayerEditorService);
 
   readonly active = signal<Tour | null>(null);
   readonly steps = signal<TourStep[]>([]);
@@ -229,6 +231,23 @@ export class TourService {
       case 'openCompMore': {
         document.querySelector<HTMLElement>('details.comp-more')?.setAttribute('open', '');
         await this.pause(40);
+        return;
+      }
+      case 'openPlayerEditor': {
+        // The profile's player, from the URL; the drawer is the editor.
+        const id = decodeURIComponent(this.url().split('?')[0].replace(/^\/player\//, ''));
+        if (id && !this.editor.drawerDraft()) {
+          this.editor.open(id);
+          await this.pause(250);
+        }
+        return;
+      }
+      case 'clickScout': {
+        // The scouting panel is behind the series' Scout button.
+        if (!document.querySelector('.series-prep')) {
+          document.querySelector<HTMLElement>('[data-tour="plan-scout-btn"]')?.click();
+          await this.pause(450);
+        }
         return;
       }
       default:

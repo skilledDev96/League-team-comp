@@ -14175,3 +14175,5 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .hero-pill .material-symbols-rounded { font-size: 1.05rem; }
 .hero-pill-edit { border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border)); }
 @media (max-width: 720px) { .hero-tools { position: static; margin-top: 0.6rem; justify-content: flex-start; } }
+
+app-tour-pill.is-inline .hero-tools { position: static; margin: 0.2rem 0 0.6rem; justify-content: flex-start; }

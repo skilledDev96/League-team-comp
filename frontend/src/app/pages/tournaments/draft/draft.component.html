@@ -54,7 +54,7 @@
     </header>
 
     @if (gamesFor(series.id).length || auth.editing()) {
-      <div class="view-controls draft-game-picker" aria-label="Game">
+      <div data-tour="draft-games" class="view-controls draft-game-picker" aria-label="Game">
         @for (g of gamesFor(series.id); track g.id) {
           <button type="button" class="view-btn" [class.active]="isDraftGame(g)"
                   (click)="selectDraftGame(g.id)">
@@ -331,7 +331,7 @@
             <!-- One line. This is a question asked once before the draft, so it
                  must not hold the space the turn indicator needs for the next
                  twenty steps. -->
-            <div class="draft-side-pick">
+            <div data-tour="draft-side" class="draft-side-pick">
               <span class="draft-side-ask">Our side</span>
               <button type="button" class="view-btn is-blue" (click)="setOurSide(game, 'blue')">Blue</button>
               <button type="button" class="view-btn is-red" (click)="setOurSide(game, 'red')">Red</button>
@@ -350,7 +350,7 @@
             <!-- The end state used to be the wall, still open, aimed at bans.
                  What the room needs now is the result, the next game and the
                  lane read; the wall folds away and comes back on request. -->
-            <p class="draft-step-bar is-done">
+            <p data-tour="draft-done" class="draft-step-bar is-done">
               <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
               <strong>Draft complete.</strong>
               <span class="view-segment draft-result" role="group" aria-label="Result">
@@ -376,7 +376,7 @@
               </button>
             </p>
           } @else {
-            <div class="draft-step-bar" [class.is-ours]="isOurTurn(game)">
+            <div data-tour="draft-step-bar" class="draft-step-bar" [class.is-ours]="isOurTurn(game)">
               <!-- Ban or pick, and whose. The one thing that must be readable
                    across the room while the draft is running. -->
               <span class="draft-phase" [class.is-ban]="step(game)?.action === 'ban'">
@@ -447,7 +447,7 @@
                         (click)="autoAdvance(game, 'end')">Fill draft</button>
               }
               @if ((game.draftStep ?? 0) > 0) {
-                <button type="button" class="view-btn" (click)="undoStep(game)">Undo last</button>
+                <button type="button" class="view-btn" data-tour="draft-undo" (click)="undoStep(game)">Undo last</button>
               }
               <button type="button" class="view-btn draft-reset" (click)="resetDraft(game)">Reset</button>
             </div>
@@ -618,7 +618,7 @@
             <!-- The seat only filters the wall here; the sequence still decides
                  where the pick lands. Clicking a seat mid-draft is a way of
                  asking "who can go here", not a way of choosing a target. -->
-            <app-champion-grid [unavailable]="sequenceUnavailable(game)"
+            <app-champion-grid data-tour="draft-wall" [unavailable]="sequenceUnavailable(game)"
                                [taken]="gridTaken(game)"
                                [lane]="gridLane()"
                                (laneChange)="shownLane.set($event)"
@@ -645,7 +645,7 @@
                the wall does. Asked, never automatic: each answer costs money
                and takes seconds, and the drafter decides when it is worth
                either. -->
-          <div class="advice-block is-advisor" [class.is-stale]="adviceIsStale(g)" [hidden]="sequenceDone(g)">
+          <div data-tour="draft-advisor" class="advice-block is-advisor" [class.is-stale]="adviceIsStale(g)" [hidden]="sequenceDone(g)">
             <span class="advice-head advisor-head">
               <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>
               Advisor
@@ -1055,7 +1055,7 @@
   @if (draftGame(); as game) {
     @if (!ourSide(game)) {
       @if (freshBoard(game)) {
-        <div class="draft-side-modal" role="dialog" aria-modal="true"
+        <div class="draft-side-modal" data-tour="draft-side" role="dialog" aria-modal="true"
              aria-label="Which side are we on?">
           <div class="draft-side-card">
             <h3>Which side are we on?</h3>

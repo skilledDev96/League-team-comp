@@ -142,6 +142,161 @@ export const TOURS: readonly Tour[] = [
     ]
   },
   {
+    id: 'roster',
+    title: 'Roster',
+    blurb: 'Cards, the A team, second seats, the table and the scouting view.',
+    version: 1,
+    match: { path: '/roster' },
+    needs: 'players',
+    steps: [
+      { anchor: 'roster-card', title: 'A player card', text: 'Role, playstyle and main champion. Quick look opens the pool and the links; Profile opens the full page with the stats and the coaching notes.', query: { view: 'cards' } },
+      { anchor: 'roster-ateam', title: 'A team for Patterns', text: 'The A team is the five Patterns counts by default and the five the draft room follows. Bench leaves a player out. Same flag Admin sets, so the five stay one thing everywhere.', editMode: true, query: { view: 'cards' } },
+      { anchor: 'roster-second-seat', title: 'Second seat', text: 'The roles a player also covers. Patterns’ Roles filter and the draft room’s seat proposals read this.', editMode: true, query: { view: 'cards' } },
+      { anchor: 'roster-detail-level', title: 'Starter and Full', text: 'Full adds the team identity, the fill-ins and the resource links under the cards.', query: { view: 'cards' } },
+      { anchor: 'table-queue', title: 'The table', text: 'Rank and recent form per queue, one row per player. Recent is the last games scanned, not the ladder record beside it.', query: { view: 'table' } },
+      { anchor: 'scouting-card', title: 'Scouting', text: 'Strengths, weaknesses, the pool, what they are learning and the suggested bans, for each of ours.', query: { view: 'scouting' } },
+      { anchor: 'scouting-practice-board', title: 'Practice board', text: 'Pain points per player, open until someone resolves them.', query: { view: 'scouting' } }
+    ]
+  },
+  {
+    id: 'player-edit',
+    title: 'Editing a player',
+    blurb: 'One editor for everything about a player, opened from their profile.',
+    version: 1,
+    match: { path: '/player/' },
+    role: 'editor',
+    needs: 'players',
+    steps: [
+      { anchor: 'player-edit', title: 'Edit this player', text: 'The menu here opens the editor in a drawer. It is the same form Admin uses, so nothing about a player lives anywhere else.', editMode: true },
+      { anchor: 'pe-identity', title: 'Name, tag and role', text: 'The Riot ID is what every refresh reads. Change the role and the roster regroups.', editMode: true, before: 'openPlayerEditor' },
+      { anchor: 'pe-bench', title: 'A team or Bench', text: 'The same flag as the roster card. The second seats are the roles they also cover.', editMode: true, before: 'openPlayerEditor' },
+      { anchor: 'pe-pool', title: 'Pool and bans', text: 'The declared pool, first champion shown as the main. Bans are what to take away from them in practice.', editMode: true, before: 'openPlayerEditor' },
+      { anchor: 'pe-refresh', title: 'Refresh this player from Riot', text: 'Re-reads rank, recent champions and the observed playstyle. Anything typed by hand is kept.', editMode: true, before: 'openPlayerEditor' },
+      { anchor: 'pe-hand-edited', title: 'Hand-edited', text: 'Saving anything here marks the player hand-edited: the morning refresh keeps your text, pool and bans from then on.', editMode: true, before: 'openPlayerEditor' }
+    ]
+  },
+  {
+    id: 'comps',
+    title: 'Adding a comp',
+    blurb: 'The board, the plan, what the comp expects, and its record.',
+    version: 1,
+    match: { path: '/comps' },
+    role: 'editor',
+    needs: 'comps',
+    steps: [
+      { anchor: 'comps-add', title: 'Add a comp', text: 'Creates a blank comp and opens its board, right here. Admin only keeps the names and picks as text.', editMode: true },
+      { anchor: 'comp-board', title: 'The board', text: 'Click a seat, then a champion. Every pick saves as it lands, and the identity under the board reads itself off the five.', editMode: true },
+      { anchor: 'comp-category', title: 'Category', text: 'A short label to filter by: Meta, Comfort, For fun.', editMode: true },
+      { anchor: 'comp-gameplan', title: 'Game plan', text: 'Early, mid and late, in your own words. The draft advisor and the post-game review both read it.', editMode: true },
+      { anchor: 'comp-expect', title: 'What we expect from it', text: 'Four axes read off the champions. Overrule them and the review checks the game against your version instead.', editMode: true },
+      { anchor: 'comp-bans', title: 'Ban recommendations', text: 'Champions to take away when we run this comp. They come up on our ban steps in the draft room.', editMode: true },
+      { anchor: 'comp-counts-under', title: 'Counts as part of', text: 'For the records only: fold this comp’s games into another, for near-duplicate drafts you keep separate to play from.', editMode: true },
+      { anchor: 'comp-record', title: 'Track record', text: 'Wins and losses from match history, or logged by hand, with the notes from the games that count as this comp below.' }
+    ]
+  },
+  {
+    id: 'games',
+    title: 'Games and reviews',
+    blurb: 'Every game, the filters, and what a row can do.',
+    version: 1,
+    match: { path: '/games' },
+    needs: 'analysis',
+    steps: [
+      { anchor: 'games-refresh', title: 'Refresh matches from Riot', text: 'Pulls in the flex and Clash games we played. Scrims come from replays and tournament games from the draft room.', editMode: true, query: { tab: 'games' } },
+      { anchor: 'games-filters', title: 'Filters', text: 'Source, window, result and opponent, plus the champion box every page shares.', query: { tab: 'games' } },
+      { anchor: 'games-record', title: 'The record', text: 'Wins and losses over what is filtered, by source and by side.', query: { tab: 'games' } },
+      { anchor: 'games-row', title: 'A game', text: 'Open a row for the objectives, the scoreboard and everything below it.', query: { tab: 'games' } },
+      { anchor: 'games-note', title: 'Match note', text: 'A sentence about the game. Comps collect these under Notes from its games, and the review reads them too.', editMode: true, query: { tab: 'games' } },
+      { anchor: 'games-practice', title: 'Practice', text: 'Mark a game as practice and Patterns leaves it out.', editMode: true, query: { tab: 'games' } },
+      { anchor: 'games-counts-as', title: 'Counts as', text: 'Which comp the game counts towards. Auto is the matcher’s read of the five champions; pick a comp to overrule it.', editMode: true, query: { tab: 'games' } },
+      { anchor: 'games-story', title: 'How the game went', text: 'Minute by minute from Riot’s timeline, when there is one: the gold curve, the lanes, the fights and the deaths nobody was near.', query: { tab: 'games' } },
+      { anchor: 'games-review-btn', title: 'Review this game', text: 'Two model calls, about a dime, after you confirm. The review lands on the row, on the Reviews tab and on each player’s profile.', editMode: true, query: { tab: 'games' } },
+      { anchor: 'games-tabs', title: 'Patterns and Reviews', text: 'Patterns is what keeps happening across the games. Reviews is every written review, newest first.', query: { tab: 'games' } }
+    ]
+  },
+  {
+    id: 'patterns',
+    title: 'Patterns',
+    blurb: 'The filters, and what the Work on lines mean.',
+    version: 1,
+    match: { path: '/games', query: { tab: 'patterns' } },
+    needs: 'analysis',
+    steps: [
+      { anchor: 'patterns-source', title: 'Source', text: 'Flex, scrims and Clash, or tournaments. A replay imported against a series game counts as a tournament game.' },
+      { anchor: 'patterns-prep', title: 'Prep', text: 'Games played to win. Anything marked as practice on the Games tab is left out until you choose All.' },
+      { anchor: 'patterns-starters', title: 'Starters', text: 'A team is whoever is not on the bench on the Roster page. Custom is any set of players who all have to be on our side.' },
+      { anchor: 'patterns-roles', title: 'Roles', text: 'Main counts a player only in their main role; 2nd adds the second seats; Any counts every game.' },
+      { anchor: 'patterns-workon', title: 'Work on, keep doing', text: 'Each line is the biggest gap between our wins and our losses that clears the minimum on both sides. Fold it out for the games it was read from.' },
+      { anchor: 'patterns-sections', title: 'More sections', text: 'Lanes, the team split by result and the objective patterns sit behind these chips. Your choice is remembered.' }
+    ]
+  },
+  {
+    id: 'draft',
+    title: 'Drafting',
+    blurb: 'The live draft room, from the side choice to the result.',
+    version: 1,
+    match: { path: '/tournaments', query: { view: 'draft' } },
+    role: 'editor',
+    needs: 'series',
+    steps: [
+      { anchor: 'draft-games', title: 'Series and game', text: 'The room needs a tournament (Admin), a series and a game (the Plan view). Pick the game here or add the next one.', editMode: true },
+      { anchor: 'draft-side', title: 'Our side', text: 'Blue bans and picks first. Everything after depends on it: whose turn, which seat a pick lands in, who banned what.', editMode: true },
+      { anchor: 'draft-step-bar', title: 'Whose turn', text: 'Ban or pick, and whose. The clock is a reminder only; the real one is in the client.', editMode: true },
+      { anchor: 'draft-wall', title: 'Hold, then confirm', text: 'Click a champion to hold it and see the seat it would land in; confirm to lock it and move the draft on.', editMode: true },
+      { anchor: 'draft-target-bans', title: 'Target bans', text: 'The opponent’s target bans from scouting, on our ban steps. One click holds one.', editMode: true },
+      { anchor: 'draft-undo', title: 'Undo and Reset', text: 'Undo steps back one and asks before it removes a pick. Reset clears the whole game and asks first.', editMode: true },
+      { anchor: 'draft-advisor', title: 'Ask what to pick', text: 'One model call, a few cents, saved on the game for everyone on the link. It leads with your team plan while it is still legal.', editMode: true },
+      { anchor: 'draft-done', title: 'Draft complete', text: 'Set the result, open the next game, and import the replay on the Plan view for the numbers.', editMode: true }
+    ]
+  },
+  {
+    id: 'scouting',
+    title: 'Scouting an opponent',
+    blurb: 'Their roster from a link, what they play, and the target bans.',
+    version: 1,
+    match: { path: '/tournaments', query: { view: 'plan' } },
+    role: 'editor',
+    needs: 'series',
+    steps: [
+      { anchor: 'plan-scout-btn', title: 'Scout', text: 'Opens their roster, bans and notes for the series. Scouting writes, so edit mode turns on.', editMode: true },
+      { anchor: ['prep-paste', 'prep-scout-cta', 'prep-scout-again'], title: 'Paste their roster', text: 'Their op.gg multi-link, or Name#TAG one per line. Only the text of the link is read; nothing is looked up until you scout.', editMode: true, before: 'clickScout' },
+      { anchor: ['prep-scout-cta', 'prep-scout-again'], title: 'Scout from Riot', text: 'Looks up what each of them plays. About two minutes a player, and it keeps running if you leave the page. Scout again reads further back.', editMode: true, before: 'clickScout' },
+      { anchor: 'prep-banboard', title: 'Ban board', text: 'The champions their five live on, at most two per player. A click adds one to the target bans.', editMode: true, before: 'clickScout' },
+      { anchor: 'prep-sub-toggle', title: 'Their bench', text: 'Six names need one on the bench before As a team can read the right five.', editMode: true, before: 'clickScout' },
+      { anchor: 'prep-team', title: 'As a team', text: 'The games their five queued together lately. One fetch serves the whole team.', editMode: true, before: 'clickScout' },
+      { anchor: 'prep-target-bans', title: 'Target bans and notes', text: 'These reach the draft room’s ban steps. The notes are shown to the advisor.', editMode: true, before: 'clickScout' }
+    ]
+  },
+  {
+    id: 'replays',
+    title: 'Importing replays',
+    blurb: 'Where the .rofl files go, and how they become games.',
+    version: 1,
+    match: { path: '/scrims' },
+    role: 'editor',
+    steps: [
+      { anchor: 'scrims-dropzone', title: 'Drop replays here', text: '.rofl files from Documents › League of Legends › Replays, with the name Riot gave them; the match id is read from it. You are asked who it was against.', editMode: true },
+      { anchor: 'scrims-add-opponent', title: 'Prep an opponent first', text: 'An opponent can exist by name alone, so you can scout before the games and drop the replays in after.', editMode: true },
+      { anchor: 'scrims-group', title: 'An opponent', text: 'Their replays, scouting and target bans in one panel. Files dropped in here are named after them.', editMode: true },
+      { anchor: 'scrims-refresh', title: 'Count them', text: 'Scrims reach the comp records after Refresh matches from Riot on Games.', editMode: true },
+      { anchor: 'plan-game-replay', title: 'A tournament game', text: 'On the Plan view each series game takes its replay too; it fills both sides, the side and the result.', editMode: true, route: '/tournaments', query: { view: 'plan' } }
+    ]
+  },
+  {
+    id: 'admin',
+    title: 'Admin and roles',
+    blurb: 'The editors, the settings, who can do what, and diagnostics.',
+    version: 1,
+    match: { path: '/admin' },
+    role: 'admin',
+    steps: [
+      { anchor: 'admin-tabs', title: 'The editors', text: 'Players, fill-ins, comps and tournaments are added here; series, games and scouting on Tournaments; everything else in edit mode on its own page.' },
+      { anchor: 'admin-setting-advisor', title: 'Settings save as you go', text: 'The advisor’s auto-ask applies in the draft room; the morning review applies to the next run. Each line says where.', query: { tab: 'settings' } },
+      { anchor: 'admin-access-role', title: 'Roles', text: 'Viewer reads everything but Admin. Contributor gets edit mode. Admin adds Settings, Access, Diagnostics and deletes.', query: { tab: 'access' } },
+      { anchor: 'admin-diag-health', title: 'Diagnostics', text: 'What the morning run did and spent, data health per game, the draft log, browser errors, and your tours.', query: { tab: 'diagnostics' } }
+    ]
+  },
+  {
     id: 'whats-new',
     title: "What's new",
     blurb: 'What changed since you last looked.',

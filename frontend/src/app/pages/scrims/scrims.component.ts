@@ -9,6 +9,7 @@ import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { OpponentScoutService } from '../../services/opponent-scout.service';
 import { TooltipDirective } from '../../shared/tooltip.directive';
+import { TourPillComponent } from '../../shared/tour-pill.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { importReport, readReplay, REPLAY_REQUIREMENTS } from '../../core/replay-import';
@@ -62,7 +63,7 @@ import { ScrimGroup, groupScrims, slugOpponent } from './scrim-groups';
  */
 @Component({
   selector: 'app-scrims',
-  imports: [FormsModule, RouterLink, TooltipDirective, ChampionPickerComponent, ChampionChipComponent, ChampionFilterComponent],
+  imports: [FormsModule, RouterLink, TooltipDirective, ChampionPickerComponent, ChampionChipComponent, ChampionFilterComponent, TourPillComponent],
   templateUrl: './scrims.component.html'
 })
 export class ScrimsComponent {

@@ -24,6 +24,7 @@ import { ToastService } from '../../services/toast.service';
 import { CompExpectationService } from '../../services/comp-expectation.service';
 import { CompExpectation } from '../../models/team.models';
 import { ReviewComponent } from '../review/review.component';
+import { TourPillComponent } from '../../shared/tour-pill.component';
 import {
   filterRows,
   fromAnalysis,
@@ -49,8 +50,7 @@ type Tab = 'games' | 'patterns' | 'reviews';
  */
 @Component({
   selector: 'app-games',
-  imports: [
-    DatePipe,
+  imports: [DatePipe,
     FormsModule,
     RouterLink,
     ChampionFilterComponent,
@@ -59,8 +59,7 @@ type Tab = 'games' | 'patterns' | 'reviews';
     NgModelNameDirective,
     TooltipDirective,
     ReviewComponent,
-    GameCheckComponent, GameStoryComponent, GameReviewComponent
-  ],
+    GameCheckComponent, GameStoryComponent, GameReviewComponent, TourPillComponent],
   templateUrl: './games.component.html'
 })
 export class GamesComponent {

@@ -121,7 +121,7 @@
                  preventDefault — so the browser's native <details> toggle runs
                  instead and the series panel opens and shuts. Both are needed
                  for a control nested in a disclosure header. -->
-            <button type="button" class="series-scout"
+            <button data-tour="plan-scout-btn" type="button" class="series-scout"
                     [appTip]="'Their roster, target bans and scouting notes'"
                     (click)="$event.preventDefault(); $event.stopPropagation(); openPrepPanel(series.id)">
               <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
@@ -302,7 +302,7 @@
                   @if (auth.editing() && series.opponentPlayers?.length && scoutedAt(series)) {
                     <!-- Once there is data the button is a refresh, so it steps
                          back down to a chip. -->
-                    <button type="button" class="view-btn opp-scout-again" [disabled]="scout.scouting() === series.id"
+                    <button data-tour="prep-scout-again" type="button" class="view-btn opp-scout-again" [disabled]="scout.scouting() === series.id"
                             [appTip]="'Look each of them up through Riot again; reads the next forty games per player'"
                             (click)="scoutOpponents(series)">
                       <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
@@ -362,7 +362,7 @@
                      largest thing in a panel whose job is now to show what was
                      scouted, so it folds behind a line of text. -->
                 @if (auth.editing() && (!series.opponentPlayers?.length || pasteOpenFor() === series.id)) {
-                  <label class="field opp-step">
+                  <label data-tour="prep-paste" class="field opp-step">
                     <span>
                       <em class="opp-step-n">1</em>
                       Paste their op.gg multi-link
@@ -386,7 +386,7 @@
                      missed, so once there is a roster and nothing scouted it
                      is the loudest thing in the block. -->
                 @if (auth.editing() && series.opponentPlayers?.length && !scoutedAt(series)) {
-                  <button type="button" class="opp-scout-cta"
+                  <button data-tour="prep-scout-cta" type="button" class="opp-scout-cta"
                           [disabled]="scout.scouting() === series.id"
                           (click)="scoutOpponents(series)">
                     <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
@@ -415,7 +415,7 @@
                      each one click from the target-ban list. -->
                 @if (banCandidates(series.opponentPlayers ?? []); as board) {
                   @if (board.length) {
-                    <div class="opp-banboard" aria-label="Ban candidates">
+                    <div data-tour="prep-banboard" class="opp-banboard" aria-label="Ban candidates">
                       @for (c of board; track c.player + c.champion) {
                         <div class="opp-ban" [class.is-banned]="isTargetBan(series, c.champion)" [class.is-match]="filter.matches(c.champion)">
                           <img class="opp-ban-art" [src]="ui.championIconUrl(c.champion)" [alt]="c.champion" loading="lazy" />
@@ -484,7 +484,7 @@
                              target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
                         </span>
                         @if (auth.editing()) {
-                          <button type="button" class="ateam-toggle is-small" [class.is-bench]="opp.sub"
+                          <button data-tour="prep-sub-toggle" type="button" class="ateam-toggle is-small" [class.is-bench]="opp.sub"
                                   [attr.aria-pressed]="!!opp.sub"
                                   [appTip]="opp.sub ? 'On their bench — click to make them a starter' : 'In their five — click to bench them, so As a team reads the right five'"
                                   (click)="setOpponentSub(series, opp, !opp.sub)">{{ opp.sub ? 'Bench' : 'A team' }}</button>
@@ -629,7 +629,7 @@
               <!-- The five as a team: the games they actually queued together lately,
                    read from Riot through the match cache. Absent until fetched, and
                    stored, so one fetch serves the whole team. -->
-              <section class="opp-history">
+              <section data-tour="prep-team" class="opp-history">
                 <div class="opp-history-head">
                   <span class="opp-history-title">As a team</span>
                   @if (series.teamHistory; as h) {
@@ -777,7 +777,7 @@
               </section>
 
               @if (auth.editing()) {
-                <div class="field"><span>Target bans</span>
+                <div data-tour="prep-target-bans" class="field"><span>Target bans</span>
                   <app-champion-picker [champions]="series.bans || []"
                                        [inputName]="'bans-' + series.id" placeholder="Add a ban…"
                                        (championsChange)="setSeriesBans(series, $event)" /></div>

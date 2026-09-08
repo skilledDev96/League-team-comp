@@ -10,7 +10,7 @@
       <article class="card">
         <label class="field"><span>Email</span>
           <input type="email" [ngModel]="draft.email" (ngModelChange)="draft.email = $event" [name]="'aemail' + $index" /></label>
-        <label class="field"><span>Role</span>
+        <label data-tour="admin-access-role" class="field"><span>Role</span>
           <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'arole' + $index">
             @for (role of ctx.accessRoles; track role) { <option [value]="role">{{ role }}</option> }
           </select>

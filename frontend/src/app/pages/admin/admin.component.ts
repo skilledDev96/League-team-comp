@@ -10,6 +10,7 @@ import { AdminDiagnosticsComponent } from './tabs/diagnostics.component';
 import { AdminFillInsComponent } from './tabs/fill-ins.component';
 import { AdminPlayersComponent } from './tabs/players.component';
 import { AdminSettingsComponent } from './tabs/settings.component';
+import { TourPillComponent } from '../../shared/tour-pill.component';
 import { AdminTournamentsComponent } from './tabs/tournaments.component';
 
 /**
@@ -21,15 +22,13 @@ import { AdminTournamentsComponent } from './tabs/tournaments.component';
 @Component({
   selector: 'app-admin',
   providers: [AdminShellService, AdminPlayersService, AdminContextService],
-  imports: [
-    AdminSettingsComponent,
+  imports: [AdminSettingsComponent,
     AdminPlayersComponent,
     AdminFillInsComponent,
     AdminCompsComponent,
     AdminTournamentsComponent,
     AdminAccessComponent,
-    AdminDiagnosticsComponent
-  ],
+    AdminDiagnosticsComponent, TourPillComponent],
   templateUrl: './admin.component.html'
 })
 export class AdminComponent implements OnInit {

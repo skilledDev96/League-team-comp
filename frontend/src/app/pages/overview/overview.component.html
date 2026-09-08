@@ -6,7 +6,7 @@
 }
 
 <section class="view-controls" aria-label="View controls">
-  <div class="field"><span>Detail</span>
+  <div data-tour="roster-detail-level" class="field"><span>Detail</span>
     <div class="view-segment" role="group" aria-label="Detail level">
       <button type="button" [class.active]="!fullView()" (click)="fullView.set(false)" appTip="The cards only">Starter</button>
       <button type="button" [class.active]="fullView()" (click)="fullView.set(true)" appTip="Adds team identity, fill-ins and the resource links">Full</button>
@@ -47,7 +47,7 @@
   <h2 class="section-title"><span class="section-icon material-symbols-rounded">group</span>Summoners</h2>
   <div class="grid three">
     @for (player of data.players(); track player.id) {
-      <article class="card clickable-card" [class.expanded]="isExpanded(player.id)">
+      <article data-tour="roster-card" class="card clickable-card" [class.expanded]="isExpanded(player.id)">
         <div class="title-row">
           <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
           <h2>{{ player.role }} - {{ player.name }}</h2>
@@ -58,12 +58,12 @@
           <div class="roster-edit">
             <span class="roster-edit-field">
               <span class="roster-edit-label" appTip="The A team is the five Patterns counts by default and the five the draft room follows. Same flag Admin sets.">A team for Patterns</span>
-              <button type="button" class="ateam-toggle" [class.is-bench]="!!player.sub" [attr.aria-pressed]="!!player.sub"
+              <button data-tour="roster-ateam" type="button" class="ateam-toggle" [class.is-bench]="!!player.sub" [attr.aria-pressed]="!!player.sub"
                       [appTip]="player.sub ? 'On the bench — click to put them in the A team' : 'In the A team — click to bench them'"
                       (click)="setBench(player, !player.sub)">{{ player.sub ? 'Bench' : 'A team' }}</button>
             </span>
             <span class="roster-edit-field">
-              <span class="roster-edit-label" appTip="The seats they also cover; Patterns’ Roles filter and the draft room read these">2nd seat</span>
+              <span data-tour="roster-second-seat" class="roster-edit-label" appTip="The seats they also cover; Patterns’ Roles filter and the draft room read these">2nd seat</span>
               @for (r of roles; track r) {
                 @if (r !== player.role) {
                   <button type="button" class="role-flex-toggle" [class.on]="hasSecondary(player, r)" [attr.aria-pressed]="hasSecondary(player, r)"

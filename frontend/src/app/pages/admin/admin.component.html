@@ -2,13 +2,14 @@
   <h1>Edit Team Data</h1>
   <p>Create, update, and delete roster, fill-ins, comps, and settings. Changes save to
     {{ data.mode === 'firebase' ? 'the shared database' : 'this browser' }}.</p>
+  <app-tour-pill />
 </section>
 
 @if (ctx.status()) {
   <p class="tag good" role="ctx.status">{{ ctx.status() }}</p>
 }
 
-<section class="view-controls" aria-label="Editor tabs">
+<section data-tour="admin-tabs" class="view-controls" aria-label="Editor tabs">
   @if (auth.canManageUsers()) {
     <button class="view-btn" [class.active]="ctx.activeTab() === 'settings'" type="button" (click)="ctx.openTab('settings')">Settings</button>
   }

@@ -21,11 +21,12 @@ import { TablePrefsService } from '../../services/table-prefs.service';
 import { formatSide, PLAYER_METRIC_KEYS, PlayerMetric, playerSplits, PlayerSplitRow, SideStat, SplitUnit, starterCount } from '../review/win-loss-splits';
 import { MIN_FOR_A_CLAIM } from '../review/loss-patterns.util';
 import { InfoTipComponent } from '../../shared/info-tip.component';
+import { TourPillComponent } from '../../shared/tour-pill.component';
 import { digestNotes } from '../../core/coaching-digest';
 
 @Component({
   selector: 'app-player-profile',
-  imports: [DatePipe, RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, OverflowMenuComponent, TooltipDirective, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent, InfoTipComponent],
+  imports: [DatePipe, RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, OverflowMenuComponent, TooltipDirective, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent, InfoTipComponent, TourPillComponent],
   templateUrl: './player-profile.component.html'
 })
 export class PlayerProfileComponent {

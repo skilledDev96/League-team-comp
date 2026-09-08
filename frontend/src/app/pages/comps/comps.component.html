@@ -4,6 +4,7 @@
     Team compositions, macro priorities, and ban recommendations.
     Current: {{ fullView() ? 'Full View' : 'Starter View' }}.
   </p>
+  <app-tour-pill />
 </section>
 
 <section class="view-controls" aria-label="View controls">
@@ -14,7 +15,7 @@
     </div>
   </div>
   @if (auth.editing()) {
-    <button type="button" class="view-btn active" (click)="addComp()" appTip="A blank comp, opened with its board so the picks go straight in">
+    <button data-tour="comps-add" type="button" class="view-btn active" (click)="addComp()" appTip="A blank comp, opened with its board so the picks go straight in">
       <span class="material-symbols-rounded" aria-hidden="true">add_circle</span> Add a comp
     </button>
   }
@@ -44,7 +45,7 @@
         <span class="comp-summary-name">{{ comp.name }}</span>
         @if (comp.category) { <span class="comp-cat-chip">{{ comp.category }}</span> }
         @if (panelBadge(comp.id); as badge) {
-          <span class="comp-record-badge"
+          <span data-tour="comp-record" class="comp-record-badge"
                 [class.is-positive]="badge.winRate >= 50"
                 [class.is-negative]="badge.winRate < 50"
                 [appTip]="(badge.source === 'ranked' ? 'Match history: ' : 'Logged: ') + badge.wins + ' wins, ' + badge.losses + ' losses'">
@@ -58,7 +59,7 @@
            click per pick. Read-only keeps the compact row list, which is what
            you want when scanning a comp rather than changing it. -->
       @if (auth.editing()) {
-        <app-comp-board [picks]="comp.picks" [unavailable]="compBanList(comp)"
+        <app-comp-board data-tour="comp-board" [picks]="comp.picks" [unavailable]="compBanList(comp)"
                         (picksChange)="savePicks(comp, $event)" />
       }
 
@@ -94,7 +95,7 @@
       }
 
       @if (auth.editing()) {
-        <div class="comp-notes comp-category-edit">
+        <div data-tour="comp-category" class="comp-notes comp-category-edit">
           <div class="comp-record-head">
             <span class="comp-record-title material-symbols-rounded" aria-hidden="true">sell</span>
             <span class="comp-record-label">Category</span>
@@ -104,7 +105,7 @@
                  [name]="'compcat-' + comp.id" placeholder="Short label (e.g. Meta, For Fun)" />
         </div>
 
-        <div class="comp-notes comp-category-edit">
+        <div class="comp-notes comp-category-edit" data-tour="comp-counts-under">
           <div class="comp-record-head">
             <span class="comp-record-title material-symbols-rounded" aria-hidden="true">merge</span>
             <span class="comp-record-label" appTip="For the records only: this comp’s games are counted as the comp chosen here. For near-duplicate drafts kept separate to play from.">Counts as part of</span>
@@ -141,7 +142,7 @@
       }
 
       @if (hasGamePlan(comp) || auth.editing()) {
-        <div class="comp-notes comp-gameplan">
+        <div data-tour="comp-gameplan" class="comp-notes comp-gameplan">
           <div class="comp-record-head">
             <span class="comp-record-title material-symbols-rounded" aria-hidden="true">map</span>
             <span class="comp-record-label">Game plan</span>
@@ -175,7 +176,7 @@
       <!-- What the comp is built to do, on four axes: read off the champions,
            overruled by hand. The post-game review checks the game against it. -->
       @if (expectationOf(comp); as ex) {
-        <div class="comp-notes comp-expect">
+        <div data-tour="comp-expect" class="comp-notes comp-expect">
           <div class="comp-record-head">
             <span class="comp-record-title material-symbols-rounded" aria-hidden="true">insights</span>
             <span class="comp-record-label">What we expect from it</span>
@@ -219,7 +220,7 @@
       }
 
       @if (comp.bans?.length || auth.editing()) {
-        <div class="comp-notes comp-bans">
+        <div data-tour="comp-bans" class="comp-notes comp-bans">
           <div class="comp-record-head">
             <span class="comp-record-title material-symbols-rounded" aria-hidden="true">block</span>
             <span class="comp-record-label">Ban recommendations</span>

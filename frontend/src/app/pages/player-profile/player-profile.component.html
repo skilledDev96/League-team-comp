@@ -2,7 +2,8 @@
   <section class="hero">
     <h1>{{ p.role }} - {{ p.name }}</h1>
     <p>Single-player prep view for {{ p.name }}.</p>
-  </section>
+    <app-tour-pill />
+</section>
 
   <section class="grid two">
     <article class="card card-loadable">
@@ -268,7 +269,7 @@
     }
 
     <article class="card">
-      <h2 class="title-with-icon"><span class="section-icon">NX</span>Quick Actions</h2>
+      <h2 data-tour="player-edit" class="title-with-icon"><span class="section-icon">NX</span>Quick Actions</h2>
       @if (refreshStatus()) {
         <p class="tag good" role="status">{{ refreshStatus() }}</p>
       }

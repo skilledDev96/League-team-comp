@@ -20,7 +20,7 @@ import { TooltipDirective } from './tooltip.directive';
   template: `
     @let draft = this.draft();
     <div class="player-panel-body player-editor" (input)="editor.autosave(draft)" (change)="editor.autosave(draft)">
-      <div class="grid two">
+      <div data-tour="pe-identity" class="grid two">
         <label class="field"><span>Summoner name</span>
           <input type="text" required [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname-' + draft.uid" placeholder="e.g. DaWhiteHammer" /></label>
         <label class="field"><span>Riot tag</span>
@@ -31,7 +31,7 @@ import { TooltipDirective } from './tooltip.directive';
           <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'prole-' + draft.uid">
             @for (role of roles; track role) { <option [value]="role">{{ role }}</option> }
           </select></label>
-        <div class="field"><span>A team</span>
+        <div data-tour="pe-bench" class="field"><span>A team</span>
           <button type="button" class="ateam-toggle" [class.is-bench]="draft.sub" [attr.aria-pressed]="draft.sub"
                   [appTip]="draft.sub ? 'On the bench — click to put them in the A team' : 'In the A team — click to bench them. The A team is the five Patterns counts and the draft room follows.'"
                   (click)="draft.sub = !draft.sub; editor.autosave(draft)">{{ draft.sub ? 'Bench' : 'A team' }}</button>
@@ -47,7 +47,7 @@ import { TooltipDirective } from './tooltip.directive';
           }
         </div>
       </div>
-      <div class="field"><span>Champion pool</span>
+      <div data-tour="pe-pool" class="field"><span>Champion pool</span>
         <app-champion-picker [champions]="editor.listOf(draft.top3)" [role]="draft.role"
                              [inputName]="'ptop-' + draft.uid" placeholder="Add a champion…"
                              (championsChange)="draft.top3 = $event.join(', '); editor.autosave(draft)" />
@@ -81,7 +81,7 @@ import { TooltipDirective } from './tooltip.directive';
       </details>
 
       <div class="links player-editor-actions">
-        <button class="view-btn" type="button" [disabled]="editor.enrichingKey() === editor.enrichmentKey(draft)" (click)="refresh()"
+        <button data-tour="pe-refresh" class="view-btn" type="button" [disabled]="editor.enrichingKey() === editor.enrichmentKey(draft)" (click)="refresh()"
                 appTip="Re-reads rank, recent champions and the observed playstyle from Riot. Text, pool and bans you set by hand are kept.">
           @if (editor.enrichingKey() === editor.enrichmentKey(draft)) {
             <span class="btn-spinner" aria-hidden="true"></span> Refreshing…
@@ -90,7 +90,7 @@ import { TooltipDirective } from './tooltip.directive';
           }
         </button>
         @if (draft.curated) {
-          <span class="pp-role flex" appTip="Saved by hand: the morning refresh keeps this player’s text, pool and bans. Refresh this player from Riot pulls Riot’s again.">Hand-edited</span>
+          <span data-tour="pe-hand-edited" class="pp-role flex" appTip="Saved by hand: the morning refresh keeps this player’s text, pool and bans. Refresh this player from Riot pulls Riot’s again.">Hand-edited</span>
         }
         @if (note()) { <span class="tag good" role="status">{{ note() }}</span> }
       </div>
