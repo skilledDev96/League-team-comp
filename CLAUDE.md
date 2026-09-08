@@ -252,6 +252,24 @@ filter rather than none, so it can never become unpickable.
    identically without it and need opposite work. It costs no Riot calls: every
    participant is already cached, so it applies to every game, not just the
    freshly fetched ones.
+5. **Cache v5 reads each lane and each player** (8 Sep 2026). Riot's
+   per-participant `challenges` block was on every match payload and never
+   read; `api/src/participant-extras.ts` keeps a typed subset of it as
+   `extras` (absent stays absent, never 0), and `api/src/lane-read.ts` pairs
+   each of our seats with the enemy in the same seat — gold/min, CS at ten,
+   vision/min, Riot's laning-phase flag; two of three terms decide `won`,
+   `even` or `lost` — and collects per-player facts (Teleport takedowns only
+   for a player who took Teleport, control wards, solo kills, time dead).
+   Both ship on the analysis as `AnalysisPlayer.lane` and `.facts`; the raw
+   extras stay in `matchCache`, because `meta/compAnalysis` is one document
+   with a 1 MiB cap (`payloadBytes` is reported, and past 850 KB the oldest
+   games lose their lane reads first). The Patterns tab
+   (`frontend/src/app/pages/review/win-loss-splits.ts`, pure) turns this
+   into **Work on / Keep doing** sentences from the biggest wins-versus-losses
+   gaps that clear `MIN_FOR_A_CLAIM` on both sides, a lane table, and the
+   team and each player split by result. Replays have totals only, so a
+   scrim's lanes stay `unknown` and the table counts it as skipped. A bump
+   to v5 refills forty entries a run; the tab says how many are waiting.
 
 Adding a field to a cached match means **bumping `CACHE_VERSION`** in
 `analysis-cache.ts`. Old entries then re-fetch once, inside `MAX_NEW_FETCHES` per
