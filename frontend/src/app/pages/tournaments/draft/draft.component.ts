@@ -1696,7 +1696,9 @@ export class TournamentDraftComponent implements OnInit {
     // flight, this runs again the moment it lands and asks for the current
     // one. "Skip bans" used to leave a ban answer on a pick step for good.
     const busy = this.advisor.busy();
-    if (!game) return;
+    // Admin → Settings decides whether this fires at all; off by default.
+    const wanted = this.data.settings().autoAdvisor === true;
+    if (!game || !wanted) return;
     const step = game.draftStep ?? 0;
     untracked(() => {
       if (!editing || !this.sequenceActive(game) || !this.isOurTurn(game)) return;

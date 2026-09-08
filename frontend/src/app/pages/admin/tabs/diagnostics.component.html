@@ -46,3 +46,54 @@
     <p class="muted">No analysis has run yet. Hit Refresh match data on the Analysis page.</p>
   }
 </section>
+
+<!-- What the draft room did, one line per save, so a bug a teammate cannot
+     describe can be read back step by step. -->
+<section class="card" aria-label="Draft log">
+  <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">history</span>Draft log</h2>
+  <p class="muted edit-hint">
+    Every change to a series game, newest first: who, when, what moved, and the board it left.
+    Hover a row for the full board. Uncaught browser errors are listed underneath.
+  </p>
+  <div class="links">
+    <button type="button" class="view-btn" (click)="loadLogs()" [disabled]="logsLoading()">
+      {{ logsLoading() ? 'Reading…' : 'Reload' }}
+    </button>
+  </div>
+  @if (logsError()) { <p class="tag bad" role="alert">{{ logsError() }}</p> }
+  @if (draftEvents().length) {
+    <ul class="list-clean draft-log">
+      @for (e of draftEvents(); track e.id) {
+        <li class="draft-log-row" [appTip]="board(e)">
+          <span class="draft-log-when">{{ when(e.at) }}</span>
+          <span class="draft-log-who">{{ e.by }}</span>
+          <span class="draft-log-game">{{ gameLabel(e) }}</span>
+          <span class="draft-log-step" [appTip]="'Draft step before → after'">{{ e.stepBefore + 1 }}→{{ e.stepAfter + 1 }}</span>
+          <span class="draft-log-changes">
+            @for (c of e.changes; track $index) {
+              <span class="draft-log-change" [class.is-undo]="c.startsWith('Undo')" [class.is-reset]="c.startsWith('Reset')">{{ c }}</span>
+            }
+          </span>
+        </li>
+      }
+    </ul>
+  } @else if (!logsLoading()) {
+    <p class="muted">Nothing logged yet. The log starts with the first save after 8 Sep 2026.</p>
+  }
+
+  <h3>Browser errors</h3>
+  @if (clientErrors().length) {
+    <ul class="list-clean draft-log">
+      @for (e of clientErrors(); track e.id) {
+        <li class="draft-log-row is-error" [appTip]="e.stack || e.message">
+          <span class="draft-log-when">{{ when(e.at) }}</span>
+          <span class="draft-log-who">{{ e.by }}</span>
+          <span class="draft-log-game">{{ e.url }}</span>
+          <span class="draft-log-changes"><span class="draft-log-change is-reset">{{ e.message }}</span></span>
+        </li>
+      }
+    </ul>
+  } @else if (!logsLoading()) {
+    <p class="muted">No browser errors reported.</p>
+  }
+</section>

@@ -195,6 +195,24 @@ holds the component; the rules it obeys are pure and tested next door in
   with it. If it ever matters, `overflow-x: clip` on the container masks it in
   one line; repairing the measurement properly means touching the app root.
 
+**Every save of a series game is logged, and every uncaught browser error is
+reported.** `TeamDataService.updateSeriesGame` diffs the game it is replacing
+against the one it is writing (`core/draft-diff.ts`, pure and tested) and
+writes one `draftEvents` document per save — who, when, which game, the step
+it moved, and the changes in words ("Ban 2: Ahri", "Undo: removed our ADC
+Jinx", "Reset: every ban and pick cleared"). A hold-only change is skipped.
+`core/error-reporting.ts` is the app's `ErrorHandler`; it writes uncaught
+errors to `clientErrors` (any signed-in user may create one — see
+`firestore.rules`), capped at twenty a session and one row per message.
+Both are read on Admin → Diagnostics. The point (8 Sep 2026): a teammate who
+says "something went wrong in the draft" and cannot say what can now be read
+back step by step. Do not add per-action logging in the draft room — the diff
+at the write path already sees every page's writes.
+
+**The advisor's auto-ask is a team setting, off by default.**
+`Settings.autoAdvisor` (Admin → Settings) gates the `autoAsk` effect in the
+draft room; "Ask what to pick" always works.
+
 **Champion lanes come from pro match data, not from Riot.** Riot's champion tags
 are *classes*: Gragas is a Fighter in all three of his lanes, and "Support" is
 both a tag and a lane. Data Dragon and CommunityDragon carry no position data at

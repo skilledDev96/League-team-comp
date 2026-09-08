@@ -47,6 +47,14 @@ service cloud.firestore {
       allow read, write: if signedIn() && emailId == emailKey();
     }
 
+    // A viewer's browser may report an uncaught error; nobody edits or
+    // deletes one from the app. Reads fall to the catch-all like the draft
+    // log — both name teammates, which the access list already does.
+    match /clientErrors/{id} {
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
     // The crawler's working state, not its output. crawlState holds a queue of
     // up to 4,000 puuids and crawlSeen a marker per match id — neither is of any
     // use to a reader, and the catch-all below would otherwise publish a list of

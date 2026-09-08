@@ -4,11 +4,15 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
+  limit,
   onSnapshot,
+  orderBy,
+  query,
   setDoc,
   writeBatch
 } from 'firebase/firestore';
-import { getDb, isFirebaseConfigured } from '../core/firebase';
+import { getAuthInstance, getDb, isFirebaseConfigured } from '../core/firebase';
 import { stripUndefined } from '../core/strip-undefined';
 import { SEED_DATA } from '../data/seed-data';
 import {
@@ -35,9 +39,12 @@ import {
   TeamIdentity,
   Scrim,
   ScrimOpponent,
-  RefreshLog
+  RefreshLog,
+  DraftEvent
 } from '../models/team.models';
 import { normalizeEmail } from '../core/access';
+import { describeGameChange } from '../core/draft-diff';
+import { ClientError } from '../core/error-reporting';
 
 const LOCAL_KEY = 'bom-team-data';
 
@@ -492,8 +499,64 @@ export class TeamDataService {
     return this.persistUpsert('seriesGames', this.seriesGames, entity);
   }
 
-  updateSeriesGame(entity: SeriesGame): Promise<void> {
-    return this.persistUpsert('seriesGames', this.seriesGames, entity);
+  async updateSeriesGame(entity: SeriesGame): Promise<void> {
+    const before = this.seriesGames().find((g) => g.id === entity.id);
+    await this.persistUpsert('seriesGames', this.seriesGames, entity);
+    void this.logDraftEvent(before, entity);
+  }
+
+  /**
+   * Every change to a game, in words, so "something went wrong in the draft"
+   * can be read back the next morning. Diffed here because this is the one
+   * place every page's write passes through; a hold-only change is skipped.
+   * Never awaited by the caller and never allowed to fail the write.
+   */
+  private async logDraftEvent(before: SeriesGame | undefined, after: SeriesGame): Promise<void> {
+    if (this.mode !== 'firebase') return;
+    const changes = describeGameChange(before, after);
+    if (!changes.length) return;
+    const db = getDb();
+    if (!db) return;
+    const at = new Date();
+    const id = `${at.toISOString().replace(/[-:.TZ]/g, '').slice(0, 15)}-${after.id.slice(-6)}`;
+    const event: Omit<DraftEvent, 'id'> = {
+      at: at.toISOString(),
+      by: getAuthInstance()?.currentUser?.email ?? 'unknown',
+      seriesId: after.seriesId,
+      gameId: after.id,
+      gameNumber: after.gameNumber,
+      stepBefore: before?.draftStep ?? 0,
+      stepAfter: after.draftStep ?? 0,
+      changes: changes.map((c) => c.note),
+      kinds: changes.map((c) => c.kind),
+      board: {
+        ...(after.ourSide ? { ourSide: after.ourSide } : {}),
+        bans: (after.bans ?? []).filter(Boolean),
+        ourChampions: after.ourChampions ?? [],
+        theirChampions: after.theirChampions ?? []
+      }
+    };
+    try {
+      await setDoc(doc(db, 'draftEvents', id), stripUndefined(event as unknown as Record<string, unknown>));
+    } catch (error) {
+      console.warn('Draft log write failed', error);
+    }
+  }
+
+  /** The latest draft events, newest first. One read, for the admin page. */
+  async loadDraftEvents(count = 200): Promise<DraftEvent[]> {
+    const db = this.mode === 'firebase' ? getDb() : null;
+    if (!db) return [];
+    const snap = await getDocs(query(collection(db, 'draftEvents'), orderBy('at', 'desc'), limit(count)));
+    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<DraftEvent, 'id'>) }));
+  }
+
+  /** Errors browsers reported, newest first. One read, for the admin page. */
+  async loadClientErrors(count = 50): Promise<ClientError[]> {
+    const db = this.mode === 'firebase' ? getDb() : null;
+    if (!db) return [];
+    const snap = await getDocs(query(collection(db, 'clientErrors'), orderBy('at', 'desc'), limit(count)));
+    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ClientError, 'id'>) }));
   }
 
   deleteSeriesGame(id: string): Promise<void> {

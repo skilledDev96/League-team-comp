@@ -401,6 +401,37 @@ export type ResourceLinks = Record<string, ResourceLink[]>;
 
 export interface Settings {
   teamName: string;
+  /**
+   * Ask the advisor by itself the moment a draft step becomes ours. Off by
+   * default: the team asked for it to be removed, then for a switch (8 Sep
+   * 2026) — "Ask what to pick" always works either way.
+   */
+  autoAdvisor?: boolean;
+}
+
+/**
+ * One save of a series game, in words — what changed, by whom, when, and the
+ * board it left behind. Written by `TeamDataService.updateSeriesGame` from
+ * `core/draft-diff.ts`, read on Admin → Diagnostics. Collection `draftEvents`.
+ */
+export interface DraftEvent {
+  id: string;
+  /** ISO. */
+  at: string;
+  by: string;
+  seriesId: string;
+  gameId: string;
+  gameNumber: number;
+  stepBefore: number;
+  stepAfter: number;
+  changes: string[];
+  kinds: string[];
+  board: {
+    ourSide?: 'blue' | 'red';
+    bans: string[];
+    ourChampions: string[];
+    theirChampions: string[];
+  };
 }
 
 /**

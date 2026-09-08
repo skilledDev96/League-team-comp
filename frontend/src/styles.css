@@ -13420,3 +13420,60 @@ button.opp-more.active {
 }
 
 .advice-ours.is-none { opacity: 0.55; }
+
+
+/* ---- Draft log on Diagnostics (8 Sep 2026) --------------------------------
+   One line per save: when, who, which game, the step it moved, and what
+   changed. Undo and Reset are tinted so a walk-back stands out in a column. */
+.draft-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0.6rem 0 0;
+  font-size: 0.78rem;
+}
+
+.draft-log-row {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(7rem, 12rem) minmax(9rem, 14rem) 3.6rem 1fr;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+  border-radius: 0.5rem;
+  min-width: 0;
+}
+
+.draft-log-row.is-error { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+
+.draft-log-when,
+.draft-log-step { font-variant-numeric: tabular-nums; color: var(--text-1); white-space: nowrap; }
+
+.draft-log-who,
+.draft-log-game { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-1); }
+
+.draft-log-changes { display: flex; flex-wrap: wrap; gap: 0.3rem; min-width: 0; }
+
+.draft-log-change {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--text-0);
+}
+
+.draft-log-change.is-undo { background: color-mix(in srgb, var(--warn) 18%, transparent); }
+.draft-log-change.is-reset { background: color-mix(in srgb, var(--warn) 30%, transparent); color: var(--text-0); }
+
+.field-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.field-check input { margin-top: 0.25rem; }
+.field-check small { display: block; margin-top: 0.15rem; }
+
+@media (max-width: 900px) {
+  .draft-log-row { grid-template-columns: 1fr 1fr; }
+  .draft-log-changes { grid-column: 1 / -1; }
+}
