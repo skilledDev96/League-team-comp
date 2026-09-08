@@ -270,6 +270,21 @@ filter rather than none, so it can never become unpickable.
    team and each player split by result. Replays have totals only, so a
    scrim's lanes stay `unknown` and the table counts it as skipped. A bump
    to v5 refills forty entries a run; the tab says how many are waiting.
+6. **Patterns reads Riot games and replays apart, serious games only by
+   default, and opens on an overview.** `sourceOf` (queue `Scrim` → replay)
+   drives a source switch; `MetricSplit.needs` marks the per-minute and
+   challenge figures Riot-only so a replay's table and rules keep only what
+   a replay carries (`laneTotals` stands in for lane verdicts). A game tagged
+   on the Games page lands in `practiceGames` (one doc per match, the
+   `compOverrides` pattern) and leaves Patterns unless "All" is chosen.
+   Lanes, the team split, the objective patterns and the game list sit
+   behind chips remembered in `localStorage`. **Checking a number:** every
+   game has a "Check the numbers" drawer (`shared/game-check.component.ts`,
+   `core/game-figures.ts`, a League of Graphs link from `core/match-link.ts`),
+   Admin → Diagnostics has a Data health table (`core/health-checks.ts`,
+   `cacheVersion` now travels on each analysis game) and the analysis size,
+   and every Work on / Keep doing line folds out the games it was averaged
+   over (`Advice.evidence`, twelve newest, from `Split.samples`).
 
 Adding a field to a cached match means **bumping `CACHE_VERSION`** in
 `analysis-cache.ts`. Old entries then re-fetch once, inside `MAX_NEW_FETCHES` per
