@@ -306,7 +306,13 @@ export interface PlayerSplitRow {
   champions: ChampionCount[];
 }
 
-export function playerSplits(games: readonly AnalysisGame[]): PlayerSplitRow[] {
+/** The columns a player row can show, in this order; a page picks its own default set. */
+export const PLAYER_METRIC_KEYS = [
+  'kills', 'deaths', 'assists', 'kda', 'kp', 'damageShare', 'damagePerMin', 'goldPerMin', 'csPerMin', 'csAt10',
+  'vision', 'controlWards', 'wardTakedowns', 'goldDiff', 'csDiff', 'soloKills', 'plates', 'timeDead', 'tp'
+] as const;
+
+export function playerSplits(games: readonly AnalysisGame[], minSeatGames = MIN_FOR_A_CLAIM): PlayerSplitRow[] {
   const names = new Map<string, Map<string, number>>();
   for (const g of games) {
     for (const p of g.players) {
@@ -327,13 +333,26 @@ export function playerSplits(games: readonly AnalysisGame[]): PlayerSplitRow[] {
       higherIsBetter,
       split: split(games, (g) => { const p = own(g); return p ? pick(p, g) : undefined; }, places)
     });
+    const minutes = (g: AnalysisGame) => (g.durationSec ? g.durationSec / 60 : undefined);
     return [
+      pm('kills', 'Kills', 'count', true, (p) => p.kills, 1),
       pm('deaths', 'Deaths', 'count', false, (p) => p.deaths, 1),
+      pm('assists', 'Assists', 'count', true, (p) => p.assists, 1),
+      pm('kda', 'KDA', 'count', true, (p) => (p.kills + p.assists) / Math.max(1, p.deaths), 1),
       pm('kp', 'Kill participation', 'pct', true, (p, g) => killParticipationOf(p, g)),
       pm('damageShare', 'Damage share', 'pct', true, (p, g) => damageShareOf(p, g)),
-      pm('vision', 'Vision per minute', 'perMin', true, (p) => p.facts?.visionPerMin),
+      pm('damagePerMin', 'Damage/min', 'count', true, (p, g) => { const m = minutes(g); return m ? Math.round(p.damage / m) : undefined; }, 0),
+      pm('goldPerMin', 'Gold/min', 'count', true, (p) => p.facts?.goldPerMin, 0),
+      pm('csPerMin', 'CS/min', 'count', true, (p, g) => { const m = minutes(g); return m && p.cs ? p.cs / m : undefined; }, 1),
+      pm('csAt10', 'CS at 10', 'count', true, (p) => p.facts?.csAt10, 1),
+      pm('vision', 'Vision/min', 'perMin', true, (p) => p.facts?.visionPerMin),
+      pm('controlWards', 'Control wards', 'count', true, (p) => p.facts?.controlWards, 1),
+      pm('wardTakedowns', 'Wards cleared', 'count', true, (p) => p.facts?.wardTakedowns, 1),
       pm('goldDiff', 'Gold/min vs lane', 'diff', true, (p) => p.lane?.goldPerMinDiff, 0),
       pm('csDiff', 'CS at 10 vs lane', 'diff', true, (p) => p.lane?.csAt10Diff, 1),
+      pm('soloKills', 'Solo kills', 'count', true, (p) => p.facts?.soloKills, 1),
+      pm('plates', 'Plates', 'count', true, (p) => p.facts?.plates, 1),
+      pm('timeDead', 'Minutes dead', 'minutes', false, (p) => (p.facts?.timeDeadSec === undefined ? undefined : p.facts.timeDeadSec / 60), 1),
       pm('tp', 'Teleport takedowns', 'count', true, (p) => p.facts?.tpTakedowns, 1)
     ];
   };
@@ -361,7 +380,7 @@ export function playerSplits(games: readonly AnalysisGame[]): PlayerSplitRow[] {
       metrics: metricsFor((g) => g.players.find((p) => p.name === name)),
       champions: championsFor((g) => g.players.find((p) => p.name === name)),
       seats: sorted
-        .filter(([seat, count]) => seat && count >= MIN_FOR_A_CLAIM)
+        .filter(([seat, count]) => seat && count >= minSeatGames)
         .sort((a, b) => order(a[0]) - order(b[0]))
         .map(([seat, count]) => ({
           role: seat,

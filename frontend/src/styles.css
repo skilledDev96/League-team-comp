@@ -13786,3 +13786,34 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 14%, transparent);
 }
+
+
+/* Column picker on the player's with-the-team card. */
+.team-columns { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; margin: 0 0 0.5rem; }
+.team-columns > .view-btn small { margin-left: 0.3rem; opacity: 0.7; }
+
+.team-columns-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--card-border);
+  border-radius: 0.6rem;
+  background: var(--surface-controls);
+}
+
+.team-column-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--text-1);
+  cursor: pointer;
+}
+
+.team-column-option input { margin: 0; accent-color: var(--accent); }
+.team-column-option.active { color: var(--text-0); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }

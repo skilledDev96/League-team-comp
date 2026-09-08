@@ -12,7 +12,7 @@ import { ExternalProfilesComponent } from '../../shared/external-profiles.compon
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
-import { formatSide, gapIsGood, playerSplits, PlayerSplitRow, SideStat, SplitUnit, starterCount } from '../review/win-loss-splits';
+import { formatSide, gapIsGood, PLAYER_METRIC_KEYS, PlayerMetric, playerSplits, PlayerSplitRow, SideStat, SplitUnit, starterCount } from '../review/win-loss-splits';
 import { MIN_FOR_A_CLAIM } from '../review/loss-patterns.util';
 
 @Component({
@@ -91,8 +91,58 @@ export class PlayerProfileComponent {
     const games = champ
       ? this.teamGames().filter((g) => g.players.some((p) => p.name === name && p.champion === champ))
       : this.teamGames();
-    return playerSplits(games).find((r) => r.name === name);
+    // Every seat they have sat in, however few games: the team asked to see
+    // the other lanes, and a seat row carries its own count either way.
+    return playerSplits(games, 1).find((r) => r.name === name);
   });
+
+  // ---- Which columns: a default view, and the choice remembered ----
+
+  private static readonly COLUMNS_KEY = 'bom-team-card-columns';
+  private static readonly DEFAULT_COLUMNS = ['kda', 'deaths', 'kp', 'damageShare', 'vision', 'goldDiff', 'csDiff'];
+
+  protected readonly visibleColumns = signal<string[]>(this.storedColumns());
+
+  private storedColumns(): string[] {
+    try {
+      const raw = localStorage.getItem(PlayerProfileComponent.COLUMNS_KEY);
+      const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+      if (Array.isArray(parsed) && parsed.every((k) => typeof k === 'string') && parsed.length) return parsed;
+    } catch {
+      // Storage may be blocked; the default view is the fallback either way.
+    }
+    return [...PlayerProfileComponent.DEFAULT_COLUMNS];
+  }
+
+  protected readonly columnPickerOpen = signal(false);
+
+  protected isColumnOn(key: string): boolean {
+    return this.visibleColumns().includes(key);
+  }
+
+  protected toggleColumn(key: string): void {
+    this.visibleColumns.update((keys) => (keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key]));
+    try {
+      localStorage.setItem(PlayerProfileComponent.COLUMNS_KEY, JSON.stringify(this.visibleColumns()));
+    } catch {
+      // Nothing to do: the choice lasts for the page instead.
+    }
+  }
+
+  protected resetColumns(): void {
+    this.visibleColumns.set([...PlayerProfileComponent.DEFAULT_COLUMNS]);
+    try {
+      localStorage.removeItem(PlayerProfileComponent.COLUMNS_KEY);
+    } catch {
+      // Same as above.
+    }
+  }
+
+  /** The metrics the table shows, in the fixed column order. */
+  protected shown(metrics: readonly PlayerMetric[]): PlayerMetric[] {
+    const on = new Set(this.visibleColumns());
+    return PLAYER_METRIC_KEYS.map((k) => metrics.find((m) => m.key === k)).filter((m): m is PlayerMetric => !!m && on.has(m.key));
+  }
   protected readonly claimFloor = MIN_FOR_A_CLAIM;
 
   protected side(s: SideStat, unit: SplitUnit): string {
