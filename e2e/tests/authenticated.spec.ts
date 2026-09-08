@@ -56,10 +56,16 @@ test('the comps page renders comps', async ({ page }) => {
 
 test('the games page renders', async ({ page }) => {
   await page.goto('./games');
-  // A list of games or the line saying there are none — both mean the page worked.
-  await expect(page.locator('.games-list, .games-empty').first()).toBeVisible({
+  // The game list starts folded (8 Sep 2026): its head or the line saying
+  // there are no games means the page worked; Show then opens the rows.
+  await expect(page.locator('.games-list-head, .games-empty').first()).toBeVisible({
     timeout: 30_000
   });
+  const fold = page.locator('[data-tour="games-list-fold"]');
+  if (await fold.count()) {
+    await fold.first().click();
+    await expect(page.locator('.games-list, .games-empty').first()).toBeVisible();
+  }
 });
 
 test('the old analysis path still lands on games', async ({ page }) => {
