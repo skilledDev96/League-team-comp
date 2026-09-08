@@ -37,9 +37,21 @@ test('the page loads without console errors', async ({ page }) => {
     // Pages serves deep links as 404, so the document request logs one by
     // design. Anything else is a real error.
     if (/404/.test(text) && /League-team-comp/.test(text)) return;
+    // A resource-load failure carries no URL here; the response listener
+    // below reports those with one, and knows which 404s are benign.
+    if (/Failed to load resource/.test(text)) return;
     errors.push(text);
   });
   page.on('pageerror', (err) => errors.push(String(err)));
+  page.on('response', (response) => {
+    if (response.status() !== 404) return;
+    if (response.request().resourceType() === 'document') return;
+    // Firestore closes a Listen channel with a 404 as part of its own
+    // long-polling lifecycle; it failed this check on 8 Sep 2026 with the app
+    // itself fine. Any other 404 is still a missing asset.
+    if (/firestore\.googleapis\.com\/.*\/Listen\/channel/.test(response.url())) return;
+    errors.push(`404: ${response.url()}`);
+  });
 
   await page.goto('./');
   // Not networkidle: Firestore holds a long-lived connection open, so the page
