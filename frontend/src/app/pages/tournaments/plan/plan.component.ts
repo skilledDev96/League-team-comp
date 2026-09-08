@@ -11,6 +11,8 @@ import { TeamDataService } from '../../../services/team-data.service';
 import { UiService } from '../../../services/ui.service';
 import { noteLines } from '../../../core/note-lines';
 import { parseRiotIds } from '../../../core/riot-id';
+import { looksLikeFiveOnFive, matchIdFromFilename, parseReplay, seatChampions } from '../../../core/replay-parse';
+import { rosterIds, scrimSide } from '../../games/game-rows';
 import {
   appendToRoster,
   banCandidates,
@@ -494,29 +496,58 @@ export class TournamentPlanComponent {
     void this.data.deleteSeriesGame(game.id);
   }
 
-  // ---- Reconcile against Riot match history -----------------------------
+  // ---- Import a replay against a game -----------------------------------
   //
-  // Champions are typed in live during champ select; afterwards the real match
-  // shows up in the analysis data and can be linked to confirm the entry.
+  // Tournament games are customs, and customs never reach the Riot API, so
+  // "fill from match history" could never find one (8 Sep 2026). The replay
+  // file is the only record: it fills both sides in seat order, the side, the
+  // result, and is kept as a scrim under the opponent's name so the numbers
+  // reach the Games page and the Scrims page alike.
 
-  protected readonly reconcilingGameId = signal<string>('');
+  protected readonly replayNote = signal<Record<string, string>>({});
 
-  protected toggleReconcile(game: SeriesGame): void {
-    this.reconcilingGameId.set(this.reconcilingGameId() === game.id ? '' : game.id);
-  }
-
-  protected isReconciling(game: SeriesGame): boolean {
-    return this.reconcilingGameId() === game.id;
-  }
-
-  /** Analysed games not already linked to a series game, newest first. */
-  protected reconcileCandidates(): AnalysisGame[] {
-    const linked = new Set(
-      this.data.seriesGames().map((g) => g.matchId).filter((id): id is string => Boolean(id))
-    );
-    return (this.data.compAnalysis()?.games ?? [])
-      .filter((g) => !linked.has(g.matchId))
-      .slice(0, 12);
+  protected async importReplay(game: SeriesGame, series: TournamentSeries, files: FileList | null): Promise<void> {
+    const file = files?.[0];
+    if (!file) return;
+    const note = (text: string) => this.replayNote.update((s) => ({ ...s, [game.id]: text }));
+    note(`Reading ${file.name}…`);
+    const id = matchIdFromFilename(file.name);
+    if (!id) {
+      note(`${file.name}: no match id in the filename.`);
+      return;
+    }
+    const replay = parseReplay(await file.arrayBuffer());
+    if (!replay || !looksLikeFiveOnFive(replay)) {
+      note(`${file.name}: not a readable 5v5 replay.`);
+      return;
+    }
+    const scrim = {
+      id,
+      opponent: series.opponent,
+      playedOn: new Date(file.lastModified).toISOString(),
+      durationSec: replay.durationSec,
+      blueWon: replay.blueWon,
+      surrendered: replay.surrendered,
+      players: replay.players.map((p) => ({ ...p })),
+      objectives: { blue: { ...replay.objectives.blue }, red: { ...replay.objectives.red } },
+      order: this.data.scrims().length + 1
+    };
+    const side = game.ourSide ?? scrimSide(scrim, rosterIds(this.data.players()));
+    if (!side) {
+      note('Could not tell which side was ours — set the side on the draft first, then import again.');
+      return;
+    }
+    const team = side === 'blue' ? 100 : 200;
+    await this.data.saveScrim({ ...scrim, ourSide: side });
+    await this.data.updateSeriesGame({
+      ...game,
+      ourChampions: seatChampions(replay.players, team),
+      theirChampions: seatChampions(replay.players, team === 100 ? 200 : 100),
+      ourSide: side,
+      win: side === 'blue' ? replay.blueWon : !replay.blueWon,
+      matchId: id
+    });
+    note(`Filled from ${file.name}.`);
   }
 
   protected candidateLabel(game: AnalysisGame): string {
@@ -528,22 +559,11 @@ export class TournamentPlanComponent {
     return game.players.map((p) => p.champion);
   }
 
-  /** Link a real match to this series game, filling both sides from it. */
-  protected linkMatch(game: SeriesGame, match: AnalysisGame): void {
-    void this.data.updateSeriesGame({
-      ...game,
-      ourChampions: match.players.map((p) => p.champion),
-      theirChampions: match.enemyChampions ?? [],
-      win: match.win,
-      matchId: match.matchId
-    });
-    this.reconcilingGameId.set('');
-  }
-
   /**
-   * Undo everything linking filled in — champions and result, not just the id.
-   * Leaving them behind reads as hand-entered data and quietly keeps the wrong
-   * champions in the fearless burn. Bans are ours, so they stay.
+   * Undo everything the replay filled in — champions and result, not just the
+   * id. Leaving them behind reads as hand-entered data and quietly keeps the
+   * wrong champions in the fearless burn. Bans are ours, so they stay. The
+   * scrim record stays too; it is a real game whoever it is filed against.
    */
   protected unlinkMatch(game: SeriesGame): void {
     const next = { ...game, ourChampions: [], theirChampions: [] };

@@ -220,6 +220,28 @@ export function parseReplay(bytes: ArrayBuffer): ReplayGame | null {
  * The stats block does not contain one, and it is the only stable identity a
  * scrim has — without it the same file imported twice becomes two games.
  */
+/**
+ * One side's champions in seat order — Top, Jungle, Mid, ADC, Support — the
+ * shape a series game keeps its picks in. A player the replay left without a
+ * position lands in the first empty seat rather than being dropped.
+ */
+export function seatChampions(players: readonly ReplayPlayer[], team: number): string[] {
+  const order = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
+  const seats: string[] = ['', '', '', '', ''];
+  const loose: string[] = [];
+  for (const p of players) {
+    if (p.team !== team) continue;
+    const i = order.indexOf(p.position);
+    if (i >= 0 && !seats[i]) seats[i] = p.champion;
+    else loose.push(p.champion);
+  }
+  for (const c of loose) {
+    const i = seats.indexOf('');
+    if (i >= 0) seats[i] = c;
+  }
+  return seats;
+}
+
 export function matchIdFromFilename(filename: string): string {
   const stem = filename.replace(/\.rofl$/i, '').trim();
   return /^[A-Z0-9]+-\d+$/i.test(stem) ? stem.toUpperCase() : '';

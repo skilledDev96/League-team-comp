@@ -13585,3 +13585,22 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 
 .games-row-actions .field { margin: 0; }
 .games-empty { margin: 0.3rem 0; }
+
+
+/* KDA as three figures with a quiet slash between, instead of one run of
+   digits; and the replay import on a series game, which is the Scrims
+   file button in a smaller coat. */
+.games-kda { white-space: nowrap; }
+.games-kda small { margin: 0 0.15rem; color: var(--text-1); opacity: 0.6; }
+
+.game-replay-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+.game-replay-pick .material-symbols-rounded { font-size: 1.1rem; }
+.game-replay-note { margin: 0.3rem 0 0; font-size: 0.78rem; }

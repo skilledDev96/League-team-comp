@@ -854,7 +854,11 @@ export interface SeriesGame {
    */
   pickLog?: string[];
   win?: boolean;
-  /** Set when reconciled against Riot match history after the fact. */
+  /**
+   * The replay imported against this game — a stored scrim's id. Customs
+   * never reach the Riot API, so the replay file is the only record; the
+   * Games page reads that scrim's numbers under this game (8 Sep 2026).
+   */
   matchId?: string;
   order: number;
 }

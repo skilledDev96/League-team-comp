@@ -90,18 +90,26 @@ export class GamesComponent {
     const riot = (this.data.compAnalysis()?.games ?? []).map((g) =>
       fromAnalysis(g, effectiveComp(g.compId, this.data.compOverride(g.matchId), comps))
     );
+    // A tournament game with a replay imported against it owns that replay:
+    // the same game must not also appear as a scrim, or as the Riot row the
+    // analysis folds the stored scrim into.
+    const seriesById = new Map(this.data.tournamentSeries().map((s) => [s.id, s]));
+    const scrimById = new Map(this.data.scrims().map((s) => [s.id, s]));
+    const seatNames: Record<string, string> = {};
+    for (const p of this.data.starters()) if (p.role && !seatNames[p.role]) seatNames[p.role] = p.name;
+    const tournament = this.data
+      .seriesGames()
+      .map((g) => fromSeriesGame(g, seriesById.get(g.seriesId), seatNames, g.matchId ? scrimById.get(g.matchId) : undefined, ours))
+      .filter((r): r is GameRow => r !== null);
+    const claimed = new Set(tournament.map((r) => r.matchId).filter(Boolean));
+    const riotKept = riot.filter((r) => !claimed.has(r.matchId));
     const riotIds = new Set(riot.map((r) => r.matchId));
     const scrims = this.data
       .scrims()
-      .filter((s) => !riotIds.has(s.id))
+      .filter((s) => !riotIds.has(s.id) && !claimed.has(s.id))
       .map((s) => fromScrim(s, ours))
       .filter((r): r is GameRow => r !== null);
-    const seriesById = new Map(this.data.tournamentSeries().map((s) => [s.id, s]));
-    const tournament = this.data
-      .seriesGames()
-      .map((g) => fromSeriesGame(g, seriesById.get(g.seriesId)))
-      .filter((r): r is GameRow => r !== null);
-    return [...riot, ...scrims, ...tournament].sort((a, b) => b.date - a.date);
+    return [...riotKept, ...scrims, ...tournament].sort((a, b) => b.date - a.date);
   });
 
   /** Everything but the source filter, so the per-source tiles always have their counts. */
@@ -206,6 +214,11 @@ export class GamesComponent {
   protected compact(n: number | undefined): string {
     if (n === undefined) return '—';
     return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+  }
+
+  /** A per-game figure with one decimal, or a dash when no game carried it. */
+  protected per(total: number, games: number): string {
+    return games ? (total / games).toFixed(1) : '—';
   }
 
   protected pct(share: number | undefined): string {

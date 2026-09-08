@@ -263,34 +263,27 @@
                   @if (game.matchId) {
                     <p class="game-linked">
                       <span class="material-symbols-rounded" aria-hidden="true">link</span>
-                      Linked to match {{ game.matchId }}
+                      Filled from replay {{ game.matchId }}
                       <button type="button" class="link-undo" (click)="unlinkMatch(game)">unlink</button>
                     </p>
                   } @else {
-                    <button type="button" class="view-btn reconcile-btn" (click)="toggleReconcile(game)">
-                      <span class="material-symbols-rounded" aria-hidden="true">sync</span>
-                      {{ isReconciling(game) ? 'Cancel' : 'Fill from match history' }}
-                    </button>
-                    @if (isReconciling(game)) {
-                      <ul class="list-clean reconcile-list">
-                        @for (m of reconcileCandidates(); track m.matchId) {
-                          <li>
-                            <button type="button" class="reconcile-option" (click)="linkMatch(game, m)">
-                              <span class="reconcile-label">{{ candidateLabel(m) }}</span>
-                              <span class="reconcile-champs">{{ candidateChampions(m).join(', ') }}</span>
-                            </button>
-                          </li>
-                        } @empty {
-                          <li class="muted">No unlinked games in match history. Refresh on the Analysis page.</li>
-                        }
-                      </ul>
-                    }
+                    <!-- A custom game never reaches Riot; the replay file is
+                         the record. Same files as the Scrims page takes. -->
+                    <label class="scrim-pick game-replay-pick" appTip="Documents › League of Legends › Replays — the .rofl of this game. Fills both sides, the side and the result.">
+                      <input type="file" accept=".rofl"
+                             (change)="importReplay(game, series, $any($event.target).files); $any($event.target).value = ''" />
+                      <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>
+                      Import replay
+                    </label>
+                  }
+                  @if (replayNote()[game.id]; as note) {
+                    <p class="muted game-replay-note">{{ note }}</p>
                   }
                 } @else {
                   @if (game.matchId) {
                     <p class="game-linked">
                       <span class="material-symbols-rounded" aria-hidden="true">link</span>
-                      Confirmed against match history
+                      From the replay
                     </p>
                   }
                   <div class="series-game-champs">

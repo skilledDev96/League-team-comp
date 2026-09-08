@@ -186,22 +186,51 @@ export function fromScrim(scrim: Scrim, ours: Set<string>): GameRow | null {
 
 // ---- Tournament games: typed in, no numbers ------------------------------
 
-export function fromSeriesGame(game: SeriesGame, series: TournamentSeries | undefined): GameRow | null {
+/**
+ * A tournament game. With a replay imported against it (`matchId` naming a
+ * stored scrim) the row carries that replay's numbers; without one it is the
+ * ten champions and the result, and our seats are named from the roster so
+ * the player table still counts the game.
+ */
+export function fromSeriesGame(
+  game: SeriesGame,
+  series: TournamentSeries | undefined,
+  seatNames: Readonly<Record<string, string>> = {},
+  replay?: Scrim,
+  ours: Set<string> = new Set()
+): GameRow | null {
   if (game.win === undefined) return null;
-  const seats = (list: string[] | undefined): RowPlayer[] =>
-    (list ?? []).map((c, i) => ({ role: SEATS[i] ?? '', champion: c, player: null })).filter((p) => p.champion);
   const when = series?.scheduledAt ? Date.parse(series.scheduledAt) : NaN;
-  return {
+  const base = {
     id: `series-${game.id}`,
-    source: 'tournament',
+    source: 'tournament' as const,
     label: `Bo${series?.bestOf ?? 3} game ${game.gameNumber}`,
+    ...(series?.opponent ? { opponent: series.opponent } : {}),
+    link: { path: '/tournaments', query: { view: 'draft', series: game.seriesId, game: game.id } }
+  };
+  const played = replay ? fromScrim(replay, ours) : null;
+  if (played) {
+    return {
+      ...played,
+      ...base,
+      // The series decides the result and the side; the replay only agrees.
+      win: game.win,
+      ...(game.ourSide ? { side: game.ourSide } : {}),
+      date: played.date || (Number.isNaN(when) ? 0 : when),
+      matchId: replay!.id
+    };
+  }
+  const seats = (list: string[] | undefined, named: boolean): RowPlayer[] =>
+    (list ?? [])
+      .map((c, i) => ({ role: SEATS[i] ?? '', champion: c, player: named ? (seatNames[SEATS[i] ?? ''] ?? null) : null }))
+      .filter((p) => p.champion);
+  return {
+    ...base,
     date: Number.isNaN(when) ? 0 : when,
     win: game.win,
     ...(game.ourSide ? { side: game.ourSide } : {}),
-    ...(series?.opponent ? { opponent: series.opponent } : {}),
-    ours: seats(game.ourChampions),
-    theirs: seats(game.theirChampions),
-    link: { path: '/tournaments', query: { view: 'draft', series: game.seriesId, game: game.id } }
+    ours: seats(game.ourChampions, true),
+    theirs: seats(game.theirChampions, false)
   };
 }
 
@@ -254,6 +283,8 @@ export interface PlayerLine {
   games: number;
   wins: number;
   winRate: number;
+  /** Games that carried numbers; the KDA, CS and shares are over these only. */
+  statGames: number;
   kills: number;
   deaths: number;
   assists: number;
@@ -270,9 +301,10 @@ export interface PlayerLine {
 }
 
 /**
- * Each roster member over the rows, from the rows that carry numbers. A
- * tournament row has none and contributes nothing. Every average counts only
- * the games that had the number.
+ * Each roster member over the rows. A game counts as played whenever the
+ * seat is named, numbers or not — a tournament game typed in from the draft
+ * room still says who played what — and every average counts only the games
+ * that had the number.
  */
 export function playerLines(rows: readonly GameRow[]): PlayerLine[] {
   const acc = new Map<
@@ -282,15 +314,22 @@ export function playerLines(rows: readonly GameRow[]): PlayerLine[] {
   for (const r of rows) {
     const teamDamage = r.ours.reduce((n, p) => n + (p.stats?.damage ?? 0), 0);
     for (const p of r.ours) {
-      if (!p.player || !p.stats) continue;
+      if (!p.player) continue;
       const a =
         acc.get(p.player) ??
         {
-          name: p.player, games: 0, wins: 0, winRate: 0, kills: 0, deaths: 0, assists: 0, kda: 0, champions: [],
+          name: p.player, games: 0, wins: 0, winRate: 0, statGames: 0, kills: 0, deaths: 0, assists: 0, kda: 0, champions: [],
           csSum: 0, csMin: 0, shareSum: 0, shareN: 0, kpSum: 0, kpN: 0, champs: new Map()
         };
       a.games += 1;
       if (r.win) a.wins += 1;
+      const c = a.champs.get(p.champion) ?? { games: 0, wins: 0 };
+      c.games += 1;
+      if (r.win) c.wins += 1;
+      a.champs.set(p.champion, c);
+      acc.set(p.player, a);
+      if (!p.stats) continue;
+      a.statGames += 1;
       a.kills += p.stats.kills;
       a.deaths += p.stats.deaths;
       a.assists += p.stats.assists;
@@ -306,11 +345,6 @@ export function playerLines(rows: readonly GameRow[]): PlayerLine[] {
         a.kpSum += p.stats.killParticipation;
         a.kpN += 1;
       }
-      const c = a.champs.get(p.champion) ?? { games: 0, wins: 0 };
-      c.games += 1;
-      if (r.win) c.wins += 1;
-      a.champs.set(p.champion, c);
-      acc.set(p.player, a);
     }
   }
   return [...acc.values()]

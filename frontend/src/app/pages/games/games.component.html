@@ -140,7 +140,8 @@
               <th scope="col">Player</th>
               <th scope="col" class="num">Games</th>
               <th scope="col" class="num" appTip="Wins and losses over these games">Record</th>
-              <th scope="col" class="num" appTip="Kills / deaths / assists, totals, and the ratio">KDA</th>
+              <th scope="col" class="num" appTip="Kills, deaths and assists per game, over the games that carry numbers">K / D / A per game</th>
+              <th scope="col" class="num" appTip="(kills + assists) / deaths">KDA</th>
               <th scope="col" class="num" appTip="CS per minute over the games that know both">CS/min</th>
               <th scope="col" class="num" appTip="Share of the team's damage to champions">DMG share</th>
               <th scope="col" class="num" appTip="Kill participation, from Riot games">KP</th>
@@ -153,7 +154,12 @@
                 <td>{{ p.name }}</td>
                 <td class="num">{{ p.games }}</td>
                 <td class="num" [class.pos]="p.winRate >= 50" [class.neg]="p.winRate < 50">{{ p.wins }}&#8211;{{ p.games - p.wins }}</td>
-                <td class="num">{{ p.kills }}/{{ p.deaths }}/{{ p.assists }} <small class="muted">{{ p.kda }}</small></td>
+                <td class="num games-kda">
+                  @if (p.statGames) {
+                    <span>{{ per(p.kills, p.statGames) }}</span><small>/</small><span>{{ per(p.deaths, p.statGames) }}</span><small>/</small><span>{{ per(p.assists, p.statGames) }}</span>
+                  } @else { — }
+                </td>
+                <td class="num"><b>{{ p.statGames ? p.kda : '—' }}</b></td>
                 <td class="num">{{ p.csPerMin ?? '—' }}</td>
                 <td class="num">{{ pct(p.damageShare) }}</td>
                 <td class="num">{{ pct(p.killParticipation) }}</td>
@@ -251,7 +257,7 @@
                           <td class="icon"><img [src]="ui.championIconUrl(p.champion)" [alt]="" loading="lazy" /></td>
                           <td>{{ p.champion }}</td>
                           <td>{{ p.player || 'not on the roster' }}</td>
-                          <td class="num">{{ p.stats?.kills }}/{{ p.stats?.deaths }}/{{ p.stats?.assists }}</td>
+                          <td class="num games-kda"><span>{{ p.stats?.kills }}</span><small>/</small><span>{{ p.stats?.deaths }}</span><small>/</small><span>{{ p.stats?.assists }}</span></td>
                           <td class="num">{{ p.stats?.cs }}</td>
                           <td class="num">{{ compact(p.stats?.damage) }}</td>
                           <td class="num">{{ compact(p.stats?.damageTaken) }}</td>
@@ -267,7 +273,7 @@
                             <td class="icon"><img [src]="ui.championIconUrl(p.champion)" [alt]="" loading="lazy" /></td>
                             <td>{{ p.champion }}</td>
                             <td></td>
-                            <td class="num">{{ p.stats?.kills }}/{{ p.stats?.deaths }}/{{ p.stats?.assists }}</td>
+                            <td class="num games-kda"><span>{{ p.stats?.kills }}</span><small>/</small><span>{{ p.stats?.deaths }}</span><small>/</small><span>{{ p.stats?.assists }}</span></td>
                             <td class="num">{{ p.stats?.cs }}</td>
                             <td class="num">{{ compact(p.stats?.damage) }}</td>
                             <td class="num">{{ compact(p.stats?.damageTaken) }}</td>
@@ -282,7 +288,7 @@
               } @else {
                 <p class="muted opp-history-nostats">
                   @if (g.source === 'tournament') {
-                    Typed in from the draft room: champions and the result only. Riot cannot see a custom game, so there are no numbers to show.
+                    Typed in from the draft room: champions and the result only. Riot cannot see a custom game — import its replay on the plan page and the numbers appear here.
                   } @else {
                     No numbers on this game yet.
                   }

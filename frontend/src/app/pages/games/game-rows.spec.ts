@@ -57,14 +57,23 @@ describe('game rows', () => {
     expect(fromScrim(scrim({ players: [], ourSide: 'blue' }), ours)).toMatchObject({ win: false });
   });
 
-  it('reads a tournament game with its champions only, and skips one without a result', () => {
+  it('reads a tournament game with its champions only, naming our seats from the roster', () => {
     const series = { id: 'ser', opponent: 'MAD', bestOf: 3, scheduledAt: '2026-09-06T18:00:00.000Z' } as TournamentSeries;
     const game = { id: 'g', seriesId: 'ser', gameNumber: 2, order: 2, ourChampions: ['Aatrox', '', 'Ahri'], theirChampions: [], win: false } as SeriesGame;
-    const row = fromSeriesGame(game, series)!;
+    const row = fromSeriesGame(game, series, { Top: 'Zac', Mid: 'Mid Guy' })!;
     expect(row).toMatchObject({ source: 'tournament', label: 'Bo3 game 2', opponent: 'MAD', win: false });
-    expect(row.ours.map((p) => p.role + ':' + p.champion)).toEqual(['Top:Aatrox', 'Mid:Ahri']);
+    expect(row.ours.map((p) => p.role + ':' + p.champion + ':' + p.player)).toEqual(['Top:Aatrox:Zac', 'Mid:Ahri:Mid Guy']);
     expect(row.ours[0].stats).toBeUndefined();
     expect(fromSeriesGame({ ...game, win: undefined }, series)).toBeNull();
+  });
+
+  it('takes the numbers from a replay imported against a tournament game, but keeps the series result', () => {
+    const series = { id: 'ser', opponent: 'MAD', bestOf: 3 } as TournamentSeries;
+    const game = { id: 'g', seriesId: 'ser', gameNumber: 1, order: 1, ourChampions: ['Ornn'], theirChampions: ['Ahri'], win: true, ourSide: 'red', matchId: 's1' } as SeriesGame;
+    const row = fromSeriesGame(game, series, {}, scrim(), rosterIds(roster))!;
+    expect(row).toMatchObject({ id: 'series-g', source: 'tournament', label: 'Bo3 game 1', opponent: 'MAD', win: true, side: 'red', matchId: 's1', durationSec: 1500 });
+    expect(row.ours[0]).toMatchObject({ champion: 'Ornn', player: 'Zac', stats: { kills: 2 } });
+    expect(row.link?.path).toBe('/tournaments');
   });
 
   it('filters by source, window, result, opponent and champion', () => {
@@ -83,11 +92,14 @@ describe('game rows', () => {
     const rows = [fromAnalysis(analysis(), null), fromScrim(scrim(), rosterIds(roster))!];
     expect(record(rows)).toEqual({ games: 2, wins: 2, losses: 0, winRate: 100 });
     expect(meanLength(rows)).toBe(1650);
-    const lines = playerLines(rows);
+    const series = { id: 'ser', opponent: 'MAD', bestOf: 3 } as TournamentSeries;
+    const typed = fromSeriesGame({ id: 'g', seriesId: 'ser', gameNumber: 1, order: 1, ourChampions: ['Sion'], theirChampions: [], win: false } as SeriesGame, series, { Top: 'Zac' })!;
+    const lines = playerLines([...rows, typed]);
     const zac = lines.find((l) => l.name === 'Zac')!;
-    expect(zac).toMatchObject({ games: 2, wins: 2, kills: 8, deaths: 4, assists: 12, kda: 5 });
+    // The typed-in game counts as played; its missing numbers count nowhere.
+    expect(zac).toMatchObject({ games: 3, wins: 2, statGames: 2, kills: 8, deaths: 4, assists: 12, kda: 5 });
+    expect(zac.champions.map((c) => c.champion)).toEqual(['Aatrox', 'Ornn', 'Sion']);
     expect(zac.csPerMin).toBe(8); // 240 cs over 30 minutes plus 200 over 25
-    expect(zac.champions.map((c) => c.champion)).toEqual(['Aatrox', 'Ornn']);
     const go = lines.find((l) => l.name === 'Go10x')!;
     expect(go.killParticipation).toBeCloseTo(0.7);
     expect(go.damageShare).toBeCloseTo(0.4);
