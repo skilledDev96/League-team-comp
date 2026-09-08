@@ -218,6 +218,16 @@
           Seat rows need {{ claimFloor }} games in that seat. The team's own read is on Games → Patterns.
         </p>
       </article>
+    } @else if (data.compAnalysis()) {
+      <!-- No games in this queue with the main five: say so rather than
+           letting the card vanish when a tab changes (8 Sep 2026). -->
+      <article class="card card-wide team-card">
+        <div class="team-card-head">
+          <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>With the team</h2>
+          <span class="team-card-scope">{{ teamQueueLabel() }} · <b>0</b> games with the main five</span>
+        </div>
+        <p class="muted team-card-note">No {{ teamQueueLabel() === 'Every team queue' ? '' : teamQueueLabel() + ' ' }}games with {{ p.name }} and the other four starters yet.</p>
+      </article>
     }
 
     <article class="card">
