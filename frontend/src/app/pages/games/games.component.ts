@@ -161,6 +161,17 @@ export class GamesComponent {
     const starters = new Set(this.data.starters().map((p) => p.name));
     return this.allPlayerLines().filter((l) => !starters.has(l.name)).length;
   });
+  protected isSub(name: string): boolean {
+    return !!this.data.players().find((p) => p.name === name)?.sub;
+  }
+
+  /** The same sub flag Admin sets: benched players leave the five here and on Patterns. */
+  protected setBench(name: string, sub: boolean): void {
+    const player = this.data.players().find((p) => p.name === name);
+    if (!player) return;
+    void this.data.updatePlayer({ ...player, sub: sub || undefined, curated: true });
+  }
+
   protected readonly players = computed(() => {
     const lines = this.allPlayerLines();
     if (this.showBench()) return lines;

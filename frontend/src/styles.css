@@ -13760,3 +13760,29 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 }
 
 .team-champ-btn.active img { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+
+/* Bench toggle on the Games player table: the opponent tables' quiet word. */
+.games-bench-toggle {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-1);
+  font: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.games-bench-toggle:hover,
+.games-bench-toggle:focus-visible { opacity: 1; border-color: var(--card-border); }
+
+.games-bench-toggle.active {
+  opacity: 1;
+  border-color: var(--warn);
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}

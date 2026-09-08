@@ -160,7 +160,14 @@
           <tbody>
             @for (p of players(); track p.name) {
               <tr>
-                <td>{{ p.name }} <small class="muted">{{ p.role }}</small></td>
+                <td>
+                  {{ p.name }} <small class="muted">{{ p.role }}</small>
+                  @if (auth.editing()) {
+                    <button type="button" class="games-bench-toggle" [class.active]="isSub(p.name)" [attr.aria-pressed]="isSub(p.name)"
+                            [appTip]="isSub(p.name) ? 'On the bench — click to make them a starter' : 'Bench this player: they leave the five here and on Patterns'"
+                            (click)="setBench(p.name, !isSub(p.name))">{{ isSub(p.name) ? 'Substitute' : 'Bench' }}</button>
+                  }
+                </td>
                 <td class="num">{{ p.games }}</td>
                 <td class="num" [class.pos]="p.winRate >= 50" [class.neg]="p.winRate < 50">{{ p.wins }}&#8211;{{ p.games - p.wins }}</td>
                 <td class="num games-kda">
