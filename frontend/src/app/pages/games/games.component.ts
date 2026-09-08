@@ -48,9 +48,10 @@ type Tab = 'games' | 'patterns' | 'reviews';
  * on 8 Sep 2026. Comps keep their own records on the Comps page; here a comp
  * is a tag on a game, not the thing the page is organised around.
  */
+import { PlayerMarkComponent } from '../../shared/player-mark.component';
 @Component({
   selector: 'app-games',
-  imports: [DatePipe,
+  imports: [PlayerMarkComponent, DatePipe,
     FormsModule,
     RouterLink,
     ChampionFilterComponent,

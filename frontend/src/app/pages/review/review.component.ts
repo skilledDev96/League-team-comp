@@ -47,9 +47,10 @@ import { InfoTipComponent } from '../../shared/info-tip.component';
  */
 type SectionKey = 'lanes' | 'changes' | 'recurring' | 'games';
 
+import { PlayerMarkComponent } from '../../shared/player-mark.component';
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, NgTemplateOutlet, RouterLink, TooltipDirective, ChampionFilterComponent, GameCheckComponent, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent, InfoTipComponent],
+  imports: [PlayerMarkComponent, DatePipe, NgTemplateOutlet, RouterLink, TooltipDirective, ChampionFilterComponent, GameCheckComponent, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent, InfoTipComponent],
   templateUrl: './review.component.html'
 })
 export class ReviewComponent {

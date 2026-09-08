@@ -78,7 +78,7 @@
           <div class="team-champ-filter" role="group" aria-label="Players">
             @for (p of data.players(); track p.id) {
               <button type="button" class="view-btn" [class.active]="customPlayers().has(p.name)" [attr.aria-pressed]="customPlayers().has(p.name)"
-                      (click)="toggleCustom(p.name)">{{ p.name }} <em>{{ p.role }}</em></button>
+                      (click)="toggleCustom(p.name)"><app-player-mark [name]="p.name" />{{ p.name }} <em>{{ p.role }}</em></button>
             }
             @if (!customPlayers().size) { <small class="muted">Nobody picked: every game counts.</small> }
           </div>
@@ -215,7 +215,7 @@
           <tbody>
             @for (r of laneTotalRows(); track r.key) {
               <tr>
-                <td>{{ r.label }} <small>{{ r.seat }}</small></td>
+                <td><app-player-mark [name]="r.label" />{{ r.label }} <small>{{ r.seat }}</small></td>
                 @if (on('laneTotals', 'goldShare', totalDefaults)) { <td class="num"><app-split-cell [split]="r.goldShare" unit="pct" [higherIsBetter]="true" /></td> }
                 @if (on('laneTotals', 'csPerMin', totalDefaults)) { <td class="num"><app-split-cell [split]="r.csPerMin" unit="count" [higherIsBetter]="true" /></td> }
                 @if (on('laneTotals', 'damageShare', totalDefaults)) { <td class="num"><app-split-cell [split]="r.damageShare" unit="pct" [higherIsBetter]="true" /></td> }
@@ -249,7 +249,7 @@
               @let lost = prefs.view() === 'wl' ? r.lostInLosses : r.lost;
               @let won = prefs.view() === 'wl' ? r.wonInWins : r.won;
               <tr>
-                <td>{{ r.label }} <small>{{ r.seat }}</small></td>
+                <td><app-player-mark [name]="r.label" />{{ r.label }} <small>{{ r.seat }}</small></td>
                 @if (on('lanes', 'lost', laneDefaults)) {
                   <td class="num" [class.neg]="lost.n >= claimFloor && lost.share >= 55">
                     @if (lost.n) { {{ lost.games }} of {{ lost.n }} <small>({{ lost.share }}%)</small> } @else { — }

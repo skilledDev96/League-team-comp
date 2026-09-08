@@ -426,7 +426,7 @@
     <div class="grid three">
       @for (row of banRows(); track row.name) {
         <article class="card">
-          <h3>{{ row.role }} - {{ row.name }}</h3>
+          <h3><app-player-mark [name]="row.name" />{{ row.role }} - {{ row.name }}</h3>
           <div class="tag-row">
             @for (ban of row.bans; track ban) {
               <app-champion-chip [champion]="ban" />

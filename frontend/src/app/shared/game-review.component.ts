@@ -10,9 +10,10 @@ import { TooltipDirective } from './tooltip.directive';
  * drafted, and a note per player. Read-only; the button that writes one
  * lives on the row.
  */
+import { PlayerMarkComponent } from './player-mark.component';
 @Component({
   selector: 'app-game-review',
-  imports: [DatePipe, TooltipDirective, InfoTipComponent],
+  imports: [PlayerMarkComponent, DatePipe, TooltipDirective, InfoTipComponent],
   template: `
     @if (review(); as r) {
       <section class="game-review" aria-label="Game review">
@@ -64,7 +65,7 @@ import { TooltipDirective } from './tooltip.directive';
               <tbody>
                 @for (p of r.players; track p.name) {
                   <tr>
-                    <td><b>{{ p.name }}</b><small class="muted"> {{ p.seat }} · {{ p.champion }}</small></td>
+                    <td><app-player-mark [name]="p.name" /><b>{{ p.name }}</b><small class="muted"> {{ p.seat }} · {{ p.champion }}</small></td>
                     <td>@if (p.strength.text) { {{ p.strength.text }} <small class="advice-n">{{ p.strength.evidence }}</small> } @else { <span class="muted">—</span> }</td>
                     <td>@if (p.workOn.text) { @if (p.workOn.minute !== null) { <span class="review-minute">{{ p.workOn.minute }} min</span> } {{ p.workOn.text }} <small class="advice-n">{{ p.workOn.evidence }}</small> } @else { <span class="muted">—</span> }</td>
                   </tr>

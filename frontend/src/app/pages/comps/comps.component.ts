@@ -32,9 +32,10 @@ interface ResultDraft {
   playedOn: string;
 }
 
+import { PlayerMarkComponent } from '../../shared/player-mark.component';
 @Component({
   selector: 'app-comps',
-  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective, NgModelNameDirective, ChampionFilterComponent, TourPillComponent],
+  imports: [PlayerMarkComponent, DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective, NgModelNameDirective, ChampionFilterComponent, TourPillComponent],
   templateUrl: './comps.component.html'
 })
 export class CompsComponent {

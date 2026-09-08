@@ -14281,3 +14281,8 @@ button.coaching-theme:hover, button.coaching-theme:focus-visible { color: var(--
 .title-row-edit { margin-left: auto; align-self: flex-start; position: relative; z-index: 3; }
 .profile-actions .quick-actions-also { flex-basis: auto; }
 .profile-actions .btn-spinner { margin-right: 0.3rem; }
+
+/* ---- A summoner icon at text size beside a name (9 Sep 2026) ---- */
+.player-mark { width: 1.3rem; height: 1.3rem; border-radius: 50%; object-fit: cover; vertical-align: -0.33rem; margin-right: 0.35rem; border: 1px solid var(--card-border); background: var(--surface-btn); }
+td .player-mark, .split-table .player-mark { width: 1.35rem; height: 1.35rem; }
+button .player-mark { vertical-align: -0.3rem; }

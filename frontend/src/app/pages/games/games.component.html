@@ -224,7 +224,7 @@
             @for (p of players(); track p.name) {
               <tr>
                 <td>
-                  {{ p.name }} <small class="muted">{{ p.role }}</small>
+                  <app-player-mark [name]="p.name" />{{ p.name }} <small class="muted">{{ p.role }}</small>
                   @if (auth.editing()) {
                     <button type="button" class="ateam-toggle is-small" [class.is-bench]="isSub(p.name)" [attr.aria-pressed]="isSub(p.name)"
                             [appTip]="isSub(p.name) ? 'On the bench — click to put them in the A team' : 'In the A team — click to bench them: they leave the five here and on Patterns'"
@@ -344,7 +344,7 @@
                           <td>{{ p.role || '—' }}</td>
                           <td class="icon"><img [src]="ui.championIconUrl(p.champion)" [alt]="" loading="lazy" /></td>
                           <td>{{ p.champion }}</td>
-                          <td>{{ p.player || 'not on the roster' }}</td>
+                          <td>@if (p.player) { <app-player-mark [name]="p.player" />{{ p.player }} } @else { not on the roster }</td>
                           <td class="num games-kda"><span>{{ p.stats?.kills }}</span><small>/</small><span>{{ p.stats?.deaths }}</span><small>/</small><span>{{ p.stats?.assists }}</span></td>
                           <td class="num">{{ p.stats?.cs }}</td>
                           <td class="num">{{ compact(p.stats?.damage) }}</td>

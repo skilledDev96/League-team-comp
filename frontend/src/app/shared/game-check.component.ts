@@ -11,9 +11,10 @@ import { TooltipDirective } from './tooltip.directive';
  * the figures can be compared; a replay names its file instead, because a
  * custom game exists nowhere else.
  */
+import { PlayerMarkComponent } from './player-mark.component';
 @Component({
   selector: 'app-game-check',
-  imports: [TooltipDirective, InfoTipComponent],
+  imports: [PlayerMarkComponent, TooltipDirective, InfoTipComponent],
   template: `
     @if (game(); as g) {
       <details class="intel-collapse game-check">
@@ -51,7 +52,7 @@ import { TooltipDirective } from './tooltip.directive';
               <tbody>
                 @for (r of figures().rows; track r.name) {
                   <tr>
-                    <td>{{ r.name }} <small>{{ r.position }} · {{ r.champion }}</small></td>
+                    <td><app-player-mark [name]="r.name" />{{ r.name }} <small>{{ r.position }} · {{ r.champion }}</small></td>
                     @for (cell of r.cells; track $index) {
                       <td class="num">{{ cell ?? '—' }}</td>
                     }
