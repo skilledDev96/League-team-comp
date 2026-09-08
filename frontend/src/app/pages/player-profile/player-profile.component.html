@@ -131,8 +131,16 @@
     </article>
 
     @if (withTeam(); as w) {
-      <article class="card card-wide">
-        <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>With the team, wins against losses</h2>
+      <article class="card card-wide team-card">
+        <div class="team-card-head">
+          <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>With the team</h2>
+          <span class="team-card-scope" [appTip]="'Games where ' + p.name + ' played with the other four starters, in the queue picked above. Wins against losses.'">
+            {{ teamQueueLabel() }} · <b>{{ w.games }}</b> {{ w.games === 1 ? 'game' : 'games' }} with the main five
+          </span>
+        </div>
+        @if (selectedQueue() === 'solo') {
+          <p class="muted team-card-note">Solo/duo is not a team queue, so this card shows every team game instead.</p>
+        }
         @if (teamChampions().length > 1) {
           <div class="team-champ-filter" role="group" aria-label="Champion">
             <button type="button" class="view-btn" [class.active]="!teamChampion()" (click)="teamChampion.set('')">Every champion</button>
@@ -144,8 +152,9 @@
               </button>
             }
             @if (teamChampions().length > 8) {
-              <select class="team-champ-more" [value]="teamChampion()" (change)="teamChampion.set($any($event.target).value)" aria-label="Other champions">
-                <option value="">More…</option>
+              <select class="team-champ-more" [value]="teamChampions().slice(8).some((c) => c.champion === teamChampion()) ? teamChampion() : ''"
+                      (change)="teamChampion.set($any($event.target).value)" aria-label="Other champions">
+                <option value="">{{ teamChampions().length - 8 }} more…</option>
                 @for (c of teamChampions().slice(8); track c.champion) {
                   <option [value]="c.champion">{{ c.champion }} ({{ c.games }})</option>
                 }
@@ -154,22 +163,23 @@
           </div>
         }
         <div class="split-scroll">
-          <table class="split-table">
+          <table class="split-table team-table">
             <thead>
               <tr>
-                <th scope="col">Games</th>
+                <th scope="col">{{ teamChampion() ? 'On ' + teamChampion() : 'All games' }}</th>
                 @for (m of w.metrics; track m.key) {
-                  <th scope="col" class="num" [appTip]="m.label + ' — in wins (W) and in losses (L)'">{{ m.label }}</th>
+                  <th scope="col" class="num" [appTip]="m.label + ' — W is the mean in wins, L in losses'">{{ m.label }}</th>
                 }
                 <th scope="col">Played</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>{{ teamChampion() || 'All' }} <small>{{ w.games }}</small></td>
+              <tr class="is-all">
+                <td>Overall <small>{{ w.games }}</small></td>
                 @for (m of w.metrics; track m.key) {
                   <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">
-                    <small class="wl">W</small>{{ side(m.split.wins, m.unit) }} <small class="wl">L</small>{{ side(m.split.losses, m.unit) }}
+                    <span class="wl-pair"><small class="wl">W</small>{{ side(m.split.wins, m.unit) }}</span>
+                    <span class="wl-pair"><small class="wl">L</small>{{ side(m.split.losses, m.unit) }}</span>
                   </td>
                 }
                 <td>
@@ -186,7 +196,8 @@
                   <td><small>at {{ s.role }} · {{ s.games }}</small></td>
                   @for (m of s.metrics; track m.key) {
                     <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">
-                      <small class="wl">W</small>{{ side(m.split.wins, m.unit) }} <small class="wl">L</small>{{ side(m.split.losses, m.unit) }}
+                      <span class="wl-pair"><small class="wl">W</small>{{ side(m.split.wins, m.unit) }}</span>
+                      <span class="wl-pair"><small class="wl">L</small>{{ side(m.split.losses, m.unit) }}</span>
                     </td>
                   }
                   <td>
@@ -203,9 +214,8 @@
           </table>
         </div>
         <p class="muted split-note">
-          Every game {{ p.name }} played with the main five — the other four starters all on our side — whatever the seat; the "at" rows are one seat each, for seats with {{ claimFloor }} or more games.
-          W is the mean in wins, L in losses; green when the gap is in {{ p.name }}'s favour. "Vs lane" is against whoever was across them that game.
-          The team's own read is on Games → Patterns.
+          Green when the gap is in {{ p.name }}'s favour, red when it is not. "Vs lane" is against whoever was across them that game.
+          Seat rows need {{ claimFloor }} games in that seat. The team's own read is on Games → Patterns.
         </p>
       </article>
     }

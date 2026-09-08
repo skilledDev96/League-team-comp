@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, AnalysisPlayer } from '../../models/team.models';
-import { keepDoing, killParticipationOf, laneTable, mainFiveGames, playerSplits, split, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { keepDoing, killParticipationOf, laneTable, mainFiveGames, playerSplits, seatFit, split, starterCount, teamSplits, workOn } from './win-loss-splits';
 
 const player = (name: string, position: string, over: Partial<AnalysisPlayer> = {}): AnalysisPlayer => ({
   name,
@@ -62,6 +62,16 @@ describe('mainFiveGames', () => {
   });
 });
 
+describe('seatFit', () => {
+  it('is off the moment one of ours sits in a seat that is not theirs', () => {
+    const roster = [{ name: 'top', role: 'Top' }, { name: 'adc', role: 'ADC' }];
+    expect(seatFit(game(true), roster)).toBe('on');
+    const swapped = { ...game(true), players: game(true).players.map((p) => (p.name === 'adc' ? { ...p, position: 'Top' } : p)) };
+    expect(seatFit(swapped, roster)).toBe('off');
+    expect(seatFit(swapped, [{ name: 'someone else', role: 'Mid' }])).toBe('on');
+  });
+});
+
 describe('split', () => {
   it('means each side over the games that carry the number and leaves the gap off with an empty side', () => {
     const games = [game(true), game(true), game(false)];
@@ -87,13 +97,25 @@ describe('laneTable', () => {
       game(false, { laneData: 'riot' })
     ];
     const t = laneTable(games);
-    const bot = t.rows.find((r) => r.role === 'ADC')!;
+    const bot = t.rows.find((r) => r.key === 'ADC')!;
     expect(bot.lostInLosses).toEqual({ games: 2, n: 2, share: 100 });
     expect(bot.wonInWins).toEqual({ games: 2, n: 2, share: 100 });
     expect(bot.goldDiff.losses.mean).toBe(-45);
-    expect(t.rows.find((r) => r.role === 'Top')!.lostInLosses).toEqual({ games: 0, n: 2, share: 0 });
+    expect(t.rows.find((r) => r.key === 'Top')!.lostInLosses).toEqual({ games: 0, n: 2, share: 0 });
     expect(t.skipped).toBe(1);
     expect(t.waiting).toBe(1);
+  });
+
+  it('by player: one row per person in roster order, whatever seat they sat in, with their usual seat', () => {
+    const games = botLaneStory(2);
+    // One win with the ADC and the Top swapped: adc sits Top and still wins lane there.
+    const swapped = { ...games[0], players: games[0].players.map((p) => (p.name === 'adc' ? { ...p, position: 'Top' } : p.name === 'top' ? { ...p, position: 'ADC' } : p)) };
+    const t = laneTable([swapped, ...games.slice(1)], 'player', ['support', 'adc']);
+    expect(t.rows.map((r) => r.key)).toEqual(['support', 'adc', 'top', 'jungle', 'mid']);
+    const adc = t.rows.find((r) => r.key === 'adc')!;
+    expect(adc.seat).toBe('ADC');
+    expect(adc.wonInWins).toEqual({ games: 2, n: 2, share: 100 }); // the Top game counts for the person
+    expect(workOn(botLaneStory(8), 'player', ['adc']).find((a) => a.key === 'lane-adc')!.strong).toBe('adc (ADC) loses lane in 8 of 8 losses');
   });
 });
 

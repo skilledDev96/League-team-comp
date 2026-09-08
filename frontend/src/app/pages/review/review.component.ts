@@ -22,7 +22,7 @@ import {
   summarise,
   MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
-import { formatGap, formatSide, gapIsGood, keepDoing, laneTable, MetricSplit, SideStat, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { formatGap, formatSide, gapIsGood, keepDoing, laneTable, MetricSplit, seatFit, SideStat, starterCount, teamSplits, workOn } from './win-loss-splits';
 
 /**
  * The games, and what they have in common — losses by default, wins on the
@@ -98,12 +98,35 @@ export class ReviewComponent {
     );
   });
 
-  protected readonly filteredGames = computed<AnalysisGame[]>(() => {
+  /** Games with enough starters, before the seat question. */
+  private readonly starterGames = computed<AnalysisGame[]>(() => {
     const starters = this.starterNames();
     if (starters.length < 5) return this.anyStackGames();
     const min = this.minStarters();
     return this.anyStackGames().filter((g) => starterCount(g, starters) >= min);
   });
+
+  /** Any seat, everyone in their own seat, or at least one of ours off their seat (autofill). */
+  protected readonly seatMode = signal<'any' | 'on' | 'off'>('any');
+  protected readonly seatSteps: { mode: 'any' | 'on' | 'off'; label: string; tip: string }[] = [
+    { mode: 'any', label: 'Any seat', tip: 'Every game, whoever sat where' },
+    { mode: 'on', label: 'On role', tip: 'Only games where everyone of ours sat in their own seat' },
+    { mode: 'off', label: 'Off-seat', tip: 'Only games where at least one of ours was autofilled into another seat' }
+  ];
+  private readonly rosterSeats = computed(() => this.data.players().map((p) => ({ name: p.name, role: p.role })));
+
+  protected readonly filteredGames = computed<AnalysisGame[]>(() => {
+    const mode = this.seatMode();
+    if (mode === 'any') return this.starterGames();
+    const roster = this.rosterSeats();
+    return this.starterGames().filter((g) => seatFit(g, roster) === mode);
+  });
+
+  protected gamesAtSeat(mode: 'any' | 'on' | 'off'): number {
+    if (mode === 'any') return this.starterGames().length;
+    const roster = this.rosterSeats();
+    return this.starterGames().filter((g) => seatFit(g, roster) === mode).length;
+  }
 
   /** How many games each step would count, for the buttons. */
   protected gamesAtStep(min: number): number {
@@ -149,10 +172,16 @@ export class ReviewComponent {
    */
   // ---- Wins against losses: the tables and the two lists (8 Sep 2026) ----
 
-  protected readonly workOnList = computed(() => workOn(this.filteredGames()));
-  protected readonly keepDoingList = computed(() => keepDoing(this.filteredGames()));
-  protected readonly laneRows = computed(() => laneTable(this.filteredGames()));
-  protected readonly teamSplitRows = computed(() => teamSplits(this.filteredGames()));
+  /** Roster order for the lane rows: starters by seat, then the subs. */
+  private readonly rosterOrder = computed(() => {
+    const seat = (r: string) => { const i = (['Top', 'Jungle', 'Mid', 'ADC', 'Support'] as string[]).indexOf(r); return i < 0 ? 5 : i; };
+    return [...this.data.players()].sort((a, b) => Number(!!a.sub) - Number(!!b.sub) || seat(a.role) - seat(b.role)).map((p) => p.name);
+  });
+  protected readonly workOnList = computed(() => workOn(this.filteredGames(), 'player', this.rosterOrder()));
+  protected readonly keepDoingList = computed(() => keepDoing(this.filteredGames(), 'player', this.rosterOrder()));
+  protected readonly laneRows = computed(() => laneTable(this.filteredGames(), 'player', this.rosterOrder()));
+  private readonly topStarter = computed(() => this.data.starters().find((p) => p.role === 'Top')?.name);
+  protected readonly teamSplitRows = computed(() => teamSplits(this.filteredGames(), this.topStarter()));
   protected readonly claimFloor = MIN_FOR_A_CLAIM;
 
   protected side(s: SideStat, unit: MetricSplit['unit'] | 'diff'): string {

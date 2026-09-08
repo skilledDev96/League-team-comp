@@ -51,12 +51,27 @@ export class PlayerProfileComponent {
     const name = this.player()?.name;
     if (!name) return [];
     const starters = this.data.starters().map((p) => p.name);
+    // The queue tabs above narrow this card too. Solo/duo is not a team
+    // queue, so that tab shows every team game and the note says so.
+    const queue = this.selectedQueue();
+    const wanted = queue === 'flex' ? 'Flex' : queue === 'clash' ? 'Clash' : null;
     return (this.data.compAnalysis()?.games ?? []).filter((g) => {
+      if (wanted && g.queue !== wanted) return false;
       if (!g.players.some((p) => p.name === name)) return false;
       if (starters.length < 5) return true;
       const others = starters.filter((s) => s !== name);
       return starterCount(g, others) >= 4;
     });
+  });
+
+  /** What the card is counting, in the queue tab's words. */
+  protected readonly teamQueueLabel = computed(() => {
+    switch (this.selectedQueue()) {
+      case 'flex': return 'Flex';
+      case 'clash': return 'Clash';
+      case 'solo': return 'Every team queue';
+      default: return 'Flex, Clash and scrims';
+    }
   });
 
   /** Every champion they played in those games, most played first, for the filter. */

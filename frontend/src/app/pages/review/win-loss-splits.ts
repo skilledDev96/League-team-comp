@@ -99,6 +99,21 @@ export function starterCount(game: AnalysisGame, starters: readonly string[]): n
  * read should not carry it. With fewer than five starters named (a roster
  * still being set up) nothing is filtered out rather than everything.
  */
+export interface RosterSeat {
+  name: string;
+  role: string;
+}
+
+/**
+ * Whether every roster member in the game sat in their own seat. 'off' is
+ * autofill: someone we know played a seat that is not theirs. Asked for on
+ * 8 Sep 2026, so the team can read its off-role games apart from the rest.
+ */
+export function seatFit(game: AnalysisGame, roster: readonly RosterSeat[]): 'on' | 'off' {
+  const byName = new Map(roster.map((r) => [r.name, r.role]));
+  return game.players.some((p) => byName.has(p.name) && byName.get(p.name) !== p.position) ? 'off' : 'on';
+}
+
 export function mainFiveGames(games: readonly AnalysisGame[], starters: readonly string[]): AnalysisGame[] {
   if (starters.length < 5) return [...games];
   return games.filter((g) => starterCount(g, starters) >= 5);
@@ -115,7 +130,11 @@ export interface LaneShare {
 }
 
 export interface LaneRow {
-  role: string;
+  /** The seat name, or the player's name. */
+  key: string;
+  label: string;
+  /** The seat: the row's own when by seat, the player's usual one when by player. */
+  seat: string;
   lostInLosses: LaneShare;
   wonInWins: LaneShare;
   /** Mean gold/min and cs@10 against the lane opponent, in losses and in wins. */
@@ -131,16 +150,22 @@ export interface LaneTable {
   waiting: number;
 }
 
-function laneOf(game: AnalysisGame, role: string) {
-  return game.players.find((p) => p.position === role)?.lane;
+/** Who a lane row is about: a seat, or a person whatever seat they sat in. */
+interface LaneSubject {
+  key: string;
+  label: string;
+  seat: string;
+  pick: (game: AnalysisGame) => AnalysisPlayer | undefined;
 }
 
-function laneShare(games: readonly AnalysisGame[], role: string, win: boolean, verdict: 'won' | 'lost'): LaneShare {
+export type LaneBy = 'seat' | 'player';
+
+function laneShare(games: readonly AnalysisGame[], subject: LaneSubject, win: boolean, verdict: 'won' | 'lost'): LaneShare {
   let n = 0;
   let hit = 0;
   for (const g of games) {
     if (g.win !== win) continue;
-    const lane = laneOf(g, role);
+    const lane = subject.pick(g)?.lane;
     if (!lane || lane.verdict === 'unknown') continue;
     n += 1;
     if (lane.verdict === verdict) hit += 1;
@@ -148,14 +173,47 @@ function laneShare(games: readonly AnalysisGame[], role: string, win: boolean, v
   return { games: hit, n, share: n ? Math.round((hit / n) * 100) : 0 };
 }
 
-export function laneTable(games: readonly AnalysisGame[]): LaneTable {
-  const rows = ROLES.map((role) => ({
-    role,
-    lostInLosses: laneShare(games, role, false, 'lost'),
-    wonInWins: laneShare(games, role, true, 'won'),
-    goldDiff: split(games, (g) => laneOf(g, role)?.goldPerMinDiff, 0),
-    csDiff: split(games, (g) => laneOf(g, role)?.csAt10Diff, 1)
-  }));
+const seatOrder = (r: string) => { const i = (ROLES as readonly string[]).indexOf(r); return i < 0 ? ROLES.length : i; };
+
+/**
+ * The rows: the five seats, or every player in the games — the roster's
+ * order first (starters by seat, then the rest), anyone else after. The team
+ * asked for names once Patterns was strictly the five (8 Sep 2026): a seat
+ * row said "Top", and Top was three different people.
+ */
+function laneSubjects(games: readonly AnalysisGame[], by: LaneBy, roster: readonly string[]): LaneSubject[] {
+  if (by === 'seat') {
+    return ROLES.map((role) => ({ key: role, label: role, seat: role, pick: (g) => g.players.find((p) => p.position === role) }));
+  }
+  const seats = new Map<string, Map<string, number>>();
+  for (const g of games) {
+    for (const p of g.players) {
+      const m = seats.get(p.name) ?? new Map<string, number>();
+      m.set(p.position, (m.get(p.position) ?? 0) + 1);
+      seats.set(p.name, m);
+    }
+  }
+  const usual = (name: string) => [...(seats.get(name)?.entries() ?? [])].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+  const rank = (name: string) => { const i = roster.indexOf(name); return i < 0 ? roster.length + seatOrder(usual(name)) : i; };
+  return [...seats.keys()]
+    .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+    .map((name) => ({ key: name, label: name, seat: usual(name), pick: (g) => g.players.find((p) => p.name === name) }));
+}
+
+function laneRow(games: readonly AnalysisGame[], s: LaneSubject): LaneRow {
+  return {
+    key: s.key,
+    label: s.label,
+    seat: s.seat,
+    lostInLosses: laneShare(games, s, false, 'lost'),
+    wonInWins: laneShare(games, s, true, 'won'),
+    goldDiff: split(games, (g) => s.pick(g)?.lane?.goldPerMinDiff, 0),
+    csDiff: split(games, (g) => s.pick(g)?.lane?.csAt10Diff, 1)
+  };
+}
+
+export function laneTable(games: readonly AnalysisGame[], by: LaneBy = 'seat', roster: readonly string[] = []): LaneTable {
+  const rows = laneSubjects(games, by, roster).map((s) => laneRow(games, s));
   const skipped = games.filter((g) => g.laneData === 'none').length;
   const waiting = games.filter((g) => g.laneData !== 'none' && !g.players.some((p) => p.lane)).length;
   return { rows, skipped, waiting };
@@ -172,7 +230,12 @@ export interface MetricSplit {
   higherIsBetter: boolean;
 }
 
-export function teamSplits(games: readonly AnalysisGame[]): MetricSplit[] {
+/**
+ * The team's numbers by result. `topName` names the Teleport line after the
+ * player who holds the Top seat and reads their Teleport whatever seat they
+ * sat in; without it the line reads the seat.
+ */
+export function teamSplits(games: readonly AnalysisGame[], topName?: string): MetricSplit[] {
   const m = (key: string, label: string, unit: MetricSplit['unit'], higherIsBetter: boolean, pick: (g: AnalysisGame) => number | undefined, places = 2): MetricSplit => ({
     key,
     label,
@@ -194,7 +257,7 @@ export function teamSplits(games: readonly AnalysisGame[]): MetricSplit[] {
     // five counts one plate several times; per player is the honest figure.
     m('plates', 'Turret plates per player', 'count', true, (g) => meanIfAny(g, (p) => p.facts?.plates), 1),
     m('soloKills', 'Solo kills', 'count', true, (g) => sumIfAny(g, (p) => p.facts?.soloKills), 1),
-    m('tpTop', "Top's Teleport takedowns", 'count', true, (g) => topOf(g)?.facts?.tpTakedowns, 1),
+    m('tpTop', `${topName ?? 'Top'}'s Teleport takedowns`, 'count', true, (g) => (topName ? g.players.find((p) => p.name === topName) : topOf(g))?.facts?.tpTakedowns, 1),
     m('damageBalance', 'Biggest damage share', 'pct', false, (g) => { const shares = g.players.map((p) => damageShareOf(p, g)).filter((v): v is number => v !== undefined); return shares.length ? Math.max(...shares) : undefined; })
   ];
 }
@@ -387,23 +450,24 @@ function nOf(s: Split): string {
   return `over ${s.losses.n} losses and ${s.wins.n} wins`;
 }
 
-export function workOn(games: readonly AnalysisGame[]): Advice[] {
+export function workOn(games: readonly AnalysisGame[], by: LaneBy = 'seat', roster: readonly string[] = []): Advice[] {
   const out: Scored[] = [];
-  const lanes = laneTable(games);
-  for (const row of lanes.rows) {
+  for (const subject of laneSubjects(games, by, roster)) {
+    const row = laneRow(games, subject);
     const l = row.lostInLosses;
     const w = row.wonInWins;
-    const lostInWins = laneShare(games, row.role, true, 'lost');
+    const lostInWins = laneShare(games, subject, true, 'lost');
     if (l.n < MIN_FOR_A_CLAIM || lostInWins.n < MIN_FOR_A_CLAIM) continue;
     const points = l.share - lostInWins.share;
     if (l.share >= LANE_SHARE && points >= LANE_GAP_POINTS) {
       const gold = row.goldDiff.losses.n ? `${signed(row.goldDiff.losses.mean)} gold/min` : '';
       const cs = row.csDiff.losses.n ? `${signed(row.csDiff.losses.mean)} cs at 10` : '';
       const numbers = [gold, cs].filter(Boolean).join(', ');
+      const who = by === 'player' && row.seat ? `${row.label} (${row.seat})` : row.label;
       out.push({
-        key: `lane-${row.role}`,
-        strong: `${row.role} loses lane in ${l.games} of ${l.n} losses`,
-        rest: `(${lostInWins.share}% of wins)${numbers ? `: ${numbers} in those losses` : ''}. Rewatch ${row.role}'s first ten minutes and where the jungler was.`,
+        key: `lane-${row.key}`,
+        strong: `${who} loses lane in ${l.games} of ${l.n} losses`,
+        rest: `(${lostInWins.share}% of wins)${numbers ? `: ${numbers} in those losses` : ''}. Rewatch ${row.label}'s first ten minutes and where the jungler was.`,
         n: `over ${l.n} losses and ${w.n} wins with a lane read`,
         effect: points / LANE_GAP_POINTS
       });
@@ -467,16 +531,17 @@ export function workOn(games: readonly AnalysisGame[]): Advice[] {
   return out.sort((a, b) => b.effect - a.effect).slice(0, TAKE).map(({ effect: _e, ...a }) => a);
 }
 
-export function keepDoing(games: readonly AnalysisGame[]): Advice[] {
+export function keepDoing(games: readonly AnalysisGame[], by: LaneBy = 'seat', roster: readonly string[] = []): Advice[] {
   const out: Scored[] = [];
-  const lanes = laneTable(games);
-  for (const row of lanes.rows) {
+  for (const subject of laneSubjects(games, by, roster)) {
+    const row = laneRow(games, subject);
     const w = row.wonInWins;
-    const wonInLosses = laneShare(games, row.role, false, 'won');
+    const wonInLosses = laneShare(games, subject, false, 'won');
     if (w.n < MIN_FOR_A_CLAIM || wonInLosses.n < MIN_FOR_A_CLAIM) continue;
     const points = w.share - wonInLosses.share;
     if (w.share >= LANE_SHARE && points >= LANE_GAP_POINTS) {
-      out.push({ key: `lane-${row.role}`, strong: `${row.role} wins lane in ${w.games} of ${w.n} wins`, rest: `(${wonInLosses.share}% of losses). Keep playing through it — the lane win is the win condition.`, n: `over ${wonInLosses.n} losses and ${w.n} wins with a lane read`, effect: points / LANE_GAP_POINTS });
+      const who = by === 'player' && row.seat ? `${row.label} (${row.seat})` : row.label;
+      out.push({ key: `lane-${row.key}`, strong: `${who} wins lane in ${w.games} of ${w.n} wins`, rest: `(${wonInLosses.share}% of losses). Keep playing through it — the lane win is the win condition.`, n: `over ${wonInLosses.n} losses and ${w.n} wins with a lane read`, effect: points / LANE_GAP_POINTS });
     }
   }
   const team = new Map(teamSplits(games).map((m) => [m.key, m.split]));

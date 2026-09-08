@@ -13725,3 +13725,38 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .team-champ-btn img { width: 1.3rem; height: 1.3rem; border-radius: 0.25rem; }
 .team-champ-btn em { font-style: normal; font-size: 0.7rem; opacity: 0.7; }
 .team-champ-more { font: inherit; font-size: 0.8rem; }
+
+
+/* The player's with-the-team card, tidied (8 Sep 2026): a scope line in
+   the header, W and L as two fixed pairs so columns line up, the overall
+   row weighted, the overflow select in the app's own clothes. */
+.team-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+}
+
+.team-card-head h2 { margin: 0; }
+.team-card-scope { font-size: 0.8rem; color: var(--text-1); }
+.team-card-scope b { color: var(--text-0); }
+.team-card-note { margin: 0.3rem 0 0; font-size: 0.78rem; }
+
+.team-table th:first-child { min-width: 7rem; }
+.team-table tr.is-all td { font-weight: 600; background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.team-table tr.is-all td:first-child { font-weight: 700; }
+.team-table .wl-pair { display: inline-block; min-width: 3.6rem; text-align: right; }
+.team-table .wl-pair + .wl-pair { margin-left: 0.4rem; }
+
+.team-champ-more {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--surface-controls);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.team-champ-btn.active img { outline: 2px solid var(--accent); outline-offset: 1px; }
