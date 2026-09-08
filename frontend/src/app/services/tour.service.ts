@@ -132,6 +132,19 @@ export class TourService {
     const steps = stepsFor(tour, this.role());
     if (!steps.length || this.blocker(tour)) return false;
     this.helpOpen.set(false);
+    // Started from the help list on another page: go to the tour's page
+    // first. A prefix match (the player profile) opens the first player.
+    if (!routeMatches(tour.match, this.url())) {
+      const path = tour.match.path.endsWith('/') ? `${tour.match.path}${this.data.players()[0]?.id ?? ''}` : tour.match.path;
+      this.walking = true;
+      try {
+        await this.router.navigate([path], { queryParams: tour.match.query ?? {} });
+        await this.pause(150);
+      } finally {
+        this.walking = false;
+      }
+    }
+    this.lastAutoUrl = this.url();
     this.active.set(tour);
     this.steps.set(steps);
     this.missing = new Set();
