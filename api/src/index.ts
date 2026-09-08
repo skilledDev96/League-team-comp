@@ -51,7 +51,7 @@ import {
 import { buildIndex, indexDocPath, splitIndexId, RawMatchupDoc } from './matchup-index';
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
 import { ChampionTraits, toTraits } from './champion-traits';
-import { BUILD_SHA } from './build-info';
+import { API_SHA, BUILD_SHA } from './build-info';
 import { LaneRead, PlayerFacts, playerFacts, readLanes } from './lane-read';
 import { extractExtras, ParticipantExtras } from './participant-extras';
 import Anthropic from '@anthropic-ai/sdk';
@@ -1651,6 +1651,8 @@ interface CompAnalysisResponse {
   funnel?: AnalysisFunnel;
   /** Git SHA the backend was deployed from, to spot frontend/backend drift. */
   backendSha?: string;
+  /** The last commit that touched api/ when the functions were built; the app compares its own against it. */
+  apiSha?: string;
   generatedAt: string;
   /** Size of this document as JSON; `meta/compAnalysis` is one Firestore document with a 1 MiB cap. */
   payloadBytes?: number;
@@ -1980,6 +1982,7 @@ async function computeCompAnalysis(
     pendingMatches,
     funnel,
     backendSha: BUILD_SHA,
+    apiSha: API_SHA,
     generatedAt: new Date().toISOString()
   };
   // One Firestore document holds all of this. The lane reads and facts are the

@@ -8,7 +8,7 @@ import { AdminPlayersService } from './state/admin-players.service';
 import { AdminShellService } from './state/admin-shell.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
 import { TeamDataService } from '../../services/team-data.service';
-import { BUILD_SHA } from '../../build-info';
+import { API_SHA, BUILD_SHA } from '../../build-info';
 import {
   AccessDraft,
   CompDraft,
@@ -193,7 +193,14 @@ export class AdminContextService {
   // here is the visible form of "did my function actually go out?".
   readonly frontendSha = BUILD_SHA;
   readonly backendSha = computed(() => this.data.compAnalysis()?.backendSha ?? '');
+  /**
+   * Drift is the functions being behind api/, not behind HEAD: a frontend-only
+   * commit leaves the backend where it was, rightly (8 Sep 2026). A backend
+   * built before the api stamp falls back to the HEAD comparison.
+   */
   readonly shaMismatch = computed(() => {
+    const apiBack = this.data.compAnalysis()?.apiSha;
+    if (apiBack) return apiBack !== API_SHA;
     const back = this.backendSha();
     return Boolean(back) && back !== BUILD_SHA;
   });

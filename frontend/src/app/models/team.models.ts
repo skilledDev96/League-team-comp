@@ -389,6 +389,8 @@ export interface CompAnalysis {
   funnel?: AnalysisFunnel;
   /** Git SHA the backend was deployed from, to spot frontend/backend drift. */
   backendSha?: string;
+  /** The last commit that touched api/ when the functions were built. */
+  apiSha?: string;
   generatedAt: string;
   /** Size of the document as JSON; one Firestore document, 1 MiB cap. */
   payloadBytes?: number;
