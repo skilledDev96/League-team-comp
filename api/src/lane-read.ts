@@ -143,7 +143,11 @@ export function readLane(ours: LaneParticipant, theirs: LaneParticipant | undefi
     ...(laning !== undefined ? { laneAdvantage: laning === 1 } : {})
   };
 
-  if (goldDiff === undefined || !longEnough) return read;
+  // A verdict needs Riot's per-minute figures on both sides. A replay has
+  // end-of-game totals only, which gave every replay lane an 'even' that
+  // diluted the shares (8 Sep 2026); its diffs are still reported.
+  const perMinute = ours.extras?.goldPerMinute !== undefined && theirs.extras?.goldPerMinute !== undefined;
+  if (goldDiff === undefined || !longEnough || !perMinute) return read;
 
   const laneTerm = position === 'Jungle' || position === 'Support' ? sign(visionDiff, VISION_PER_MIN_EDGE) : sign(csDiff, CS_AT_10_EDGE);
   const flagTerm = laning === 1 ? 1 : theirLaning === 1 ? -1 : 0;

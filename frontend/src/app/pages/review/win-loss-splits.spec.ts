@@ -93,10 +93,12 @@ describe('laneTable', () => {
   it('counts only known verdicts, and says how many games were skipped or are still waiting', () => {
     const games = [
       ...botLaneStory(2),
-      game(false, { laneData: 'none' }),
-      game(false, { laneData: 'riot' })
+      game(false, { laneData: 'none' }, () => ({ lane: { position: 'Top', theirChampion: 'X', verdict: 'unknown', goldPerMinDiff: 12 } })),
+      game(false, { laneData: 'riot' }, () => ({ lane: { position: 'Top', theirChampion: 'X', verdict: 'unknown' } }))
     ];
     const t = laneTable(games);
+    expect(t.read).toBe(4);
+    expect(t.total).toBe(6);
     const bot = t.rows.find((r) => r.key === 'ADC')!;
     expect(bot.lostInLosses).toEqual({ games: 2, n: 2, share: 100 });
     expect(bot.wonInWins).toEqual({ games: 2, n: 2, share: 100 });

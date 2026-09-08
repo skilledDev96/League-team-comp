@@ -81,7 +81,7 @@ describe('readLane', () => {
       1800
     )!;
     expect(read.goldPerMinDiff).toBe(100);
-    expect(read.verdict).toBe('even'); // gold alone is one term
+    expect(read.verdict).toBe('unknown'); // totals give a diff, never a verdict
   });
 
   it('pairs by seat across the two teams and keys by puuid', () => {

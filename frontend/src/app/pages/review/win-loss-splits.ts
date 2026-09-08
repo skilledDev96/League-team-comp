@@ -144,6 +144,9 @@ export interface LaneRow {
 
 export interface LaneTable {
   rows: LaneRow[];
+  /** Games with a lane read, and every game in the selection. */
+  read: number;
+  total: number;
   /** Replay games: totals only, so no lane can be read. */
   skipped: number;
   /** Riot games still on a cache entry from before the lane reads. */
@@ -214,9 +217,13 @@ function laneRow(games: readonly AnalysisGame[], s: LaneSubject): LaneRow {
 
 export function laneTable(games: readonly AnalysisGame[], by: LaneBy = 'seat', roster: readonly string[] = []): LaneTable {
   const rows = laneSubjects(games, by, roster).map((s) => laneRow(games, s));
+  // A game with a read carries a gold/min diff on at least one seat; a replay
+  // (laneData 'none') carries diffs from totals but no verdict; a game still
+  // on the old cache carries neither and is waiting on the backfill.
   const skipped = games.filter((g) => g.laneData === 'none').length;
-  const waiting = games.filter((g) => g.laneData !== 'none' && !g.players.some((p) => p.lane)).length;
-  return { rows, skipped, waiting };
+  const waiting = games.filter((g) => g.laneData !== 'none' && !g.players.some((p) => p.lane?.goldPerMinDiff !== undefined)).length;
+  const read = games.length - skipped - waiting;
+  return { rows, skipped, waiting, read, total: games.length };
 }
 
 // ---- Team metrics -------------------------------------------------------------

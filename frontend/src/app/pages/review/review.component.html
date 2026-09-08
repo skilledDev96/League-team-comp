@@ -132,9 +132,8 @@
         </table>
       </div>
       <p class="muted split-note">
+        <b>{{ t.read }} of {{ t.total }}</b> {{ t.total === 1 ? 'game has' : 'games have' }} a lane read@if (t.waiting) {; <b>{{ t.waiting }}</b> {{ t.waiting === 1 ? 'is' : 'are' }} still waiting on the cache backfill — each Refresh match data reads forty more}@if (t.skipped) {; <b>{{ t.skipped }}</b> {{ t.skipped === 1 ? 'is a replay' : 'are replays' }} with totals only, which give a gold diff but no verdict}.
         One row per player, whatever seat they sat in that game, against whoever was across them; the small seat is the one they sit in most. A lane is called on gold per minute, CS at ten and Riot's laning-phase flag; two of the three have to agree.
-        @if (t.skipped) { {{ t.skipped }} {{ t.skipped === 1 ? 'replay game has' : 'replay games have' }} totals only and no lane read. }
-        @if (t.waiting) { {{ t.waiting }} {{ t.waiting === 1 ? 'game is' : 'games are' }} still waiting on the cache backfill — each Refresh reads forty more. }
       </p>
     }
   </section>
