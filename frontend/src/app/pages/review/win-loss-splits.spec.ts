@@ -76,7 +76,7 @@ describe('split', () => {
   it('means each side over the games that carry the number and leaves the gap off with an empty side', () => {
     const games = [game(true), game(true), game(false)];
     const s = split(games, (g) => g.kills!.ours, 1);
-    expect(s).toMatchObject({ wins: { mean: 20, n: 2 }, losses: { mean: 8, n: 1 }, gap: 12 });
+    expect(s).toMatchObject({ wins: { mean: 20, n: 2 }, losses: { mean: 8, n: 1 }, all: { mean: 16, n: 3 }, gap: 12 });
     expect(s.samples!.map((x) => x.value)).toEqual([20, 20, 8]);
     expect(split([game(true)], () => undefined).gap).toBeUndefined();
   });
@@ -103,6 +103,7 @@ describe('laneTable', () => {
     const bot = t.rows.find((r) => r.key === 'ADC')!;
     expect(bot.lostInLosses).toEqual({ games: 2, n: 2, share: 100 });
     expect(bot.wonInWins).toEqual({ games: 2, n: 2, share: 100 });
+    expect(bot.lost).toEqual({ games: 2, n: 4, share: 50 }); // over every game with a read
     expect(bot.goldDiff.losses.mean).toBe(-45);
     expect(t.rows.find((r) => r.key === 'Top')!.lostInLosses).toEqual({ games: 0, n: 2, share: 0 });
     expect(t.skipped).toBe(1);

@@ -108,6 +108,11 @@ test('no console errors while moving around signed in', async ({ page }) => {
     if (response.status() !== 404) return;
     // Pages serves deep links as 404 by design; the app boots from that body.
     if (response.request().resourceType() === 'document') return;
+    // Firestore's long-polling closes a Listen channel with a 404 when a page
+    // navigates away mid-session. That is the transport's lifecycle, not an
+    // app error, and it failed the deploy verify once on 8 Sep 2026 while
+    // every check passed against the same build.
+    if (/firestore\.googleapis\.com\/.*\/Listen\/channel/.test(response.url())) return;
     errors.push(`404: ${response.url()}`);
   });
 

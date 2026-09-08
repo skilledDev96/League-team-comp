@@ -32,6 +32,8 @@ export interface Sample {
 export interface Split {
   wins: SideStat;
   losses: SideStat;
+  /** The same figure over every game, result aside — the default way the tables read. */
+  all: SideStat;
   /** wins − losses, only when both sides have a sample. */
   gap?: number;
   /** The games behind the means, newest first. Absent on a literal built by hand. */
@@ -59,7 +61,7 @@ export function split(games: readonly AnalysisGame[], pick: (g: AnalysisGame) =>
   const w = stat(wins, places);
   const l = stat(losses, places);
   samples.sort((a, b) => b.date - a.date);
-  return { wins: w, losses: l, ...(w.n && l.n ? { gap: round(w.mean - l.mean, places) } : {}), samples };
+  return { wins: w, losses: l, all: stat([...wins, ...losses], places), ...(w.n && l.n ? { gap: round(w.mean - l.mean, places) } : {}), samples };
 }
 
 const enough = (s: Split) => s.wins.n >= MIN_FOR_A_CLAIM && s.losses.n >= MIN_FOR_A_CLAIM;
@@ -150,6 +152,9 @@ export interface LaneRow {
   seat: string;
   lostInLosses: LaneShare;
   wonInWins: LaneShare;
+  /** Over every game with a read, result aside. */
+  lost: LaneShare;
+  won: LaneShare;
   /** Mean gold/min and cs@10 against the lane opponent, in losses and in wins. */
   goldDiff: Split;
   csDiff: Split;
@@ -176,11 +181,11 @@ interface LaneSubject {
 
 export type LaneBy = 'seat' | 'player';
 
-function laneShare(games: readonly AnalysisGame[], subject: LaneSubject, win: boolean, verdict: 'won' | 'lost'): LaneShare {
+function laneShare(games: readonly AnalysisGame[], subject: LaneSubject, win: boolean | null, verdict: 'won' | 'lost'): LaneShare {
   let n = 0;
   let hit = 0;
   for (const g of games) {
-    if (g.win !== win) continue;
+    if (win !== null && g.win !== win) continue;
     const lane = subject.pick(g)?.lane;
     if (!lane || lane.verdict === 'unknown') continue;
     n += 1;
@@ -223,6 +228,8 @@ function laneRow(games: readonly AnalysisGame[], s: LaneSubject): LaneRow {
     seat: s.seat,
     lostInLosses: laneShare(games, s, false, 'lost'),
     wonInWins: laneShare(games, s, true, 'won'),
+    lost: laneShare(games, s, null, 'lost'),
+    won: laneShare(games, s, null, 'won'),
     goldDiff: split(games, (g) => s.pick(g)?.lane?.goldPerMinDiff, 0),
     csDiff: split(games, (g) => s.pick(g)?.lane?.csAt10Diff, 1)
   };
@@ -632,7 +639,7 @@ export function workOn(games: readonly AnalysisGame[], by: LaneBy = 'seat', rost
   }
 
   const metrics = new Map(teamSplits(games, undefined, source).map((m) => [m.key, m]));
-  const s = (key: string): Split => metrics.get(key)?.split ?? { wins: { mean: 0, n: 0 }, losses: { mean: 0, n: 0 } };
+  const s = (key: string): Split => metrics.get(key)?.split ?? { wins: { mean: 0, n: 0 }, losses: { mean: 0, n: 0 }, all: { mean: 0, n: 0 } };
 
   const vision = s('vision');
   if (enough(vision) && vision.gap !== undefined && vision.gap >= VISION_GAP) {
@@ -718,7 +725,7 @@ export function keepDoing(games: readonly AnalysisGame[], by: LaneBy = 'seat', r
     }
   }
   const metrics = new Map(teamSplits(games, undefined, source).map((m) => [m.key, m]));
-  const s = (key: string): Split => metrics.get(key)?.split ?? { wins: { mean: 0, n: 0 }, losses: { mean: 0, n: 0 } };
+  const s = (key: string): Split => metrics.get(key)?.split ?? { wins: { mean: 0, n: 0 }, losses: { mean: 0, n: 0 }, all: { mean: 0, n: 0 } };
   const vision = s('vision');
   if (enough(vision) && vision.wins.mean >= VISION_GOOD && vision.losses.mean >= vision.wins.mean - 0.1) {
     out.push({ key: 'vision', strong: 'Vision holds up', rest: `${vision.losses.mean}/min per player even in losses (${vision.wins.mean}/min in wins).`, n: nOf(vision), effect: vision.wins.mean / VISION_GOOD });

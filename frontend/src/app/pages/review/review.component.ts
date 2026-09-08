@@ -10,6 +10,10 @@ import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { GameCheckComponent } from '../../shared/game-check.component';
+import { ColumnOption, ColumnPickerComponent } from '../../shared/column-picker.component';
+import { SplitCellComponent } from '../../shared/split-cell.component';
+import { SplitViewToggleComponent } from '../../shared/split-view-toggle.component';
+import { TablePrefsService } from '../../services/table-prefs.service';
 import { effectiveComp } from '../../core/comp-alias';
 import {
   commonestFactor,
@@ -44,7 +48,7 @@ type SectionKey = 'lanes' | 'changes' | 'recurring' | 'games';
 
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, NgTemplateOutlet, RouterLink, TooltipDirective, ChampionFilterComponent, GameCheckComponent],
+  imports: [DatePipe, NgTemplateOutlet, RouterLink, TooltipDirective, ChampionFilterComponent, GameCheckComponent, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent],
   templateUrl: './review.component.html'
 })
 export class ReviewComponent {
@@ -277,6 +281,32 @@ export class ReviewComponent {
   private readonly topStarter = computed(() => this.data.starters().find((p) => p.role === 'Top')?.name);
   protected readonly teamSplitRows = computed(() => teamSplits(this.filteredGames(), this.topStarter(), this.source()));
   protected readonly claimFloor = MIN_FOR_A_CLAIM;
+
+  // ---- Which columns each table shows, and how the figures read ----
+  protected readonly prefs = inject(TablePrefsService);
+  protected readonly laneColumns: ColumnOption[] = [
+    { key: 'lost', label: 'Lost lane' },
+    { key: 'won', label: 'Won lane' },
+    { key: 'gold', label: 'Gold/min vs lane' },
+    { key: 'cs', label: 'CS at 10 vs lane' }
+  ];
+  protected readonly laneDefaults = this.laneColumns.map((c) => c.key);
+  protected readonly totalColumns: ColumnOption[] = [
+    { key: 'goldShare', label: 'Gold share' },
+    { key: 'csPerMin', label: 'CS/min' },
+    { key: 'damageShare', label: 'Damage share' },
+    { key: 'deaths', label: 'Deaths' }
+  ];
+  protected readonly totalDefaults = this.totalColumns.map((c) => c.key);
+  protected readonly teamColumns = computed<ColumnOption[]>(() => this.teamSplitRows().map((m) => ({ key: m.key, label: m.label })));
+  protected readonly teamDefaults = computed(() => this.teamColumns().map((c) => c.key));
+  protected readonly shownTeamRows = computed(() => {
+    const on = new Set(this.prefs.visibleFor()('team', this.teamDefaults()));
+    return this.teamSplitRows().filter((m) => on.has(m.key));
+  });
+  protected on(table: string, key: string, defaults: readonly string[]): boolean {
+    return this.prefs.visibleFor()(table, defaults).includes(key);
+  }
 
   protected side(s: SideStat, unit: MetricSplit['unit'] | 'diff'): string {
     return formatSide(s, unit);

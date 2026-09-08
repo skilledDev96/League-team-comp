@@ -63,6 +63,7 @@
           }
         </div>
       </div>
+      <div class="field"><span>Figures</span><app-split-view-toggle /></div>
       <label class="field compact-field"><span>Comp</span>
         <select name="reviewComp" [value]="compFilter()" (change)="compFilter.set($any($event.target).value)">
           <option value="all">All comps</option>
@@ -186,25 +187,26 @@
     @if (source() === 'replay') {
       <!-- A replay has the end of the game and nothing of the clock, so no
            lane can be called; these are the totals it does carry. -->
+      <app-column-picker table="laneTotals" [options]="totalColumns" [defaults]="totalDefaults" />
       <div class="split-scroll">
         <table class="split-table">
           <thead>
             <tr>
               <th scope="col">Player</th>
-              <th scope="col" class="num" appTip="Share of the team's gold, in wins (W) and in losses (L)">Gold share</th>
-              <th scope="col" class="num" appTip="CS per minute, in wins (W) and in losses (L)">CS/min</th>
-              <th scope="col" class="num" appTip="Share of the team's damage to champions">Damage share</th>
-              <th scope="col" class="num">Deaths</th>
+              @if (on('laneTotals', 'goldShare', totalDefaults)) { <th scope="col" class="num" appTip="Share of the team's gold">Gold share</th> }
+              @if (on('laneTotals', 'csPerMin', totalDefaults)) { <th scope="col" class="num" appTip="CS per minute">CS/min</th> }
+              @if (on('laneTotals', 'damageShare', totalDefaults)) { <th scope="col" class="num" appTip="Share of the team's damage to champions">Damage share</th> }
+              @if (on('laneTotals', 'deaths', totalDefaults)) { <th scope="col" class="num">Deaths</th> }
             </tr>
           </thead>
           <tbody>
             @for (r of laneTotalRows(); track r.key) {
               <tr>
                 <td>{{ r.label }} <small>{{ r.seat }}</small></td>
-                <td class="num"><small class="wl">W</small>{{ side(r.goldShare.wins, 'pct') }} <small class="wl">L</small>{{ side(r.goldShare.losses, 'pct') }}</td>
-                <td class="num"><small class="wl">W</small>{{ side(r.csPerMin.wins, 'count') }} <small class="wl">L</small>{{ side(r.csPerMin.losses, 'count') }}</td>
-                <td class="num"><small class="wl">W</small>{{ side(r.damageShare.wins, 'pct') }} <small class="wl">L</small>{{ side(r.damageShare.losses, 'pct') }}</td>
-                <td class="num"><small class="wl">W</small>{{ side(r.deaths.wins, 'count') }} <small class="wl">L</small>{{ side(r.deaths.losses, 'count') }}</td>
+                @if (on('laneTotals', 'goldShare', totalDefaults)) { <td class="num"><app-split-cell [split]="r.goldShare" unit="pct" [higherIsBetter]="true" /></td> }
+                @if (on('laneTotals', 'csPerMin', totalDefaults)) { <td class="num"><app-split-cell [split]="r.csPerMin" unit="count" [higherIsBetter]="true" /></td> }
+                @if (on('laneTotals', 'damageShare', totalDefaults)) { <td class="num"><app-split-cell [split]="r.damageShare" unit="pct" [higherIsBetter]="true" /></td> }
+                @if (on('laneTotals', 'deaths', totalDefaults)) { <td class="num"><app-split-cell [split]="r.deaths" unit="count" [higherIsBetter]="false" /></td> }
               </tr>
             }
           </tbody>
@@ -212,29 +214,40 @@
       </div>
       <p class="muted split-note">A replay has end-of-game totals and nothing of the clock, so no lane can be called won or lost here; these are the totals it does carry, per player, split by result.</p>
     } @else if (laneRows(); as t) {
+      <app-column-picker table="lanes" [options]="laneColumns" [defaults]="laneDefaults" />
       <div class="split-scroll">
         <table class="split-table">
           <thead>
             <tr>
               <th scope="col">Player</th>
-              <th scope="col" class="num" appTip="Losses where this player lost their lane, over the losses with a lane read">Lost lane in losses</th>
-              <th scope="col" class="num" appTip="Wins where this player won their lane, over the wins with a lane read">Won lane in wins</th>
-              <th scope="col" class="num" appTip="Gold per minute against the lane opponent, in wins (W) and in losses (L)">Gold/min vs lane</th>
-              <th scope="col" class="num" appTip="CS at ten minutes against the lane opponent, in wins (W) and in losses (L)">CS at 10 vs lane</th>
+              @if (on('lanes', 'lost', laneDefaults)) {
+                <th scope="col" class="num" [appTip]="prefs.view() === 'wl' ? 'Losses where this player lost their lane, over the losses with a lane read' : 'Games where this player lost their lane, over the games with a lane read'">{{ prefs.view() === 'wl' ? 'Lost lane in losses' : 'Lost lane' }}</th>
+              }
+              @if (on('lanes', 'won', laneDefaults)) {
+                <th scope="col" class="num" [appTip]="prefs.view() === 'wl' ? 'Wins where this player won their lane, over the wins with a lane read' : 'Games where this player won their lane, over the games with a lane read'">{{ prefs.view() === 'wl' ? 'Won lane in wins' : 'Won lane' }}</th>
+              }
+              @if (on('lanes', 'gold', laneDefaults)) { <th scope="col" class="num" appTip="Gold per minute against the lane opponent">Gold/min vs lane</th> }
+              @if (on('lanes', 'cs', laneDefaults)) { <th scope="col" class="num" appTip="CS at ten minutes against the lane opponent">CS at 10 vs lane</th> }
             </tr>
           </thead>
           <tbody>
             @for (r of t.rows; track r.key) {
+              @let lost = prefs.view() === 'wl' ? r.lostInLosses : r.lost;
+              @let won = prefs.view() === 'wl' ? r.wonInWins : r.won;
               <tr>
                 <td>{{ r.label }} <small>{{ r.seat }}</small></td>
-                <td class="num" [class.neg]="r.lostInLosses.n >= claimFloor && r.lostInLosses.share >= 55">
-                  @if (r.lostInLosses.n) { {{ r.lostInLosses.games }} of {{ r.lostInLosses.n }} <small>({{ r.lostInLosses.share }}%)</small> } @else { — }
-                </td>
-                <td class="num" [class.pos]="r.wonInWins.n >= claimFloor && r.wonInWins.share >= 55">
-                  @if (r.wonInWins.n) { {{ r.wonInWins.games }} of {{ r.wonInWins.n }} <small>({{ r.wonInWins.share }}%)</small> } @else { — }
-                </td>
-                <td class="num"><small class="wl">W</small>{{ side(r.goldDiff.wins, 'diff') }} <small class="wl">L</small>{{ side(r.goldDiff.losses, 'diff') }}</td>
-                <td class="num"><small class="wl">W</small>{{ side(r.csDiff.wins, 'diff') }} <small class="wl">L</small>{{ side(r.csDiff.losses, 'diff') }}</td>
+                @if (on('lanes', 'lost', laneDefaults)) {
+                  <td class="num" [class.neg]="lost.n >= claimFloor && lost.share >= 55">
+                    @if (lost.n) { {{ lost.games }} of {{ lost.n }} <small>({{ lost.share }}%)</small> } @else { — }
+                  </td>
+                }
+                @if (on('lanes', 'won', laneDefaults)) {
+                  <td class="num" [class.pos]="won.n >= claimFloor && won.share >= 55">
+                    @if (won.n) { {{ won.games }} of {{ won.n }} <small>({{ won.share }}%)</small> } @else { — }
+                  </td>
+                }
+                @if (on('lanes', 'gold', laneDefaults)) { <td class="num"><app-split-cell [split]="r.goldDiff" unit="diff" [higherIsBetter]="true" /></td> }
+                @if (on('lanes', 'cs', laneDefaults)) { <td class="num"><app-split-cell [split]="r.csDiff" unit="diff" [higherIsBetter]="true" /></td> }
               </tr>
             }
           </tbody>
@@ -252,29 +265,38 @@
   @if (sections().changes) {
   <section class="card" aria-label="Wins against losses">
     <h2>What changes when we win</h2>
+    <app-column-picker table="team" [options]="teamColumns()" [defaults]="teamDefaults()" />
     <div class="split-scroll">
       <table class="split-table">
         <thead>
           <tr>
             <th scope="col">Per game</th>
-            <th scope="col" class="num">Wins</th>
-            <th scope="col" class="num">Losses</th>
-            <th scope="col" class="num" appTip="Wins minus losses">Gap</th>
+            @if (prefs.view() === 'wl') {
+              <th scope="col" class="num">Wins</th>
+              <th scope="col" class="num">Losses</th>
+              <th scope="col" class="num" appTip="Wins minus losses">Gap</th>
+            } @else {
+              <th scope="col" class="num" appTip="The mean over every game in the selection, with how many carried the figure">All games</th>
+            }
           </tr>
         </thead>
         <tbody>
-          @for (m of teamSplitRows(); track m.key) {
-            <tr [class.is-thin]="m.split.wins.n < claimFloor || m.split.losses.n < claimFloor">
+          @for (m of shownTeamRows(); track m.key) {
+            <tr [class.is-thin]="prefs.view() === 'wl' ? (m.split.wins.n < claimFloor || m.split.losses.n < claimFloor) : m.split.all.n < claimFloor">
               <td>{{ m.label }}</td>
-              <td class="num">{{ side(m.split.wins, m.unit) }} <small>{{ m.split.wins.n ? m.split.wins.n : '' }}</small></td>
-              <td class="num">{{ side(m.split.losses, m.unit) }} <small>{{ m.split.losses.n ? m.split.losses.n : '' }}</small></td>
-              <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">{{ gapOf(m) }}</td>
+              @if (prefs.view() === 'wl') {
+                <td class="num">{{ side(m.split.wins, m.unit) }} <small>{{ m.split.wins.n ? m.split.wins.n : '' }}</small></td>
+                <td class="num">{{ side(m.split.losses, m.unit) }} <small>{{ m.split.losses.n ? m.split.losses.n : '' }}</small></td>
+                <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">{{ gapOf(m) }}</td>
+              } @else {
+                <td class="num">{{ side(m.split.all, m.unit) }} <small>{{ m.split.all.n ? m.split.all.n : '' }}</small></td>
+              }
             </tr>
           }
         </tbody>
       </table>
     </div>
-    <p class="muted split-note">The small number is how many games carried the figure. A row goes faint below {{ claimFloor }} on either side.</p>
+    <p class="muted split-note">The small number is how many games carried the figure. A row goes faint below {{ claimFloor }} games{{ prefs.view() === 'wl' ? ' on either side' : '' }}.</p>
   </section>
   }
 

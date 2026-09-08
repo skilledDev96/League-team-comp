@@ -162,22 +162,10 @@
             }
           </div>
         }
-        <!-- Which columns: a default view, and every other figure a click away. -->
-        <div class="team-columns">
-          <button type="button" class="view-btn" [class.active]="columnPickerOpen()" (click)="columnPickerOpen.set(!columnPickerOpen())">
-            <span class="material-symbols-rounded" aria-hidden="true">view_column</span> Columns <small>{{ visibleColumns().length }}</small>
-          </button>
-          @if (columnPickerOpen()) {
-            <div class="team-columns-picker" role="group" aria-label="Columns to show">
-              @for (m of w.metrics; track m.key) {
-                <label class="team-column-option" [class.active]="isColumnOn(m.key)">
-                  <input type="checkbox" [checked]="isColumnOn(m.key)" (change)="toggleColumn(m.key)" />
-                  {{ m.label }}
-                </label>
-              }
-              <button type="button" class="view-btn" (click)="resetColumns()">Default view</button>
-            </div>
-          }
+        <!-- How the figures read and which columns show: shared with Patterns. -->
+        <div class="team-card-controls">
+          <app-split-view-toggle />
+          <app-column-picker table="player" [options]="columnOptions(w.metrics)" [defaults]="playerDefaults" />
         </div>
         <div class="split-scroll">
           <table class="split-table team-table">
@@ -185,7 +173,7 @@
               <tr>
                 <th scope="col">{{ teamChampion() ? 'On ' + teamChampion() : 'All games' }}</th>
                 @for (m of shown(w.metrics); track m.key) {
-                  <th scope="col" class="num" [appTip]="m.label + ' — W is the mean in wins, L in losses'">{{ m.label }}</th>
+                  <th scope="col" class="num" [appTip]="m.label">{{ m.label }}</th>
                 }
                 <th scope="col">Played</th>
               </tr>
@@ -194,10 +182,7 @@
               <tr class="is-all">
                 <td>Overall <small>{{ w.games }}</small></td>
                 @for (m of shown(w.metrics); track m.key) {
-                  <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">
-                    <span class="wl-pair"><small class="wl">W</small>{{ side(m.split.wins, m.unit) }}</span>
-                    <span class="wl-pair"><small class="wl">L</small>{{ side(m.split.losses, m.unit) }}</span>
-                  </td>
+                  <td class="num"><app-split-cell [split]="m.split" [unit]="m.unit" [higherIsBetter]="m.higherIsBetter" /></td>
                 }
                 <td>
                   <span class="games-champs">
@@ -212,10 +197,7 @@
                 <tr class="is-seat">
                   <td><small>at {{ s.role }} · {{ s.games }}</small></td>
                   @for (m of shown(s.metrics); track m.key) {
-                    <td class="num" [class.pos]="gapGood(m) === true" [class.neg]="gapGood(m) === false">
-                      <span class="wl-pair"><small class="wl">W</small>{{ side(m.split.wins, m.unit) }}</span>
-                      <span class="wl-pair"><small class="wl">L</small>{{ side(m.split.losses, m.unit) }}</span>
-                    </td>
+                    <td class="num"><app-split-cell [split]="m.split" [unit]="m.unit" [higherIsBetter]="m.higherIsBetter" /></td>
                   }
                   <td>
                     <span class="games-champs">
@@ -231,7 +213,7 @@
           </table>
         </div>
         <p class="muted split-note">
-          Green when the gap is in {{ p.name }}'s favour, red when it is not. "Vs lane" is against whoever was across them that game.
+          "All games" is one figure over every game; "Wins vs losses" puts W beside L, green when the gap is in {{ p.name }}'s favour. "Vs lane" is against whoever was across them that game.
           One "at" row per seat they have sat in, with the games behind it. The team's own read is on Games → Patterns.
         </p>
       </article>
