@@ -2,6 +2,7 @@ import { Component, computed, input } from '@angular/core';
 import { playerFigures } from '../core/game-figures';
 import { matchLink } from '../core/match-link';
 import { AnalysisGame } from '../models/team.models';
+import { InfoTipComponent } from './info-tip.component';
 import { TooltipDirective } from './tooltip.directive';
 
 /**
@@ -12,7 +13,7 @@ import { TooltipDirective } from './tooltip.directive';
  */
 @Component({
   selector: 'app-game-check',
-  imports: [TooltipDirective],
+  imports: [TooltipDirective, InfoTipComponent],
   template: `
     @if (game(); as g) {
       <details class="intel-collapse game-check">
@@ -59,7 +60,7 @@ import { TooltipDirective } from './tooltip.directive';
               </tbody>
             </table>
           </div>
-          <p class="muted split-note">A dash is a figure this game does not carry, never a zero. Hover a column for what it measures.</p>
+          <p class="muted split-note"><app-info-tip text="A dash is a figure this game does not carry, never a zero. Hover a column for what it measures." label="How to read the figures" /></p>
         </div>
       </details>
     }

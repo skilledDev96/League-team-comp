@@ -224,7 +224,7 @@
           </tbody>
         </table>
       </div>
-      <p class="muted split-note">A replay has end-of-game totals and nothing of the clock, so no lane can be called won or lost here; these are the totals it does carry, per player, split by result.</p>
+      <p class="muted split-note">Totals only <app-info-tip text="A replay has end-of-game totals and nothing of the clock, so no lane can be called won or lost here; these are the totals it does carry, per player, split by result." /></p>
     } @else if (laneRows(); as t) {
       <app-column-picker table="lanes" [options]="laneColumns" [defaults]="laneDefaults" />
       <div class="split-scroll">
@@ -267,7 +267,7 @@
       </div>
       <p class="muted split-note">
         <b>{{ t.read }} of {{ t.total }}</b> {{ t.total === 1 ? 'game has' : 'games have' }} a lane read@if (t.waiting) {; <b>{{ t.waiting }}</b> {{ t.waiting === 1 ? 'is' : 'are' }} still waiting on the cache backfill — each Refresh match data reads forty more}@if (t.skipped) {; <b>{{ t.skipped }}</b> {{ t.skipped === 1 ? 'is a replay' : 'are replays' }} with totals only, which give a gold diff but no verdict}.
-        One row per player, whatever seat they sat in that game, against whoever was across them; the small seat is the one they sit in most. A lane is called on gold per minute, CS at ten and Riot's laning-phase flag; two of the three have to agree.
+        <app-info-tip text="One row per player, whatever seat they sat in that game, against whoever was across them; the small seat is the one they sit in most. A lane is called on gold per minute, CS at ten and Riot's laning-phase flag; two of the three have to agree." />
       </p>
     }
   </section>
@@ -308,7 +308,7 @@
         </tbody>
       </table>
     </div>
-    <p class="muted split-note">The small number is how many games carried the figure. A row goes faint below {{ claimFloor }} games{{ prefs.view() === 'wl' ? ' on either side' : '' }}.</p>
+    <p class="muted split-note"><app-info-tip [text]="'The small number is how many games carried the figure. A row goes faint below ' + claimFloor + ' games' + (prefs.view() === 'wl' ? ' on either side' : '') + '.'" label="How to read the figures" /></p>
   </section>
   }
 

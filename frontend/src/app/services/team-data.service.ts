@@ -597,9 +597,11 @@ export class TeamDataService {
     return this.persistRemove('seriesGames', this.seriesGames, id);
   }
 
-  createComp(data: Omit<Comp, 'id' | 'order'>): Promise<void> {
+  /** Returns the new comp's id, so a page can open it. */
+  async createComp(data: Omit<Comp, 'id' | 'order'>): Promise<string> {
     const comp: Comp = { ...data, id: this.newId('comp'), order: this.nextOrder(this.comps()) };
-    return this.persistUpsert('comps', this.comps, comp);
+    await this.persistUpsert('comps', this.comps, comp);
+    return comp.id;
   }
 
   updateComp(comp: Comp): Promise<void> {

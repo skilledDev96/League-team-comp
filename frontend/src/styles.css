@@ -14013,3 +14013,93 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .coaching-theme.is-ok { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
 .coaching-games { margin-top: 0.4rem; }
 .coaching-games > summary small { margin-left: 0.3rem; }
+
+
+/* ---- One bench toggle everywhere: the state on the button, the action in the tip ---- */
+.ateam-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--ok) 55%, var(--card-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ateam-toggle.is-bench { border-color: var(--card-border); background: var(--surface-btn); color: var(--text-1); font-weight: 500; }
+.ateam-toggle:hover, .ateam-toggle:focus-visible { border-color: var(--accent); }
+.ateam-toggle.is-small { padding: 0.08rem 0.5rem; font-size: 0.68rem; margin-left: 0.5rem; }
+
+/* The roster card's controls row. */
+.roster-edit {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
+  margin: 0.3rem 0 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: var(--surface-controls);
+}
+.roster-edit-field { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.3rem; }
+.roster-edit-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-1); margin-right: 0.15rem; }
+.roster-edit .role-flex-toggle { padding: 0.15rem 0.55rem; font-size: 0.72rem; }
+.roster-edit-open { margin-left: auto; }
+.roster-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.78rem; position: relative; z-index: 3; }
+.roster-card-foot .role-toggle { margin: 0; }
+.roster-profile-chip { display: inline-flex; align-items: center; gap: 0.2rem; text-decoration: none; }
+.roster-profile-chip .material-symbols-rounded { font-size: 1rem; }
+
+/* The player editor, in Admin and in the drawer. */
+.player-editor .field-hint { display: block; margin-top: 0.25rem; }
+.player-editor-more { margin: 0.4rem 0; }
+.player-editor-actions { align-items: center; gap: 0.6rem; }
+.drawer-scrim { position: fixed; inset: 0; z-index: 79; background: rgba(6, 10, 14, 0.45); }
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 80;
+  width: min(34rem, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border-left: 1px solid var(--card-border);
+  box-shadow: -18px 0 40px rgba(0, 0, 0, 0.35);
+  outline: none;
+}
+.drawer-head { display: flex; align-items: center; gap: 0.6rem; padding: 0.8rem 1rem; border-bottom: 1px solid var(--card-border); }
+.drawer-title { display: grid; }
+.drawer-close { margin-left: auto; padding: 0.3rem 0.5rem; }
+.drawer-body { overflow: auto; padding: 0.9rem 1rem 1.4rem; }
+
+/* The ⓘ that replaced a sentence. */
+.info-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-left: 0.3rem;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-1);
+  cursor: help;
+  vertical-align: middle;
+}
+.info-tip .material-symbols-rounded { font-size: 1rem; }
+.info-tip:hover, .info-tip:focus-visible { color: var(--accent); border-color: var(--accent); }
+
+
+.quick-actions-also { flex-basis: 100%; margin: 0; font-size: 0.78rem; }
+.quick-actions-also a { color: var(--text-1); }
+.quick-actions-also a:hover { color: var(--accent); }

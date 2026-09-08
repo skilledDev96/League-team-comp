@@ -16,11 +16,12 @@ import { ToastService } from './services/toast.service';
 import { ActivityService } from './services/activity.service';
 import { RefreshService } from './services/refresh.service';
 import { UserMenuComponent } from './shared/user-menu.component';
+import { PlayerEditorDrawerComponent } from './shared/player-editor-drawer.component';
 import { TooltipDirective } from './shared/tooltip.directive';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, UserMenuComponent, TooltipDirective],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, UserMenuComponent, TooltipDirective, PlayerEditorDrawerComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

@@ -6,10 +6,12 @@
 }
 
 <section class="view-controls profiles-controls" aria-label="Queue">
+  <div class="field"><span>Queue</span>
   <div class="view-segment" role="group" aria-label="Queue">
     <button type="button" [class.active]="selectedQueue() === 'solo'" (click)="selectedQueue.set('solo')">Solo/Duo</button>
     <button type="button" [class.active]="selectedQueue() === 'flex'" (click)="selectedQueue.set('flex')">Flex</button>
     <button type="button" [class.active]="selectedQueue() === 'clash'" (click)="selectedQueue.set('clash')">Clash</button>
+  </div>
   </div>
   @if (summary(); as s) {
     <p class="muted">
@@ -24,7 +26,7 @@
       } @else {
         <span class="material-symbols-rounded" aria-hidden="true">sync</span>
       }
-      {{ refreshingAll() ? 'Refreshing ' + refreshProgress() + '…' : 'Refresh player data (all)' }}
+      {{ refreshingAll() ? 'Refreshing ' + refreshProgress() + '…' : 'Refresh every player from Riot' }}
     </button>
   }
 </section>

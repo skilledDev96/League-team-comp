@@ -19,6 +19,7 @@ import { GameCheckComponent } from '../../shared/game-check.component';
 import { GameStoryComponent } from '../../shared/game-story.component';
 import { GameReviewComponent } from '../../shared/game-review.component';
 import { GameReviewService } from '../../services/game-review.service';
+import { PlayerEditorService } from '../../services/player-editor.service';
 import { CompExpectationService } from '../../services/comp-expectation.service';
 import { CompExpectation } from '../../models/team.models';
 import { ReviewComponent } from '../review/review.component';
@@ -177,7 +178,7 @@ export class GamesComponent {
   protected setBench(name: string, sub: boolean): void {
     const player = this.data.players().find((p) => p.name === name);
     if (!player) return;
-    void this.data.updatePlayer({ ...player, sub: sub || undefined, curated: true });
+    void this.editor.patch(player, { sub: sub || undefined });
   }
 
   protected readonly players = computed(() => {
@@ -266,6 +267,7 @@ export class GamesComponent {
   private readonly analysisById = computed(() => new Map((this.data.compAnalysis()?.games ?? []).map((g) => [g.matchId, g])));
   private readonly expectations = inject(CompExpectationService);
   protected readonly reviews = inject(GameReviewService);
+  private readonly editor = inject(PlayerEditorService);
 
   // ---- The Reviews tab: every written review, newest first ----------------
 

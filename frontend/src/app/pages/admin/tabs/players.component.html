@@ -33,7 +33,7 @@
 <section aria-label="Players">
 <div class="view-controls edit-toolbar">
   <h2 class="title-with-icon"><span class="section-icon">PL</span>Players</h2>
-  <p class="muted edit-hint">Tip: use <strong>Add player</strong> to autofill a profile from a Riot Summoner name, or add one manually.</p>
+  <p class="muted edit-hint">Add a player from a Riot summoner name, or by hand. Everything else about a player is edited on their card, here or from their profile.</p>
   <button class="view-btn active btn-cta" type="button" (click)="ctx.openAddPlayerDialog()">+ Add player</button>
 </div>
 
@@ -61,7 +61,7 @@
           <span class="pp-name">{{ draft.name || 'New player' }}</span>
           <span class="pp-role">{{ draft.role }}</span>
           @if (draft.sub) { <span class="pp-role flex">Sub</span> }
-          @if (draft.curated) { <span class="pp-role flex" title="Saved by hand. The morning refresh keeps this player's text, pool and bans; press Refresh on the player to pull Riot's again.">Hand-edited</span> }
+          @if (draft.curated) { <span class="pp-role flex" appTip="Saved by hand: the morning refresh keeps this player’s text, pool and bans. Refresh this player from Riot pulls Riot’s again.">Hand-edited</span> }
         </span>
         <span class="player-panel-chevron material-symbols-rounded" aria-hidden="true">
           {{ ctx.isPlayerOpen(draft) ? 'expand_less' : 'expand_more' }}
@@ -69,87 +69,18 @@
       </button>
 
       @if (ctx.isPlayerOpen(draft)) {
-      <!-- Saves itself: the rest of the app writes on every click, and a
-           Save button nobody expects went unpressed (5 Sep 2026). Text fields
-           report through input/change; the toggles and pickers call it
-           directly because a click is not an input event. -->
-      <div class="player-panel-body" (input)="ctx.autosave(draft)" (change)="ctx.autosave(draft)">
-      <label class="field"><span>Summoner name</span>
-        <input type="text" required [ngModel]="draft.name" (ngModelChange)="draft.name = $event" [name]="'pname-' + draft.uid" placeholder="e.g. DaWhiteHammer" /></label>
-      <label class="field"><span>Role</span>
-        <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'prole-' + draft.uid">
-          @for (role of ctx.roles; track role) { <option [value]="role">{{ role }}</option> }
-        </select></label>
-      <div class="field"><span>Can also play</span>
-        <div class="role-flex-group">
-          @for (role of ctx.roles; track role) {
-            @if (role !== draft.role) {
-              <button
-                type="button"
-                class="role-flex-toggle"
-                [class.on]="draft.secondaryRoles.includes(role)"
-                (click)="ctx.toggleSecondaryRole(draft, role); ctx.autosave(draft)">{{ role }}</button>
-            }
-          }
-        </div>
-      </div>
-      <div class="field"><span>Bench</span>
-        <button type="button" class="role-flex-toggle" [class.on]="draft.sub" (click)="draft.sub = !draft.sub; ctx.autosave(draft)"
-                title="A sub shares a seat with a starter. The draft room, the lane read and the advisor follow the starter.">
-          {{ draft.sub ? 'Substitute' : 'Starter' }}
-        </button>
-      </div>
-      <label class="field"><span>Icon file</span>
-        <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event" [name]="'picon-' + draft.uid" placeholder="name.webp" /></label>
-      <label class="field"><span>Playstyle</span>
-        <input type="text" [ngModel]="draft.playstyle" (ngModelChange)="draft.playstyle = $event" [name]="'pstyle-' + draft.uid" /></label>
-      <label class="field"><span>Strengths (comma separated)</span>
-        <input type="text" [ngModel]="draft.strengths" (ngModelChange)="draft.strengths = $event" [name]="'pstr-' + draft.uid" /></label>
-      <label class="field"><span>Weaknesses (comma separated)</span>
-        <input type="text" [ngModel]="draft.weaknesses" (ngModelChange)="draft.weaknesses = $event" [name]="'pweak-' + draft.uid" /></label>
-      <div class="field"><span>Champion pool</span>
-        <app-champion-picker [champions]="ctx.listOf(draft.top3)" [role]="draft.role"
-                             [inputName]="'ptop-' + draft.uid" placeholder="Add a champion…"
-                             (championsChange)="draft.top3 = $event.join(', '); ctx.autosave(draft)" /></div>
-      <div class="field"><span>Bans</span>
-        <app-champion-picker [champions]="ctx.listOf(draft.bans)"
-                             [inputName]="'pbans-' + draft.uid" placeholder="Add a ban…"
-                             (championsChange)="draft.bans = $event.join(', '); ctx.autosave(draft)" /></div>
-
-      <div class="grid two">
-        <label class="field"><span>Region</span>
-          <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event" [name]="'preg-' + draft.uid" /></label>
-        <label class="field"><span>OP.GG slug</span>
-          <input type="text" [ngModel]="draft.opggSlug" (ngModelChange)="draft.opggSlug = $event" [name]="'popgg-' + draft.uid" /></label>
-        <label class="field"><span>Riot tag</span>
-          <input type="text" [ngModel]="draft.riotTag" (ngModelChange)="draft.riotTag = $event" [name]="'ptag-' + draft.uid" /></label>
-        <label class="field"><span>Mobalytics slug</span>
-          <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event" [name]="'pmoba-' + draft.uid" /></label>
-      </div>
-
-        <div class="links">
-          <button
-            class="view-btn"
-            type="button"
-            [disabled]="ctx.enrichingPlayerId() === ctx.enrichmentKey(draft)"
-            (click)="ctx.autoFillPlayerInsights(draft)">
-            @if (ctx.enrichingPlayerId() === ctx.enrichmentKey(draft)) {
-              <span class="btn-spinner" aria-hidden="true"></span>
-              Refreshing...
-            } @else {
-            Refresh from Summoner
-            }
-          </button>
-        </div>
-
+      <!-- The same form as the drawer on the profile and the roster cards:
+           one save path, one set of labels (8 Sep 2026). -->
+      <app-player-editor [draft]="draft" />
       <div class="links action-row">
-        <button class="view-btn active" type="button" (click)="ctx.savePlayer(draft)">Save</button>
+        @if (!draft.id) {
+          <button class="view-btn active" type="button" (click)="ctx.savePlayer(draft)">Add player</button>
+        }
         @if (auth.canManageUsers()) {
           <app-overflow-menu>
             <button class="overflow-item danger" type="button" (click)="ctx.deletePlayer(draft)">Delete player</button>
           </app-overflow-menu>
         }
-      </div>
       </div>
       }
     </article>

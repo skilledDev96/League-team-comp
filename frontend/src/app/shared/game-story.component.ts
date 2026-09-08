@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, input, signal } from '@angular/cor
 import { compareCurve } from '../core/comp-expectation';
 import { AnalysisGame, CompExpectation, MatchTimeline } from '../models/team.models';
 import { MatchTimelineService } from '../services/match-timeline.service';
+import { InfoTipComponent } from './info-tip.component';
 import { TooltipDirective } from './tooltip.directive';
 
 /**
@@ -13,7 +14,7 @@ import { TooltipDirective } from './tooltip.directive';
  */
 @Component({
   selector: 'app-game-story',
-  imports: [TooltipDirective],
+  imports: [TooltipDirective, InfoTipComponent],
   template: `
     <details class="intel-collapse game-story" (toggle)="onToggle($event)">
       <summary>
@@ -77,7 +78,7 @@ import { TooltipDirective } from './tooltip.directive';
             </table>
           </div>
         }
-        <p class="muted game-story-caveat">Frames are a minute apart, so who was near an objective and whether a death was warded are approximate. Wards are read from placement events, which carry no position.</p>
+        <p class="muted game-story-caveat">Approximate by a minute <app-info-tip text="Frames are a minute apart, so who was near an objective and whether a death was warded are approximate. Wards are read from placement events, which carry no position." /></p>
       }
     </details>
   `

@@ -37,13 +37,13 @@
       <span class="games-data-actions">
         <button type="button" class="view-btn" [disabled]="refresh.anyRunning()" (click)="refreshAnalysis()">
           @if (analysisLoading()) { <span class="btn-spinner" aria-hidden="true"></span> } @else { <span class="material-symbols-rounded" aria-hidden="true">sync</span> }
-          {{ analysisLoading() ? 'Analyzing…' : 'Refresh match data' }}
+          {{ analysisLoading() ? 'Analyzing…' : 'Refresh matches from Riot' }}
         </button>
         <button type="button" class="view-btn" [disabled]="refresh.anyRunning()"
                 appTip="Re-read every player from Riot, then re-run the match analysis. Takes a few minutes."
                 (click)="refresh.refreshAll()">
           <span class="material-symbols-rounded" aria-hidden="true">cloud_sync</span>
-          {{ refresh.allRunning() ? 'Refreshing everything…' : 'Refresh all' }}
+          {{ refresh.allRunning() ? 'Refreshing everything…' : 'Refresh everything from Riot' }}
         </button>
       </span>
     }
@@ -219,9 +219,9 @@
                 <td>
                   {{ p.name }} <small class="muted">{{ p.role }}</small>
                   @if (auth.editing()) {
-                    <button type="button" class="games-bench-toggle" [class.active]="isSub(p.name)" [attr.aria-pressed]="isSub(p.name)"
-                            [appTip]="isSub(p.name) ? 'On the bench — click to make them a starter' : 'Bench this player: they leave the five here and on Patterns'"
-                            (click)="setBench(p.name, !isSub(p.name))">{{ isSub(p.name) ? 'Substitute' : 'Bench' }}</button>
+                    <button type="button" class="ateam-toggle is-small" [class.is-bench]="isSub(p.name)" [attr.aria-pressed]="isSub(p.name)"
+                            [appTip]="isSub(p.name) ? 'On the bench — click to put them in the A team' : 'In the A team — click to bench them: they leave the five here and on Patterns'"
+                            (click)="setBench(p.name, !isSub(p.name))">{{ isSub(p.name) ? 'Bench' : 'A team' }}</button>
                   }
                 </td>
                 <td class="num">{{ p.games }}</td>

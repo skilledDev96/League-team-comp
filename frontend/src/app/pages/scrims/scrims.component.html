@@ -3,10 +3,6 @@
     <span class="section-icon material-symbols-rounded">sports_esports</span>
     Scrims
   </h2>
-  <p class="muted">
-    Replays are the only record a custom game leaves. They are read here in your
-    browser and only the scoreboard is kept.
-  </p>
 
   <!-- Importing stores the scrim; the analysis is recomputed on the Analysis
        page. Saying so beats a comp record that quietly does not move. -->
@@ -16,11 +12,11 @@
     <p class="muted scrim-refresh-hint">
       <span class="material-symbols-rounded" aria-hidden="true">sync</span>
       <span [appTip]="'Games where fewer than four of the roster played are left out, so a solo queue replay imported by mistake cannot move the numbers.'">
-        Scrims count towards comp win rates once you refresh on Analysis.
+        Scrims count towards the comp records once the matches are refreshed on Games.
       </span>
       <a class="view-btn scrim-refresh-btn" routerLink="/games">
         <span class="material-symbols-rounded" aria-hidden="true">refresh</span>
-        Refresh match data
+        Refresh matches on Games
       </a>
     </p>
   }

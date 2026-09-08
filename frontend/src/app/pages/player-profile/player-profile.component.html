@@ -213,8 +213,8 @@
           </table>
         </div>
         <p class="muted split-note">
-          "All games" is one figure over every game; "Wins vs losses" puts W beside L, green when the gap is in {{ p.name }}'s favour. "Vs lane" is against whoever was across them that game.
-          One "at" row per seat they have sat in, with the games behind it. The team's own read is on Games → Patterns.
+          The team's own read is on Games → Patterns.
+          <app-info-tip [text]="'All games is one figure over every game; Wins vs losses puts W beside L, green when the gap is in ' + p.name + '’s favour. Vs lane is against whoever was across them that game. One at row per seat they have sat in, with the games behind it.'" label="How to read the figures" />
         </p>
         @if (coachingNotes().length) {
           <!-- What the post-game reviews said about this player, one line each way per game. -->
@@ -279,13 +279,13 @@
               <span class="btn-spinner" aria-hidden="true"></span>
               Refreshing...
             } @else {
-              Refresh player data
+              Refresh this player from Riot
             }
           </button>
         }
         <app-overflow-menu>
           @if (auth.editing()) {
-            <a class="overflow-item" [routerLink]="['/admin']" [queryParams]="{ tab: 'players', playerId: p.id }">Edit this player</a>
+            <button type="button" class="overflow-item" (click)="editor.open(p.id)">Edit this player</button>
           }
           <a class="overflow-item" routerLink="/roster">Back to Roster</a>
           <a class="overflow-item" routerLink="/comps">Open team comps</a>

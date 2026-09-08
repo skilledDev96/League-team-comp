@@ -23,8 +23,7 @@ import {
   toFillInDraft,
   toPlayerDraft,
   TournamentDraft,
-  toTournamentDraft
-} from './admin-drafts';
+  toTournamentDraft, accessRenamePlan } from './admin-drafts';
 
 /**
  * Everything the admin tabs share: the working drafts, the CRUD that saves
@@ -109,9 +108,22 @@ export class AdminContextService {
       this.players.load(players);
       this.fillInDrafts.set(fillIns.map((f) => toFillInDraft(f)));
       this.compDrafts.set(comps.map((c) => ({ id: c.id, name: c.name, picks: { ...c.picks } })));
-      this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry })));
+      this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry, originalEmail: normalizeEmailValue(entry.email) })));
       this.tournamentDrafts.set(this.data.tournaments().map((t) => toTournamentDraft(t)));
       this.applyRouteFocus();
+    });
+
+    // The comp drafts follow the live comps too, or a save from the Comps
+    // page is written back over by a stale Admin panel (8 Sep 2026).
+    effect(() => {
+      const comps = this.data.comps();
+      if (!this.initialized) return;
+      untracked(() =>
+        this.compDrafts.update((list) => [
+          ...comps.map((c) => ({ id: c.id, name: c.name, picks: { ...c.picks } })),
+          ...list.filter((d) => !d.id)
+        ])
+      );
     });
 
     // After the first load, the player panels follow the live roster.
@@ -127,7 +139,7 @@ export class AdminContextService {
       }
       const accessEntries = this.data.accessEntries();
       if (accessEntries.length > 0 && this.accessDrafts().length === 0) {
-        this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry })));
+        this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry, originalEmail: normalizeEmailValue(entry.email) })));
       }
     });
 
@@ -338,13 +350,35 @@ export class AdminContextService {
     }
   }
 
+  /**
+   * Settings save as you go, like every other editor (8 Sep 2026): the
+   * checkboxes at once, the team name a moment after the last keystroke.
+   */
+  private settingsTimer: ReturnType<typeof setTimeout> | null = null;
+
+  setTeamName(value: string): void {
+    this.teamName.set(value);
+    if (this.settingsTimer) clearTimeout(this.settingsTimer);
+    this.settingsTimer = setTimeout(() => void this.saveSettings(), 600);
+  }
+
+  setAutoAdvisor(on: boolean): void {
+    this.autoAdvisor.set(on);
+    void this.saveSettings();
+  }
+
+  setAutoReview(on: boolean): void {
+    this.autoReview.set(on);
+    void this.saveSettings();
+  }
+
   async saveSettings(): Promise<void> {
     if (!this.auth.canManageUsers()) {
       this.flash('Only admins can edit team settings.');
       return;
     }
     await this.data.updateSettings({ teamName: this.teamName().trim() || 'Bom Squad', autoAdvisor: this.autoAdvisor(), autoReview: this.autoReview() });
-    this.flash('Settings saved.');
+    this.flash('Settings saved');
   }
 
   // ---- Fill-ins ---------------------------------------------------------
@@ -477,14 +511,18 @@ export class AdminContextService {
       active: draft.active
     };
 
-    const existing = this.data.accessEntries().find((entry) => normalizeEmailValue(entry.email) === email);
-    if (existing) {
+    const plan = accessRenamePlan(draft, this.data.accessEntries().map((e) => normalizeEmailValue(e.email)));
+    if (plan.exists) {
       await this.data.updateAccessEntry(base);
-      this.accessDrafts.update((list) => list.map((item) => (normalizeEmailValue(item.email) === email ? { ...base } : item)));
     } else {
       await this.data.createAccessEntry(base);
-      this.accessDrafts.update((list) => [...list.filter((item) => normalizeEmailValue(item.email) !== email), { ...base }].sort((a, b) => a.email.localeCompare(b.email)));
     }
+    // An email edited in place is a rename: the old document goes, or the
+    // person keeps two entries and the old role (8 Sep 2026).
+    if (plan.deleteEmail) await this.data.deleteAccessEntry(plan.deleteEmail);
+    this.accessDrafts.update((list) =>
+      [...list.filter((item) => item !== draft && normalizeEmailValue(item.email) !== email && normalizeEmailValue(item.email) !== plan.deleteEmail), { ...base, originalEmail: email }].sort((a, b) => a.email.localeCompare(b.email))
+    );
     this.flash(`Saved ${email}.`);
   }
 
@@ -511,6 +549,9 @@ export class AdminContextService {
   async seed(): Promise<void> {
     if (!this.auth.canManageUsers()) {
       this.flash('Only admins can seed the database.');
+      return;
+    }
+    if (!confirm('Seed Firestore from the starter data? This is for an empty database; it will not overwrite what is there, but it adds the starter roster and comps beside it.')) {
       return;
     }
     try {

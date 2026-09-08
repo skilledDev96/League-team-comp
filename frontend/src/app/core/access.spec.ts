@@ -81,3 +81,14 @@ describe('access helpers', () => {
     });
   });
 });
+
+import { ROLE_HELP } from './access';
+
+describe('ROLE_HELP', () => {
+  it('has a sentence for every role, and names edit mode for the ones that get it', () => {
+    expect(Object.keys(ROLE_HELP).sort()).toEqual(['admin', 'contributor', 'viewer']);
+    expect(ROLE_HELP.viewer).toMatch(/No edit mode/);
+    expect(ROLE_HELP.contributor).toMatch(/Edit mode/);
+    expect(ROLE_HELP.admin).toMatch(/Settings/);
+  });
+});

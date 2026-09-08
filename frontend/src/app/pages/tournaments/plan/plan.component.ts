@@ -99,9 +99,6 @@ export class TournamentPlanComponent {
   protected readonly usedChampions = (id: string) => this.ctx.usedChampions(id);
   protected readonly usedCount = (id: string) => this.ctx.usedCount(id);
   protected readonly compAvailability = (id: string) => this.ctx.compAvailability(id);
-  protected readonly playableComps = (id: string) => this.ctx.playableComps(id);
-  protected readonly brokenComps = (id: string) => this.ctx.brokenComps(id);
-  protected readonly poolPressure = (id: string) => this.ctx.poolPressure(id);
 
   protected readonly openSeriesId = signal<string>('');
 

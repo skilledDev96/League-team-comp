@@ -25,6 +25,13 @@ export function canEditWith(mode: AccessMode, role: AccessRole | null | undefine
   return mode === 'local' || isEditableRole(role);
 }
 
+/** What each role can do, in the words the Access tab shows under the select. */
+export const ROLE_HELP: Record<AccessRole, string> = {
+  viewer: 'Reads everything except Admin. No edit mode.',
+  contributor: 'Edit mode: comps, players, games, scouting, the draft room. Cannot change roles, settings or delete.',
+  admin: 'Everything a contributor can, plus Settings, Access, Diagnostics and deletes.'
+};
+
 /** Who may change roles and settings. Admin only, on top of being able to edit. */
 export function canManageUsersWith(mode: AccessMode, role: AccessRole | null | undefined): boolean {
   return mode === 'local' || role === 'admin';

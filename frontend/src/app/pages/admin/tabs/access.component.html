@@ -1,7 +1,7 @@
 <section aria-label="Team access">
   <div class="view-controls edit-toolbar">
     <h2 class="title-with-icon"><span class="section-icon">AC</span>Team Access</h2>
-    <p class="muted edit-hint">Grant access by email and role. Admins manage; user accounts/passwords are created in the Firebase console.</p>
+    <p class="muted edit-hint">Grant access by email and role. Sign-in is with Google; the email has to match. Only an admin sees this tab.</p>
     <button class="view-btn active btn-cta" type="button" (click)="ctx.addAccessEntry()">+ Add member</button>
   </div>
 
@@ -13,7 +13,8 @@
         <label class="field"><span>Role</span>
           <select [ngModel]="draft.role" (ngModelChange)="draft.role = $event" [name]="'arole' + $index">
             @for (role of ctx.accessRoles; track role) { <option [value]="role">{{ role }}</option> }
-          </select></label>
+          </select>
+          <small class="field-hint">{{ roleHelp[draft.role] }}</small></label>
         <label class="field">
           <span>Active</span>
           <input type="checkbox" [ngModel]="draft.active" (ngModelChange)="draft.active = $event" [name]="'aactive' + $index" />

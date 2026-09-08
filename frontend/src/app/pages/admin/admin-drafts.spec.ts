@@ -161,3 +161,22 @@ describe('newUid', () => {
     expect(new Set([newUid(), newUid(), newUid()]).size).toBe(3);
   });
 });
+
+import { accessRenamePlan } from './admin-drafts';
+
+describe('accessRenamePlan', () => {
+  const existing = ['a@x.com', 'b@x.com'];
+
+  it('updates an email that already has a document and creates one that does not', () => {
+    expect(accessRenamePlan({ email: 'a@x.com', role: 'viewer', active: true, originalEmail: 'a@x.com' }, existing)).toEqual({ exists: true, deleteEmail: null });
+    expect(accessRenamePlan({ email: 'c@x.com', role: 'viewer', active: true }, existing)).toEqual({ exists: false, deleteEmail: null });
+  });
+
+  it('deletes the old document when the email was edited in place', () => {
+    expect(accessRenamePlan({ email: 'A2@x.com', role: 'admin', active: true, originalEmail: 'a@x.com' }, existing)).toEqual({ exists: false, deleteEmail: 'a@x.com' });
+  });
+
+  it('never deletes when the original was not stored', () => {
+    expect(accessRenamePlan({ email: 'z@x.com', role: 'admin', active: true, originalEmail: 'ghost@x.com' }, existing).deleteEmail).toBeNull();
+  });
+});

@@ -64,6 +64,21 @@ export interface AccessDraft {
   email: string;
   role: AccessRole;
   active: boolean;
+  /** The email this row was loaded with; differs from `email` once a person edits it in place. */
+  originalEmail?: string;
+}
+
+/**
+ * What saving an access row means: an update when the email already has a
+ * document, a create otherwise, and a delete of the old document when the
+ * row's email was edited in place — a rename used to leave both behind.
+ */
+export function accessRenamePlan(draft: AccessDraft, existingEmails: readonly string[]): { exists: boolean; deleteEmail: string | null } {
+  const email = draft.email.trim().toLowerCase();
+  const original = (draft.originalEmail ?? '').trim().toLowerCase();
+  const exists = existingEmails.includes(email);
+  const renamed = original !== '' && original !== email && existingEmails.includes(original);
+  return { exists, deleteEmail: renamed ? original : null };
 }
 
 export type EditorTab = 'settings' | 'players' | 'fillins' | 'comps' | 'tournaments' | 'access' | 'diagnostics';

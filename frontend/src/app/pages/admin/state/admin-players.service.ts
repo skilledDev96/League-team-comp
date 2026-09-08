@@ -1,26 +1,23 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Player, Role, ROLES } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
-import { PlayerEnrichmentService } from '../../../services/player-enrichment.service';
+import { PlayerEditorService } from '../../../services/player-editor.service';
 import { TeamDataService } from '../../../services/team-data.service';
-import { newUid, PlayerDraft, slugifyName, splitList, toPlayerDraft } from '../admin-drafts';
+import { PlayerDraft, toPlayerDraft } from '../admin-drafts';
 import { AdminShellService } from './admin-shell.service';
 
 /**
- * The player editor: the roster drafts, the add-player dialog, and the Riot
- * autofill that populates a profile from a summoner name.
- *
- * Much the largest of the admin editors, and the only one with a dialog and a
- * remote call of its own, so it lives apart from the rest.
+ * The player editor's Admin side: the roster drafts, the add-player dialog
+ * and the delete. The form, the autosave and the Riot refresh live in
+ * `PlayerEditorService`, shared with the drawer on the profile and the
+ * roster cards (8 Sep 2026), so a player is edited the same way everywhere.
  */
 @Injectable()
 export class AdminPlayersService {
   private readonly data = inject(TeamDataService);
   private readonly auth = inject(AuthService);
-  private readonly enrichment = inject(PlayerEnrichmentService);
+  private readonly editor = inject(PlayerEditorService);
   private readonly shell = inject(AdminShellService);
-
-  private readonly roles = ROLES;
 
   private flash(message: string): void {
     this.shell.flash(message);
@@ -55,7 +52,7 @@ export class AdminPlayersService {
     });
   }
 
-  readonly enrichingPlayerId = signal<string | null>(null);
+  readonly enrichingPlayerId = this.editor.enrichingKey;
 
   readonly openPlayer = signal<PlayerDraft | null>(null);
   readonly highlightedPlayer = signal<PlayerDraft | null>(null);
@@ -83,9 +80,7 @@ export class AdminPlayersService {
   }
 
   toggleSecondaryRole(draft: PlayerDraft, role: Role): void {
-    draft.secondaryRoles = draft.secondaryRoles.includes(role)
-      ? draft.secondaryRoles.filter((r) => r !== role)
-      : [...draft.secondaryRoles, role];
+    this.editor.toggleSecondaryRole(draft, role);
   }
 
   isPlayerHighlighted(draft: PlayerDraft): boolean {
@@ -93,79 +88,19 @@ export class AdminPlayersService {
   }
 
   autoFillPlayerSlugs(draft: PlayerDraft): void {
-    const baseName = slugifyName(draft.name);
-    const tag = draft.riotTag.trim();
-    const normalizedTag = tag ? tag.toLowerCase() : '';
-
-    if (!baseName) {
-      return;
-    }
-
-    if (!draft.opggSlug.trim()) {
-      draft.opggSlug = tag ? `${draft.name.trim()}-${tag}` : draft.name.trim();
-    }
-
-    if (!draft.mobalyticsSlug.trim()) {
-      draft.mobalyticsSlug = normalizedTag ? `${baseName}-${normalizedTag}` : baseName;
-    }
+    this.editor.autoFillSlugs(draft);
   }
 
   enrichmentKey(draft: PlayerDraft): string {
-    const name = draft.name.trim().toLowerCase();
-    return draft.id || (name ? `new-${name}` : `new-${this.playerDrafts().indexOf(draft)}`);
+    return this.editor.enrichmentKey(draft);
   }
 
   async autoFillPlayerInsights(draft: PlayerDraft): Promise<void> {
-    const playerName = draft.name.trim();
-    if (!playerName) {
-      this.flash('Add a player name first.');
-      return;
-    }
-
-    this.autoFillPlayerSlugs(draft);
-
-    const loadingKey = this.enrichmentKey(draft);
-    if (this.enrichingPlayerId() === loadingKey) {
-      return;
-    }
-    this.enrichingPlayerId.set(loadingKey);
-    try {
-      const enriched = await this.enrichment.enrichPlayer({
-        summonerName: playerName,
-        riotTag: draft.riotTag,
-        region: draft.region,
-        role: draft.role,
-        mobalyticsSlug: draft.mobalyticsSlug
-      });
-
-      draft.playstyle = enriched.playstyle;
-      draft.strengths = enriched.strengths.join(', ');
-      draft.weaknesses = enriched.weaknesses.join(', ');
-      if (enriched.role) {
-        draft.role = enriched.role;
-      }
-      if (enriched.top3?.length) {
-        draft.top3 = this.enrichment.mergeChampionPool(splitList(draft.top3), enriched.top3).join(', ');
-      }
-      if (enriched.bans?.length) {
-        draft.bans = enriched.bans.join(', ');
-      }
-      if (enriched.iconUrl) {
-        draft.icon = enriched.iconUrl;
-      }
-      draft.queueStats = enriched.queueStats;
-      this.flash(enriched.source === 'provider'
-        ? `Profile filled from ${enriched.provider}.`
-        : `Couldn't fetch live Riot data: ${enriched.provider.replace(/^template-fallback:\s*/, '')}`);
-    } catch (err) {
-      this.flash(err instanceof Error ? err.message : 'Failed to enrich profile.');
-    } finally {
-      this.enrichingPlayerId.set(null);
-    }
+    const message = await this.editor.refreshFromRiot(draft);
+    if (message) this.flash(message);
   }
 
-  // ---- Players ----------------------------------------------------------
-
+  // ---- Adding ------------------------------------------------------------
 
   openAddPlayerDialog(): void {
     this.addPlayerMode.set('choose');
@@ -204,91 +139,24 @@ export class AdminPlayersService {
 
   private insertPlayerDraft(overrides: Partial<PlayerDraft>): PlayerDraft {
     this.shell.activeTab.set('players');
-    const draft: PlayerDraft = {
-      uid: newUid(),
-      id: '',
-      name: '',
-      role: 'Top',
-      secondaryRoles: [],
-      sub: false,
-      curated: false,
-      icon: '',
-      playstyle: '',
-      strengths: '',
-      weaknesses: '',
-      top3: '',
-      bans: '',
-      region: 'euw',
-      opggSlug: '',
-      riotTag: 'EUW',
-      mobalyticsSlug: '',
-      ...overrides
-    };
+    const draft = this.editor.blankDraft(overrides);
     this.playerDrafts.update((list) => [...list, draft]);
     this.openPlayer.set(draft);
     this.shell.scrollToCard(`player-${draft.uid}`);
     return draft;
   }
 
+  // ---- Saving and deleting ---------------------------------------------
 
-  private readonly autosaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-  /**
-   * Save a moment after the last change. Existing players only: a new one
-   * has no name yet and is committed by its own Add step. The delay lets a
-   * word finish before it is written, and one timer per panel means typing
-   * in two panels cannot save the wrong one.
-   */
   autosave(draft: PlayerDraft): void {
-    if (!draft.id) return;
-    const pending = this.autosaveTimers.get(draft.uid);
-    if (pending) clearTimeout(pending);
-    this.autosaveTimers.set(
-      draft.uid,
-      setTimeout(() => {
-        this.autosaveTimers.delete(draft.uid);
-        void this.savePlayer(draft, { quiet: true });
-      }, 900)
-    );
+    this.editor.autosave(draft);
   }
 
-  async savePlayer(draft: PlayerDraft, options: { quiet?: boolean } = {}): Promise<void> {
-    const profile = {
-      region: draft.region.trim() || 'euw',
-      opggSlug: draft.opggSlug.trim(),
-      riotTag: draft.riotTag.trim(),
-      mobalyticsSlug: draft.mobalyticsSlug.trim()
-    };
-    const secondaryRoles = draft.secondaryRoles.filter((r) => r !== draft.role);
-    const base = {
-      name: draft.name.trim(),
-      role: draft.role,
-      secondaryRoles: secondaryRoles.length ? secondaryRoles : undefined,
-      sub: draft.sub || undefined,
-      // Saved by hand: the refresh keeps this player's text, pool and bans.
-      curated: true,
-      icon: draft.icon.trim() || undefined,
-      playstyle: draft.playstyle.trim() || undefined,
-      strengths: splitList(draft.strengths),
-      weaknesses: splitList(draft.weaknesses),
-      top3: splitList(draft.top3),
-      bans: splitList(draft.bans),
-      queueStats: draft.queueStats,
-      profile
-    };
-    if (!base.name) {
-      this.flash('Player name is required.');
-      return;
-    }
-    if (draft.id) {
-      const existing = this.data.players().find((p) => p.id === draft.id);
-      // The save replaces the document, so carry the refresh stamp across.
-      await this.data.updatePlayer({ ...base, id: draft.id, order: existing?.order ?? 0, refreshedAt: existing?.refreshedAt });
-    } else {
-      await this.data.createPlayer(base);
-      this.shell.requestResync();
-    }
-    this.flash(options.quiet ? `Saved ${base.name}` : `Saved ${base.name}.`);
+  async savePlayer(draft: PlayerDraft): Promise<void> {
+    const wasNew = !draft.id;
+    const result = await this.editor.save(draft);
+    this.flash(result.message);
+    if (result.ok && wasNew) this.shell.requestResync();
   }
 
   async deletePlayer(draft: PlayerDraft): Promise<void> {

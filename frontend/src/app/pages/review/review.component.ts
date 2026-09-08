@@ -29,6 +29,7 @@ import {
   MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
 import { formatGap, formatSide, gameSource, GameSource, gapIsGood, keepDoing, laneTable, laneTotals, MetricSplit, PatternSource, roleFit, RoleMode, SideStat, sourceOf, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { InfoTipComponent } from '../../shared/info-tip.component';
 
 /**
  * The games, and what they have in common — losses by default, wins on the
@@ -48,7 +49,7 @@ type SectionKey = 'lanes' | 'changes' | 'recurring' | 'games';
 
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, NgTemplateOutlet, RouterLink, TooltipDirective, ChampionFilterComponent, GameCheckComponent, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent],
+  imports: [DatePipe, NgTemplateOutlet, RouterLink, TooltipDirective, ChampionFilterComponent, GameCheckComponent, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent, InfoTipComponent],
   templateUrl: './review.component.html'
 })
 export class ReviewComponent {

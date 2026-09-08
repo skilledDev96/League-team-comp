@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, input } from '@angular/core';
 import { GameReview } from '../models/team.models';
+import { InfoTipComponent } from './info-tip.component';
 import { TooltipDirective } from './tooltip.directive';
 
 /**
@@ -11,7 +12,7 @@ import { TooltipDirective } from './tooltip.directive';
  */
 @Component({
   selector: 'app-game-review',
-  imports: [DatePipe, TooltipDirective],
+  imports: [DatePipe, TooltipDirective, InfoTipComponent],
   template: `
     @if (review(); as r) {
       <section class="game-review" aria-label="Game review">
@@ -74,7 +75,7 @@ import { TooltipDirective } from './tooltip.directive';
         }
         <p class="muted game-review-foot">
           Written {{ r.reviewedAt | date: 'd MMM, HH:mm' }} by {{ models() }} for about {{ cost() }}{{ r.trigger === 'auto' ? ', by the morning run' : '' }}.
-          Every point should match a fact in "How the game went"; if one does not, the review is wrong, not the game.
+          <app-info-tip text="Every point should match a fact in How the game went; if one does not, the review is wrong, not the game." label="How to read the review" />
         </p>
       </section>
     }

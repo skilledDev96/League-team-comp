@@ -2,6 +2,7 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { PlayerEditorService } from '../../services/player-editor.service';
 import { Player, Role, ROLES } from '../../models/team.models';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
@@ -21,6 +22,7 @@ export class OverviewComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
+  protected readonly editor = inject(PlayerEditorService);
   protected readonly roles = ROLES;
 
   // ---- The A team and the second seats, set here because this is where the
@@ -28,7 +30,7 @@ export class OverviewComponent {
   // flag Admin sets, so the five stay one thing everywhere.
 
   protected setBench(player: Player, sub: boolean): void {
-    void this.data.updatePlayer({ ...player, sub: sub || undefined, curated: true });
+    void this.editor.patch(player, { sub: sub || undefined });
   }
 
   protected hasSecondary(player: Player, role: Role): boolean {
@@ -39,7 +41,7 @@ export class OverviewComponent {
     if (role === player.role) return;
     const now = player.secondaryRoles ?? [];
     const next = now.includes(role) ? now.filter((r) => r !== role) : [...now, role];
-    void this.data.updatePlayer({ ...player, secondaryRoles: next.length ? next : undefined, curated: true });
+    void this.editor.patch(player, { secondaryRoles: next.length ? next : undefined });
   }
 
   protected readonly fullView = signal(false);

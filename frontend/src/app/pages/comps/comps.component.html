@@ -7,10 +7,17 @@
 </section>
 
 <section class="view-controls" aria-label="View controls">
-  <div class="view-segment" role="group" aria-label="Detail level">
-    <button type="button" [class.active]="!fullView()" (click)="setView(false)">Starter</button>
-    <button type="button" [class.active]="fullView()" (click)="setView(true)">Full</button>
+  <div class="field"><span>Detail</span>
+    <div class="view-segment" role="group" aria-label="Detail level">
+      <button type="button" [class.active]="!fullView()" (click)="setView(false)" appTip="Comps collapsed to their name and record">Starter</button>
+      <button type="button" [class.active]="fullView()" (click)="setView(true)" appTip="Every comp open, with its picks and ban recommendations">Full</button>
+    </div>
   </div>
+  @if (auth.editing()) {
+    <button type="button" class="view-btn active" (click)="addComp()" appTip="A blank comp, opened with its board so the picks go straight in">
+      <span class="material-symbols-rounded" aria-hidden="true">add_circle</span> Add a comp
+    </button>
+  }
   @if (compCategories().length) {
     <label class="comp-cat-filter">
       <span>Category</span>
@@ -20,7 +27,6 @@
       </select>
     </label>
   }
-  <p class="muted">Starter keeps comps collapsed. Full opens every comp and shows ban recommendations.</p>
 </section>
 
 <datalist id="compcatlist">
@@ -31,8 +37,8 @@
 
 <section id="compSection" class="grid two" aria-label="Team compositions">
   @for (comp of visibleComps(); track comp.id) {
-    <div class="card comp-card">
-    <details class="comp-panel" [open]="showPicks()">
+    <div class="card comp-card" [attr.data-comp]="comp.id">
+    <details class="comp-panel" [open]="showPicks() || openCompId() === comp.id">
       <summary class="comp-summary">
         <span class="comp-type-icon material-symbols-rounded" aria-hidden="true">{{ compIcon(comp) }}</span>
         <span class="comp-summary-name">{{ comp.name }}</span>
@@ -101,7 +107,7 @@
         <div class="comp-notes comp-category-edit">
           <div class="comp-record-head">
             <span class="comp-record-title material-symbols-rounded" aria-hidden="true">merge</span>
-            <span class="comp-record-label">Counts under</span>
+            <span class="comp-record-label" appTip="For the records only: this comp’s games are counted as the comp chosen here. For near-duplicate drafts kept separate to play from.">Counts as part of</span>
           </div>
           <select class="comp-cat-input" [name]="'compunder-' + comp.id"
                   [ngModel]="comp.countsUnder ?? ''"
@@ -267,7 +273,7 @@
           <details class="comp-retro">
             <summary class="comp-retro-summary">
               <span class="material-symbols-rounded" aria-hidden="true">sticky_note_2</span>
-              <span class="comp-retro-label">Retro</span>
+              <span class="comp-retro-label" appTip="The match notes written on the games that count as this comp">Notes from its games</span>
               <span class="comp-retro-count">{{ r.notes.length }} {{ r.notes.length === 1 ? 'note' : 'notes' }}</span>
               @if (r.mentions.length) {
                 <span class="comp-retro-lead" [appTip]="'Named most often when this comp loses'">

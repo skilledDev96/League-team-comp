@@ -2,23 +2,23 @@
   <h2 class="title-with-icon"><span class="section-icon">ST</span>Settings</h2>
   <label class="field">
     <span>Team name</span>
-    <input type="text" [ngModel]="ctx.teamName()" (ngModelChange)="ctx.teamName.set($event)" name="ctx.teamName" />
+    <input type="text" [ngModel]="ctx.teamName()" (ngModelChange)="ctx.setTeamName($event)" name="ctx.teamName" />
   </label>
   <label class="field field-check">
-    <input type="checkbox" [ngModel]="ctx.autoAdvisor()" (ngModelChange)="ctx.autoAdvisor.set($event)" name="ctx.autoAdvisor" />
+    <input type="checkbox" [ngModel]="ctx.autoAdvisor()" (ngModelChange)="ctx.setAutoAdvisor($event)" name="ctx.autoAdvisor" />
     <span>
       Ask the advisor automatically when a draft step becomes ours
-      <small class="muted">Off: the room only answers when someone presses "Ask what to pick". Either way an answer costs one model call.</small>
+      <small class="muted">Applies in the <a [routerLink]="['/tournaments']" [queryParams]="{ view: 'draft' }">draft room</a>. Off: it answers when someone presses "Ask what to pick". Either way an answer is one model call, a few cents.</small>
     </span>
   </label>
   <label class="field field-check">
-    <input type="checkbox" [ngModel]="ctx.autoReview()" (ngModelChange)="ctx.autoReview.set($event)" name="ctx.autoReview" />
+    <input type="checkbox" [ngModel]="ctx.autoReview()" (ngModelChange)="ctx.setAutoReview($event)" name="ctx.autoReview" />
     <span>
       Review new prep Flex and Clash games each morning
-      <small class="muted">Off: a game is reviewed only when someone presses "Review this game". On: the morning run reviews up to three new games with a timeline, about a dime each; Diagnostics shows what it spent.</small>
+      <small class="muted">Applies to the 06:30 run. Off: a game is reviewed when someone presses "Review this game" on Games. On: up to three new games with a timeline, about a dime each; <a [routerLink]="['/admin']" [queryParams]="{ tab: 'diagnostics' }">Diagnostics</a> shows what it spent.</small>
     </span>
   </label>
-  <button class="view-btn active" type="button" (click)="ctx.saveSettings()">Save settings</button>
+  <p class="muted edit-hint">Saves as you change it.</p>
 
   <div class="links" style="margin-top: 12px;">
     @if (data.mode === 'firebase') {

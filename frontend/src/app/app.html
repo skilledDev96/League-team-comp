@@ -68,7 +68,7 @@
             @if (data.mode === 'firebase') {
               <button type="button" class="overflow-item" [disabled]="refresh.anyRunning()"
                       (click)="refresh.refreshAll()">
-                {{ refresh.allRunning() ? 'Refreshing everything…' : 'Refresh all from Riot' }}
+                {{ refresh.allRunning() ? 'Refreshing everything…' : 'Refresh everything from Riot' }}
               </button>
             }
           }
@@ -147,6 +147,8 @@
     <p>Loading team data…</p>
   </div>
 }
+
+<app-player-editor-drawer />
 
 @if (showTutorial()) {
   <div class="modal-backdrop" (click)="dismissTutorial()">

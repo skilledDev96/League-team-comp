@@ -1,7 +1,9 @@
 import { ChampionFilterService } from '../../services/champion-filter.service';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ToastService } from '../../services/toast.service';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Comp, CompExpectation, CompOutcome, CompPerformance, CompPicks, CompRecord, CompResult, ExpectLevel, Play, Role, ROLES } from '../../models/team.models';
@@ -41,6 +43,51 @@ export class CompsComponent {
   private readonly champData = inject(ChampionDataService);
   protected readonly roles = ROLES;
   protected readonly filter = inject(ChampionFilterService);
+  private readonly toast = inject(ToastService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+
+  // ---- Adding a comp, here rather than in Admin (8 Sep 2026) ----------------
+
+  /** The comp whose panel is held open because it was just made. */
+  protected readonly openCompId = signal<string | null>(null);
+
+  constructor() {
+    // "Add a comp" from the quick actions lands here with ?add=comp: one
+    // blank comp, then the param is dropped so a reload does not add another.
+    effect(() => {
+      if (this.route.snapshot.queryParamMap.get('add') !== 'comp') return;
+      void this.router.navigate([], { relativeTo: this.route, queryParams: { add: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      if (this.auth.canEdit()) {
+        this.auth.editMode.set(true);
+        void this.addComp();
+      }
+    });
+  }
+
+  protected async addComp(): Promise<void> {
+    const n = this.data.comps().length + 1;
+    const picks = Object.fromEntries(this.roles.map((r) => [r, ''])) as CompPicks;
+    const id = await this.data.createComp({ name: `New comp ${n}`, picks });
+    this.openCompId.set(id);
+    this.saved({ id, name: `New comp ${n}` });
+    setTimeout(() => {
+      const panel = document.querySelector<HTMLDetailsElement>(`[data-comp="${CSS.escape(id)}"] details.comp-panel`);
+      if (!panel) return;
+      panel.open = true;
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      panel.querySelector<HTMLElement>('input, .board-slot-main')?.focus();
+    }, 80);
+  }
+
+  /** One quiet "Saved" per comp every couple of seconds; the page writes on every click. */
+  private readonly savedAt = new Map<string, number>();
+  private saved(comp: { id: string; name: string }): void {
+    const last = this.savedAt.get(comp.id) ?? 0;
+    if (Date.now() - last < 2000) return;
+    this.savedAt.set(comp.id, Date.now());
+    this.toast.show(`Saved ${comp.name}`, { kind: 'ok', timeout: 1800 });
+  }
 
   // Start calm: Starter view with comp panels collapsed.
   protected readonly fullView = signal(false);
@@ -112,13 +159,13 @@ export class CompsComponent {
    * how the rest of edit mode already behaves.
    */
   protected savePicks(comp: Comp, picks: CompPicks): void {
-    void this.data.updateComp(this.stamped({ ...comp, picks }));
+    void this.data.updateComp(this.stamped({ ...comp, picks })).then(() => this.saved(comp));
   }
 
   protected setCountsUnder(comp: Comp, value: string): void {
     const countsUnder = value || null;
     if ((comp.countsUnder ?? null) === countsUnder) return;
-    void this.data.updateComp(this.stamped({ ...comp, countsUnder }));
+    void this.data.updateComp(this.stamped({ ...comp, countsUnder })).then(() => this.saved(comp));
   }
 
   // ---- What the comp is expected to do ------------------------------------
@@ -140,7 +187,7 @@ export class CompsComponent {
 
   protected setExpectation(comp: Comp, axis: ExpectAxis, level: ExpectLevel, current: CompExpectation): void {
     if (current[axis] === level && comp.expectSource === 'edited') return;
-    void this.data.updateComp({ ...comp, expect: { ...current, [axis]: level }, expectSource: 'edited' });
+    void this.data.updateComp({ ...comp, expect: { ...current, [axis]: level }, expectSource: 'edited' }).then(() => this.saved(comp));
   }
 
   protected resetExpectation(comp: Comp): void {
@@ -216,15 +263,17 @@ export class CompsComponent {
     ) {
       return;
     }
-    void this.data.updateComp(
-      this.stamped({
-        ...comp,
-        category: category || undefined,
-        notes: notes || undefined,
-        gamePlan,
-        bans
-      })
-    );
+    void this.data
+      .updateComp(
+        this.stamped({
+          ...comp,
+          category: category || undefined,
+          notes: notes || undefined,
+          gamePlan,
+          bans
+        })
+      )
+      .then(() => this.saved(comp));
   }
 
   // Which roster players can fill a given role, so a comp shows its cover:

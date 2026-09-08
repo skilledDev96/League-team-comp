@@ -6,6 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { RefreshService } from '../../services/refresh.service';
 import { ActivityService } from '../../services/activity.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { PlayerEditorService } from '../../services/player-editor.service';
 import { UiService } from '../../services/ui.service';
 import { PlayerQueueStats, QueueMatchStats, RankedQueueStats } from '../../models/team.models';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
@@ -19,11 +20,12 @@ import { SplitViewToggleComponent } from '../../shared/split-view-toggle.compone
 import { TablePrefsService } from '../../services/table-prefs.service';
 import { formatSide, PLAYER_METRIC_KEYS, PlayerMetric, playerSplits, PlayerSplitRow, SideStat, SplitUnit, starterCount } from '../review/win-loss-splits';
 import { MIN_FOR_A_CLAIM } from '../review/loss-patterns.util';
+import { InfoTipComponent } from '../../shared/info-tip.component';
 import { digestNotes } from '../../core/coaching-digest';
 
 @Component({
   selector: 'app-player-profile',
-  imports: [DatePipe, RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, OverflowMenuComponent, TooltipDirective, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent],
+  imports: [DatePipe, RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, OverflowMenuComponent, TooltipDirective, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent, InfoTipComponent],
   templateUrl: './player-profile.component.html'
 })
 export class PlayerProfileComponent {
@@ -31,6 +33,7 @@ export class PlayerProfileComponent {
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
   protected readonly refresh = inject(RefreshService);
+  protected readonly editor = inject(PlayerEditorService);
   private readonly activity = inject(ActivityService);
   private readonly route = inject(ActivatedRoute);
 

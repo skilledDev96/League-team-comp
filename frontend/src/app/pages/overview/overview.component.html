@@ -6,11 +6,12 @@
 }
 
 <section class="view-controls" aria-label="View controls">
-  <div class="view-segment" role="group" aria-label="Detail level">
-    <button type="button" [class.active]="!fullView()" (click)="fullView.set(false)">Starter</button>
-    <button type="button" [class.active]="fullView()" (click)="fullView.set(true)">Full</button>
+  <div class="field"><span>Detail</span>
+    <div class="view-segment" role="group" aria-label="Detail level">
+      <button type="button" [class.active]="!fullView()" (click)="fullView.set(false)" appTip="The cards only">Starter</button>
+      <button type="button" [class.active]="fullView()" (click)="fullView.set(true)" appTip="Adds team identity, fill-ins and the resource links">Full</button>
+    </div>
   </div>
-  <p class="muted">Starter shows only essentials. Full adds team identity, synergy, and resources.</p>
 </section>
 
 @if (fullView()) {
@@ -53,18 +54,26 @@
           @if (player.sub) { <span class="sub-badge" title="On the bench: the draft room follows the starter in this seat.">Sub</span> }
         </div>
         @if (auth.editing()) {
-          <!-- Above the card's link overlay on purpose: these are controls, not a way in. -->
+          <!-- A solid row above the card's link overlay: these are controls, not a way in. -->
           <div class="roster-edit">
-            <button type="button" class="games-bench-toggle" [class.active]="!!player.sub" [attr.aria-pressed]="!!player.sub"
-                    [appTip]="player.sub ? 'On the bench — click to put them in the A team' : 'In the A team — click to bench them; Patterns counts the A team'"
-                    (click)="setBench(player, !player.sub)">{{ player.sub ? 'Bench' : 'A team' }}</button>
-            <span class="roster-edit-label">2nd seat</span>
-            @for (r of roles; track r) {
-              @if (r !== player.role) {
-                <button type="button" class="games-bench-toggle" [class.active]="hasSecondary(player, r)" [attr.aria-pressed]="hasSecondary(player, r)"
-                        (click)="toggleSecondary(player, r)">{{ r }}</button>
+            <span class="roster-edit-field">
+              <span class="roster-edit-label" appTip="The A team is the five Patterns counts by default and the five the draft room follows. Same flag Admin sets.">A team for Patterns</span>
+              <button type="button" class="ateam-toggle" [class.is-bench]="!!player.sub" [attr.aria-pressed]="!!player.sub"
+                      [appTip]="player.sub ? 'On the bench — click to put them in the A team' : 'In the A team — click to bench them'"
+                      (click)="setBench(player, !player.sub)">{{ player.sub ? 'Bench' : 'A team' }}</button>
+            </span>
+            <span class="roster-edit-field">
+              <span class="roster-edit-label" appTip="The seats they also cover; Patterns’ Roles filter and the draft room read these">2nd seat</span>
+              @for (r of roles; track r) {
+                @if (r !== player.role) {
+                  <button type="button" class="role-flex-toggle" [class.on]="hasSecondary(player, r)" [attr.aria-pressed]="hasSecondary(player, r)"
+                          (click)="toggleSecondary(player, r)">{{ r }}</button>
+                }
               }
-            }
+            </span>
+            <button type="button" class="view-btn roster-edit-open" (click)="editor.open(player.id)" appTip="Name, role, pool, bans, playstyle and links, in a drawer">
+              <span class="material-symbols-rounded" aria-hidden="true">edit</span> Edit player
+            </button>
           </div>
         } @else if (player.secondaryRoles?.length) {
           <p class="meta-line">
@@ -84,12 +93,15 @@
             <span class="meta-value">{{ player.top3[0] }}</span>
           </p>
         }
-        <button type="button" class="view-btn role-toggle" (click)="toggle(player.id)">
-          {{ isExpanded(player.id) ? 'Hide Details' : 'Show Details' }}
-        </button>
+        <div class="roster-card-foot">
+          <a class="view-btn roster-profile-chip" [routerLink]="['/player', player.id]">Profile <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+          <button type="button" class="view-btn role-toggle" (click)="toggle(player.id)">
+            {{ isExpanded(player.id) ? 'Hide' : 'Quick look' }}
+          </button>
+        </div>
 
         <a class="card-link-overlay" [routerLink]="['/player', player.id]"
-           [attr.aria-label]="'Open ' + player.name + ' in Player Intel'"></a>
+           [attr.aria-label]="'Open ' + player.name + '’s profile'"></a>
 
         <div class="role-details">
           <div class="champ-chip-row">

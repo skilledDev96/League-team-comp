@@ -29,20 +29,11 @@ import { TooltipDirective } from './tooltip.directive';
           <span class="material-symbols-rounded" aria-hidden="true">swords</span>Ready to draft
         </a>
         @if (auth.canEdit()) {
-          <a class="view-btn quick-action" [routerLink]="['/admin']" [queryParams]="{ tab: 'comps', add: 'comp' }"
-             appTip="Open the comps editor with a blank comp to fill in">
+          <a class="view-btn quick-action" [routerLink]="['/comps']" [queryParams]="{ add: 'comp' }"
+             appTip="A blank comp on the Comps page, opened with its board">
             <span class="material-symbols-rounded" aria-hidden="true">add_circle</span>Add a comp
           </a>
         }
-        <a class="view-btn quick-action" [routerLink]="['/games']" [queryParams]="{ tab: 'reviews' }"
-           appTip="Every written review, newest first">
-          <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Reviews
-          @if (data.gameReviews().length) { <small>{{ data.gameReviews().length }}</small> }
-        </a>
-        <a class="view-btn quick-action" [routerLink]="['/review']"
-           appTip="What keeps happening in our games: work on, keep doing">
-          <span class="material-symbols-rounded" aria-hidden="true">insights</span>Patterns
-        </a>
         <a class="view-btn quick-action" [routerLink]="['/tournaments']" [queryParams]="{ view: 'plan' }"
            appTip="Scout the next opponent and plan the bans">
           <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>Scout the opponent
@@ -54,6 +45,12 @@ import { TooltipDirective } from './tooltip.directive';
           </a>
         }
       </div>
+      <p class="quick-actions-also muted">
+        Also:
+        <a [routerLink]="['/games']" [queryParams]="{ tab: 'reviews' }">Reviews@if (data.gameReviews().length) { ({{ data.gameReviews().length }})}</a>
+        ·
+        <a [routerLink]="['/review']">Patterns</a>
+      </p>
     </section>
   `
 })

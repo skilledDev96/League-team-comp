@@ -5,6 +5,7 @@ import { LearnEntry, LearnPriority, PainPoint, Player } from '../../models/team.
 import { AuthService } from '../../services/auth.service';
 import { ChampionDataService } from '../../services/champion-data.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { PlayerEditorService } from '../../services/player-editor.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ChampionPickerComponent } from '../../shared/champion-picker.component';
@@ -37,6 +38,7 @@ export class PlayerIntelComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
+  protected readonly editor = inject(PlayerEditorService);
   protected readonly champData = inject(ChampionDataService);
 
   protected readonly fullView = signal(false);
