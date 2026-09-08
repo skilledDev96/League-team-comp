@@ -50,3 +50,23 @@ describe('placeTooltip', () => {
     expect(at.left).toBe(8);
   });
 });
+
+import { placeCard } from './tooltip-position.util';
+
+describe('placeCard', () => {
+  const card = { width: 300, height: 150 };
+  const vp = { width: 1000, height: 700 };
+
+  it('goes below by default, above when there is no room, beside when neither fits, else centred', () => {
+    expect(placeCard({ top: 100, left: 400, width: 200, height: 40 }, card, vp)).toMatchObject({ side: 'bottom', top: 152, left: 350 });
+    expect(placeCard({ top: 600, left: 400, width: 200, height: 40 }, card, vp)).toMatchObject({ side: 'top', top: 438 });
+    expect(placeCard({ top: 10, left: 100, width: 100, height: 660 }, card, vp)).toMatchObject({ side: 'right', left: 212 });
+    expect(placeCard({ top: 10, left: 10, width: 980, height: 680 }, card, vp).side).toBe('center');
+  });
+
+  it('keeps the card inside the viewport and honours a preferred side that fits', () => {
+    const p = placeCard({ top: 100, left: 950, width: 40, height: 40 }, card, vp);
+    expect(p.left).toBe(1000 - 300 - 8);
+    expect(placeCard({ top: 300, left: 400, width: 100, height: 40 }, card, vp, 'top').side).toBe('top');
+  });
+});

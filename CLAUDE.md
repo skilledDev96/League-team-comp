@@ -345,6 +345,37 @@ filter rather than none, so it can never become unpickable.
    (`core/coaching-digest.ts`: which themes the notes keep touching) with
    the game-by-game notes behind a fold.
 
+**Tours are data** (8 Sep 2026). `core/tours.ts` holds `Tour { id, version,
+match, role, needs, steps }`; a step names a `data-tour` anchor and, when it
+needs them, the route, the query, edit mode and a `before` action. Adding a
+tour is appending to `TOURS` and putting `data-tour="…"` on the anchors;
+re-showing one to everyone is bumping its `version`; `whats-new` is the
+empty hook for that. `services/tour.service.ts` walks the page (navigates,
+turns edit mode on and restores it, opens every `<details>` above the anchor,
+waits three seconds for it, and **skips a missing anchor rather than throw** —
+the e2e console sweep runs on every page). The overlay
+(`shared/tour-overlay.component.ts`) is fixed at the app root, never inside a
+`.card` (cards carry a transform), and lets clicks through everywhere but the
+card; the last button is "Got it" and the escape is "Skip tour", the two names
+`e2e/tests/auth.setup.ts` and the `authenticated.spec.ts` beforeEach click.
+Never name a tour button with "edit mode": a viewer test asserts none exists.
+Nothing a tour adds to the draft room may change its height. Seen state is
+`userPrefs/{email}.toursSeen` (`services/user-prefs.service.ts`, localStorage
+fallback; the old `tourSeen` flag is still written for the welcome tour). The
+welcome modal in `app.html` is gone; the welcome tour replaced it. Help and
+tours in the user menu lists every tour the role can run; the hero pill
+(`shared/tour-pill.component.ts`) offers the page's tour and, for an editor
+with it off, a reminder that the controls live behind Edit mode.
+
+**Explanatory prose has one rule** (8 Sep 2026): it stays on the page only when
+it tells a viewer what would fill an empty space. A caveat or a definition a
+reader wants once goes behind `<app-info-tip>`; anything about seeds, keys or
+costs is admin-only; the rest was deleted. The player editor is one form
+(`shared/player-editor.component.ts` over `services/player-editor.service.ts`)
+used by Admin and by the drawer opened from a profile or a roster card; the
+bench flag is labelled **A team / Bench** everywhere; every Riot refresh is
+"Refresh … from Riot" with its scope.
+
 Adding a field to a cached match means **bumping `CACHE_VERSION`** in
 `analysis-cache.ts`. Old entries then re-fetch once, inside `MAX_NEW_FETCHES` per
 run — so the field is *absent* on some matches for several refreshes, and any UI

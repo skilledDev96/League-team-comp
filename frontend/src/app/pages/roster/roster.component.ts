@@ -8,6 +8,7 @@ import { OverviewComponent } from '../overview/overview.component';
 import { PlayerIntelComponent } from '../player-intel/player-intel.component';
 import { TeamProfilesComponent } from '../profiles/team-profiles.component';
 import { QuickActionsComponent } from '../../shared/quick-actions.component';
+import { TourPillComponent } from '../../shared/tour-pill.component';
 
 export type RosterView = 'cards' | 'table' | 'scouting';
 
@@ -29,7 +30,7 @@ const VIEWS: RosterView[] = ['cards', 'table', 'scouting'];
  */
 @Component({
   selector: 'app-roster',
-  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ChampionFilterComponent, QuickActionsComponent],
+  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ChampionFilterComponent, QuickActionsComponent, TourPillComponent],
   templateUrl: './roster.component.html'
 })
 export class RosterComponent {

@@ -10,7 +10,7 @@ import { Component, ElementRef, HostListener, inject, input, signal } from '@ang
   selector: 'app-user-menu',
   template: `
     <div class="user-menu">
-      <button type="button" class="user-chip user-chip-trigger" [class.active]="open()"
+      <button type="button" class="user-chip user-chip-trigger" data-tour="user-menu-trigger" [class.active]="open()"
               [attr.aria-expanded]="open()" aria-haspopup="menu"
               (click)="toggle($event)">
         <span class="user-avatar" aria-hidden="true">{{ (email() || '?').charAt(0).toUpperCase() }}</span>

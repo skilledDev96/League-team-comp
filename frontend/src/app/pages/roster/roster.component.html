@@ -1,6 +1,7 @@
 <section class="hero">
   <h1>{{ heading().title }}</h1>
   <p>{{ heading().blurb }}</p>
+  <app-tour-pill />
 </section>
 
 <app-quick-actions />
@@ -8,7 +9,7 @@
 <section class="card review-toolbar" aria-label="Roster views">
   <div class="view-controls">
     <div class="field"><span id="rosterView">Showing</span>
-      <div class="segmented" role="group" aria-labelledby="rosterView">
+      <div class="segmented" role="group" aria-labelledby="rosterView" data-tour="roster-views">
         <button type="button" class="segment" [class.active]="view() === 'cards'"
                 [attr.aria-pressed]="view() === 'cards'" (click)="setView('cards')">
           Cards

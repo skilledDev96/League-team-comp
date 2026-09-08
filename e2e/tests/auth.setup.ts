@@ -39,7 +39,7 @@ setup('sign in', async ({ page, context }) => {
   // A new account is met by the welcome tour, which covers the page. Dismissing
   // it here writes userPrefs/{email} — a rule every signed-in user may write,
   // viewer included — so it stays dismissed rather than reappearing per test.
-  const gotIt = page.getByRole('button', { name: /^Got it$/ });
+  const gotIt = page.getByRole('button', { name: /^(Skip tour|Got it)$/ });
   if (await gotIt.isVisible().catch(() => false)) {
     await gotIt.click();
     await expect(gotIt).toBeHidden();

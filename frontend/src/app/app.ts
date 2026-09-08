@@ -17,15 +17,19 @@ import { ActivityService } from './services/activity.service';
 import { RefreshService } from './services/refresh.service';
 import { UserMenuComponent } from './shared/user-menu.component';
 import { PlayerEditorDrawerComponent } from './shared/player-editor-drawer.component';
+import { TourOverlayComponent } from './shared/tour-overlay.component';
+import { TourHelpComponent } from './shared/tour-help.component';
+import { TourService } from './services/tour.service';
 import { TooltipDirective } from './shared/tooltip.directive';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, UserMenuComponent, TooltipDirective, PlayerEditorDrawerComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, UserMenuComponent, TooltipDirective, PlayerEditorDrawerComponent, TourOverlayComponent, TourHelpComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App {
+  protected readonly tours = inject(TourService);
   protected readonly theme = inject(ThemeService);
   protected readonly auth = inject(AuthService);
   protected readonly data = inject(TeamDataService);
@@ -42,8 +46,6 @@ export class App {
   // Thin top bar for subsequent route changes.
   protected readonly routeLoading = computed(() => this.navigating() && this.data.ready());
 
-  protected readonly showTutorial = signal(false);
-  private tourChecked = false;
 
   /**
    * Routes are lazy-loaded, so each one is a separate hashed chunk. After a
@@ -115,31 +117,6 @@ export class App {
         timeout: 9000
       });
     });
-
-    // Show a one-time welcome tour the first time a user signs in (stored per-account in Firestore).
-    effect(() => {
-      if (!this.auth.ready()) {
-        return;
-      }
-      if (!this.auth.isAuthed()) {
-        this.tourChecked = false;
-        return;
-      }
-      if (this.tourChecked) {
-        return;
-      }
-      this.tourChecked = true;
-      void this.auth.hasSeenTour().then((seen) => {
-        if (!seen) {
-          this.showTutorial.set(true);
-        }
-      });
-    });
-  }
-
-  protected dismissTutorial(): void {
-    this.showTutorial.set(false);
-    void this.auth.markTourSeen();
   }
 
   /** Every running job on one line, for the pill's tooltip. */

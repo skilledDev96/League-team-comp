@@ -462,6 +462,14 @@ export interface ResourceLink {
 
 export type ResourceLinks = Record<string, ResourceLink[]>;
 
+/** What one account has seen, at `userPrefs/{email}`. */
+export interface UserPrefs {
+  /** The welcome modal's old flag; still written when the welcome tour finishes. */
+  tourSeen?: boolean;
+  /** Tour id → the version seen. Bumping a tour's version shows it again. */
+  toursSeen?: Record<string, number>;
+}
+
 export interface Settings {
   teamName: string;
   /**

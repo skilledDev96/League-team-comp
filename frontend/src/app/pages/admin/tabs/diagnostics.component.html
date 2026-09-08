@@ -15,6 +15,10 @@
       <span class="build-sha-note">versions differ — redeploy functions</span>
     }
   </div>
+  <p class="muted edit-hint">
+    Tours: you have seen <b>{{ toursSeen() }}</b> of <b>{{ tours.available().length }}</b>.
+    <button type="button" class="view-btn" (click)="prefs.resetTours()" appTip="Every tour starts again by itself, for this account">Reset my tours</button>
+  </p>
   <label class="field field-check">
     <input type="checkbox" [checked]="devAids()" (change)="setDevAids($any($event.target).checked)" name="devAids" />
     <span>Show the test aids in the draft room <small class="muted">Skip bans and Fill draft, in this browser only. Also on with ?dev=1.</small></span>

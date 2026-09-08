@@ -1,8 +1,10 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ClientError } from '../../../core/error-reporting';
 import { DraftEvent } from '../../../models/team.models';
 import { TeamDataService } from '../../../services/team-data.service';
+import { TourService } from '../../../services/tour.service';
+import { UserPrefsService } from '../../../services/user-prefs.service';
 import { UiService } from '../../../services/ui.service';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { AdminContextService } from '../admin-context.service';
@@ -14,6 +16,10 @@ import { AdminContextService } from '../admin-context.service';
   templateUrl: './diagnostics.component.html'
 })
 export class AdminDiagnosticsComponent implements OnInit {
+  protected readonly tours = inject(TourService);
+  protected readonly prefs = inject(UserPrefsService);
+  protected readonly toursSeen = computed(() => this.tours.available().filter((t) => this.tours.seen(t)).length);
+
   /** The draft room's test aids, per browser. */
   protected readonly devAids = signal(localStorage.getItem('bom-dev-aids') === '1');
   protected setDevAids(on: boolean): void {

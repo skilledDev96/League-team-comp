@@ -20,7 +20,7 @@ import { expect, test } from '@playwright/test';
 test.beforeEach(async ({ page }) => {
   page.on('load', () => {
     void page
-      .getByRole('button', { name: /^Got it$/ })
+      .getByRole('button', { name: /^(Skip tour|Got it)$/ })
       .click({ timeout: 2_000 })
       .catch(() => undefined);
   });
@@ -76,6 +76,8 @@ test('the tournaments page offers both views', async ({ page }) => {
 test('the draft board loads', async ({ page }) => {
   await page.goto('./tournaments');
   await page.getByRole('button', { name: /^Draft$/ }).click();
+  // An in-app navigation fires no load event; a tour due on the draft view is dismissed here.
+  await page.getByRole('button', { name: /^(Skip tour|Got it)$/ }).click({ timeout: 2_000 }).catch(() => undefined);
   // A series with games, or the message saying there are none — either is the
   // page working; which one depends on where the split happens to be. Match
   // that message exactly rather than any .muted, which every page has.

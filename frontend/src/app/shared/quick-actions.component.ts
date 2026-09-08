@@ -15,7 +15,7 @@ import { TooltipDirective } from './tooltip.directive';
   selector: 'app-quick-actions',
   imports: [RouterLink, TooltipDirective],
   template: `
-    <section class="card quick-actions" aria-label="Quick actions">
+    <section class="card quick-actions" aria-label="Quick actions" data-tour="quick-actions">
       <span class="quick-actions-label"><span class="material-symbols-rounded" aria-hidden="true">bolt</span>Quick actions</span>
       <div class="quick-actions-row">
         @if (auth.canEdit()) {

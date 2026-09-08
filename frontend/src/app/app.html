@@ -21,7 +21,7 @@
       </div>
     }
     @if (auth.isAuthed()) {
-      <nav class="nav-links" aria-label="Main navigation">
+      <nav class="nav-links" aria-label="Main navigation" data-tour="nav">
         <!-- Overview, Player Intel and Profiles are modes of /roster now. The
              old paths still resolve, so this stays highlighted on all of them. -->
         <a routerLink="/roster" routerLinkActive="active">Roster</a>
@@ -44,7 +44,7 @@
           </span>
         }
         @if (auth.canEdit()) {
-          <button type="button" class="edit-toggle" [class.active]="auth.editMode()"
+          <button type="button" class="edit-toggle" data-tour="edit-toggle" [class.active]="auth.editMode()"
                   [attr.aria-pressed]="auth.editMode()"
                   (click)="auth.editMode.set(!auth.editMode())">
             <span class="material-symbols-rounded" aria-hidden="true">{{ auth.editMode() ? 'edit_off' : 'edit' }}</span>
@@ -62,7 +62,7 @@
 
         <span class="topbar-divider" aria-hidden="true"></span>
 
-        <app-user-menu [email]="auth.userEmail() || ''" [role]="auth.role() || ''">
+        <app-user-menu [email]="auth.userEmail() || ''" [role]="auth.role() || ''" data-tour="user-menu">
           @if (auth.canEdit()) {
             <a class="overflow-item" routerLink="/admin">Admin</a>
             @if (data.mode === 'firebase') {
@@ -72,6 +72,7 @@
               </button>
             }
           }
+          <button type="button" class="overflow-item" (click)="tours.helpOpen.set(true)">Help and tours</button>
           <button type="button" class="overflow-item" (click)="logout()">Log out</button>
         </app-user-menu>
       </div>
@@ -150,23 +151,5 @@
 
 <app-player-editor-drawer />
 
-@if (showTutorial()) {
-  <div class="modal-backdrop" (click)="dismissTutorial()">
-    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Welcome tour" (click)="$event.stopPropagation()">
-      <h2 class="title-with-icon"><span class="section-icon">Hi</span>Welcome to {{ data.settings().teamName || 'Bom Squad' }}</h2>
-      <p class="muted">A quick tour of your draft hub:</p>
-      <ul class="list-clean">
-        <li><strong>Roster</strong> — your players as cards, as a stat table, or as deep-dive scouting cards.</li>
-        <li><strong>Comps</strong> — team comps, bans, and the game plan.</li>
-        <li><strong>Games</strong> — every game we played, from tournament to scrims to flex, and what keeps happening in them.</li>
-        <li><strong>Scrims</strong> — practice games, imported from replay files, since customs never reach the Riot API.</li>
-        @if (auth.canEdit()) {
-          <li><strong>Edit mode</strong> — flip the top-right switch to reveal editing controls and the roster editor.</li>
-        }
-      </ul>
-      <div class="links">
-        <button class="view-btn active" type="button" (click)="dismissTutorial()">Got it</button>
-      </div>
-    </div>
-  </div>
-}
+<app-tour-overlay />
+<app-tour-help />
