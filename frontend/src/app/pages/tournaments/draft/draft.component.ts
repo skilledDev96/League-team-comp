@@ -5,6 +5,7 @@ import { AuthService } from '../../../services/auth.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { UiService } from '../../../services/ui.service';
 import { ChampionDataService } from '../../../services/champion-data.service';
+import { RouterLink } from '@angular/router';
 import { ChampionGridComponent } from '../../../shared/champion-grid.component';
 import { ChampionPickerComponent } from '../../../shared/champion-picker.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
@@ -117,6 +118,7 @@ const MAP_SPOTS: Record<'blue' | 'red', Record<Role, { x: number; y: number }>> 
 @Component({
   selector: 'app-tournament-draft',
   imports: [
+    RouterLink,
     FormsModule,
     ChampionGridComponent,
     ChampionPickerComponent,

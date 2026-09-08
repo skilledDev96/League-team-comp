@@ -5,31 +5,25 @@
     <app-tour-pill />
 </section>
 
-    <article class="card profile-actions">
-      <h2 data-tour="player-edit" class="title-with-icon"><span class="section-icon">NX</span>Quick actions</h2>
-      @if (refreshStatus()) {
-        <p class="tag good" role="status">{{ refreshStatus() }}</p>
-      }
-      <div class="links action-row">
+    <section class="card quick-actions profile-actions" aria-label="Quick actions">
+      <span data-tour="player-edit" class="quick-actions-label"><span class="material-symbols-rounded" aria-hidden="true">bolt</span>Quick actions</span>
+      <div class="quick-actions-row">
         @if (auth.editing()) {
-          <button class="view-btn active" type="button" [disabled]="refreshing()" (click)="refreshData()">
-            @if (refreshing()) {
-              <span class="btn-spinner" aria-hidden="true"></span>
-              Refreshing...
-            } @else {
-              Refresh this player from Riot
-            }
+          <button class="view-btn active quick-action" type="button" [disabled]="refreshing()" (click)="refreshData()" appTip="Re-reads rank, recent champions and the observed playstyle. Anything typed by hand is kept.">
+            @if (refreshing()) { <span class="btn-spinner" aria-hidden="true"></span> Refreshing… } @else { <span class="material-symbols-rounded" aria-hidden="true">sync</span>Refresh from Riot }
+          </button>
+          <button class="view-btn quick-action" type="button" (click)="editor.open(p.id)" appTip="Name, tag, seats, pool, bans, playstyle and links, in a drawer">
+            <span class="material-symbols-rounded" aria-hidden="true">edit</span>Edit this player
           </button>
         }
-        <app-overflow-menu>
-          @if (auth.editing()) {
-            <button type="button" class="overflow-item" (click)="editor.open(p.id)">Edit this player</button>
-          }
-          <a class="overflow-item" routerLink="/roster">Back to Roster</a>
-          <a class="overflow-item" routerLink="/comps">Open team comps</a>
-        </app-overflow-menu>
+        <a class="view-btn quick-action" routerLink="/roster"><span class="material-symbols-rounded" aria-hidden="true">groups</span>Back to Roster</a>
+        <a class="view-btn quick-action" routerLink="/comps"><span class="material-symbols-rounded" aria-hidden="true">dashboard</span>Team comps</a>
+        <a class="view-btn quick-action" [routerLink]="['/games']" [queryParams]="{ tab: 'reviews' }"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Reviews</a>
       </div>
-    </article>
+      @if (refreshStatus()) {
+        <p class="tag good quick-actions-also" role="status">{{ refreshStatus() }}</p>
+      }
+    </section>
 
   <section class="grid two">
     <article class="card card-loadable">

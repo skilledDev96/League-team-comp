@@ -43,6 +43,11 @@
           <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
           <h2>{{ player.role }} - {{ player.name }}</h2>
           @if (player.sub) { <span class="sub-badge" title="On the bench: the draft room follows the starter in this seat.">Sub</span> }
+          @if (auth.editing()) {
+            <button type="button" class="view-btn roster-edit-open title-row-edit" (click)="editor.open(player.id)" appTip="Name, tag, pool, bans, playstyle and links, in a drawer">
+              <span class="material-symbols-rounded" aria-hidden="true">edit</span> More
+            </button>
+          }
         </div>
         @if (auth.editing()) {
           <!-- A solid row above the card's link overlay: these are controls, not a way in. -->
@@ -70,9 +75,6 @@
                 }
               }
             </span>
-            <button type="button" class="view-btn roster-edit-open" (click)="editor.open(player.id)" appTip="Name, tag, pool, bans, playstyle and links, in a drawer">
-              <span class="material-symbols-rounded" aria-hidden="true">edit</span> More
-            </button>
           </div>
         } @else if (player.secondaryRoles?.length) {
           <p class="meta-line">

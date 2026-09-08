@@ -15,7 +15,7 @@
     </div>
   </div>
   @if (compCategories().length) {
-    <label class="comp-cat-filter">
+    <label class="field comp-cat-field">
       <span>Category</span>
       <select [ngModel]="compCategoryFilter()" (ngModelChange)="compCategoryFilter.set($event)" name="compCatFilter">
         <option value="all">All categories</option>

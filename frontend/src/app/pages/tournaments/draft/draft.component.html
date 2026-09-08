@@ -370,10 +370,17 @@
               </button>
               <button type="button" class="view-btn" (click)="undoStep(game)">Undo last</button>
               <button type="button" class="view-btn draft-reset" (click)="resetDraft(game)">Reset</button>
-              <button type="button" class="view-btn draft-replay-hint" data-tour="draft-replay-hint" (click)="ctx.openPrep(series.id)"
-                      appTip="Opens this game on the Plan view, where the .rofl drops in and fills the picks and the result">
-                <span class="material-symbols-rounded" aria-hidden="true">upload_file</span> Import the replay
-              </button>
+              @if (game.matchId) {
+                <a class="view-btn draft-replay-hint" data-tour="draft-replay-hint" [routerLink]="['/games']" [queryParams]="{ match: game.matchId }"
+                   appTip="Filled from its replay. Opens the game on the Games page, with its story and review.">
+                  <span class="material-symbols-rounded" aria-hidden="true">sports_esports</span> Open on Games
+                </a>
+              } @else {
+                <button type="button" class="view-btn draft-replay-hint" data-tour="draft-replay-hint" (click)="ctx.openPrep(series.id)"
+                        appTip="Opens this game on the Plan view, where the .rofl drops in and fills the picks and the result">
+                  <span class="material-symbols-rounded" aria-hidden="true">upload_file</span> Import the replay
+                </button>
+              }
             </p>
           } @else {
             <div data-tour="draft-step-bar" class="draft-step-bar" [class.is-ours]="isOurTurn(game)">

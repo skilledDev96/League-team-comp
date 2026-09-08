@@ -14269,7 +14269,15 @@ button.coaching-theme:hover, button.coaching-theme:focus-visible { color: var(--
 .fillin-row .action-row { margin: 0 0 0 auto; }
 
 /* ---- Toolbars, 9 Sep 2026: the call to action at the row's end, the champion box in the row ---- */
-.view-controls-cta { margin-left: auto; }
+.view-controls-cta { margin-left: auto; align-self: flex-end; padding: 0.38rem 0.85rem; }
+.view-controls-cta .material-symbols-rounded { font-size: 1.1rem; vertical-align: -0.2rem; }
+.view-controls .comp-cat-field { margin: 0; }
+.view-controls .comp-cat-field select { padding: 0.42rem 0.6rem; font-size: 0.85rem; }
 .review-toolbar .roster-toolbar-filter { flex: 1 1 18rem; margin-left: auto; }
 .review-toolbar .roster-toolbar-filter .champ-filter { margin: 0; }
 .review-card-vs b { color: var(--text-0); }
+
+/* ---- 9 Sep 2026: More at the card's top right; the profile's quick actions in the Roster bar's clothes ---- */
+.title-row-edit { margin-left: auto; align-self: flex-start; position: relative; z-index: 3; }
+.profile-actions .quick-actions-also { flex-basis: auto; }
+.profile-actions .btn-spinner { margin-right: 0.3rem; }

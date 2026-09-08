@@ -11,7 +11,6 @@ import { UiService } from '../../services/ui.service';
 import { PlayerQueueStats, QueueMatchStats, RankedQueueStats } from '../../models/team.models';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ExternalProfilesComponent } from '../../shared/external-profiles.component';
-import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { ColumnOption, ColumnPickerComponent } from '../../shared/column-picker.component';
@@ -26,7 +25,7 @@ import { digestNotes, touches } from '../../core/coaching-digest';
 
 @Component({
   selector: 'app-player-profile',
-  imports: [DatePipe, RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, OverflowMenuComponent, TooltipDirective, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent, InfoTipComponent, TourPillComponent],
+  imports: [DatePipe, RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, TooltipDirective, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent, InfoTipComponent, TourPillComponent],
   templateUrl: './player-profile.component.html'
 })
 export class PlayerProfileComponent {
