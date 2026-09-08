@@ -99,6 +99,18 @@
 } @else {
   <!-- One filter row. Source, window, result, opponent; the champion box is
        the same one every page shares. -->
+  @if (justRefreshed()) {
+    <!-- The quick action's answer: what the refresh brought in. -->
+    <section class="card games-fresh" role="status" aria-live="polite">
+      <span class="material-symbols-rounded" aria-hidden="true">{{ newIds()?.size ? 'new_releases' : 'hourglass_empty' }}</span>
+      @if (newIds()?.size; as n) {
+        <span><b>{{ n }}</b> new {{ n === 1 ? 'game' : 'games' }} from Riot, marked below and the newest opened. Press "Review this game" on any of them for the written review.</span>
+      } @else {
+        <span>Nothing new from Riot yet. A game can take a few minutes to appear after it ends; press "Refresh match data" again shortly.</span>
+      }
+      <button type="button" class="view-btn" (click)="dismissNew()">Got it</button>
+    </section>
+  }
   <section class="card games-filters" aria-label="Filters">
     <div class="view-segment" role="group" aria-label="Source">
       <button type="button" [class.active]="source() === 'all'" (click)="source.set('all')">All</button>
@@ -258,7 +270,7 @@
     @if (rows().length) {
       <div class="opp-history-games games-list">
         @for (g of rows(); track g.id) {
-          <details class="opp-history-game games-row" [class.is-win]="g.win" [attr.data-row]="g.id" [class.is-focused]="g.id === focus()">
+          <details class="opp-history-game games-row" [class.is-win]="g.win" [attr.data-row]="g.id" [class.is-new]="isNew(g)" [class.is-focused]="g.id === focus()">
             <summary class="opp-history-head">
               <span class="opp-history-result">{{ g.win ? 'W' : 'L' }}</span>
               <span class="opp-history-when">{{ day(g.date) }}</span>

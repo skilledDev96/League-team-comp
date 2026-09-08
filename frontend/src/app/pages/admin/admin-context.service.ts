@@ -309,6 +309,10 @@ export class AdminContextService {
     if (tab === 'settings' || tab === 'players' || tab === 'fillins' || tab === 'comps' || tab === 'tournaments' || tab === 'access' || tab === 'diagnostics') {
       this.openTab(tab);
     }
+    // "Add a comp" from the quick actions: one blank comp, not one per visit.
+    if (params.get('add') === 'comp' && !this.compDrafts().some((d) => !d.id && !d.name)) {
+      this.addComp();
+    }
 
     const playerId = params.get('playerId');
     if (playerId) {

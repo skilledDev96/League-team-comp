@@ -7,6 +7,7 @@ import { TeamDataService } from '../../services/team-data.service';
 import { OverviewComponent } from '../overview/overview.component';
 import { PlayerIntelComponent } from '../player-intel/player-intel.component';
 import { TeamProfilesComponent } from '../profiles/team-profiles.component';
+import { QuickActionsComponent } from '../../shared/quick-actions.component';
 
 export type RosterView = 'cards' | 'table' | 'scouting';
 
@@ -28,7 +29,7 @@ const VIEWS: RosterView[] = ['cards', 'table', 'scouting'];
  */
 @Component({
   selector: 'app-roster',
-  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ChampionFilterComponent],
+  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ChampionFilterComponent, QuickActionsComponent],
   templateUrl: './roster.component.html'
 })
 export class RosterComponent {

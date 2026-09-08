@@ -19,6 +19,7 @@ import { SplitViewToggleComponent } from '../../shared/split-view-toggle.compone
 import { TablePrefsService } from '../../services/table-prefs.service';
 import { formatSide, PLAYER_METRIC_KEYS, PlayerMetric, playerSplits, PlayerSplitRow, SideStat, SplitUnit, starterCount } from '../review/win-loss-splits';
 import { MIN_FOR_A_CLAIM } from '../review/loss-patterns.util';
+import { digestNotes } from '../../core/coaching-digest';
 
 @Component({
   selector: 'app-player-profile',
@@ -115,9 +116,20 @@ export class PlayerProfileComponent {
       .gameReviews()
       .map((review) => ({ review, note: review.players.find((p) => p.name === name), game: games.get(review.matchId) }))
       .filter((r) => r.note)
-      .sort((a, b) => (b.game?.date ?? 0) - (a.game?.date ?? 0))
-      .slice(0, 6);
+      .sort((a, b) => (b.game?.date ?? 0) - (a.game?.date ?? 0));
   });
+
+  /** What keeps coming up across those notes: the default view. */
+  protected readonly coachingDigest = computed(() =>
+    digestNotes(
+      this.coachingNotes().map((n) => ({
+        win: n.game?.win ?? false,
+        date: n.game?.date ?? 0,
+        strength: [n.note!.strength.text, n.note!.strength.evidence].join(' '),
+        workOn: [n.note!.workOn.text, n.note!.workOn.evidence].join(' ')
+      }))
+    )
+  );
 
   protected columnOptions(metrics: readonly PlayerMetric[]): ColumnOption[] {
     return metrics.map((m) => ({ key: m.key, label: m.label }));

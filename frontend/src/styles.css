@@ -13983,3 +13983,33 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .game-review-players td { white-space: normal; overflow-wrap: anywhere; }
 .game-review-players th:first-child,
 .game-review-players td:first-child { width: 11rem; }
+
+
+/* ---- Quick actions on the main page ------------------------------------- */
+.quick-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 0.9rem; padding: 0.7rem 0.9rem; }
+.quick-actions-label { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--text-1); }
+.quick-actions-label .material-symbols-rounded { font-size: 1.1rem; color: var(--accent); }
+.quick-actions-row { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.quick-action { display: inline-flex; align-items: center; gap: 0.35rem; text-decoration: none; }
+.quick-action .material-symbols-rounded { font-size: 1.1rem; }
+.quick-action small { opacity: 0.75; }
+
+/* What "We just practiced" brought in. */
+.games-fresh { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.7rem 0.9rem; border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border)); }
+.games-fresh .material-symbols-rounded { color: var(--accent); }
+.games-fresh > span:not(.material-symbols-rounded) { flex: 1 1 20rem; }
+.opp-history-row.is-new > summary::after,
+details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 0.05rem 0.45rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text-0); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* The coaching digest. */
+.coaching-head small { margin-left: 0.5rem; font-size: 0.72rem; font-weight: 400; }
+.coaching-digest { display: grid; gap: 0.3rem; margin-bottom: 0.5rem; }
+.coaching-theme-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0; font-size: 0.82rem; }
+.coaching-theme-line > b.is-warn { color: var(--warn); margin-right: 0.2rem; }
+.coaching-theme-line > b.is-ok { color: var(--ok); margin-right: 0.2rem; }
+.coaching-theme { display: inline-flex; gap: 0.3rem; padding: 0.1rem 0.55rem; border-radius: 999px; border: 1px solid var(--card-border); font-size: 0.76rem; color: var(--text-1); }
+.coaching-theme b { color: var(--text-0); }
+.coaching-theme.is-warn { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.coaching-theme.is-ok { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.coaching-games { margin-top: 0.4rem; }
+.coaching-games > summary small { margin-left: 0.3rem; }

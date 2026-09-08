@@ -218,7 +218,25 @@
         </p>
         @if (coachingNotes().length) {
           <!-- What the post-game reviews said about this player, one line each way per game. -->
-          <h3 class="coaching-head"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Coaching notes</h3>
+          <h3 class="coaching-head"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Coaching notes
+            <small class="muted">{{ coachingDigest().games }} reviewed {{ coachingDigest().games === 1 ? 'game' : 'games' }}, {{ coachingDigest().wins }} won</small></h3>
+          @let cd = coachingDigest();
+          <!-- The digest is the default view: what keeps coming up, then the newest note. -->
+          <div class="coaching-digest">
+            @if (cd.workOn.length) {
+              <p class="coaching-theme-line"><b class="is-warn">Keeps coming up</b>
+                @for (t of cd.workOn; track t.key) { <span class="coaching-theme is-warn" [appTip]="'Work-on notes touching this in ' + t.games + ' of ' + cd.games + ' reviewed games'">{{ t.label }} <b>{{ t.games }}/{{ cd.games }}</b></span> }
+              </p>
+            }
+            @if (cd.strengths.length) {
+              <p class="coaching-theme-line"><b class="is-ok">Strengths</b>
+                @for (t of cd.strengths; track t.key) { <span class="coaching-theme is-ok" [appTip]="'Strength notes touching this in ' + t.games + ' of ' + cd.games + ' reviewed games'">{{ t.label }} <b>{{ t.games }}/{{ cd.games }}</b></span> }
+              </p>
+            }
+            @if (cd.latestWorkOn) { <p class="coaching-line is-warn"><b>Latest</b> {{ coachingNotes()[0].note!.workOn.text }}</p> }
+          </div>
+          <details class="intel-collapse coaching-games">
+            <summary><span class="material-symbols-rounded" aria-hidden="true">history</span>Game by game <small class="muted">{{ coachingNotes().length }}</small></summary>
           <ul class="list-clean coaching-notes">
             @for (n of coachingNotes(); track n.review.matchId) {
               <li class="coaching-note">
@@ -234,6 +252,7 @@
               </li>
             }
           </ul>
+          </details>
         }
       </article>
     } @else if (data.compAnalysis()) {

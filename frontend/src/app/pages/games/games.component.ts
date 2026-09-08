@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { effectiveComp } from '../../core/comp-alias';
 import { AuthService } from '../../services/auth.service';
 import { ChampionFilterService } from '../../services/champion-filter.service';
@@ -70,6 +70,7 @@ export class GamesComponent {
   protected readonly filter = inject(ChampionFilterService);
   private readonly analysis = inject(CompAnalysisService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   protected readonly tab = signal<Tab>('games');
 
@@ -207,6 +208,7 @@ export class GamesComponent {
         this.focus.set(`riot-${match}`);
       }
       if (params.get('tab') === 'reviews') this.tab.set('reviews');
+      if (params.get('refresh') === '1') void this.justPracticed();
     });
     effect(() => {
       const id = this.focus();
@@ -317,6 +319,45 @@ export class GamesComponent {
 
   protected readonly analysisLoading = this.analysis.running;
   protected readonly analysisError = signal('');
+
+  // ---- "We just practiced": refresh, then open what came in ----------------
+
+  /** Match ids that arrived with the last refresh started from the quick action. */
+  protected readonly newIds = signal<ReadonlySet<string> | null>(null);
+  protected readonly justRefreshed = signal(false);
+
+  protected isNew(row: GameRow): boolean {
+    return !!row.matchId && !!this.newIds()?.has(row.matchId);
+  }
+
+  /**
+   * The quick action from the main page: refresh the match data, then show
+   * the games that were not there before, newest first, with the first one
+   * open. The query param is dropped so a reload does not refresh again.
+   */
+  protected async justPracticed(): Promise<void> {
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { refresh: null }, queryParamsHandling: 'merge', replaceUrl: true });
+    if (!this.auth.canEdit() || this.analysisLoading()) return;
+    const before = new Set((this.data.compAnalysis()?.games ?? []).map((g) => g.matchId));
+    this.tab.set('games');
+    await this.refreshAnalysis();
+    const after = (this.data.compAnalysis()?.games ?? []).map((g) => g.matchId);
+    const fresh = new Set(after.filter((id) => !before.has(id)));
+    this.newIds.set(fresh);
+    this.justRefreshed.set(true);
+    this.source.set('all');
+    this.days.set(7);
+    const first = [...fresh][0];
+    if (first) {
+      this.revealed = null;
+      this.focus.set(`riot-${first}`);
+    }
+  }
+
+  protected dismissNew(): void {
+    this.justRefreshed.set(false);
+    this.newIds.set(null);
+  }
 
   protected async refreshAnalysis(): Promise<void> {
     if (this.analysisLoading()) return;
