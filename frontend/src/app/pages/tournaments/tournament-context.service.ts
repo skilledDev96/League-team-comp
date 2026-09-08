@@ -34,7 +34,12 @@ export class TournamentContextService {
     const all = this.tournaments();
     const chosen = this.chosenTournamentId();
     if (chosen) return all.find((t) => t.id === chosen) ?? null;
-    return all.find((t) => t.active) ?? all[0] ?? null;
+    // A draft opened by link names its series, and the data may arrive after
+    // the link is read: the series' tournament wins until one is chosen (9 Sep 2026).
+    const seriesId = this.draftSeriesId();
+    const via = seriesId ? this.data.tournamentSeries().find((s) => s.id === seriesId) : undefined;
+    const own = via ? all.find((t) => t.id === via.tournamentId) : undefined;
+    return own ?? all.find((t) => t.active) ?? all[0] ?? null;
   });
 
   selectTournament(id: string): void {
