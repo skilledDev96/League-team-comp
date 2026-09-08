@@ -171,7 +171,9 @@ export function teamSplits(games: readonly AnalysisGame[]): MetricSplit[] {
     m('dragons', 'Dragons', 'count', true, (g) => g.objectives?.ours.dragons, 1),
     m('firstBlood', 'First blood', 'pct', true, (g) => (g.objectives ? (g.objectives.ours.firstBlood ? 1 : 0) : undefined)),
     m('firstTower', 'First tower', 'pct', true, (g) => (g.objectives ? (g.objectives.ours.firstTower ? 1 : 0) : undefined)),
-    m('plates', 'Turret plates', 'count', true, (g) => sumIfAny(g, (p) => p.facts?.plates), 1),
+    // Riot credits a plate to every participant who took part, so a sum over
+    // five counts one plate several times; per player is the honest figure.
+    m('plates', 'Turret plates per player', 'count', true, (g) => meanIfAny(g, (p) => p.facts?.plates), 1),
     m('soloKills', 'Solo kills', 'count', true, (g) => sumIfAny(g, (p) => p.facts?.soloKills), 1),
     m('tpTop', "Top's Teleport takedowns", 'count', true, (g) => topOf(g)?.facts?.tpTakedowns, 1),
     m('damageBalance', 'Biggest damage share', 'pct', false, (g) => { const shares = g.players.map((p) => damageShareOf(p, g)).filter((v): v is number => v !== undefined); return shares.length ? Math.max(...shares) : undefined; })
@@ -274,7 +276,8 @@ const DRAGON_GAP = 1.0;
 const SOLO_GAP = 1.5;
 const DAMAGE_TOP_HEAVY = 0.4;
 const DAMAGE_SPREAD = 0.34;
-const PLATES_GAP = 2;
+/** Per player: a plate and a half a game more in wins is the lane wins being cashed in. */
+const PLATES_GAP = 1.5;
 const TAKE = 4;
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -359,7 +362,7 @@ export function workOn(games: readonly AnalysisGame[]): Advice[] {
   }
   const plates = s('plates');
   if (enough(plates) && plates.gap !== undefined && plates.gap >= PLATES_GAP) {
-    out.push({ key: 'plates', strong: `${plates.wins.mean} plates in wins, ${plates.losses.mean} in losses`, rest: 'Push after winning a 2v2; plates are the gold the lane win pays.', n: nOf(plates), effect: plates.gap / PLATES_GAP });
+    out.push({ key: 'plates', strong: `${plates.wins.mean} plates per player in wins, ${plates.losses.mean} in losses`, rest: 'Push after winning a 2v2; plates are the gold the lane win pays.', n: nOf(plates), effect: plates.gap / PLATES_GAP });
   }
   return out.sort((a, b) => b.effect - a.effect).slice(0, TAKE).map(({ effect: _e, ...a }) => a);
 }
@@ -404,7 +407,7 @@ export function keepDoing(games: readonly AnalysisGame[]): Advice[] {
   }
   const plates = s('plates');
   if (enough(plates) && plates.gap !== undefined && plates.gap >= PLATES_GAP) {
-    out.push({ key: 'plates', strong: `${plates.wins.mean} plates in wins`, rest: `against ${plates.losses.mean} in losses — the lane wins are being cashed in.`, n: nOf(plates), effect: plates.gap / PLATES_GAP });
+    out.push({ key: 'plates', strong: `${plates.wins.mean} plates per player in wins`, rest: `against ${plates.losses.mean} in losses — the lane wins are being cashed in.`, n: nOf(plates), effect: plates.gap / PLATES_GAP });
   }
   return out.sort((a, b) => b.effect - a.effect).slice(0, TAKE).map(({ effect: _e, ...a }) => a);
 }

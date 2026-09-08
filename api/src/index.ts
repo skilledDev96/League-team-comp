@@ -1713,7 +1713,14 @@ async function computeCompAnalysis(
         ...(p.extras && { facts: playerFacts(p, durationSec) })
       }))
       .sort((a, b) => (roleOrder[a.position] ?? 9) - (roleOrder[b.position] ?? 9));
-    const laneData: 'riot' | 'none' = teamParts.some((p) => p.extras?.goldPerMinute !== undefined) ? 'riot' : 'none';
+    // 'riot' once the entry carries per-minute figures; 'none' for a replay,
+    // which never will; absent for a Riot game still waiting on the v5
+    // backfill, so the lane table counts it as waiting rather than skipped.
+    const laneData: 'riot' | 'none' | undefined = teamParts.some((p) => p.extras?.goldPerMinute !== undefined)
+      ? 'riot'
+      : match.queueId === 0
+        ? 'none'
+        : undefined;
 
     const compMatch = matchComp(
       players.map((p) => p.champion),
@@ -1755,7 +1762,7 @@ async function computeCompAnalysis(
       queue: QUEUE_LABEL[match.queueId] ?? 'Team',
       date: match.gameCreation,
       players,
-      laneData,
+      ...(laneData && { laneData }),
       // Conditional spread throughout — Firestore rejects undefined values.
       ...(objectives && {
         objectives,
