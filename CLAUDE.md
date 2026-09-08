@@ -285,6 +285,17 @@ filter rather than none, so it can never become unpickable.
    `cacheVersion` now travels on each analysis game) and the analysis size,
    and every Work on / Keep doing line folds out the games it was averaged
    over (`Advice.evidence`, twelve newest, from `Split.samples`).
+7. **The Patterns filters are the team's own words** (8 Sep 2026): Source
+   `Flex | Scrims + Clash | Tournaments` (`gameSource`: a replay whose id is a
+   `SeriesGame.matchId` is a tournament game, Clash sits with the scrims),
+   Games `All | Prep` (Prep = not tagged practice), Starters `A team | Custom`
+   (the A team is every player without `sub`; Custom is any set of players
+   who all have to be on our side), Roles `Main | 2nd | Any` (`roleFit`
+   against `Player.role` and `Player.secondaryRoles`). The A team and the
+   second seats are set on the Roster page (Cards view) in edit mode — the
+   same `sub` flag Admin sets, so the five stay one thing everywhere. Whether
+   the read is Riot's or a replay's is no longer a switch: `patternSource`
+   follows from the games selected.
 
 Adding a field to a cached match means **bumping `CACHE_VERSION`** in
 `analysis-cache.ts`. Old entries then re-fetch once, inside `MAX_NEW_FETCHES` per
