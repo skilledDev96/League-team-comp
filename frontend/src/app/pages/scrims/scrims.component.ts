@@ -222,9 +222,8 @@ export class ScrimsComponent {
   private readonly openGroups = signal<ReadonlySet<string> | null>(null);
 
   protected isGroupOpen(group: ScrimGroup): boolean {
-    const open = this.openGroups();
-    if (open) return open.has(group.id);
-    return this.groups()[0]?.id === group.id;
+    // Every team starts folded (8 Sep 2026); the head carries the record.
+    return this.openGroups()?.has(group.id) ?? false;
   }
 
   protected toggleGroup(group: ScrimGroup): void {
@@ -606,6 +605,14 @@ export class ScrimsComponent {
   /** Files dropped on the page, waiting for a name. */
   protected readonly pendingFiles = signal<File[] | null>(null);
   protected readonly pendingOpponent = signal('');
+  /** Typed when the select says "Another team…". */
+  protected readonly pendingNewName = signal('');
+  /** The select's value for a team not on the page yet. */
+  protected readonly NEW_TEAM = '__new';
+
+  private chosenName(selected: string, typed: string): string {
+    return (selected === this.NEW_TEAM ? typed : selected).trim();
+  }
 
   protected onPageDragOver(event: DragEvent): void {
     event.preventDefault();
@@ -628,8 +635,9 @@ export class ScrimsComponent {
     const files = this.pendingFiles();
     if (!files) return;
     this.pendingFiles.set(null);
-    await this.importFiles(files, this.pendingOpponent().trim());
+    await this.importFiles(files, this.chosenName(this.pendingOpponent(), this.pendingNewName()));
     this.pendingOpponent.set('');
+    this.pendingNewName.set('');
   }
 
   /** Six names and no bench marked: As a team cannot pick the five. */
@@ -691,6 +699,11 @@ export class ScrimsComponent {
 
   /** Where the unnamed scrims should have gone. */
   protected readonly reassignTo = signal('');
+  protected readonly reassignNewName = signal('');
+
+  protected reassignName(): string {
+    return this.chosenName(this.reassignTo(), this.reassignNewName());
+  }
 
   /**
    * File every scrim in a group under a different team.
@@ -700,12 +713,13 @@ export class ScrimsComponent {
    * they re-group on their own as each save lands.
    */
   protected async reassign(group: ScrimGroup): Promise<void> {
-    const name = this.reassignTo().trim();
+    const name = this.reassignName();
     if (!name) return;
     for (const scrim of group.scrims) {
       await this.data.saveScrim({ ...scrim, opponent: name });
     }
     this.reassignTo.set('');
+    this.reassignNewName.set('');
   }
 
 }

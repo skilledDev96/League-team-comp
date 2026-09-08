@@ -45,6 +45,18 @@ export const DRAFT_SEQUENCE: readonly DraftStep[] = Object.freeze(steps());
 
 export const DRAFT_LENGTH = DRAFT_SEQUENCE.length;
 
+/**
+ * Where a game is in the sequence. `draftStep` when it was drafted here; a
+ * game with no step but five picks a side (filled from a replay, or typed in
+ * on the Plan) is over, not waiting at Ban 1 (8 Sep 2026). Anything else
+ * opens at the start.
+ */
+export function positionOf(game: { draftStep?: number; ourChampions?: readonly string[]; theirChampions?: readonly string[] }): number {
+  if (game.draftStep !== undefined) return game.draftStep;
+  const full = (list?: readonly string[]) => (list ?? []).filter(Boolean).length >= 5;
+  return full(game.ourChampions) && full(game.theirChampions) ? DRAFT_LENGTH : 0;
+}
+
 /** The step at this position, or null once the draft is over. */
 export function stepAt(position: number): DraftStep | null {
   if (!Number.isInteger(position) || position < 0) return DRAFT_SEQUENCE[0];

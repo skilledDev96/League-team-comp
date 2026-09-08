@@ -317,7 +317,8 @@ export class ReviewComponent {
     { key: 'goldShare', label: 'Gold share' },
     { key: 'csPerMin', label: 'CS/min' },
     { key: 'damageShare', label: 'Damage share' },
-    { key: 'deaths', label: 'Deaths' }
+    { key: 'deaths', label: 'Deaths' },
+    { key: 'kda', label: 'KDA' }
   ];
   protected readonly totalDefaults = this.totalColumns.map((c) => c.key);
   protected readonly teamColumns = computed<ColumnOption[]>(() => this.teamSplitRows().map((m) => ({ key: m.key, label: m.label })));

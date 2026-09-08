@@ -209,6 +209,7 @@
               @if (on('laneTotals', 'csPerMin', totalDefaults)) { <th scope="col" class="num" appTip="CS per minute">CS/min</th> }
               @if (on('laneTotals', 'damageShare', totalDefaults)) { <th scope="col" class="num" appTip="Share of the team's damage to champions">Damage share</th> }
               @if (on('laneTotals', 'deaths', totalDefaults)) { <th scope="col" class="num">Deaths</th> }
+              @if (on('laneTotals', 'kda', totalDefaults)) { <th scope="col" class="num" appTip="Kills and assists over deaths, per game">KDA</th> }
             </tr>
           </thead>
           <tbody>
@@ -219,6 +220,7 @@
                 @if (on('laneTotals', 'csPerMin', totalDefaults)) { <td class="num"><app-split-cell [split]="r.csPerMin" unit="count" [higherIsBetter]="true" /></td> }
                 @if (on('laneTotals', 'damageShare', totalDefaults)) { <td class="num"><app-split-cell [split]="r.damageShare" unit="pct" [higherIsBetter]="true" /></td> }
                 @if (on('laneTotals', 'deaths', totalDefaults)) { <td class="num"><app-split-cell [split]="r.deaths" unit="count" [higherIsBetter]="false" /></td> }
+                @if (on('laneTotals', 'kda', totalDefaults)) { <td class="num"><app-split-cell [split]="r.kda" unit="count" [higherIsBetter]="true" /></td> }
               </tr>
             }
           </tbody>

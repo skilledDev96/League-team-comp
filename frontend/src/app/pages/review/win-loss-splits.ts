@@ -362,6 +362,8 @@ export interface LaneTotalRow {
   csPerMin: Split;
   damageShare: Split;
   deaths: Split;
+  /** Kills plus assists over deaths, a death counted as one at least. */
+  kda: Split;
 }
 
 /**
@@ -382,7 +384,8 @@ export function laneTotals(games: readonly AnalysisGame[], roster: readonly stri
     }),
     csPerMin: split(games, (g) => { const p = s.pick(g); return p && g.durationSec ? p.cs / (g.durationSec / 60) : undefined; }, 1),
     damageShare: split(games, (g) => { const p = s.pick(g); return p ? damageShareOf(p, g) : undefined; }),
-    deaths: split(games, (g) => s.pick(g)?.deaths, 1)
+    deaths: split(games, (g) => s.pick(g)?.deaths, 1),
+    kda: split(games, (g) => { const p = s.pick(g); return p ? (p.kills + p.assists) / Math.max(1, p.deaths) : undefined; }, 1)
   }));
 }
 

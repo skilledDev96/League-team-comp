@@ -230,3 +230,15 @@ describe('undoTarget', () => {
     expect(undoTarget({ draftStep: 7, bans: [] })).toEqual({ action: 'pick', champion: null });
   });
 });
+
+import { positionOf } from './draft-sequence';
+
+describe('positionOf', () => {
+  it('trusts a stored step, reads a full board without one as over, and opens anything else at the start', () => {
+    expect(positionOf({ draftStep: 4 })).toBe(4);
+    expect(positionOf({ draftStep: 0, ourChampions: ['A', 'B', 'C', 'D', 'E'], theirChampions: ['F', 'G', 'H', 'I', 'J'] })).toBe(0);
+    expect(positionOf({ ourChampions: ['A', 'B', 'C', 'D', 'E'], theirChampions: ['F', 'G', 'H', 'I', 'J'] })).toBe(DRAFT_LENGTH);
+    expect(positionOf({ ourChampions: ['A', 'B', 'C', 'D', ''], theirChampions: ['F', 'G', 'H', 'I', 'J'] })).toBe(0);
+    expect(positionOf({})).toBe(0);
+  });
+});

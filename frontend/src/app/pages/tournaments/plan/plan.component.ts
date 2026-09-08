@@ -12,6 +12,7 @@ import { UiService } from '../../../services/ui.service';
 import { noteLines } from '../../../core/note-lines';
 import { parseRiotIds } from '../../../core/riot-id';
 import { seatChampions } from '../../../core/replay-parse';
+import { DRAFT_LENGTH } from '../draft-sequence';
 import { readReplay, ReplayRead, REPLAY_REQUIREMENTS } from '../../../core/replay-import';
 import { ToastService } from '../../../services/toast.service';
 import { rosterIds, scrimSide } from '../../games/game-rows';
@@ -556,7 +557,9 @@ export class TournamentPlanComponent {
       theirChampions: seatChampions(read.replay.players, team === 100 ? 200 : 100),
       ourSide: side,
       win: side === 'blue' ? read.replay.blueWon : !read.replay.blueWon,
-      matchId: read.id
+      matchId: read.id,
+      // A replay is a played game: the draft room shows it finished, not at Ban 1.
+      draftStep: DRAFT_LENGTH
     });
     this.replayNote.update((s) => ({ ...s, [game.id]: `Filled from ${read.fileName}.` }));
   }

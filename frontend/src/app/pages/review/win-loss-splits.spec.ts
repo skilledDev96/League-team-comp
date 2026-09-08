@@ -237,6 +237,8 @@ describe('replays', () => {
     expect(rows[0].goldShare.wins).toEqual({ mean: 0.2, n: 2 });
     expect(rows[0].csPerMin.wins.mean).toBeCloseTo(6.7, 1);
     expect(rows[0].deaths.losses.n).toBe(2);
+    expect(rows[0].kda.wins.n).toBe(2);
+    expect(rows[0].kda.wins.mean).toBeGreaterThan(0);
   });
 
   it('advises from towers, vision score and barons on replays, and never from a lane', () => {

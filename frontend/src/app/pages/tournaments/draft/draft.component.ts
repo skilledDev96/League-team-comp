@@ -25,6 +25,7 @@ import {
   isComplete,
   lastPickOfPhase,
   picksLeftInPhase,
+  positionOf,
   seatFor,
   stepAt,
   undoTarget
@@ -882,7 +883,7 @@ export class TournamentDraftComponent implements OnInit {
     const live = this.current(game);
     return (
       !live.ourSide &&
-      (live.draftStep ?? 0) === 0 &&
+      positionOf(live) === 0 &&
       !(live.bans ?? []).some(Boolean) &&
       !(live.ourChampions ?? []).some(Boolean) &&
       !(live.theirChampions ?? []).some(Boolean)
@@ -898,13 +899,13 @@ export class TournamentDraftComponent implements OnInit {
    * without ever mentioning it.
    */
   protected lastPickIsOurs(game: SeriesGame): boolean | null {
-    const closing = lastPickOfPhase(game.draftStep ?? 0);
+    const closing = lastPickOfPhase(positionOf(game));
     if (!closing || !game.ourSide) return null;
     return closing === game.ourSide;
   }
 
   protected picksLeft(game: SeriesGame): number {
-    return picksLeftInPhase(game.draftStep ?? 0);
+    return picksLeftInPhase(positionOf(game));
   }
 
   /**
@@ -977,16 +978,18 @@ export class TournamentDraftComponent implements OnInit {
     ).slice(0, 5);
   }
 
+  protected readonly positionOf = positionOf;
+
   protected step(game: SeriesGame): DraftStep | null {
-    return stepAt(game.draftStep ?? 0);
+    return stepAt(positionOf(game));
   }
 
   protected sequenceDone(game: SeriesGame): boolean {
-    return isComplete(game.draftStep ?? 0);
+    return isComplete(positionOf(game));
   }
 
   protected progress(game: SeriesGame): number {
-    return draftProgress(game.draftStep ?? 0);
+    return draftProgress(positionOf(game));
   }
 
   /** Whether the side on turn is us, so the screen can say "your pick". */
@@ -1169,10 +1172,10 @@ export class TournamentDraftComponent implements OnInit {
         const champ = this.autoChoice(live, step.action);
         if (!champ) break;
 
-        const before = live.draftStep ?? 0;
+        const before = positionOf(live);
         this.pending.set(champ);
         await this.confirmPending(live);
-        if ((this.current(game).draftStep ?? 0) === before) break;
+        if (positionOf(this.current(game)) === before) break;
       }
     } finally {
       this.pending.set(null);
@@ -1193,7 +1196,7 @@ export class TournamentDraftComponent implements OnInit {
 
     this.committing.set(true);
     try {
-      const next = (live.draftStep ?? 0) + 1;
+      const next = positionOf(live) + 1;
 
       if (step.action === 'ban') {
         const bans = [...(live.bans ?? []), champ];
@@ -1259,7 +1262,7 @@ export class TournamentDraftComponent implements OnInit {
   protected async undoStep(game: SeriesGame): Promise<void> {
     if (this.committing()) return;
     const live = this.current(game);
-    const position = live.draftStep ?? 0;
+    const position = positionOf(live);
     if (position <= 0) return;
     const previous = stepAt(position - 1);
     if (!previous) return;
@@ -1335,7 +1338,7 @@ export class TournamentDraftComponent implements OnInit {
   }
 
   protected sequenceActive(game: SeriesGame): boolean {
-    return !!game.ourSide && !isComplete(game.draftStep ?? 0);
+    return !!game.ourSide && !isComplete(positionOf(game));
   }
 
   protected confirmBlockedReason(game: SeriesGame): string | null {
@@ -1600,7 +1603,7 @@ export class TournamentDraftComponent implements OnInit {
 
   protected adviceIsStale(game: SeriesGame): boolean {
     const saved = this.adviceOf(game);
-    return !!saved && saved.step !== (this.current(game).draftStep ?? 0);
+    return !!saved && saved.step !== positionOf(this.current(game));
   }
 
   /** How many champions the advisor may choose from. */
@@ -1716,7 +1719,7 @@ export class TournamentDraftComponent implements OnInit {
     // Admin → Settings decides whether this fires at all; off by default.
     const wanted = this.data.settings().autoAdvisor === true;
     if (!game || !wanted) return;
-    const step = game.draftStep ?? 0;
+    const step = positionOf(game);
     untracked(() => {
       if (!editing || !this.sequenceActive(game) || !this.isOurTurn(game)) return;
       if (game.advice?.step === step || busy) return;
@@ -1775,7 +1778,7 @@ export class TournamentDraftComponent implements OnInit {
       opponent: series?.opponent ?? 'Them',
       action,
       turn,
-      stepNumber: (live.draftStep ?? 0) + 1,
+      stepNumber: positionOf(live) + 1,
       ourSide: live.ourSide ?? null,
       seat,
       ourPicks: pickMap('our'),
@@ -1815,7 +1818,7 @@ export class TournamentDraftComponent implements OnInit {
       const now = this.current(game);
       await this.data.updateSeriesGame({
         ...now,
-        advice: { ...answer, step: live.draftStep ?? 0, action, askedAt: new Date().toISOString() }
+        advice: { ...answer, step: positionOf(live), action, askedAt: new Date().toISOString() }
       });
     } catch (error) {
       this.adviceError.set(error instanceof Error ? error.message : 'The advisor could not answer.');

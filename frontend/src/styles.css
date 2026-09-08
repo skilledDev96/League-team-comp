@@ -14172,7 +14172,7 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .game-replay-side { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin: 0.3rem 0; font-size: 0.82rem; }
 .scrim-drop-page { margin: 0.6rem 0; }
 .scrim-pending { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.4rem 0 0.6rem; }
-.scrim-pending input { flex: 1 1 14rem; }
+.scrim-pending select, .scrim-pending input, .scrim-reassign-new { flex: 1 1 12rem; padding: 0.45rem 0.6rem; border-radius: 8px; border: 1px solid var(--card-border); background: var(--surface-btn); color: var(--text-0); font: inherit; }
 .games-fold { margin-left: auto; padding: 0.25rem 0.6rem; }
 .games-fold .material-symbols-rounded { font-size: 1.1rem; vertical-align: -0.25rem; }
 .games-list-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }

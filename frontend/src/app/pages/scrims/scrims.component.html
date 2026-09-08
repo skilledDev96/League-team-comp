@@ -37,10 +37,6 @@
       <button type="button" class="view-btn active" [disabled]="!newOpponentName().trim()"
               (click)="addOpponent()">Add opponent</button>
       <small class="muted">Scout now, drop the replays in after — here, or straight into the team's panel below.</small>
-      <!-- Names already on the page, for the mover in the Unnamed group. -->
-      <datalist id="scrim-known-opponents">
-        @for (name of knownOpponents(); track name) { <option [value]="name"></option> }
-      </datalist>
     </div>
 
     <!-- The page's own drop zone: files first, the name after. An opponent
@@ -60,8 +56,15 @@
     @if (pendingFiles(); as files) {
       <div class="scrim-pending">
         <span><b>{{ files.length }}</b> {{ files.length === 1 ? 'replay' : 'replays' }} ready. Who was it against?</span>
-        <input type="text" [ngModel]="pendingOpponent()" (ngModelChange)="pendingOpponent.set($event)" name="scrimPendingOpponent"
-               list="scrim-known-opponents" placeholder="Opponent team name (or leave blank)" (keydown.enter)="importPending()" />
+        <select [ngModel]="pendingOpponent()" (ngModelChange)="pendingOpponent.set($event)" name="scrimPendingOpponent" aria-label="Opponent">
+          <option value="">Not named yet</option>
+          @for (name of knownOpponents(); track name) { <option [value]="name">{{ name }}</option> }
+          <option [value]="NEW_TEAM">Another team…</option>
+        </select>
+        @if (pendingOpponent() === NEW_TEAM) {
+          <input type="text" [ngModel]="pendingNewName()" (ngModelChange)="pendingNewName.set($event)" name="scrimPendingNewName"
+                 placeholder="Team name" (keydown.enter)="importPending()" />
+        }
         <button type="button" class="view-btn active" [disabled]="importing()" (click)="importPending()">Import {{ files.length }}</button>
         <button type="button" class="view-btn" (click)="pendingFiles.set(null)">Cancel</button>
       </div>
@@ -150,11 +153,17 @@
               <span class="material-symbols-rounded" aria-hidden="true">drive_file_move</span>
               <label class="field scrim-reassign-field">
                 <span>These {{ group.scrims.length }} were against</span>
-                <input type="text" [ngModel]="reassignTo()" (ngModelChange)="reassignTo.set($event)"
-                       name="scrimReassign" list="scrim-known-opponents"
-                       placeholder="Opponent team name" (keydown.enter)="reassign(group)" />
+                <select [ngModel]="reassignTo()" (ngModelChange)="reassignTo.set($event)" name="scrimReassign">
+                  <option value="">Pick a team</option>
+                  @for (name of knownOpponents(); track name) { <option [value]="name">{{ name }}</option> }
+                  <option [value]="NEW_TEAM">Another team…</option>
+                </select>
               </label>
-              <button type="button" class="view-btn active" [disabled]="!reassignTo().trim()"
+              @if (reassignTo() === NEW_TEAM) {
+                <input type="text" class="scrim-reassign-new" [ngModel]="reassignNewName()" (ngModelChange)="reassignNewName.set($event)"
+                       name="scrimReassignNew" placeholder="Team name" (keydown.enter)="reassign(group)" />
+              }
+              <button type="button" class="view-btn active" [disabled]="!reassignName()"
                       (click)="reassign(group)">
                 Move all {{ group.scrims.length }}
               </button>

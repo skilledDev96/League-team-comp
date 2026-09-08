@@ -186,7 +186,7 @@
                   @for (champ of bansOf(game, 'our'); track $index) {
                     <li class="ban-card" [class.is-empty]="!champ">
                       @if (champ) {
-                        <img class="pick-art" [src]="ui.championArtUrl(champ)" [alt]="" />
+                        <img class="pick-art" [src]="ui.championArtUrl(champ)" (error)="ui.artFallback($event, champ)" [alt]="" />
                         <span class="ban-card-name">{{ champ }}</span>
                       }
                     </li>
@@ -197,7 +197,7 @@
                   @for (champ of bansOf(game, 'their'); track $index) {
                     <li class="ban-card" [class.is-empty]="!champ">
                       @if (champ) {
-                        <img class="pick-art" [src]="ui.championArtUrl(champ)" [alt]="" />
+                        <img class="pick-art" [src]="ui.championArtUrl(champ)" (error)="ui.artFallback($event, champ)" [alt]="" />
                         <span class="ban-card-name">{{ champ }}</span>
                       }
                     </li>
@@ -243,7 +243,7 @@
                           [attr.aria-pressed]="isTargeted('pick', 'our', i)"
                           (click)="aimAtPick('our', i)">
                     @if (slot.champion) {
-                      <img class="pick-art" [src]="ui.championArtUrl(slot.champion)" [alt]="" />
+                      <img class="pick-art" [src]="ui.championArtUrl(slot.champion)" (error)="ui.artFallback($event, slot.champion)" [alt]="" />
                       <span class="pick-target-name">{{ slot.champion }}</span>
                     } @else {
                       <span class="pick-target-empty">Pick&hellip;</span>
@@ -296,7 +296,7 @@
                           [attr.aria-pressed]="isTargeted('pick', 'their', i)"
                           (click)="aimAtPick('their', i)">
                     @if (slot.champion) {
-                      <img class="pick-art" [src]="ui.championArtUrl(slot.champion)" [alt]="" />
+                      <img class="pick-art" [src]="ui.championArtUrl(slot.champion)" (error)="ui.artFallback($event, slot.champion)" [alt]="" />
                       <span class="pick-target-name">{{ slot.champion }}</span>
                     } @else {
                       <span class="pick-target-empty">Pick&hellip;</span>
@@ -446,7 +446,7 @@
                         [appTip]="'Fill every remaining ban and pick at random. For testing.'"
                         (click)="autoAdvance(game, 'end')">Fill draft</button>
               }
-              @if ((game.draftStep ?? 0) > 0) {
+              @if (positionOf(game) > 0) {
                 <button type="button" class="view-btn" data-tour="draft-undo" (click)="undoStep(game)">Undo last</button>
               }
               <button type="button" class="view-btn draft-reset" (click)="resetDraft(game)">Reset</button>

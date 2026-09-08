@@ -162,7 +162,10 @@ holds the component; the rules it obeys are pure and tested next door in
   competitive steps — 3 bans each, 6 picks, 2 bans each, 4 picks — so "whose
   turn", "ban or pick" and "are we done" are lookups. `SeriesGame.ourSide` and
   `SeriesGame.draftStep` persist where a game is; both are absent on games saved
-  before this existed, which open at step one rather than appearing finished.
+  before this existed. `positionOf` (8 Sep 2026) reads the position: the stored
+  step when there is one, the end when there is none but five picks a side (a
+  replay-filled or typed-in game is over, not at Ban 1), the start otherwise.
+  The replay importer stamps `draftStep: DRAFT_LENGTH` as well.
 - **A champion is held, then confirmed.** Confirming advances the step and
   restarts the 30s clock. `seatFor` proposes the seat from the champion's real
   lane, shown before confirming — picks land in *draft* order, not role order.

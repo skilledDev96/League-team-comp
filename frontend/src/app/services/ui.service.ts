@@ -131,6 +131,18 @@ export class UiService {
     return `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/assets/characters/${id}/skins/base/images/${id}_splash_centered_0.jpg`;
   }
 
+  /**
+   * CommunityDragon names a few files after a rework (Xin Zhao's centered
+   * splash is `XinZhaoRework_…`), so the guessed path 404s. On error the card
+   * falls back to Data Dragon's splash, once, and stays blank rather than loop.
+   */
+  artFallback(event: Event, championName: string): void {
+    const img = event.target as HTMLImageElement | null;
+    if (!img || img.dataset['fallback']) return;
+    img.dataset['fallback'] = '1';
+    img.src = `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${this.championDDragonName(championName)}_0.jpg`;
+  }
+
   /** Riot class tags (Fighter, Mage, …) once the champion index has loaded. */
   championTags(championName: string): string[] {
     return this.champions.tags(championName);
