@@ -43,10 +43,19 @@ export class TourService {
   private observer: ResizeObserver | null = null;
   private frame = 0;
   private lastAutoUrl = '';
+  /** True while the tour itself is navigating, so its own NavigationEnd does not end it. */
+  private walking = false;
 
   constructor() {
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {
       this.url.set(e.urlAfterRedirects);
+      // Leaving the page mid-tour ends it: an overlay that follows you to
+      // another page, hunting for an anchor that is not there, is worse than
+      // no tour. The tour's own navigation sets `walking` first.
+      if (this.active() && !this.walking) {
+        this.finish();
+        return;
+      }
       this.maybeAutoStart();
     });
     effect(() => {
@@ -208,8 +217,13 @@ export class TourService {
       const params = new URLSearchParams(this.router.url.split('?')[1] ?? '');
       const queryDiffers = Object.entries(query).some(([k, v]) => params.get(k) !== v);
       if (current !== target || queryDiffers) {
-        await this.router.navigate([target], { queryParams: query, queryParamsHandling: Object.keys(query).length ? 'merge' : undefined });
-        await this.pause(80);
+        this.walking = true;
+        try {
+          await this.router.navigate([target], { queryParams: query, queryParamsHandling: Object.keys(query).length ? 'merge' : undefined });
+          await this.pause(80);
+        } finally {
+          this.walking = false;
+        }
       }
     }
     if (step.editMode && this.auth.canEdit() && !this.auth.editMode()) {
