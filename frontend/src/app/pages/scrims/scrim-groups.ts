@@ -1,4 +1,5 @@
 import { Scrim } from '../../models/team.models';
+import { slugOpponent, UNNAMED_OPPONENT } from '../../core/opponent-slug';
 
 /**
  * Scrims folded by the team they were against.
@@ -25,25 +26,7 @@ export interface ScrimGroup {
   lastPlayed: string;
 }
 
-/** What an unnamed scrim files under, so it is never lost off the page. */
-export const UNNAMED_OPPONENT = 'Unnamed opponent';
-
-/**
- * Turn an opponent name into a stable key.
- *
- * Case, spacing and punctuation are all things people type inconsistently
- * about the same team — "MOSS", "Moss", "moss " — and none of them mean a
- * different opponent. Letters and digits only, so the key is also a safe
- * Firestore document id.
- */
-export function slugOpponent(name: string | undefined): string {
-  const slug = (name ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return slug || 'unnamed';
-}
+export { slugOpponent, UNNAMED_OPPONENT } from '../../core/opponent-slug';
 
 /**
  * Group scrims by opponent, newest group first.

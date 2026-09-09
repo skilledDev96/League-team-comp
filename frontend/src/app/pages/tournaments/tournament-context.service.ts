@@ -47,6 +47,45 @@ export class TournamentContextService {
     this.openSeriesId.set('');
   }
 
+  /** The one group every scrim opponent lives in, once it exists. */
+  readonly scrimsGroup = computed(() => this.tournaments().find((t) => t.kind === 'scrims') ?? null);
+
+  /** True on the scrims group: no dates, no best-of, nothing burns. */
+  readonly isScrims = computed(() => this.currentTournament()?.kind === 'scrims');
+
+  /** A link may name the group as `scrims` or by id. */
+  selectGroup(idOrScrims: string): void {
+    const id = idOrScrims === 'scrims' ? this.scrimsGroup()?.id : idOrScrims;
+    if (id) this.selectTournament(id);
+  }
+
+  /** Whether picks burn across this series: the group's rule, tournaments by default. */
+  isFearless(seriesId: string): boolean {
+    const series = this.data.tournamentSeries().find((s) => s.id === seriesId);
+    const group = series ? this.tournaments().find((t) => t.id === series.tournamentId) : undefined;
+    if (!group) return true;
+    return group.kind === 'scrims' ? false : group.fearless !== false;
+  }
+
+  /** A Bo3 means three games; a scrim block (bestOf 0) has no cap. */
+  canAddGame(series: TournamentSeries): boolean {
+    return !series.bestOf || this.gamesFor(series.id).length < series.bestOf;
+  }
+
+  /**
+   * Draft against this series: the first game still open, else a new one,
+   * then the draft view (9 Sep 2026; the old Scrims page did the same after
+   * making the series first).
+   */
+  async draftSeries(seriesId: string): Promise<void> {
+    const series = this.data.tournamentSeries().find((s) => s.id === seriesId);
+    if (!series) return;
+    const games = this.gamesFor(seriesId);
+    const open = games.find((g) => g.win === undefined);
+    const gameId = open?.id ?? (this.canAddGame(series) ? await this.data.createSeriesGame({ seriesId, gameNumber: games.length + 1, ourChampions: [], theirChampions: [] }) : games.at(-1)?.id ?? '');
+    this.openDraft(seriesId, gameId);
+  }
+
   readonly seriesList = computed<TournamentSeries[]>(() => {
     const t = this.currentTournament();
     if (!t) return [];
@@ -73,6 +112,7 @@ export class TournamentContextService {
    * used by *either* team is gone for the rest of the series, so both sides count.
    */
   usedChampions(seriesId: string): string[] {
+    if (!this.isFearless(seriesId)) return [];
     const used: string[] = [];
     for (const game of this.gamesFor(seriesId)) {
       used.push(...(game.ourChampions ?? []), ...(game.theirChampions ?? []));
@@ -86,6 +126,7 @@ export class TournamentContextService {
 
   /** Champions burned by games *before* this one — the fearless carry-over. */
   burnedBefore(seriesId: string, gameNumber: number): string[] {
+    if (!this.isFearless(seriesId)) return [];
     const used: string[] = [];
     for (const game of this.gamesFor(seriesId)) {
       if (game.gameNumber >= gameNumber) continue;
@@ -100,6 +141,7 @@ export class TournamentContextService {
    * can no longer play, theirs are threats we no longer face.
    */
   burnedBeforeBySide(seriesId: string, gameNumber: number): { our: string[]; their: string[] } {
+    if (!this.isFearless(seriesId)) return { our: [], their: [] };
     const our: string[] = [];
     const their: string[] = [];
     for (const game of this.gamesFor(seriesId)) {

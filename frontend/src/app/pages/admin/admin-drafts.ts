@@ -60,6 +60,8 @@ export interface TournamentDraft {
   endDate: string;
   notes: string;
   active: boolean;
+  /** Picks burn across a series. Off for a league that is not fearless. */
+  fearless: boolean;
 }
 
 export interface AccessDraft {
@@ -155,7 +157,8 @@ export function toTournamentDraft(t: Tournament): TournamentDraft {
     startDate: t.startDate ?? '',
     endDate: t.endDate ?? '',
     notes: t.notes ?? '',
-    active: t.active ?? false
+    active: t.active ?? false,
+    fearless: t.fearless !== false
   };
 }
 

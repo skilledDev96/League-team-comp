@@ -76,10 +76,14 @@ describe('classifyArchetype', () => {
     expect(classifyArchetype(averages({ avgTankShare: 0.3, avgDamageShare: 0.15 }), 'Top')).toBe('Tank / Frontline');
   });
 
-  it('recognises a split pusher by buildings and absence from fights', () => {
-    expect(
-      classifyArchetype(averages({ avgBuildingDamage: 2500, avgKillParticipation: 0.4 }), 'Top')
-    ).toBe('Split Pusher');
+  it('recognises a split pusher by a lot of tower and absence from fights, in a lane only', () => {
+    expect(classifyArchetype(averages({ avgBuildingDamage: 5000, avgKillParticipation: 0.4 }), 'Top')).toBe('Split Pusher');
+    // The old bar: every Silver laner clears 2,200 a game.
+    expect(classifyArchetype(averages({ avgBuildingDamage: 2500, avgKillParticipation: 0.4 }), 'Top')).not.toBe('Split Pusher');
+  });
+
+  it('a jungler who takes towers is not a split pusher', () => {
+    expect(classifyArchetype(averages({ avgBuildingDamage: 5000, avgKillParticipation: 0.4 }), 'Jungle')).not.toBe('Split Pusher');
   });
 
   it('recognises a carry by damage share and fight presence', () => {
@@ -91,7 +95,7 @@ describe('classifyArchetype', () => {
   it('checks the narrow rules before the broad ones', () => {
     // Split-pusher numbers that would also satisfy Farm-focused must not be
     // reclassified by the later, broader rule.
-    const splitPusher = averages({ avgBuildingDamage: 2500, avgKillParticipation: 0.4, avgCsPerMin: 9 });
+    const splitPusher = averages({ avgBuildingDamage: 5000, avgKillParticipation: 0.4, avgCsPerMin: 9 });
     expect(classifyArchetype(splitPusher, 'Top')).toBe('Split Pusher');
   });
 

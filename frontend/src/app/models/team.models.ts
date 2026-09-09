@@ -830,6 +830,14 @@ export interface Tournament {
   active?: boolean;
   /** Riot matchIds tagged as prep for this tournament (scrims, practice). */
   prepMatchIds?: string[];
+  /**
+   * A group on the Prep & Draft page (9 Sep 2026). `tournament` (the
+   * default) is a real competition; `scrims` is the one group every scrim
+   * opponent lives in — not a tournament, just where the scrims are.
+   */
+  kind?: 'tournament' | 'scrims';
+  /** Whether picks burn across the series. Tournaments default to true; the scrims group is false. */
+  fearless?: boolean;
   order: number;
 }
 
@@ -1069,7 +1077,7 @@ export interface TournamentSeries {
   opponent: string;
   /** Agreed kick-off, once settled externally. Free text or ISO. */
   scheduledAt?: string;
-  /** 3 for a Bo3 Swiss series, 5 for playoffs. */
+  /** 3 for a Bo3 Swiss series, 5 for playoffs; 0 for a scrim block, which has no cap. */
   bestOf: number;
   /** Game 1 side, decided by the pre-series 1v1. */
   side?: 'blue' | 'red';

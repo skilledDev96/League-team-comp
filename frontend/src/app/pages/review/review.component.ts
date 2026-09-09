@@ -145,7 +145,18 @@ export class ReviewComponent {
     { source: 'scrimClash', label: 'Scrims + Clash', tip: 'Practice against a team: scrims from replay files and Clash' },
     { source: 'tournament', label: 'Tournaments', tip: 'Replays imported against a tournament game' }
   ];
-  private readonly tournamentIds = computed(() => new Set(this.data.seriesGames().map((g) => g.matchId).filter((id): id is string => !!id)));
+  /** Replays imported against a tournament game. A game in the scrims group is a scrim, whatever carries it (9 Sep 2026). */
+  private readonly tournamentIds = computed(() => {
+    const scrimsGroup = this.data.tournaments().find((t) => t.kind === 'scrims')?.id;
+    const scrimSeries = new Set(this.data.tournamentSeries().filter((s) => s.tournamentId === scrimsGroup).map((s) => s.id));
+    return new Set(
+      this.data
+        .seriesGames()
+        .filter((g) => !scrimSeries.has(g.seriesId))
+        .map((g) => g.matchId)
+        .filter((id): id is string => !!id)
+    );
+  });
   protected gamesAtSource(source: GameSource): number {
     const ids = this.tournamentIds();
     return this.seriousGames().filter((g) => gameSource(g, ids) === source).length;

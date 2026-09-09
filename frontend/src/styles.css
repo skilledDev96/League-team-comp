@@ -14370,3 +14370,18 @@ button .player-mark { vertical-align: -0.3rem; }
 .fillin-status { margin-left: auto; }
 .fillin-note { margin: 0.5rem 0 0; font-size: 0.84rem; }
 .fillin-card .links { margin-top: 0.6rem; }
+
+/* ---- Prep & Draft (9 Sep 2026): the scrims group's head, the Draft pill, the move banner ---- */
+.scrims-head { display: grid; gap: 0.6rem; }
+.scrims-head-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.scrims-head-row h2 { margin: 0; }
+.scrims-head-row .scrim-refresh-btn { margin-left: auto; }
+.scrims-head .scrim-drop-page { margin: 0; }
+.series-scout.is-draft { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border)); }
+.series-scout.is-draft:hover { background: color-mix(in srgb, var(--accent) 12%, var(--surface-btn)); }
+.series-games .scrim-drop.is-compact { margin: 0.2rem 0 0.6rem; }
+.link-undo.is-danger { color: var(--warn); }
+.scrims-migrate { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 0.9rem; padding: 0.7rem 0.9rem; border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border)); }
+.scrims-migrate > .material-symbols-rounded { color: var(--accent); }
+.scrims-migrate-text { flex: 1 1 18rem; font-size: 0.9rem; }
+.scrims-migrate .view-btn { margin-left: auto; }

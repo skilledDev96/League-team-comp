@@ -25,7 +25,7 @@ import { TooltipDirective } from './tooltip.directive';
           </a>
         }
         <a class="view-btn quick-action" [routerLink]="['/tournaments']" [queryParams]="{ view: 'draft' }"
-           appTip="The live draft room for the next series game">
+           appTip="The draft room on Prep &amp; Draft, on the next open game">
           <span class="material-symbols-rounded" aria-hidden="true">swords</span>Ready to draft
         </a>
         @if (auth.canEdit()) {
@@ -39,8 +39,8 @@ import { TooltipDirective } from './tooltip.directive';
           <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>Scout the opponent
         </a>
         @if (auth.canEdit()) {
-          <a class="view-btn quick-action" [routerLink]="['/scrims']"
-             appTip="Drop a .rofl replay from a scrim or a tournament game">
+          <a class="view-btn quick-action" [routerLink]="['/tournaments']" [queryParams]="{ view: 'plan', group: 'scrims' }"
+             appTip="Drop a .rofl replay on Prep &amp; Draft; it becomes a game against that team">
             <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>Import a replay
           </a>
         }

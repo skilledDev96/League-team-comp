@@ -1,7 +1,7 @@
 <section aria-label="Tournaments">
   <div class="view-controls edit-toolbar">
     <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">trophy</span>Tournaments</h2>
-    <p class="muted edit-hint">Series and games are managed on the Tournaments page; this is the tournament itself.</p>
+    <p class="muted edit-hint">Series and games are managed on the Prep &amp; Draft page; this is the tournament itself. Scrims live there too, as their own group.</p>
     <button class="view-btn active btn-cta" type="button" (click)="ctx.addTournamentDraft()">+ Add tournament</button>
   </div>
 
@@ -28,7 +28,11 @@
           <textarea rows="3" [ngModel]="draft.notes" (ngModelChange)="draft.notes = $event" [name]="'tnotes' + $index"></textarea></label>
         <label class="field checkbox-field">
           <input type="checkbox" [ngModel]="draft.active" (ngModelChange)="draft.active = $event" [name]="'tactive' + $index" />
-          <span>Current tournament (opens by default on the Tournaments page)</span>
+          <span>Current tournament (opens by default on the Prep &amp; Draft page)</span>
+        </label>
+        <label class="field checkbox-field">
+          <input type="checkbox" [ngModel]="draft.fearless" (ngModelChange)="draft.fearless = $event" [name]="'tfearless' + $index" />
+          <span>Fearless draft (a champion picked in one game is gone for the rest of the series)</span>
         </label>
         <div class="links">
           <button class="view-btn active" type="button" [disabled]="ctx.savingTournament()" (click)="ctx.saveTournament(draft)">Save</button>

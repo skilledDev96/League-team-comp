@@ -382,7 +382,7 @@ export class TournamentDraftComponent implements OnInit {
 
   /** Bo3 means three games; there is nothing to draft beyond that. */
   protected canAddDraftGame(series: TournamentSeries): boolean {
-    return this.gamesFor(series.id).length < series.bestOf;
+    return this.ctx.canAddGame(series);
   }
 
   protected nextGameNumber(series: TournamentSeries): number {
@@ -395,7 +395,7 @@ export class TournamentDraftComponent implements OnInit {
    */
   protected async addDraftGame(series: TournamentSeries): Promise<void> {
     const existing = this.gamesFor(series.id);
-    if (existing.length >= series.bestOf) return;
+    if (!this.ctx.canAddGame(series)) return;
     await this.data.createSeriesGame({
       seriesId: series.id,
       gameNumber: existing.length + 1,

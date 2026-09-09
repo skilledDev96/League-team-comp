@@ -1,9 +1,26 @@
 @if (tournaments().length > 1) {
-  <section class="view-controls" aria-label="Tournament picker">
+  <section class="view-controls" aria-label="Group picker" data-tour="prep-groups">
     @for (t of tournaments(); track t.id) {
       <button type="button" class="view-btn" [class.active]="currentTournament()?.id === t.id"
-              (click)="selectTournament(t.id)">{{ t.name }}</button>
+              [appTip]="t.kind === 'scrims' ? 'Every team we scrim: replays, scouting, bans and drafts' : (t.format || 'A tournament: series, games and the fearless pool')"
+              (click)="selectTournament(t.id)">
+        @if (t.kind === 'scrims') { <span class="material-symbols-rounded" aria-hidden="true">sports_esports</span> } @else { <span class="material-symbols-rounded" aria-hidden="true">trophy</span> }
+        {{ t.name }}
+      </button>
     }
+  </section>
+}
+
+@if (auth.editing() && migration.pending()) {
+  <section class="card scrims-migrate" role="status" aria-live="polite">
+    <span class="material-symbols-rounded" aria-hidden="true">drive_file_move</span>
+    <span class="scrims-migrate-text">
+      <b>{{ migration.plan().opponents }}</b> {{ migration.plan().opponents === 1 ? 'opponent' : 'opponents' }} and
+      <b>{{ migration.plan().replays }}</b> {{ migration.plan().replays === 1 ? 'replay' : 'replays' }} from the old Scrims page can move here, as series and games under Scrims.
+    </span>
+    <button type="button" class="view-btn active" [disabled]="migration.running()" (click)="migration.run()">
+      @if (migration.running()) { <span class="btn-spinner" aria-hidden="true"></span> Moving {{ migration.progress() }}… } @else { Move them }
+    </button>
   </section>
 }
 
@@ -26,6 +43,54 @@
 }
 
 @if (currentTournament(); as tournament) {
+  @if (isScrims()) {
+    <section class="card scrims-head" aria-label="Scrims">
+      <div class="scrims-head-row">
+        <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">sports_esports</span>Scrims</h2>
+        <a class="view-btn scrim-refresh-btn" data-tour="prep-refresh" [routerLink]="['/games']" appTip="Replays reach the comp records and Patterns after Refresh matches from Riot on Games">
+          <span class="material-symbols-rounded" aria-hidden="true">sync</span> Refresh matches on Games
+        </a>
+      </div>
+      @if (auth.editing()) {
+        <div class="scrim-drop scrim-drop-page" data-tour="prep-dropzone" [class.is-over]="dragTarget() === '__page'"
+             (dragover)="onPageDragOver($event)" (dragleave)="dragTarget.set('')" (drop)="onPageDrop($event)">
+          <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>
+          <div>
+            <strong>Drop .rofl replays here</strong>
+            <small>{{ replayRequirements }}</small>
+          </div>
+          <label class="scrim-pick">
+            <input type="file" multiple accept=".rofl" (change)="holdFiles($any($event.target).files); $any($event.target).value = ''" />
+            Choose files
+          </label>
+        </div>
+        @if (pendingFiles(); as files) {
+          <div class="scrim-pending">
+            <span><b>{{ files.length }}</b> {{ files.length === 1 ? 'replay' : 'replays' }} ready. Who was it against?</span>
+            <select [ngModel]="pendingOpponent()" (ngModelChange)="pendingOpponent.set($event)" name="prepPendingOpponent" aria-label="Opponent">
+              <option value="">Not named yet</option>
+              @for (name of knownOpponents(); track name) { <option [value]="name">{{ name }}</option> }
+              <option [value]="NEW_TEAM">Another team…</option>
+            </select>
+            @if (pendingOpponent() === NEW_TEAM) {
+              <input type="text" [ngModel]="pendingNewName()" (ngModelChange)="pendingNewName.set($event)" name="prepPendingNewName"
+                     placeholder="Team name" (keydown.enter)="importPending()" />
+            }
+            <button type="button" class="view-btn active" [disabled]="replays.importing()" (click)="importPending()">Import {{ files.length }}</button>
+            <button type="button" class="view-btn" (click)="pendingFiles.set(null)">Cancel</button>
+          </div>
+        }
+        @if (replays.importing() || replays.note()) { <p class="muted">{{ replays.note() }}</p> }
+        @if (replays.skipped().length) {
+          <ul class="list-clean scrim-skipped">
+            @for (line of replays.skipped(); track line) { <li>{{ line }}</li> }
+          </ul>
+        }
+      } @else {
+        <p class="muted">Every team we scrim, with their replays, scouting and target bans. An editor drops the .rofl files here.</p>
+      }
+    </section>
+  } @else {
   <section class="card tournament-head" aria-label="Tournament details">
     <h2 class="title-with-icon">
       <span class="section-icon material-symbols-rounded">trophy</span>{{ tournament.name }}
@@ -60,28 +125,31 @@
       </div>
     }
   </section>
+  }
 
   @if (auth.editing()) {
-    <section class="series-add-bar" aria-label="Add series">
+    <section class="series-add-bar" [attr.aria-label]="isScrims() ? 'Prep a scrim' : 'Add series'" data-tour="prep-add-opponent">
       <div class="series-add-label">
         <span class="material-symbols-rounded" aria-hidden="true">add_circle</span>
         <span>
-          <strong>Add a series</strong>
-          <small>Scheduling happens on Discord — record it here once agreed.</small>
+          <strong>{{ isScrims() ? 'Prep a scrim' : 'Add a series' }}</strong>
+          <small>{{ isScrims() ? 'Name the team now, scout them, and drop the replays in after the games.' : 'Scheduling happens on Discord — record it here once agreed.' }}</small>
         </span>
       </div>
       <div class="series-add">
         <input type="text" [ngModel]="newOpponent()" (ngModelChange)="newOpponent.set($event)"
-               name="newOpponent" placeholder="Opponent team name" />
-        <input type="datetime-local" [ngModel]="newScheduledAt()" (ngModelChange)="newScheduledAt.set($event)"
-               name="newScheduledAt" aria-label="Scheduled date and time" />
-        <span class="view-segment series-bestof" role="group" aria-label="Best of">
-          @for (n of bestOfOptions; track n) {
-            <button type="button" [class.active]="newBestOf() === n" (click)="newBestOf.set(n)">Bo{{ n }}</button>
-          }
-        </span>
+               name="newOpponent" placeholder="Opponent team name" (keydown.enter)="addSeries()" />
+        @if (!isScrims()) {
+          <input type="datetime-local" [ngModel]="newScheduledAt()" (ngModelChange)="newScheduledAt.set($event)"
+                 name="newScheduledAt" aria-label="Scheduled date and time" />
+          <span class="view-segment series-bestof" role="group" aria-label="Best of">
+            @for (n of bestOfOptions; track n) {
+              <button type="button" [class.active]="newBestOf() === n" (click)="newBestOf.set(n)">Bo{{ n }}</button>
+            }
+          </span>
+        }
         <button type="button" class="view-btn active" [disabled]="!newOpponent().trim() || saving()"
-                (click)="addSeries()">Add series</button>
+                (click)="addSeries()">{{ isScrims() ? 'Add' : 'Add series' }}</button>
       </div>
     </section>
   }
@@ -93,19 +161,27 @@
         <span class="section-divider-count">{{ seriesList().length }}</span>
       </h3>
       @for (series of seriesList(); track series.id; let i = $index) {
-        <details class="card series-panel" [open]="isSeriesOpen(series.id)">
+        <details class="card series-panel" data-tour="prep-series" [open]="isSeriesOpen(series.id)">
           <summary class="series-summary" (click)="$event.preventDefault(); toggleSeries(series.id)">
             <span class="series-index">{{ i + 1 }}</span>
             <span class="series-opponent">vs {{ series.opponent }}</span>
             @if (series.scheduledAt) {
               <span class="series-when">{{ ui.formatDayTime(series.scheduledAt) }}</span>
             }
-            <span class="series-bo">Bo{{ series.bestOf }}</span>
+            @if (series.bestOf) { <span class="series-bo">Bo{{ series.bestOf }}</span> }
             @if (seriesScore(series.id); as sc) {
               @if (sc.wins + sc.losses) {
                 <span class="series-score" [class.is-positive]="sc.wins > sc.losses"
-                      [class.is-negative]="sc.wins < sc.losses">{{ sc.wins }}&ndash;{{ sc.losses }}</span>
+                      [class.is-negative]="sc.wins < sc.losses" [appTip]="sc.wins + ' won, ' + sc.losses + ' lost'">{{ sc.wins }}&ndash;{{ sc.losses }}</span>
+              } @else if (isScrims()) {
+                <span class="scrim-group-prep" appTip="Added to prep — drop their replays in after the games">not played yet</span>
               }
+            }
+            @if (isScrims() && gamesFor(series.id).length) {
+              <span class="muted scrim-group-when">{{ gamesFor(series.id).length }} {{ gamesFor(series.id).length === 1 ? 'game' : 'games' }}</span>
+            }
+            @if (hasPrep(series)) {
+              <span class="scrim-group-scouted material-symbols-rounded" aria-hidden="true" appTip="Notes, bans or a roster are saved for this team">description</span>
             }
             @if (usedCount(series.id); as used) {
               <span class="series-burned" [appTip]="used + ' champions burned this series'">
@@ -127,6 +203,14 @@
               <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>
               Scout
             </button>
+            @if (auth.editing()) {
+              <button data-tour="prep-draft-btn" type="button" class="series-scout is-draft"
+                      [appTip]="'Open the draft room on this ' + (isScrims() ? 'block' : 'series') + ': the next open game, or a new one'"
+                      (click)="$event.preventDefault(); $event.stopPropagation(); draftSeries(series.id)">
+                <span class="material-symbols-rounded" aria-hidden="true">swords</span>
+                Draft
+              </button>
+            }
             <!-- On the row, not three panels deep. Deleting a series was a button
                  at the bottom of the scouting panel's edit block, which is where
                  nobody looks for it. Same summary click-guard as Scout. -->
@@ -164,20 +248,36 @@
             <div class="comp-record-head">
               <span class="comp-record-title material-symbols-rounded" aria-hidden="true">stadium</span>
               <span class="comp-record-label">Games</span>
-              @if (auth.editing()) {
+              @if (auth.editing() && !isScrims()) {
                 <span class="view-segment series-bestof is-small" role="group" aria-label="Best of" data-tour="plan-bestof">
                   @for (n of bestOfOptions; track n) {
                     <button type="button" [class.active]="series.bestOf === n" (click)="patchSeries(series, { bestOf: n })">Bo{{ n }}</button>
                   }
                 </span>
               }
-              @if (auth.editing() && gamesFor(series.id).length < series.bestOf) {
+              @if (auth.editing() && canAddGame(series)) {
                 <button type="button" class="comp-log-trigger" aria-label="Add game" appTip="Add game"
                         (click)="addGame(series)">
                   <span class="material-symbols-rounded" aria-hidden="true">add</span>
                 </button>
               }
             </div>
+
+            @if (auth.editing()) {
+              <div class="scrim-drop is-compact" [class.is-over]="dragTarget() === series.id"
+                   (dragover)="onSeriesDragOver($event, series)" (dragleave)="dragTarget.set('')" (drop)="onSeriesDrop($event, series)">
+                <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>
+                <div>
+                  <strong>Drop {{ series.opponent }}'s replays here</strong>
+                  <small>Each becomes a game with both sides, the side and the result.</small>
+                </div>
+                <label class="scrim-pick">
+                  <input type="file" multiple accept=".rofl" (change)="importAgainst(series, $any($event.target).files); $any($event.target).value = ''" />
+                  Choose files
+                </label>
+              </div>
+              @if (seriesNote()[series.id]; as note) { <p class="muted game-replay-note">{{ note }}</p> }
+            }
 
             @for (game of gamesFor(series.id); track game.id) {
               <div class="series-game">
@@ -215,7 +315,16 @@
                       <span class="material-symbols-rounded" aria-hidden="true">link</span>
                       Filled from replay {{ game.matchId }}
                       <button type="button" class="link-undo" (click)="unlinkMatch(game)">unlink</button>
+                      <button type="button" class="link-undo is-danger" appTip="Deletes the replay's record and this game" (click)="removeReplay(game)">delete replay</button>
+                      <a class="link-undo" [routerLink]="['/games']" [queryParams]="{ match: game.matchId }">open on Games</a>
                     </p>
+                    @if (!game.ourSide && sideUnknown(game)) {
+                      <p class="game-replay-side">
+                        Which side were we?
+                        <button type="button" class="view-btn" (click)="setSideFromReplay(game, 'blue')">Blue</button>
+                        <button type="button" class="view-btn" (click)="setSideFromReplay(game, 'red')">Red</button>
+                      </p>
+                    }
                   } @else {
                     <!-- A custom game never reaches Riot; the replay file is
                          the record. Same files as the Scrims page takes. -->
@@ -836,6 +945,7 @@
     </p>
   }
   <!-- Scrims and practice tagged to this tournament, isolated from general history. -->
+  @if (!isScrims()) {
   <details class="card prep-panel" [open]="showPrep()">
     <summary class="prep-summary" (click)="$event.preventDefault(); showPrep.set(!showPrep())">
       <span class="material-symbols-rounded" aria-hidden="true">fitness_center</span>
@@ -882,6 +992,7 @@
       <p class="muted">No analysed games yet. Refresh from Riot on the Analysis page.</p>
     }
   </details>
+  }
 } @else {
   <p class="muted">No tournaments yet.</p>
 }

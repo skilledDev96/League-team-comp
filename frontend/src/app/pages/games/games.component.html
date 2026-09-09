@@ -425,7 +425,7 @@
               @if (g.link) {
                 <div class="games-row-actions">
                   <a class="view-btn" [routerLink]="[g.link.path]" [queryParams]="g.link.query ?? {}">
-                    {{ g.source === 'scrim' ? 'Open on Scrims' : 'Open the draft' }}
+                    {{ g.source === 'scrim' ? 'Open on Prep & Draft' : 'Open the draft' }}
                     <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
                   </a>
                 </div>
@@ -438,7 +438,7 @@
       <p class="muted games-empty">
         No games for this filter.
         @if (!allRows().length) {
-          Tournament games appear once a result is set on the plan page, scrims once a replay is dropped on Scrims, and flex or Clash games after Refresh match data.
+          Tournament games appear once a result is set on Prep & Draft, scrims once a replay is dropped there, and flex or Clash games after Refresh match data.
         }
       </p>
     }

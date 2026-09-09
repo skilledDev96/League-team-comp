@@ -43,6 +43,8 @@ export class TournamentsComponent {
       this.ctx.openDraft(series, game);
     }
     if (params.get('view') === 'plan') this.ctx.view.set('plan');
+    const group = params.get('group');
+    if (group) this.ctx.selectGroup(group);
 
     // A quick action pressed while already here changes only the query, and
     // the snapshot above has already been read; follow later changes too,
@@ -56,6 +58,8 @@ export class TournamentsComponent {
       } else if (view === 'plan' && this.ctx.view() !== 'plan') {
         this.ctx.view.set('plan');
       }
+      const group = p.get('group');
+      if (group) this.ctx.selectGroup(group);
     });
 
     // Keep the address bar current, so copying it always shares what is on

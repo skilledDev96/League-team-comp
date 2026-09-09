@@ -1,4 +1,5 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { authGuard, viewerGuard } from './core/auth.guard';
 
 export const routes: Routes = [
@@ -62,12 +63,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/games/games.component').then((m) => m.GamesComponent)
   },
   {
-    // Scrims are practice, not competition: no bracket, no best-of, no fearless
-    // burn. Filing one as a tournament series meant inventing all three, which
-    // is what this page replaces.
+    // The Scrims page folded into Prep & Draft (9 Sep 2026): every scrim
+    // opponent is a series in the scrims group there. Old links still land.
     path: 'scrims',
-    canActivate: [viewerGuard],
-    loadComponent: () => import('./pages/scrims/scrims.component').then((m) => m.ScrimsComponent)
+    redirectTo: () => inject(Router).createUrlTree(['/tournaments'], { queryParams: { view: 'plan', group: 'scrims' } })
   },
   {
     path: 'tournaments',

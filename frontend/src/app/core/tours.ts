@@ -113,8 +113,8 @@ export const TOURS: readonly Tour[] = [
     steps: [
       {
         anchor: 'nav',
-        title: 'Five pages',
-        text: 'Roster is the team. Comps are the drafts we play. Games is every game and what keeps happening in them. Scrims holds the replays. Tournaments is the series and the live draft.'
+        title: 'Four pages',
+        text: 'Roster is the team. Comps are the drafts we play. Games is every game and what keeps happening in them. Prep & Draft is every opponent, scrim or tournament: scouting, replays and the live draft.'
       },
       {
         anchor: 'roster-views',
@@ -273,14 +273,14 @@ export const TOURS: readonly Tour[] = [
     title: 'Importing replays',
     blurb: 'Where the .rofl files go, and how they become games.',
     version: 1,
-    match: { path: '/scrims' },
+    match: { path: '/tournaments', query: { view: 'plan', group: 'scrims' } },
     role: 'editor',
     steps: [
-      { anchor: 'scrims-dropzone', title: 'Drop replays here', text: '.rofl files from Documents › League of Legends › Replays, with the name Riot gave them; the match id is read from it. You are asked who it was against.', editMode: true },
-      { anchor: 'scrims-add-opponent', title: 'Prep an opponent first', text: 'An opponent can exist by name alone, so you can scout before the games and drop the replays in after.', editMode: true },
-      { anchor: 'scrims-group', title: 'An opponent', text: 'Their replays, scouting and target bans in one panel. Files dropped in here are named after them.', editMode: true },
-      { anchor: 'scrims-refresh', title: 'Count them', text: 'Scrims reach the comp records after Refresh matches from Riot on Games.', editMode: true },
-      { anchor: 'plan-game-replay', title: 'A tournament game', text: 'On the Plan view each series game takes its replay too; it fills both sides, the side and the result.', editMode: true, route: '/tournaments', query: { view: 'plan' } }
+      { anchor: 'prep-groups', title: 'Scrims and tournaments', text: 'One page for every opponent. Scrims is its own group: no dates, no best-of, nothing burns. A tournament keeps its fearless pool.', editMode: true, route: '/tournaments', query: { view: 'plan', group: 'scrims' } },
+      { anchor: 'prep-dropzone', title: 'Drop replays here', text: '.rofl files from Documents › League of Legends › Replays, with the name Riot gave them; the match id is read from it. You are asked who it was against, and each file becomes a game.', editMode: true, route: '/tournaments', query: { view: 'plan', group: 'scrims' } },
+      { anchor: 'prep-add-opponent', title: 'Prep an opponent first', text: 'A team can exist by name alone, so you can scout before the games and drop the replays in after.', editMode: true, route: '/tournaments', query: { view: 'plan', group: 'scrims' } },
+      { anchor: 'prep-series', title: 'An opponent', text: 'Their games, scouting and target bans in one panel. Files dropped in here are named after them, and Draft opens the room on their next game.', editMode: true, route: '/tournaments', query: { view: 'plan', group: 'scrims' } },
+      { anchor: 'prep-refresh', title: 'Count them', text: 'Replays reach the comp records and Patterns after Refresh matches from Riot on Games.', editMode: true, route: '/tournaments', query: { view: 'plan', group: 'scrims' } }
     ]
   },
   {

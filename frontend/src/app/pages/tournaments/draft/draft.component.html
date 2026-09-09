@@ -14,7 +14,7 @@
         <span class="section-icon material-symbols-rounded">swords</span>
         vs {{ series.opponent }}
       </h2>
-      <span class="draft-page-bo">Bo{{ series.bestOf }}</span>
+      @if (series.bestOf) { <span class="draft-page-bo">Bo{{ series.bestOf }}</span> } @else { <span class="draft-page-bo" appTip="A scrim block: no cap on games, nothing burns">Scrim</span> }
       <!-- Straight to their roster. It sat five steps away: leave the draft,
            find edit mode, open the series, scroll, open a second panel. -->
       <button type="button" class="view-btn draft-prep-link"

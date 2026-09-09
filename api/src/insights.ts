@@ -76,9 +76,19 @@ export function describePlayer(
 }
 
 /**
+ * A split pusher takes a lot more tower than the average laner and is missing
+ * from fights. 2,200 building damage a game was every Silver laner (9 Sep
+ * 2026: six of seven on the roster read Split Pusher, the jungler included),
+ * so the bar is the top of the normal range and the call is for Top and Mid
+ * only, checked after Carry.
+ */
+const SPLIT_BUILDING_DAMAGE = 4500;
+const SPLIT_KILL_PARTICIPATION = 0.45;
+
+/**
  * A GPI-style archetype from real aggregates, ordered by specificity: the first
  * rule that fits wins, so the narrow classifications are checked before the
- * broad ones and nobody who is clearly a Split Pusher comes back as a Carry.
+ * broad ones.
  */
 export function classifyArchetype(stats: PlayerAverages, role: KnownRole): string {
   if (role === 'Support' || (stats.avgVisionScore >= 40 && stats.avgDamageShare < 0.18)) {
@@ -87,11 +97,11 @@ export function classifyArchetype(stats: PlayerAverages, role: KnownRole): strin
   if (stats.avgTankShare >= 0.28 && stats.avgDamageShare < 0.22) {
     return 'Tank / Frontline';
   }
-  if (stats.avgBuildingDamage >= 2200 && stats.avgKillParticipation < 0.5) {
-    return 'Split Pusher';
-  }
   if (stats.avgDamageShare >= 0.28 && stats.avgKillParticipation >= 0.5) {
     return 'Carry';
+  }
+  if ((role === 'Top' || role === 'Mid') && stats.avgBuildingDamage >= SPLIT_BUILDING_DAMAGE && stats.avgKillParticipation < SPLIT_KILL_PARTICIPATION) {
+    return 'Split Pusher';
   }
   if (stats.avgCsPerMin >= 7.5) {
     return 'Farm-focused';

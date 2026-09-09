@@ -16,6 +16,8 @@ import { DRAFT_LENGTH } from '../draft-sequence';
 import { readReplay, ReplayRead, REPLAY_REQUIREMENTS } from '../../../core/replay-import';
 import { ToastService } from '../../../services/toast.service';
 import { rosterIds, scrimSide } from '../../games/game-rows';
+import { ReplayImportService } from '../../../services/replay-import.service';
+import { ScrimsMigrationService } from '../../../services/scrims-migration.service';
 import {
   appendToRoster,
   banCandidates,
@@ -102,6 +104,98 @@ export class TournamentPlanComponent {
   protected readonly usedChampions = (id: string) => this.ctx.usedChampions(id);
   protected readonly usedCount = (id: string) => this.ctx.usedCount(id);
   protected readonly compAvailability = (id: string) => this.ctx.compAvailability(id);
+  protected readonly isScrims = this.ctx.isScrims;
+  protected readonly canAddGame = (series: TournamentSeries) => this.ctx.canAddGame(series);
+  protected readonly draftSeries = (id: string) => void this.ctx.draftSeries(id);
+  protected readonly replays = inject(ReplayImportService);
+  protected readonly migration = inject(ScrimsMigrationService);
+
+  /** Notes, bans or a roster saved: the mark on the row. */
+  protected hasPrep(series: TournamentSeries): boolean {
+    return !!(series.notes?.trim() || series.bans?.length || series.opponentPlayers?.length);
+  }
+
+  // ---- Replays dropped on the page or on a series (9 Sep 2026) --------------------
+  //
+  // The page's own drop zone asks who it was against; a series' zone already
+  // knows. Both go through ReplayImportService, which writes the scrim and
+  // the game.
+
+  protected readonly dragTarget = signal<string>('');
+  protected readonly pendingFiles = signal<File[] | null>(null);
+  protected readonly pendingOpponent = signal('');
+  protected readonly pendingNewName = signal('');
+  protected readonly NEW_TEAM = '__new';
+  protected readonly seriesNote = signal<Record<string, string>>({});
+
+  protected readonly knownOpponents = computed(() => this.seriesList().map((s) => s.opponent).filter(Boolean));
+
+  protected onPageDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.dragTarget.set('__page');
+  }
+
+  protected onPageDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragTarget.set('');
+    this.holdFiles(event.dataTransfer?.files ?? null);
+  }
+
+  protected holdFiles(files: FileList | null): void {
+    const list = Array.from(files ?? []).filter((f) => /\.rofl$/i.test(f.name));
+    if (list.length) this.pendingFiles.set(list);
+  }
+
+  protected async importPending(): Promise<void> {
+    const files = this.pendingFiles();
+    const group = this.currentTournament();
+    if (!files || !group) return;
+    this.pendingFiles.set(null);
+    const selected = this.pendingOpponent();
+    const name = (selected === this.NEW_TEAM ? this.pendingNewName() : selected).trim();
+    await this.replays.importLoose(group, files, name);
+    this.pendingOpponent.set('');
+    this.pendingNewName.set('');
+  }
+
+  protected onSeriesDragOver(event: DragEvent, series: TournamentSeries): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragTarget.set(series.id);
+  }
+
+  protected onSeriesDrop(event: DragEvent, series: TournamentSeries): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragTarget.set('');
+    void this.importAgainst(series, event.dataTransfer?.files ?? null);
+  }
+
+  protected async importAgainst(series: TournamentSeries, files: FileList | File[] | null): Promise<void> {
+    const list = files ? Array.from(files as ArrayLike<File>) : [];
+    if (!list.length) return;
+    const report = await this.replays.importAgainst(series, list);
+    this.seriesNote.update((n) => ({ ...n, [series.id]: report }));
+  }
+
+  /** A migrated replay nobody could side: the champions are there, the side and result are not. */
+  protected sideUnknown(game: SeriesGame): boolean {
+    return !!game.matchId && !game.ourSide && game.win === undefined;
+  }
+
+  protected setSideFromReplay(game: SeriesGame, side: 'blue' | 'red'): void {
+    const scrim = this.data.scrims().find((s) => s.id === game.matchId);
+    if (!scrim) return;
+    void this.replays.sideGame(game, scrim, side);
+  }
+
+  /** The replay's record and the game go together; the Games page loses the row too. */
+  protected removeReplay(game: SeriesGame): void {
+    if (!game.matchId) return;
+    if (!confirm(`Delete the replay behind game ${game.gameNumber}? Its scoreboard leaves the Games page as well.`)) return;
+    void this.data.deleteScrim(game.matchId);
+    void this.data.deleteSeriesGame(game.id);
+  }
 
   protected readonly openSeriesId = signal<string>('');
 
@@ -219,11 +313,12 @@ export class TournamentPlanComponent {
     if (!t || !opponent || this.saving()) return;
     this.saving.set(true);
     try {
+      const scrims = t.kind === 'scrims';
       await this.data.createSeries({
         tournamentId: t.id,
         opponent,
-        scheduledAt: this.newScheduledAt().trim() || undefined,
-        bestOf: this.newBestOf(),
+        scheduledAt: scrims ? undefined : this.newScheduledAt().trim() || undefined,
+        bestOf: scrims ? 0 : this.newBestOf(),
         status: 'scheduled'
       });
       this.newOpponent.set('');
@@ -272,7 +367,7 @@ export class TournamentPlanComponent {
 
   protected async addGame(series: TournamentSeries): Promise<void> {
     const existing = this.gamesFor(series.id);
-    if (existing.length >= series.bestOf) return;
+    if (!this.ctx.canAddGame(series)) return;
     await this.data.createSeriesGame({
       seriesId: series.id,
       gameNumber: existing.length + 1,
@@ -534,6 +629,7 @@ export class TournamentPlanComponent {
     }
     const side = game.ourSide ?? scrimSide(read.scrim, rosterIds(this.data.players()));
     if (!side) {
+      // Kept for the one-file path on a game row; the service does the same for a batch.
       // Nobody of ours by name in the file and no side on the draft: ask,
       // rather than send the person off to set it and come back.
       this.replayPending.update((s) => ({ ...s, [game.id]: { ...read, fileName: file.name } }));

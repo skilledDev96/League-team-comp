@@ -225,7 +225,7 @@ export function parseReplay(bytes: ArrayBuffer): ReplayGame | null {
  * shape a series game keeps its picks in. A player the replay left without a
  * position lands in the first empty seat rather than being dropped.
  */
-export function seatChampions(players: readonly ReplayPlayer[], team: number): string[] {
+export function seatChampions(players: readonly Pick<ReplayPlayer, 'team' | 'position' | 'champion'>[], team: number): string[] {
   const order = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
   const seats: string[] = ['', '', '', '', ''];
   const loose: string[] = [];

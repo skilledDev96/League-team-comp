@@ -181,7 +181,7 @@ export function fromScrim(scrim: Scrim, ours: Set<string>): GameRow | null {
     theirs: theirPlayers,
     kills: { ours: sum(ourPlayers), theirs: sum(theirPlayers) },
     ...(obj ? { objectives: { ours: side === 'blue' ? obj.blue : obj.red, theirs: side === 'blue' ? obj.red : obj.blue } } : {}),
-    link: { path: '/scrims' }
+    link: { path: '/tournaments', query: { view: 'plan', group: 'scrims' } }
   };
 }
 
@@ -198,16 +198,21 @@ export function fromSeriesGame(
   series: TournamentSeries | undefined,
   seatNames: Readonly<Record<string, string>> = {},
   replay?: Scrim,
-  ours: Set<string> = new Set()
+  ours: Set<string> = new Set(),
+  /** The series sits in the scrims group: the row is a scrim, whatever carries it (9 Sep 2026). */
+  scrimBlock = false
 ): GameRow | null {
   if (game.win === undefined) return null;
   const when = series?.scheduledAt ? Date.parse(series.scheduledAt) : NaN;
-  const base = {
+  const link: NonNullable<GameRow['link']> = scrimBlock
+    ? { path: '/tournaments', query: { view: 'plan', group: 'scrims', series: game.seriesId } }
+    : { path: '/tournaments', query: { view: 'draft', series: game.seriesId, game: game.id } };
+  const base: Pick<GameRow, 'id' | 'source' | 'label' | 'opponent' | 'link'> = {
     id: `series-${game.id}`,
-    source: 'tournament' as const,
-    label: `Bo${series?.bestOf ?? 3} game ${game.gameNumber}`,
+    source: scrimBlock ? 'scrim' : 'tournament',
+    label: scrimBlock ? (replay?.surrendered ? 'Scrim · ff' : 'Scrim') : `Bo${series?.bestOf ?? 3} game ${game.gameNumber}`,
     ...(series?.opponent ? { opponent: series.opponent } : {}),
-    link: { path: '/tournaments', query: { view: 'draft', series: game.seriesId, game: game.id } }
+    link
   };
   const played = replay ? fromScrim(replay, ours) : null;
   if (played) {

@@ -80,7 +80,7 @@ until a user noticed.
 
 In Firebase mode the signals are kept live by `onSnapshot` listeners set up in `initFirebase()`. When adding a new persisted entity, wire **all** of: the model in `team.models.ts` + `TeamData`, a signal, an `onSnapshot` listener, `EntityKey`, `pushLocalToSignals`/`persistLocal`, `seedFirestore`, and CRUD methods — mirror how `compResults` is done.
 
-**Firestore layout**: list collections `players`, `fillIns`, `comps`, `compResults`, `scrims`, `scrimOpponents`, `access`; singleton docs under `meta/` (`teamIdentity`, `macro`, `resourceLinks`, `settings`). `SEED_DATA` (`frontend/src/app/data/seed-data.ts`) is the one-time migration source and the local-mode seed; its shape must stay in sync with the `TeamData` interface.
+**Firestore layout**: list collections `players`, `fillIns`, `comps`, `compResults`, `scrims` (replays), `tournaments`, `tournamentSeries`, `seriesGames`, `access`; singleton docs under `meta/` (`teamIdentity`, `macro`, `resourceLinks`, `settings`). `SEED_DATA` (`frontend/src/app/data/seed-data.ts`) is the one-time migration source and the local-mode seed; its shape must stay in sync with the `TeamData` interface.
 
 **Auth & roles** (`frontend/src/app/services/auth.service.ts`): roles are `admin` / `contributor` / `viewer`. `canEdit()` is true for local mode, `admin`, or `contributor`; `canManageUsers()` for local mode or `admin`. A bootstrap admin email is hardcoded (`ruanhart7@gmail.com`) in both the service and `firestore.rules`. Content routes are gated by `viewerGuard` (`frontend/src/app/app.routes.ts`); `AuthService.ready`/`waitUntilReady()` prevents guard-redirect races on refresh.
 
@@ -116,20 +116,25 @@ selected one is alive.
 suite land where they always did. Do not turn them into redirects without
 checking `e2e/tests/authenticated.spec.ts`, which navigates to `./players`.
 
-**`/scrims` groups replays by opponent, and a scrim opponent is a first-class
-record.** A scrim arrives as one `.rofl` with a free-text opponent name; the page
-folds them by `slugOpponent(name)` (`pages/scrims/scrim-groups.ts`, pure and
-tested) so "MOSS", "moss" and "Moss " are one team. `ScrimOpponent` (keyed by that
-same slug, collection `scrimOpponents`) carries the notes, target bans and
-scouted roster a `TournamentSeries` carries — the same panel, the same
-`OpponentScoutService` (its `scoutRoster` is generic; `scoutSeries` and
-`scoutScrimOpponent` are thin wrappers that only differ in where the result is
-written). There is no "add opponent" step: the record is created the first time
-anything is saved against a group — though an opponent *can* be added by name
-alone to prep before any replay exists, and replays dropped in a team's own
-panel are named after that team. A scrim opponent with no record of its own
-reads the roster, bans and notes of a `TournamentSeries` with the same slugged
-opponent name (read-only, until something is saved). **Rosters are not capped
+**Prep & Draft holds every opponent** (`/tournaments`, renamed in the nav on
+9 Sep 2026; `/scrims` redirects there). A **group** is a `Tournament` with
+`kind`: a real tournament, or the one `scrims` group every scrim opponent
+lives in — not a tournament, just where the scrims are (no dates, no best-of,
+`fearless: false`, hidden from Admin › Tournaments). **Every opponent is a
+`TournamentSeries`**; a scrim opponent is one with `bestOf: 0` (open-ended:
+`TournamentContextService.canAddGame`). **Every replay is a `SeriesGame`**
+with `matchId`, filled the way `finishReplay` always did; the `scrims`
+collection stays as the replay store the Games page and the analysis read.
+`services/replay-import.service.ts` is the one way in: `importAgainst` a
+series (the per-series drop zone and the per-game file input) or
+`importLoose` with a name from the page drop zone, which finds or makes the
+series by `slugOpponent` (`core/opponent-slug.ts`). A file whose side nobody
+can tell lands without a side and the game row asks. `usedChampions` and the
+burned lists are empty for a non-fearless group. The Games page reads a game
+in the scrims group as source `scrim`; Patterns' `tournamentIds` leaves
+those out. The one-time move from the old page is `core/scrims-migration.ts`
+(pure, tested) behind the banner on the Plan view; `ScrimOpponent` and its
+service methods go once it has run everywhere. **Rosters are not capped
 at five**: `fromPaste` keeps every name in a multi-link (subs cycle through the
 roles), `appendToRoster` adds a single Name#TAG without replacing the rest, and
 `reseatOpponent` only swaps seats on a five-player roster — with subs it just
@@ -400,11 +405,11 @@ starts folded (a `?match=` link, a refresh with new games and the tour's
 roster card sets the **main seat** as well as the second (the same
 `Player.role` the editor sets, so Patterns' Main has something to count);
 the coaching pills on a profile are buttons that open the notes behind
-them (`touches` in `core/coaching-digest.ts`); and **Draft against them** on
-a Scrims panel makes or reopens a series under a tournament named
-"Scrims" (bestOf 5, the scouting copied across; `createTournament`,
-`createSeries` and `createSeriesGame` return the id they made, and
-`openDraft` selects the series' tournament).
+them (`touches` in `core/coaching-digest.ts`); and the **Draft** pill on every
+series head opens the room on its next open game or a new one
+(`TournamentContextService.draftSeries`; `createTournament`, `createSeries`
+and `createSeriesGame` return the id they made, and `openDraft` selects the
+series' group).
 
 Adding a field to a cached match means **bumping `CACHE_VERSION`** in
 `analysis-cache.ts`. Old entries then re-fetch once, inside `MAX_NEW_FETCHES` per
@@ -526,9 +531,8 @@ Two questions are asked of a cached entry, and conflating them makes a
   is the box, and each page passes its own count and noun so the line reads
   "2 comps with Tristana" there and "5 scrims with Tristana" here. Analysis and
   Review narrow the games (and every record over them), Comps the comps it is
-  drafted in, Scrims the replays it was in on either side, Roster answers who
-  on our side lists it, Tournaments who on the scouted opponents' side plays
-  it. Compare through `filter.matches()`/`filter.passes()`, never by name:
+  drafted in, Roster answers who on our side lists it, Prep & Draft who on
+  the scouted opponents' side plays it. Compare through `filter.matches()`/`filter.passes()`, never by name:
   games carry Riot ids (`MonkeyKing`), people type Wukong.
 - Shared UI lives in `frontend/src/app/shared/` (e.g. `overflow-menu.component.ts`, `champion-chip.component.ts`, `external-profiles.component.ts`); reuse these rather than re-rolling menus/chips. `champion-grid.component.ts` is the searchable wall of champions used by both the comp board and the live draft — it owns no idea of *where* a pick lands, and only emits a name.
 - **Sizing is in `rem`, not `px`.** The root font size is a `clamp()` on `html`, so the whole interface scales with the monitor: unchanged below ~1600px, about 31% larger at 2560px. A `px` width or height silently opts out of that and will look wrong on a large screen. Borders, radii and shadows are the exception and should stay in `px`. Material Symbols carry an explicit `1.5rem` because Google's stylesheet pins them at 24px.

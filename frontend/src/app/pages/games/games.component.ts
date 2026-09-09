@@ -103,12 +103,14 @@ export class GamesComponent {
     // the same game must not also appear as a scrim, or as the Riot row the
     // analysis folds the stored scrim into.
     const seriesById = new Map(this.data.tournamentSeries().map((s) => [s.id, s]));
+    const scrimsGroup = this.data.tournaments().find((t) => t.kind === 'scrims')?.id;
+    const scrimSeries = new Set(this.data.tournamentSeries().filter((s) => s.tournamentId === scrimsGroup).map((s) => s.id));
     const scrimById = new Map(this.data.scrims().map((s) => [s.id, s]));
     const seatNames: Record<string, string> = {};
     for (const p of this.data.starters()) if (p.role && !seatNames[p.role]) seatNames[p.role] = p.name;
     const tournament = this.data
       .seriesGames()
-      .map((g) => fromSeriesGame(g, seriesById.get(g.seriesId), seatNames, g.matchId ? scrimById.get(g.matchId) : undefined, ours))
+      .map((g) => fromSeriesGame(g, seriesById.get(g.seriesId), seatNames, g.matchId ? scrimById.get(g.matchId) : undefined, ours, scrimSeries.has(g.seriesId)))
       .filter((r): r is GameRow => r !== null);
     const claimed = new Set(tournament.map((r) => r.matchId).filter(Boolean));
     const riotKept = riot.filter((r) => !claimed.has(r.matchId));

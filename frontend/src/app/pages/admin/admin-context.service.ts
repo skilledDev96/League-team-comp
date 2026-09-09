@@ -109,7 +109,8 @@ export class AdminContextService {
       this.fillInDrafts.set(fillIns.map((f) => toFillInDraft(f)));
       this.compDrafts.set(comps.map((c) => ({ id: c.id, name: c.name, picks: { ...c.picks } })));
       this.accessDrafts.set(accessEntries.map((entry) => ({ ...entry, originalEmail: normalizeEmailValue(entry.email) })));
-      this.tournamentDrafts.set(this.data.tournaments().map((t) => toTournamentDraft(t)));
+      // The scrims group lives on the Prep & Draft page, not here.
+      this.tournamentDrafts.set(this.data.tournaments().filter((t) => t.kind !== 'scrims').map((t) => toTournamentDraft(t)));
       this.applyRouteFocus();
     });
 
@@ -222,7 +223,7 @@ export class AdminContextService {
   addTournamentDraft(): void {
     this.tournamentDrafts.update((list) => [
       ...list,
-      { id: '', name: '', organiser: '', division: '', format: '', startDate: '', endDate: '', notes: '', active: false }
+      { id: '', name: '', organiser: '', division: '', format: '', startDate: '', endDate: '', notes: '', active: false, fearless: true }
     ]);
   }
 
@@ -252,7 +253,8 @@ export class AdminContextService {
       startDate: draft.startDate.trim() || undefined,
       endDate: draft.endDate.trim() || undefined,
       notes: draft.notes.trim() || undefined,
-      active: draft.active
+      active: draft.active,
+      fearless: draft.fearless
     };
     if (draft.id) {
       const existing = this.data.tournaments().find((t) => t.id === draft.id);
