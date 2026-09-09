@@ -32,7 +32,7 @@ import { TooltipDirective } from './tooltip.directive';
                 [appTip]="r.team.compWhy || 'Whether the comp did what its four axes and game plan expected'">
             {{ r.compName ? r.compName + ': ' : 'Comp: ' }}{{ r.team.compVerdict }}
           </span>
-          <button type="button" class="view-btn game-review-copy" (click)="copy()" appTip="Copies the headline, the points and every player's note as text, ready to paste in the team chat">
+          <button type="button" class="view-btn game-review-copy" (click)="copy()" appTip="Copies a short version for the team chat: the headline and scoreline, the first thing next game, one Keep doing, and one ask per player. The figures stay here.">
             <span class="material-symbols-rounded" aria-hidden="true">content_copy</span> Copy for Discord
           </button>
         </div>

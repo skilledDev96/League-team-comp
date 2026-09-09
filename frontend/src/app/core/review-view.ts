@@ -1,4 +1,4 @@
-import { AnalysisGame, AnalysisPlayer, GameReview, ReviewPoint } from '../models/team.models';
+import { AnalysisGame, AnalysisPlayer, GameReview } from '../models/team.models';
 
 /**
  * The review panel's read side (9 Sep 2026): the scoreline every point
@@ -65,35 +65,51 @@ function firstSentence(text: string): string {
   return (m ? m[1] : text).trim();
 }
 
-function point(p: ReviewPoint, prefix = ''): string {
-  const minute = p.minute !== null ? `[${p.minute} min] ` : '';
-  return `${prefix}${minute}${p.text}${p.evidence ? ` (${p.evidence})` : ''}`;
+/**
+ * The actionable clause of a note. The model writes "the fact; either X or Y"
+ * or "the fact, so next time X": the part after the last semicolon or the
+ * last ", so" is the ask, and the team chat wants the ask.
+ */
+export function askOf(text: string): string {
+  const t = text.trim();
+  const semi = t.lastIndexOf('; ');
+  const so = t.lastIndexOf(', so ');
+  let ask = semi >= 0 ? t.slice(semi + 2) : so >= 0 ? t.slice(so + 5) : t;
+  ask = ask.replace(/^(next time|next game|going forward),?\s+/i, '').trim();
+  return ask ? ask[0].toUpperCase() + ask.slice(1) : t;
 }
 
-/** The review as plain text for Discord: a title line, the points, a line per player. */
+const OBJECTIVE_EMOJI: Record<string, string> = { Towers: '🏰', Dragons: '🐉', Barons: '🟣', Grubs: '🐛', Heralds: '👁️' };
+
+/**
+ * The review as a short Discord message (9 Sep 2026): a heading, one
+ * scoreline in subtext, the first thing next game in full, the first Keep
+ * doing, and the ask per player — no evidence, no summary. The full review
+ * with the figures stays on the Games page, and the last line says so.
+ */
 export function reviewAsText(review: GameReview, game: AnalysisGame | undefined, opponent?: string): string {
   const title = review.team.headline || firstSentence(review.team.summary) || 'Game review';
   const score = scoreline(game);
-  const result = score[0]?.label;
+  const result = score[0];
   const kills = score.find((c) => c.label === 'Kills');
   const length = score.find((c) => c.label === 'Length');
-  const meta = [result, kills ? `${kills.ours}-${kills.theirs}` : '', length ? `in ${length.ours}` : '', opponent ? `vs ${opponent}` : '']
-    .filter(Boolean)
-    .join(' ');
-  const lines: string[] = [`**${title}**${meta ? ` — ${meta}` : ''}`];
-  if (review.team.summary && review.team.headline) lines.push(review.team.summary);
-  const [first, ...rest] = review.team.workOn;
-  if (first) lines.push('', `**First thing next game:** ${point(first)}`);
-  if (rest.length) lines.push('', '**Work on:**', ...rest.map((p) => point(p, '• ')));
-  if (review.team.keepDoing.length) lines.push('', '**Keep doing:**', ...review.team.keepDoing.map((p) => point(p, '• ')));
-  if (review.players.length) {
-    lines.push('', '**Players:**');
-    for (const p of review.players) {
-      const parts = [];
-      if (p.strength.text) parts.push(`+ ${p.strength.text}`);
-      if (p.workOn.text) parts.push(`− ${p.workOn.text}`);
-      lines.push(`• ${p.name} (${p.seat}, ${p.champion}) — ${parts.join(' / ')}`);
-    }
+  const bits = [
+    result ? `${result.good ? '✅' : '❌'} ${result.label}${kills ? ` ${kills.ours}–${kills.theirs}` : ''}` : '',
+    length ? length.ours : '',
+    opponent ? `vs ${opponent}` : '',
+    ...score.filter((c) => OBJECTIVE_EMOJI[c.label] && c.theirs !== undefined).map((c) => `${OBJECTIVE_EMOJI[c.label]} ${c.ours}–${c.theirs}`)
+  ].filter(Boolean);
+  const lines: string[] = [`## ${title}`];
+  if (bits.length) lines.push(`-# ${bits.join(' · ')}`);
+  const first = review.team.workOn[0];
+  if (first) lines.push('', `**🎯 First thing next game**${first.theme ? ` · ${first.theme}` : ''}`, first.text);
+  const keep = review.team.keepDoing[0];
+  if (keep) lines.push('', `**✅ Keep doing**${keep.theme ? ` · ${keep.theme}` : ''}`, keep.text);
+  const asks = review.players.filter((p) => p.workOn.text);
+  if (asks.length) {
+    lines.push('', '**👥 One ask each**');
+    for (const p of asks) lines.push(`• **${p.name}** (${p.champion}) — ${askOf(p.workOn.text)}`);
   }
+  lines.push('', '-# The full review, with the figures behind every line, is on the Games page.');
   return lines.join('\n');
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, GameReview, TeamObjectives } from '../models/team.models';
-import { evidenceChips, playerStatLine, reviewAsText, scoreline } from './review-view';
+import { askOf, evidenceChips, playerStatLine, reviewAsText, scoreline } from './review-view';
 
 const side = (o: Partial<TeamObjectives>): TeamObjectives => ({ firstBlood: false, firstTower: false, dragons: 0, barons: 0, heralds: 0, grubs: 0, towers: 0, inhibitors: 0, ...o });
 const objectives = (ours: Partial<TeamObjectives>, theirs: Partial<TeamObjectives>) => ({ ours: side(ours), theirs: side({ firstBlood: true, firstTower: true, ...theirs }) });
@@ -69,20 +69,32 @@ describe('playerStatLine', () => {
   });
 });
 
+describe('askOf', () => {
+  it('keeps the clause after the last semicolon or ", so", capitalised, and the whole note otherwise', () => {
+    expect(askOf('Eight deaths is the second-highest on the team; either play safer trades before towers fall or ask for jungle pressure earlier.')).toBe('Either play safer trades before towers fall or ask for jungle pressure earlier.');
+    expect(askOf('First tower went early, so next time play the first ten minutes for level.')).toBe('Play the first ten minutes for level.');
+    expect(askOf('Path safer.')).toBe('Path safer.');
+  });
+});
+
 describe('reviewAsText', () => {
-  it('writes the title line, the first thing, the rest and a line per player', () => {
+  it('is a short Discord message: heading, scoreline subtext, the first thing, one Keep doing, an ask per player', () => {
     const text = reviewAsText(review, game, 'MOSS 2');
-    expect(text.split('\n')[0]).toBe('**Bled 35 kills while farming even** — Loss 14-35 in 34 min vs MOSS 2');
-    expect(text).toContain('**First thing next game:** Commit only when Jinx is in range. (kills 14-35 · Leona 1/9/7)');
-    expect(text).toContain('**Work on:**\n• Trade the third grub for dragon tempo. (grubs 3-0 · dragons 2-3)');
-    expect(text).toContain('**Keep doing:**\n• Farm held up. (Jinx 232, Trundle 223)');
-    expect(text).toContain('• Go10x (Jungle, Trundle) — + Grubs went 3-0. / − Path safer.');
+    const lines = text.split('\n');
+    expect(lines[0]).toBe('## Bled 35 kills while farming even');
+    expect(lines[1]).toBe('-# ❌ Loss 14–35 · 34 min · vs MOSS 2 · 🏰 6–9 · 🐉 2–3 · 🟣 1–1 · 🐛 3–0 · 👁️ 0–1');
+    expect(text).toContain('**🎯 First thing next game** · fights\nCommit only when Jinx is in range.');
+    expect(text).toContain('**✅ Keep doing** · lanes\nFarm held up.');
+    expect(text).toContain('**👥 One ask each**\n• **Go10x** (Trundle) — Path safer.');
+    expect(text).not.toContain('kills 14-35 · Leona 1/9/7');
+    expect(text).not.toContain('Trade the third grub');
+    expect(lines.at(-1)).toBe('-# The full review, with the figures behind every line, is on the Games page.');
   });
 
-  it('titles a review from before the headline with the summary’s first sentence', () => {
+  it('titles a review from before the headline with the summary’s first sentence, and has no scoreline without a game', () => {
     const old = { ...review, team: { ...review.team, headline: undefined } } as GameReview;
-    const text = reviewAsText(old, undefined);
-    expect(text.split('\n')[0]).toBe('**The team matched on CS but gave up the fights.**');
-    expect(text).not.toContain('The team matched on CS but gave up the fights.\n**');
+    const lines = reviewAsText(old, undefined).split('\n');
+    expect(lines[0]).toBe('## The team matched on CS but gave up the fights.');
+    expect(lines[1]).toBe('');
   });
 });
