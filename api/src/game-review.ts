@@ -138,6 +138,7 @@ const RULES = `Rules that never bend:
 - Be concrete. Every point names the thing: a champion, a minute, an objective, a figure from the facts. "Deaths were the story" is not a point; "Leona died nine times, and six of those engages went in before Jinx was in range" is.
 - Lead with the decision that decided the game. Then the rest, most important first.
 - Each point rests on a different fact. Do not repeat a figure across points, and do not restate the summary.
+- One point per theme. A second point on the same theme is allowed only when it rests on a different fact, and then it says what is new in it.
 - Evidence is figures only, no sentence: "Leona 1/9/7 · kills 14-35 · first tower conceded". Never repeat the point's own words in its evidence.
 - No throat-clearing. Never write "it is worth asking whether", "worth reviewing whether", "is there a way to", "one option is agreeing". Say what happened, then the choice.
 - This is a finished game. Say nothing about a game in progress.

@@ -332,7 +332,10 @@ filter rather than none, so it can never become unpickable.
    `reviewFor`). Trigger: the "Review this game" pill on a row (editors),
    or `Settings.autoReview` (off by default) which reviews at most
    `MAX_AUTO_REVIEWS` (3) new prep games in the morning run and logs the
-   cost to `meta/refreshLog.reviews`. Surfaces: the panel on the row, the
+   cost to `meta/refreshLog.reviews`. The panel (`shared/game-review.component.ts`) reads through
+   `core/review-view.ts` (pure): the scoreline chips from the row's
+   `AnalysisGame`, evidence split into figure chips, a stat line per
+   player, and `reviewAsText` behind the Copy for Discord pill. Surfaces: the panel on the row, the
    Reviews tab on `/games` (`?tab=reviews`), Coaching notes on the player
    profile, and "Played out as drafted in n of m" on each Comps panel.
    **Comp expectation**: `Comp.expect` (early, scaling, objectives,
