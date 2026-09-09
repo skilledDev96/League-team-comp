@@ -96,6 +96,13 @@ still resolving to it), `/tournaments`,
 `/synergy`, `/admin`. Adding a page means touching both files — the route alone
 leaves it unreachable.
 
+**`/roster` has a fourth mode, Scout report** (9 Sep 2026): our own five through
+`OpponentScoutService.scoutOurselves` (the same scout an opponent gets, seat =
+main role, bench flag along), stored once at `meta/selfScout` as
+`OpponentPlayer[]` so `pages/roster/scout-report.component` renders the same
+table and ban board with the `core/opponent-view` helpers. Read-only there;
+seats and the bench are set on the cards.
+
 **`/roster` is one page with three modes**, in `pages/roster/`: Cards
 (`OverviewComponent`), Table (`TeamProfilesComponent`) and Scouting
 (`PlayerIntelComponent`). They were three nav entries answering the same
