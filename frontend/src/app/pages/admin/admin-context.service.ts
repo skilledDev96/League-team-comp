@@ -394,6 +394,15 @@ export class AdminContextService {
   readonly openFillIn = signal<FillInDraft | null>(null);
   readonly fillInStatuses = FILL_IN_STATUSES;
 
+  /** Open the dialog on a fill-in; a record from before the slug rule learns its slug now. */
+  editFillIn(draft: FillInDraft): void {
+    if (!draft.mobalyticsSlug.trim() && draft.summoner.trim()) {
+      draft.mobalyticsSlug = mobalyticsSlugFor(draft.summoner);
+      this.touchFillIn(draft);
+    }
+    this.openFillIn.set(draft);
+  }
+
   /** The status select's options: the known ones, plus whatever an older record already says. */
   fillInStatusOptions(draft: FillInDraft): string[] {
     const current = draft.status.trim();

@@ -55,7 +55,7 @@
       @if (draft.preferredRoles) { <span class="fillin-meta">{{ draft.preferredRoles }}</span> }
       @if (draft.note) { <span class="fillin-meta">{{ draft.note }}</span> }
       <div class="links action-row">
-        <button class="view-btn" type="button" (click)="ctx.openFillIn.set(draft)">
+        <button class="view-btn" type="button" (click)="ctx.editFillIn(draft)">
           <span class="material-symbols-rounded" aria-hidden="true">edit</span> Edit
         </button>
         @if (auth.canManageUsers()) {
