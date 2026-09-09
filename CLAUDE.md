@@ -318,21 +318,37 @@ filter rather than none, so it can never become unpickable.
    `api/src/timeline-features.ts` to `matchTimeline/{matchId}` (its own
    `TIMELINE_VERSION`; a bump rebuilds twenty a run) and **never stored
    raw**. Frames are sixty seconds apart, so "near an objective" and
-   "warded" are approximate by construction and say so. The facts read off
-   it (`api/src/game-facts.ts`: curve shape, lanes with the minute, fights,
-   solo deaths, objectives given up, vision) ride on the same document as
+   "warded" are approximate by construction and say so. Version 2 (9 Sep
+   2026) keeps, per death of ours, who was where: their jungler on the
+   kill, our jungler's distance and zone at the nearest frame, their
+   jungler's distance a frame before, allies near, an objective in the same
+   minute; which of our seats were on each of their deaths; and damage
+   dealt and taken per five minutes. The facts read off it
+   (`api/src/game-facts.ts`: curve shape, lanes with the minute, fights,
+   solo deaths, objectives given up, vision, and the **death ledger** — a
+   verdict per death, `how` and what `could` have stopped it: `jungle`
+   within `JUNGLE_REACH`, `ward`, `call`, `position`, with a summary line
+   and the jungler's presence on kills) ride on the same document as
    `facts`, render as the "How the game went" drawer on a Games row
    (`shared/game-story.component.ts`, read on demand through
    `MatchTimelineService`, not a listener), and are what the model sees.
+   The ledger's rules are the only place the tags are argued; the panel
+   and the prompt both read the result, never re-derive it.
    *End-of-game tier*: a replay has totals only; `endOfGameFacts` says what
    it can and the review is labelled as such. `AnalysisGame.timelineData`
    marks coverage like `laneData`; Diagnostics counts it.
-   **The review itself** (`api/src/game-review.ts`, handler `gameReview`)
-   is two calls over the facts: Opus (`TEAM_MODEL`) for the team, the draft
-   and the comp verdict, Sonnet (`PLAYER_MODEL`) for a note per player,
-   both JSON-schema output, both validated (caps, evidence required, a
-   minute outside the game nulled, unknown player names dropped, seats
-   re-stamped from the context). Stored at `gameReviews/{matchId}` **by the
+   **The review itself** (`api/src/game-review.ts`, handler `gameReview`,
+   `REVIEW_VERSION` 3 since 9 Sep 2026) is two calls over the facts, both
+   to Opus at medium effort: the team — headline, summary, the game in
+   `moments` (three to six, time order), `workOn`, `keepDoing`, the comp
+   verdict — and the players — `strength`, `workOn`, and `more` (up to
+   three further work-ons, each with a `theme`); both JSON-schema output,
+   both validated (caps, evidence required, a minute outside the game
+   nulled, moments sorted and capped, unknown player names dropped, seats
+   re-stamped from the context). The prompts print the ledger (all of it
+   for the team, per seat for the players, and the laners' deaths within
+   reach plus the presence line for the jungler), damage dealt and taken,
+   and every habit the facts compute. Stored at `gameReviews/{matchId}` **by the
    function only**; the app listens (`TeamDataService.gameReviews`,
    `reviewFor`). Trigger: the "Review this game" pill on a row (editors),
    or `Settings.autoReview` (off by default) which reviews at most
@@ -340,7 +356,16 @@ filter rather than none, so it can never become unpickable.
    cost to `meta/refreshLog.reviews`. The panel (`shared/game-review.component.ts`) reads through
    `core/review-view.ts` (pure): the scoreline chips from the row's
    `AnalysisGame`, evidence split into figure chips, a stat line per
-   player, and `reviewAsText` behind the Copy for Discord pill. Surfaces: the panel on the row, the
+   player, the ledger's words (`COULD_LABELS`, `HOW_LABELS`,
+   `ZONE_LABELS`), and `reviewAsText` behind the Copy for Discord pill (one
+   subtext line on the deaths when the ledger is there). The panel shows the
+   moments under the scoreline, each player's `more` behind a fold on their
+   row, and the ledger as a filterable table read off the same timeline the
+   drawer reads (a version-1 timeline says so; Re-review fetches a new one).
+   **Post-game graphs** (`shared/game-graphs.component.ts`) sit behind a
+   Table | Graphs segment on every Games row's scoreboard, drawn from the
+   row's `RowStats` so replays and Riot games get the same view; a figure a
+   row lacks is a dash. Surfaces: the panel on the row, the
    Reviews tab on `/games` (`?tab=reviews`), Coaching notes on the player
    profile, and "Played out as drafted in n of m" on each Comps panel.
    **Comp expectation**: `Comp.expect` (early, scaling, objectives,
