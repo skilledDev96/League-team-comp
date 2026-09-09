@@ -426,7 +426,7 @@
                     </label>
                   }
                 </div>
-                <app-game-review [review]="data.reviewFor(g.matchId)" [game]="analysisOf(g)" [opponent]="g.opponent" />
+                <app-game-review [review]="data.reviewFor(g.matchId)" [game]="analysisOf(g)" [opponent]="g.opponent" [open]="g.id === focus()" />
                 <app-game-story data-tour="games-story" [game]="analysisOf(g)" [expect]="expectFor(g)" />
                 <app-game-check [game]="analysisOf(g)" />
               }

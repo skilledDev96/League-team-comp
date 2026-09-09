@@ -14290,7 +14290,13 @@ button .player-mark { vertical-align: -0.3rem; }
 /* ---- The review panel, 9 Sep 2026: headline over the scoreline, the first thing as a callout,
    two content-sized columns, a row per player with their stat line ---- */
 .game-review { padding: 0.95rem 1.05rem 0.85rem; border-radius: 14px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, transparent), color-mix(in srgb, var(--accent) 3%, transparent)); min-width: 0; max-width: 100%; }
-.game-review-head strong { letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.74rem; color: var(--text-1); }
+.game-review-toggle { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.game-review-toggle strong { letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.74rem; color: var(--text-1); }
+.game-review-toggle .game-review-headline { flex: 1 1 14rem; margin: 0; font-size: 1.12rem; line-height: 1.25; }
+.game-review-toggle .intel-collapse-chevron { margin-left: auto; }
+.game-review[open] .game-review-toggle .game-review-headline { font-size: 1.35rem; }
+.game-review-body { margin-top: 0.6rem; }
+.game-review-head { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
 .game-review-head .game-review-verdict { margin-left: auto; }
 .game-review-copy { padding: 0.25rem 0.7rem; font-size: 0.78rem; }
 .game-review-copy .material-symbols-rounded { font-size: 1rem; vertical-align: -0.2rem; }
@@ -14350,6 +14356,13 @@ button .player-mark { vertical-align: -0.3rem; }
 }
 .review-card-headline { margin: 0.2rem 0 0.1rem; font-size: 1.05rem; font-weight: 800; color: var(--text-0); }
 
+/* ---- The login, 9 Sep 2026: Google only, one centred card ---- */
+.login-body { display: grid; justify-content: center; margin-top: 1.2rem; }
+.login-card { width: min(100%, 30rem); display: grid; gap: 1rem; justify-items: center; text-align: center; padding: 1.6rem 1.7rem; }
+.login-card .muted { margin: 0; font-size: 0.95rem; }
+.login-google { padding: 0.7rem 1.5rem; font-size: 1rem; }
+.login-google .material-symbols-rounded { font-size: 1.35rem; vertical-align: -0.35rem; margin-right: 0.3rem; }
+
 /* ---- The review walks through the game, 9 Sep 2026: the game in moments,
    further points behind a fold on each player, the death ledger ---- */
 .game-review-moments { display: grid; gap: 0.35rem; margin: 0.65rem 0 0; padding: 0; }
@@ -14358,6 +14371,10 @@ button .player-mark { vertical-align: -0.3rem; }
 .moment-minute small { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-1); }
 .game-review-moment.is-us .moment-minute { border-color: color-mix(in srgb, var(--ok) 55%, var(--card-border)); color: var(--ok); }
 .game-review-moment.is-them .moment-minute { border-color: color-mix(in srgb, var(--warn) 55%, var(--card-border)); color: var(--warn); }
+.game-review-moments.is-untimed .game-review-moment { grid-template-columns: 1rem minmax(0, 1fr); gap: 0.45rem; align-items: baseline; }
+.moment-dot { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%; margin-top: 0.15rem; background: var(--text-1); }
+.game-review-moment.is-us .moment-dot { background: var(--ok); }
+.game-review-moment.is-them .moment-dot { background: var(--warn); }
 .game-review-more { grid-column: 1 / -1; margin: 0; padding: 0.35rem 0 0; border-top: 1px dashed var(--card-border); }
 .game-review-more > summary { display: inline-flex; align-items: center; gap: 0.2rem; cursor: pointer; list-style: none; font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--warn); }
 .game-review-more > summary::-webkit-details-marker { display: none; }
@@ -14392,19 +14409,19 @@ button .player-mark { vertical-align: -0.3rem; }
 .game-graphs { display: grid; gap: 0.6rem; min-width: 0; }
 .game-graphs .view-segment button { padding: 0.28rem 0.7rem; font-size: 0.74rem; }
 .game-graphs-rows { display: grid; gap: 0.45rem; }
-.game-graphs-pair { display: grid; gap: 0.25rem; padding: 0.4rem 0.55rem; border-radius: 10px; background: color-mix(in srgb, var(--surface-controls) 70%, transparent); }
+.game-graphs-pair { display: grid; gap: 0.3rem; padding: 0.45rem 0.6rem; border-radius: 10px; background: color-mix(in srgb, var(--surface-controls) 45%, transparent); }
 .game-graphs-bar { display: grid; grid-template-columns: 9rem minmax(0, 1fr) 5.5rem; align-items: center; gap: 0.55rem; font-size: 0.8rem; min-width: 0; }
 .game-graphs-bar .who { display: flex; align-items: center; gap: 0.4rem; min-width: 0; color: var(--text-0); }
 .game-graphs-bar .who img { width: 1.35rem; height: 1.35rem; border-radius: 6px; flex: none; }
 .game-graphs-bar .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .game-graphs-bar.is-theirs .who { color: var(--text-1); }
 .game-graphs-track { display: grid; gap: 0.15rem; min-width: 0; }
-.game-graphs-fill { display: block; height: 0.6rem; border-radius: 4px; background: var(--accent); transition: width 0.25s ease; }
-.game-graphs-bar.is-theirs .game-graphs-fill { background: color-mix(in srgb, var(--text-1) 45%, transparent); }
-.game-graphs-fill.is-taken { background: var(--warn); }
-.game-graphs-bar.is-theirs .game-graphs-fill.is-taken { background: color-mix(in srgb, var(--warn) 45%, transparent); }
+.game-graphs-fill { display: block; height: 0.5rem; border-radius: 999px; background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 45%, var(--surface-controls)), color-mix(in srgb, var(--accent) 70%, var(--surface-controls))); transition: width 0.25s ease; }
+.game-graphs-bar.is-theirs .game-graphs-fill { background: color-mix(in srgb, var(--text-1) 28%, transparent); }
+.game-graphs-fill.is-taken { background: linear-gradient(90deg, color-mix(in srgb, var(--warn) 40%, var(--surface-controls)), color-mix(in srgb, var(--warn) 62%, var(--surface-controls))); }
+.game-graphs-bar.is-theirs .game-graphs-fill.is-taken { background: color-mix(in srgb, var(--warn) 28%, transparent); }
 .game-graphs-fill.is-none { background: transparent; }
-.game-graphs-bar .value { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-0); white-space: nowrap; }
+.game-graphs-bar .value { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-0); white-space: nowrap; font-size: 0.78rem; }
 .game-graphs-bar.is-theirs .value { color: var(--text-1); }
 .game-graphs-legend { margin: 0; font-size: 0.72rem; }
 @media (max-width: 40rem) {

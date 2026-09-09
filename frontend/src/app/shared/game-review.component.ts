@@ -26,13 +26,18 @@ import { TooltipDirective } from './tooltip.directive';
   imports: [DatePipe, NgTemplateOutlet, TooltipDirective, InfoTipComponent, PlayerMarkComponent],
   template: `
     @if (review(); as r) {
-      <section class="game-review" aria-label="Game review">
-        <div class="game-review-head">
+      <details class="intel-collapse game-review" [open]="open() || fresh()" aria-label="Game review">
+        <summary class="game-review-toggle">
           <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>
           <strong>Review</strong>
+          <span class="game-review-headline">{{ r.team.headline || 'Read the review' }}</span>
           <span class="tag" [appTip]="r.tier === 'timeline' ? 'Read from Riot\\'s minute-by-minute timeline' : 'A replay carries end-of-game totals only; nothing here is timed'">
-            {{ r.tier === 'timeline' ? 'From the timeline' : 'End-of-game totals only' }}
+            {{ r.tier === 'timeline' ? 'From the timeline' : 'Totals only' }}
           </span>
+          <span class="material-symbols-rounded intel-collapse-chevron" aria-hidden="true">chevron_right</span>
+        </summary>
+        <div class="game-review-body">
+        <div class="game-review-head">
           <span class="game-review-verdict" [class.is-good]="r.team.compVerdict === 'as drafted'" [class.is-bad]="r.team.compVerdict === 'off plan'"
                 [appTip]="r.team.compWhy || 'Whether the comp did what its four axes and game plan expected'">
             {{ r.compName ? r.compName + ': ' : 'Comp: ' }}{{ r.team.compVerdict }}
@@ -42,7 +47,6 @@ import { TooltipDirective } from './tooltip.directive';
           </button>
         </div>
 
-        @if (r.team.headline) { <h3 class="game-review-headline">{{ r.team.headline }}</h3> }
         @if (score().length) {
           <ul class="list-clean game-review-scoreline" aria-label="Scoreline">
             @for (c of score(); track c.label) {
@@ -56,10 +60,10 @@ import { TooltipDirective } from './tooltip.directive';
         @if (r.team.compWhy) { <p class="muted game-review-why">{{ r.team.compWhy }}</p> }
 
         @if (moments().length) {
-          <ol class="list-clean game-review-moments" aria-label="The game in moments">
+          <ol class="list-clean game-review-moments" [class.is-untimed]="!timed()" aria-label="The game in moments">
             @for (m of moments(); track $index) {
               <li class="game-review-moment" [class.is-us]="m.swing === 'us'" [class.is-them]="m.swing === 'them'">
-                <span class="moment-minute">{{ m.minute }}<small>min</small></span>
+                @if (timed()) { <span class="moment-minute">{{ m.minute }}<small>min</small></span> } @else { <span class="moment-dot" aria-hidden="true"></span> }
                 <span class="moment-text">{{ m.text }}</span>
               </li>
             }
@@ -115,7 +119,7 @@ import { TooltipDirective } from './tooltip.directive';
                 <div class="game-review-line is-warn" role="cell">
                   <b>Work on</b>
                   @if (p.workOn.text) {
-                    <span>@if (p.workOn.minute !== null) { <span class="review-minute">{{ p.workOn.minute }} min</span> }{{ p.workOn.text }}</span>
+                    <span>@if (p.workOn.minute !== null && timed()) { <span class="review-minute">{{ p.workOn.minute }} min</span> }{{ p.workOn.text }}</span>
                     <ng-container *ngTemplateOutlet="chipsTpl; context: { $implicit: p.workOn.evidence }" />
                   } @else { <span class="muted">—</span> }
                 </div>
@@ -188,13 +192,14 @@ import { TooltipDirective } from './tooltip.directive';
           Written {{ r.reviewedAt | date: 'd MMM, HH:mm' }} by {{ models() }} for about {{ cost() }}{{ r.trigger === 'auto' ? ', by the morning run' : '' }}.
           <app-info-tip text="Every point should match a fact in How the game went; if one does not, the review is wrong, not the game." label="How to read the review" />
         </p>
-      </section>
+        </div>
+      </details>
 
       <ng-template #pointTpl let-p>
-        @if (p.theme || p.minute !== null) {
+        @if (p.theme || (p.minute !== null && timed())) {
           <span class="game-review-point-tags">
             @if (p.theme) { <span class="review-theme"><span class="material-symbols-rounded" aria-hidden="true">{{ icon(p.theme) }}</span>{{ p.theme }}</span> }
-            @if (p.minute !== null) { <span class="review-minute">{{ p.minute }} min</span> }
+            @if (p.minute !== null && timed()) { <span class="review-minute">{{ p.minute }} min</span> }
           </span>
         }
         <span class="game-review-point-text">{{ p.text }}</span>
@@ -218,6 +223,8 @@ export class GameReviewComponent {
   /** The game the review is about, for the scoreline and each player's stat line. */
   readonly game = input<AnalysisGame | undefined>(undefined);
   readonly opponent = input<string | undefined>(undefined);
+  /** Start open: the row the page was asked to show. A review written in the last few minutes opens itself too. */
+  readonly open = input<boolean>(false);
 
   protected readonly ui = inject(UiService);
   private readonly timelines = inject(MatchTimelineService);
@@ -248,6 +255,12 @@ export class GameReviewComponent {
     return f === 'all' ? all : all.filter((d) => d.could.includes(f));
   });
   protected readonly moments = computed(() => this.review()?.team.moments ?? []);
+  /** A replay review has no minutes behind it, so no minute pills. */
+  protected readonly timed = computed(() => this.review()?.tier === 'timeline');
+  protected readonly fresh = computed(() => {
+    const at = Date.parse(this.review()?.reviewedAt ?? '');
+    return Number.isFinite(at) && Date.now() - at < 5 * 60_000;
+  });
 
   constructor() {
     effect(() => {
