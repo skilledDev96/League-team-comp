@@ -41,7 +41,7 @@
         <div class="title-row">
           <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
           <h2>{{ player.role }} - {{ player.name }}</h2>
-          @if (fill) { <span class="sub-badge" [appTip]="'A fill-in outside the roster, ' + (fill.status || 'provisional')">Fill-in · {{ fill.status || 'provisional' }}</span> }
+          @if (fill) { <span class="sub-badge" [appTip]="'A fill-in outside the roster — ' + (fill.status || 'provisional')">Fill-in</span> }
           @else if (player.sub) { <span class="sub-badge" title="On the bench: the draft room follows the starter in this seat.">Sub</span> }
           @if (auth.editing() && fill) {
             <a class="view-btn roster-edit-open title-row-edit" [routerLink]="['/admin']" [queryParams]="{ tab: 'fillins' }" appTip="Fill-ins are edited on Admin › Fill-ins, where Fill from Riot lives">
