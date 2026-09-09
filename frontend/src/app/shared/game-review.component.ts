@@ -1,5 +1,6 @@
-import { DatePipe, NgTemplateOutlet } from '@angular/common';
+import { DatePipe, Location, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, input } from '@angular/core';
+import { Router } from '@angular/router';
 import { AnalysisGame, GameReview, ReviewPoint, ReviewTheme } from '../models/team.models';
 import { evidenceChips, playerStatLine, reviewAsText, scoreline } from '../core/review-view';
 import { ToastService } from '../services/toast.service';
@@ -145,6 +146,14 @@ export class GameReviewComponent {
 
   protected readonly ui = inject(UiService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
+  private readonly location = inject(Location);
+
+  /** The game on the Games page, as a link a teammate can open from the chat. */
+  private gameLink(matchId: string): string {
+    const path = this.router.serializeUrl(this.router.createUrlTree(['/games'], { queryParams: { match: matchId, tab: 'games' } }));
+    return `${window.location.origin}${this.location.prepareExternalUrl(path)}`;
+  }
 
   private static readonly ICONS: Record<ReviewTheme, string> = {
     draft: 'swords',
@@ -176,7 +185,7 @@ export class GameReviewComponent {
     const r = this.review();
     if (!r) return;
     try {
-      await navigator.clipboard.writeText(reviewAsText(r, this.game(), this.opponent()));
+      await navigator.clipboard.writeText(reviewAsText(r, this.game(), this.opponent(), this.gameLink(r.matchId)));
       this.toast.show('Review copied', { kind: 'ok', icon: 'content_copy', text: 'Paste it in the team chat; the headline, the points and every player’s note are in it.' });
     } catch {
       this.toast.show('Could not copy', { kind: 'warn', text: 'The browser refused the clipboard; select the text and copy it by hand.' });

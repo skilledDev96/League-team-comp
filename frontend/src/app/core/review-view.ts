@@ -87,7 +87,7 @@ const OBJECTIVE_EMOJI: Record<string, string> = { Towers: '🏰', Dragons: '🐉
  * doing, and the ask per player — no evidence, no summary. The full review
  * with the figures stays on the Games page, and the last line says so.
  */
-export function reviewAsText(review: GameReview, game: AnalysisGame | undefined, opponent?: string): string {
+export function reviewAsText(review: GameReview, game: AnalysisGame | undefined, opponent?: string, link?: string): string {
   const title = review.team.headline || firstSentence(review.team.summary) || 'Game review';
   const score = scoreline(game);
   const result = score[0];
@@ -110,6 +110,7 @@ export function reviewAsText(review: GameReview, game: AnalysisGame | undefined,
     lines.push('', '**👥 One ask each**');
     for (const p of asks) lines.push(`• **${p.name}** (${p.champion}) — ${askOf(p.workOn.text)}`);
   }
-  lines.push('', '-# The full review, with the figures behind every line, is on the Games page.');
+  // Angle brackets keep Discord from unfurling the link into an embed.
+  lines.push('', link ? `-# Full review with the figures: <${link}>` : '-# The full review, with the figures behind every line, is on the Games page.');
   return lines.join('\n');
 }

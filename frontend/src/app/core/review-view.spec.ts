@@ -89,6 +89,9 @@ describe('reviewAsText', () => {
     expect(text).not.toContain('kills 14-35 · Leona 1/9/7');
     expect(text).not.toContain('Trade the third grub');
     expect(lines.at(-1)).toBe('-# The full review, with the figures behind every line, is on the Games page.');
+    expect(reviewAsText(review, game, 'MOSS 2', 'https://example.test/League-team-comp/games?match=m1&tab=games').split('\n').at(-1)).toBe(
+      '-# Full review with the figures: <https://example.test/League-team-comp/games?match=m1&tab=games>'
+    );
   });
 
   it('titles a review from before the headline with the summary’s first sentence, and has no scoreline without a game', () => {
