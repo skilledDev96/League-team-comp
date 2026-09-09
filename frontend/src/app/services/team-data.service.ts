@@ -1,7 +1,8 @@
-import { Injectable, WritableSignal, computed, signal } from '@angular/core';
+import { Injectable, WritableSignal, computed, inject, signal } from '@angular/core';
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -42,9 +43,13 @@ import {
   RefreshLog,
   DraftEvent,
   GameReview,
-  PracticeGame
+  PracticeGame,
+  FilmChoice,
+  FilmCommitment,
+  FilmNotes
 } from '../models/team.models';
 import { normalizeEmail } from '../core/access';
+import { AuthService } from './auth.service';
 import { describeGameChange } from '../core/draft-diff';
 import { ClientError } from '../core/error-reporting';
 
@@ -110,6 +115,86 @@ export class TeamDataService {
 
   reviewFor(matchId: string | undefined): GameReview | undefined {
     return matchId ? this.reviewMap().get(matchId) : undefined;
+  }
+
+  // ---- The film room ----------------------------------------------------
+  //
+  // The team's side of a film (9 Sep 2026): what we committed to and the
+  // notes on a moment or a death. One document per game in each collection,
+  // written by editors with a merge so two people picking at once both
+  // land. Firebase-only, like the reviews: local mode keeps them in memory
+  // for the session and nothing else, so they stay out of the seed and the
+  // localStorage copy.
+
+  private readonly auth = inject(AuthService);
+
+  /** The team's pick on the first work-on, one per game. */
+  readonly filmCommitments = signal<FilmCommitment[]>([]);
+  private readonly commitmentMap = computed(() => new Map(this.filmCommitments().map((c) => [c.matchId, c])));
+  /** The team's notes on a film, one document per game. */
+  readonly filmNotes = signal<FilmNotes[]>([]);
+  private readonly notesMap = computed(() => new Map(this.filmNotes().map((n) => [n.matchId, n])));
+
+  commitmentFor(matchId: string | undefined): FilmCommitment | undefined {
+    return matchId ? this.commitmentMap().get(matchId) : undefined;
+  }
+
+  notesFor(matchId: string | undefined): FilmNotes | undefined {
+    return matchId ? this.notesMap().get(matchId) : undefined;
+  }
+
+  /** What the team chose: the majority of the picks, ties to the first option. */
+  teamChoice(c: FilmCommitment): FilmChoice {
+    const counts: Record<FilmChoice, number> = { a: 0, b: 0, commit: 0 };
+    for (const choice of Object.values(c.by)) counts[choice] = (counts[choice] ?? 0) + 1;
+    if (counts.commit > counts.a && counts.commit > counts.b) return 'commit';
+    return counts.b > counts.a ? 'b' : 'a';
+  }
+
+  /**
+   * Record this person's pick on a game's first work-on; the text and options
+   * are kept as they read when the pick was made. When the stored sentence
+   * differs from this one a re-review changed it, so the old picks were on
+   * another question: the document starts over with just this pick.
+   */
+  async commitTo(matchId: string, text: string, options: [string, string] | undefined, choice: FilmChoice): Promise<void> {
+    const key = this.emailKey();
+    const current = this.commitmentFor(matchId);
+    const reset = !!current && current.text !== text;
+    const next: FilmCommitment = {
+      matchId,
+      text,
+      ...(options && { options }),
+      by: { ...(reset ? {} : (current?.by ?? {})), [key]: choice }
+    };
+    this.filmCommitments.set([...this.filmCommitments().filter((c) => c.matchId !== matchId), next]);
+    if (this.mode !== 'firebase') return;
+    const db = getDb();
+    if (!db) return;
+    const ref = doc(db, 'filmCommitments', matchId);
+    if (reset) await setDoc(ref, next);
+    else await setDoc(ref, { matchId, text, ...(options && { options }), by: { [key]: choice } }, { merge: true });
+  }
+
+  /** One line on a moment ("m:<index>") or a death ("d:<minute>:<seat>"); an empty text takes the note down. */
+  async saveFilmNote(matchId: string, key: string, text: string): Promise<void> {
+    const trimmed = text.trim();
+    const by = this.emailKey();
+    const at = new Date().toISOString();
+    const current = this.notesFor(matchId);
+    const notes = { ...(current?.notes ?? {}) };
+    if (trimmed) notes[key] = { text: trimmed, by, at };
+    else delete notes[key];
+    this.filmNotes.set([...this.filmNotes().filter((n) => n.matchId !== matchId), { matchId, notes }]);
+    if (this.mode !== 'firebase') return;
+    const db = getDb();
+    if (!db) return;
+    await setDoc(doc(db, 'filmNotes', matchId), { matchId, notes: { [key]: trimmed ? { text: trimmed, by, at } : deleteField() } }, { merge: true });
+  }
+
+  /** The signed-in email, lowercased, as the key a person's pick or note is stored under. */
+  private emailKey(): string {
+    return normalizeEmail(this.auth.userEmail() ?? getAuthInstance()?.currentUser?.email) || 'unknown';
   }
   /**
    * What each champion is, refreshed weekly by `refreshChampionTraits`.
@@ -279,6 +364,12 @@ export class TeamDataService {
     });
     onSnapshot(collection(db, 'gameReviews'), (snap) => {
       this.gameReviews.set(snap.docs.map((d) => d.data() as GameReview).sort((a, b) => b.reviewedAt.localeCompare(a.reviewedAt)));
+    });
+    onSnapshot(collection(db, 'filmCommitments'), (snap) => {
+      this.filmCommitments.set(snap.docs.map((d) => ({ ...(d.data() as FilmCommitment), matchId: d.id, by: (d.data() as FilmCommitment).by ?? {} })));
+    });
+    onSnapshot(collection(db, 'filmNotes'), (snap) => {
+      this.filmNotes.set(snap.docs.map((d) => ({ ...(d.data() as FilmNotes), matchId: d.id, notes: (d.data() as FilmNotes).notes ?? {} })));
     });
     onSnapshot(collection(db, 'access'), (snap) => {
       const list = snap.docs.map((d) => ({

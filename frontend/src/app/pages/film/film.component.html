@@ -1,0 +1,81 @@
+<section class="film-stage" [class.is-narrow]="narrow()" [class.is-still]="motion.reduced()" aria-label="The film room">
+  <header class="film-bar">
+    <a class="view-btn film-bar-back" [routerLink]="['/games']" [queryParams]="{ match: matchId(), tab: 'games' }">
+      <span class="material-symbols-rounded" aria-hidden="true">arrow_back</span> Back
+    </a>
+    <span class="film-bar-title">
+      <span class="film-bar-kicker">Film room</span>
+      @if (model(); as m) { <span class="film-bar-headline">{{ m.title.headline }}</span> }
+    </span>
+    <button type="button" class="view-btn film-bar-motion" [class.active]="motion.reduced()" [attr.aria-pressed]="motion.reduced()"
+            [appTip]="motion.reduced() ? 'Motion is off on this screen; the film lays itself out still' : 'Turn the motion off on this screen'"
+            (click)="motion.setStill(!motion.reduced())">
+      <span class="material-symbols-rounded" aria-hidden="true">{{ motion.reduced() ? 'motion_photos_off' : 'motion_photos_on' }}</span>
+      {{ motion.reduced() ? 'Still' : 'Motion' }}
+    </button>
+  </header>
+
+  @if (!review()) {
+    <div class="film-empty">
+      <span class="material-symbols-rounded" aria-hidden="true">movie</span>
+      <p>No review for this game yet.</p>
+      @if (auth.editing()) {
+        <a class="view-btn active" [routerLink]="['/games']" [queryParams]="{ match: matchId(), tab: 'games' }">Review it on Games</a>
+      }
+    </div>
+  } @else if (model(); as m) {
+    <ol class="list-clean film-dots" aria-label="Chapters">
+      @for (ch of m.chapters; track ch.kind; let i = $index) {
+        <li>
+          <button type="button" class="film-dot" [class.active]="i === chapter()" [attr.aria-current]="i === chapter() ? 'step' : null"
+                  [attr.aria-label]="ch.title" [appTip]="ch.title" (click)="go(i)"></button>
+        </li>
+      }
+    </ol>
+
+    <div class="film-deck" #deck>
+      @for (ch of m.chapters; track ch.kind; let i = $index) {
+        <section class="film-chapter" [class.is-current]="i === chapter()" [attr.data-index]="i" [attr.aria-label]="ch.title">
+          @if (narrow() || i === chapter()) {
+            @if (i > 0 && timelinePending()) {
+              <div class="film-frame">
+                <p class="film-kicker"><span class="film-kicker-n">{{ i + 1 }} / {{ m.chapters.length }}</span>{{ ch.title }}</p>
+                <p class="film-wait"><span class="btn-spinner" aria-hidden="true"></span> Reading the timeline…</p>
+              </div>
+            } @else {
+              @switch (ch.kind) {
+                @case ('title') {
+                  <app-film-title [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [earlier]="calls()?.['title']"
+                                  (answered)="onAnswered($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                }
+                @case ('one-thing') {
+                  <app-film-one-thing [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()" [ownChoice]="progress()?.choice"
+                                      (chosen)="onChosen($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                }
+                @case ('seat') {
+                  <app-film-seat [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()" [calls]="calls()" [ledger]="ledgerSummary()"
+                                 (answered)="onAnswered($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                }
+                @case ('callback') {
+                  <app-film-callback [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [calls]="calls()"
+                                     (answered)="onAnswered($event)" (tally)="onTally($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                }
+                @case ('card') {
+                  <app-film-card [model]="m" [review]="review()!" [game]="game()" [opponent]="opponent()" [ledger]="ledgerSummary()"
+                                 [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [tally]="tally()" [askAgain]="askAgain()"
+                                 (askAgainChange)="onAskAgain($event)" (watchAgain)="go(0)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                }
+                @default {
+                  <div class="film-frame">
+                    <p class="film-kicker"><span class="film-kicker-n">{{ i + 1 }} / {{ m.chapters.length }}</span>{{ ch.title }}</p>
+                    <p class="film-wait">This chapter comes in the next cut.</p>
+                  </div>
+                }
+              }
+            }
+          }
+        </section>
+      }
+    </div>
+  }
+</section>

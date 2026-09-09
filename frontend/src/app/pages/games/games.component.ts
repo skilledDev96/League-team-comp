@@ -4,7 +4,9 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { effectiveComp } from '../../core/comp-alias';
+import { tallyLine } from '../../core/film-progress';
 import { AuthService } from '../../services/auth.service';
+import { UserPrefsService } from '../../services/user-prefs.service';
 import { ChampionFilterService } from '../../services/champion-filter.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { RefreshService } from '../../services/refresh.service';
@@ -18,6 +20,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
 import { GameCheckComponent } from '../../shared/game-check.component';
 import { GameStoryComponent } from '../../shared/game-story.component';
 import { GameReviewComponent } from '../../shared/game-review.component';
+import { FilmPosterComponent } from '../../shared/film/film-poster.component';
 import { GameGraphsComponent } from '../../shared/game-graphs.component';
 import { GameReviewService } from '../../services/game-review.service';
 import { PlayerEditorService } from '../../services/player-editor.service';
@@ -52,7 +55,7 @@ type Tab = 'games' | 'patterns' | 'reviews';
 import { PlayerMarkComponent } from '../../shared/player-mark.component';
 @Component({
   selector: 'app-games',
-  imports: [PlayerMarkComponent, GameGraphsComponent, DatePipe,
+  imports: [PlayerMarkComponent, GameGraphsComponent, FilmPosterComponent, DatePipe,
     FormsModule,
     RouterLink,
     ChampionFilterComponent,
@@ -70,6 +73,7 @@ export class GamesComponent {
   protected readonly auth = inject(AuthService);
   protected readonly refresh = inject(RefreshService);
   protected readonly filter = inject(ChampionFilterService);
+  private readonly prefs = inject(UserPrefsService);
   private readonly analysis = inject(CompAnalysisService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -382,6 +386,11 @@ export class GamesComponent {
 
   protected analysisOf(row: GameRow) {
     return row.matchId ? this.analysisById().get(row.matchId) : undefined;
+  }
+
+  /** "Continue · 3 of 5" or "Watched · called 4 of 5" under a reviewed row, from this person's film progress; blank before they open it. */
+  protected filmLine(matchId: string): string {
+    return tallyLine(this.prefs.filmProgress(matchId), 5);
   }
 
   protected setGameComp(matchId: string, compId: string): void {

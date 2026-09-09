@@ -124,7 +124,7 @@ test('no console errors while moving around signed in', async ({ page }) => {
     errors.push(`404: ${response.url()}`);
   });
 
-  for (const path of ['./', './comps', './games', './review', './tournaments']) {
+  for (const path of ['./', './comps', './games', './review', './tournaments', './film/none']) {
     await page.goto(path);
     await expect(page.getByRole('link', { name: 'Comps' })).toBeVisible({ timeout: 30_000 });
   }

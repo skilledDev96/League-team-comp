@@ -87,5 +87,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./pages/admin/admin.component').then((m) => m.AdminComponent)
   },
+  {
+    // The film room (9 Sep 2026): one review walked as chapters, opened from
+    // a game row's poster. ?c=<chapter kind or index> picks the chapter.
+    path: 'film/:matchId',
+    canActivate: [viewerGuard],
+    loadComponent: () => import('./pages/film/film.component').then((m) => m.FilmComponent)
+  },
   { path: '**', redirectTo: '' }
 ];

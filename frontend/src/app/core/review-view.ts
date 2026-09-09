@@ -113,14 +113,25 @@ export function ledgerLine(summary: LedgerSummary | undefined): string {
   return bits.join(' · ');
 }
 
+/** What the film room adds to the chat message: its own link, what the team committed to, the team's notes. */
+export interface ReviewTextExtras {
+  /** The film room's URL; printed as the last line, under the Games link. */
+  filmLink?: string;
+  /** The commitment as the team chose it; printed under the scoreline. */
+  commitment?: string;
+  /** Team notes, one line each, after the asks; the caller prefixes each with who wrote it, "(RH) text". */
+  notes?: string[];
+}
+
 /**
  * The review as a short Discord message (9 Sep 2026): a heading, one
  * scoreline in subtext, the first thing next game in full, the first Keep
  * doing, and the ask per player — no evidence, no summary. The death ledger
- * adds one line of subtext when the timeline carries it. The full review
- * with the figures stays on the Games page, and the last line says so.
+ * adds one line of subtext when the timeline carries it, and the commitment
+ * one more. The full review with the figures stays on the Games page, and
+ * the last lines say so, with the film room after it when there is one.
  */
-export function reviewAsText(review: GameReview, game: AnalysisGame | undefined, opponent?: string, link?: string, ledger?: LedgerSummary): string {
+export function reviewAsText(review: GameReview, game: AnalysisGame | undefined, opponent?: string, link?: string, ledger?: LedgerSummary, extras?: ReviewTextExtras): string {
   const title = review.team.headline || firstSentence(review.team.summary) || 'Game review';
   const score = scoreline(game);
   const result = score[0];
@@ -136,6 +147,8 @@ export function reviewAsText(review: GameReview, game: AnalysisGame | undefined,
   if (bits.length) lines.push(`-# ${bits.join(' · ')}`);
   const deaths = ledgerLine(ledger);
   if (deaths) lines.push(`-# ${deaths}`);
+  const committed = extras?.commitment?.trim();
+  if (committed) lines.push(`-# We committed to: ${committed}`);
   const first = review.team.workOn[0];
   if (first) lines.push('', `**🎯 First thing next game**${first.theme ? ` · ${first.theme}` : ''}`, first.text);
   const keep = review.team.keepDoing[0];
@@ -145,7 +158,10 @@ export function reviewAsText(review: GameReview, game: AnalysisGame | undefined,
     lines.push('', '**👥 One ask each**');
     for (const p of asks) lines.push(`• **${p.name}** (${p.champion}) — ${askOf(p.workOn.text)}`);
   }
+  const notes = (extras?.notes ?? []).map((n) => n.trim()).filter(Boolean);
+  if (notes.length) lines.push('', ...notes.map((n) => `-# Note ${n}`));
   // Angle brackets keep Discord from unfurling the link into an embed.
   lines.push('', link ? `-# Full review with the figures: <${link}>` : '-# The full review, with the figures behind every line, is on the Games page.');
+  if (extras?.filmLink) lines.push(`-# Watch the film room: <${extras.filmLink}>`);
   return lines.join('\n');
 }

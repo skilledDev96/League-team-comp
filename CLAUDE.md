@@ -358,10 +358,34 @@ filter rather than none, so it can never become unpickable.
    `AnalysisGame`, evidence split into figure chips, a stat line per
    player, the ledger's words (`COULD_LABELS`, `HOW_LABELS`,
    `ZONE_LABELS`), and `reviewAsText` behind the Copy for Discord pill (one
-   subtext line on the deaths when the ledger is there). The panel shows the
-   moments under the scoreline, each player's `more` behind a fold on their
-   row, and the ledger as a filterable table read off the same timeline the
-   drawer reads (a version-1 timeline says so; Re-review fetches a new one).
+   subtext line on the deaths when the ledger is there, and the film link,
+   the commitment and the notes as extras). **The panel is short** (9 Sep
+   2026, evening): the poster strip with the Open the film room pill, the
+   scoreline, the moments as one strip of minute pills (tap for the
+   sentence), First thing next game and Keep doing as one line each
+   (`askOf`), one ask per player, the team's commitment line. Everything
+   longer lives in the film room.
+   **The film room** (`/film/:matchId`, `pages/film/`, 9 Sep 2026) walks a
+   review as chapters the reader calls before they are revealed: the title
+   card asks what decided the game before the headline lands (only when
+   `workOn[0].theme` exists), The one thing splits the coach's "either X or
+   Y" into two cards the team commits to (`filmCommitments/{matchId}`,
+   editors write, majority wins, ties to A, a changed sentence resets the
+   picks), Your seat flips a card per player (the one 3D flip in the film),
+   Call it back asks five client-built questions (`core/film-build.ts`,
+   seeded by `core/seed.ts` so a game always asks the same way), and The
+   card closes with the asks, the tally ring and "Ask me again before the
+   next game" (`userPrefs.film`, `core/film-progress.ts`: +1, +3, +7 days;
+   the tours reset keeps `film`). The model is `core/film-model.ts`, built
+   once by `buildFilm`; chapter components read it and the live services
+   (commitment, notes at `filmNotes/{matchId}` keyed `m:<i>`/`d:<minute>:<seat>`/`w:<i>`,
+   progress) and nothing else. Motion goes through `MotionService` (OS
+   setting or the film's Motion pill; `play` resolves at once when still)
+   and CSS keyframes gated on `.is-current`. Words like "drill", "quiz" and
+   "score" never appear on screen. Slice 2 adds the generation takeover, the
+   tape and the Rift map (`core/rift-zones.ts`: pips inside zone regions,
+   consequences as badges, lanes never mirrored); slice 3 three film stocks,
+   schema v4 lessons and the Before you play card.
    **Post-game graphs** (`shared/game-graphs.component.ts`) sit behind a
    Table | Graphs segment on every Games row's scoreboard, drawn from the
    row's `RowStats` so replays and Riot games get the same view; a figure a

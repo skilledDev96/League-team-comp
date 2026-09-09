@@ -104,6 +104,27 @@ describe('reviewAsText', () => {
     expect(reviewAsText(review, game, 'MOSS 2').split('\n')[2]).toBe('');
   });
 
+  it('ends on the film room link, under the Games link, when the film has one', () => {
+    const lines = reviewAsText(review, game, 'MOSS 2', 'https://example.test/League-team-comp/games?match=m1&tab=games', undefined, { filmLink: 'https://example.test/League-team-comp/film/m1' }).split('\n');
+    expect(lines.at(-2)).toBe('-# Full review with the figures: <https://example.test/League-team-comp/games?match=m1&tab=games>');
+    expect(lines.at(-1)).toBe('-# Watch the film room: <https://example.test/League-team-comp/film/m1>');
+    expect(reviewAsText(review, game, 'MOSS 2', undefined, undefined, {}).split('\n').at(-1)).toBe('-# The full review, with the figures behind every line, is on the Games page.');
+  });
+
+  it('prints the commitment under the scoreline lines, and nothing for a blank one', () => {
+    const lines = reviewAsText(review, game, 'MOSS 2', undefined, { deaths: 3, ganks: 0, dark: 2, inReach: 0, alone: 0 }, { commitment: 'Commit only when Jinx is in range' }).split('\n');
+    expect(lines[2]).toBe('-# 💀 3 deaths · 2 with no ward nearby');
+    expect(lines[3]).toBe('-# We committed to: Commit only when Jinx is in range');
+    expect(lines[4]).toBe('');
+    expect(reviewAsText(review, game, 'MOSS 2', undefined, undefined, { commitment: '  ' })).not.toContain('We committed to');
+  });
+
+  it('adds one Note line per team note after the asks, with the initials the caller put in front, skipping empty ones', () => {
+    const text = reviewAsText(review, game, 'MOSS 2', undefined, undefined, { notes: ['(RH) Bot lane backed at 13 with dragon up', '', '(GO) Ask for the tempo call earlier'] });
+    expect(text).toContain('• **Go10x** (Trundle) — Path safer.\n\n-# Note (RH) Bot lane backed at 13 with dragon up\n-# Note (GO) Ask for the tempo call earlier\n\n-# The full review');
+    expect(reviewAsText(review, game, 'MOSS 2', undefined, undefined, { notes: [] })).not.toContain('-# Note');
+  });
+
   it('titles a review from before the headline with the summary’s first sentence, and has no scoreline without a game', () => {
     const old = { ...review, team: { ...review.team, headline: undefined } } as GameReview;
     const lines = reviewAsText(old, undefined).split('\n');

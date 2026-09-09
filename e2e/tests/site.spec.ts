@@ -53,11 +53,15 @@ test('the page loads without console errors', async ({ page }) => {
     errors.push(`404: ${response.url()}`);
   });
 
-  await page.goto('./');
-  // Not networkidle: Firestore holds a long-lived connection open, so the page
-  // is never idle. Wait for the app to have rendered instead.
-  await expect(page.getByText(/Team Login/i)).toBeVisible({ timeout: 30_000 });
-  await page.waitForTimeout(2_000);
+  // The film room's route resolves for any match id and, signed out, lands on
+  // the login like every other deep link; a bad id must not throw on the way.
+  for (const path of ['./', './film/none']) {
+    await page.goto(path);
+    // Not networkidle: Firestore holds a long-lived connection open, so the page
+    // is never idle. Wait for the app to have rendered instead.
+    await expect(page.getByText(/Team Login/i)).toBeVisible({ timeout: 30_000 });
+    await page.waitForTimeout(2_000);
+  }
 
   expect(errors, `console errors:\n${errors.join('\n')}`).toEqual([]);
 });

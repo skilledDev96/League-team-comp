@@ -481,6 +481,64 @@ export interface UserPrefs {
   tourSeen?: boolean;
   /** Tour id → the version seen. Bumping a tour's version shows it again. */
   toursSeen?: Record<string, number>;
+  /** The film room (9 Sep 2026): which seat is mine, and where I am in each film. */
+  film?: FilmPrefs;
+}
+
+// ---- The film room ----------------------------------------------------------
+//
+// A review walked as chapters the team calls before they are revealed
+// (9 Sep 2026). Progress is per person at `userPrefs/{email}.film`; the
+// commitment and the notes are the team's, one document per game, written
+// by editors.
+
+export interface FilmPrefs {
+  /** The seat "Your seat" opens on. */
+  seat?: Role;
+  /** By match id. */
+  films?: Record<string, FilmProgress>;
+}
+
+export interface FilmProgress {
+  /** ISO time the card was reached. */
+  done?: string;
+  /** Call it back: how many called right, of how many. */
+  tally?: { called: number; of: number };
+  /** Every call made in the film, by key ("title", "cb:firstTower", …): the option index chosen. */
+  calls?: Record<string, number>;
+  /** A viewer's own pick when they cannot write the team's commitment. */
+  choice?: FilmChoice;
+  /** ISO time the "Before you play" card should ask again; absent when switched off or spent. */
+  nextAskAt?: string;
+  /** How many times it has asked: 0, 1, 2 → +1, +3, +7 days. */
+  asked?: number;
+}
+
+export type FilmChoice = 'a' | 'b' | 'commit';
+
+/** The team's pick on the first work-on, at `filmCommitments/{matchId}`. */
+export interface FilmCommitment {
+  matchId: string;
+  /** The first work-on's text, as it read when the pick was made. */
+  text: string;
+  /** The two choices the sentence offered, when it did. */
+  options?: [string, string];
+  /** Email key → what that person picked. The team's choice is the majority, ties to 'a'. */
+  by: Record<string, FilmChoice>;
+}
+
+export interface FilmNote {
+  text: string;
+  /** Email key of who wrote it. */
+  by: string;
+  /** ISO time. */
+  at: string;
+}
+
+/** The team's notes on a film, at `filmNotes/{matchId}`, keyed "m:<moment index>", "d:<minute>:<seat>" or "w:<work-on index>". */
+export interface FilmNotes {
+  matchId: string;
+  notes: Record<string, FilmNote>;
 }
 
 export interface Settings {
@@ -629,6 +687,8 @@ export interface RefreshLog {
 // listens. No email, no puuid, nothing about a person on the other team.
 
 export type ReviewTheme = 'draft' | 'lanes' | 'fights' | 'objectives' | 'vision' | 'tempo' | 'macro';
+/** Every theme, in the order the api lists them; mirrors `REVIEW_THEMES` in `api/src/game-review.ts`. */
+export const REVIEW_THEMES: readonly ReviewTheme[] = ['draft', 'lanes', 'fights', 'objectives', 'vision', 'tempo', 'macro'];
 
 export interface ReviewPoint {
   text: string;

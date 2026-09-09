@@ -55,8 +55,8 @@
 @if (tab() === 'patterns') {
   <app-review [embedded]="true" />
 } @else if (tab() === 'reviews') {
-  <!-- Every written review, newest first: the summary and the comp verdict,
-       with the row it belongs to one click away. -->
+  <!-- Every written review, newest first: its poster into the film room and
+       the comp verdict, with the row it belongs to one click away. -->
   <section class="card games-filters" aria-label="Review filters">
     <label class="field compact-field"><span>Comp</span>
       <select name="reviewComp" [value]="reviewComp()" (change)="reviewComp.set($any($event.target).value)">
@@ -84,11 +84,7 @@
               {{ r.comp?.name || r.review.compName || 'No comp' }}: {{ r.review.team.compVerdict }}
             </span>
           </div>
-          @if (r.review.team.headline) { <p class="review-card-headline">{{ r.review.team.headline }}</p> }
-          <p class="review-card-summary">{{ r.review.team.summary }}</p>
-          @if (r.review.team.workOn.length) {
-            <p class="review-card-workon"><b>Work on:</b> {{ r.review.team.workOn[0].text }}</p>
-          }
+          <app-film-poster [review]="r.review" [game]="r.game" [opponent]="r.opponent" size="card" />
           <div class="games-row-actions">
             <button type="button" class="view-btn" (click)="openMatch(r.review.matchId)">Open the game</button>
             <small class="muted">{{ r.review.reviewedAt | date: 'd MMM, HH:mm' }}{{ r.review.tier === 'endOfGame' ? ' · totals only' : '' }}</small>
@@ -427,6 +423,13 @@
                   }
                 </div>
                 <app-game-review [review]="data.reviewFor(g.matchId)" [game]="analysisOf(g)" [opponent]="g.opponent" [open]="g.id === focus()" />
+                @if (data.reviewFor(g.matchId); as rv) {
+                  <div class="games-film-line">
+                    <span class="material-symbols-rounded" aria-hidden="true">movie</span>
+                    @if (filmLine(rv.matchId); as line) { <span class="games-film-tally">{{ line }}</span> }
+                    <a class="view-btn" [routerLink]="['/film', g.matchId]" appTip="The review as a film: call the game before the reveal, commit to one thing, ask each seat">Film room</a>
+                  </div>
+                }
                 <app-game-story data-tour="games-story" [game]="analysisOf(g)" [expect]="expectFor(g)" />
                 <app-game-check [game]="analysisOf(g)" />
               }
