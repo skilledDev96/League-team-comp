@@ -8,8 +8,7 @@ import {
   splitList,
   toFillInDraft,
   toPlayerDraft,
-  toTournamentDraft
-} from './admin-drafts';
+  toTournamentDraft, mobalyticsSlugFor } from './admin-drafts';
 
 const player: Player = {
   id: 'p1',
@@ -178,5 +177,14 @@ describe('accessRenamePlan', () => {
 
   it('never deletes when the original was not stored', () => {
     expect(accessRenamePlan({ email: 'z@x.com', role: 'admin', active: true, originalEmail: 'ghost@x.com' }, existing).deleteEmail).toBeNull();
+  });
+});
+
+describe('mobalyticsSlugFor', () => {
+  it('slugs the name and lowercases the tag, with or without a space before the hash', () => {
+    expect(mobalyticsSlugFor('ShadowKeeper #2247')).toBe('shadowkeeper-2247');
+    expect(mobalyticsSlugFor('Shadow Keeper#EUW')).toBe('shadow-keeper-euw');
+    expect(mobalyticsSlugFor('Solo')).toBe('solo');
+    expect(mobalyticsSlugFor('')).toBe('');
   });
 });

@@ -14319,3 +14319,6 @@ button .player-mark { vertical-align: -0.3rem; }
 .game-review-line.is-warn > b { color: var(--warn); }
 .game-review-foot { margin-top: 0.7rem; }
 .review-card-headline { margin: 0.2rem 0 0.1rem; font-size: 1.05rem; font-weight: 800; color: var(--text-0); }
+
+.fillin-row .avatar { width: 2.4rem; height: 2.4rem; flex: none; }
+.modal-card .title-with-icon .avatar { width: 2.2rem; height: 2.2rem; margin-right: 0.5rem; }

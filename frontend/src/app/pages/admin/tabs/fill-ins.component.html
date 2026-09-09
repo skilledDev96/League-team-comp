@@ -1,13 +1,15 @@
 @if (ctx.openFillIn(); as draft) {
   <div class="modal-backdrop" (click)="ctx.closeFillIn()">
     <div class="modal-card is-wide" role="dialog" aria-modal="true" [attr.aria-label]="draft.summoner || 'New fill-in'" (click)="$event.stopPropagation()">
-      <h2 class="title-with-icon"><span class="section-icon">FI</span>{{ draft.summoner || 'New fill-in' }}</h2>
+      <h2 class="title-with-icon">@if (draft.icon) { <app-player-avatar [name]="draft.summoner" [icon]="draft.icon" /> } @else { <span class="section-icon">FI</span> }{{ draft.summoner || 'New fill-in' }}</h2>
       <p class="muted">A stand-in for when the roster is short. Saves as you type, for everyone.</p>
       <label class="field"><span>Summoner</span>
         <input type="text" [ngModel]="draft.summoner" (ngModelChange)="draft.summoner = $event; ctx.touchFillIn(draft)" name="fname" placeholder="Name#TAG" /></label>
       <div class="grid two">
         <label class="field"><span>Status</span>
-          <input type="text" [ngModel]="draft.status" (ngModelChange)="draft.status = $event; ctx.touchFillIn(draft)" name="fstatus" placeholder="provisional, confirmed…" /></label>
+          <select [ngModel]="draft.status || 'provisional'" (ngModelChange)="draft.status = $event; ctx.touchFillIn(draft)" name="fstatus">
+            @for (st of ctx.fillInStatusOptions(draft); track st) { <option [value]="st">{{ st }}</option> }
+          </select></label>
         <label class="field"><span>Preferred roles (comma separated)</span>
           <input type="text" [ngModel]="draft.preferredRoles" (ngModelChange)="draft.preferredRoles = $event; ctx.touchFillIn(draft)" name="froles" placeholder="Top, Jungle" /></label>
       </div>
@@ -16,8 +18,8 @@
       <div class="grid two">
         <label class="field"><span>Region</span>
           <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event; ctx.touchFillIn(draft)" name="freg" /></label>
-        <label class="field"><span>Mobalytics slug</span>
-          <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event; ctx.touchFillIn(draft)" name="fmoba" /></label>
+        <label class="field"><span>Mobalytics slug <small class="muted">from Name#TAG when blank</small></span>
+          <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event; ctx.touchFillIn(draft)" name="fmoba" placeholder="name-tag" /></label>
       </div>
       <label class="field"><span>Icon URL <small class="muted">filled from Riot</small></span>
         <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event; ctx.touchFillIn(draft)" name="ficon" /></label>
@@ -47,6 +49,7 @@
 <div class="grid two">
   @for (draft of ctx.fillInDrafts(); track draft) {
     <article class="card fillin-row" [id]="'fillin-draft-' + $index">
+      <app-player-avatar [name]="draft.summoner" [icon]="draft.icon" [role]="draft.preferredRoles.split(',')[0].trim()" />
       <span class="fillin-name">{{ draft.summoner || 'New fill-in' }}</span>
       <span class="tag">{{ draft.status || 'provisional' }}</span>
       @if (draft.preferredRoles) { <span class="fillin-meta">{{ draft.preferredRoles }}</span> }

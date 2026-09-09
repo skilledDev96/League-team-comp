@@ -23,7 +23,7 @@ import {
   toFillInDraft,
   toPlayerDraft,
   TournamentDraft,
-  toTournamentDraft, accessRenamePlan } from './admin-drafts';
+  toTournamentDraft, accessRenamePlan, FILL_IN_STATUSES, mobalyticsSlugFor } from './admin-drafts';
 
 /**
  * Everything the admin tabs share: the working drafts, the CRUD that saves
@@ -392,6 +392,13 @@ export class AdminContextService {
 
   /** The fill-in open in the dialog. */
   readonly openFillIn = signal<FillInDraft | null>(null);
+  readonly fillInStatuses = FILL_IN_STATUSES;
+
+  /** The status select's options: the known ones, plus whatever an older record already says. */
+  fillInStatusOptions(draft: FillInDraft): string[] {
+    const current = draft.status.trim();
+    return current && !(FILL_IN_STATUSES as readonly string[]).includes(current) ? [current, ...FILL_IN_STATUSES] : [...FILL_IN_STATUSES];
+  }
 
   addFillIn(): void {
     this.openTab('fillins');
@@ -450,6 +457,7 @@ export class AdminContextService {
   }
 
   touchFillIn(draft: FillInDraft): void {
+    if (!draft.mobalyticsSlug.trim()) draft.mobalyticsSlug = mobalyticsSlugFor(draft.summoner);
     this.queueSave(draft, () => this.saveFillIn(draft, true));
   }
 

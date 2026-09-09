@@ -94,6 +94,17 @@ export function normalizeEmailValue(value: string): string {
   return value.trim().toLowerCase();
 }
 
+/** What a fill-in's status can be; the select offers these and keeps an older free-text value. */
+export const FILL_IN_STATUSES = ['provisional', 'available', 'confirmed', 'unavailable'] as const;
+
+/** The Mobalytics slug for a summoner typed as Name#TAG (a space before the # is fine). */
+export function mobalyticsSlugFor(summoner: string): string {
+  const [name, tag] = summoner.split('#').map((part) => part.trim());
+  const base = slugifyName(name ?? '');
+  if (!base) return '';
+  return tag ? `${base}-${tag.toLowerCase()}` : base;
+}
+
 export function slugifyName(value: string): string {
   return value
     .trim()
