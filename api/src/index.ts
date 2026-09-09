@@ -582,14 +582,15 @@ interface RiotMatch {
  * and every id already cached is free.
  *
  * A hundred is Riot's own ceiling for a single ids request — 'Valid values: 0
- * to 100' — so the window is paged: three calls reach three hundred games,
- * which for an active player is a season rather than a fortnight. What paging
+ * to 100' — so the window is paged: five calls reach five hundred games
+ * (three until 9 Sep 2026; the team asked for a longer view), which for an
+ * active player is well over a season. What paging
  * does *not* change is the Riot budget: misses are capped separately by
  * MAX_ENRICH_FETCHES per run, so a wider window costs Firestore reads and
  * nothing else — and each scout reads the next batch of what is still unread.
  */
 const ENRICH_SAMPLE_SIZE = 100;
-const ENRICH_SAMPLE_PAGES = 3;
+const ENRICH_SAMPLE_PAGES = 5;
 
 /**
  * Read many cache entries at once.
