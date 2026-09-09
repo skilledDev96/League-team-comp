@@ -256,14 +256,20 @@ describe('the tape', () => {
     expect(tape.goldDiff).not.toBe(GOLD_DIFF);
   });
 
-  it('turns on the worst deficit on a loss, the biggest lead on a win, the earliest lane flip on a swing', () => {
-    expect(tape.turn).toEqual({ minute: 30, why: 'The worst of it: 9k down around minute 30' });
+  it('turns where the gold changed hands for good, the earliest lane flip on a swing, and nowhere on a flat game', () => {
+    // The fixture leads by 400 until minute 5 and never recovers: a loss that was behind for good after five.
+    expect(tape.turn).toEqual({ minute: 5, why: 'Behind for good after minute 5, from 400 up' });
+    // The same curve as a win never gets back in front, so it has no turn.
     const won = buildFilm(review, { ...game, win: true }, timeline, previous).tape!;
-    expect(won.turn).toEqual({ minute: 4, why: 'The best of it: 400 up around minute 4' });
+    expect(won.turn).toBeNull();
+    const comeback = buildFilm(review, { ...game, win: true }, { ...timeline, goldDiff: [0, -500, -1000, -1500, -1200, -600, -100, 300, 800, 1500] } as MatchTimeline, previous).tape!;
+    expect(comeback.turn).toEqual({ minute: 6, why: 'In front for good after minute 6, from 1.5k down' });
+    const stomp = buildFilm(review, { ...game, win: true }, { ...timeline, goldDiff: [0, 200, 600, 1100, 1500] } as MatchTimeline, previous).tape!;
+    expect(stomp.turn).toEqual({ minute: 3, why: 'Never behind; it broke open around minute 3, up 1.1k' });
     const swung = buildFilm(review, game, { ...timeline, facts: { ...timeline.facts!, curve: { shape: 'swung' } } } as MatchTimeline, previous).tape!;
     expect(swung.turn?.minute).toBe(11);
     expect(swung.turn?.why).toContain('ADC');
-    const flat = buildFilm(review, game, { ...timeline, curve: { ...timeline.curve, biggestDeficit: { gold: 0, minute: 0 } } } as MatchTimeline, previous).tape!;
+    const flat = buildFilm(review, game, { ...timeline, goldDiff: [0, 100, -100, 50] } as MatchTimeline, previous).tape!;
     expect(flat.turn).toBeNull();
   });
 
@@ -495,15 +501,15 @@ describe('the map', () => {
     expect(map.theirs.map((t) => t.minute)).toEqual([6, 20, 25]);
     expect(map.theirs[0]).toMatchObject({ x: tape.events.find((e) => e.kind === 'theirDeath')!.x });
     expect(map.clusters).toHaveLength(1);
-    expect(map.clusters[0]).toMatchObject({ ours: 3, theirs: 1, r: 10, line: 'Minutes 19 to 21: three of ours fell in the river for one of theirs.' });
+    expect(map.clusters[0]).toMatchObject({ ours: 3, theirs: 1, r: 6.2, line: 'Minutes 19 to 21: three of ours fell in the river for one of theirs.' });
     expect(regionFor('river', 'blue').inside(map.clusters[0].x, map.clusters[0].y)).toBe(true);
     expect(map.summary).toEqual({ deaths: 6, ganks: 3, dark: 3, inReach: 1, alone: 1 });
     expect(map.darkCall).toEqual({ answer: 3, max: 6 });
   });
 
-  it('caps a cluster blob at twelve', () => {
+  it('caps a cluster blob at seven', () => {
     const big = { ...timeline, facts: { ...timeline.facts!, deathClusters: [{ fromMinute: 30, toMinute: 32, zone: 'mid', ours: 5, theirs: 5, seats: ['Top'], line: 'Ten.' }] } } as MatchTimeline;
-    expect(buildFilm(review, game, big, previous).map!.clusters[0].r).toBe(12);
+    expect(buildFilm(review, game, big, previous).map!.clusters[0].r).toBe(7);
   });
 
   it('is the same map and tape every time', () => {

@@ -145,8 +145,11 @@ export class FilmComponent {
     effect(() => {
       const m = this.model();
       if (!m || this.placed) return;
+      // A chapter the timeline brings (the tape, the map) is not in the list until the timeline lands; wait for it.
+      const kind = this.wanted;
+      if (kind && !/^\d+$/.test(kind) && !m.chapters.some((c) => c.kind === kind) && this.timelinePending()) return;
       this.placed = true;
-      const i = this.resolveChapter(m, this.wanted);
+      const i = this.resolveChapter(m, kind);
       untracked(() => void this.go(i));
     });
 

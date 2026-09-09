@@ -14826,7 +14826,7 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 .rift-map-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; user-select: none; pointer-events: none; filter: saturate(0.85) brightness(0.75); }
 .rift-map.is-dim .rift-map-img { filter: saturate(0.6) brightness(0.45); }
 .rift-map-overlay { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-.rift-cluster { fill: color-mix(in srgb, var(--warn) 18%, transparent); stroke: color-mix(in srgb, var(--warn) 45%, transparent); stroke-width: 0.35; pointer-events: fill; }
+.rift-cluster { fill: color-mix(in srgb, var(--warn) 10%, transparent); stroke: color-mix(in srgb, var(--warn) 32%, transparent); stroke-width: 0.3; pointer-events: fill; }
 .rift-ring { fill: none; stroke: var(--accent); stroke-width: 0.55; stroke-dasharray: 100; stroke-dashoffset: 0; }
 .rift-ring.is-outer { stroke: color-mix(in srgb, var(--accent) 60%, transparent); stroke-width: 0.4; stroke-dasharray: 6 4; }
 .rift-tokens { position: absolute; inset: 0; z-index: 2; }

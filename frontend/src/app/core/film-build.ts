@@ -351,6 +351,18 @@ function withConsequence(m: ReviewMoment, goldDiff: number[]): FilmMoment {
 }
 
 /** Where it turned: the earliest lane flip on a swing, the worst deficit on a loss, the biggest lead on a win. */
+/** A lead or deficit this large is a game that has broken open. */
+const TURN_EDGE_GOLD = 1000;
+
+/**
+ * Where it turned: the minute the gold changed hands for good, read off the
+ * curve. A win that was ever behind turned at the last minute it was still
+ * behind or level; a win that never trailed turned when the lead first
+ * passed a thousand. A loss reads the same way from the other side. A game
+ * that swung both ways turned at the first lane that changed hands. The
+ * biggest lead was tried first (9 Sep 2026) and on a won game it is nearly
+ * always the last minute, which tells nobody anything.
+ */
 function turnOf(timeline: MatchTimeline, win: boolean): FilmTape['turn'] {
   const facts = timeline.facts;
   if (facts?.curve.shape === 'swung') {
@@ -360,14 +372,26 @@ function turnOf(timeline: MatchTimeline, win: boolean): FilmTape['turn'] {
     const first = flips[0];
     if (first) return { minute: first.flippedAt!, why: `It swung both ways; ${first.seat} changed hands first, around minute ${first.flippedAt}` };
   }
-  if (!win) {
-    const worst = timeline.curve.biggestDeficit;
-    if (worst && worst.gold < 0) return { minute: worst.minute, why: `The worst of it: ${k(worst.gold)} down around minute ${worst.minute}` };
-    return null;
+  const gold = timeline.goldDiff ?? [];
+  if (gold.length < 2) return null;
+  // Read from our side: a loss is a win for them.
+  const ours = win ? gold : gold.map((g) => -g);
+  const lowest = Math.min(...ours);
+  if (lowest <= 0) {
+    // Ever behind or level: the last minute it still was.
+    let last = -1;
+    for (let m = 0; m < ours.length; m += 1) if (ours[m] <= 0) last = m;
+    if (last < 0 || last >= ours.length - 1) return null;
+    const from = k(Math.min(...ours.slice(0, last + 1)));
+    return win
+      ? { minute: last, why: `In front for good after minute ${last}, from ${from} down` }
+      : { minute: last, why: `Behind for good after minute ${last}, from ${from} up` };
   }
-  const best = timeline.curve.biggestLead;
-  if (best && best.gold > 0) return { minute: best.minute, why: `The best of it: ${k(best.gold)} up around minute ${best.minute}` };
-  return null;
+  const edge = ours.findIndex((g) => g >= TURN_EDGE_GOLD);
+  if (edge < 0) return null;
+  return win
+    ? { minute: edge, why: `Never behind; it broke open around minute ${edge}, up ${k(ours[edge])}` }
+    : { minute: edge, why: `Never in front; it broke open around minute ${edge}, down ${k(ours[edge])}` };
 }
 
 /** Who sits where, for a token's label and icon: the review's players, or the analysed game's before a review exists. */
@@ -621,7 +645,8 @@ function buildMap(review: GameReview, timeline: MatchTimeline, ledger: DeathVerd
 
   const clusters = (facts.deathClusters ?? []).map((c) => {
     const spot = clusterSpot(c.zone, ourSide, timeline.matchId);
-    return { x: spot.x, y: spot.y, r: Math.min(12, 4 + 1.5 * (c.ours + c.theirs)), ours: c.ours, theirs: c.theirs, line: c.line };
+    // A blob says "a fight happened here", not how big; a 53-death game must not become one red map.
+    return { x: spot.x, y: spot.y, r: Math.min(7, 3 + 0.8 * (c.ours + c.theirs)), ours: c.ours, theirs: c.theirs, line: c.line };
   });
 
   const summary = facts.ledgerSummary ?? summarise(ledger);
