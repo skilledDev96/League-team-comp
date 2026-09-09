@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { PlayerEditorService } from '../../services/player-editor.service';
-import { Player, Role, ROLES } from '../../models/team.models';
+import { FillIn, Player, Role, ROLES } from '../../models/team.models';
 import { UiService } from '../../services/ui.service';
 import { ChampionChipComponent } from '../../shared/champion-chip.component';
 import { ExternalProfilesComponent } from '../../shared/external-profiles.component';
@@ -32,6 +32,29 @@ export class OverviewComponent {
 
   /** The five the draft room follows, Top to Support. */
   protected readonly starters = computed(() => this.bySeat(this.data.players().filter((p) => !p.sub)));
+  /** A fill-in in a player's clothes, so the same card renders them; the seat is their first preferred role. */
+  protected readonly fillInCards = computed<(Player & { fillIn: FillIn })[]>(() =>
+    this.data.fillIns().map((f) => {
+      const [first, ...rest] = f.preferredRoles.filter((r): r is Role => (ROLES as readonly string[]).includes(r));
+      return {
+        id: `fill-${f.id}`,
+        name: f.summoner,
+        role: first ?? 'Top',
+        secondaryRoles: rest.length ? rest : undefined,
+        icon: f.icon,
+        playstyle: f.riot?.playstyle,
+        strengths: f.riot?.strengths ?? [],
+        weaknesses: f.riot?.weaknesses ?? [],
+        top3: f.riot?.top3 ?? [],
+        bans: [],
+        queueStats: f.riot?.queueStats,
+        profile: f.profile,
+        order: f.order,
+        fillIn: f
+      };
+    })
+  );
+
   /** The bench, in the same order. */
   protected readonly subs = computed(() => this.bySeat(this.data.players().filter((p) => !!p.sub)));
 

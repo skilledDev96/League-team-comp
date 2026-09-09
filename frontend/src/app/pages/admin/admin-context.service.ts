@@ -430,6 +430,14 @@ export class AdminContextService {
     try {
       const got = await this.enrichment.enrichPlayer({ summonerName: name, riotTag: tag || undefined, region: draft.region.trim() || 'euw' });
       if (got.iconUrl) draft.icon = got.iconUrl;
+      draft.riot = {
+        playstyle: got.playstyle,
+        strengths: got.strengths,
+        weaknesses: got.weaknesses,
+        top3: got.top3,
+        queueStats: got.queueStats,
+        refreshedAt: got.generatedAt
+      };
       if (got.positions?.length && !draft.preferredRoles.trim()) {
         draft.preferredRoles = got.positions.slice(0, 2).map((p) => p.role).join(', ');
       }
@@ -482,7 +490,8 @@ export class AdminContextService {
       preferredRoles: splitList(draft.preferredRoles),
       note: draft.note.trim() || undefined,
       icon: draft.icon.trim() || undefined,
-      profile: { region: draft.region.trim() || 'euw', mobalyticsSlug: draft.mobalyticsSlug.trim() }
+      profile: { region: draft.region.trim() || 'euw', mobalyticsSlug: draft.mobalyticsSlug.trim() },
+      riot: draft.riot
     };
     if (!base.summoner) {
       if (!quiet) this.flash('Summoner name is required.');

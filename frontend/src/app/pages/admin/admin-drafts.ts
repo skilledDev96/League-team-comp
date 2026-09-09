@@ -1,4 +1,4 @@
-import { AccessRole, CompPicks, FillIn, Player, Role, Tournament } from '../../models/team.models';
+import { AccessRole, CompPicks, FillIn, Player, Role, Tournament, FillInRiot } from '../../models/team.models';
 
 /**
  * The shapes the admin editors work on, and the conversions between them and
@@ -40,6 +40,8 @@ export interface FillInDraft {
   icon: string;
   region: string;
   mobalyticsSlug: string;
+  /** Kept as read from Riot; the form does not edit it. */
+  riot?: FillInRiot;
 }
 
 export interface CompDraft {
@@ -166,7 +168,8 @@ export function toFillInDraft(f: FillIn): FillInDraft {
     note: f.note ?? '',
     icon: f.icon ?? '',
     region: f.profile?.region ?? 'euw',
-    mobalyticsSlug: f.profile?.mobalyticsSlug ?? ''
+    mobalyticsSlug: f.profile?.mobalyticsSlug ?? '',
+    riot: f.riot
   };
 }
 

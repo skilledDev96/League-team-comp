@@ -36,19 +36,24 @@
 
 <!-- One card template, three groups: the A team in seat order, the bench,
      then the fill-ins (9 Sep 2026). The A team is everyone without the bench flag. -->
-<ng-template #playerCard let-player>
+<ng-template #playerCard let-player let-fill="fill">
       <article data-tour="roster-card" class="card clickable-card" [class.expanded]="isExpanded(player.id)">
         <div class="title-row">
           <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
           <h2>{{ player.role }} - {{ player.name }}</h2>
-          @if (player.sub) { <span class="sub-badge" title="On the bench: the draft room follows the starter in this seat.">Sub</span> }
-          @if (auth.editing()) {
+          @if (fill) { <span class="sub-badge" [appTip]="'A fill-in outside the roster, ' + (fill.status || 'provisional')">Fill-in · {{ fill.status || 'provisional' }}</span> }
+          @else if (player.sub) { <span class="sub-badge" title="On the bench: the draft room follows the starter in this seat.">Sub</span> }
+          @if (auth.editing() && fill) {
+            <a class="view-btn roster-edit-open title-row-edit" [routerLink]="['/admin']" [queryParams]="{ tab: 'fillins' }" appTip="Fill-ins are edited on Admin › Fill-ins, where Fill from Riot lives">
+              <span class="material-symbols-rounded" aria-hidden="true">edit</span> Edit
+            </a>
+          } @else if (auth.editing()) {
             <button type="button" class="view-btn roster-edit-open title-row-edit" (click)="editor.open(player.id)" appTip="Name, tag, pool, bans, playstyle and links, in a drawer">
               <span class="material-symbols-rounded" aria-hidden="true">edit</span> More
             </button>
           }
         </div>
-        @if (auth.editing()) {
+        @if (auth.editing() && !fill) {
           <!-- A solid row above the card's link overlay: these are controls, not a way in. -->
           <div class="roster-edit">
             <span class="roster-edit-field">
@@ -83,7 +88,7 @@
         }
         <p class="meta-line meta-playstyle">
           <span class="meta-label">Playstyle</span>
-          <span class="meta-value">{{ player.playstyle || 'Unknown' }}</span>
+          <span class="meta-value">{{ player.playstyle || (fill ? 'Not read from Riot yet' : 'Unknown') }}</span>
           <span class="playstyle-icon material-symbols-rounded trailing" aria-hidden="true">{{ ui.playstyleIcon(player.playstyle) }}</span>
         </p>
         @if (player.top3.length) {
@@ -94,14 +99,20 @@
           </p>
         }
         <div class="roster-card-foot">
-          <a class="view-btn roster-profile-chip" [routerLink]="['/player', player.id]">Profile <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+          @if (fill) {
+            <a class="view-btn roster-profile-chip" [href]="ui.summonerSearchUrl(player.name, player.profile)" target="_blank" rel="noopener noreferrer">op.gg <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
+          } @else {
+            <a class="view-btn roster-profile-chip" [routerLink]="['/player', player.id]">Profile <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
+          }
           <button type="button" class="view-btn role-toggle" (click)="toggle(player.id)">
             {{ isExpanded(player.id) ? 'Hide' : 'Quick look' }}
           </button>
         </div>
 
-        <a class="card-link-overlay" [routerLink]="['/player', player.id]"
-           [attr.aria-label]="'Open ' + player.name + '’s profile'"></a>
+        @if (!fill) {
+          <a class="card-link-overlay" [routerLink]="['/player', player.id]"
+             [attr.aria-label]="'Open ' + player.name + '’s profile'"></a>
+        }
 
         <div class="role-details">
           <div class="champ-chip-row">
@@ -146,25 +157,7 @@
     <h2 class="section-title"><span class="section-icon material-symbols-rounded">person_add</span>Fill-ins
       <small class="muted section-title-note">outside the roster, pencilled in when the bench is short</small></h2>
     <div class="grid three">
-      @for (player of data.fillIns(); track player.id) {
-        <article class="card fillin-card">
-          <div class="title-row">
-            <app-player-avatar [name]="player.summoner" [icon]="player.icon" [role]="player.preferredRoles[0]" />
-            <span class="fillin-card-text">
-              <b>{{ player.summoner }}</b>
-              <small class="muted">{{ player.preferredRoles.join(', ') || 'any seat' }}</small>
-            </span>
-            <span class="tag fillin-status">{{ player.status || 'provisional' }}</span>
-          </div>
-          @if (player.note) { <p class="muted fillin-note">{{ player.note }}</p> }
-          <div class="links">
-            <a class="view-btn" [href]="ui.summonerSearchUrl(player.summoner, player.profile)" target="_blank" rel="noopener noreferrer">op.gg</a>
-            @if (ui.summonerMobalyticsUrl(player.profile); as mobaUrl) {
-              <a class="view-btn" [href]="mobaUrl" target="_blank" rel="noopener noreferrer">Mobalytics</a>
-            }
-          </div>
-        </article>
-      }
+      @for (card of fillInCards(); track card.id) { <ng-container *ngTemplateOutlet="playerCard; context: { $implicit: card, fill: card.fillIn }" /> }
     </div>
   </section>
 }

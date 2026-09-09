@@ -108,6 +108,16 @@ export interface Player {
   order: number;
 }
 
+/** What "Fill from Riot" leaves on a fill-in, so their card can read like a player's (9 Sep 2026). */
+export interface FillInRiot {
+  playstyle?: string;
+  strengths?: string[];
+  weaknesses?: string[];
+  top3?: string[];
+  queueStats?: Player['queueStats'];
+  refreshedAt: string;
+}
+
 export interface FillIn {
   id: string;
   summoner: string;
@@ -116,6 +126,7 @@ export interface FillIn {
   note?: string;
   icon?: string;
   profile?: SummonerProfile;
+  riot?: FillInRiot;
   order: number;
 }
 
