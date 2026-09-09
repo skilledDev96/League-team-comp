@@ -22,6 +22,10 @@
                 [attr.aria-pressed]="view() === 'scouting'" (click)="setView('scouting')">
           Scouting
         </button>
+        <button type="button" class="segment" [class.active]="view() === 'report'"
+                [attr.aria-pressed]="view() === 'report'" (click)="setView('report')" appTip="Us, as an opponent would scout us">
+          Scout report
+        </button>
       </div>
     </div>
     @if (view() === 'cards') {
@@ -62,6 +66,9 @@
   }
   @case ('scouting') {
     <app-player-intel [embedded]="true" />
+  }
+  @case ('report') {
+    <app-scout-report />
   }
   @default {
     <app-overview [embedded]="true" [full]="detailFull()" />

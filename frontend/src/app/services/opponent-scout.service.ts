@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { OpponentPlayer, Role, ROLES, ScrimOpponent, TournamentSeries } from '../models/team.models';
+import { OpponentPlayer, Player, Role, ROLES, ScrimOpponent, TournamentSeries } from '../models/team.models';
 import { PlayerEnrichmentService } from './player-enrichment.service';
 import { TeamDataService } from './team-data.service';
 import { RiotId, parseRiotIds } from '../core/riot-id';
@@ -106,6 +106,22 @@ export class OpponentScoutService {
    * differs, so the caller passes that in. Written after each player, so a
    * scout interrupted halfway keeps what it got.
    */
+  /**
+   * Our own roster through the same scout, so the Roster page can show us the
+   * way an opponent sees us. The seat is the player's main role, the bench
+   * flag comes along, and a player without a Riot tag is looked up by name.
+   */
+  async scoutOurselves(players: readonly Player[], teamName: string): Promise<void> {
+    const roster: OpponentPlayer[] = players.map((p) => ({
+      role: p.role,
+      name: p.name,
+      riotTag: p.profile?.riotTag?.trim() || undefined,
+      region: p.profile?.region || 'euw',
+      sub: p.sub || undefined
+    }));
+    await this.scoutRoster('us', roster, (list) => this.data.saveSelfScout({ players: list, scoutedAt: new Date().toISOString() }), teamName);
+  }
+
   private async scoutRoster(
     id: string,
     roster: readonly OpponentPlayer[],

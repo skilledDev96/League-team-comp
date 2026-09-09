@@ -36,7 +36,7 @@ import {
   ResourceLinks,
   Settings,
   TeamData,
-  TeamIdentity,
+  SelfScout, TeamIdentity,
   Scrim,
   ScrimOpponent,
   RefreshLog,
@@ -84,6 +84,8 @@ export class TeamDataService {
   readonly learnEntries = signal<LearnEntry[]>([]);
   readonly accessEntries = signal<AccessEntry[]>([]);
   readonly teamIdentity = signal<TeamIdentity | null>(null);
+  /** Our five as a scout sees us; null until someone runs the scout. */
+  readonly selfScout = signal<SelfScout | null>(null);
   readonly compAnalysis = signal<CompAnalysis | null>(null);
   readonly tournaments = signal<Tournament[]>([]);
   readonly tournamentSeries = signal<TournamentSeries[]>([]);
@@ -162,6 +164,7 @@ export class TeamDataService {
     this.learnEntries.set([...(data.learnEntries ?? [])].sort((a, b) => a.order - b.order));
     this.accessEntries.set([{ email: 'ruanhart7@gmail.com', role: 'admin', active: true }]);
     this.teamIdentity.set(data.teamIdentity);
+    this.selfScout.set(data.selfScout ?? null);
     this.tournaments.set([...(data.tournaments ?? [])].sort((a, b) => a.order - b.order));
     this.tournamentSeries.set([...(data.tournamentSeries ?? [])].sort((a, b) => a.order - b.order));
     this.seriesGames.set([...(data.seriesGames ?? [])].sort((a, b) => a.order - b.order));
@@ -198,6 +201,7 @@ export class TeamDataService {
       compOverrides: this.compOverrides(),
       practiceGames: this.practiceGames(),
       compAnalysis: this.compAnalysis() ?? undefined,
+      selfScout: this.selfScout() ?? undefined,
       resourceLinks: this.resourceLinks()
     };
     localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
@@ -285,6 +289,9 @@ export class TeamDataService {
     });
     onSnapshot(doc(db, 'meta', 'teamIdentity'), (d) => {
       this.teamIdentity.set((d.data() as TeamIdentity) ?? null);
+    });
+    onSnapshot(doc(db, 'meta', 'selfScout'), (d) => {
+      this.selfScout.set((d.data() as SelfScout) ?? null);
     });
     onSnapshot(doc(db, 'meta', 'refreshLog'), (d) => {
       this.refreshLog.set((d.data() as RefreshLog) ?? null);
@@ -770,6 +777,17 @@ export class TeamDataService {
       if (db) await setDoc(doc(db, 'meta', 'teamIdentity'), identity);
     } else {
       this.teamIdentity.set(identity);
+      this.persistLocal();
+    }
+  }
+
+  /** Written after each player the scout reads, so an interrupted scout keeps what it got. */
+  async saveSelfScout(scout: SelfScout): Promise<void> {
+    if (this.mode === 'firebase') {
+      const db = getDb();
+      if (db) await setDoc(doc(db, 'meta', 'selfScout'), stripUndefined(scout as unknown as Record<string, unknown>));
+    } else {
+      this.selfScout.set(scout);
       this.persistLocal();
     }
   }

@@ -14322,3 +14322,12 @@ button .player-mark { vertical-align: -0.3rem; }
 
 .fillin-row .avatar { width: 2.4rem; height: 2.4rem; flex: none; }
 .modal-card .title-with-icon .avatar { width: 2.2rem; height: 2.2rem; margin-right: 0.5rem; }
+
+/* ---- The Roster's Scout report: us as an opponent sees us (9 Sep 2026) ---- */
+.scout-report-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; margin-bottom: 0.5rem; }
+.scout-report-head h2 { margin: 0; }
+.scout-report-when { font-size: 0.8rem; }
+.scout-report-btn { margin-left: auto; }
+.scout-report-note, .scout-report-empty { margin: 0.3rem 0 0.6rem; font-size: 0.86rem; }
+.scout-report-label { margin: 0.6rem 0 0.4rem; }
+.scout-report .opp-banboard { margin-bottom: 0.8rem; }

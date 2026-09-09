@@ -1,0 +1,180 @@
+<section class="card scout-report" aria-label="Scout report">
+  <div class="scout-report-head">
+    <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">query_stats</span>Us, as a scout sees us
+      <app-info-tip text="The same read an opponent gets when they scout us: rank per queue with the games read behind it, what each of us plays in the seat, what beats us, what we have touched lately, and the champions a ban would take from us. Everything comes from Riot, nothing from the roster cards." label="What this is" /></h2>
+    @if (when()) { <span class="muted scout-report-when">scouted {{ when() }}</span> }
+    @if (auth.editing()) {
+      <button data-tour="roster-scout-us" type="button" class="view-btn active scout-report-btn" [disabled]="busy() || !data.players().length" (click)="scoutUs()"
+              appTip="Looks up every player on the roster by Name#TAG, about two minutes a player. Keeps running if you leave the page.">
+        @if (busy()) { <span class="btn-spinner" aria-hidden="true"></span> Scouting… } @else { <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span> {{ players().length ? 'Scout us again from Riot' : 'Scout us from Riot' }} }
+      </button>
+    }
+  </div>
+
+  @if (untagged().length && auth.editing()) {
+    <p class="muted scout-report-note">No Riot tag on {{ untagged().join(', ') }}: set it in the player editor, or the scout cannot find them.</p>
+  }
+
+  @if (busy()) {
+    <div class="opp-progress" role="status" aria-live="polite">
+      <div class="opp-progress-line">
+        <span class="material-symbols-rounded opp-progress-spin" aria-hidden="true">progress_activity</span>
+        <strong>{{ scout.progress() }}</strong>
+        <span class="muted">~{{ scout.secondsLeft() }}s left</span>
+      </div>
+      <div class="opp-progress-track" aria-hidden="true">
+        <span class="opp-progress-fill" [style.width.%]="scout.total() ? (scout.done() / scout.total()) * 100 : 0"></span>
+      </div>
+    </div>
+  }
+
+  @if (!players().length && !busy()) {
+    <p class="muted scout-report-empty">
+      Nothing scouted yet. @if (auth.editing()) { Press "Scout us from Riot" and the table an opponent would build against us appears here. } @else { An editor can run the scout; the table then appears here for everyone. }
+    </p>
+  }
+
+  @if (board().length) {
+    <p class="advice-head scout-report-label" appTip="The champions across our five that a ban would actually hurt: most games in the seat first, win rate beside it">What they would ban against us</p>
+    <div class="opp-banboard" aria-label="What a ban would take from us">
+      @for (c of board(); track c.player + c.champion) {
+        <div class="opp-ban" [class.is-match]="filter.matches(c.champion)">
+          <img class="opp-ban-art" [src]="ui.championIconUrl(c.champion)" [alt]="c.champion" loading="lazy" />
+          <div class="opp-ban-body">
+            <span class="opp-ban-champ">{{ c.champion }}</span>
+            <span class="opp-ban-who"><em>{{ c.role }}</em> {{ c.player }}</span>
+          </div>
+          <span class="opp-ban-stat" [appTip]="c.games ? c.wins + ' of ' + c.games + ' won at ' + c.role + ', solo and flex together' : 'Scouted by name only — no games recorded'">
+            <b>{{ c.games }}g</b>
+            @if (c.games) {
+              <small [class.is-good]="c.winRate >= 55" [class.is-poor]="c.winRate < 45">{{ c.winRate }}%</small>
+            } @else {
+              <small>no record</small>
+            }
+          </span>
+        </div>
+      }
+    </div>
+  }
+
+  @if (five().length) {
+    <div class="opp-scroll">
+      <div class="opp-table" role="table" aria-label="Our roster, as scouted">
+        <div class="opp-head" role="row">
+          <span role="columnheader">Seat</span>
+          <span role="columnheader">Player</span>
+          <span role="columnheader">Rank</span>
+          <span role="columnheader" [appTip]="'What we play — in this seat where Riot has games for it, otherwise overall'">Plays</span>
+          <span role="columnheader" [appTip]="'Champions that beat us in lane, from games we lost'">Loses to</span>
+          <span role="columnheader" [appTip]="'Everything we have touched in the last two months, newest first'">Lately</span>
+        </div>
+
+        @for (opp of five(); track opp.name + opp.riotTag) {
+          <div class="opp-row" role="row">
+            <span class="opp-cell opp-seat" role="cell">
+              <span class="opp-role">{{ opp.role }}</span>
+            </span>
+
+            <span class="opp-cell opp-who" role="cell">
+              @if (opp.icon) { <img class="opp-avatar" [src]="opp.icon" [alt]="" loading="lazy" /> }
+              <span class="opp-who-text">
+                <span class="opp-name">
+                  <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
+                     target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
+                </span>
+                <span class="opp-sub">
+                  @for (p of opp.positions ?? []; track p.role) {
+                    <span class="opp-position" [appTip]="p.games + ' games as ' + p.role + ' in the scouted sample'">{{ p.role }} <em>{{ p.games }}</em></span>
+                  }
+                  @if (!poolIsForSeat(opp) && playedElsewhere(opp); as was) {
+                    <span class="opp-swapped" [appTip]="'Everything on this row comes from games as ' + was.role + ' — no games at ' + opp.role + ' yet'">
+                      <span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span> from {{ was.role }}
+                    </span>
+                  }
+                </span>
+              </span>
+            </span>
+
+            @for (q of queueRows(opp); track q.key) {
+              <span class="opp-cell opp-ranks" role="cell">
+                @if (q.sample; as s) {
+                  <small class="opp-sample" [appTip]="s.read + ' of the ' + s.available + ' recent ' + (q.label || '') + ' games Riot lists were read' + (s.unread ? ' — scout again to read the next batch' : '')">
+                    {{ s.read }}/{{ s.available }}@if (s.unread) { <em>+</em> }
+                  </small>
+                }
+                @if (q.rank) {
+                  <span class="opp-rank" [class.is-flex]="q.key === 'flex'"
+                        [appTip]="(q.key === 'flex' ? 'Ranked flex, the queue a team plays together' : q.key === 'solo' ? 'Ranked solo/duo' : 'Rank') + (q.record ? ' — ' + q.record : '')">
+                    @if (q.label) { <em>{{ q.label }}</em> } {{ q.rank }}
+                  </span>
+                } @else {
+                  <span class="opp-rank is-unranked" [appTip]="'No ' + (q.label || 'ranked') + ' games this season'">
+                    @if (q.label) { <em>{{ q.label }}</em> } &mdash;
+                  </span>
+                }
+              </span>
+
+              <span class="opp-cell opp-pool" role="cell">
+                @for (rec of q.pool; track rec.champion) {
+                  <span class="opp-champ-cell"
+                        [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won' : '') + (q.forSeat ? ' at ' + opp.role : '') + (q.label ? ' (' + q.label + ')' : '')">
+                    @if (masteryOf(opp, rec.champion); as m) {
+                      <span class="opp-champ-mastery" [appTip]="'Mastery ' + m.level + ' — ' + m.points.toLocaleString() + ' points on ' + rec.champion">M{{ m.level }}<em>{{ masteryLabel(m) }}</em></span>
+                    } @else {
+                      <span class="opp-champ-mastery is-none" aria-hidden="true">&nbsp;</span>
+                    }
+                    <img class="opp-champ" [class.is-seat]="q.forSeat" [class.is-match]="filter.matches(rec.champion)" [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                    @if (rateOf(rec) !== null) {
+                      <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rateOf(rec) }}%<em>{{ rec.games }}</em></span>
+                    } @else {
+                      <span class="opp-champ-stat is-none" aria-hidden="true">&nbsp;</span>
+                    }
+                  </span>
+                }
+                @if (!q.pool.length) { <span class="opp-none">&mdash;</span> }
+              </span>
+
+              <span class="opp-cell opp-counters" role="cell">
+                @for (rec of q.counters; track rec.champion) {
+                  <span class="opp-champ-cell"
+                        [appTip]="rec.champion + ' beat us' + (rec.games ? ' ' + rec.games + (rec.games === 1 ? ' time' : ' times') : '') + (q.forSeat ? ' at ' + opp.role : ' in lane') + (q.label ? ' (' + q.label + ')' : '')">
+                    <img class="opp-champ is-counter" [class.is-seat]="q.forSeat" [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                    @if (rec.games) { <span class="opp-champ-stat is-poor">{{ rec.games }}&times;</span> }
+                  </span>
+                }
+                @if (!q.counters.length) { <span class="opp-none">&mdash;</span> }
+              </span>
+            }
+
+            <span class="opp-cell opp-recent" role="cell">
+              @for (champ of recentShown(opp); track champ) {
+                <img class="opp-champ is-recent" [class.is-elsewhere]="!recentForSeat(opp).includes(champ)" [src]="ui.championIconUrl(champ)"
+                     [alt]="champ" [appTip]="champ + (recentForSeat(opp).includes(champ) ? ' — played at ' + opp.role : ' — played lately, in another lane')" loading="lazy" />
+              }
+              @if (recentHidden(opp); as hidden) {
+                <button type="button" class="opp-more" [class.active]="isRecentOpen(opp)" [attr.aria-pressed]="isRecentOpen(opp)"
+                        [appTip]="isRecentOpen(opp) ? 'Back to this seat only' : hidden + ' more played lately, in other lanes — show them'"
+                        (click)="toggleRecent(opp)">{{ isRecentOpen(opp) ? '−' + hidden : '+' + hidden }}</button>
+              }
+              @if (!recentForSeat(opp).length) { <span class="opp-none">&mdash;</span> }
+            </span>
+
+            @if (opp.scoutError) { <span class="opp-cell opp-error" role="cell">{{ opp.scoutError }}</span> }
+          </div>
+        }
+      </div>
+    </div>
+    @if (subs().length) {
+      <div class="opp-bench">
+        <span class="opp-bench-label">Bench</span>
+        @for (opp of subs(); track opp.name + opp.riotTag) {
+          <span class="opp-bench-player">
+            <em>{{ opp.role }}</em>
+            <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })" target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>
+            @if (queueRows(opp)[0]?.rank; as rank) { <span class="opp-bench-rank">{{ rank }}</span> }
+          </span>
+        }
+      </div>
+    }
+  }
+</section>

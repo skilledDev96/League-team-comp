@@ -542,6 +542,17 @@ export interface ScrimOpponent {
   order: number;
 }
 
+/**
+ * Our own five, read the way we read an opponent (9 Sep 2026): the same scout
+ * over Name#TAG, stored once at `meta/selfScout` and rewritten per scout. The
+ * rows are `OpponentPlayer` on purpose, so the same table renders them.
+ */
+export interface SelfScout {
+  players: OpponentPlayer[];
+  /** ISO time the last scout finished writing. */
+  scoutedAt: string;
+}
+
 export interface TeamData {
   settings: Settings;
   players: Player[];
@@ -564,6 +575,7 @@ export interface TeamData {
   matchNotes: MatchNote[];
   compOverrides: CompOverride[];
   practiceGames: PracticeGame[];
+  selfScout?: SelfScout;
 }
 
 /** What the draft advisor answered. Mirrors `api/src/draft-advice.ts`. */

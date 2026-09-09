@@ -8,12 +8,13 @@ import { TeamDataService } from '../../services/team-data.service';
 import { OverviewComponent } from '../overview/overview.component';
 import { PlayerIntelComponent } from '../player-intel/player-intel.component';
 import { TeamProfilesComponent } from '../profiles/team-profiles.component';
+import { ScoutReportComponent } from './scout-report.component';
 import { QuickActionsComponent } from '../../shared/quick-actions.component';
 import { TourPillComponent } from '../../shared/tour-pill.component';
 
-export type RosterView = 'cards' | 'table' | 'scouting';
+export type RosterView = 'cards' | 'table' | 'scouting' | 'report';
 
-const VIEWS: RosterView[] = ['cards', 'table', 'scouting'];
+const VIEWS: RosterView[] = ['cards', 'table', 'scouting', 'report'];
 
 /**
  * The roster, three ways.
@@ -31,7 +32,7 @@ const VIEWS: RosterView[] = ['cards', 'table', 'scouting'];
  */
 @Component({
   selector: 'app-roster',
-  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ChampionFilterComponent, QuickActionsComponent, TourPillComponent, TooltipDirective],
+  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ScoutReportComponent, ChampionFilterComponent, QuickActionsComponent, TourPillComponent, TooltipDirective],
   templateUrl: './roster.component.html'
 })
 export class RosterComponent {
@@ -57,6 +58,8 @@ export class RosterComponent {
         return { title: `${team} Roster`, blurb: 'Rank, form and champion by player — click a row for the full profile.' };
       case 'scouting':
         return { title: `${team} Roster`, blurb: 'Scouting cards, champion pools, matchup links and the practice board.' };
+      case 'report':
+        return { title: `${team} Roster`, blurb: 'Us, the way an opponent scouts us: ranks, pools, what beats us, and what they would ban.' };
       default:
         return { title: `${team} Roster`, blurb: 'Who plays what, and how they are playing right now.' };
     }
