@@ -49,7 +49,7 @@ describe('planScrimsMigration', () => {
 
   it('skips a slug that already has a series in the group, numbers after its games, and skips a replay already linked', () => {
     const group: Tournament = { id: 'g', name: 'Scrims', kind: 'scrims', fearless: false, order: 0 };
-    const existing: TournamentSeries = { id: 's1', tournamentId: 'g', opponent: 'MOSS 2', bestOf: 0, order: 0 };
+    const existing: TournamentSeries = { id: 's1', tournamentId: 'g', opponent: 'MOSS 2', bestOf: 5, order: 0 };
     const linked: SeriesGame = { id: 'g1', seriesId: 's1', gameNumber: 1, ourChampions: [], theirChampions: [], matchId: 'EUW1-1', order: 0 };
     const plan = base({
       tournaments: [group],
@@ -57,7 +57,8 @@ describe('planScrimsMigration', () => {
       games: [linked],
       scrims: [scrim('EUW1-1', 'MOSS 2', '2026-09-08T19:00:00Z'), scrim('EUW1-2', 'MOSS 2', '2026-09-08T20:00:00Z')]
     });
-    expect(plan.writes.map((w) => w.kind)).toEqual(['scrim-side', 'game']);
+    expect(plan.writes.map((w) => w.kind)).toEqual(['series-open', 'scrim-side', 'game']);
+    expect((plan.writes[0] as { series: TournamentSeries }).series.bestOf).toBe(0);
     expect(ofKind(plan.writes, 'game')[0].game.gameNumber).toBe(2);
     expect(plan.opponents).toBe(0);
     expect(plan.replays).toBe(1);

@@ -26,6 +26,7 @@ export type MigrationWrite =
   | { kind: 'series'; slug: string; series: Omit<TournamentSeries, 'id' | 'order' | 'tournamentId'> }
   | { kind: 'game'; slug: string; scrimId: string; game: Omit<SeriesGame, 'id' | 'order' | 'seriesId'> }
   | { kind: 'scrim-side'; scrimId: string; ourSide: 'blue' | 'red' }
+  | { kind: 'series-open'; series: TournamentSeries }
   | { kind: 'delete-opponent'; id: string };
 
 export interface MigrationPlan {
@@ -60,8 +61,10 @@ export function planScrimsMigration(input: MigrationInput): MigrationPlan {
     writes.push({ kind: 'group-create', tournament: { name: 'Scrims', kind: 'scrims', fearless: false, notes: 'Every team we scrim. Not a tournament: no dates, no best-of, nothing burns.' } });
   }
 
-  // Which slugs already have a series in the group.
+  // Which slugs already have a series in the group. A series made by the old
+  // "Draft against them" carries a Bo5; a scrim block has no cap.
   const inGroup = group ? input.series.filter((s) => s.tournamentId === group!.id) : [];
+  for (const s of inGroup) if (s.bestOf) writes.push({ kind: 'series-open', series: { ...s, bestOf: 0 } });
   const bySlug = new Map(inGroup.map((s) => [slugOpponent(s.opponent), s]));
   const linked = new Set(input.games.map((g) => g.matchId).filter((id): id is string => !!id));
 
@@ -142,5 +145,5 @@ export function planScrimsMigration(input: MigrationInput): MigrationPlan {
 
 /** True when there is nothing left to move. */
 export function migrationDone(plan: MigrationPlan): boolean {
-  return plan.writes.every((w) => w.kind === 'group-mark' || w.kind === 'group-create') && plan.opponents === 0 && plan.replays === 0;
+  return plan.writes.every((w) => w.kind === 'group-mark' || w.kind === 'group-create' || w.kind === 'series-open') && plan.opponents === 0 && plan.replays === 0;
 }

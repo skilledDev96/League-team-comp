@@ -33,6 +33,8 @@ export class TournamentContextService {
   readonly currentTournament = computed<Tournament | null>(() => {
     const all = this.tournaments();
     const chosen = this.chosenTournamentId();
+    // A link may ask for the scrims group before the data has arrived; the wish is kept until it has.
+    if (chosen === 'scrims') return this.scrimsGroup() ?? all.find((t) => t.active) ?? all[0] ?? null;
     if (chosen) return all.find((t) => t.id === chosen) ?? null;
     // A draft opened by link names its series, and the data may arrive after
     // the link is read: the series' tournament wins until one is chosen (9 Sep 2026).
@@ -55,8 +57,7 @@ export class TournamentContextService {
 
   /** A link may name the group as `scrims` or by id. */
   selectGroup(idOrScrims: string): void {
-    const id = idOrScrims === 'scrims' ? this.scrimsGroup()?.id : idOrScrims;
-    if (id) this.selectTournament(id);
+    this.selectTournament(idOrScrims === 'scrims' ? 'scrims' : idOrScrims);
   }
 
   /** Whether picks burn across this series: the group's rule, tournaments by default. */

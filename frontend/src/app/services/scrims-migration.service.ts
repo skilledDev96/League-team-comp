@@ -83,6 +83,9 @@ export class ScrimsMigrationService {
         await this.data.createSeriesGame({ ...w.game, seriesId });
         return;
       }
+      case 'series-open':
+        await this.data.updateSeries(w.series);
+        return;
       case 'delete-opponent':
         await this.data.deleteScrimOpponent(w.id);
         return;
