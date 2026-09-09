@@ -14361,3 +14361,12 @@ button .player-mark { vertical-align: -0.3rem; }
 .scout-report-note, .scout-report-empty { margin: 0.3rem 0 0.6rem; font-size: 0.86rem; }
 .scout-report-label { margin: 0.6rem 0 0.4rem; }
 .scout-report .opp-banboard { margin-bottom: 0.8rem; }
+
+/* ---- Roster cards in three groups (9 Sep 2026) ---- */
+.section-title-note { margin-left: 0.6rem; font-size: 0.78rem; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.fillin-card .title-row { gap: 0.6rem; }
+.fillin-card-text { display: grid; gap: 0.1rem; min-width: 0; }
+.fillin-card-text b { font-size: 1rem; }
+.fillin-status { margin-left: auto; }
+.fillin-note { margin: 0.5rem 0 0; font-size: 0.84rem; }
+.fillin-card .links { margin-top: 0.6rem; }

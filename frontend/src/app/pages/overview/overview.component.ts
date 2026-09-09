@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -12,7 +13,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
 
 @Component({
   selector: 'app-overview',
-  imports: [RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, TooltipDirective],
+  imports: [NgTemplateOutlet, RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, TooltipDirective],
   templateUrl: './overview.component.html'
 })
 export class OverviewComponent {
@@ -24,6 +25,15 @@ export class OverviewComponent {
   protected readonly auth = inject(AuthService);
   protected readonly editor = inject(PlayerEditorService);
   protected readonly roles = ROLES;
+
+  private bySeat(list: readonly Player[]): Player[] {
+    return [...list].sort((a, b) => ROLES.indexOf(a.role) - ROLES.indexOf(b.role) || a.order - b.order);
+  }
+
+  /** The five the draft room follows, Top to Support. */
+  protected readonly starters = computed(() => this.bySeat(this.data.players().filter((p) => !p.sub)));
+  /** The bench, in the same order. */
+  protected readonly subs = computed(() => this.bySeat(this.data.players().filter((p) => !!p.sub)));
 
   // ---- The A team and the second seats, set here because this is where the
   // team looks at itself; Patterns reads both (8 Sep 2026). The same sub

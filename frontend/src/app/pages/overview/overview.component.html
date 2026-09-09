@@ -34,10 +34,9 @@
   </section>
 }
 
-<section aria-label="Summoners">
-  <h2 class="section-title"><span class="section-icon material-symbols-rounded">group</span>Summoners</h2>
-  <div class="grid three">
-    @for (player of data.players(); track player.id) {
+<!-- One card template, three groups: the A team in seat order, the bench,
+     then the fill-ins (9 Sep 2026). The A team is everyone without the bench flag. -->
+<ng-template #playerCard let-player>
       <article data-tour="roster-card" class="card clickable-card" [class.expanded]="isExpanded(player.id)">
         <div class="title-row">
           <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
@@ -121,33 +120,56 @@
           <app-external-profiles [name]="player.name" [profile]="player.profile" />
         </div>
       </article>
-    }
+</ng-template>
+
+<section aria-label="A team">
+  <h2 class="section-title"><span class="section-icon material-symbols-rounded">group</span>A team
+    <small class="muted section-title-note">{{ starters().length }} in seat order</small></h2>
+  <div class="grid three">
+    @for (player of starters(); track player.id) { <ng-container *ngTemplateOutlet="playerCard; context: { $implicit: player }" /> }
+    @if (!starters().length) { <p class="muted">Everyone is on the bench. Put five in the A team in edit mode.</p> }
   </div>
 </section>
 
+@if (subs().length) {
+  <section aria-label="Bench">
+    <h2 class="section-title"><span class="section-icon material-symbols-rounded">airline_seat_recline_normal</span>Bench
+      <small class="muted section-title-note">step in when someone cannot make it</small></h2>
+    <div class="grid three">
+      @for (player of subs(); track player.id) { <ng-container *ngTemplateOutlet="playerCard; context: { $implicit: player }" /> }
+    </div>
+  </section>
+}
+
+@if (data.fillIns().length) {
+  <section aria-label="Fill-ins">
+    <h2 class="section-title"><span class="section-icon material-symbols-rounded">person_add</span>Fill-ins
+      <small class="muted section-title-note">outside the roster, pencilled in when the bench is short</small></h2>
+    <div class="grid three">
+      @for (player of data.fillIns(); track player.id) {
+        <article class="card fillin-card">
+          <div class="title-row">
+            <app-player-avatar [name]="player.summoner" [icon]="player.icon" [role]="player.preferredRoles[0]" />
+            <span class="fillin-card-text">
+              <b>{{ player.summoner }}</b>
+              <small class="muted">{{ player.preferredRoles.join(', ') || 'any seat' }}</small>
+            </span>
+            <span class="tag fillin-status">{{ player.status || 'provisional' }}</span>
+          </div>
+          @if (player.note) { <p class="muted fillin-note">{{ player.note }}</p> }
+          <div class="links">
+            <a class="view-btn" [href]="ui.summonerSearchUrl(player.summoner, player.profile)" target="_blank" rel="noopener noreferrer">op.gg</a>
+            @if (ui.summonerMobalyticsUrl(player.profile); as mobaUrl) {
+              <a class="view-btn" [href]="mobaUrl" target="_blank" rel="noopener noreferrer">Mobalytics</a>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  </section>
+}
+
 @if (full()) {
-  @if (data.fillIns().length) {
-    <section aria-label="Fill-in players">
-      <h2 class="section-title"><span class="section-icon material-symbols-rounded">person_add</span>Fill-in Roster</h2>
-      <article class="card">
-        <p class="muted" style="margin-bottom: 0.6rem;">Pending confirmation</p>
-        <div class="links">
-          @for (player of data.fillIns(); track player.id) {
-            <div class="title-row">
-              <app-player-avatar [name]="player.summoner" [icon]="player.icon" [role]="player.preferredRoles[0]" />
-              <a [href]="ui.summonerSearchUrl(player.summoner, player.profile)" target="_blank" rel="noopener noreferrer">
-                {{ player.summoner }} - {{ player.preferredRoles.join(', ') }} - {{ player.status }}
-              </a>
-              @if (ui.summonerMobalyticsUrl(player.profile); as mobaUrl) {
-                <a [href]="mobaUrl" target="_blank" rel="noopener noreferrer">Mobalytics</a>
-              }
-            </div>
-          }
-        </div>
-        <p class="muted">{{ data.fillIns()[0].note }}</p>
-      </article>
-    </section>
-  }
 
   <section aria-label="Resources">
     <h2 class="section-title"><span class="section-icon material-symbols-rounded">map</span>Macro, Research and Draft Tools</h2>
