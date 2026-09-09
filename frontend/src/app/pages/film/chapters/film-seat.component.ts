@@ -1,6 +1,7 @@
 import { afterRenderEffect, Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked, viewChildren } from '@angular/core';
 import { FilmModel, FilmSeat } from '../../../core/film-model';
 import { evidenceChips } from '../../../core/review-view';
+import { pick } from '../../../core/seed';
 import { DeathVerdict, LedgerSummary, Role } from '../../../models/team.models';
 import { MotionService } from '../../../services/motion.service';
 import { UiService } from '../../../services/ui.service';
@@ -9,6 +10,9 @@ import { ChampionMotionComponent } from '../../../shared/film/champion-motion.co
 import { countAll } from '../../../shared/film/film-count';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { FilmFrameComponent, themeIcon } from '../film-frame.component';
+
+type ClipSlot = 'P' | 'Q' | 'W' | 'E' | 'R';
+const OTHER_SLOTS: readonly ClipSlot[] = ['Q', 'W', 'E'];
 
 /** The circumference of the presence ring, for the dash maths. */
 const RING = 2 * Math.PI * 18;
@@ -46,7 +50,7 @@ interface StatToken {
   template: `
     <div class="film-chapter-art" aria-hidden="true">
       @for (l of layers(); track l.id; let last = $last) {
-        <app-champion-motion class="film-layer" [class.is-out]="!last" [champion]="l.champion" slot="R" [active]="active() && last" />
+        <app-champion-motion class="film-layer" [class.is-out]="!last" [champion]="l.champion" [slot]="l.slot" [active]="active() && last" />
       }
       <span class="film-chapter-shade"></span>
     </div>
@@ -175,7 +179,7 @@ export class FilmSeatComponent {
   protected readonly flipped = signal(false);
   private readonly gotNow = signal<ReadonlySet<Role>>(new Set());
   /** The champion layers behind the card: the top one is the selected seat's, the one under it is fading out. */
-  protected readonly layers = signal<{ id: number; champion: string }[]>([]);
+  protected readonly layers = signal<{ id: number; champion: string; slot: ClipSlot }[]>([]);
   private layerId = 0;
   /** The wait before the faded-out layer is dropped; cleared on the next change of seat and on destroy. */
   private layerTimer: ReturnType<typeof setTimeout> | undefined;
@@ -219,11 +223,22 @@ export class FilmSeatComponent {
     this.destroyRef.onDestroy(() => clearTimeout(this.layerTimer));
   }
 
+  /**
+   * The title card already played the protagonist's ultimate, so their seat
+   * shows another ability, picked by the match seed; every other seat gets
+   * the ultimate.
+   */
+  private slotFor(champion: string): ClipSlot {
+    const m = this.model();
+    if (champion !== m.title.protagonist.champion) return 'R';
+    return pick(m.seed, OTHER_SLOTS, 'seat-clip:' + champion);
+  }
+
   private layChampion(champion: string): void {
     const cur = this.layers();
     if (cur[cur.length - 1]?.champion === champion) return;
     const id = ++this.layerId;
-    this.layers.set([...cur.slice(-1), { id, champion }]);
+    this.layers.set([...cur.slice(-1), { id, champion, slot: this.slotFor(champion) }]);
     const wait = this.motion.reduced() ? 0 : CROSSFADE_MS * this.motion.tempo(this.host.nativeElement) + 60;
     clearTimeout(this.layerTimer);
     this.layerTimer = setTimeout(() => this.layers.update((ls) => ls.filter((l) => l.id >= id)), wait);
