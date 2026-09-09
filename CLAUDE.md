@@ -384,10 +384,39 @@ filter rather than none, so it can never become unpickable.
    progress) and nothing else. Motion goes through `MotionService` (OS
    setting or the film's Motion pill; `play` resolves at once when still)
    and CSS keyframes gated on `.is-current`. Words like "drill", "quiz" and
-   "score" never appear on screen. Slice 2 adds the generation takeover, the
-   tape and the Rift map (`core/rift-zones.ts`: pips inside zone regions,
-   consequences as badges, lanes never mirrored); slice 3 three film stocks,
-   schema v4 lessons and the Before you play card.
+   "score" never appear on screen. **Slice 2** (9 Sep 2026, evening): the
+   Review button opens the takeover (`services/review-takeover.service.ts`,
+   `shared/review-takeover.component.ts` hosted once in `app.html`; phases
+   gate, reel, holding, landed, error, closed): the gate says the cost
+   before anything is spent, Roll it grows the stage out of the card and
+   plays the game on the Rift off one `core/film-clock.ts` while the coach
+   writes, with the gold curve hidden and "Where did it turn? Drag and
+   lock" (stored as `calls.turn`); a replay gets the totals reel and the
+   board's own call (`calls.board`, the scoreline hidden until it is made).
+   The landing guard is `Date.parse(reviewedAt) > t0`, or the very document
+   the function answered with; Minimise parks the watch (a second game
+   opened meanwhile keeps the first parked) and the landing is a toast
+   plus the row's Film room pill pulsing twice; `?fresh=1` opens the film on
+   the tape. Chapters: the tape (`chapters/film-tape`, the Rift over the
+   scrubber `shared/film/film-scrubber.component.ts`, the one horizontal
+   drag; the curve draws only on the reveal of the guess; calls a minute
+   before an objective or a fight cluster, keys `tape:o:<min>` /
+   `tape:f:<min>`; Copy link is `?c=tape&t=<sec>`, and a link opens
+   revealed without a verdict), the board (replay tier: tallies at the
+   pits, "Which count was furthest apart?") and the map
+   (`chapters/film-map`: the dark count under `map:dark`, each death's
+   call as a bit mask under `map:<ledger key>`, unread pins hollow and
+   never faded by a filter, Watch it seeks the tape to twenty seconds
+   before). **The zone rule:** `core/rift-zones.ts` is the one table for the
+   Rift image (percent space, blue base bottom-left; `MAP_SPOTS` also feeds
+   the draft room and the tactical board): a death is placed by a seeded
+   sample inside its zone's region, consequences are badges on the pip and
+   never geometry, lanes and the river never mirror, only bases and jungles
+   resolve by side, and every surface that shows a placed position says
+   "Approximate, by zone" (plates read "by 14 min"; the board hides the
+   note since nothing on it is placed). Their deaths carry side only. At
+   most 60 tokens on a map. Slice 3: three film stocks, schema v4 lessons
+   and the Before you play card.
    **Post-game graphs** (`shared/game-graphs.component.ts`) sit behind a
    Table | Graphs segment on every Games row's scoreboard, drawn from the
    row's `RowStats` so replays and Riot games get the same view; a figure a

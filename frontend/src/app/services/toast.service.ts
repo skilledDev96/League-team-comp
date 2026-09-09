@@ -9,6 +9,13 @@ export interface Toast {
   readonly text?: string;
   /** Material Symbols name, when one helps. */
   readonly icon?: string;
+  /** One pill on the toast; pressing it runs this and dismisses the toast (9 Sep 2026, "The film is ready"). */
+  readonly action?: ToastAction;
+}
+
+export interface ToastAction {
+  label: string;
+  run: () => void;
 }
 
 /** How long a toast stays unless dismissed, in ms. */
@@ -29,7 +36,7 @@ export class ToastService {
 
   show(
     title: string,
-    options: { text?: string; kind?: ToastKind; icon?: string; timeout?: number } = {}
+    options: { text?: string; kind?: ToastKind; icon?: string; timeout?: number; action?: ToastAction } = {}
   ): number {
     const id = this.nextId++;
     const toast: Toast = {
@@ -37,7 +44,8 @@ export class ToastService {
       kind: options.kind ?? 'info',
       title,
       text: options.text,
-      icon: options.icon
+      icon: options.icon,
+      action: options.action
     };
     this.toasts.update((list) => [...list, toast]);
     const timeout = options.timeout ?? DEFAULT_TIMEOUT;

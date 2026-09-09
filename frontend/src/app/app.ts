@@ -19,12 +19,13 @@ import { UserMenuComponent } from './shared/user-menu.component';
 import { PlayerEditorDrawerComponent } from './shared/player-editor-drawer.component';
 import { TourOverlayComponent } from './shared/tour-overlay.component';
 import { TourHelpComponent } from './shared/tour-help.component';
+import { ReviewTakeoverComponent } from './shared/review-takeover.component';
 import { TourService } from './services/tour.service';
 import { TooltipDirective } from './shared/tooltip.directive';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, UserMenuComponent, TooltipDirective, PlayerEditorDrawerComponent, TourOverlayComponent, TourHelpComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, UserMenuComponent, TooltipDirective, PlayerEditorDrawerComponent, TourOverlayComponent, TourHelpComponent, ReviewTakeoverComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

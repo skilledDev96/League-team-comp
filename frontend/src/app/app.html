@@ -132,6 +132,9 @@
         <span class="toast-body">
           <strong class="toast-title">{{ t.title }}</strong>
           @if (t.text) { <span class="toast-text">{{ t.text }}</span> }
+          @if (t.action; as act) {
+            <span class="toast-actions"><button type="button" class="view-btn active" (click)="act.run(); toast.dismiss(t.id)">{{ act.label }}</button></span>
+          }
         </span>
         <button type="button" class="toast-close" aria-label="Dismiss" (click)="toast.dismiss(t.id)">
           <span class="material-symbols-rounded" aria-hidden="true">close</span>
@@ -152,3 +155,4 @@
 
 <app-tour-overlay />
 <app-tour-help />
+<app-review-takeover />

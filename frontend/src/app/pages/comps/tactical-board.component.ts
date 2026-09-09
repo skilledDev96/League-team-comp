@@ -13,22 +13,16 @@ import {
   ROLES,
   TokenSide
 } from '../../models/team.models';
+import { BARON_PIT, DRAGON_PIT, MAP_SPOTS } from '../../core/rift-zones';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 
 const PHASES: PlayPhase[] = ['Early', 'Mid', 'Late'];
 
-// Default lane-ish spots (percent of board) so a fresh play starts readable.
-// Blue side is bottom-left, red side top-right, matching the rift SVG below.
-const ALLY_SPOTS: Record<Role, { x: number; y: number }> = {
-  Top: { x: 16, y: 26 },
-  Jungle: { x: 32, y: 52 },
-  Mid: { x: 46, y: 54 },
-  // ADC + Support start in the blue-side bot-lane brushes (tri-brush pair).
-  ADC: { x: 74, y: 76 },
-  Support: { x: 80, y: 70 }
-};
+// Default lane spots (percent of board) so a fresh play starts readable: blue side's
+// five, from the one table every Rift surface reads (`core/rift-zones.ts`).
+const ALLY_SPOTS: Record<Role, { x: number; y: number }> = MAP_SPOTS.blue;
 // Enemy tokens start as a tidy staging column down the left edge, ready to be
 // dragged onto the map (they have no champion until you assign one).
 const ENEMY_SPOTS = [
@@ -39,14 +33,14 @@ const ENEMY_SPOTS = [
   { x: 5, y: 84 }
 ];
 
-// Objectives spawn at fixed spots; blue base is bottom-left, so the river runs
-// top-left (Baron/grubs/herald) to bottom-right (Dragon).
+// Objectives spawn at their pits (`core/rift-zones.ts`); the three that share
+// the Baron pit step apart so a fresh marker never hides under the last one.
 const MARKER_DEFAULTS: Record<MarkerKind, { x: number; y: number }> = {
   minion: { x: 50, y: 50 },
-  dragon: { x: 70, y: 66 },
-  grubs: { x: 32, y: 30 },
-  herald: { x: 34, y: 34 },
-  baron: { x: 30, y: 28 },
+  dragon: DRAGON_PIT,
+  grubs: { x: BARON_PIT.x + 1, y: BARON_PIT.y },
+  herald: { x: BARON_PIT.x + 3, y: BARON_PIT.y + 4 },
+  baron: { x: BARON_PIT.x - 1, y: BARON_PIT.y - 2 },
   ward: { x: 50, y: 45 }
 };
 

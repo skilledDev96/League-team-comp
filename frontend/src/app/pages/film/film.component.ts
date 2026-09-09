@@ -12,10 +12,16 @@ import { TeamDataService } from '../../services/team-data.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { FILM_CHAPTER_KEY } from '../../shared/film/film-poster.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
+import { FilmBoardComponent } from './chapters/film-board.component';
 import { FilmCardComponent } from './chapters/film-card.component';
+import { FilmMapComponent } from './chapters/film-map.component';
 import { FilmOneThingComponent } from './chapters/film-one-thing.component';
 import { FilmSeatComponent } from './chapters/film-seat.component';
+import { FilmSeekRequest, FilmTapeComponent } from './chapters/film-tape.component';
 import { FilmTitleComponent } from './chapters/film-title.component';
+
+/** How far before a death the tape opens on Watch it, in game seconds. */
+const WATCH_LEAD_SEC = 20;
 
 /** The deck becomes a vertical scroll-snap run below this width; above it one chapter fills the stage. */
 const NARROW_QUERY = '(max-width: 48rem)';
@@ -30,7 +36,7 @@ const NARROW_QUERY = '(max-width: 48rem)';
  */
 @Component({
   selector: 'app-film',
-  imports: [RouterLink, TooltipDirective, FilmTitleComponent, FilmOneThingComponent, FilmSeatComponent, FilmCardComponent],
+  imports: [RouterLink, TooltipDirective, FilmTitleComponent, FilmTapeComponent, FilmBoardComponent, FilmMapComponent, FilmOneThingComponent, FilmSeatComponent, FilmCardComponent],
   templateUrl: './film.component.html'
 })
 export class FilmComponent {
@@ -97,6 +103,12 @@ export class FilmComponent {
   protected readonly escapeTick = signal(0);
   protected readonly progress = computed<FilmProgress | undefined>(() => this.prefs.filmProgress(this.matchId()));
   protected readonly calls = computed(() => this.progress()?.calls);
+  /** The minute the reader said the game turned: written by the takeover's reel or the tape's own Lock, read by the tape. */
+  protected readonly turnGuess = computed<number | undefined>(() => this.progress()?.calls?.['turn']);
+  /** The second a shared link opened on (?t=), handed to the tape once; only Copy link ever writes it back. */
+  protected readonly initialSec = signal<number | null>(null);
+  /** The map's Watch it: the tape seeks to a little before the death and plays. */
+  protected readonly seekRequest = signal<FilmSeekRequest | null>(null);
   /** The reminder is on until the card is reached, then whatever the toggle last said. */
   protected readonly askAgain = computed(() => {
     const p = this.progress();
@@ -115,7 +127,11 @@ export class FilmComponent {
   private moves = 0;
 
   constructor() {
-    this.wanted = this.route.snapshot.queryParamMap.get('c');
+    // ?fresh=1 is the takeover's link, straight off a landing: the film opens on the tape, where the guess it took reveals.
+    const fresh = this.route.snapshot.queryParamMap.get('fresh') === '1';
+    this.wanted = this.route.snapshot.queryParamMap.get('c') ?? (fresh ? 'tape' : null);
+    const t = Number(this.route.snapshot.queryParamMap.get('t'));
+    if (this.route.snapshot.queryParamMap.has('t') && Number.isFinite(t) && t >= 0) this.initialSec.set(Math.round(t));
     this.watchWidth();
 
     // The timeline is read on demand, once, the way the review panel reads it.
@@ -263,6 +279,22 @@ export class FilmComponent {
     const from = this.chapter();
     this.chapter.set(next);
     if (next === from + 1 && this.model()?.chapters[next]?.kind === 'card') this.reachCard();
+  }
+
+  /** The map's Watch it: go to the tape and ask it for the second, twenty seconds before the death. */
+  protected onWatch(sec: number): void {
+    const m = this.model();
+    if (!m) return;
+    const i = m.chapters.findIndex((c) => c.kind === 'tape');
+    if (i < 0) return;
+    const at = Math.max(0, Math.round(sec) - WATCH_LEAD_SEC);
+    this.seekRequest.set({ sec: at, n: (this.seekRequest()?.n ?? 0) + 1, play: true });
+    void this.go(i);
+  }
+
+  /** The tape's Copy link: the second goes into the url too, so the address bar matches what was copied. */
+  protected onCopied(sec: number): void {
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { t: sec }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
   // ---- Progress: every write to userPrefs.film goes through here ----------

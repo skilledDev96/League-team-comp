@@ -51,6 +51,7 @@ import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
 import { comfortOf, gamePlan, GamePlan, LaneRead, LaneVerdict, readLanes, SeatInput } from '../lane-read';
 import { countersFor, poolFor, starters } from '../../../core/opponent-view';
 import { playsRole } from '../../../core/champion-lanes';
+import { MAP_SPOTS } from '../../../core/rift-zones';
 import { DraftAdvisorService } from '../../../services/draft-advisor.service';
 import { DraftAdvice, SavedDraftAdvice } from '../../../models/team.models';
 import { CompIdentity, IDENTITY_ICON, IDENTITY_LABEL, classifyComp } from '../../../core/comp-identity';
@@ -82,24 +83,10 @@ const LAYOUT_KEY = 'bom-draft-layout';
  * at the top-left corner, both bot lanes at the bottom-right, and both junglers
  * in the top-side jungle — the half of the map above mid, each in their own
  * quadrant of it (asked for on 5 Sep 2026; the bot-side spots read as bot lane). Mirroring blue through the centre would have put red's top laner
- * in bot lane, so red is placed by hand, not derived.
+ * in bot lane, so red is placed by hand, not derived. The table lives in
+ * `core/rift-zones.ts` (`MAP_SPOTS`), which the film's Rift and the tactical
+ * board read too, so a seat stands in one place on every map.
  */
-const MAP_SPOTS: Record<'blue' | 'red', Record<Role, { x: number; y: number }>> = {
-  blue: {
-    Top: { x: 13, y: 34 },
-    Jungle: { x: 26, y: 46 },
-    Mid: { x: 42, y: 58 },
-    ADC: { x: 62, y: 87 },
-    Support: { x: 71, y: 81 }
-  },
-  red: {
-    Top: { x: 30, y: 12 },
-    Jungle: { x: 48, y: 26 },
-    Mid: { x: 58, y: 42 },
-    ADC: { x: 89, y: 38 },
-    Support: { x: 83, y: 47 }
-  }
-};
 
 /**
  * Burned champions shown in the confirm-slot strip.

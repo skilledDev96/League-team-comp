@@ -14814,3 +14814,415 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   .film-poster:hover::after { animation: pick-sheen 620ms ease-out both; }
   .film-poster:hover .film-poster-art .film-splash { animation: film-pan 9s ease-in-out 1 forwards; }
 }
+
+/* ---- Film room parts: the Rift and the scrubber, 9 Sep 2026 ---- */
+/* app-rift-map (`.rift-map`): the Rift PNG as a square with blue base bottom-left and red
+   top-right, an SVG under the tokens for the fight clusters and the selected pin's rings, and
+   every event as a percent-placed button that drops in the moment it first shows. Colours fall
+   back from the film's ink to the page tokens, because the takeover's reel stands outside the
+   stage. Nothing here drags. Every position came out of a zone bucket; the corner says so. */
+.rift-map { display: block; min-width: 0; }
+.rift-map-square { position: relative; aspect-ratio: 1; width: 100%; overflow: hidden; border-radius: 12px; border: 1px solid var(--film-line, var(--card-border)); background: var(--bg-0); }
+.rift-map-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; user-select: none; pointer-events: none; filter: saturate(0.85) brightness(0.75); }
+.rift-map.is-dim .rift-map-img { filter: saturate(0.6) brightness(0.45); }
+.rift-map-overlay { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.rift-cluster { fill: color-mix(in srgb, var(--warn) 18%, transparent); stroke: color-mix(in srgb, var(--warn) 45%, transparent); stroke-width: 0.35; pointer-events: fill; }
+.rift-ring { fill: none; stroke: var(--accent); stroke-width: 0.55; stroke-dasharray: 100; stroke-dashoffset: 0; }
+.rift-ring.is-outer { stroke: color-mix(in srgb, var(--accent) 60%, transparent); stroke-width: 0.4; stroke-dasharray: 6 4; }
+.rift-tokens { position: absolute; inset: 0; z-index: 2; }
+/* The button is the hit box; what it draws is its first child, centred, so the entrance can scale the glyph and leave the placement alone. */
+.rift-token { position: absolute; z-index: 2; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; padding: 0; border: 0; background: transparent; color: var(--text-0); font: inherit; line-height: 1; cursor: default; transform: translate(-50%, -50%); -webkit-tap-highlight-color: transparent; }
+.rift-token:focus-visible { outline: none; }
+.rift-token.is-back { z-index: 1; }
+.rift-token.is-ourDeath { z-index: 3; width: 2.75rem; height: 2.75rem; cursor: pointer; }
+.rift-token.is-selected { z-index: 5; }
+.rift-token.is-faded { opacity: 0.3; }
+.rift-token > :first-child { position: relative; }
+/* The ripple ring that spreads from a token as it lands; still, and unseen, until the motion block sends it. */
+.rift-token::after { content: ""; position: absolute; left: 50%; top: 50%; width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 2px solid var(--warn); opacity: 0; transform: translate(-50%, -50%) scale(0.6); pointer-events: none; }
+.rift-token.is-us::after { border-color: var(--ok); }
+.rift-token.is-theirDeath::after { border-color: var(--text-1); }
+.rift-token.is-back::after { border-color: var(--accent-2); }
+/* A death of ours: the champion in a 1.6rem circle under a --warn halo; the skull stands in when the icon is unknown. */
+.rift-pip { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; overflow: hidden; border: 2px solid var(--warn); background: var(--surface-btn); box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--warn) 35%, transparent), 0 2px 8px color-mix(in srgb, var(--bg-0) 60%, transparent); transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+.rift-pip-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.rift-pip .material-symbols-rounded { font-size: 1rem; color: var(--warn); }
+.rift-token.is-selected .rift-pip { transform: scale(1.25); border-color: var(--accent); box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent) 55%, transparent), 0 2px 10px color-mix(in srgb, var(--bg-0) 70%, transparent); }
+.rift-token:focus-visible .rift-pip { box-shadow: 0 0 0 0.2rem var(--accent-2), 0 2px 8px color-mix(in srgb, var(--bg-0) 60%, transparent); }
+/* The consequence badges beside a selected pin, one per tag: the ward slashed, the jungle route, the call, the position. */
+.rift-badges { position: absolute; left: calc(50% + 1rem); top: 50%; display: flex; gap: 0.15rem; transform: translateY(-50%); pointer-events: auto; }
+.rift-badge { display: grid; place-items: center; width: 1.15rem; height: 1.15rem; border-radius: 50%; background: var(--accent); color: var(--bg-0); box-shadow: 0 1px 4px color-mix(in srgb, var(--bg-0) 60%, transparent); }
+.rift-badge .material-symbols-rounded { font-size: 0.8rem; }
+/* Theirs: a dot, a seat at most and never a name. */
+.rift-dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--text-1); box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg-0) 70%, transparent); }
+/* An objective: dragon, baron, grubs, herald as a small icon, --ok for ours and --warn for theirs. */
+.rift-obj { display: grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: 50%; border: 1px solid currentColor; background: color-mix(in srgb, var(--bg-0) 78%, transparent); color: var(--warn); box-shadow: 0 1px 4px color-mix(in srgb, var(--bg-0) 60%, transparent); }
+.rift-token.is-us .rift-obj { color: var(--ok); }
+.rift-obj .material-symbols-rounded { font-size: 0.85rem; }
+/* A first: a tiny tilted stamp. A plate: a lane tick. A back: a soft glow at the base. */
+.rift-first { padding: 0.05rem 0.28rem; border: 1px solid currentColor; border-radius: 3px; background: color-mix(in srgb, var(--bg-0) 72%, transparent); color: var(--warn); font-family: "Chakra Petch", sans-serif; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; transform: rotate(-8deg); }
+.rift-token.is-us .rift-first { color: var(--ok); }
+.rift-plate { width: 0.75rem; height: 0.2rem; border-radius: 999px; background: var(--warn); box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg-0) 60%, transparent); transform: rotate(-45deg); }
+.rift-token.is-us .rift-plate { background: var(--ok); }
+.rift-back { width: 1.75rem; height: 1.75rem; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--accent-2) 45%, transparent), transparent 70%); }
+/* The corner note, the curve hint, and the caption slot under the map. */
+.rift-map-note { position: absolute; right: 0.5rem; bottom: 0.4rem; z-index: 4; padding: 0.1rem 0.5rem; border-radius: 999px; background: color-mix(in srgb, var(--bg-0) 72%, transparent); color: var(--text-1); font-size: 0.7rem; letter-spacing: 0.02em; pointer-events: none; }
+/* A death of ours not yet called: a hollow pip, and no filter fades it, since its tags are not on the map yet. */
+.rift-token.is-unread .rift-pip { border-style: dashed; border-color: color-mix(in srgb, var(--warn) 70%, transparent); box-shadow: 0 2px 8px color-mix(in srgb, var(--bg-0) 60%, transparent); }
+.rift-token.is-unread .rift-pip-img { opacity: 0.75; }
+.rift-map-hint { position: absolute; left: 0.5rem; top: 0.5rem; z-index: 4; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent-2) 55%, transparent); background: color-mix(in srgb, var(--bg-0) 78%, transparent); color: var(--text-0); font-size: 0.72rem; pointer-events: none; }
+.rift-map-hint .material-symbols-rounded { font-size: 0.95rem; color: var(--accent-2); }
+.rift-map-caption { margin-top: 0.45rem; font-size: 0.82rem; color: var(--film-ink-1, var(--text-1)); }
+.rift-map-caption:empty { display: none; }
+
+/* app-film-scrubber (`.film-scrub`): the play pill and the clock, the track, and Lock while the guess is open.
+   The track is the film's one horizontal drag: touch-action none, pointer capture, 4.5rem tall so the
+   playhead's hit area clears 3rem. Revealed, the curve is two copies of one polyline clipped above and
+   below zero (--ok and --warn) with pathLength 1000, so the dash offset the component binds hides the
+   part of the game past the second shown. With motion off the curve stands whole and a native range
+   under the track does the dragging. */
+.film-scrub { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 0.75rem; width: 100%; min-width: 0; color: var(--film-ink, var(--text-0)); }
+.film-scrub-side { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+.film-scrub-play { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 50%; }
+.film-scrub-play .material-symbols-rounded { font-size: 1.6rem; vertical-align: 0; }
+.film-scrub-clock { font-family: "Chakra Petch", sans-serif; font-size: 0.92rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+.film-scrub-main { display: grid; gap: 0.45rem; min-width: 0; }
+.film-scrub-ask { margin: 0; font-size: 0.86rem; color: var(--film-ink-1, var(--text-1)); }
+/* The band holds the slider track and, over it, the moment pins and call marks; those are buttons and so live outside the slider element. */
+.film-scrub-band { position: relative; }
+.film-scrub-over { position: absolute; inset: 0; pointer-events: none; }
+.film-scrub-over > * { pointer-events: auto; }
+.film-scrub-track { position: relative; height: 4.5rem; border-radius: 10px; border: 1px solid var(--film-line, var(--card-border)); background: color-mix(in srgb, var(--film-ink, var(--text-0)) 5%, transparent); touch-action: none; user-select: none; -webkit-user-select: none; cursor: ew-resize; outline: none; }
+.film-scrub-track:focus-visible { box-shadow: 0 0 0 2px var(--accent-2); }
+.film-scrub-track.is-dragging { cursor: grabbing; }
+.film-scrub.is-still .film-scrub-track { cursor: default; }
+.film-scrub-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.film-scrub-zero { stroke: color-mix(in srgb, var(--film-ink, var(--text-0)) 32%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.film-scrub-tickline { stroke: color-mix(in srgb, var(--film-ink, var(--text-0)) 14%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.film-scrub-curve { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; stroke-dasharray: 1000; }
+.film-scrub-curve.is-up { stroke: var(--ok); }
+.film-scrub-curve.is-down { stroke: var(--warn); }
+.film-scrub-tick { position: absolute; bottom: 0.12rem; transform: translateX(-50%); font-size: 0.6rem; font-variant-numeric: tabular-nums; color: var(--film-ink-1, var(--text-1)); pointer-events: none; }
+/* The playhead: a full-width wrapper slid by a percent of itself, so the line moves by a percent of the track without a layout. */
+.film-scrub-hand { position: absolute; inset: 0; width: 100%; transform: translateX(var(--film-hand, 0%)); will-change: transform; pointer-events: none; }
+.film-scrub-hand i { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; margin-left: -1px; background: var(--accent-2); box-shadow: 0 0 0.4rem color-mix(in srgb, var(--accent-2) 60%, transparent); }
+/* A call the tape pauses for: a small mark at the top of the track. */
+.film-scrub-call { position: absolute; top: 0.25rem; width: 0.3rem; height: 0.55rem; border-radius: 2px; background: var(--accent); transform: translateX(-50%); pointer-events: auto; }
+/* A moment: a pin coloured by its swing on a 2.75rem-tall hit box; a tap seeks to it. */
+.film-scrub-moment { position: absolute; top: 50%; z-index: 2; width: 1.5rem; height: 2.75rem; padding: 0; border: 0; background: transparent; transform: translate(-50%, -50%); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.film-scrub-moment::before { content: ""; position: absolute; left: 50%; top: 50%; width: 0.85rem; height: 0.85rem; border-radius: 50% 50% 50% 0; border: 2px solid var(--film-shade, var(--bg-0)); background: var(--film-ink-1, var(--text-1)); box-shadow: 0 1px 4px color-mix(in srgb, var(--bg-0) 60%, transparent); transform: translate(-50%, -60%) rotate(-45deg); transition: transform 0.15s ease; }
+.film-scrub-moment.is-us::before { background: var(--ok); }
+.film-scrub-moment.is-them::before { background: var(--warn); }
+.film-scrub-moment:hover::before, .film-scrub-moment:focus-visible::before { transform: translate(-50%, -60%) rotate(-45deg) scale(1.25); }
+.film-scrub-moment:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; border-radius: 6px; }
+/* The guess and the answer: a line the height of the track with a label, and a dashed rule between the two. */
+.film-scrub-rule { position: absolute; top: 50%; height: 0; border-top: 2px dashed color-mix(in srgb, var(--film-ink, var(--text-0)) 45%, transparent); pointer-events: none; }
+.film-scrub-rule.is-close { border-color: var(--ok); }
+.film-scrub-mark { position: absolute; top: 0; bottom: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; transform: translateX(-50%); color: var(--accent-2); pointer-events: none; }
+.film-scrub-mark i { flex: 1 1 auto; width: 2px; background: currentColor; }
+.film-scrub-mark small { position: absolute; top: 0.2rem; padding: 0.05rem 0.45rem; border-radius: 999px; background: color-mix(in srgb, var(--film-shade, var(--bg-0)) 82%, transparent); color: currentColor; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em; white-space: nowrap; }
+.film-scrub-mark.is-answer { color: var(--warn); }
+.film-scrub-mark.is-answer small { top: auto; bottom: 0.95rem; }
+.film-scrub-mark.is-close { color: var(--ok); }
+/* The open guess: a round handle on the line the reader drags; empty, a dashed ghost mid-track until the first touch. */
+.film-scrub-mark.is-live::after, .film-scrub-mark.is-empty::after { content: ""; position: absolute; left: 50%; top: 50%; width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--accent-2) 30%, transparent), 0 2px 8px color-mix(in srgb, var(--bg-0) 60%, transparent); transform: translate(-50%, -50%); }
+.film-scrub-mark.is-live small { top: auto; bottom: 0.95rem; }
+.film-scrub-mark.is-empty { color: color-mix(in srgb, var(--film-ink, var(--text-0)) 40%, transparent); }
+.film-scrub-mark.is-empty i { background: transparent; }
+.film-scrub-mark.is-empty::after { background: transparent; border: 2px dashed currentColor; box-shadow: none; }
+.film-scrub-range { width: 100%; height: 2.75rem; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.film-scrub-verdict { margin: 0; font-size: 0.9rem; }
+.film-scrub-verdict.is-close { color: var(--ok); }
+.film-scrub-lock { min-height: 2.75rem; }
+.film-scrub-lock:disabled { opacity: 0.55; cursor: default; }
+
+@media (max-width: 48rem) {
+  .film-scrub { grid-template-columns: auto minmax(0, 1fr); }
+  .film-scrub-lock { grid-column: 1 / -1; justify-self: stretch; }
+  .rift-token.is-ourDeath { width: 2.75rem; height: 2.75rem; }
+}
+
+/* Motion for the two parts: a token's glyph scales up from 0.4 as it lands and its ring ripples out for
+   500 ms, the guess and the answer pulse --ok when the two agree within two minutes. Gated on the current
+   chapter or the takeover's open stage, and off with the film's own Motion pill (`.is-still`). The drop fills
+   backwards only, so once a pip is in, a selection scales it through its own transition. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes film-pip-drop { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: scale(1); } }
+  @keyframes film-ripple { from { opacity: 0.85; transform: translate(-50%, -50%) scale(0.6); } to { opacity: 0; transform: translate(-50%, -50%) scale(2.2); } }
+  :is(.film-chapter.is-current, .review-takeover.is-on) .rift-map:not(.is-still) .rift-token > :first-child { animation: film-pip-drop calc(360ms * var(--film-tempo, 1)) var(--film-ease, cubic-bezier(0.2, 0.7, 0.2, 1)) backwards; }
+  :is(.film-chapter.is-current, .review-takeover.is-on) .rift-map:not(.is-still) .rift-token::after { animation: film-ripple calc(500ms * var(--film-tempo, 1)) ease-out both; }
+  :is(.film-chapter.is-current, .review-takeover.is-on) .film-scrub:not(.is-still) .film-scrub-mark.is-close small { animation: film-pulse calc(700ms * var(--film-tempo, 1)) ease-out 2; }
+  :is(.film-chapter.is-current, .review-takeover.is-on) .film-scrub:not(.is-still) .film-scrub-verdict.is-close { animation: film-word-rise calc(420ms * var(--film-tempo, 1)) var(--film-ease, ease-out) both; }
+}
+
+/* ---- Film room chapters: the tape, the board, the map, 9 Sep 2026 ---- */
+/* Three chapters on the Rift. The tape: the map over the scrubber with a sheet beside it that reads
+   whatever the hand is standing on. The board: the replay tier's counts at the pits, hidden until
+   called, then paired bars. The map: the death pins walked one card at a time. Each lays out as
+   map-and-side on a wide screen and stacks on a phone, where the map is a square of at most 58dvh
+   and every target clears 2.75rem. The map never drags. */
+.film-tape-min { display: inline-block; padding: 0 0.45rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 22%, transparent); font-family: "Chakra Petch", sans-serif; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--film-ink); }
+
+/* ---- The tape ---- */
+.film-tape { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); grid-template-areas: "map sheet" "scrub scrub"; gap: 0.9rem 1.2rem; align-items: start; max-width: 66rem; }
+.film-tape-map { grid-area: map; width: clamp(16rem, calc(100dvh - var(--topbar-h, 3.5rem) - 21rem), 100%); justify-self: end; }
+.film-tape-sheet { grid-area: sheet; display: grid; align-content: start; justify-items: start; gap: 0.55rem; min-height: 11rem; padding: 0.9rem 1rem; border-radius: 14px; border: 1px solid var(--film-line); background: var(--film-panel); }
+.film-tape-sheet-kicker { display: flex; align-items: center; gap: 0.45rem; margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--film-ink-1); }
+.film-tape-sheet-kicker.is-ok { color: var(--ok); }
+.film-tape-sheet-kicker.is-warn { color: var(--warn); }
+.film-tape-sheet-text { margin: 0; font-size: 1.02rem; line-height: 1.35; }
+.film-tape-sheet-q { font-size: 1.15rem; }
+.film-tape-sheet-line { margin: 0; font-size: 0.88rem; color: var(--film-ink-1); }
+.film-tape-sheet-line.is-ok { color: var(--ok); }
+.film-tape-sheet-hint { margin: 0; font-size: 0.76rem; color: var(--film-ink-1); }
+.film-tape-sheet .film-chips { gap: 0.4rem; }
+.film-tape-sheet .film-chip { min-height: 2.75rem; font-size: 0.9rem; }
+.film-tape-steps { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.3rem; }
+.film-tape-scrub { grid-area: scrub; display: grid; gap: 0.45rem; min-width: 0; }
+.film-tape-tools { display: flex; justify-content: flex-end; gap: 0.45rem; }
+
+/* ---- The board ---- */
+.film-board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 24rem) minmax(10rem, 14rem); gap: 1rem 1.2rem; align-items: start; max-width: 72rem; }
+.film-board-map { position: relative; width: clamp(16rem, calc(100dvh - var(--topbar-h, 3.5rem) - 14rem), 100%); justify-self: end; }
+.film-board-chips { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+/* A count where it happened: the label over the figures, stacked down the Baron pit for the three that share it. */
+.film-board-chip { position: absolute; display: inline-flex; flex-direction: column; align-items: center; padding: 0.15rem 0.6rem 0.2rem; border-radius: 999px; border: 1px solid var(--film-line); background: color-mix(in srgb, var(--film-shade) 80%, transparent); color: var(--film-ink); line-height: 1.1; white-space: nowrap; transform: translate(-50%, calc(-50% + var(--stack, 0) * 1.9rem)); }
+.film-board-chip small { font-size: 0.54rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--film-ink-1); }
+.film-board-chip b { font-family: "Chakra Petch", sans-serif; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.film-board-chip i { margin: 0 0.1rem; font-style: normal; color: var(--film-ink-1); }
+.film-board-side { display: grid; gap: 0.8rem; min-width: 0; }
+.film-board-bars { display: grid; gap: 0.5rem; padding: 0; }
+.film-board-bar { display: grid; gap: 0.2rem; margin: 0; }
+.film-board-bar-label { font-family: "Chakra Petch", sans-serif; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--film-ink-1); }
+.film-board-bar-label em { margin-left: 0.4rem; font-style: normal; letter-spacing: 0.04em; text-transform: none; color: var(--accent-2); }
+.film-board-bar.is-widest .film-board-bar-label { color: var(--film-ink); }
+/* Ours grows in from the centre to the left, theirs from the centre to the right, so the pair reads as one scale. */
+.film-board-bar-pair { display: grid; grid-template-columns: minmax(0, 1fr) 2rem 2rem minmax(0, 1fr); align-items: center; gap: 0.3rem; }
+.film-board-bar-track { display: flex; height: 0.6rem; border-radius: 999px; background: color-mix(in srgb, var(--film-ink) 8%, transparent); overflow: hidden; }
+.film-board-bar-track.is-us { justify-content: flex-end; }
+.film-board-bar-track i { display: block; height: 100%; border-radius: 999px; background: var(--ok); transform-origin: right center; }
+.film-board-bar-track.is-them i { background: var(--warn); transform-origin: left center; }
+.film-board-bar.is-widest .film-board-bar-track i { box-shadow: 0 0 0.5rem color-mix(in srgb, var(--accent-2) 60%, transparent); }
+.film-board-bar-n { font-family: "Chakra Petch", sans-serif; font-size: 0.95rem; font-variant-numeric: tabular-nums; text-align: right; }
+.film-board-bar-n.is-them { text-align: left; color: var(--film-ink-1); }
+.film-board-note { margin: 0; font-size: 0.74rem; color: var(--film-ink-1); }
+/* The moments down the side: a rail of pins coloured by swing, one line each until tapped. */
+.film-board-rail { display: grid; align-content: start; gap: 0.4rem; padding: 0; }
+.film-board-rail li { margin: 0; }
+.film-board-moment { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.5rem; align-items: start; width: 100%; min-height: 2.75rem; padding: 0.45rem 0.6rem; border-radius: 10px; border: 1px solid var(--film-line); border-left-width: 3px; border-left-color: var(--film-ink-1); background: var(--film-panel); color: var(--film-ink); text-align: left; font-family: "Sora", sans-serif; font-size: 0.82rem; line-height: 1.3; cursor: pointer; transition: background 0.25s ease, border-color 0.25s ease; }
+.film-board-moment:hover, .film-board-moment:focus-visible { border-color: var(--accent-2); }
+.film-board-moment.is-us { border-left-color: var(--ok); }
+.film-board-moment.is-them { border-left-color: var(--warn); }
+.film-board-moment-min { display: inline-flex; align-items: baseline; gap: 0.1rem; font-family: "Chakra Petch", sans-serif; font-size: 0.9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.film-board-moment-min small { font-size: 0.55rem; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; }
+.film-board-moment-text { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; opacity: 0.72; transition: opacity 0.25s ease; }
+.film-board-moment.is-open { background: color-mix(in srgb, var(--film-ink) 12%, transparent); }
+.film-board-moment.is-open .film-board-moment-text { display: block; -webkit-line-clamp: none; opacity: 1; }
+
+/* ---- The map ---- */
+.film-map { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 27rem); gap: 1rem 1.2rem; align-items: start; max-width: 70rem; }
+.film-map-stage { position: relative; width: clamp(16rem, calc(100dvh - var(--topbar-h, 3.5rem) - 12rem), 100%); justify-self: end; }
+.film-map-tally { position: absolute; left: 0.5rem; top: 0.5rem; z-index: 4; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent-2) 55%, transparent); background: color-mix(in srgb, var(--film-shade) 78%, transparent); color: var(--film-ink); font-family: "Chakra Petch", sans-serif; font-size: 0.7rem; font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.film-map-side { display: grid; gap: 0.8rem; min-width: 0; }
+/* The opener: one count as a range with a Lock pill; then the answer counting up beside the verdict. */
+.film-map-opener { max-width: none; }
+.film-map-range { display: flex; align-items: center; gap: 0.8rem; }
+.film-map-range input { flex: 1 1 auto; height: 2.75rem; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.film-map-range-n { min-width: 2.4rem; text-align: center; font-family: "Chakra Petch", sans-serif; font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.film-map-dark { display: flex; align-items: baseline; gap: 0.45rem; margin: 0; font-size: 0.95rem; }
+.film-map-dark .film-num { font-family: "Chakra Petch", sans-serif; font-size: 1.9rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.film-map-dark.is-ok { color: var(--ok); }
+.film-map-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.film-map-filters .view-btn small { margin-left: 0.3rem; font-size: 0.72rem; opacity: 0.75; font-variant-numeric: tabular-nums; }
+.film-map-table-btn { margin-left: auto; }
+/* The ledger as a table, in the panel's own classes with the film's ink. A row not yet called keeps its verdict. */
+.film-map-table { max-height: 24rem; overflow: auto; border-radius: 10px; border: 1px solid var(--film-line); }
+.film-stage .game-review-ledger-table th, .film-stage .game-review-ledger-table td { border-color: var(--film-line); color: var(--film-ink); }
+.film-stage .game-review-ledger-table th { color: var(--film-ink-1); }
+.film-stage .game-review-ledger-table tbody tr { cursor: pointer; }
+.film-stage .game-review-ledger-table tbody tr:hover td { background: color-mix(in srgb, var(--film-ink) 6%, transparent); }
+.film-stage .game-review-ledger-table tr.is-selected td { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.film-stage .could-chip { color: var(--film-ink); border-color: var(--film-line); }
+.film-stage .could-chip.is-jungle { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+.film-stage .could-chip.is-ward { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 60%, transparent); }
+/* One death at a time: who, when, how and where, the call over the four tags, the note, and the pills. */
+.film-death-card { display: grid; gap: 0.8rem; padding: 0.9rem 1rem; border-radius: 14px; border: 1px solid var(--film-line); background: var(--film-panel); }
+.film-death-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: 0.2rem 0.65rem; align-items: center; }
+.film-death-icon { grid-row: 1 / 3; width: 2.6rem; height: 2.6rem; border-radius: 50%; object-fit: cover; border: 2px solid var(--warn); box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--warn) 30%, transparent); }
+.film-death-who { display: grid; line-height: 1.15; }
+.film-death-who b { font-size: 1rem; }
+.film-death-who small { font-size: 0.76rem; color: var(--film-ink-1); }
+.film-death-meta { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; font-size: 0.78rem; color: var(--film-ink-1); }
+.film-death-how { padding: 0 0.45rem; border-radius: 999px; border: 1px solid var(--film-line); }
+.film-death-n { grid-column: 3; grid-row: 1; font-family: "Chakra Petch", sans-serif; font-size: 0.7rem; letter-spacing: 0.1em; font-variant-numeric: tabular-nums; color: var(--film-ink-1); }
+.film-death-card .film-call { max-width: none; }
+.film-death-q { font-size: 1.15rem; }
+.film-death-card .film-chip { min-height: 2.75rem; font-size: 0.88rem; }
+.film-death-card .film-chip.is-picked { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--film-shade) 40%); }
+/* A tag that was right but not picked: outlined, so the miss reads without shouting. */
+.film-death-card .film-chip.is-missed { opacity: 1; border-style: dashed; border-color: var(--ok); color: var(--ok); }
+.film-death-hint { margin: 0; font-size: 0.76rem; color: var(--film-ink-1); }
+.film-death-line { font-size: 0.92rem; color: var(--film-ink); }
+.film-death-line.is-ok { color: var(--ok); }
+.film-death-notes { margin-bottom: 0; }
+.film-death-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+
+@media (max-width: 48rem) {
+  /* The scrubber sits right under the map, so the Lock ask is never below the sheet. */
+  .film-tape { grid-template-columns: minmax(0, 1fr); grid-template-areas: "map" "scrub" "sheet"; }
+  .film-board { grid-template-columns: minmax(0, 1fr); }
+  .film-map { grid-template-columns: minmax(0, 1fr); }
+  .film-tape-map, .film-board-map, .film-map-stage { width: min(100vw - 2rem, 58dvh); justify-self: center; }
+  .film-tape-sheet { min-height: 0; }
+  .film-board-rail { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }
+  .film-map-filters .view-btn { min-height: 2.75rem; }
+  /* The tag pills go icon and count only, so the six fit two lines. */
+  .film-map-filter-word { display: none; }
+  .film-map-filters .view-btn small { margin-left: 0.15rem; }
+  .film-map-table-btn { margin-left: 0; }
+  .film-death-actions .view-btn { min-height: 2.75rem; }
+}
+
+/* Motion for the three chapters: the board's bars race in 120 ms apart and its chips and moments drop
+   and rise in turn; the sheet's lines rise as they change; the map's pins drop 90 ms apart in the
+   walk's order (the rift-map sets --i from each token's place), and the dark count pulses when it was
+   called. All gated on the current chapter and off with the film's Motion pill. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes film-bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-board-bar-track i { animation: film-bar-grow calc(700ms * var(--film-tempo, 1)) var(--film-ease) calc(var(--i, 0) * 120ms * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-board-chip { animation: film-drop calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc((200ms + var(--i, 0) * 60ms) * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-board-rail li { animation: film-rise calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc((300ms + var(--i, 0) * 50ms) * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-tape-sheet > * { animation: film-word-rise calc(320ms * var(--film-tempo, 1)) var(--film-ease) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-map-stage .rift-token > :first-child { animation-delay: calc(var(--i, 0) * 90ms * var(--film-tempo, 1)); }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-map-stage .rift-token::after { animation-delay: calc(var(--i, 0) * 90ms * var(--film-tempo, 1)); }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-death-card { animation: film-drop calc(360ms * var(--film-tempo, 1)) var(--film-ease) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-map-dark.is-ok .film-num { animation: film-pulse calc(700ms * var(--film-tempo, 1)) ease-out calc(900ms * var(--film-tempo, 1)) 2; border-radius: 999px; }
+}
+
+/* ---- The review takeover, 9 Sep 2026 ---- */
+/* app-review-takeover, hosted once beside the tour overlay. The gate is a modal card; Roll it grows
+   the stage out of it (a WAAPI FLIP through MotionService) to fill the screen, with the page behind
+   inert and blurred. The stage borrows the film's ink and shade tokens so the Rift, the scrubber and
+   the pills read as the film room does, in both themes. Every entrance sits in the reduced-motion
+   query and is gated on `.review-takeover.is-on:not(.is-still)`; the elapsed ring is a seconds dial,
+   never a progress bar. Under 48rem the stage stacks and scrolls. */
+.review-takeover { display: contents; }
+.rt-backdrop { position: fixed; inset: 0; z-index: 65; background: color-mix(in srgb, var(--bg-0) 60%, transparent); }
+.rt-backdrop.is-deep { background: color-mix(in srgb, var(--bg-0) 85%, transparent); -webkit-backdrop-filter: blur(0.25rem); backdrop-filter: blur(0.25rem); }
+.rt-gate { position: fixed; inset: 0; z-index: 66; width: min(26.25rem, calc(100vw - 2rem)); height: fit-content; margin: auto; }
+.rt-gate .title-with-icon { margin-top: 0; }
+.rt-gate .muted { margin: 0.5rem 0 0; }
+.rt-gate-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+
+.rt-stage {
+  --film-ink: var(--text-0);
+  --film-ink-1: var(--text-1);
+  --film-shade: var(--bg-0);
+  --film-panel: color-mix(in srgb, var(--film-ink) 7%, transparent);
+  --film-line: color-mix(in srgb, var(--film-ink) 16%, transparent);
+  --film-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --film-tempo: 1;
+  position: fixed;
+  inset: 0;
+  z-index: 66;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.9rem;
+  padding: 1rem 1.25rem 1.25rem;
+  overflow: auto;
+  transform-origin: 0 0;
+  background: var(--film-shade);
+  color: var(--film-ink);
+  font-family: "Sora", sans-serif;
+  outline: none;
+}
+body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(--bg-1); --film-shade: var(--text-0); background: color-mix(in srgb, var(--bg-0) 35%, var(--film-shade)); }
+.rt-stage .view-btn { color: var(--film-ink); background: color-mix(in srgb, var(--film-ink) 8%, transparent); border-color: color-mix(in srgb, var(--film-ink) 24%, transparent); }
+.rt-stage .view-btn:hover, .rt-stage .view-btn:focus-visible { border-color: var(--accent-2); }
+.rt-stage .view-btn.active { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 45%, transparent), color-mix(in srgb, var(--accent-2) 30%, transparent)); border-color: color-mix(in srgb, var(--accent-2) 70%, transparent); }
+.rt-stage .view-btn .material-symbols-rounded { font-size: 1.05rem; vertical-align: -0.2rem; }
+.rt-stage .score-chip { color: var(--film-ink); background: var(--film-panel); border-color: var(--film-line); }
+.rt-stage .score-chip small, .rt-stage .score-chip em { color: var(--film-ink-1); }
+
+.rt-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.5rem 1rem; }
+.rt-kicker { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--film-ink-1); }
+.rt-kicker .material-symbols-rounded { font-size: 1rem; }
+.rt-title { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: clamp(1.05rem, 2.4vw, 1.65rem); font-weight: 700; letter-spacing: 0.06em; line-height: 1.1; }
+.rt-head-pills { display: flex; gap: 0.5rem; }
+
+.rt-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); gap: 1.25rem; min-height: 0; }
+.rt-main { display: grid; align-content: start; gap: 0.75rem; min-width: 0; }
+.rt-map { position: relative; width: min(100%, calc(100dvh - 16rem)); min-width: 16rem; margin-inline: auto; }
+.rt-map.is-held .rift-map-img { filter: saturate(0.55) brightness(0.5); }
+.rt-clock { position: absolute; right: 0.5rem; top: 0.5rem; z-index: 4; padding: 0.15rem 0.55rem; border-radius: 999px; background: color-mix(in srgb, var(--bg-0) 78%, transparent); color: var(--text-0); font-family: "Chakra Petch", sans-serif; font-size: 0.95rem; font-variant-numeric: tabular-nums; letter-spacing: 0.05em; pointer-events: none; }
+.rt-count { font-variant-numeric: tabular-nums; color: var(--film-ink); }
+.rt-locked { display: flex; align-items: center; gap: 0.4rem; margin: 0; font-size: 0.9rem; color: var(--film-ink-1); }
+.rt-locked .material-symbols-rounded { color: var(--ok); }
+
+.rt-totals { display: grid; gap: 0.75rem; }
+.rt-call { max-width: none; }
+.rt-call .film-call-q { font-size: 1.15rem; }
+.rt-splash-frame { position: relative; aspect-ratio: 21 / 9; width: 100%; overflow: hidden; border-radius: 12px; border: 1px solid var(--film-line); background: var(--bg-0); }
+.rt-splash { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; opacity: 0; filter: saturate(0.9) brightness(0.7); }
+.rt-splash.is-shown { opacity: 1; }
+.rt-sheen { position: absolute; top: 0; bottom: 0; left: 0; width: 35%; background: linear-gradient(100deg, transparent, color-mix(in srgb, var(--film-ink) 35%, transparent), transparent); opacity: 0; pointer-events: none; }
+.rt-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; }
+.rt-line, .rt-caption, .rt-status, .rt-still, .rt-landed-kicker, .rt-headline { margin: 0; }
+.rt-line { font-size: 0.9rem; color: var(--film-ink-1); }
+
+.rt-side { display: grid; align-content: start; gap: 1rem; min-width: 0; }
+.rt-champs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; }
+.rt-champ { width: 2.75rem; height: 2.75rem; border-radius: 50%; overflow: hidden; border: 2px solid var(--film-line); background: var(--bg-0); }
+.rt-champ-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.rt-caption { font-size: 1.05rem; line-height: 1.4; }
+.rt-facts { display: grid; gap: 0.4rem; margin: 0; font-size: 0.92rem; line-height: 1.4; color: var(--film-ink-1); }
+.rt-status { font-size: 1rem; color: var(--film-ink-1); }
+.rt-elapsed { display: flex; align-items: center; gap: 0.75rem; }
+.rt-ring-wrap { position: relative; flex: none; width: 3.5rem; height: 3.5rem; border-radius: 50%; }
+.rt-ring { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
+.rt-ring-track { fill: none; stroke: color-mix(in srgb, var(--film-ink) 14%, transparent); stroke-width: 3; }
+.rt-ring-fill { fill: none; stroke: var(--accent-2); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 100; }
+.rt-stage.is-landed .rt-ring-fill { stroke: var(--ok); }
+.rt-ring-n { position: absolute; inset: 0; display: grid; place-items: center; font-family: "Chakra Petch", sans-serif; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.rt-ring-label { font-size: 0.78rem; color: var(--film-ink-1); }
+.rt-still { font-size: 0.9rem; color: var(--film-ink-1); }
+.rt-callout { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent); background: color-mix(in srgb, var(--warn) 14%, transparent); font-size: 0.92rem; line-height: 1.4; }
+.rt-callout .material-symbols-rounded { flex: none; color: var(--warn); }
+.rt-landed-kicker { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ok); }
+.rt-landed-kicker .material-symbols-rounded { font-size: 1.1rem; }
+.rt-headline { font-family: "Chakra Petch", sans-serif; font-size: clamp(1.3rem, 2.6vw, 1.9rem); font-weight: 700; line-height: 1.15; }
+.rt-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+/* The row's Film room pill, once a review landed while the takeover was minimised: lit until it is pressed. */
+.games-film-line .view-btn.is-ready { color: var(--accent); border-color: var(--accent); }
+
+/* A toast with one pill on it ("The film is ready" and its Open). */
+.toast-actions { margin-top: 0.35rem; }
+.toast-actions .view-btn { min-height: 1.9rem; padding: 0.2rem 0.75rem; font-size: 0.8rem; }
+
+@media (max-width: 48rem) {
+  .rt-stage { gap: 0.6rem; padding: 0.75rem; }
+  .rt-head { grid-template-columns: minmax(0, 1fr) auto; }
+  .rt-kicker { grid-column: 1 / -1; }
+  .rt-body { grid-template-columns: minmax(0, 1fr); }
+  .rt-map { width: 100%; min-width: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .review-takeover.is-on:not(.is-still) .rt-gate { animation: toast-in 220ms ease-out both; }
+  .review-takeover.is-on:not(.is-still) .rt-backdrop { transition: background 420ms ease, backdrop-filter 420ms ease; }
+  .review-takeover.is-on:not(.is-still) .rt-title .film-word { animation: film-word-rise 420ms var(--film-ease) both; animation-delay: calc(var(--i, 0) * 60ms); }
+  .review-takeover.is-on:not(.is-still) .rt-headline .film-word { animation: film-word-rise 420ms var(--film-ease) both; animation-delay: calc(120ms + var(--i, 0) * 45ms); }
+  .review-takeover.is-on:not(.is-still) .rt-champ { animation: film-drop 360ms var(--film-ease) both; animation-delay: calc(300ms + var(--i, 0) * 90ms); }
+  .review-takeover.is-on:not(.is-still) :is(.rt-caption, .rt-status) { animation: film-word-rise 360ms var(--film-ease) both; }
+  .review-takeover.is-on:not(.is-still) .rt-splash { transition: opacity 600ms ease; }
+  .review-takeover.is-on:not(.is-still) .rt-sheen { animation: pick-sheen 900ms ease-out 300ms both; }
+  .review-takeover.is-on:not(.is-still) .rt-map .rift-map-img { transition: filter 900ms ease; }
+  .review-takeover.is-on:not(.is-still) .rt-ring-fill { transition: stroke-dashoffset 950ms linear, stroke 300ms ease; }
+  .review-takeover.is-on:not(.is-still) .rt-ring-wrap.is-wrap .rt-ring-fill { transition: stroke 300ms ease; }
+  .review-takeover.is-on:not(.is-still) .rt-stage.is-landed .rt-ring-fill { transition: stroke-dashoffset 300ms var(--film-ease), stroke 300ms ease; }
+  .review-takeover.is-on:not(.is-still) .rt-stage.is-landed .rt-ring-wrap { animation: film-pulse 700ms ease-out 2; }
+  .review-takeover.is-on:not(.is-still) .rt-chips.is-landed .score-chip { animation: liftIn 380ms ease both; animation-delay: calc(var(--i, 0) * 60ms); }
+  .review-takeover.is-on:not(.is-still) :is(.rt-landed-kicker, .rt-pills, .rt-callout) { animation: film-rise 420ms var(--film-ease) both; }
+  .games-film-line .view-btn.is-ready { animation: draft-map-pulse 1.4s ease-in-out 2; }
+}

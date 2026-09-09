@@ -1,4 +1,4 @@
-import { DeathVerdict, GameReview, ReviewPoint, ReviewTheme, Role } from '../models/team.models';
+import { DeathCould, DeathHow, DeathVerdict, GameReview, LedgerSummary, MapZone, ReviewPoint, ReviewTheme, Role } from '../models/team.models';
 import { ScoreChip } from './review-view';
 
 /**
@@ -90,6 +90,94 @@ export interface FilmCard {
   keepDoing?: string;
 }
 
+// ---- Slice 2: the tape, the board, the map ------------------------------------
+//
+// Positions are percent-space on the Rift image (0-100 both axes, blue base
+// bottom-left, red base top-right), placed inside the zone bucket the timeline
+// put them in by `core/rift-zones.ts`. Approximate by construction, and every
+// surface that shows them says so.
+
+export type FilmTapeEventKind = 'ourDeath' | 'theirDeath' | 'objective' | 'first' | 'plate' | 'back';
+
+export interface FilmTapeEvent {
+  sec: number;
+  kind: FilmTapeEventKind;
+  /** Short, for a tooltip: "Ruan (Top) died", "Their dragon (infernal)", "First blood, ours". */
+  label: string;
+  side?: 'us' | 'them';
+  seat?: Role;
+  champion?: string;
+  zone?: MapZone;
+  x: number;
+  y: number;
+  /** The ledger key "d:<minute>:<seat>" for a death of ours, so the map and the notes can find it. */
+  key?: string;
+}
+
+export interface FilmMoment {
+  minute: number;
+  text: string;
+  swing: 'us' | 'them' | 'even';
+  /** What the gold did over the next three minutes: "Over the next three minutes: -1.4k". */
+  consequence?: string;
+}
+
+/** A call the tape pauses for, a game-minute before the thing happens. */
+export interface FilmTapeCall extends FilmCall {
+  /** When the hand pauses. */
+  atSec: number;
+  /** When the answer shows on the map. */
+  revealSec: number;
+}
+
+export interface FilmTape {
+  durationSec: number;
+  ourSide: 'blue' | 'red';
+  /** Index is the minute; ours minus theirs. */
+  goldDiff: number[];
+  /** Where it turned: the worst deficit on a loss, the biggest lead on a win, the earliest lane flip on a swing. */
+  turn: { minute: number; why: string } | null;
+  moments: FilmMoment[];
+  /** In time order. */
+  events: FilmTapeEvent[];
+  calls: FilmTapeCall[];
+}
+
+/** The replay tier's static board: the counts, with one call before they show. */
+export interface FilmBoard {
+  tallies: { label: string; ours: number; theirs: number }[];
+  /** "Which count was furthest apart?" over the tallies; null when every count is tied. */
+  call: FilmCall | null;
+  moments: FilmMoment[];
+}
+
+export interface FilmDeathPin {
+  key: string;
+  sec: number;
+  minute: number;
+  seat: Role;
+  name?: string;
+  champion?: string;
+  zone: MapZone;
+  x: number;
+  y: number;
+  how: DeathHow;
+  could: DeathCould[];
+  /** The ledger's line. */
+  line: string;
+}
+
+export interface FilmMap {
+  /** In the order the chapter walks them. */
+  pins: FilmDeathPin[];
+  theirs: { x: number; y: number; minute: number }[];
+  clusters: { x: number; y: number; r: number; ours: number; theirs: number; line: string }[];
+  summary: LedgerSummary;
+  /** "How many of our N deaths had no ward nearby?" as a slider: the answer and the slider's top. */
+  darkCall: { answer: number; max: number };
+  order: 'chronological' | 'worst-first';
+}
+
 export interface FilmModel {
   matchId: string;
   tier: GameReview['tier'];
@@ -99,4 +187,10 @@ export interface FilmModel {
   oneThing: FilmOneThing;
   seats: FilmSeat[];
   card: FilmCard;
+  /** Timeline tier only. */
+  tape?: FilmTape;
+  /** Replay tier only. */
+  board?: FilmBoard;
+  /** Timeline tier with a ledger only. */
+  map?: FilmMap;
 }

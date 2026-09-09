@@ -24,6 +24,7 @@ import { GameReviewComponent } from '../../shared/game-review.component';
 import { FilmPosterComponent } from '../../shared/film/film-poster.component';
 import { GameGraphsComponent } from '../../shared/game-graphs.component';
 import { GameReviewService } from '../../services/game-review.service';
+import { ReviewTakeoverService } from '../../services/review-takeover.service';
 import { PlayerEditorService } from '../../services/player-editor.service';
 import { ToastService } from '../../services/toast.service';
 import { CompExpectationService } from '../../services/comp-expectation.service';
@@ -298,6 +299,7 @@ export class GamesComponent {
   private readonly analysisById = computed(() => new Map((this.data.compAnalysis()?.games ?? []).map((g) => [g.matchId, g])));
   private readonly expectations = inject(CompExpectationService);
   protected readonly reviews = inject(GameReviewService);
+  protected readonly takeover = inject(ReviewTakeoverService);
   private readonly editor = inject(PlayerEditorService);
   private readonly toast = inject(ToastService);
 
@@ -331,13 +333,16 @@ export class GamesComponent {
     this.matchFocus.set(matchId);
   }
 
-  /** Ask the model for a review of this game; the stored document arrives through the listener. */
-  protected reviewGame(row: GameRow): void {
+  /**
+   * Ask the model for a review of this game, through the takeover: it gates
+   * the money first, plays the game while the coach writes, and the stored
+   * document arrives through the listener (9 Sep 2026; it used to be a
+   * confirm()). The button's box is where the stage grows from.
+   */
+  protected reviewGame(row: GameRow, event?: Event): void {
     if (!row.matchId || reviewBlockReason(row)) return;
-    const again = !!this.data.reviewFor(row.matchId);
-    // It spends money: say so before, not only in a tooltip.
-    if (!confirm(again ? 'Write the review again? Two model calls, about a dime.' : 'Review this game? Two model calls over the facts, about a dime.')) return;
-    void this.reviews.review(row.matchId, this.expectFor(row));
+    const button = event?.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    this.takeover.open(row.matchId, this.expectFor(row), button?.getBoundingClientRect() ?? null, button);
   }
 
   protected removeReview(row: GameRow): void {

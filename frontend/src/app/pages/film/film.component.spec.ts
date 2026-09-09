@@ -111,7 +111,8 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
 
   it('opens on the title card, takes the call, lands the headline and remembers the call', async () => {
     const { harness, root } = await open(`/film/${ID}`);
-    expect(root.querySelectorAll('.film-dot')).toHaveLength(4);
+    // Title, the board (no timeline in local mode), the one thing, the seat, the card.
+    expect(root.querySelectorAll('.film-dot')).toHaveLength(5);
     expect(text(root, '.film-call-q')).toBe('What decided this game?');
     expect(root.querySelectorAll('.film-chip')).toHaveLength(4);
     expect(root.querySelector('.film-headline')).toBeNull();
@@ -130,6 +131,20 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
   it('walks the chapters: the commitment, the seat, and the card that finishes the film', async () => {
     const { harness, root } = await open(`/film/${ID}`);
 
+    click(root, '.film-frame-nav .view-btn.active');
+    harness.detectChanges();
+    expect(text(root, '.film-kicker')).toContain('The board');
+    // The counts stay hidden until the call: the chips read "?" and there are no bars.
+    expect(text(root, '.film-call-q')).toBe('Which count was furthest apart?');
+    expect(text(root, '.film-board-chip b')).toBe('?');
+    expect(root.querySelector('.film-board-bars')).toBeNull();
+    click(root, '.film-chip');
+    harness.detectChanges();
+    expect(root.querySelector('.film-chip.is-right')).not.toBeNull();
+    expect(root.querySelectorAll('.film-board-bar')).toHaveLength(1);
+    expect(text(root, '.film-board-bar.is-widest .film-board-bar-label')).toContain('Kills');
+    expect(text(root, '.film-board-note')).toBe('A replay carries totals only.');
+    expect(prefs.filmProgress(ID)?.calls?.['board']).toBe(0);
     click(root, '.film-frame-nav .view-btn.active');
     harness.detectChanges();
     expect(text(root, '.film-kicker')).toContain('The one thing');
