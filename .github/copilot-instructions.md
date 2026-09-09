@@ -13,7 +13,7 @@ The canonical, fuller guide is [`CLAUDE.md`](../CLAUDE.md) at the repo root. Rea
 
 ## Architecture essentials
 - **`TeamDataService` is the single source of truth.** All pages read its signals; all writes go through `persistUpsert`/`persistRemove`, which branch on `mode`.
-- **Dual mode** via `isFirebaseConfigured()` (`core/firebase.ts`): Firebase (Firestore + Google auth) when `apiKey`+`projectId` are set, else **local mode** (localStorage seeded from `SEED_DATA`, any login = admin). `environment.ts` ships real Firebase web config, so `npm start` hits real Firebase; to work offline, blank `apiKey` locally and **don't commit it**.
+- **Dual mode** via `isFirebaseConfigured()` (`core/firebase.ts`): Firebase (Firestore + Google auth) when `apiKey`+`projectId` are set, else **local mode** (localStorage seeded from `SEED_DATA`, "Enter local preview" = admin). `environment.ts` ships real Firebase web config, so `npm start` hits real Firebase; to work offline, blank `apiKey` locally and **don't commit it**.
 - Adding a persisted entity means touching all of: `team.models.ts` + `TeamData`, a signal, an `onSnapshot` listener, `EntityKey`, `pushLocalToSignals`/`persistLocal`, `seedFirestore`, CRUD — mirror `compResults`.
 - Firestore: list collections (`players`, `fillIns`, `comps`, `compResults`, `access`) + `meta/*` singletons. Rules: public read, `canEdit()` write via catch-all, so new collections need no rules change.
 - Cloud Functions (`api/src/index.ts`): `enrichPlayer`, `getTeamSynergy`, `getCompAnalysis`, `riotKeyHealth`, and the scheduled `checkRiotKey` — `onRequest`, `RIOT_API_KEY` secret, region `europe-west1`.

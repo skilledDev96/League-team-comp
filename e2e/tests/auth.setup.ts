@@ -1,29 +1,35 @@
 import { expect, test as setup } from '@playwright/test';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { AUTH_STATE } from '../playwright.config';
 
 /**
  * Signs in once and saves the session for the authenticated tests to reuse.
  *
- * Email/password rather than Google: nobody on the team signs in that way, but
- * an OAuth popup cannot be driven reliably from a test — it fights bot
- * detection and can demand a second factor. The provider being unused by humans
- * is what makes it a clean door for automation.
+ * The login screen is Google only (9 Sep 2026), and an OAuth popup cannot be
+ * driven from a test: it fights bot detection and can demand a second factor.
+ * So the runner mints a Firebase custom token for the viewer account with the
+ * service account it holds, and hands it to the app on the fragment of the
+ * login route. The app signs in with it and then runs the same access gate as
+ * everyone else, so the token alone grants nothing; there is no password
+ * provider and no minting endpoint on the internet.
  *
  * Firebase keeps its session in IndexedDB rather than cookies, so the saved
  * state has to include it.
  */
 setup('sign in', async ({ page, context }) => {
   const email = process.env.E2E_EMAIL!;
-  const password = process.env.E2E_PASSWORD!;
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
+  const app = getApps()[0] ?? initializeApp({ credential: cert(serviceAccount) });
+  const user = await getAuth(app).getUserByEmail(email);
+  const token = await getAuth(app).createCustomToken(user.uid);
 
-  await page.goto('./');
-  await expect(page.getByText(/Team Login/i)).toBeVisible({ timeout: 30_000 });
+  // The site root is the login page and is served directly; a deeper path
+  // goes through the Pages 404 redirect, which is one more place to lose a
+  // fragment.
+  await page.goto(`./#token=${encodeURIComponent(token)}`);
 
-  await page.locator('input[name="email"]').fill(email);
-  await page.locator('input[name="password"]').fill(password);
-  await page.getByRole('button', { name: /^Log in$/ }).click();
-
-  // The form reports its own failures, and its message is far more useful than
+  // The page reports its own failures, and its message is far more useful than
   // a timeout on whatever we were waiting for next.
   const error = page.locator('[role="alert"]');
   await expect

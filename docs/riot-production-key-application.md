@@ -93,11 +93,12 @@ Riot asks for evidence you will deliver on the use case:
 >  experience is."
 
 - [x] **Live URL** — <https://skilleddev96.github.io/League-team-comp/>
-- [x] **A viewer-role test account.** One already exists for the `e2e` suite and
-      is asserted read-only by `e2e/tests/authenticated.spec.ts` ("the account is
-      a viewer, so the tests cannot change anything"). Reuse those credentials so
-      a reviewer sees the real product without signing in with their own Riot
-      account.
+- [x] **A viewer-role test account.** Sign-in is Google only, so the reviewer
+      gets a Google account added as a viewer on Admin › Access; the viewer role
+      is the one the `e2e` suite asserts read-only in
+      `e2e/tests/authenticated.spec.ts` ("the account is a viewer, so the tests
+      cannot change anything"). The reviewer sees the real product without
+      signing in with their own Riot account.
 - [x] **The attribution notice**, displayed in the site footer on every page
       (`frontend/src/app/app.html:88`): *"…created under Riot Games' 'Legal
       Jibber Jabber' policy using assets owned by Riot Games. Riot Games does not

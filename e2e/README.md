@@ -40,15 +40,20 @@ permanently part-yellow stops meaning anything.
 
 ```
 E2E_EMAIL=e2e@bomsquad.test
-E2E_PASSWORD=…
+FIREBASE_SERVICE_ACCOUNT={"type":"service_account",…}
 ```
 
 Set them as environment variables, or copy `.env.example` to `.env` (ignored).
 In CI they are repository secrets.
 
-They sign in through the **email/password** form rather than Google. Nobody on
-the team signs in that way, which is exactly what makes it a clean door for
-automation: an OAuth popup fights bot detection and can demand a second factor.
+The login screen is **Google only**, and an OAuth popup cannot be driven from a
+test: it fights bot detection and can demand a second factor. So the runner
+mints a Firebase **custom token** for the viewer account with the service
+account it holds (`tests/auth.setup.ts`) and hands it to the app on the login
+route's fragment, `/#token=…`. The app signs in with it and then runs the same
+`access/{email}` gate as everyone else, so the token alone grants nothing.
+There is no password provider and no minting endpoint on the internet; the key
+lives only in the repository secrets and in your `.env`.
 
 ### The account must be a viewer
 
@@ -78,7 +83,7 @@ the change under review.
 
 Both check out with `fetch-depth: 0`, because the drift check needs `api/`
 history rather than the single commit a shallow clone gives it. Both pass
-`E2E_EMAIL`/`E2E_PASSWORD` from repository secrets; without them the
+`E2E_EMAIL`/`FIREBASE_SERVICE_ACCOUNT` from repository secrets; without them the
 authenticated tests simply are not registered.
 
 ## Pointing somewhere else

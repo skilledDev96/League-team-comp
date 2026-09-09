@@ -68,7 +68,7 @@ until a user noticed.
 `frontend/src/app/core/firebase.ts` `isFirebaseConfigured()` returns true when `environment.firebase.apiKey` **and** `projectId` are set. This single flag drives the whole app:
 
 - **Firebase mode**: Firestore is the source of truth; login is Google sign-in gated by `access/{email}` role docs.
-- **Local mode**: no backend. `TeamDataService` seeds from `SEED_DATA` into `localStorage` (`bom-team-data`), and `AuthService` treats *any* email/password as an admin session (`sessionStorage` flag `bom-local-auth`).
+- **Local mode**: no backend. `TeamDataService` seeds from `SEED_DATA` into `localStorage` (`bom-team-data`), and one **Enter local preview** click is an admin session (`AuthService.enterLocal`, `sessionStorage` flag `bom-local-auth`).
 
 `environment.ts` is committed **with real Firebase web config**, so `npm start` runs against real Firebase and requires sign-in. To develop offline in local mode, blank the `apiKey` in `environment.ts` — **do not commit that change**. (Firebase web config is public by design; it is not a secret.)
 
@@ -82,7 +82,7 @@ In Firebase mode the signals are kept live by `onSnapshot` listeners set up in `
 
 **Firestore layout**: list collections `players`, `fillIns`, `comps`, `compResults`, `scrims` (replays), `tournaments`, `tournamentSeries`, `seriesGames`, `access`; singleton docs under `meta/` (`teamIdentity`, `macro`, `resourceLinks`, `settings`). `SEED_DATA` (`frontend/src/app/data/seed-data.ts`) is the one-time migration source and the local-mode seed; its shape must stay in sync with the `TeamData` interface.
 
-**Auth & roles** (`frontend/src/app/services/auth.service.ts`): roles are `admin` / `contributor` / `viewer`. `canEdit()` is true for local mode, `admin`, or `contributor`; `canManageUsers()` for local mode or `admin`. A bootstrap admin email is hardcoded (`ruanhart7@gmail.com`) in both the service and `firestore.rules`. Content routes are gated by `viewerGuard` (`frontend/src/app/app.routes.ts`); `AuthService.ready`/`waitUntilReady()` prevents guard-redirect races on refresh.
+**Auth & roles** (`frontend/src/app/services/auth.service.ts`): roles are `admin` / `contributor` / `viewer`. `canEdit()` is true for local mode, `admin`, or `contributor`; `canManageUsers()` for local mode or `admin`. A bootstrap admin email is hardcoded (`ruanhart7@gmail.com`) in both the service and `firestore.rules`. Content routes are gated by `viewerGuard` (`frontend/src/app/app.routes.ts`); `AuthService.ready`/`waitUntilReady()` prevents guard-redirect races on refresh. **Sign-in is Google only** (9 Sep 2026; the email/password form went, nobody used it). The automated test user's door is `AuthService.loginWithToken`: a Firebase custom token on the login route's fragment (`/#token=…`), minted by the e2e runner from a service account (`FIREBASE_SERVICE_ACCOUNT` secret, `e2e/tests/auth.setup.ts`), then the same `access/{email}` gate — no password provider, no minting endpoint. A Riot reviewer gets a Google account added as a viewer on Admin › Access.
 
 **Firestore security** (`firestore.rules`, at the repo root): public read on everything; writes require `canEdit()` via the catch-all `match /{document=**}`, so a new collection is automatically covered (public read, editor write) — no rules change needed. `access` and `meta/settings` have their own stricter rules.
 

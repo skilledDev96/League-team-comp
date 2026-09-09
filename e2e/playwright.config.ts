@@ -20,11 +20,12 @@ export const API = process.env.E2E_API ?? 'https://europe-west1-lol-bom-squad.cl
 export const AUTH_STATE = '.auth/state.json';
 
 /**
- * The authenticated tests need a test account. Without one they are not
- * registered at all, rather than reported as skipped — a suite that is always
- * partly yellow stops meaning anything.
+ * The authenticated tests need the viewer account's email and a service
+ * account to mint its sign-in token (`tests/auth.setup.ts`). Without both they
+ * are not registered at all, rather than reported as skipped — a suite that is
+ * always partly yellow stops meaning anything.
  */
-const CREDENTIALS = Boolean(process.env.E2E_EMAIL && process.env.E2E_PASSWORD);
+const CREDENTIALS = Boolean(process.env.E2E_EMAIL && process.env.FIREBASE_SERVICE_ACCOUNT);
 
 export default defineConfig({
   testDir: './tests',

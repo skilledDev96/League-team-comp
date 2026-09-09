@@ -3,7 +3,7 @@ import {
   GoogleAuthProvider,
   User,
   onAuthStateChanged,
-  signInWithEmailAndPassword,
+  signInWithCustomToken,
   signInWithPopup,
   signOut
 } from 'firebase/auth';
@@ -111,22 +111,33 @@ export class AuthService {
     this.userEmail.set(email);
   }
 
-  async login(email: string, password: string): Promise<void> {
-    if (this.mode === 'firebase') {
-      const auth = getAuthInstance();
-      if (!auth) {
-        throw new Error('Firebase auth unavailable.');
-      }
-      const credential = await signInWithEmailAndPassword(auth, email, password);
-      await this.enforceAccess(credential.user.email);
-      return;
+  /** Local mode: no backend; one click is an admin session for this browser tab. */
+  enterLocal(): void {
+    if (this.mode !== 'local') {
+      throw new Error('The local preview needs Firebase to be unconfigured.');
     }
-    // Local mode: no backend; any non-empty credentials unlock editing for this session.
-    if (!email || !password) {
-      throw new Error('Enter an email and password.');
-    }
+    const email = 'local@preview';
     sessionStorage.setItem(LOCAL_FLAG, email);
     this.userEmail.set(email);
+    this.role.set('admin');
+  }
+
+  /**
+   * The automated test user's door (9 Sep 2026): a Firebase custom token the
+   * test runner minted from a service account, handed over on the login
+   * route's fragment. Then the same access gate as everyone, so the token
+   * alone grants nothing. No password provider, no endpoint on the internet.
+   */
+  async loginWithToken(token: string): Promise<void> {
+    if (this.mode !== 'firebase') {
+      throw new Error('A sign-in token requires Firebase configuration.');
+    }
+    const auth = getAuthInstance();
+    if (!auth) {
+      throw new Error('Firebase auth unavailable.');
+    }
+    const credential = await signInWithCustomToken(auth, token);
+    await this.enforceAccess(credential.user.email);
   }
 
   async loginWithGoogle(): Promise<void> {

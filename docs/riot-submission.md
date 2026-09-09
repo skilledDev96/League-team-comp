@@ -122,8 +122,8 @@ player history or player identifier is retained from any match tallied.
 ## What we are sending with this
 
 - **Live site:** https://skilleddev96.github.io/League-team-comp/
-- **Test account:** read-only viewer credentials, supplied separately, so the
-  product can be reviewed without signing in with a Riot account.
+- **Test account:** a read-only viewer Google account, supplied separately, so
+  the product can be reviewed without signing in with a Riot account.
 - **Walkthrough:** https://youtu.be/ZgyiHprMYYw (unlisted) — roster, player detail, compositions, a live draft
   including the champion suggestions, the fearless burn on the second game of a
   series, and the post-game review.

@@ -73,10 +73,11 @@ jobs:
       - name: End-to-end checks
         run: npm --prefix e2e test
         env:
-          # Present only if the test account has been configured. Without them
-          # the authenticated tests are not registered at all.
+          # Present only if the test account has been configured: its email, and
+          # the service account that mints its sign-in token. Without both the
+          # authenticated tests are not registered at all.
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
-          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
