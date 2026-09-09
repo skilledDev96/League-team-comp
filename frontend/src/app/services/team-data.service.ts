@@ -669,9 +669,7 @@ export class TeamDataService {
    * record without anyone linking them. A new opponent is created the first
    * time anything is saved against them; there is no separate "add" step.
    */
-  saveScrimOpponent(opponent: ScrimOpponent): Promise<void> {
-    return this.persistUpsert('scrimOpponents', this.scrimOpponents, opponent);
-  }
+
 
   deleteScrimOpponent(id: string): Promise<void> {
     return this.persistRemove('scrimOpponents', this.scrimOpponents, id);

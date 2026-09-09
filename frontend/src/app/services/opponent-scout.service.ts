@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { OpponentPlayer, Player, Role, ROLES, ScrimOpponent, TournamentSeries } from '../models/team.models';
+import { OpponentPlayer, Player, Role, ROLES, TournamentSeries } from '../models/team.models';
 import { PlayerEnrichmentService } from './player-enrichment.service';
 import { TeamDataService } from './team-data.service';
 import { RiotId, parseRiotIds } from '../core/riot-id';
@@ -91,12 +91,7 @@ export class OpponentScoutService {
   }
 
   /** The same scout, for a team we only ever meet in scrims. */
-  async scoutScrimOpponent(opponent: ScrimOpponent): Promise<void> {
-    await this.scoutRoster(opponent.id, opponent.opponentPlayers ?? [], (players) =>
-      this.data.saveScrimOpponent({ ...opponent, opponentPlayers: players }),
-      opponent.name
-    );
-  }
+
 
   /**
    * Scout a roster, whoever owns it.
