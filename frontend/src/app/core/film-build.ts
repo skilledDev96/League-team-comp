@@ -69,6 +69,37 @@ function seatOf(player: AnalysisPlayer): Role | undefined {
   return POSITION_SEAT[player.position];
 }
 
+/** Letters only, lowercased, so "Kai'Sa" and "Kaisa" and "KaiSa" agree. */
+function letters(text: string): string {
+  return text.toLowerCase().replace(/[^a-z]/g, '');
+}
+
+/** The seat whose champion the headline names, when it names one of ours. */
+function headlineSeat(headline: string, review: GameReview): Role | undefined {
+  const words = letters(headline);
+  const named = review.players.filter((p) => p.champion && words.includes(letters(p.champion)));
+  return named.sort((a, b) => seatIndex(a.seat) - seatIndex(b.seat))[0]?.seat;
+}
+
+/**
+ * Our MVP by the line: kills and assists over deaths, the share of the team's
+ * damage, kill participation. A plain score, the same on every game, so the
+ * poster fronts the one who carried rather than the one who died most.
+ */
+function mvpSeat(game: AnalysisGame): Role | undefined {
+  const teamDamage = game.players.reduce((sum, p) => sum + (p.damage ?? 0), 0);
+  const scored = game.players
+    .map((p) => {
+      const seat = seatOf(p);
+      const share = teamDamage ? (p.damage ?? 0) / teamDamage : 0;
+      const score = p.kills * 3 + p.assists * 1.5 - p.deaths * 2 + share * 12 + (p.killParticipation ?? 0) * 6;
+      return { seat, score };
+    })
+    .filter((p): p is { seat: Role; score: number } => !!p.seat)
+    .sort((a, b) => b.score - a.score || seatIndex(a.seat) - seatIndex(b.seat));
+  return scored[0]?.seat;
+}
+
 /** The seat's player in the analysed game: by position first, then by name, then by champion. */
 function gamePlayerFor(game: AnalysisGame | undefined, seat: Role, name: string, champion: string): AnalysisPlayer | undefined {
   if (!game) return undefined;
@@ -153,19 +184,12 @@ function buildTitle(review: GameReview, game: AnalysisGame | undefined, facts: G
   const win = game ? game.win : facts ? facts.result === 'win' : false;
   const ledger = facts?.ledger ?? [];
 
-  let seat: Role | undefined;
-  if (ledger.length) {
-    const counts = new Map<Role, number>();
-    for (const d of ledger) counts.set(d.seat, (counts.get(d.seat) ?? 0) + 1);
-    seat = [...counts.entries()].sort((a, b) => b[1] - a[1] || seatIndex(a[0]) - seatIndex(b[0]))[0][0];
-  } else if (game?.players.length) {
-    const most = game.players
-      .map((p) => ({ seat: seatOf(p), deaths: p.deaths }))
-      .filter((p): p is { seat: Role; deaths: number } => !!p.seat)
-      .sort((a, b) => b.deaths - a.deaths || seatIndex(a.seat) - seatIndex(b.seat))[0];
-    seat = most?.seat;
-  }
-  seat ??= 'Mid';
+  // The face of the film is our MVP: the champion the headline names when it
+  // names one of ours, else the best line of the five (9 Sep 2026: it used to
+  // be the seat that died most, which put Vi on a game Aphelios carried).
+  let seat: Role | undefined = headlineSeat(headline, review);
+  if (!seat && game?.players.length) seat = mvpSeat(game);
+  seat ??= review.players[0]?.seat ?? 'Mid';
   const reviewed = review.players.find((p) => p.seat === seat);
   const gamePlayer = game?.players.find((p) => seatOf(p) === seat);
   const protagonist = { seat, champion: reviewed?.champion ?? gamePlayer?.champion ?? '', name: reviewed?.name ?? gamePlayer?.name };

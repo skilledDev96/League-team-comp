@@ -118,7 +118,14 @@ describe('buildFilm on the timeline tier', () => {
     expect(film.tier).toBe('timeline');
   });
 
-  it('titles the film with the headline, the loss, and the seat that died most', () => {
+  it('fronts the film with our MVP: the champion the headline names, else the best line', () => {
+    const named = buildFilm({ ...review, team: { ...review.team, headline: "Leona's engages gave the fights away" } } as GameReview, game, timeline, previous, 'MOSS 2');
+    expect(named.title.protagonist).toEqual({ seat: 'Support', champion: 'Leona', name: 'Nia' });
+    const kaisa = buildFilm({ ...review, team: { ...review.team, headline: 'KaiSa carried' }, players: [...review.players, { name: 'Max', seat: 'Mid', champion: "Kai'Sa", strength: point('x'), workOn: point('y') }] } as unknown as GameReview, game, timeline, previous);
+    expect(kaisa.title.protagonist.seat).toBe('Mid');
+  });
+
+  it('titles the film with the headline, the loss, and the MVP by the line', () => {
     expect(film.title.headline).toBe('Bled 35 kills while farming even');
     expect(film.title.win).toBe(false);
     expect(film.title.protagonist).toEqual({ seat: 'ADC', champion: 'Jinx', name: 'Rhu' });
