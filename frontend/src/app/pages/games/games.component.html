@@ -84,6 +84,7 @@
               {{ r.comp?.name || r.review.compName || 'No comp' }}: {{ r.review.team.compVerdict }}
             </span>
           </div>
+          @if (r.review.team.headline) { <p class="review-card-headline">{{ r.review.team.headline }}</p> }
           <p class="review-card-summary">{{ r.review.team.summary }}</p>
           @if (r.review.team.workOn.length) {
             <p class="review-card-workon"><b>Work on:</b> {{ r.review.team.workOn[0].text }}</p>

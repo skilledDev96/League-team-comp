@@ -605,10 +605,14 @@ export interface RefreshLog {
 // `gameReviews/{matchId}`, written by the review function only; the app
 // listens. No email, no puuid, nothing about a person on the other team.
 
+export type ReviewTheme = 'draft' | 'lanes' | 'fights' | 'objectives' | 'vision' | 'tempo' | 'macro';
+
 export interface ReviewPoint {
   text: string;
   evidence: string;
   minute: number | null;
+  /** Team points only, from review version 2. */
+  theme?: ReviewTheme;
 }
 
 export interface GameReview {
@@ -622,6 +626,8 @@ export interface GameReview {
   compName: string | null;
   expect?: CompExpectation;
   team: {
+    /** How the game was decided, in at most eight words; absent before review version 2. */
+    headline?: string;
     summary: string;
     workOn: ReviewPoint[];
     keepDoing: ReviewPoint[];

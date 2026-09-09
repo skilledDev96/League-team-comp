@@ -128,6 +128,17 @@ describe('parseTeamReview', () => {
     expect(got.compWhy).toBe('because');
   });
 
+  it('keeps the headline without its full stop and a known theme, and drops an unknown theme', () => {
+    const got = parseTeamReview(
+      { headline: 'Lost in the fights, not the farm.', workOn: [{ text: 'One', evidence: 'x', minute: null, theme: 'fights' }, { text: 'Two', evidence: 'y', minute: null, theme: 'vibes' }] },
+      ctx
+    );
+    expect(got.headline).toBe('Lost in the fights, not the farm');
+    expect(got.workOn[0].theme).toBe('fights');
+    expect(got.workOn[1].theme).toBeUndefined();
+    expect(parseTeamReview({}, ctx).headline).toBeUndefined();
+  });
+
   it('is unclear on the comp when there was no comp, whatever the model said', () => {
     expect(parseTeamReview({ compVerdict: 'as drafted' }, { ...ctx, comp: null }).compVerdict).toBe('unclear');
     expect(parseTeamReview({ compVerdict: 'as drafted' }, ctx).compVerdict).toBe('as drafted');

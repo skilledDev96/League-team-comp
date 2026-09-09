@@ -14286,3 +14286,36 @@ button.coaching-theme:hover, button.coaching-theme:focus-visible { color: var(--
 .player-mark { width: 1.3rem; height: 1.3rem; border-radius: 50%; object-fit: cover; vertical-align: -0.33rem; margin-right: 0.35rem; border: 1px solid var(--card-border); background: var(--surface-btn); }
 td .player-mark, .split-table .player-mark { width: 1.35rem; height: 1.35rem; }
 button .player-mark { vertical-align: -0.3rem; }
+
+/* ---- The review panel, 9 Sep 2026: a headline, two columns of tagged points, a card per player ---- */
+.game-review { padding: 0.9rem 1rem 0.8rem; border-radius: 14px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, transparent), color-mix(in srgb, var(--accent) 3%, transparent)); }
+.game-review-head strong { letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.74rem; color: var(--text-1); }
+.game-review-headline { margin: 0.35rem 0 0.2rem; font-size: 1.28rem; line-height: 1.2; font-weight: 800; color: var(--text-0); letter-spacing: -0.01em; }
+.game-review-summary { font-size: 0.9rem; color: var(--text-0); opacity: 0.92; }
+.game-review-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 0.7rem; margin: 0.6rem 0 0.2rem; }
+.game-review-col { padding: 0.6rem 0.75rem; border-radius: 12px; border: 1px solid var(--card-border); background: var(--surface-controls); border-left-width: 3px; }
+.game-review-col.is-warn { border-left-color: var(--warn); }
+.game-review-col.is-ok { border-left-color: var(--ok); }
+.game-review-col .advice-head { margin-bottom: 0.45rem; }
+.game-review-col .advice-head.is-warn { color: var(--warn); }
+.game-review-col .advice-head.is-ok { color: var(--ok); }
+.game-review-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; }
+.game-review-point { display: grid; gap: 0.2rem; font-size: 0.88rem; line-height: 1.45; }
+.game-review-point-tags { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+.review-theme { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.05rem 0.5rem 0.05rem 0.35rem; border-radius: 999px; border: 1px solid var(--card-border); font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-1); }
+.review-theme .material-symbols-rounded { font-size: 0.9rem; }
+.game-review-point .advice-n { margin-top: 0.05rem; font-variant-numeric: tabular-nums; }
+.game-review-people { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.6rem; margin-top: 0.7rem; }
+.game-review-person { padding: 0.6rem 0.75rem; border-radius: 12px; border: 1px solid var(--card-border); background: color-mix(in srgb, var(--surface-controls) 70%, transparent); display: grid; gap: 0.4rem; min-width: 0; }
+.game-review-person-head { display: flex; align-items: center; gap: 0.5rem; }
+.game-review-person-head .player-mark { width: 2rem; height: 2rem; margin: 0; }
+.game-review-person-head b { font-size: 0.95rem; }
+.game-review-person-head small { display: block; font-size: 0.72rem; color: var(--text-1); }
+.game-review-line { margin: 0; padding-left: 0.6rem; border-left: 2px solid var(--card-border); font-size: 0.84rem; line-height: 1.45; }
+.game-review-line.is-ok { border-left-color: var(--ok); }
+.game-review-line.is-warn { border-left-color: var(--warn); }
+.game-review-line > b { display: block; font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.1rem; }
+.game-review-line.is-ok > b { color: var(--ok); }
+.game-review-line.is-warn > b { color: var(--warn); }
+.game-review-foot { margin-top: 0.7rem; }
+.review-card-headline { margin: 0.2rem 0 0.1rem; font-size: 1.05rem; font-weight: 800; color: var(--text-0); }

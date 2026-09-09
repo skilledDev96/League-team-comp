@@ -26,7 +26,11 @@ import { CompExpectation } from './daily-refresh';
 import { compareCurve, GameFacts, k } from './game-facts';
 import { LaneRead, LaneRole, PlayerFacts } from './lane-read';
 
-export const REVIEW_VERSION = 1;
+export const REVIEW_VERSION = 2;
+
+/** What a team point is about; the panel shows it as a tag with an icon. */
+export const REVIEW_THEMES = ['draft', 'lanes', 'fights', 'objectives', 'vision', 'tempo', 'macro'] as const;
+export type ReviewTheme = (typeof REVIEW_THEMES)[number];
 export const TEAM_MODEL = 'claude-opus-5';
 export const PLAYER_MODEL = 'claude-sonnet-5';
 /** Reviews written by a morning run, at most. */
@@ -130,7 +134,12 @@ export function reviewPlayers(game: ReviewGameLike): ReviewPlayer[] {
 const RULES = `Rules that never bend:
 - Review OUR players only. The other team appears as a champion in a seat. Never describe, rate, praise or criticise a person on the other team; you may name their champions as matchups.
 - Every point cites a fact from WHAT HAPPENED, with the minute where one exists. Never invent a number, a minute or an event that is not there.
-- Offer choices and questions, not orders: "one option is", "either … or", "worth asking whether". Highlight the decisions that mattered; do not dictate a single play.
+- Offer choices, not orders — and say the choice outright: "either X or Y", "next time, X, or Y if Z". Highlight the decisions that mattered; do not dictate a single play.
+- Be concrete. Every point names the thing: a champion, a minute, an objective, a figure from the facts. "Deaths were the story" is not a point; "Leona died nine times, and six of those engages went in before Jinx was in range" is.
+- Lead with the decision that decided the game. Then the rest, most important first.
+- Each point rests on a different fact. Do not repeat a figure across points, and do not restate the summary.
+- Evidence is figures only, no sentence: "Leona 1/9/7 · kills 14-35 · first tower conceded". Never repeat the point's own words in its evidence.
+- No throat-clearing. Never write "it is worth asking whether", "worth reviewing whether", "is there a way to", "one option is agreeing". Say what happened, then the choice.
 - This is a finished game. Say nothing about a game in progress.
 - Positions, "near" and "warded" come from one frame a minute and are approximate; say "around minute 14", not "at 14:07".
 - Plain sentences a player can read on a phone. No headings, no markdown, no bullet characters inside a string.`;
@@ -139,13 +148,13 @@ export const TEAM_SYSTEM = `You are the coach reviewing one finished League of L
 
 ${RULES}
 
-Length: "summary" is two sentences at most. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence.`;
+Length: "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences at most and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence.`;
 
 export const PLAYER_SYSTEM = `You are the coach writing one short note per player after one finished League of Legends game for an amateur five-stack. For each of OUR players you are given their seat, champion, line, lane read, habits and deaths. You write one strength and one thing to work on per player, each tied to a fact.
 
 ${RULES}
 
-Length: one entry per player in OUR PLAYERS, in the same order, using exactly the name given. "strength" and "workOn" are each one sentence of at most 35 words, with the evidence beside it in at most 25 words. A player with nothing to fault still gets a "workOn" phrased as a question to ask themselves.`;
+Length: one entry per player in OUR PLAYERS, in the same order, using exactly the name given. Speak to the player as "you". "strength" and "workOn" are each one sentence of at most 35 words that open with the concrete fact and end with what to keep or what to change, with the evidence beside it in at most 25 words. A player with nothing to fault gets a "workOn" that names the next step up, not a question.`;
 
 function dateOf(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
@@ -283,16 +292,27 @@ const evidenced = {
   additionalProperties: false
 } as const;
 
+const teamPoint = {
+  type: 'object',
+  properties: {
+    ...evidenced.properties,
+    theme: { type: 'string', enum: [...REVIEW_THEMES], description: 'What the point is about.' }
+  },
+  required: ['text', 'evidence', 'minute', 'theme'],
+  additionalProperties: false
+} as const;
+
 export const TEAM_SCHEMA = {
   type: 'object',
   properties: {
-    summary: { type: 'string', description: 'Two sentences at most: how the game went and why.' },
-    workOn: { type: 'array', description: 'At most three, most important first.', items: evidenced },
-    keepDoing: { type: 'array', description: 'At most two.', items: evidenced },
+    headline: { type: 'string', description: 'At most eight words naming how the game was decided.' },
+    summary: { type: 'string', description: 'Two sentences at most: how the game went and why. Not a repeat of the headline.' },
+    workOn: { type: 'array', description: 'At most three, most important first.', items: teamPoint },
+    keepDoing: { type: 'array', description: 'At most two.', items: teamPoint },
     compVerdict: { type: 'string', enum: ['as drafted', 'off plan', 'unclear'] },
     compWhy: { type: 'string', description: 'One sentence on the verdict.' }
   },
-  required: ['summary', 'workOn', 'keepDoing', 'compVerdict', 'compWhy'],
+  required: ['headline', 'summary', 'workOn', 'keepDoing', 'compVerdict', 'compWhy'],
   additionalProperties: false
 } as const;
 
@@ -324,9 +344,13 @@ export interface Evidenced {
   text: string;
   evidence: string;
   minute: number | null;
+  /** Team points only. */
+  theme?: ReviewTheme;
 }
 
 export interface TeamReview {
+  /** At most eight words on how the game was decided; absent on reviews before version 2. */
+  headline?: string;
   summary: string;
   workOn: Evidenced[];
   keepDoing: Evidenced[];
@@ -352,7 +376,8 @@ function evidencedOf(v: unknown, textMax: number, durationMin: number): Evidence
   if (!text || !evidence) return null;
   const m = typeof row.minute === 'number' && Number.isFinite(row.minute) ? Math.round(row.minute) : null;
   const minute = m !== null && m >= 0 && m <= Math.max(durationMin, 1) ? m : null;
-  return { text, evidence, minute };
+  const theme = (REVIEW_THEMES as readonly string[]).includes(row.theme as string) ? (row.theme as ReviewTheme) : undefined;
+  return theme ? { text, evidence, minute, theme } : { text, evidence, minute };
 }
 
 /** The team answer, capped and checked; anything without evidence is dropped. */
@@ -367,7 +392,9 @@ export function parseTeamReview(value: unknown, ctx: ReviewContext): TeamReview 
           .slice(0, max)
       : [];
   const verdict = v.compVerdict === 'as drafted' || v.compVerdict === 'off plan' ? v.compVerdict : 'unclear';
+  const headline = str(v.headline, 80).replace(/[.!]+$/, '');
   return {
+    ...(headline ? { headline } : {}),
     summary: str(v.summary, 400),
     workOn: items(v.workOn, 3),
     keepDoing: items(v.keepDoing, 2),
