@@ -372,11 +372,13 @@ filter rather than none, so it can never become unpickable.
    Y" into two cards the team commits to (`filmCommitments/{matchId}`,
    editors write, majority wins, ties to A, a changed sentence resets the
    picks), Your seat flips a card per player (the one 3D flip in the film),
-   Call it back asks five client-built questions (`core/film-build.ts`,
-   seeded by `core/seed.ts` so a game always asks the same way), and The
-   card closes with the asks, the tally ring and "Ask me again before the
-   next game" (`userPrefs.film`, `core/film-progress.ts`: +1, +3, +7 days;
-   the tours reset keeps `film`). The model is `core/film-model.ts`, built
+   and the fourth chapter is The card: the asks, the commitment and "Ask me
+   again before the next game" (`userPrefs.film`, `core/film-progress.ts`:
+   +1, +3, +7 days; the tours reset keeps `film`). The title card and Your
+   seat play the champion's ability clip from Riot's champion-page CDN
+   (`services/ui.service.ts` `championClipUrls`;
+   `shared/film/champion-motion.component.ts`; muted, one at a time, the
+   splash under it, never on Save-Data or with motion off). The model is `core/film-model.ts`, built
    once by `buildFilm`; chapter components read it and the live services
    (commitment, notes at `filmNotes/{matchId}` keyed `m:<i>`/`d:<minute>:<seat>`/`w:<i>`,
    progress) and nothing else. Motion goes through `MotionService` (OS

@@ -46,16 +46,16 @@ describe('dueReminder', () => {
 });
 
 describe('tallyLine', () => {
-  it('reads Watched with the tally once the card was reached', () => {
-    expect(tallyLine({ done, tally: { called: 4, of: 5 } }, 5)).toBe('Watched · called 4 of 5');
-    expect(tallyLine({ done }, 5)).toBe('Watched');
+  it('reads Watched once the card was reached, whatever an old document still carries', () => {
+    expect(tallyLine({ done }, 4)).toBe('Watched');
+    expect(tallyLine({ done, tally: { called: 4, of: 5 } }, 4)).toBe('Watched');
   });
 
   it('reads Continue with the chapter part way through, and nothing when nothing started', () => {
-    expect(tallyLine({ calls: { title: 1 } }, 7, 2)).toBe('Continue · 3 of 7');
-    expect(tallyLine({ calls: { title: 1 } }, 7, 12)).toBe('Continue · 7 of 7');
-    expect(tallyLine({ calls: { title: 1 } }, 7)).toBe('Continue');
-    expect(tallyLine({}, 7)).toBe('');
-    expect(tallyLine(undefined, 7)).toBe('');
+    expect(tallyLine({ calls: { title: 1 } }, 4, 2)).toBe('Continue · 3 of 4');
+    expect(tallyLine({ calls: { title: 1 } }, 4, 12)).toBe('Continue · 4 of 4');
+    expect(tallyLine({ calls: { title: 1 } }, 4)).toBe('Continue');
+    expect(tallyLine({}, 4)).toBe('');
+    expect(tallyLine(undefined, 4)).toBe('');
   });
 });

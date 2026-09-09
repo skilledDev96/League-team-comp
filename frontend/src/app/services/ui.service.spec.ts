@@ -48,6 +48,26 @@ describe('UiService', () => {
     });
   });
 
+  describe('championClipUrls', () => {
+    it('is null until the champion index knows the key', () => {
+      // The index is offline in tests, so nothing resolves: a caller shows the splash.
+      expect(ui.championClipUrls('Ahri')).toBeNull();
+    });
+
+    it('pads the key to four digits and names the slot, in both containers', () => {
+      localStorage.setItem('bom-ddragon-v1', JSON.stringify({ version: '15.1.1', champions: [{ id: 'Leona', key: '89', name: 'Leona', title: '', tags: [] }] }));
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({});
+      const fresh = TestBed.inject(UiService);
+      expect(fresh.championClipUrls('Leona')).toEqual({
+        webm: 'https://d28xe8vt774jo5.cloudfront.net/champion-abilities/0089/ability_0089_R1.webm',
+        mp4: 'https://d28xe8vt774jo5.cloudfront.net/champion-abilities/0089/ability_0089_R1.mp4'
+      });
+      expect(fresh.championClipUrls('Leona', 'Q')?.webm).toContain('ability_0089_Q1.webm');
+      localStorage.removeItem('bom-ddragon-v1');
+    });
+  });
+
   describe('championDDragonName', () => {
     it('maps known irregular names via the static map', () => {
       expect(ui.championDDragonName('Miss Fortune')).toBe('MissFortune');

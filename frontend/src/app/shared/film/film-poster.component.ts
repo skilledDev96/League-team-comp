@@ -13,10 +13,9 @@ export const FILM_CHAPTER_KEY = 'bom-film-chapter:';
  * The poster for a review (9 Sep 2026): the protagonist's splash as a wide
  * strip under the stock's tint, and the pill that opens the film room. On the
  * Reviews tab card the headline sits over the art and the pill reads
- * "Continue · 3 of 7" or "Watched · called 4 of 5" from this person's
- * progress; on a game row the drawer bar already shows the headline, so the
- * strip carries only the tally line and the pill. Self-contained, so both
- * can drop it in.
+ * "Continue · 3 of 4" or "Watched" from this person's progress; on a game
+ * row the drawer bar already shows the headline, so the strip carries only
+ * that progress line and the pill. Self-contained, so both can drop it in.
  */
 @Component({
   selector: 'app-film-poster',

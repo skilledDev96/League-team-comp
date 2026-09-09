@@ -64,6 +64,11 @@ export class ChampionDataService {
     return this.resolve(name)?.id;
   }
 
+  /** Riot's numeric key for a champion name, as Data Dragon gives it ("103" for Ahri); undefined before the index loads or for a name it does not know. */
+  championKey(name: string): string | undefined {
+    return this.resolve(name)?.key;
+  }
+
   tags(name: string): string[] {
     return this.resolve(name)?.tags ?? [];
   }

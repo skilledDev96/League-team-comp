@@ -7,22 +7,21 @@ import {
   MatchTimeline,
   REVIEW_THEMES,
   ReviewPoint,
-  ReviewTheme,
   Role,
   ROLES
 } from '../models/team.models';
+import { mentionedSeat } from './champion-mention';
 import { FilmCall, FilmCard, FilmChapter, FilmModel, FilmOneThing, FilmSeat, FilmTitle } from './film-model';
-import { askOf, ledgerLine, playerStatLine, scoreline } from './review-view';
+import { askOf, playerStatLine, scoreline } from './review-view';
 import { seedOf, shuffle } from './seed';
 
 /**
  * The film room's model, built once from the review, the analysed game and
  * the timeline (9 Sep 2026). Everything is decided here so the chapters stay
  * templates: which seat the title card shows, the four themes to call, the
- * A/B the first work-on offers, the five Call it back items with their
- * answers. Every draw is seeded by the match id and salted by what it is
- * for, so a film reads the same on every visit and a new item added later
- * never reshuffles an old one. Nothing reads the clock.
+ * A/B the first work-on offers, the card's asks. Every draw is seeded by the
+ * match id and salted by what it is for, so a film reads the same on every
+ * visit. Nothing reads the clock.
  */
 
 export interface FilmPrevious {
@@ -45,8 +44,6 @@ const POSITION_SEAT: Record<string, Role> = {
   Support: 'Support'
 };
 
-const VERDICT_WORDS: Record<GameReview['team']['compVerdict'], string> = { 'as drafted': 'As drafted', 'off plan': 'Off plan', unclear: 'Unclear' };
-
 const BLANK_POINT: ReviewPoint = { text: '', evidence: '', minute: null };
 
 const seatIndex = (seat: Role) => ROLES.indexOf(seat);
@@ -58,27 +55,16 @@ function firstSentence(text: string): string {
   return (m ? m[1] : text).trim();
 }
 
-function sentences(text: string): string[] {
-  return text
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
 function seatOf(player: AnalysisPlayer): Role | undefined {
   return POSITION_SEAT[player.position];
 }
 
-/** Letters only, lowercased, so "Kai'Sa" and "Kaisa" and "KaiSa" agree. */
-function letters(text: string): string {
-  return text.toLowerCase().replace(/[^a-z]/g, '');
-}
-
-/** The seat whose champion the headline names, when it names one of ours. */
+/** The seat whose champion the headline names as a whole word, when it names one of ours; the first in lane order when it names two. */
 function headlineSeat(headline: string, review: GameReview): Role | undefined {
-  const words = letters(headline);
-  const named = review.players.filter((p) => p.champion && words.includes(letters(p.champion)));
-  return named.sort((a, b) => seatIndex(a.seat) - seatIndex(b.seat))[0]?.seat;
+  return mentionedSeat(
+    headline,
+    review.players.slice().sort((a, b) => seatIndex(a.seat) - seatIndex(b.seat))
+  );
 }
 
 /**
@@ -140,41 +126,6 @@ export function splitOptions(text: string): [string, string] | undefined {
   const a = trim(text.slice(start, orAt));
   const b = trim(text.slice(orAt + 5));
   return ok(a) && ok(b) ? [a, b] : undefined;
-}
-
-/** Whole numbers within 2 to 8 of `value`, never below zero, in a seeded order. */
-function neighbours(seed: number, value: number, salt: string, count: number): number[] {
-  const pool: number[] = [];
-  for (let d = 2; d <= 8; d++) {
-    if (value - d >= 0) pool.push(value - d);
-    pool.push(value + d);
-  }
-  return shuffle(seed, pool, salt).slice(0, count);
-}
-
-/** Every whole number from 0 to `max` except `value`, nearest first, in a seeded order among the nearest; never past `max`, so a count of deaths is never offered more deaths than there were. */
-function countNeighbours(seed: number, value: number, max: number, salt: string, count: number): number[] {
-  const pool: number[] = [];
-  for (let n = 0; n <= max; n++) if (n !== value) pool.push(n);
-  const near = pool.sort((a, b) => Math.abs(a - value) - Math.abs(b - value) || a - b).slice(0, count + 2);
-  return shuffle(seed, near, salt).slice(0, count);
-}
-
-/** A call whose options are shuffled by its key; the answer follows its option. */
-function call(seed: number, key: string, question: string, options: string[], answerIndex: number, why: string, theme?: ReviewTheme): FilmCall {
-  const order = shuffle(
-    seed,
-    options.map((_, i) => i),
-    key
-  );
-  const out: FilmCall = { key, question, options: order.map((i) => options[i]), answer: order.indexOf(answerIndex), why };
-  if (theme) out.theme = theme;
-  return out;
-}
-
-function seatLabel(review: GameReview, seat: Role): string {
-  const champion = review.players.find((p) => p.seat === seat)?.champion;
-  return champion ? `${seat} · ${champion}` : seat;
 }
 
 function buildTitle(review: GameReview, game: AnalysisGame | undefined, facts: GameFacts | undefined, previous: FilmPrevious | null, opponent: string | undefined, seed: number): FilmTitle {
@@ -276,183 +227,6 @@ function buildSeats(review: GameReview, game: AnalysisGame | undefined, facts: G
     });
 }
 
-function timelineItems(review: GameReview, timeline: MatchTimeline, facts: GameFacts, seed: number, commit: FilmCall | undefined): FilmCall[] {
-  const out: FilmCall[] = [];
-
-  const tower = facts.firsts?.tower ?? timeline.firsts.tower;
-  if (tower) {
-    const options = [tower.minute, ...neighbours(seed, tower.minute, 'cb:firstTower-distractors', 3)];
-    const line = facts.lines.find((l) => /first tower/i.test(l)) ?? `${tower.side === 'us' ? 'We' : 'They'} took the first tower at ${tower.minute} min, ${tower.lane}.`;
-    out.push(
-      call(
-        seed,
-        'cb:firstTower',
-        'When did the first tower fall?',
-        options.map((m) => `${m} min`),
-        0,
-        line,
-        'tempo'
-      )
-    );
-  }
-
-  const summary = facts.ledgerSummary;
-  if (summary?.deaths) {
-    const options = [summary.dark, ...countNeighbours(seed, summary.dark, summary.deaths, 'cb:dark-distractors', 3)];
-    out.push(
-      call(
-        seed,
-        'cb:dark',
-        `How many of our ${plural(summary.deaths, 'death', 'deaths')} had no ward nearby?`,
-        options.map(String),
-        0,
-        ledgerLine(summary),
-        'vision'
-      )
-    );
-  }
-
-  const lanes = facts.lanes.length ? facts.lanes : timeline.lanes.map((l) => ({ ...l, line: '' }));
-  const flipped = lanes.filter((l) => l.flippedAt !== undefined).sort((a, b) => a.flippedAt! - b.flippedAt! || seatIndex(a.seat) - seatIndex(b.seat))[0];
-  if (flipped && lanes.length >= 2) {
-    const options = lanes.map((l) => l.seat);
-    const line = flipped.line || `${flipped.seat} changed hands first, around ${flipped.flippedAt} min.`;
-    out.push(
-      call(
-        seed,
-        'cb:flip',
-        'Which lane changed hands first?',
-        options.map((s) => seatLabel(review, s)),
-        options.indexOf(flipped.seat),
-        line,
-        'lanes'
-      )
-    );
-  }
-
-  if (commit) out.push(commit);
-
-  const involved = new Map<Role, number>();
-  let total = 0;
-  for (const o of timeline.objectives) {
-    if (!o.ourInvolved.length) continue;
-    total++;
-    for (const seat of o.ourInvolved) involved.set(seat, (involved.get(seat) ?? 0) + 1);
-  }
-  if (total) {
-    const ranked = ROLES.slice().sort((a, b) => (involved.get(b) ?? 0) - (involved.get(a) ?? 0) || seatIndex(a) - seatIndex(b));
-    const options = ranked.slice(0, 4);
-    const top = ranked[0];
-    out.push(
-      call(
-        seed,
-        'cb:objectives',
-        'Who was on the most objectives?',
-        options.map((s) => seatLabel(review, s)),
-        0,
-        `${seatLabel(review, top)} was on ${involved.get(top)} of ${plural(total, 'objective', 'objectives')}.`,
-        'objectives'
-      )
-    );
-  }
-
-  return out;
-}
-
-function killsItem(game: AnalysisGame | undefined, seed: number): FilmCall | undefined {
-  if (!game?.kills) return undefined;
-  const options = [game.kills.ours, ...neighbours(seed, game.kills.ours, 'cb:kills-distractors', 3)];
-  return call(seed, 'cb:kills', 'How many kills did we get?', options.map(String), 0, `Kills ${game.kills.ours}-${game.kills.theirs}.`, 'fights');
-}
-
-function gapItem(game: AnalysisGame | undefined, seed: number): FilmCall | undefined {
-  const counts = scoreline(game).filter((c) => c.theirs !== undefined && c.label !== 'Kills');
-  if (counts.length < 2) return undefined;
-  const gaps = counts.map((c) => ({ label: c.label, gap: Math.abs(Number(c.ours) - Number(c.theirs)), text: `${c.label} ${c.ours}-${c.theirs}` }));
-  const widest = gaps.slice().sort((a, b) => b.gap - a.gap)[0];
-  if (!widest.gap) return undefined;
-  const others = shuffle(
-    seed,
-    gaps.filter((g) => g !== widest),
-    'cb:gap-pool'
-  ).slice(0, 3);
-  const options = [widest, ...others];
-  return call(
-    seed,
-    'cb:gap',
-    'Which count was furthest apart?',
-    options.map((g) => g.label),
-    0,
-    `${widest.text}, the widest gap.`,
-    'objectives'
-  );
-}
-
-function kpItem(game: AnalysisGame | undefined, seed: number): FilmCall | undefined {
-  const withKp = (game?.players ?? []).filter((p) => p.killParticipation !== undefined);
-  if (withKp.length < 2) return undefined;
-  const top = withKp.slice().sort((a, b) => b.killParticipation! - a.killParticipation!)[0];
-  const others = shuffle(
-    seed,
-    withKp.filter((p) => p !== top),
-    'cb:kp-pool'
-  ).slice(0, 3);
-  // A game player can carry the Riot tag; a call option shows the name alone.
-  const label = (p: AnalysisPlayer) => `${p.name.replace(/#[A-Za-z0-9]{2,5}$/, '')} · ${p.champion}`;
-  const options = [top, ...others];
-  return call(seed, 'cb:kp', 'Who was in on the most kills?', options.map(label), 0, `${label(top)} was in on ${Math.round(top.killParticipation! * 100)}% of our kills.`, 'fights');
-}
-
-function asDraftedItem(review: GameReview, seed: number): FilmCall {
-  const verdicts: GameReview['team']['compVerdict'][] = ['as drafted', 'off plan', 'unclear'];
-  return call(
-    seed,
-    'cb:asDrafted',
-    'Did the game go as drafted?',
-    verdicts.map((v) => VERDICT_WORDS[v]),
-    verdicts.indexOf(review.team.compVerdict),
-    review.team.compWhy || `The review called it ${review.team.compVerdict}.`,
-    'draft'
-  );
-}
-
-function headlineItem(review: GameReview, headline: string, seed: number): FilmCall | undefined {
-  const distractors = sentences(review.team.summary)
-    .map((s) => s.replace(/[.!?]+$/, ''))
-    .filter((s) => s && s !== headline && s.length <= 120)
-    .slice(0, 2);
-  if (distractors.length < 1) return undefined;
-  return call(seed, 'cb:headline', 'Which line was this game’s headline?', [headline, ...distractors], 0, firstSentence(review.team.summary));
-}
-
-/**
- * The commitment item. With an A/B the answer is -1 and the options stay in
- * A, B order, so the page can light the team's choice; with one ask the ask
- * itself is the answer, beside a keep-doing as the distractor.
- */
-function commitItem(review: GameReview, oneThing: FilmOneThing, seed: number): FilmCall | undefined {
-  const first = review.team.workOn[0];
-  if (!first?.text) return undefined;
-  const question = 'What did we commit to next game?';
-  if (oneThing.options) return { key: 'cb:commit', question, options: [...oneThing.options], answer: -1, why: first.text, theme: first.theme };
-  const keep = review.team.keepDoing[0]?.text;
-  const options = keep ? [askOf(first.text), askOf(keep)] : [askOf(first.text)];
-  return call(seed, 'cb:commit', question, options, 0, first.text, first.theme);
-}
-
-function buildCallback(review: GameReview, game: AnalysisGame | undefined, timeline: MatchTimeline | null, oneThing: FilmOneThing, headline: string, seed: number): FilmCall[] {
-  const commit = commitItem(review, oneThing, seed);
-  const facts = timeline?.facts;
-  const items: FilmCall[] = facts && review.tier === 'timeline' ? timelineItems(review, timeline!, facts, seed, commit) : [killsItem(game, seed), gapItem(game, seed), kpItem(game, seed), commit, asDraftedItem(review, seed)].filter((c): c is FilmCall => !!c);
-  // Whatever the data could not fill is made up from the review itself, then the game's totals.
-  const fallbacks = [headlineItem(review, headline, seed), killsItem(game, seed), asDraftedItem(review, seed), gapItem(game, seed), kpItem(game, seed)];
-  for (const item of fallbacks) {
-    if (items.length >= 5) break;
-    if (item && !items.some((i) => i.key === item.key)) items.push(item);
-  }
-  return items.slice(0, 5);
-}
-
 function buildCard(review: GameReview, game: AnalysisGame | undefined, headline: string): FilmCard {
   const first = review.team.workOn[0];
   const card: FilmCard = {
@@ -474,9 +248,11 @@ const CHAPTERS: FilmChapter[] = [
   { kind: 'title', title: 'The game' },
   { kind: 'one-thing', title: 'The one thing' },
   { kind: 'seat', title: 'Your seat' },
-  { kind: 'callback', title: 'Call it back' },
   { kind: 'card', title: 'The card' }
 ];
+
+/** How many chapters a film has, for a line written before the model is built (the games row). */
+export const FILM_CHAPTER_COUNT = CHAPTERS.length;
 
 export function buildFilm(review: GameReview, game: AnalysisGame | undefined, timeline: MatchTimeline | null, previous: FilmPrevious | null, opponent?: string): FilmModel {
   const seed = seedOf(review.matchId);
@@ -491,7 +267,6 @@ export function buildFilm(review: GameReview, game: AnalysisGame | undefined, ti
     title,
     oneThing,
     seats: buildSeats(review, game, facts),
-    callback: buildCallback(review, game, timeline, oneThing, title.headline, seed),
     card: buildCard(review, game, title.headline)
   };
 }

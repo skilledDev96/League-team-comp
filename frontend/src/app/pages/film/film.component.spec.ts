@@ -92,6 +92,9 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    // Motion off, as the film's own pill would set it: the figures stand at their value instead of
+    // counting up over frames jsdom does not draw, and a chapter changes without its fade.
+    localStorage.setItem('bom-motion', 'off');
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'film/:matchId', component: FilmComponent }])] });
     data = TestBed.inject(TeamDataService);
@@ -108,7 +111,7 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
 
   it('opens on the title card, takes the call, lands the headline and remembers the call', async () => {
     const { harness, root } = await open(`/film/${ID}`);
-    expect(root.querySelectorAll('.film-dot')).toHaveLength(5);
+    expect(root.querySelectorAll('.film-dot')).toHaveLength(4);
     expect(text(root, '.film-call-q')).toBe('What decided this game?');
     expect(root.querySelectorAll('.film-chip')).toHaveLength(4);
     expect(root.querySelector('.film-headline')).toBeNull();
@@ -117,13 +120,14 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
     harness.detectChanges();
     expect(root.querySelectorAll('.film-word')).toHaveLength(6);
     expect(text(root, '.film-headline')).toBe('Bled 35 kills while farming even');
-    expect(text(root, '.film-result')).toBe('Loss');
+    expect(text(root, '.film-stamp')).toBe('Loss');
+    expect(root.querySelector('.film-result')).toBeNull();
     expect(text(root, '.film-lower-third')).toContain('Kills 14–35');
     expect(root.querySelector('.film-chip.is-right')).not.toBeNull();
     expect(prefs.filmProgress(ID)?.calls?.['title']).toBe(0);
   });
 
-  it('walks the chapters: the commitment, the seat, the calls to a tally, and the card that finishes the film', async () => {
+  it('walks the chapters: the commitment, the seat, and the card that finishes the film', async () => {
     const { harness, root } = await open(`/film/${ID}`);
 
     click(root, '.film-frame-nav .view-btn.active');
@@ -144,6 +148,15 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
     expect(text(root, '.film-kicker')).toContain('Your seat');
     expect(root.querySelectorAll('.film-seat-tab')).toHaveLength(3);
     expect(text(root, '.film-seat-ask')).toContain('Which seat is yours?');
+    // The figures belong to the seat on show: Trundle's line, then Jinx's after the switch, never a mix of the two.
+    expect(text(root, '.film-seat-stats')).toBe('3/1/6 · 223 CS · 64% KP');
+    click(root, '.film-seat-tab:nth-child(2)');
+    harness.detectChanges();
+    expect(text(root, '.film-seat-who small')).toBe('ADC · Jinx');
+    expect(text(root, '.film-seat-stats')).toBe('8/3/2 · 312 CS · 71% KP');
+    click(root, '.film-seat-tab:nth-child(1)');
+    harness.detectChanges();
+    expect(text(root, '.film-seat-stats')).toBe('3/1/6 · 223 CS · 64% KP');
     click(root, '.film-flip-face.is-front');
     harness.detectChanges();
     expect(root.querySelector('.film-flip.is-flipped')).not.toBeNull();
@@ -152,22 +165,7 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     harness.detectChanges();
-    expect(text(root, '.film-kicker')).toContain('Call it back');
-    const items = root.querySelectorAll('.film-cb-dot').length;
-    expect(items).toBe(5);
-    for (let i = 0; i < items; i++) {
-      click(root, '.film-cb-option');
-      harness.detectChanges();
-      expect(root.querySelector('.film-cb-why')).not.toBeNull();
-      click(root, '.film-cb-next');
-      harness.detectChanges();
-    }
-    expect(text(root, '.film-tally-line')).toMatch(/^Called \d of \d$/);
-    const tally = prefs.filmProgress(ID)?.tally;
-    expect(tally?.of).toBeGreaterThan(0);
-
-    click(root, '.film-tally-actions .view-btn.active');
-    harness.detectChanges();
+    expect(text(root, '.film-kicker')).toContain('The card');
     expect(text(root, '.film-card-headline')).toBe('Bled 35 kills while farming even');
     expect(text(root, '.film-card-block.is-warn')).toContain('Watch for it next game');
     expect(root.querySelectorAll('.film-card-ask')).toHaveLength(3);
@@ -175,7 +173,7 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
     expect(done?.done).toBeTruthy();
     expect(done?.asked).toBe(0);
     expect(done?.nextAskAt).toBeTruthy();
-    expect(done?.tally).toEqual(tally);
+    expect(done?.tally).toBeUndefined();
 
     const box = root.querySelector<HTMLInputElement>('.film-card-ask-again input')!;
     expect(box.checked).toBe(true);
@@ -184,17 +182,6 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
     harness.detectChanges();
     expect(prefs.filmProgress(ID)?.nextAskAt).toBeUndefined();
     expect(prefs.filmProgress(ID)?.done).toBeTruthy();
-  });
-
-  it('opens Call it back on the tally when every item was called on an earlier visit', async () => {
-    // The prefs service settles its signed-out state on its first tick; the earlier visit's calls go in after that.
-    TestBed.tick();
-    // This game carries no objectives, so the widest-gap item gives way to the headline one.
-    await prefs.saveFilmProgress(ID, { calls: { 'cb:kills': 0, 'cb:kp': 0, 'cb:commit': 0, 'cb:asDrafted': 0, 'cb:headline': 0 }, tally: { called: 2, of: 4 } });
-    const { root } = await open(`/film/${ID}?c=callback`);
-    expect(root.querySelector('.film-cb-option')).toBeNull();
-    expect(text(root, '.film-tally-line')).toMatch(/^Called \d of \d$/);
-    expect(prefs.filmProgress(ID)?.done).toBeUndefined();
   });
 
   it('opens on the chapter ?c names, and a shared card link writes no progress', async () => {

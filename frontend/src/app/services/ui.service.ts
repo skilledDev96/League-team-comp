@@ -143,6 +143,20 @@ export class UiService {
     img.src = `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${this.championDDragonName(championName)}_0.jpg`;
   }
 
+  /**
+   * The short muted clip Riot's champion pages play for one ability (the
+   * film room, 9 Sep 2026): the numeric key zero-padded to four digits, the
+   * slot letter, both containers. Null until the champion index has loaded
+   * or for a name it does not know, so a caller shows the splash instead.
+   */
+  championClipUrls(championName: string, slot: 'P' | 'Q' | 'W' | 'E' | 'R' = 'R'): { webm: string; mp4: string } | null {
+    const key = this.champions.championKey(championName);
+    if (!key) return null;
+    const id = key.padStart(4, '0');
+    const base = `https://d28xe8vt774jo5.cloudfront.net/champion-abilities/${id}/ability_${id}_${slot}1`;
+    return { webm: `${base}.webm`, mp4: `${base}.mp4` };
+  }
+
   /** Riot class tags (Fighter, Mage, …) once the champion index has loaded. */
   championTags(championName: string): string[] {
     return this.champions.tags(championName);

@@ -55,6 +55,12 @@ describe('ChampionDataService', () => {
       expect(svc.resolveId('Not A Champ')).toBeUndefined();
     });
 
+    it('gives the numeric key by name or id, and nothing for a stranger', () => {
+      expect(svc.championKey('Wukong')).toBe('62');
+      expect(svc.championKey('MonkeyKing')).toBe('62');
+      expect(svc.championKey('Not A Champ')).toBeUndefined();
+    });
+
     it('exposes role tags', () => {
       expect(svc.tags('Wukong')).toEqual(['Fighter', 'Tank']);
       expect(svc.tags('Nobody')).toEqual([]);

@@ -1,22 +1,27 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { mentionedSeat } from '../../../core/champion-mention';
 import { FilmModel } from '../../../core/film-model';
 import { evidenceChips } from '../../../core/review-view';
 import { normalizeEmail } from '../../../core/access';
 import { FilmChoice, FilmNote } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
 import { TeamDataService } from '../../../services/team-data.service';
+import { UiService } from '../../../services/ui.service';
 import { UserPrefsService } from '../../../services/user-prefs.service';
 import { initialsOf } from '../../../core/initials';
 import { FilmFrameComponent, themeIcon, themeLabel } from '../film-frame.component';
 
 /**
- * The one thing (9 Sep 2026): the first work-on alone with its theme faint
- * behind it, then the commitment the team owns. Two cards when the sentence
- * offers a choice, one Commit card when it does not; an editor's tap writes
- * the team's document and a viewer's pick stays their own. The other points
- * follow as cards that open on tap, and one line of team notes sits under
- * the point, keyed "w:0" in the film's notes.
+ * The one thing (9 Sep 2026): the first work-on alone, its theme drifting
+ * faint behind it over a dim, slowly panning splash of the champion of ours
+ * the point names (the protagonist when it names none), the sentence rising
+ * word by word, then the commitment the team owns. Two cards slide in from
+ * either side when the sentence offers a choice, one Commit card when it
+ * does not; the chosen card stands forward and the other dims. An editor's
+ * tap writes the team's document and a viewer's pick stays their own. The
+ * other points follow as cards that open on tap, and one line of team notes
+ * sits under the point, keyed "w:0" in the film's notes.
  */
 @Component({
   selector: 'app-film-one-thing',
@@ -24,6 +29,12 @@ import { FilmFrameComponent, themeIcon, themeLabel } from '../film-frame.compone
   template: `
     @let one = model().oneThing;
     @let p = one.point;
+    @if (artChampion(); as champ) {
+      <div class="film-chapter-art is-dim" aria-hidden="true">
+        <img class="film-splash" [src]="ui.championArtUrl(champ)" (error)="ui.artFallback($event, champ)" alt="" />
+        <span class="film-chapter-shade"></span>
+      </div>
+    }
     <app-film-frame [kicker]="kicker()" [index]="index()" [count]="count()" (next)="next.emit()" (back)="back.emit()">
       <div class="film-point" [class.is-blank]="!p.text">
         <span class="film-point-ghost material-symbols-rounded" aria-hidden="true">{{ icon(p.theme) }}</span>
@@ -31,10 +42,14 @@ import { FilmFrameComponent, themeIcon, themeLabel } from '../film-frame.compone
           @if (p.theme) { <span class="material-symbols-rounded" aria-hidden="true">{{ icon(p.theme) }}</span>{{ label(p.theme) }} }
           @if (timed() && p.minute !== null) { <span class="review-minute">{{ p.minute }} min</span> }
         </p>
-        <p class="film-point-text">{{ p.text || 'The review left no work-on for the team.' }}</p>
+        <p class="film-point-text">
+          @for (w of words(); track $index) {
+            <span class="film-word" [style.--i]="$index">{{ w }}</span>{{ $last ? '' : ' ' }}
+          }
+        </p>
         @if (chips(p.evidence).length) {
           <span class="evidence-chips">
-            @for (c of chips(p.evidence); track $index) { <span class="evidence-chip">{{ c }}</span> }
+            @for (c of chips(p.evidence); track $index) { <span class="evidence-chip" [style.--i]="words().length + $index">{{ c }}</span> }
           </span>
         }
       </div>
@@ -42,11 +57,11 @@ import { FilmFrameComponent, themeIcon, themeLabel } from '../film-frame.compone
       @if (p.text) {
         <div class="film-commit">
           <p class="film-commit-q">Which do we commit to next game?</p>
-          <div class="film-commit-cards" [class.is-single]="!one.options">
+          <div class="film-commit-cards" [class.is-single]="!one.options" [class.has-pick]="!!picked()">
             @if (one.options; as opts) {
               @for (opt of opts; track $index) {
                 @let choice = $index === 0 ? 'a' : 'b';
-                <button type="button" class="film-commit-card" [class.is-mine]="mine() === choice" [class.is-team]="team() === choice" [attr.aria-pressed]="mine() === choice" (click)="choose(choice)">
+                <button type="button" class="film-commit-card" [class.is-mine]="mine() === choice" [class.is-team]="team() === choice" [class.is-chosen]="picked() === choice" [attr.aria-pressed]="mine() === choice" (click)="choose(choice)">
                   <span class="film-commit-letter">{{ $index === 0 ? 'A' : 'B' }}</span>
                   <span class="film-commit-text">{{ opt }}</span>
                   <span class="film-initials">
@@ -55,7 +70,7 @@ import { FilmFrameComponent, themeIcon, themeLabel } from '../film-frame.compone
                 </button>
               }
             } @else {
-              <button type="button" class="film-commit-card" [class.is-mine]="mine() === 'commit'" [class.is-team]="team() === 'commit'" [attr.aria-pressed]="mine() === 'commit'" (click)="choose('commit')">
+              <button type="button" class="film-commit-card" [class.is-mine]="mine() === 'commit'" [class.is-team]="team() === 'commit'" [class.is-chosen]="picked() === 'commit'" [attr.aria-pressed]="mine() === 'commit'" (click)="choose('commit')">
                 <span class="film-commit-letter"><span class="material-symbols-rounded" aria-hidden="true">handshake</span></span>
                 <span class="film-commit-text">Commit</span>
                 <span class="film-initials">
@@ -136,6 +151,7 @@ export class FilmOneThingComponent {
   readonly back = output<void>();
 
   protected readonly auth = inject(AuthService);
+  protected readonly ui = inject(UiService);
   private readonly data = inject(TeamDataService);
   private readonly prefs = inject(UserPrefsService);
 
@@ -144,6 +160,13 @@ export class FilmOneThingComponent {
   protected readonly noteText = signal('');
 
   protected readonly timed = computed(() => this.model().tier === 'timeline');
+  protected readonly words = computed(() => (this.model().oneThing.point.text || 'The review left no work-on for the team.').split(/\s+/).filter(Boolean));
+  /** The champion of ours the point names, in seat order when it names two; else the protagonist. Never one of theirs. */
+  protected readonly artChampion = computed<string>(() => {
+    const m = this.model();
+    const seat = mentionedSeat(m.oneThing.point.text, m.seats);
+    return m.seats.find((s) => s.seat === seat)?.champion ?? m.title.protagonist.champion;
+  });
   protected readonly commitment = computed(() => this.data.commitmentFor(this.model().matchId));
   protected readonly team = computed<FilmChoice | undefined>(() => {
     const c = this.commitment();
@@ -154,6 +177,8 @@ export class FilmOneThingComponent {
     if (this.auth.canEdit()) return this.commitment()?.by[this.emailKey()];
     return this.ownChoice() ?? this.prefs.filmProgress(this.model().matchId)?.choice;
   });
+  /** The card that stands forward: my own pick, else the team's. */
+  protected readonly picked = computed<FilmChoice | undefined>(() => this.mine() ?? this.team());
   protected readonly notes = computed<FilmNote[]>(() => {
     const all = this.data.notesFor(this.model().matchId)?.notes ?? {};
     return Object.entries(all)

@@ -38,6 +38,52 @@ export class MotionService {
   }
 
   /**
+   * The film's tempo, read off the element: `--film-tempo` scales every
+   * duration in the stylesheet, and a script-driven duration reads the same
+   * number so the two never drift. 1 when it is unset or unreadable.
+   */
+  tempo(el: Element): number {
+    try {
+      const v = parseFloat(getComputedStyle(el).getPropertyValue('--film-tempo'));
+      return Number.isFinite(v) && v > 0 ? v : 1;
+    } catch {
+      return 1;
+    }
+  }
+
+  /**
+   * Count a number up in the element's text, eased out so the last digits
+   * settle. With motion off, or without frames to draw on, the final value
+   * is written at once; either way the promise resolves when it is there.
+   * An element that leaves the page mid-count stops the frames with it.
+   */
+  count(el: Element, from: number, to: number, ms: number, format: (n: number) => string = (n) => String(Math.round(n))): Promise<void> {
+    const write = (n: number) => {
+      el.textContent = format(n);
+    };
+    if (this.reduced() || ms <= 0 || typeof requestAnimationFrame !== 'function' || typeof performance === 'undefined') {
+      write(to);
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      const start = performance.now();
+      const step = (now: number) => {
+        if (!el.isConnected) {
+          resolve();
+          return;
+        }
+        const t = Math.min(1, (now - start) / ms);
+        const eased = 1 - Math.pow(1 - t, 3);
+        write(t < 1 ? from + (to - from) * eased : to);
+        if (t < 1) requestAnimationFrame(step);
+        else resolve();
+      };
+      write(from);
+      requestAnimationFrame(step);
+    });
+  }
+
+  /**
    * Animate an element, or, when motion is off, put it where the animation
    * would have left it. Resolves either way, on cancel too, so a chapter's
    * flow never hangs on a frame that will not come.

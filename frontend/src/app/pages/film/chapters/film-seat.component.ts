@@ -1,32 +1,59 @@
-import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { afterRenderEffect, Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked, viewChildren } from '@angular/core';
 import { FilmModel, FilmSeat } from '../../../core/film-model';
 import { evidenceChips } from '../../../core/review-view';
 import { DeathVerdict, LedgerSummary, Role } from '../../../models/team.models';
 import { MotionService } from '../../../services/motion.service';
 import { UiService } from '../../../services/ui.service';
 import { UserPrefsService } from '../../../services/user-prefs.service';
+import { ChampionMotionComponent } from '../../../shared/film/champion-motion.component';
+import { countAll } from '../../../shared/film/film-count';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { FilmFrameComponent, themeIcon } from '../film-frame.component';
 
 /** The circumference of the presence ring, for the dash maths. */
 const RING = 2 * Math.PI * 18;
 
+/** How long the new seat's layer takes to fade in over the old one (and the old to fade under it), before the tempo. */
+const CROSSFADE_MS = 400;
+
+/**
+ * A seat's stat line split so the figures can count: "8/3/2 · 312 CS" is
+ * digits and the text between them. The key carries the seat, so a change
+ * of seat remounts every span (a key built from the component's state alone
+ * would read the same for the old row and the new, and Angular would reuse it).
+ */
+interface StatToken {
+  key: string;
+  num: boolean;
+  text: string;
+}
+
 /**
  * Your seat (9 Sep 2026): five tabs, the one that is yours remembered, and
- * the film's one real flip. The front is the seat's splash strip, stat line
- * and strength; the back is the work-on with the further points stacked
- * under it. This seat's deaths sit under the card as minute pills coloured
- * by what would have stopped them, and the jungler's presence on our kills
- * is a ring. With motion off the card swaps instead of turning.
+ * the film's one real flip, over the selected seat's champion in motion.
+ * Changing seat lays the new champion's layer over the old, fades it in
+ * while the old fades out beneath, then drops the old; only the top layer's
+ * clip plays. The front of the card is
+ * the seat's splash strip, stat line (its figures counting up as the card
+ * shows) and strength; the back is the work-on with the further points
+ * stacked under it. This seat's deaths sit under the card as minute pills
+ * coloured by what would have stopped them, and the jungler's presence on
+ * our kills is a ring. With motion off the card swaps instead of turning.
  */
 @Component({
   selector: 'app-film-seat',
-  imports: [TooltipDirective, FilmFrameComponent],
+  imports: [TooltipDirective, FilmFrameComponent, ChampionMotionComponent],
   template: `
+    <div class="film-chapter-art" aria-hidden="true">
+      @for (l of layers(); track l.id; let last = $last) {
+        <app-champion-motion class="film-layer" [class.is-out]="!last" [champion]="l.champion" slot="R" [active]="active() && last" />
+      }
+      <span class="film-chapter-shade"></span>
+    </div>
     <app-film-frame [kicker]="kicker()" [index]="index()" [count]="count()" (next)="next.emit()" (back)="back.emit()">
       <div class="film-seat-tabs" role="tablist" aria-label="Seats">
         @for (s of model().seats; track s.seat) {
-          <button type="button" class="film-seat-tab" role="tab" [class.active]="s.seat === selected()" [attr.aria-selected]="s.seat === selected()" (click)="select(s.seat)">
+          <button type="button" class="film-seat-tab" role="tab" [style.--i]="$index" [class.active]="s.seat === selected()" [attr.aria-selected]="s.seat === selected()" (click)="select(s.seat)">
             <img [src]="ui.championIconUrl(s.champion)" alt="" loading="lazy" />
             <span>{{ s.seat }}</span>
           </button>
@@ -48,7 +75,18 @@ const RING = 2 * Math.PI * 18;
                 <img class="film-splash" [src]="ui.championArtUrl(s.champion)" (error)="ui.artFallback($event, s.champion)" alt="" />
               </span>
               <span class="film-seat-who"><b>{{ s.name }}</b><small>{{ s.seat }} · {{ s.champion }}</small></span>
-              @if (s.statLine) { <span class="film-seat-stats">{{ s.statLine }}</span> }
+              @if (s.statLine) {
+                <span class="film-seat-stats">
+                  <!-- Keyed by seat so a change of seat remounts the spans; a figure's text belongs to the counter alone, off data-count. -->
+                  @for (tok of statTokens(); track tok.key) {
+                    @if (tok.num) {
+                      <span #num class="film-num" [attr.data-count]="tok.text"></span>
+                    } @else {
+                      <span>{{ tok.text }}</span>
+                    }
+                  }
+                </span>
+              }
               <span class="film-seat-strength">
                 <span class="film-seat-label is-ok"><span class="material-symbols-rounded" aria-hidden="true">check_circle</span> Strength</span>
                 <span>{{ s.strength.text || 'Nothing singled out.' }}</span>
@@ -85,8 +123,8 @@ const RING = 2 * Math.PI * 18;
           @if (ledger()) {
             <div class="film-deaths" aria-label="This seat's deaths">
               <span class="film-deaths-label">{{ s.deaths.length ? 'Deaths' : 'No deaths' }}</span>
-              @for (d of s.deaths; track $index) {
-                <span [class]="'film-death is-' + tagOf(d)" [appTip]="d.line">{{ d.minute }}<small>min</small></span>
+              @for (d of s.deaths; track d.seat + ':' + $index) {
+                <span [class]="'film-death is-' + tagOf(d)" [style.--i]="$index" [appTip]="d.line">{{ d.minute }}<small>min</small></span>
               }
             </div>
           } @else if (timed()) {
@@ -119,6 +157,8 @@ export class FilmSeatComponent {
   readonly calls = input<Record<string, number> | undefined>(undefined);
   /** The ledger's summary when the timeline has been read: the deaths strip shows only then, whatever the tier says. */
   readonly ledger = input<LedgerSummary | undefined>(undefined);
+  /** True while this is the chapter on screen: the top layer's clip plays only then. */
+  readonly active = input<boolean>(false);
   readonly answered = output<{ key: string; choice: number }>();
   readonly next = output<void>();
   readonly back = output<void>();
@@ -126,11 +166,19 @@ export class FilmSeatComponent {
   protected readonly ui = inject(UiService);
   protected readonly motion = inject(MotionService);
   private readonly prefs = inject(UserPrefsService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly nums = viewChildren<ElementRef<HTMLElement>>('num');
 
   protected readonly ring = RING;
   private readonly chosen = signal<Role | undefined>(undefined);
   protected readonly flipped = signal(false);
   private readonly gotNow = signal<ReadonlySet<Role>>(new Set());
+  /** The champion layers behind the card: the top one is the selected seat's, the one under it is fading out. */
+  protected readonly layers = signal<{ id: number; champion: string }[]>([]);
+  private layerId = 0;
+  /** The wait before the faded-out layer is dropped; cleared on the next change of seat and on destroy. */
+  private layerTimer: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly selected = computed<Role>(() => {
     const seats = this.model().seats;
@@ -142,12 +190,43 @@ export class FilmSeatComponent {
   protected readonly mySeat = computed<Role | undefined>(() => this.prefs.filmSeat());
   protected readonly timed = computed(() => this.model().tier === 'timeline');
   protected readonly gotIt = computed(() => this.gotNow().has(this.selected()) || !!this.calls()?.['seat:' + this.selected()]);
+  protected readonly statTokens = computed<StatToken[]>(() => {
+    const s = this.seat();
+    const line = s?.statLine ?? '';
+    return (line.match(/\d+|\D+/g) ?? []).map((text, i) => ({ key: `${s?.seat}:${i}`, num: /^\d+$/.test(text), text }));
+  });
 
   constructor() {
     effect(() => {
       this.closeTick();
       this.flipped.set(false);
     });
+
+    // The seat's champion goes on top; the old layer fades under it and is dropped once it has.
+    effect(() => {
+      const champion = this.seat()?.champion;
+      if (!champion) return;
+      untracked(() => this.layChampion(champion));
+    });
+
+    // The figures on the card's front count up whenever a seat's card is shown; the spans remount per seat, so this re-runs on a switch.
+    afterRenderEffect((onCleanup) => {
+      const els = this.nums().map((r) => r.nativeElement);
+      if (!els.length) return;
+      untracked(() => onCleanup(countAll(this.motion, els, 700, 60)));
+    });
+
+    this.destroyRef.onDestroy(() => clearTimeout(this.layerTimer));
+  }
+
+  private layChampion(champion: string): void {
+    const cur = this.layers();
+    if (cur[cur.length - 1]?.champion === champion) return;
+    const id = ++this.layerId;
+    this.layers.set([...cur.slice(-1), { id, champion }]);
+    const wait = this.motion.reduced() ? 0 : CROSSFADE_MS * this.motion.tempo(this.host.nativeElement) + 60;
+    clearTimeout(this.layerTimer);
+    this.layerTimer = setTimeout(() => this.layers.update((ls) => ls.filter((l) => l.id >= id)), wait);
   }
 
   protected select(seat: Role): void {

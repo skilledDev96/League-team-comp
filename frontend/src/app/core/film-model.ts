@@ -13,7 +13,7 @@ import { ScoreChip } from './review-view';
  * in the order shown, the index of the right one, and the line shown after.
  */
 
-export type FilmChapterKind = 'title' | 'one-thing' | 'seat' | 'callback' | 'card' | 'tape' | 'board' | 'map';
+export type FilmChapterKind = 'title' | 'one-thing' | 'seat' | 'card' | 'tape' | 'board' | 'map';
 
 export interface FilmChapter {
   kind: FilmChapterKind;
@@ -22,7 +22,7 @@ export interface FilmChapter {
 }
 
 export interface FilmCall {
-  /** A stable key the progress is stored under ("title", "cb:firstTower"). */
+  /** A stable key the progress is stored under ("title", "seat:Jungle"). */
   key: string;
   question: string;
   options: string[];
@@ -98,7 +98,5 @@ export interface FilmModel {
   title: FilmTitle;
   oneThing: FilmOneThing;
   seats: FilmSeat[];
-  /** Call it back: five items, the commitment item carries `answer: -1` until the team has chosen (the page fills it in). */
-  callback: FilmCall[];
   card: FilmCard;
 }

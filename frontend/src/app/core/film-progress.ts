@@ -35,17 +35,14 @@ export function dueReminder(prefs: FilmPrefs | undefined, nowIso: string): { mat
 }
 
 /**
- * The words beside "Open the film room": "Watched · called 4 of 5" once the
- * card was reached, "Continue · 3 of 7" part way through (`currentChapter` is
- * the zero-based chapter the person is on), "Continue" when calls were made
- * but the chapter is not known, and nothing when nothing was started.
+ * The words beside "Open the film room": "Watched" once the card was reached,
+ * "Continue · 3 of 4" part way through (`currentChapter` is the zero-based
+ * chapter the person is on), "Continue" when calls were made but the chapter
+ * is not known, and nothing when nothing was started.
  */
 export function tallyLine(progress: FilmProgress | undefined, chapterCount: number, currentChapter?: number): string {
   if (!progress) return '';
-  if (progress.done) {
-    const t = progress.tally;
-    return t && t.of > 0 ? `Watched · called ${t.called} of ${t.of}` : 'Watched';
-  }
+  if (progress.done) return 'Watched';
   if (currentChapter !== undefined && chapterCount > 0) {
     const at = Math.min(Math.max(currentChapter + 1, 1), chapterCount);
     return `Continue · ${at} of ${chapterCount}`;

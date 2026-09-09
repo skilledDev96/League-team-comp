@@ -12,7 +12,6 @@ import { TeamDataService } from '../../services/team-data.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { FILM_CHAPTER_KEY } from '../../shared/film/film-poster.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
-import { FilmCallbackComponent } from './chapters/film-callback.component';
 import { FilmCardComponent } from './chapters/film-card.component';
 import { FilmOneThingComponent } from './chapters/film-one-thing.component';
 import { FilmSeatComponent } from './chapters/film-seat.component';
@@ -31,7 +30,7 @@ const NARROW_QUERY = '(max-width: 48rem)';
  */
 @Component({
   selector: 'app-film',
-  imports: [RouterLink, TooltipDirective, FilmTitleComponent, FilmOneThingComponent, FilmSeatComponent, FilmCallbackComponent, FilmCardComponent],
+  imports: [RouterLink, TooltipDirective, FilmTitleComponent, FilmOneThingComponent, FilmSeatComponent, FilmCardComponent],
   templateUrl: './film.component.html'
 })
 export class FilmComponent {
@@ -98,8 +97,6 @@ export class FilmComponent {
   protected readonly escapeTick = signal(0);
   protected readonly progress = computed<FilmProgress | undefined>(() => this.prefs.filmProgress(this.matchId()));
   protected readonly calls = computed(() => this.progress()?.calls);
-  private readonly tallyNow = signal<{ called: number; of: number } | undefined>(undefined);
-  protected readonly tally = computed(() => this.tallyNow() ?? this.progress()?.tally);
   /** The reminder is on until the card is reached, then whatever the toggle last said. */
   protected readonly askAgain = computed(() => {
     const p = this.progress();
@@ -112,6 +109,10 @@ export class FilmComponent {
   private placed = false;
   /** The card's write happens once a visit, and only on walking onto it from the chapter before. */
   private cardReached = false;
+  /** True while the chapter on stage is fading out; a move during it lands without a second fade. */
+  private leaving = false;
+  /** Counts every move, so a fade that finishes after a later move does not land its stale target. */
+  private moves = 0;
 
   constructor() {
     this.wanted = this.route.snapshot.queryParamMap.get('c');
@@ -130,7 +131,7 @@ export class FilmComponent {
       if (!m || this.placed) return;
       this.placed = true;
       const i = this.resolveChapter(m, this.wanted);
-      untracked(() => this.go(i));
+      untracked(() => void this.go(i));
     });
 
     // The chapter goes back into the url and this browser, so a link and the poster both know where the film is.
@@ -202,12 +203,12 @@ export class FilmComponent {
       case 'ArrowDown':
       case 'PageDown':
         event.preventDefault();
-        this.go(this.chapter() + 1);
+        void this.go(this.chapter() + 1);
         break;
       case 'ArrowUp':
       case 'PageUp':
         event.preventDefault();
-        this.go(this.chapter() - 1);
+        void this.go(this.chapter() - 1);
         break;
       case 'Escape':
         this.escapeTick.set(this.escapeTick() + 1);
@@ -215,11 +216,38 @@ export class FilmComponent {
     }
   }
 
-  /** Move to a chapter; on a phone that means scrolling the deck to it. */
-  protected go(i: number): void {
+  /**
+   * Move to a chapter. On a wide screen the chapter on stage lifts and fades
+   * first (180 ms, through `MotionService.play`, so with motion off it is
+   * skipped) and the next one rises in through its own entrance; a second
+   * move during that fade lands at once and the fade's own target is let go.
+   * On a phone it means scrolling the deck to it.
+   */
+  protected async go(i: number): Promise<void> {
     const m = this.model();
     if (!m) return;
     const next = Math.min(Math.max(i, 0), m.chapters.length - 1);
+    if (!this.narrow()) {
+      const el = this.deck()?.nativeElement.querySelector<HTMLElement>('.film-chapter.is-current');
+      if (el && next !== this.chapter() && !this.leaving && !this.motion.reduced()) {
+        const move = ++this.moves;
+        this.leaving = true;
+        await this.motion.play(el, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-0.6rem)' }], { duration: 180 * this.motion.tempo(el), easing: 'ease-in', fill: 'forwards' });
+        this.leaving = false;
+        // The chapter is off stage now; drop the fill so it comes back whole when walked to again.
+        try {
+          el.getAnimations().forEach((a) => a.cancel());
+        } catch {
+          /* no Web Animations: nothing to drop */
+        }
+        el.style.removeProperty('opacity');
+        el.style.removeProperty('transform');
+        // A later move landed during the fade: its chapter is the one on stage, not this stale target.
+        if (move === this.moves) this.arrive(next);
+        return;
+      }
+    }
+    this.moves++;
     this.arrive(next);
     if (!this.narrow()) return;
     const el = this.deck()?.nativeElement.querySelector<HTMLElement>(`.film-chapter[data-index="${next}"]`);
@@ -244,11 +272,6 @@ export class FilmComponent {
     void this.prefs.saveFilmProgress(this.matchId(), { calls });
   }
 
-  protected onTally(t: { called: number; of: number }): void {
-    this.tallyNow.set(t);
-    void this.prefs.saveFilmProgress(this.matchId(), { tally: t });
-  }
-
   /** A viewer's own pick on the commitment; an editor's goes to the team document from the chapter. */
   protected onChosen(choice: FilmChoice): void {
     void this.prefs.saveFilmProgress(this.matchId(), { choice });
@@ -262,7 +285,7 @@ export class FilmComponent {
     void this.prefs.saveFilmProgress(this.matchId(), patch);
   }
 
-  /** Reaching the card is finishing the film: the time, the tally so far, the calls, and the first reminder if none was ever set. Once a visit. */
+  /** Reaching the card is finishing the film: the time, the calls, and the first reminder if none was ever set. Once a visit. */
   private reachCard(): void {
     const id = this.matchId();
     if (!id || this.cardReached) return;
@@ -270,8 +293,6 @@ export class FilmComponent {
     const p = this.progress();
     const done = p?.done ?? new Date().toISOString();
     const patch: Partial<FilmProgress> = { done, calls: p?.calls ?? {} };
-    const t = this.tally();
-    if (t) patch.tally = t;
     if (p?.asked === undefined) {
       patch.nextAskAt = nextAskAt(done, 0);
       patch.asked = 0;

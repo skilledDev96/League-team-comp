@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { effectiveComp } from '../../core/comp-alias';
+import { FILM_CHAPTER_COUNT } from '../../core/film-build';
 import { tallyLine } from '../../core/film-progress';
 import { AuthService } from '../../services/auth.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
@@ -388,9 +389,9 @@ export class GamesComponent {
     return row.matchId ? this.analysisById().get(row.matchId) : undefined;
   }
 
-  /** "Continue · 3 of 5" or "Watched · called 4 of 5" under a reviewed row, from this person's film progress; blank before they open it. */
+  /** "Continue · 3 of 4" or "Watched" under a reviewed row, from this person's film progress; blank before they open it. */
   protected filmLine(matchId: string): string {
-    return tallyLine(this.prefs.filmProgress(matchId), 5);
+    return tallyLine(this.prefs.filmProgress(matchId), FILM_CHAPTER_COUNT);
   }
 
   protected setGameComp(matchId: string, compId: string): void {

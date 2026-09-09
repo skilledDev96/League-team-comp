@@ -502,9 +502,9 @@ export interface FilmPrefs {
 export interface FilmProgress {
   /** ISO time the card was reached. */
   done?: string;
-  /** Call it back: how many called right, of how many. */
+  /** Left by the Call it back chapter, removed 9 Sep 2026: old documents carry it, nothing writes or reads it. */
   tally?: { called: number; of: number };
-  /** Every call made in the film, by key ("title", "cb:firstTower", …): the option index chosen. */
+  /** Every call made in the film, by key ("title", "seat:Jungle", …): the option index chosen. */
   calls?: Record<string, number>;
   /** A viewer's own pick when they cannot write the team's commitment. */
   choice?: FilmChoice;

@@ -14463,6 +14463,8 @@ button .player-mark { vertical-align: -0.3rem; }
   --film-panel: color-mix(in srgb, var(--film-ink) 7%, transparent);
   --film-line: color-mix(in srgb, var(--film-ink) 16%, transparent);
   --film-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* Every duration in the film, in the stylesheet and in the scripts, is this many times its written length. */
+  --film-tempo: 1;
   position: relative;
   margin-inline: calc(50% - 50vw + var(--sbw, 0px) / 2);
   min-height: calc(100dvh - var(--topbar-h));
@@ -14516,11 +14518,35 @@ body[data-theme="light"] .film-stage { --film-ink: var(--bg-0); --film-ink-1: va
 .film-wait { display: flex; align-items: center; gap: 0.5rem; margin: 2rem 0; font-size: 1rem; color: var(--film-ink-1); }
 .film-wait .btn-spinner { flex: none; }
 
+/* ---- Art behind a chapter: the splash, and a champion in motion ----
+   `.film-chapter-art` fills the chapter under the frame. `app-champion-motion`
+   (`.film-motion`) is the splash with Riot's ability clip over it; the clip is
+   transparent until its first frame plays and again once the chapter is left,
+   so what the reader sees before, without and after the clip is the splash.
+   The seat chapter stacks two of them (`.film-layer`) to crossfade a change
+   of seat. Nothing here moves with motion off; the transitions are below. */
+.film-chapter-art { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+.film-chapter-art.is-dim .film-splash { opacity: 0.38; filter: saturate(0.6) brightness(0.55); }
+.film-chapter-shade { position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--film-shade) 70%, transparent), color-mix(in srgb, var(--film-shade) 40%, transparent) 40%, color-mix(in srgb, var(--film-shade) 92%, transparent) 100%); }
+.film-chapter-art:not(.is-dim) .film-chapter-shade { background: linear-gradient(90deg, color-mix(in srgb, var(--film-shade) 88%, transparent), color-mix(in srgb, var(--film-shade) 62%, transparent) 55%, color-mix(in srgb, var(--film-shade) 30%, transparent)), linear-gradient(180deg, color-mix(in srgb, var(--film-shade) 55%, transparent), transparent 30%, color-mix(in srgb, var(--film-shade) 75%, transparent)); }
+.film-motion { position: absolute; inset: 0; display: block; overflow: hidden; }
+.film-motion .film-splash, .film-motion .film-clip { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.film-motion .film-clip { display: block; opacity: 0; filter: saturate(0.9) brightness(0.7); pointer-events: none; }
+.film-motion .film-clip.is-on { opacity: 1; }
+.film-layer.is-out { opacity: 0; }
+
 /* ---- The title card ---- */
 .film-title-art { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+/* The sheen that crosses the art once the headline is down; still until the motion block sends it. */
+.film-title-art::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 45%; z-index: 2; opacity: 0; pointer-events: none; background: linear-gradient(105deg, transparent, color-mix(in srgb, var(--accent-2) 38%, transparent), transparent); }
 .film-splash { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; filter: saturate(0.9) brightness(0.7); }
+/* The result, stamped over the art as the headline lands. */
+.film-stamp { position: absolute; right: 3.5rem; top: 5.2rem; z-index: 2; padding: 0.1rem 0.9rem; border: 2px solid currentColor; border-radius: 8px; font-family: "Chakra Petch", sans-serif; font-size: clamp(2rem, 5vw, 3.6rem); font-weight: 700; line-height: 1.1; letter-spacing: 0.22em; text-transform: uppercase; transform: rotate(-3deg); opacity: 0.92; pointer-events: none; text-shadow: 0 2px 14px color-mix(in srgb, var(--film-shade) 60%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--film-shade) 35%, transparent); }
+.film-stamp.is-win { color: var(--ok); }
+.film-stamp.is-loss { color: var(--warn); }
 .film-title-shade { position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--film-shade) 55%, transparent), color-mix(in srgb, var(--film-shade) 15%, transparent) 35%, color-mix(in srgb, var(--film-shade) 88%, transparent) 100%); }
-.film-letterbox { position: absolute; left: 0; right: 0; height: 2rem; background: var(--film-shade); }
+/* The bars sit over everything in the art, the sheen (z-index 2) included. */
+.film-letterbox { position: absolute; left: 0; right: 0; z-index: 3; height: 2rem; background: var(--film-shade); }
 .film-letterbox.is-top { top: 0; }
 .film-letterbox.is-bottom { bottom: 0; }
 app-film-title .film-frame { padding-top: 3rem; padding-bottom: 5rem; }
@@ -14541,9 +14567,6 @@ app-film-title .film-frame { padding-top: 3rem; padding-bottom: 5rem; }
 .film-skip { justify-self: start; }
 .film-call-why { margin: 0; font-size: 0.9rem; color: var(--film-ink-1); }
 .film-title-reveal { display: grid; gap: 0.5rem; max-width: 52rem; }
-.film-result { font-family: "Chakra Petch", sans-serif; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; }
-.film-result.is-win { color: var(--ok); }
-.film-result.is-loss { color: var(--warn); }
 .film-headline { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: clamp(2rem, 7vw, 4.2rem); font-weight: 700; line-height: 1.02; letter-spacing: -0.01em; text-wrap: balance; text-shadow: 0 2px 18px color-mix(in srgb, var(--film-shade) 70%, transparent); }
 .film-word { display: inline-block; }
 .film-lower-third { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.9rem; margin-top: 0.4rem; padding: 0.55rem 0.9rem; border-left: 3px solid var(--accent-2); background: color-mix(in srgb, var(--film-shade) 55%, transparent); font-size: 0.88rem; font-variant-numeric: tabular-nums; }
@@ -14563,10 +14586,15 @@ app-film-title .film-frame { padding-top: 3rem; padding-bottom: 5rem; }
 .film-commit-q { margin: 0; font-size: 1rem; font-weight: 600; }
 .film-commit-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
 .film-commit-cards.is-single { grid-template-columns: minmax(0, 24rem); }
-.film-commit-card { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: 0.2rem 0.75rem; align-items: start; min-height: 4.5rem; padding: 0.9rem 1rem; border-radius: 14px; border: 1px solid var(--film-line); background: var(--film-panel); color: var(--film-ink); text-align: left; font-family: "Sora", sans-serif; font-size: 0.95rem; cursor: pointer; transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s var(--film-ease); }
+/* A pick settles through the transition: the chosen card's scale and the other's dimming, never a pop. */
+.film-commit-card { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: 0.2rem 0.75rem; align-items: start; min-height: 4.5rem; padding: 0.9rem 1rem; border-radius: 14px; border: 1px solid var(--film-line); background: var(--film-panel); color: var(--film-ink); text-align: left; font-family: "Sora", sans-serif; font-size: 0.95rem; cursor: pointer; transition: border-color 0.2s ease, background 0.2s ease, transform 220ms var(--film-ease), opacity 220ms ease, box-shadow 220ms ease; }
 .film-commit-card:hover, .film-commit-card:focus-visible { border-color: var(--accent-2); }
 .film-commit-card.is-mine { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .film-commit-card.is-team { box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 70%, transparent); }
+/* Once a card is picked it stands forward with the accent's glow and the other steps back. */
+.film-commit-cards.has-pick .film-commit-card.is-chosen { z-index: 1; transform: scale(1.04); box-shadow: 0 0 0 2px var(--accent), 0 0 1.6rem color-mix(in srgb, var(--accent) 55%, transparent); }
+.film-commit-cards.has-pick .film-commit-card.is-chosen.is-team { box-shadow: 0 0 0 2px var(--ok), 0 0 1.6rem color-mix(in srgb, var(--accent) 55%, transparent); }
+.film-commit-cards.has-pick .film-commit-card:not(.is-chosen) { opacity: 0.6; }
 .film-commit-letter { grid-row: 1 / 3; display: inline-grid; place-items: center; width: 2.2rem; height: 2.2rem; border-radius: 50%; background: color-mix(in srgb, var(--accent-2) 22%, transparent); font-family: "Chakra Petch", sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--accent-2); }
 .film-commit-letter .material-symbols-rounded { font-size: 1.25rem; }
 .film-commit-text { line-height: 1.3; }
@@ -14642,37 +14670,8 @@ app-film-title .film-frame { padding-top: 3rem; padding-bottom: 5rem; }
 .film-presence-text b { font-family: "Chakra Petch", sans-serif; font-size: 1rem; }
 .film-presence-text small { font-size: 0.72rem; color: var(--film-ink-1); }
 .film-ring { width: 3rem; height: 3rem; transform: rotate(-90deg); }
-.film-ring.is-tally { width: 8rem; height: 8rem; }
 .film-ring-track { fill: none; stroke: color-mix(in srgb, var(--film-ink) 14%, transparent); stroke-width: 4; }
 .film-ring-fill { fill: none; stroke: var(--ok); stroke-width: 4; stroke-linecap: round; }
-
-/* ---- Call it back ---- */
-.film-cb { display: grid; gap: 0.9rem; max-width: 40rem; }
-.film-cb-step { display: flex; gap: 0.4rem; margin: 0; }
-.film-cb-dot { width: 2rem; height: 0.3rem; border-radius: 999px; background: color-mix(in srgb, var(--film-ink) 16%, transparent); }
-.film-cb-dot.is-now { background: var(--accent-2); }
-.film-cb-dot.is-done { background: var(--warn); }
-.film-cb-dot.is-hit { background: var(--ok); }
-.film-cb-q { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-family: "Chakra Petch", sans-serif; font-size: clamp(1.3rem, 2.6vw, 1.8rem); font-weight: 600; line-height: 1.15; }
-.film-cb-q .material-symbols-rounded { font-size: 1.6rem; color: var(--accent-2); flex: none; }
-.film-cb-options { display: grid; gap: 0.5rem; }
-.film-cb-option { display: flex; align-items: center; width: 100%; min-height: 2.75rem; padding: 0.55rem 1.2rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--film-ink) 30%, transparent); background: var(--film-panel); color: var(--film-ink); text-align: left; font-family: "Sora", sans-serif; font-size: 1rem; cursor: pointer; transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s var(--film-ease); }
-.film-cb-option:hover:not(:disabled), .film-cb-option:focus-visible { border-color: var(--accent-2); }
-.film-cb-option:disabled { cursor: default; opacity: 0.55; }
-.film-cb-option.is-right { opacity: 1; border-color: var(--ok); background: color-mix(in srgb, var(--ok) 24%, transparent); }
-.film-cb-option.is-wrong { opacity: 1; border-color: var(--warn); background: color-mix(in srgb, var(--warn) 24%, transparent); }
-.film-cb-option.is-picked:not(.is-right):not(.is-wrong) { opacity: 1; border-color: var(--accent-2); }
-.film-cb-why { display: grid; gap: 0.3rem; margin: 0; font-size: 0.95rem; color: var(--film-ink-1); }
-.film-cb-mark { display: inline-flex; align-items: center; gap: 0.3rem; font-family: "Chakra Petch", sans-serif; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--film-ink); }
-.film-cb-mark .material-symbols-rounded { font-size: 1.1rem; }
-.film-cb-mark.is-ok { color: var(--ok); }
-.film-cb-mark.is-warn { color: var(--warn); }
-.film-cb-next { justify-self: start; }
-.film-tally { display: grid; justify-items: center; gap: 0.6rem; max-width: 30rem; padding: 1rem 0; text-align: center; }
-.film-tally-line { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.6rem; font-weight: 600; }
-.film-tally-line b { color: var(--ok); }
-.film-tally-note { margin: 0; font-size: 0.85rem; }
-.film-tally-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
 
 /* ---- The card ---- */
 .film-card { display: grid; gap: 0.8rem; width: min(100%, 26rem); padding: 1rem 1.1rem 1.1rem; border-radius: 18px; border: 1px solid var(--film-line); background: linear-gradient(160deg, color-mix(in srgb, var(--surface-hero-a) 80%, var(--film-shade)), color-mix(in srgb, var(--surface-hero-b) 70%, var(--film-shade))); box-shadow: 0 18px 40px color-mix(in srgb, var(--film-shade) 45%, transparent); }
@@ -14695,9 +14694,8 @@ app-film-title .film-frame { padding-top: 3rem; padding-bottom: 5rem; }
 .film-card-ask small { margin-right: 0.35rem; color: var(--film-ink-1); }
 .film-card-ask.is-me { padding: 0.3rem 0.5rem; margin: 0 -0.5rem; border-radius: 8px; background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .film-card-row { display: grid; gap: 0.4rem; font-size: 0.86rem; }
-.film-card-tally, .film-card-keep { display: flex; align-items: flex-start; gap: 0.35rem; }
-.film-card-tally .material-symbols-rounded, .film-card-keep .material-symbols-rounded { font-size: 1.1rem; flex: none; }
-.film-card-tally { color: var(--film-ink); }
+.film-card-keep { display: flex; align-items: flex-start; gap: 0.35rem; }
+.film-card-keep .material-symbols-rounded { font-size: 1.1rem; flex: none; }
 .film-card-keep { color: var(--ok); }
 .film-card-ask-again { align-items: center; font-size: 0.84rem; cursor: pointer; }
 .film-card-ask-again input { margin-top: 0; }
@@ -14708,8 +14706,10 @@ app-film-title .film-frame { padding-top: 3rem; padding-bottom: 5rem; }
 body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: var(--bg-1); --film-shade: var(--text-0); }
 .film-poster.is-row { aspect-ratio: 5 / 1; }
 .film-poster.is-card { aspect-ratio: 3 / 1; }
-.film-poster-art { position: absolute; inset: 0; z-index: 0; }
+.film-poster-art { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
 .film-poster-art .film-splash { object-position: 50% 25%; }
+/* The sheen a hover sends across the poster; still until the motion block sends it. */
+.film-poster::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 45%; z-index: 2; opacity: 0; pointer-events: none; background: linear-gradient(105deg, transparent, color-mix(in srgb, var(--accent-2) 35%, transparent), transparent); }
 .film-poster-shade { position: absolute; inset: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--film-shade) 78%, transparent), color-mix(in srgb, var(--film-shade) 30%, transparent) 60%, color-mix(in srgb, var(--film-shade) 55%, transparent)); }
 .film-poster-text { position: relative; z-index: 1; display: grid; gap: 0.15rem; min-width: 0; }
 .film-poster-kicker { font-family: "Chakra Petch", sans-serif; font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--film-ink-1); }
@@ -14722,7 +14722,7 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 /* The lift on hover is for a pointer that hovers; a finger gets the border alone. */
 @media (hover: hover) {
   .film-chip:hover:not(:disabled), .film-commit-card:hover { transform: translateY(-0.1rem); }
-  .film-cb-option:hover:not(:disabled) { transform: translateX(0.2rem); }
+  .film-commit-cards.has-pick .film-commit-card.is-chosen:hover { transform: scale(1.04) translateY(-0.1rem); }
 }
 
 /* ---- Phones: a scroll-snap deck, the dot rail on the right, no Next pills ---- */
@@ -14742,6 +14742,7 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   .film-frame-nav { display: none; }
   app-film-title .film-frame { padding-top: 2.6rem; padding-bottom: 3rem; }
   .film-letterbox { height: 1.2rem; }
+  .film-stamp { right: 1rem; top: 3.2rem; font-size: 1.6rem; padding: 0.05rem 0.6rem; }
   .film-headline { font-size: clamp(1.8rem, 9vw, 2.6rem); }
   .film-point-ghost { font-size: 7rem; right: 0; }
   .film-commit-cards { grid-template-columns: minmax(0, 1fr); }
@@ -14751,7 +14752,9 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   .film-poster-open { width: 100%; text-align: center; }
 }
 
-/* ---- Motion: entrances, the pulse, the ring, the flip. With motion off everything stands where it lands. ---- */
+/* ---- Motion: entrances, the stamp, the sheen, the pans, the slides, the ring, the flip, the clips.
+   With motion off everything stands where it lands. Every duration is written once and scaled by
+   --film-tempo, the same number the scripts read through MotionService.tempo. ---- */
 @media (prefers-reduced-motion: no-preference) {
   @keyframes film-word-rise { from { opacity: 0; transform: translateY(0.4rem); } to { opacity: 1; transform: none; } }
   @keyframes film-drop { from { opacity: 0; transform: translateY(-0.6rem) scale(0.98); } to { opacity: 1; transform: none; } }
@@ -14759,17 +14762,55 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   @keyframes film-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
   @keyframes film-ring { from { stroke-dashoffset: var(--film-ring-c); } }
   @keyframes film-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 65%, transparent); } 100% { box-shadow: 0 0 0 0.9rem color-mix(in srgb, var(--ok) 0%, transparent); } }
+  /* The result lands like a rubber stamp: big, tilted, and settling. */
+  @keyframes film-stamp { from { opacity: 0; transform: scale(1.5) rotate(-6deg); } to { opacity: 0.92; transform: scale(1) rotate(-3deg); } }
+  /* A slow pan across a splash: starts at rest so a hover or an entrance never jumps. */
+  @keyframes film-pan { from { transform: scale(1); } to { transform: scale(1.08) translate(-1.5%, -1%); } }
+  /* The theme's icon drifting behind the point. */
+  @keyframes film-drift { from { transform: translate(0, 0) rotate(0deg); } to { transform: translate(-1.2rem, 0.8rem) rotate(-4deg); } }
+  /* The art dips for a beat as the stamp lands: the shade deepens and lifts again (brightness on a near-black overlay would not show). */
+  @keyframes film-dip { 0%, 100% { background-color: transparent; } 35% { background-color: color-mix(in srgb, var(--film-shade) 45%, transparent); } }
+  /* A seat's new champion layer fades in over the old one, which fades out under it through the transition below. */
+  @keyframes film-layer-in { from { opacity: 0; } }
+  /* The two commit cards, in from either side. */
+  @keyframes film-slide-left { from { opacity: 0; transform: translateX(-2.5rem); } to { opacity: 1; transform: none; } }
+  @keyframes film-slide-right { from { opacity: 0; transform: translateX(2.5rem); } to { opacity: 1; transform: none; } }
   /* Every entrance is gated on the current chapter: on a phone the whole deck is mounted, and an offscreen chapter must not play at load. */
-  .film-stage:not(.is-still) .film-chapter.is-current .film-frame-body { animation: film-rise 480ms var(--film-ease) both; }
-  .film-stage:not(.is-still) .film-chapter.is-current .film-word { animation: film-word-rise 420ms var(--film-ease) both; animation-delay: calc(var(--i, 0) * 40ms); }
-  .film-stage:not(.is-still) .film-chapter.is-current .film-result { animation: film-rise 360ms var(--film-ease) both; }
-  .film-stage:not(.is-still) .film-chapter.is-current .film-lower-third { animation: film-wipe 620ms var(--film-ease) 320ms both; }
-  .film-stage:not(.is-still) .film-chip.is-pulse { animation: film-pulse 700ms ease-out 2; }
-  .film-stage:not(.is-still) .film-chapter.is-current .film-commit-card { animation: film-drop 420ms var(--film-ease) both; }
-  .film-stage:not(.is-still) .film-chapter.is-current .film-commit-card:nth-child(2) { animation-delay: 90ms; }
-  .film-stage:not(.is-still) .film-chapter.is-current .film-tally { animation: film-drop 480ms var(--film-ease) both; }
-  .film-stage:not(.is-still) .film-chapter.is-current .film-cb-why { animation: film-rise 360ms var(--film-ease) both; }
-  .film-stage:not(.is-still) .film-chapter.is-current .film-ring-fill { animation: film-ring 900ms var(--film-ease) both; }
-  .film-stage:not(.is-still) .film-flip-inner { transition: transform 420ms var(--film-ease); }
-  .film-stage:not(.is-still) .film-chapter.is-current .film-card { animation: film-drop 520ms var(--film-ease) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-frame-body { animation: film-rise calc(480ms * var(--film-tempo, 1)) var(--film-ease) both; }
+  /* The words rise one after the next, and the one thing's evidence chips carry the same count on past the last word. */
+  .film-stage:not(.is-still) .film-chapter.is-current :is(.film-word, .film-point .evidence-chip) { animation: film-word-rise calc(420ms * var(--film-tempo, 1)) var(--film-ease) both; animation-delay: calc(var(--i, 0) * 40ms * var(--film-tempo, 1)); }
+  /* The title: the stamp first (the shade dipping under it), then the headline word by word and the lower third, and the sheen across the art. */
+  .film-stage:not(.is-still) .film-chapter.is-current .film-stamp { animation: film-stamp calc(320ms * var(--film-tempo, 1)) cubic-bezier(0.2, 0.9, 0.3, 1) backwards; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-title-art.is-revealed .film-title-shade { animation: film-dip calc(320ms * var(--film-tempo, 1)) ease-out; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-title-reveal .film-word { animation-delay: calc((320ms + var(--i, 0) * 40ms) * var(--film-tempo, 1)); }
+  /* The wipe's 560 ms delay is the beat the kills start counting on (film-title.component.ts reads the same number). */
+  .film-stage:not(.is-still) .film-chapter.is-current .film-lower-third { animation: film-wipe calc(620ms * var(--film-tempo, 1)) var(--film-ease) calc(560ms * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-title-art.is-revealed::after { animation: pick-sheen calc(620ms * var(--film-tempo, 1)) ease-out calc(1200ms * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chip.is-pulse { animation: film-pulse calc(700ms * var(--film-tempo, 1)) ease-out 2; }
+  /* The one thing: the icon drifts and the splash pans, one long pass each and then they rest (only a clip ever loops); the cards slide in once the sentence has risen. */
+  .film-stage:not(.is-still) .film-chapter.is-current .film-point-ghost { animation: film-drift calc(14s * var(--film-tempo, 1)) ease-in-out 1 forwards; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-chapter-art.is-dim .film-splash { animation: film-pan calc(30s * var(--film-tempo, 1)) ease-in-out 1 forwards; }
+  /* The entrance fills backwards only, so once a card is in, a pick settles through the card's own transition. */
+  .film-stage:not(.is-still) .film-chapter.is-current .film-commit-card { animation: film-slide-left calc(380ms * var(--film-tempo, 1)) var(--film-ease) calc(480ms * var(--film-tempo, 1)) backwards; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-commit-card:nth-child(2) { animation-name: film-slide-right; animation-delay: calc(600ms * var(--film-tempo, 1)); }
+  /* Your seat: the tabs rise in one after the next, the ring fills, the deaths drop in 50 ms apart, the presence line rises, the card turns, and a change of seat crossfades the champion behind it. */
+  .film-stage:not(.is-still) .film-chapter.is-current .film-seat-tab { animation: film-rise calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc(var(--i, 0) * 40ms * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-ring-fill { animation: film-ring calc(900ms * var(--film-tempo, 1)) var(--film-ease) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-death { animation: film-drop calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc((320ms + var(--i, 0) * 50ms) * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-presence { animation: film-rise calc(420ms * var(--film-tempo, 1)) var(--film-ease) calc(360ms * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-flip-inner { transition: transform calc(420ms * var(--film-tempo, 1)) var(--film-ease); }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-layer { animation: film-layer-in calc(400ms * var(--film-tempo, 1)) ease backwards; }
+  .film-stage:not(.is-still) .film-layer { transition: opacity calc(400ms * var(--film-tempo, 1)) ease; }
+  /* A champion in motion: the splash pans once, slowly, until the clip's first frame, which fades in over it (and out again when the chapter is left). */
+  .film-stage:not(.is-still) .film-chapter.is-current .film-motion .film-splash { animation: film-pan calc(28s * var(--film-tempo, 1)) ease-in-out 1 forwards; }
+  .film-stage:not(.is-still) .film-motion .film-clip { transition: opacity calc(600ms * var(--film-tempo, 1)) ease; }
+  /* The card drops in over the panning splash, then its blocks and asks rise in 60 ms apart. */
+  .film-stage:not(.is-still) .film-chapter.is-current .film-card { animation: film-drop calc(520ms * var(--film-tempo, 1)) var(--film-ease) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current :is(.film-card-block, .film-card-ask) { animation: film-rise calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc((520ms + var(--i, 0) * 60ms) * var(--film-tempo, 1)) both; }
+}
+
+/* The poster answers a pointer that hovers: one sheen across it, and one slow pan of the splash that then rests. Never on a phone, never with motion off. */
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  .film-poster:hover::after { animation: pick-sheen 620ms ease-out both; }
+  .film-poster:hover .film-poster-art .film-splash { animation: film-pan 9s ease-in-out 1 forwards; }
 }

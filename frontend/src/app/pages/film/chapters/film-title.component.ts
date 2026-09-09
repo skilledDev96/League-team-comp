@@ -1,27 +1,36 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { afterRenderEffect, Component, computed, inject, input, output, signal, untracked, viewChildren, ElementRef } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FilmModel } from '../../../core/film-model';
+import { MotionService } from '../../../services/motion.service';
 import { UiService } from '../../../services/ui.service';
+import { ChampionMotionComponent } from '../../../shared/film/champion-motion.component';
+import { countAll } from '../../../shared/film/film-count';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { FilmFrameComponent, themeIcon, themeLabel } from '../film-frame.component';
 
+/** The lower third's wipe delay in the stylesheet (`.film-lower-third`, before the tempo): the kills count from the same beat. */
+const LOWER_THIRD_DELAY_MS = 560;
+
 /**
- * The title card (9 Sep 2026): the protagonist's splash under a dark
- * gradient, the strip that says what we said we would watch for last game,
+ * The title card (9 Sep 2026): the protagonist's ultimate in motion behind
+ * the letterbox bars, the splash under it while the clip loads or when it
+ * cannot; the strip that says what we said we would watch for last game;
  * then the one call before anything is read: what decided this game? One
- * tap, right or wrong, and the headline lands; a wrong chip shows the right
- * one pulsing once and the headline lands anyway. Without a theme on the
- * first work-on there is no call and the headline lands on entry.
+ * tap, right or wrong, and the result lands as a stamp (the art dips for a
+ * beat under it), the headline rises word by word, a sheen crosses the art
+ * once, and the kills in the lower third count up as its wipe uncovers them. A wrong chip shows the right one pulsing once and the
+ * headline lands anyway. Without a theme on the first work-on there is no
+ * call and the headline lands on entry.
  */
 @Component({
   selector: 'app-film-title',
-  imports: [DatePipe, RouterLink, TooltipDirective, FilmFrameComponent],
+  imports: [DatePipe, RouterLink, TooltipDirective, FilmFrameComponent, ChampionMotionComponent],
   template: `
     @let t = model().title;
-    <div class="film-title-art" aria-hidden="true">
+    <div class="film-title-art" [class.is-revealed]="revealed()" aria-hidden="true">
       @if (t.protagonist.champion) {
-        <img class="film-splash" [src]="ui.championArtUrl(t.protagonist.champion)" (error)="ui.artFallback($event, t.protagonist.champion)" alt="" />
+        <app-champion-motion [champion]="t.protagonist.champion" slot="R" [active]="active()" />
       }
       <span class="film-title-shade"></span>
       <span class="film-letterbox is-top"></span>
@@ -64,8 +73,8 @@ import { FilmFrameComponent, themeIcon, themeLabel } from '../film-frame.compone
       }
       <div reveal>
         @if (revealed()) {
+          <span class="film-stamp" [class.is-win]="t.win" [class.is-loss]="!t.win" role="img" [attr.aria-label]="'Result: ' + (t.win ? 'Win' : 'Loss')">{{ t.win ? 'Win' : 'Loss' }}</span>
           <div class="film-title-reveal">
-            <span class="film-result" [class.is-win]="t.win" [class.is-loss]="!t.win">{{ t.win ? 'Win' : 'Loss' }}</span>
             <h1 class="film-headline">
               @for (w of words(); track $index) {
                 <span class="film-word" [style.--i]="$index">{{ w }}</span>{{ $last ? '' : ' ' }}
@@ -75,7 +84,7 @@ import { FilmFrameComponent, themeIcon, themeLabel } from '../film-frame.compone
               @if (t.lowerThird.date) { <span>{{ t.lowerThird.date | date: 'd MMM' }}</span> }
               @if (t.lowerThird.opponent) { <span>vs {{ t.lowerThird.opponent }}</span> }
               @if (t.lowerThird.durationMin) { <span>{{ t.lowerThird.durationMin }} min</span> }
-              @if (t.lowerThird.kills; as k) { <span>Kills {{ k.ours }}–{{ k.theirs }}</span> }
+              @if (t.lowerThird.kills; as k) { <span>Kills <span #num [attr.data-count]="k.ours"></span>–<span #num [attr.data-count]="k.theirs"></span></span> }
               <span class="film-verdict" [class.is-good]="t.lowerThird.compVerdict === 'as drafted'" [class.is-bad]="t.lowerThird.compVerdict === 'off plan'" [appTip]="t.lowerThird.compWhy || 'Whether the comp did what its game plan expected'">
                 {{ t.lowerThird.compName ? t.lowerThird.compName + ': ' : 'Comp: ' }}{{ t.lowerThird.compVerdict }}
               </span>
@@ -94,14 +103,27 @@ export class FilmTitleComponent {
   readonly count = input<number>(1);
   /** The option chosen on an earlier visit, so the reveal is already down. */
   readonly earlier = input<number | undefined>(undefined);
+  /** True while this is the chapter on screen: the clip plays only then. */
+  readonly active = input<boolean>(false);
   readonly answered = output<{ key: string; choice: number }>();
   readonly next = output<void>();
   readonly back = output<void>();
 
   protected readonly ui = inject(UiService);
+  private readonly motion = inject(MotionService);
+  private readonly nums = viewChildren<ElementRef<HTMLElement>>('num');
 
   private readonly pickedNow = signal<number | null>(null);
   private readonly skipped = signal(false);
+
+  constructor() {
+    // The kills start counting as the lower third's wipe begins (its delay in the stylesheet, at the film's tempo), so the digits roll as the bar uncovers them.
+    afterRenderEffect((onCleanup) => {
+      const els = this.nums().map((r) => r.nativeElement);
+      if (!els.length) return;
+      untracked(() => onCleanup(countAll(this.motion, els, 900, 60, LOWER_THIRD_DELAY_MS)));
+    });
+  }
 
   protected readonly picked = computed<number | null>(() => {
     const now = this.pickedNow();

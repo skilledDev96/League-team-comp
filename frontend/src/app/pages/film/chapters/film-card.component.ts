@@ -1,21 +1,25 @@
 import { Location } from '@angular/common';
-import { Component, computed, inject, input, output } from '@angular/core';
+import { afterRenderEffect, Component, computed, ElementRef, inject, input, output, untracked, viewChildren } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FilmModel } from '../../../core/film-model';
 import { reviewAsText } from '../../../core/review-view';
 import { AnalysisGame, FilmChoice, GameReview, LedgerSummary, Role } from '../../../models/team.models';
+import { MotionService } from '../../../services/motion.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { ToastService } from '../../../services/toast.service';
 import { UiService } from '../../../services/ui.service';
 import { UserPrefsService } from '../../../services/user-prefs.service';
 import { initialsOf } from '../../../core/initials';
+import { countAll } from '../../../shared/film/film-count';
 import { FilmFrameComponent } from '../film-frame.component';
 
 /**
  * The card (9 Sep 2026): the film folded to a phone-sized card the team can
- * keep. The headline over the scoreline, what to watch for next game, the
+ * keep, over the protagonist's splash dimmed and panning slowly (no clip
+ * here: two clips a film is enough), the scoreline's figures counting up
+ * chip by chip. The headline over the scoreline, what to watch for next game, the
  * commitment with the initials of who picked, one ask per player with your
- * own seat first, the tally, one keep-doing, and the toggle that asks you
+ * own seat first, one keep-doing, and the toggle that asks you
  * again before the next game. Copy for Discord carries the same review text
  * the panel copies, plus the commitment, the film link and the notes.
  */
@@ -24,6 +28,12 @@ import { FilmFrameComponent } from '../film-frame.component';
   imports: [RouterLink, FilmFrameComponent],
   template: `
     @let c = model().card;
+    @if (model().title.protagonist.champion; as champ) {
+      <div class="film-chapter-art is-dim" aria-hidden="true">
+        <img class="film-splash" [src]="ui.championArtUrl(champ)" (error)="ui.artFallback($event, champ)" alt="" />
+        <span class="film-chapter-shade"></span>
+      </div>
+    }
     <app-film-frame [kicker]="kicker()" [index]="index()" [count]="count()" (next)="next.emit()" (back)="back.emit()">
       <div class="film-card">
         <div class="film-card-head">
@@ -33,7 +43,7 @@ import { FilmFrameComponent } from '../film-frame.component';
             <ul class="list-clean film-card-scoreline" aria-label="Scoreline">
               @for (s of c.scoreline; track s.label) {
                 <li class="score-chip" [class.is-good]="s.good === true" [class.is-bad]="s.good === false">
-                  @if (s.ours) { <small>{{ s.label }}</small><b>{{ s.ours }}</b>@if (s.theirs) { <em>–{{ s.theirs }}</em> } } @else { <b>{{ s.label }}</b> }
+                  @if (s.ours) { <small>{{ s.label }}</small><b #num [attr.data-count]="s.ours"></b>@if (s.theirs) { <em>–<span #num [attr.data-count]="s.theirs"></span></em> } } @else { <b>{{ s.label }}</b> }
                 </li>
               }
             </ul>
@@ -41,14 +51,14 @@ import { FilmFrameComponent } from '../film-frame.component';
         </div>
 
         @if (c.oneThing) {
-          <div class="film-card-block is-warn">
+          <div class="film-card-block is-warn" [style.--i]="0">
             <p class="film-card-label">Watch for it next game</p>
             <p class="film-card-text">{{ c.oneThing }}</p>
           </div>
         }
 
         @if (commitLine(); as line) {
-          <div class="film-card-block">
+          <div class="film-card-block" [style.--i]="1">
             <p class="film-card-label">We committed to</p>
             <p class="film-card-text">
               {{ line }}
@@ -62,7 +72,7 @@ import { FilmFrameComponent } from '../film-frame.component';
         @if (asks().length) {
           <ul class="list-clean film-card-asks" aria-label="One ask each">
             @for (a of asks(); track a.seat) {
-              <li class="film-card-ask" [class.is-me]="a.seat === mySeat()">
+              <li class="film-card-ask" [class.is-me]="a.seat === mySeat()" [style.--i]="2 + $index">
                 <img [src]="ui.championIconUrl(a.champion)" alt="" loading="lazy" />
                 <span><b>{{ a.name }}</b><small>{{ a.seat }}</small>{{ a.ask }}</span>
               </li>
@@ -70,14 +80,11 @@ import { FilmFrameComponent } from '../film-frame.component';
           </ul>
         }
 
-        <div class="film-card-row">
-          @if (tally(); as t) {
-            <span class="film-card-tally"><span class="material-symbols-rounded" aria-hidden="true">sports_score</span> Called {{ t.called }} of {{ t.of }}</span>
-          }
-          @if (c.keepDoing) {
+        @if (c.keepDoing) {
+          <div class="film-card-row">
             <span class="film-card-keep"><span class="material-symbols-rounded" aria-hidden="true">check_circle</span> {{ c.keepDoing }}</span>
-          }
-        </div>
+          </div>
+        }
 
         <label class="field-check film-card-ask-again">
           <input type="checkbox" [checked]="askAgain()" (change)="askAgainChange.emit($any($event.target).checked)" />
@@ -100,9 +107,8 @@ export class FilmCardComponent {
   readonly opponent = input<string | undefined>(undefined);
   readonly ledger = input<LedgerSummary | undefined>(undefined);
   readonly kicker = input<string>('The card');
-  readonly index = input<number>(4);
+  readonly index = input<number>(3);
   readonly count = input<number>(1);
-  readonly tally = input<{ called: number; of: number } | undefined>(undefined);
   /** Whether the reminder is on; the page keeps it in the progress. */
   readonly askAgain = input<boolean>(true);
   readonly askAgainChange = output<boolean>();
@@ -111,11 +117,22 @@ export class FilmCardComponent {
   readonly back = output<void>();
 
   protected readonly ui = inject(UiService);
+  private readonly motion = inject(MotionService);
   private readonly data = inject(TeamDataService);
   private readonly prefs = inject(UserPrefsService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
+  private readonly nums = viewChildren<ElementRef<HTMLElement>>('num');
+
+  constructor() {
+    // The scoreline's figures count up from nothing, one chip after the next.
+    afterRenderEffect((onCleanup) => {
+      const els = this.nums().map((r) => r.nativeElement);
+      if (!els.length) return;
+      untracked(() => onCleanup(countAll(this.motion, els, 800, 60)));
+    });
+  }
 
   protected readonly mySeat = computed<Role | undefined>(() => this.prefs.filmSeat());
   /** Own seat first, the rest in lane order. */

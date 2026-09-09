@@ -112,8 +112,8 @@ const RIOT_TAG = /#[A-Z0-9]{2,5}/;
 describe('buildFilm on the timeline tier', () => {
   const film = buildFilm(review, game, timeline, previous, 'MOSS 2');
 
-  it('lists the five slice-1 chapters in order and seeds by the match id', () => {
-    expect(film.chapters.map((c) => c.kind)).toEqual(['title', 'one-thing', 'seat', 'callback', 'card']);
+  it('lists the four chapters in order and seeds by the match id', () => {
+    expect(film.chapters.map((c) => c.kind)).toEqual(['title', 'one-thing', 'seat', 'card']);
     expect(film.seed).toBe(360062704);
     expect(film.tier).toBe('timeline');
   });
@@ -181,39 +181,6 @@ describe('buildFilm on the timeline tier', () => {
     expect(film.seats[0].deaths.map((d) => d.minute)).toEqual([24]);
   });
 
-  it('calls back five timeline items with the answers where the facts put them', () => {
-    expect(film.callback.map((c) => c.key)).toEqual(['cb:firstTower', 'cb:dark', 'cb:flip', 'cb:commit', 'cb:objectives']);
-    const [tower, dark, flip, commit, objectives] = film.callback;
-
-    expect(tower.options).toHaveLength(4);
-    expect(new Set(tower.options).size).toBe(4);
-    expect(tower.options[tower.answer]).toBe('9 min');
-    for (const o of tower.options) expect(Number.parseInt(o, 10)).toBeGreaterThanOrEqual(0);
-    expect(tower.why).toBe('They took the first tower at 9 min, bot, after two ganks.');
-
-    expect(dark.question).toBe('How many of our 6 deaths had no ward nearby?');
-    expect(dark.options).toHaveLength(4);
-    expect(dark.options[dark.answer]).toBe('3');
-    expect(dark.why).toBe('💀 6 deaths · 3 to ganks · 3 with no ward nearby · 1 with the jungle a screen away · 1 alone on their side');
-
-    expect(flip.options).toHaveLength(3);
-    expect(flip.options[flip.answer]).toBe('ADC · Jinx');
-    expect(flip.why).toBe('Bot changed hands at 11 after two deaths.');
-
-    expect(commit).toEqual({
-      key: 'cb:commit',
-      question: 'What did we commit to next game?',
-      options: ['Play safer trades before towers fall', 'Ask for jungle pressure earlier'],
-      answer: -1,
-      why: review.team.workOn[0].text,
-      theme: 'fights'
-    });
-
-    expect(objectives.options).toHaveLength(4);
-    expect(objectives.options[objectives.answer]).toBe('Jungle · Trundle');
-    expect(objectives.why).toBe('Jungle · Trundle was on 2 of 2 objectives.');
-  });
-
   it('writes the card from the asks', () => {
     expect(film.card.headline).toBe('Bled 35 kills while farming even');
     expect(film.card.scoreline.map((c) => c.label)).toEqual(['Loss', 'Length', 'Kills', 'Towers', 'Dragons', 'Barons', 'Grubs', 'Heralds']);
@@ -235,33 +202,11 @@ describe('buildFilm on the replay tier', () => {
   const replay = { ...review, tier: 'endOfGame' } as GameReview;
   const film = buildFilm(replay, game, null, null);
 
-  it('calls back the totals: kills, the widest gap, the kill participation, the commitment, as drafted', () => {
-    expect(film.callback.map((c) => c.key)).toEqual(['cb:kills', 'cb:gap', 'cb:kp', 'cb:commit', 'cb:asDrafted']);
-    const [kills, gap, kp, , drafted] = film.callback;
-    expect(kills.options).toHaveLength(4);
-    expect(new Set(kills.options).size).toBe(4);
-    expect(kills.options[kills.answer]).toBe('14');
-    expect(kills.why).toBe('Kills 14-35.');
-    expect(gap.options).toHaveLength(4);
-    expect(gap.options[gap.answer]).toBe('Grubs');
-    expect(gap.why).toBe('Grubs 4-0, the widest gap.');
-    expect(kp.options).toHaveLength(3);
-    expect(kp.options[kp.answer]).toBe('Rhu · Jinx');
-    expect(kp.why).toBe('Rhu · Jinx was in on 71% of our kills.');
-    expect(drafted.options.slice().sort()).toEqual(['As drafted', 'Off plan', 'Unclear']);
-    expect(drafted.options[drafted.answer]).toBe('Off plan');
-    expect(drafted.why).toBe('The comp wanted a slow game and the fights came early.');
-  });
-
   it('has no last time, no ledger on the seats, and says the loss from the game', () => {
     expect(film.title.lastTime).toBeUndefined();
     expect(film.seats.every((s) => s.deaths.length === 0)).toBe(true);
     expect(film.title.win).toBe(false);
     expect(film.title.protagonist.seat).toBe('ADC');
-  });
-
-  it('takes the replay items when a timeline-tier review has no timeline yet', () => {
-    expect(buildFilm(review, game, null, null).callback.map((c) => c.key)).toEqual(['cb:kills', 'cb:gap', 'cb:kp', 'cb:commit', 'cb:asDrafted']);
   });
 
   it('keeps the recurrence off when the previous theme has no ledger tag, or this game has no ledger', () => {
@@ -289,23 +234,6 @@ describe('buildFilm with little to go on', () => {
     expect(film.card.oneThing).toBe('');
     expect(film.card.keepDoing).toBeUndefined();
   });
-
-  it('fills Call it back from the review itself', () => {
-    // The verdict item is a replay-tier item so it leads; the headline is the fallback that fills behind it.
-    expect(film.callback.map((c) => c.key)).toEqual(['cb:asDrafted', 'cb:headline']);
-    const headline = film.callback[1];
-    expect(headline.options).toHaveLength(3);
-    expect(headline.options[headline.answer]).toBe('The team matched on CS but gave up the fights.');
-    expect(headline.options).toContain('Bot fed first and the map followed');
-    expect(film.callback[0].why).toBe('The review called it off plan.');
-  });
-
-  it('commits to the single ask beside a keep-doing when the sentence offers no choice', () => {
-    const plain = { ...review, tier: 'endOfGame', team: { ...review.team, workOn: [point('Path bot after the first clear.', 'macro')] } } as GameReview;
-    const commit = buildFilm(plain, game, null, null).callback.find((c) => c.key === 'cb:commit')!;
-    expect(commit.options.slice().sort()).toEqual(['Keep the wave states clean.', 'Path bot after the first clear.']);
-    expect(commit.options[commit.answer]).toBe('Path bot after the first clear.');
-  });
 });
 
 describe('splitOptions', () => {
@@ -324,24 +252,14 @@ describe('splitOptions', () => {
   });
 });
 
-describe('the no-ward count call', () => {
-  it('only offers counts between zero and the death count', () => {
-    const two = { ...timeline, facts: { ...timeline.facts, ledger: (timeline.facts?.ledger ?? []).slice(0, 2), ledgerSummary: { deaths: 2, ganks: 2, dark: 1, inReach: 0, alone: 0 } } } as MatchTimeline;
-    const dark = buildFilm(review, game, two, null).callback.find((c) => c.key === 'cb:dark')!;
-    expect(dark.question).toBe('How many of our 2 deaths had no ward nearby?');
-    expect(dark.options[dark.answer]).toBe('1');
-    expect(new Set(dark.options).size).toBe(dark.options.length);
-    for (const o of dark.options) expect(['0', '1', '2']).toContain(o);
-  });
-});
-
 describe('every option is safe to show', () => {
   it('never carries a Riot tag, on either tier', () => {
     const films = [buildFilm(review, game, timeline, previous), buildFilm({ ...review, tier: 'endOfGame' } as GameReview, game, null, null)];
     for (const film of films) {
-      const calls = [film.title.call, ...film.callback].filter(Boolean);
+      const calls = [film.title.call].filter(Boolean);
       expect(calls.length).toBeGreaterThan(0);
       for (const c of calls) for (const o of c!.options) expect(o).not.toMatch(RIOT_TAG);
+      for (const a of film.card.asks) expect(a.name).not.toMatch(RIOT_TAG);
     }
   });
 });

@@ -45,7 +45,7 @@
             } @else {
               @switch (ch.kind) {
                 @case ('title') {
-                  <app-film-title [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [earlier]="calls()?.['title']"
+                  <app-film-title [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [earlier]="calls()?.['title']" [active]="i === chapter()"
                                   (answered)="onAnswered($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @case ('one-thing') {
@@ -53,16 +53,12 @@
                                       (chosen)="onChosen($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @case ('seat') {
-                  <app-film-seat [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()" [calls]="calls()" [ledger]="ledgerSummary()"
+                  <app-film-seat [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()" [calls]="calls()" [ledger]="ledgerSummary()" [active]="i === chapter()"
                                  (answered)="onAnswered($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
-                }
-                @case ('callback') {
-                  <app-film-callback [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [calls]="calls()"
-                                     (answered)="onAnswered($event)" (tally)="onTally($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @case ('card') {
                   <app-film-card [model]="m" [review]="review()!" [game]="game()" [opponent]="opponent()" [ledger]="ledgerSummary()"
-                                 [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [tally]="tally()" [askAgain]="askAgain()"
+                                 [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [askAgain]="askAgain()"
                                  (askAgainChange)="onAskAgain($event)" (watchAgain)="go(0)" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @default {
