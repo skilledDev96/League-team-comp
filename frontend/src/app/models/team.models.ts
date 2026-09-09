@@ -634,8 +634,15 @@ export interface ReviewPoint {
   text: string;
   evidence: string;
   minute: number | null;
-  /** Team points only, from review version 2. */
+  /** Team points from review version 2, and a player's further points from version 3. */
   theme?: ReviewTheme;
+}
+
+/** One step of the walk through the game, from review version 3. */
+export interface ReviewMoment {
+  minute: number;
+  text: string;
+  swing: 'us' | 'them' | 'even';
 }
 
 export interface GameReview {
@@ -656,8 +663,18 @@ export interface GameReview {
     keepDoing: ReviewPoint[];
     compVerdict: 'as drafted' | 'off plan' | 'unclear';
     compWhy: string;
+    /** Three to six, in time order; absent before review version 3. */
+    moments?: ReviewMoment[];
   };
-  players: { name: string; seat: Role; champion: string; strength: ReviewPoint; workOn: ReviewPoint }[];
+  players: {
+    name: string;
+    seat: Role;
+    champion: string;
+    strength: ReviewPoint;
+    workOn: ReviewPoint;
+    /** Up to three further things to work on; absent before review version 3. */
+    more?: ReviewPoint[];
+  }[];
   usage: { team: { input: number; cachedInput: number; output: number }; players: { input: number; cachedInput: number; output: number }; costUsd: number; tookMs: number };
 }
 
@@ -712,6 +729,13 @@ export interface TimelineDeath {
   killers: number;
   executed: boolean;
   warded: boolean;
+  /** Who was where, from timeline version 2 (9 Sep 2026); absent before it. Approximate by a minute. */
+  theirJungleIn?: boolean;
+  ourJungleDist?: number;
+  ourJungleZone?: MapZone;
+  theirJungleDistBefore?: number;
+  alliesNear?: number;
+  objectiveNear?: boolean;
 }
 
 export interface MatchTimeline {
@@ -742,15 +766,40 @@ export interface MatchTimeline {
   objectives: TimelineObjective[];
   plates: { ours: Record<LaneName, number>; theirs: Record<LaneName, number> };
   deaths: TimelineDeath[];
-  theirDeaths: { sec: number; minute: number; zone: MapZone }[];
+  theirDeaths: { sec: number; minute: number; zone: MapZone; ourInvolved?: Role[] }[];
   vision: { seat: Role; placed: number[]; killed: number[] }[];
   spend: { seat: Role; firstItemMinute?: number; secondItemMinute?: number; backs: number[] }[];
+  /** Damage to champions dealt and taken per five minutes, our five only; absent before version 2. */
+  damage?: { seat: Role; dealt: number[]; taken: number[] }[];
   /** The facts read off the figures, stored beside them; mirrors `api/src/game-facts.ts`. */
   facts?: GameFacts;
   bytes: number;
 }
 
 export type CurveShape = 'led throughout' | 'trailed throughout' | 'came back' | 'threw' | 'swung' | 'even' | 'unknown';
+
+export type DeathHow = 'executed' | 'solo' | 'gank' | 'fight';
+/** What would have stopped a death: our jungler's pathing, a ward, a call about their jungler, or not standing alone on their side. */
+export type DeathCould = 'jungle' | 'ward' | 'call' | 'position';
+
+/** One death of ours and the verdict on it, from facts version 2. Mirrors `api/src/game-facts.ts`. */
+export interface DeathVerdict {
+  minute: number;
+  seat: Role;
+  name?: string;
+  zone: MapZone;
+  how: DeathHow;
+  could: DeathCould[];
+  line: string;
+}
+
+export interface LedgerSummary {
+  deaths: number;
+  ganks: number;
+  dark: number;
+  inReach: number;
+  alone: number;
+}
 
 /** How a game went, in sentences and the figures behind them. Mirrors `api/src/game-facts.ts`. */
 export interface GameFacts {
@@ -795,6 +844,11 @@ export interface GameFacts {
   soloDeaths: { minute: number; seat: Role; zone: MapZone; warded: boolean; theirSide: boolean; line: string }[];
   vision: { seat: Role; name?: string; placedPer5: number[]; darkDeaths: number; line: string }[];
   spend: { seat: Role; firstItemMinute?: number; backs: number }[];
+  /** The death ledger; absent on the replay tier and on facts before version 2. */
+  ledger?: DeathVerdict[];
+  ledgerSummary?: LedgerSummary;
+  /** Our jungler on our kills; absent before facts version 2. */
+  presence?: { kills: number; ofKills: number; before15: number; ofBefore15: number; line: string };
   lines: string[];
 }
 

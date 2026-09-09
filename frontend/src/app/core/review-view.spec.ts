@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, GameReview, TeamObjectives } from '../models/team.models';
-import { askOf, evidenceChips, playerStatLine, reviewAsText, scoreline } from './review-view';
+import { askOf, evidenceChips, ledgerLine, playerStatLine, reviewAsText, scoreline } from './review-view';
 
 const side = (o: Partial<TeamObjectives>): TeamObjectives => ({ firstBlood: false, firstTower: false, dragons: 0, barons: 0, heralds: 0, grubs: 0, towers: 0, inhibitors: 0, ...o });
 const objectives = (ours: Partial<TeamObjectives>, theirs: Partial<TeamObjectives>) => ({ ours: side(ours), theirs: side({ firstBlood: true, firstTower: true, ...theirs }) });
@@ -92,6 +92,16 @@ describe('reviewAsText', () => {
     expect(reviewAsText(review, game, 'MOSS 2', 'https://example.test/League-team-comp/games?match=m1&tab=games').split('\n').at(-1)).toBe(
       '-# Full review with the figures: <https://example.test/League-team-comp/games?match=m1&tab=games>'
     );
+  });
+
+  it('adds one line on the deaths when the ledger is there, and none without deaths', () => {
+    expect(ledgerLine({ deaths: 11, ganks: 2, dark: 6, inReach: 3, alone: 0 })).toBe('💀 11 deaths · 2 to ganks · 6 with no ward nearby · 3 with the jungle a screen away');
+    expect(ledgerLine({ deaths: 1, ganks: 1, dark: 0, inReach: 0, alone: 1 })).toBe('💀 1 death · 1 to a gank · 1 alone on their side');
+    expect(ledgerLine({ deaths: 0, ganks: 0, dark: 0, inReach: 0, alone: 0 })).toBe('');
+    expect(ledgerLine(undefined)).toBe('');
+    const lines = reviewAsText(review, game, 'MOSS 2', undefined, { deaths: 3, ganks: 0, dark: 2, inReach: 0, alone: 0 }).split('\n');
+    expect(lines[2]).toBe('-# 💀 3 deaths · 2 with no ward nearby');
+    expect(reviewAsText(review, game, 'MOSS 2').split('\n')[2]).toBe('');
   });
 
   it('titles a review from before the headline with the summary’s first sentence, and has no scoreline without a game', () => {

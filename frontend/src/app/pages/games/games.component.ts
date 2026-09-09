@@ -18,6 +18,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
 import { GameCheckComponent } from '../../shared/game-check.component';
 import { GameStoryComponent } from '../../shared/game-story.component';
 import { GameReviewComponent } from '../../shared/game-review.component';
+import { GameGraphsComponent } from '../../shared/game-graphs.component';
 import { GameReviewService } from '../../services/game-review.service';
 import { PlayerEditorService } from '../../services/player-editor.service';
 import { ToastService } from '../../services/toast.service';
@@ -51,7 +52,7 @@ type Tab = 'games' | 'patterns' | 'reviews';
 import { PlayerMarkComponent } from '../../shared/player-mark.component';
 @Component({
   selector: 'app-games',
-  imports: [PlayerMarkComponent, DatePipe,
+  imports: [PlayerMarkComponent, GameGraphsComponent, DatePipe,
     FormsModule,
     RouterLink,
     ChampionFilterComponent,
@@ -348,6 +349,28 @@ export class GamesComponent {
    *  The list starts folded (8 Sep 2026); a link to a game, a refresh with new games, or Show opens it. */
   protected readonly listOpen = signal(false);
   protected readonly playersOpen = signal(true);
+
+  /** The scoreboard as a table or as the post-game graphs (9 Sep 2026); remembered per browser. */
+  protected readonly scoreboardView = signal<'table' | 'graphs'>(GamesComponent.readScoreboardView());
+
+  private static readonly SCOREBOARD_KEY = 'bom-games-scoreboard-view';
+
+  private static readScoreboardView(): 'table' | 'graphs' {
+    try {
+      return localStorage.getItem(GamesComponent.SCOREBOARD_KEY) === 'graphs' ? 'graphs' : 'table';
+    } catch {
+      return 'table';
+    }
+  }
+
+  protected setScoreboardView(view: 'table' | 'graphs'): void {
+    this.scoreboardView.set(view);
+    try {
+      localStorage.setItem(GamesComponent.SCOREBOARD_KEY, view);
+    } catch {
+      // A private window; the choice lasts the page.
+    }
+  }
 
   /** The four axes of the comp this game counts as, for the story's curve lines. */
   protected expectFor(row: GameRow): CompExpectation | null {

@@ -325,6 +325,13 @@
                 </div>
               }
               @if (g.ours[0]?.stats) {
+                <div class="view-segment scoreboard-view" role="group" aria-label="Scoreboard as">
+                  <button type="button" [class.active]="scoreboardView() === 'table'" (click)="setScoreboardView('table')">Table</button>
+                  <button type="button" [class.active]="scoreboardView() === 'graphs'" (click)="setScoreboardView('graphs')">Graphs</button>
+                </div>
+                @if (scoreboardView() === 'graphs') {
+                  <app-game-graphs [ours]="g.ours" [theirs]="g.theirs" [source]="g.source" />
+                } @else {
                 <div class="games-scroll">
                   <table class="opp-history-stats">
                     <thead>
@@ -376,6 +383,7 @@
                     </tbody>
                   </table>
                 </div>
+                }
               } @else {
                 <p class="muted opp-history-nostats">
                   @if (g.source === 'tournament') {

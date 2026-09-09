@@ -14350,6 +14350,67 @@ button .player-mark { vertical-align: -0.3rem; }
 }
 .review-card-headline { margin: 0.2rem 0 0.1rem; font-size: 1.05rem; font-weight: 800; color: var(--text-0); }
 
+/* ---- The review walks through the game, 9 Sep 2026: the game in moments,
+   further points behind a fold on each player, the death ledger ---- */
+.game-review-moments { display: grid; gap: 0.35rem; margin: 0.65rem 0 0; padding: 0; }
+.game-review-moment { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr); gap: 0.6rem; align-items: start; font-size: 0.86rem; line-height: 1.45; color: var(--text-0); }
+.moment-minute { display: inline-flex; align-items: baseline; justify-content: center; gap: 0.15rem; padding: 0.1rem 0.4rem; border-radius: 999px; border: 1px solid var(--card-border); background: var(--surface-controls); font-weight: 700; font-size: 0.78rem; font-variant-numeric: tabular-nums; color: var(--text-0); }
+.moment-minute small { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-1); }
+.game-review-moment.is-us .moment-minute { border-color: color-mix(in srgb, var(--ok) 55%, var(--card-border)); color: var(--ok); }
+.game-review-moment.is-them .moment-minute { border-color: color-mix(in srgb, var(--warn) 55%, var(--card-border)); color: var(--warn); }
+.game-review-more { grid-column: 1 / -1; margin: 0; padding: 0.35rem 0 0; border-top: 1px dashed var(--card-border); }
+.game-review-more > summary { display: inline-flex; align-items: center; gap: 0.2rem; cursor: pointer; list-style: none; font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--warn); }
+.game-review-more > summary::-webkit-details-marker { display: none; }
+.game-review-more > summary .material-symbols-rounded { font-size: 1rem; transition: transform 0.15s ease; }
+.game-review-more[open] > summary .material-symbols-rounded { transform: rotate(180deg); }
+.game-review-more > summary small { padding: 0 0.4rem; border-radius: 999px; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); font-size: 0.66rem; }
+.game-review-more[open] > summary { margin-bottom: 0.45rem; }
+.game-review-more .game-review-points { padding-left: 0.6rem; border-left: 2px solid color-mix(in srgb, var(--warn) 50%, var(--card-border)); }
+.game-review-ledger { margin-top: 0.75rem; padding: 0.6rem 0.75rem; border-radius: 12px; border: 1px solid var(--card-border); background: color-mix(in srgb, var(--surface-controls) 70%, transparent); min-width: 0; }
+.game-review-ledger-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.45rem; }
+.game-review-ledger-head .advice-head { margin: 0; }
+.game-review-ledger-head .view-segment button { padding: 0.28rem 0.7rem; font-size: 0.74rem; }
+.game-review-ledger-head .view-segment small { margin-left: 0.25rem; opacity: 0.75; font-weight: 600; }
+.game-review-ledger-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.game-review-ledger-table th, .game-review-ledger-table td { padding: 0.35rem 0.5rem; text-align: left; border-bottom: 1px solid var(--card-border); vertical-align: top; }
+.game-review-ledger-table th { font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-1); font-weight: 600; }
+.game-review-ledger-table tbody tr:last-child td { border-bottom: none; }
+.game-review-ledger-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.game-review-ledger-table .player-mark { width: 1.2rem; height: 1.2rem; vertical-align: -0.3rem; margin: 0 0.3rem 0 0; }
+.game-review-ledger-table td small { margin-left: 0.3rem; }
+.could-chip { display: inline-flex; align-items: center; gap: 0.15rem; margin: 0 0.25rem 0.2rem 0; padding: 0.05rem 0.5rem 0.05rem 0.35rem; border-radius: 999px; border: 1px solid var(--card-border); font-size: 0.68rem; white-space: nowrap; color: var(--text-1); }
+.could-chip .material-symbols-rounded { font-size: 0.9rem; }
+.could-chip.is-jungle { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, var(--card-border)); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.could-chip.is-ward { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, var(--card-border)); background: color-mix(in srgb, var(--warn) 8%, transparent); }
+.could-chip.is-call { color: var(--text-0); border-color: color-mix(in srgb, var(--text-0) 35%, var(--card-border)); }
+.could-chip.is-position { color: var(--text-0); border-color: color-mix(in srgb, var(--text-0) 35%, var(--card-border)); background: color-mix(in srgb, var(--text-1) 10%, transparent); }
+.game-review-ledger .game-story-caveat { margin: 0.45rem 0 0; }
+
+/* ---- Post-game graphs on the scoreboard, 9 Sep 2026 ---- */
+.scoreboard-view { margin: 0.55rem 0 0.4rem; }
+.scoreboard-view button { padding: 0.3rem 0.85rem; font-size: 0.76rem; }
+.game-graphs { display: grid; gap: 0.6rem; min-width: 0; }
+.game-graphs .view-segment button { padding: 0.28rem 0.7rem; font-size: 0.74rem; }
+.game-graphs-rows { display: grid; gap: 0.45rem; }
+.game-graphs-pair { display: grid; gap: 0.25rem; padding: 0.4rem 0.55rem; border-radius: 10px; background: color-mix(in srgb, var(--surface-controls) 70%, transparent); }
+.game-graphs-bar { display: grid; grid-template-columns: 9rem minmax(0, 1fr) 5.5rem; align-items: center; gap: 0.55rem; font-size: 0.8rem; min-width: 0; }
+.game-graphs-bar .who { display: flex; align-items: center; gap: 0.4rem; min-width: 0; color: var(--text-0); }
+.game-graphs-bar .who img { width: 1.35rem; height: 1.35rem; border-radius: 6px; flex: none; }
+.game-graphs-bar .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.game-graphs-bar.is-theirs .who { color: var(--text-1); }
+.game-graphs-track { display: grid; gap: 0.15rem; min-width: 0; }
+.game-graphs-fill { display: block; height: 0.6rem; border-radius: 4px; background: var(--accent); transition: width 0.25s ease; }
+.game-graphs-bar.is-theirs .game-graphs-fill { background: color-mix(in srgb, var(--text-1) 45%, transparent); }
+.game-graphs-fill.is-taken { background: var(--warn); }
+.game-graphs-bar.is-theirs .game-graphs-fill.is-taken { background: color-mix(in srgb, var(--warn) 45%, transparent); }
+.game-graphs-fill.is-none { background: transparent; }
+.game-graphs-bar .value { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-0); white-space: nowrap; }
+.game-graphs-bar.is-theirs .value { color: var(--text-1); }
+.game-graphs-legend { margin: 0; font-size: 0.72rem; }
+@media (max-width: 40rem) {
+  .game-graphs-bar { grid-template-columns: 6.5rem minmax(0, 1fr) 4.5rem; }
+}
+
 .fillin-row .avatar { width: 2.4rem; height: 2.4rem; flex: none; }
 .modal-card .title-with-icon .avatar { width: 2.2rem; height: 2.2rem; margin-right: 0.5rem; }
 

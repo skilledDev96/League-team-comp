@@ -1,8 +1,9 @@
 import { DatePipe, Location, NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { AnalysisGame, GameReview, ReviewPoint, ReviewTheme } from '../models/team.models';
-import { evidenceChips, playerStatLine, reviewAsText, scoreline } from '../core/review-view';
+import { AnalysisGame, DeathCould, DeathVerdict, GameReview, ReviewPoint, ReviewTheme } from '../models/team.models';
+import { COULD_LABELS, evidenceChips, HOW_LABELS, playerStatLine, reviewAsText, scoreline, ZONE_LABELS } from '../core/review-view';
+import { MatchTimelineService } from '../services/match-timeline.service';
 import { ToastService } from '../services/toast.service';
 import { UiService } from '../services/ui.service';
 import { InfoTipComponent } from './info-tip.component';
@@ -11,11 +12,14 @@ import { TooltipDirective } from './tooltip.directive';
 
 /**
  * A written review of one game (9 Sep 2026): the headline on how it was
- * decided over the scoreline every point refers to, the first thing to fix
- * next game as a callout, the other points in two content-sized columns,
- * and a row per player with their stat line beside the notes. Read-only,
- * apart from copying itself as text for the team chat; the button that
- * writes a review lives on the row.
+ * decided over the scoreline every point refers to, the game in moments,
+ * the first thing to fix next game as a callout, the other points in two
+ * content-sized columns, a row per player with their stat line beside the
+ * notes and the further points behind a fold, and the death ledger — every
+ * death of ours with what would have stopped it, read off the timeline the
+ * drawer reads, so the notes can be checked against it. Read-only, apart
+ * from copying itself as text for the team chat; the button that writes a
+ * review lives on the row.
  */
 @Component({
   selector: 'app-game-review',
@@ -50,6 +54,17 @@ import { TooltipDirective } from './tooltip.directive';
         }
         @if (r.team.summary) { <p class="game-review-summary">{{ r.team.summary }}</p> }
         @if (r.team.compWhy) { <p class="muted game-review-why">{{ r.team.compWhy }}</p> }
+
+        @if (moments().length) {
+          <ol class="list-clean game-review-moments" aria-label="The game in moments">
+            @for (m of moments(); track $index) {
+              <li class="game-review-moment" [class.is-us]="m.swing === 'us'" [class.is-them]="m.swing === 'them'">
+                <span class="moment-minute">{{ m.minute }}<small>min</small></span>
+                <span class="moment-text">{{ m.text }}</span>
+              </li>
+            }
+          </ol>
+        }
 
         @if (first(); as f) {
           <div class="game-review-first">
@@ -104,7 +119,67 @@ import { TooltipDirective } from './tooltip.directive';
                     <ng-container *ngTemplateOutlet="chipsTpl; context: { $implicit: p.workOn.evidence }" />
                   } @else { <span class="muted">—</span> }
                 </div>
+                @if (p.more?.length) {
+                  <details class="game-review-more" role="cell">
+                    <summary><span class="material-symbols-rounded" aria-hidden="true">expand_more</span>More to work on <small>{{ p.more!.length }}</small></summary>
+                    <ul class="game-review-points">
+                      @for (m of p.more; track $index) { <li class="game-review-point"><ng-container *ngTemplateOutlet="pointTpl; context: { $implicit: m }" /></li> }
+                    </ul>
+                  </details>
+                }
               </div>
+            }
+          </div>
+        }
+
+        @if (r.tier === 'timeline') {
+          <div class="game-review-ledger" aria-label="Deaths, and what would have stopped them">
+            <div class="game-review-ledger-head">
+              <p class="advice-head">Deaths, and what would have stopped them</p>
+              @if (ledger()?.length) {
+                <div class="view-segment" role="group" aria-label="Show deaths">
+                  <button type="button" [class.active]="ledgerFilter() === 'all'" (click)="ledgerFilter.set('all')">All <small>{{ ledger()!.length }}</small></button>
+                  @for (c of coulds; track c.key) {
+                    @if (count(c.key); as n) { <button type="button" [class.active]="ledgerFilter() === c.key" (click)="ledgerFilter.set(c.key)">{{ c.label }} <small>{{ n }}</small></button> }
+                  }
+                </div>
+              }
+            </div>
+            @switch (timelineState()) {
+              @case ('loading') { <p class="muted">Reading the timeline…</p> }
+              @case ('none') { <p class="muted">No timeline for this game yet. Twenty are fetched each morning, and Re-review fetches one now.</p> }
+              @case ('old') { <p class="muted">This timeline predates the death ledger. Re-review fetches a new one.</p> }
+              @default {
+                @if (!ledger()!.length) {
+                  <p class="muted">Nobody died. Keep doing that.</p>
+                } @else {
+                  <div class="games-scroll">
+                    <table class="game-review-ledger-table">
+                      <thead>
+                        <tr><th scope="col" class="num">Min</th><th scope="col">Who</th><th scope="col">Where</th><th scope="col">How</th><th scope="col">Could have been stopped by</th></tr>
+                      </thead>
+                      <tbody>
+                        @for (d of ledgerRows(); track d.minute + d.seat) {
+                          <tr [appTip]="d.line">
+                            <td class="num">{{ d.minute }}</td>
+                            <td>@if (d.name) { <app-player-mark [name]="d.name" />{{ d.name }} <small class="muted">{{ d.seat }}</small> } @else { {{ d.seat }} }</td>
+                            <td>{{ zone(d.zone) }}</td>
+                            <td>{{ how(d.how) }}</td>
+                            <td>
+                              @if (d.could.length) {
+                                @for (c of d.could; track c) {
+                                  <span class="could-chip" [class]="'could-chip is-' + c"><span class="material-symbols-rounded" aria-hidden="true">{{ couldIcon(c) }}</span>{{ couldLabel(c) }}</span>
+                                }
+                              } @else { <span class="muted">—</span> }
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                  <p class="muted game-story-caveat">Approximate by a minute <app-info-tip text="Frames are a minute apart. Jungle pathing means our jungler was within about a screen at the nearest frame and not on an objective; a ward means two or more came in with no ward of ours nearby; a call means their jungler was already on that side a minute before; position means alone on their side of the map." /></p>
+                }
+              }
             }
           </div>
         }
@@ -145,7 +220,63 @@ export class GameReviewComponent {
   readonly opponent = input<string | undefined>(undefined);
 
   protected readonly ui = inject(UiService);
+  private readonly timelines = inject(MatchTimelineService);
   private readonly toast = inject(ToastService);
+
+  /** The ledger's filter pills, in the order the tags are argued. */
+  protected readonly coulds: { key: DeathCould; label: string }[] = (Object.keys(COULD_LABELS) as DeathCould[]).map((key) => ({ key, label: COULD_LABELS[key].label }));
+  protected readonly ledgerFilter = signal<'all' | DeathCould>('all');
+
+  /** The timeline the drawer reads too; read once a timeline-tier review is shown. */
+  private readonly timeline = computed(() => {
+    const id = this.review()?.matchId;
+    return id ? (this.timelines.known().get(id) ?? null) : null;
+  });
+  protected readonly timelineState = computed<'loading' | 'none' | 'old' | 'have'>(() => {
+    const id = this.review()?.matchId;
+    if (!id) return 'none';
+    const map = this.timelines.known();
+    if (!map.has(id)) return 'loading';
+    const t = map.get(id);
+    if (!t) return 'none';
+    return t.facts?.ledger ? 'have' : 'old';
+  });
+  protected readonly ledger = computed<DeathVerdict[] | undefined>(() => this.timeline()?.facts?.ledger);
+  protected readonly ledgerRows = computed(() => {
+    const all = this.ledger() ?? [];
+    const f = this.ledgerFilter();
+    return f === 'all' ? all : all.filter((d) => d.could.includes(f));
+  });
+  protected readonly moments = computed(() => this.review()?.team.moments ?? []);
+
+  constructor() {
+    effect(() => {
+      const r = this.review();
+      if (!r || r.tier !== 'timeline') return;
+      if (this.timelines.known().has(r.matchId)) return;
+      void this.timelines.load(r.matchId);
+    });
+  }
+
+  protected count(could: DeathCould): number {
+    return (this.ledger() ?? []).filter((d) => d.could.includes(could)).length;
+  }
+
+  protected couldLabel(c: DeathCould): string {
+    return COULD_LABELS[c].label;
+  }
+
+  protected couldIcon(c: DeathCould): string {
+    return COULD_LABELS[c].icon;
+  }
+
+  protected how(h: DeathVerdict['how']): string {
+    return HOW_LABELS[h];
+  }
+
+  protected zone(z: DeathVerdict['zone']): string {
+    return ZONE_LABELS[z];
+  }
   private readonly router = inject(Router);
   private readonly location = inject(Location);
 
@@ -185,7 +316,7 @@ export class GameReviewComponent {
     const r = this.review();
     if (!r) return;
     try {
-      await navigator.clipboard.writeText(reviewAsText(r, this.game(), this.opponent(), this.gameLink(r.matchId)));
+      await navigator.clipboard.writeText(reviewAsText(r, this.game(), this.opponent(), this.gameLink(r.matchId), this.timeline()?.facts?.ledgerSummary));
       this.toast.show('Review copied', { kind: 'ok', icon: 'content_copy', text: 'Paste it in the team chat; the headline, the points and every player’s note are in it.' });
     } catch {
       this.toast.show('Could not copy', { kind: 'warn', text: 'The browser refused the clipboard; select the text and copy it by hand.' });

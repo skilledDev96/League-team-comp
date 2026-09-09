@@ -1,4 +1,4 @@
-import { AnalysisGame, AnalysisPlayer, GameReview } from '../models/team.models';
+import { AnalysisGame, AnalysisPlayer, DeathCould, DeathHow, GameReview, LedgerSummary, MapZone } from '../models/team.models';
 
 /**
  * The review panel's read side (9 Sep 2026): the scoreline every point
@@ -81,13 +81,46 @@ export function askOf(text: string): string {
 
 const OBJECTIVE_EMOJI: Record<string, string> = { Towers: '🏰', Dragons: '🐉', Barons: '🟣', Grubs: '🐛', Heralds: '👁️' };
 
+/** The ledger's words on the panel and in the chat (9 Sep 2026). */
+export const COULD_LABELS: Record<DeathCould, { label: string; icon: string; tip: string }> = {
+  jungle: { label: 'Jungle pathing', icon: 'alt_route', tip: 'Our jungler was about a screen away at the nearest frame and not on an objective' },
+  ward: { label: 'A ward', icon: 'visibility_off', tip: 'Two or more came in and no ward of ours had gone down nearby' },
+  call: { label: 'A call', icon: 'campaign', tip: 'Their jungler was already on this side of the map a minute before' },
+  position: { label: 'Position', icon: 'person_pin_circle', tip: 'On their side of the map with none of ours near' }
+};
+export const HOW_LABELS: Record<DeathHow, string> = { executed: 'Tower or monster', solo: 'One of them', gank: 'Gank', fight: 'Fight' };
+export const ZONE_LABELS: Record<MapZone, string> = {
+  ourBase: 'our base',
+  theirBase: 'their base',
+  top: 'top lane',
+  mid: 'mid lane',
+  bot: 'bot lane',
+  river: 'the river',
+  ourJungle: 'our jungle',
+  theirJungle: 'their jungle'
+};
+
+/** `💀 11 deaths · 6 with no ward nearby · 3 with the jungle a screen away`, or nothing without deaths. */
+export function ledgerLine(summary: LedgerSummary | undefined): string {
+  if (!summary?.deaths) return '';
+  const bits = [
+    `💀 ${summary.deaths} ${summary.deaths === 1 ? 'death' : 'deaths'}`,
+    summary.ganks ? `${summary.ganks} to ${summary.ganks === 1 ? 'a gank' : 'ganks'}` : '',
+    summary.dark ? `${summary.dark} with no ward nearby` : '',
+    summary.inReach ? `${summary.inReach} with the jungle a screen away` : '',
+    summary.alone ? `${summary.alone} alone on their side` : ''
+  ].filter(Boolean);
+  return bits.join(' · ');
+}
+
 /**
  * The review as a short Discord message (9 Sep 2026): a heading, one
  * scoreline in subtext, the first thing next game in full, the first Keep
- * doing, and the ask per player — no evidence, no summary. The full review
+ * doing, and the ask per player — no evidence, no summary. The death ledger
+ * adds one line of subtext when the timeline carries it. The full review
  * with the figures stays on the Games page, and the last line says so.
  */
-export function reviewAsText(review: GameReview, game: AnalysisGame | undefined, opponent?: string, link?: string): string {
+export function reviewAsText(review: GameReview, game: AnalysisGame | undefined, opponent?: string, link?: string, ledger?: LedgerSummary): string {
   const title = review.team.headline || firstSentence(review.team.summary) || 'Game review';
   const score = scoreline(game);
   const result = score[0];
@@ -101,6 +134,8 @@ export function reviewAsText(review: GameReview, game: AnalysisGame | undefined,
   ].filter(Boolean);
   const lines: string[] = [`## ${title}`];
   if (bits.length) lines.push(`-# ${bits.join(' · ')}`);
+  const deaths = ledgerLine(ledger);
+  if (deaths) lines.push(`-# ${deaths}`);
   const first = review.team.workOn[0];
   if (first) lines.push('', `**🎯 First thing next game**${first.theme ? ` · ${first.theme}` : ''}`, first.text);
   const keep = review.team.keepDoing[0];

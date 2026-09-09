@@ -129,7 +129,7 @@ export class PlayerProfileComponent {
         win: n.game?.win ?? false,
         date: n.game?.date ?? 0,
         strength: [n.note!.strength.text, n.note!.strength.evidence].join(' '),
-        workOn: [n.note!.workOn.text, n.note!.workOn.evidence].join(' ')
+        workOn: [n.note!.workOn.text, n.note!.workOn.evidence, ...(n.note!.more ?? []).flatMap((m) => [m.text, m.evidence])].join(' ')
       }))
     )
   );
