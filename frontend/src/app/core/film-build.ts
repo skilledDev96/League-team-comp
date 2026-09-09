@@ -376,11 +376,12 @@ function turnOf(timeline: MatchTimeline, win: boolean): FilmTape['turn'] {
   if (gold.length < 2) return null;
   // Read from our side: a loss is a win for them.
   const ours = win ? gold : gold.map((g) => -g);
-  const lowest = Math.min(...ours);
+  // Minute zero is always level, so the question starts at minute one.
+  const lowest = Math.min(...ours.slice(1));
   if (lowest <= 0) {
     // Ever behind or level: the last minute it still was.
     let last = -1;
-    for (let m = 0; m < ours.length; m += 1) if (ours[m] <= 0) last = m;
+    for (let m = 1; m < ours.length; m += 1) if (ours[m] <= 0) last = m;
     if (last < 0 || last >= ours.length - 1) return null;
     const from = k(Math.min(...ours.slice(0, last + 1)));
     return win
