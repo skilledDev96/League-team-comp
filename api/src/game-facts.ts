@@ -9,6 +9,12 @@
  * prompt, so what the model says can always be checked against what the
  * team sees (8 Sep 2026).
  *
+ * The death ledger (9 Sep 2026) is one verdict per death of ours: how it
+ * happened and what would have stopped it — our jungler a screen away, a
+ * ward, a call about their jungler, or standing alone on their side. The
+ * tags are rules over the timeline's figures, so a player can check every
+ * one against the drawer; the model only reads them.
+ *
  * A replay has totals only, so `endOfGameFacts` says what it can from the
  * lane reads and the objective counts and labels itself as such.
  *
@@ -20,9 +26,9 @@
 import { CompExpectation } from './daily-refresh';
 import { LaneRead, LaneRole, LaneVerdict, PlayerFacts } from './lane-read';
 import { GameObjectives } from './objectives';
-import { MapZone, MatchTimeline, TimelineObjective } from './timeline-features';
+import { JUNGLE_REACH, MapZone, MatchTimeline, THEIR_JUNGLE_WARNING, TimelineObjective } from './timeline-features';
 
-export const FACTS_VERSION = 1;
+export const FACTS_VERSION = 2;
 
 /** Deaths within this many seconds of each other, in one zone, are one fight. */
 export const CLUSTER_SEC = 45;
@@ -57,6 +63,31 @@ export interface AnalysisGameLike {
 }
 
 export type CurveShape = 'led throughout' | 'trailed throughout' | 'came back' | 'threw' | 'swung' | 'even' | 'unknown';
+
+export type DeathHow = 'executed' | 'solo' | 'gank' | 'fight';
+/** What would have stopped it: our jungler's pathing, a ward, a call about their jungler, or not standing alone on their side. */
+export type DeathCould = 'jungle' | 'ward' | 'call' | 'position';
+
+export interface DeathVerdict {
+  minute: number;
+  seat: LaneRole;
+  name?: string;
+  zone: MapZone;
+  how: DeathHow;
+  could: DeathCould[];
+  line: string;
+}
+
+export interface LedgerSummary {
+  deaths: number;
+  ganks: number;
+  /** No ward nearby. */
+  dark: number;
+  /** Our jungler within JUNGLE_REACH. */
+  inReach: number;
+  /** Alone on their side of the map. */
+  alone: number;
+}
 
 export interface GameFacts {
   factsVersion: number;
@@ -100,7 +131,12 @@ export interface GameFacts {
   soloDeaths: { minute: number; seat: LaneRole; zone: MapZone; warded: boolean; theirSide: boolean; line: string }[];
   vision: { seat: LaneRole; name?: string; placedPer5: number[]; darkDeaths: number; line: string }[];
   spend: { seat: LaneRole; firstItemMinute?: number; backs: number }[];
-  /** At most MAX_LINES, in a fixed order: result, lanes, objectives, fights, solo deaths, vision. */
+  /** One verdict per death of ours, in time order. Absent on the replay tier and on facts before version 2. */
+  ledger?: DeathVerdict[];
+  ledgerSummary?: LedgerSummary;
+  /** Our jungler on our kills. Absent when the timeline predates it. */
+  presence?: { kills: number; ofKills: number; before15: number; ofBefore15: number; line: string };
+  /** At most MAX_LINES, in a fixed order: result, the ledger, lanes, objectives, fights, solo deaths, vision. */
   lines: string[];
 }
 
@@ -173,6 +209,72 @@ function resultLine(facts: GameFacts): string {
     default:
       return `${head}. Totals only, from the replay: no minute-by-minute figures.`;
   }
+}
+
+// ---- The ledger ------------------------------------------------------------------
+
+const LANE_ZONES: ReadonlySet<MapZone> = new Set<MapZone>(['top', 'mid', 'bot']);
+/** Where a jungler a screen away could have turned up. */
+const REACH_ZONES: ReadonlySet<MapZone> = new Set<MapZone>(['top', 'mid', 'bot', 'river', 'ourJungle']);
+
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+function deathLedger(timeline: MatchTimeline, names: ReadonlyMap<LaneRole, string>): DeathVerdict[] {
+  return timeline.deaths.map((d) => {
+    const laner = d.seat !== 'Jungle';
+    const how: DeathHow = d.executed ? 'executed' : d.theirJungleIn && laner && LANE_ZONES.has(d.zone) ? 'gank' : d.killers >= 3 ? 'fight' : 'solo';
+    const could: DeathCould[] = [];
+    if (how !== 'executed' && d.ourJungleDist !== undefined && d.ourJungleDist <= JUNGLE_REACH && !d.objectiveNear && REACH_ZONES.has(d.zone)) could.push('jungle');
+    if (!d.warded && !d.executed && d.killers >= 2) could.push('ward');
+    if (how === 'gank' && d.theirJungleDistBefore !== undefined && d.theirJungleDistBefore <= THEIR_JUNGLE_WARNING) could.push('call');
+    if (how !== 'executed' && d.theirSide && d.alliesNear === 0) could.push('position');
+    const howWords =
+      how === 'executed' ? 'to a tower or a monster' : how === 'gank' ? 'to a gank with their jungler on it' : how === 'fight' ? `in a fight against ${d.killers}` : 'to one of them';
+    const bits: string[] = [];
+    if (could.includes('ward')) bits.push('no ward nearby');
+    if (could.includes('call')) bits.push('their jungler was already close a minute before');
+    if (could.includes('jungle')) bits.push(`our jungler was ${k(d.ourJungleDist ?? 0)} away in ${ZONE_WORDS[d.ourJungleZone ?? 'ourJungle']}`);
+    if (could.includes('position')) bits.push('alone on their side of the map');
+    const line = `Around minute ${d.minute}: ${seatName(d.seat, names)} died ${howWords} in ${ZONE_WORDS[d.zone]}${bits.length ? ` — ${bits.join('; ')}` : ''}.`;
+    return { minute: d.minute, seat: d.seat, ...(names.has(d.seat) && { name: names.get(d.seat) }), zone: d.zone, how, could, line };
+  });
+}
+
+function ledgerSummaryOf(ledger: readonly DeathVerdict[]): LedgerSummary {
+  return {
+    deaths: ledger.length,
+    ganks: ledger.filter((d) => d.how === 'gank').length,
+    dark: ledger.filter((d) => d.could.includes('ward')).length,
+    inReach: ledger.filter((d) => d.could.includes('jungle')).length,
+    alone: ledger.filter((d) => d.could.includes('position')).length
+  };
+}
+
+function ledgerLine(s: LedgerSummary): string {
+  const parts = [
+    s.ganks ? `${s.ganks} to ${s.ganks === 1 ? 'a gank' : 'ganks'}` : '',
+    s.dark ? `${s.dark} with no ward nearby` : '',
+    s.inReach ? `${s.inReach} with our jungler a screen away` : '',
+    s.alone ? `${s.alone} alone on their side` : ''
+  ].filter(Boolean);
+  return parts.length ? `${plural(s.deaths, 'death', 'deaths')}: ${parts.join(', ')}.` : `${plural(s.deaths, 'death', 'deaths')}, none to a gank, in the dark or alone on their side.`;
+}
+
+function presenceOf(timeline: MatchTimeline, names: ReadonlyMap<LaneRole, string>): GameFacts['presence'] | undefined {
+  const kills = timeline.theirDeaths.filter((d) => d.ourInvolved);
+  if (!kills.length) return undefined;
+  const on = kills.filter((d) => d.ourInvolved?.includes('Jungle'));
+  const early = kills.filter((d) => d.minute < 15);
+  const earlyOn = early.filter((d) => d.ourInvolved?.includes('Jungle'));
+  return {
+    kills: on.length,
+    ofKills: kills.length,
+    before15: earlyOn.length,
+    ofBefore15: early.length,
+    line: `${seatName('Jungle', names)} was on ${on.length} of ${plural(kills.length, 'kill', 'kills')}${early.length ? `, ${earlyOn.length} of ${early.length} before fifteen` : ''}.`
+  };
 }
 
 // ---- The build -----------------------------------------------------------------
@@ -292,6 +394,9 @@ export function gameFacts(timeline: MatchTimeline, game: AnalysisGameLike): Game
   });
 
   const spend: GameFacts['spend'] = timeline.spend.map((s) => ({ seat: s.seat, ...(s.firstItemMinute !== undefined && { firstItemMinute: s.firstItemMinute }), backs: s.backs.length }));
+  const ledger = deathLedger(timeline, names);
+  const ledgerSummary = ledgerSummaryOf(ledger);
+  const presence = presenceOf(timeline, names);
 
   const facts: GameFacts = {
     factsVersion: FACTS_VERSION,
@@ -315,10 +420,15 @@ export function gameFacts(timeline: MatchTimeline, game: AnalysisGameLike): Game
     soloDeaths,
     vision,
     spend,
+    ledger,
+    ledgerSummary,
+    ...(presence && { presence }),
     lines: []
   };
 
   const lines: string[] = [resultLine(facts)];
+  if (ledger.length) lines.push(ledgerLine(ledgerSummary));
+  if (presence) lines.push(presence.line);
   for (const l of lanes) if (l.verdict !== 'unknown') lines.push(l.line);
   const givenUp = objectives.filter((o) => o.side === 'them' && o.setup === 'uncontested').slice(0, 2);
   for (const o of givenUp) lines.push(o.line);

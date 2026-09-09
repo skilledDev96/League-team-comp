@@ -186,14 +186,61 @@ describe('buildMatchTimeline', () => {
     expect(t.firsts.blood).toEqual({ minute: 8, side: 'them' });
   });
 
-  it('counts their deaths by minute and zone only', () => {
+  it('counts their deaths by minute and zone, and which of our seats were on them', () => {
     const frames = plainFrames(12);
-    put(frames, 6, [kill(1, 6, 2000, 9000)]);
+    put(frames, 6, [kill(1, 6, 2000, 9000, [2])]);
     const t = build(frames)!;
-    expect(t.theirDeaths).toEqual([{ sec: 360, minute: 6, zone: 'top' }]);
+    expect(t.theirDeaths).toEqual([{ sec: 360, minute: 6, zone: 'top', ourInvolved: ['Top', 'Jungle'] }]);
     expect(t.firsts.blood).toEqual({ minute: 6, side: 'us' });
     expect(JSON.stringify(t)).not.toContain('Top2');
     expect(JSON.stringify(t)).not.toContain('p6');
+  });
+
+  it('reads a gank with their jungler on it, our jungler a screen away, and who stood near', () => {
+    const frames = plainFrames(12);
+    // Top dies in top lane at minute 8; our jungler is in our jungle 3.2k away, the support beside him;
+    // their jungler was 1.4k from the spot a minute earlier.
+    frames[8].participantFrames['2'].position = { x: 4000, y: 6500 };
+    frames[8].participantFrames['5'].position = { x: 2200, y: 8800 };
+    frames[7].participantFrames['7'].position = { x: 3000, y: 10000 };
+    put(frames, 8, [kill(6, 1, 2000, 9000, [7])]);
+    const t = build(frames)!;
+    expect(t.deaths[0]).toMatchObject({
+      seat: 'Top',
+      zone: 'top',
+      theirJungleIn: true,
+      ourJungleDist: 3200,
+      ourJungleZone: 'ourJungle',
+      theirJungleDistBefore: 1400,
+      alliesNear: 1,
+      objectiveNear: false
+    });
+  });
+
+  it('marks a death in the objective window, and reads no jungler distance when the jungler is the victim', () => {
+    const frames = plainFrames(12);
+    const at = (m: number, s: number) => m * 60_000 + s * 1000;
+    put(frames, 10, [
+      { type: 'ELITE_MONSTER_KILL', timestamp: at(10, 0), killerId: 7, killerTeamId: 200, monsterType: 'DRAGON', monsterSubType: 'INFERNAL_DRAGON', position: { x: 9800, y: 4400 } },
+      kill(6, 2, 9900, 4500, [], at(10, 20)),
+      kill(6, 3, 7400, 7400, [], at(11, 30))
+    ]);
+    const t = build(frames)!;
+    expect(t.deaths[0]).toMatchObject({ seat: 'Jungle', objectiveNear: true, theirJungleIn: false, alliesNear: 0 });
+    expect(t.deaths[0].ourJungleDist).toBeUndefined();
+    expect(t.deaths[1]).toMatchObject({ seat: 'Mid', objectiveNear: false });
+    expect(t.deaths[1].ourJungleDist).toBeGreaterThan(0);
+  });
+
+  it('buckets damage dealt and taken per five minutes, and leaves it empty without the figures', () => {
+    const frames = plainFrames(12);
+    expect(build(frames)!.damage).toEqual([]);
+    for (const f of frames) {
+      const m = f.timestamp / 60_000;
+      f.participantFrames['1'].damageStats = { totalDamageDoneToChampions: m * 1000, totalDamageTaken: m * 500 };
+    }
+    const t = build(frames)!;
+    expect(t.damage).toEqual([{ seat: 'Top', dealt: [5000, 5000, 2000], taken: [2500, 2500, 1000] }]);
   });
 
   it('reads a death as warded only when a ward went down nearby and recently', () => {

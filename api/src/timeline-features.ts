@@ -20,12 +20,20 @@
  * - Nothing about the other team's players leaves this module except a
  *   champion in a seat and where their deaths fell. No puuids, no names.
  *
+ * Version 2 (9 Sep 2026) reads, for each death of ours, who was where: their
+ * jungler on the kill, our jungler's distance and zone at the nearest frame,
+ * their jungler's distance a frame earlier, how many of ours stood near, and
+ * whether an elite monster fell within the same minute. It also keeps which
+ * of our seats were on each of their deaths, and damage to champions dealt
+ * and taken per five minutes. All of it feeds the death ledger in
+ * `game-facts.ts`: the jungler's question "could I have been there".
+ *
  * Pure. The fetch and the write live in index.ts.
  */
 import { LaneRole, POSITION_ROLE } from './lane-read';
 
 /** Bump when the derived shape changes; entries below this are rebuilt inside the budget. */
-export const TIMELINE_VERSION = 1;
+export const TIMELINE_VERSION = 2;
 export const FRAME_SEC = 60;
 /** Summoner's Rift, both axes; blue base at the origin. */
 export const MAP_MAX = 14870;
@@ -37,6 +45,15 @@ export const WARD_RADIUS = 2000;
 export const WARD_TRINKET_SEC = 90;
 export const WARD_CONTROL_SEC = 300;
 export const OBJECTIVE_RADIUS = 4000;
+/** About a screen: our jungler this close to a death could have been in it. */
+export const JUNGLE_REACH = 6000;
+/** Their jungler this close a frame before a gank was already on that side of the map: a call could have gone out. */
+export const THEIR_JUNGLE_WARNING = 7000;
+/** One of ours this close to a death was in it, or right there. */
+export const ALLY_RADIUS = 2500;
+/** An elite monster this close in time to a death: the objective fight, or the jungler was on it. */
+export const OBJECTIVE_WINDOW_SEC = 45;
+export const DAMAGE_BUCKET_MIN = 5;
 /** Under this, the two teams are even. */
 export const TEAM_EVEN_GOLD = 1000;
 /** About a first legendary item. */
@@ -62,6 +79,8 @@ export interface ParticipantFrameLike {
   jungleMinionsKilled?: number;
   level?: number;
   position?: { x: number; y: number };
+  /** Cumulative to this frame. */
+  damageStats?: { totalDamageDoneToChampions?: number; totalDamageTaken?: number };
 }
 
 export interface TimelineEventLike {
@@ -151,6 +170,17 @@ export interface TimelineDeath {
   executed: boolean;
   /** A friendly ward went down nearby shortly before: approximate. */
   warded: boolean;
+  /** Their jungler was credited, killer or assist. Absent below version 2. */
+  theirJungleIn?: boolean;
+  /** Our jungler's distance to the death at the nearest frame, to the hundred; absent when the jungler is the victim or has no frame. Approximate by a minute. */
+  ourJungleDist?: number;
+  ourJungleZone?: MapZone;
+  /** Their jungler's distance to the spot at the frame before: were they already on this side of the map. */
+  theirJungleDistBefore?: number;
+  /** Our other seats within ALLY_RADIUS at the nearest frame. Absent below version 2. */
+  alliesNear?: number;
+  /** An elite monster fell within OBJECTIVE_WINDOW_SEC of the death. Absent below version 2. */
+  objectiveNear?: boolean;
 }
 
 export interface MatchTimeline {
@@ -182,11 +212,13 @@ export interface MatchTimeline {
   objectives: TimelineObjective[];
   plates: { ours: Record<LaneName, number>; theirs: Record<LaneName, number> };
   deaths: TimelineDeath[];
-  /** Only enough for fight clusters. */
-  theirDeaths: { sec: number; minute: number; zone: MapZone }[];
+  /** Only enough for fight clusters, and which of our seats were on the kill (absent below version 2). */
+  theirDeaths: { sec: number; minute: number; zone: MapZone; ourInvolved?: LaneRole[] }[];
   /** Per five-minute bucket. */
   vision: { seat: LaneRole; placed: number[]; killed: number[] }[];
   spend: { seat: LaneRole; firstItemMinute?: number; secondItemMinute?: number; backs: number[] }[];
+  /** Damage to champions dealt and taken per five-minute bucket, our five only. Absent below version 2. */
+  damage?: { seat: LaneRole; dealt: number[]; taken: number[] }[];
   /** The facts read off the figures above (`game-facts.ts`), stored beside them. */
   facts?: unknown;
   bytes: number;
@@ -336,6 +368,8 @@ export function buildMatchTimeline(
   const ids = identify(raw, match, rosterPuuids, nameByPuuid);
   if (!ids) return null;
   const theirs = [...ids.championOf.keys()].filter((pid) => !ids.ours.has(pid));
+  const ourJungle = [...ids.ours].find((pid) => ids.seatOf.get(pid) === 'Jungle');
+  const theirJungle = theirs.find((pid) => ids.seatOf.get(pid) === 'Jungle');
   const last = frames[frames.length - 1];
   const durationSec = match.durationSec ?? Math.round(last.timestamp / 1000);
 
@@ -425,6 +459,8 @@ export function buildMatchTimeline(
   const sideOfTeam = (teamId: number | undefined): Side => (teamId === ids.ourTeamId ? 'us' : 'them');
   const sideOfPid = (pid: number | undefined): Side | undefined =>
     pid === undefined || pid === 0 ? undefined : ids.ours.has(pid) ? 'us' : 'them';
+  const monsterTimes = events.filter((e) => e.type === 'ELITE_MONSTER_KILL' && monsterKind(e.monsterType, e.monsterSubType)).map((e) => e.timestamp);
+  const toHundred = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.round(dist(a.x, a.y, b.x, b.y) / 100) * 100;
 
   const wards = events.filter((e) => e.type === 'WARD_PLACED' && e.creatorId !== undefined && ids.ours.has(e.creatorId) && e.wardType !== 'UNDEFINED');
   const warded = (death: TimelineEventLike): boolean => {
@@ -468,23 +504,35 @@ export function buildMatchTimeline(
         const victimSide = sideOfPid(victim);
         if (!firsts.blood && victimSide) firsts.blood = { minute, side: victimSide === 'us' ? 'them' : 'us' };
         if (!e.position) break;
-        const zone = zoneOf(e.position.x, e.position.y, ids.ourSide);
+        const at = e.position;
+        const zone = zoneOf(at.x, at.y, ids.ourSide);
+        const credited = [e.killerId ?? 0, ...(e.assistingParticipantIds ?? [])];
         if (victimSide === 'us') {
           const seat = ids.seatOf.get(victim);
           if (seat && deaths.length < MAX_DEATHS) {
+            const nearFrame = frameAt(frames, e.timestamp);
+            const before = frameAt(frames, e.timestamp - FRAME_SEC * 1000);
+            const jg = ourJungle !== undefined && ourJungle !== victim ? positionIn(nearFrame, ourJungle) : undefined;
+            const theirJg = theirJungle !== undefined ? positionIn(before, theirJungle) : undefined;
             deaths.push({
               sec: Math.round(e.timestamp / 1000),
               minute,
               seat,
               zone,
-              theirSide: onTheirHalf(e.position.x, e.position.y, ids.ourSide),
+              theirSide: onTheirHalf(at.x, at.y, ids.ourSide),
               killers: (e.killerId ? 1 : 0) + (e.assistingParticipantIds?.length ?? 0),
               executed: !e.killerId,
-              warded: warded(e)
+              warded: warded(e),
+              theirJungleIn: theirJungle !== undefined && credited.includes(theirJungle),
+              ...(jg && { ourJungleDist: toHundred(jg, at), ourJungleZone: zoneOf(jg.x, jg.y, ids.ourSide) }),
+              ...(theirJg && { theirJungleDistBefore: toHundred(theirJg, at) }),
+              alliesNear: seatsNear(nearFrame, [...ids.ours].filter((pid) => pid !== victim), ids.seatOf, at, ALLY_RADIUS).length,
+              objectiveNear: monsterTimes.some((t) => Math.abs(t - e.timestamp) <= OBJECTIVE_WINDOW_SEC * 1000)
             });
           }
         } else if (victimSide === 'them') {
-          theirDeaths.push({ sec: Math.round(e.timestamp / 1000), minute, zone });
+          const ourInvolved = credited.filter((pid) => ids.ours.has(pid)).map((pid) => ids.seatOf.get(pid)).filter((x): x is LaneRole => !!x);
+          theirDeaths.push({ sec: Math.round(e.timestamp / 1000), minute, zone, ourInvolved });
         }
         break;
       }
@@ -585,6 +633,34 @@ export function buildMatchTimeline(
     });
   }
 
+  // Damage to champions, dealt and taken, per five minutes: the frames are
+  // cumulative, so each is the step from the frame before. Bucket k is minutes
+  // 5k+1 to 5k+5. A payload without the figures leaves the list empty.
+  const damage: NonNullable<MatchTimeline['damage']> = [];
+  const add = (arr: number[], bucket: number, n: number) => {
+    while (arr.length <= bucket) arr.push(0);
+    arr[bucket] += Math.max(0, n);
+  };
+  for (const pid of ids.ours) {
+    const seat = ids.seatOf.get(pid);
+    if (!seat) continue;
+    const dealt: number[] = [];
+    const taken: number[] = [];
+    let prev: { dealt: number; taken: number } | undefined;
+    for (const f of frames) {
+      const d = f.participantFrames[String(pid)]?.damageStats;
+      if (!d) continue;
+      const cur = { dealt: d.totalDamageDoneToChampions ?? 0, taken: d.totalDamageTaken ?? 0 };
+      if (prev) {
+        const bucket = Math.floor(Math.max(0, minuteOf(f.timestamp) - 1) / DAMAGE_BUCKET_MIN);
+        add(dealt, bucket, cur.dealt - prev.dealt);
+        add(taken, bucket, cur.taken - prev.taken);
+      }
+      prev = cur;
+    }
+    if (prev) damage.push({ seat, dealt: dealt.map(round), taken: taken.map(round) });
+  }
+
   const doc: MatchTimeline = {
     matchId,
     timelineVersion: TIMELINE_VERSION,
@@ -602,6 +678,7 @@ export function buildMatchTimeline(
     theirDeaths,
     vision: [...vision.entries()].map(([seat, v]) => ({ seat, ...v })).sort((a, b) => SEAT_ORDER[a.seat] - SEAT_ORDER[b.seat]),
     spend: spend.sort((a, b) => SEAT_ORDER[a.seat] - SEAT_ORDER[b.seat]),
+    damage: damage.sort((a, b) => SEAT_ORDER[a.seat] - SEAT_ORDER[b.seat]),
     bytes: 0
   };
   doc.bytes = measure(doc);

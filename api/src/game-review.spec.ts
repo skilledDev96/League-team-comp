@@ -25,7 +25,8 @@ const game: ReviewContext['game'] = {
   ],
   players: [
     { name: 'Ruan', position: 'Top', champion: 'Ornn', kills: 1, deaths: 4, assists: 3, cs: 180, visionScore: 20, killParticipation: 0.4, lane: { position: 'Top', theirChampion: 'Darius', verdict: 'lost', goldPerMinDiff: -45, csAt10Diff: -12 }, facts: { goldPerMin: 360, csAt10: 60, controlWards: 2, soloKills: 0, timeDeadSec: 200, hasTeleport: true, tpTakedowns: 1 } },
-    { name: 'Dan', position: 'Mid', champion: 'Ahri', kills: 5, deaths: 2, assists: 6, cs: 210, visionScore: 25 }
+    { name: 'Dan', position: 'Mid', champion: 'Ahri', kills: 5, deaths: 2, assists: 6, cs: 210, visionScore: 25 },
+    { name: 'Jay', position: 'Jungle', champion: 'LeeSin', kills: 3, deaths: 3, assists: 8, cs: 150, damage: 12400, damageTaken: 25100, ccTime: 40, buildingDamage: 1800 }
   ]
 };
 
@@ -43,6 +44,12 @@ const facts: GameFacts = {
   soloDeaths: [{ minute: 12, seat: 'Top', zone: 'theirJungle', warded: false, theirSide: true, line: 'Minute 12: Ruan (Top) died alone in their jungle, with no ward nearby.' }],
   vision: [],
   spend: [{ seat: 'Top', firstItemMinute: 11, backs: 4 }],
+  ledger: [
+    { minute: 12, seat: 'Top', name: 'Ruan', zone: 'theirJungle', how: 'solo', could: ['jungle', 'position'], line: 'Around minute 12: Ruan (Top) died to one of them in their jungle — our jungler was 2.1k away in the river; alone on their side of the map.' },
+    { minute: 20, seat: 'Jungle', name: 'Jay', zone: 'river', how: 'fight', could: ['ward'], line: 'Around minute 20: Jay (Jungle) died in a fight against 3 in the river — no ward nearby.' }
+  ],
+  ledgerSummary: { deaths: 2, ganks: 0, dark: 1, inReach: 1, alone: 1 },
+  presence: { kills: 4, ofKills: 9, before15: 2, ofBefore15: 5, line: 'Jay (Jungle) was on 4 of 9 kills, 2 of 5 before fifteen.' },
   lines: ['Lost in 31 minutes, behind all game: the worst deficit was 6k at 29.', 'Ruan (Top) on Ornn lost the lane into Darius down 900 at ten, and the lead changed hands at 6.', 'Minute 8: their dragon (infernal), nobody of ours near.', 'Minute 12: Ruan (Top) died alone in their jungle, with no ward nearby.']
 };
 
@@ -51,7 +58,6 @@ const ctx: ReviewContext = {
   tier: 'timeline',
   game,
   facts,
-  deaths: [{ seat: 'Top', minute: 12, zone: 'theirJungle', killers: 1, warded: false, executed: false }],
   comp: { id: 'c1', name: 'Dive', expect: { early: 'high', scaling: 'low', objectives: 'mid', teamfight: 'high' }, expectSource: 'edited', gamePlan: { early: 'Play for grubs', late: 'Group and dive the carry' }, notes: 'Our comfort pick.' },
   note: 'Ons het te lank gewag by drake.',
   players: reviewPlayers(game)
@@ -84,6 +90,9 @@ describe('the prompts', () => {
     expect(p).not.toMatch(/#[A-Z0-9]{2,5}\b/);
     expect(p).not.toMatch(/puuid/i);
     expect(p).not.toContain('TIER:');
+    expect(p).toContain('DAMAGE TO CHAMPIONS, dealt / taken: Jungle 12.4k dealt / 25.1k taken.');
+    expect(p).toContain('OUR DEATHS, ONE BY ONE');
+    expect(p).toContain(facts.ledger![1].line);
   });
 
   it('give each player a block with the lane read, the habits and the deaths', () => {
@@ -91,12 +100,24 @@ describe('the prompts', () => {
     expect(p).toContain('- Ruan (Top, Ornn): 1/4/3, 180 CS, vision 20.');
     expect(p).toContain('Lane lost into Darius: -45 gold/min vs lane, -12 CS at ten vs lane.');
     expect(p).toContain('Habits: 360 gold/min, 60 CS at ten, 2 control wards, 0 solo kills, 3 min dead, 1 Teleport takedowns.');
-    expect(p).toContain('Deaths: minute 12 in their jungle alone, no ward nearby.');
+    expect(p).toContain(`  Deaths, one by one:\n    ${facts.ledger![0].line}`);
     expect(p).toContain('- Dan (Mid, Ahri): 5/2/6, 210 CS, vision 25.');
+    expect(p).toContain('- Jay (Jungle, LeeSin): 3/3/8, 150 CS, 12.4k damage to champions, 25.1k taken, 40 s of crowd control, 1.8k to buildings.');
+    expect(p).toContain(`  Laners' deaths within your reach, about a screen away at the nearest frame:\n    ${facts.ledger![0].line}`);
+    expect(p).toContain('  Jay (Jungle) was on 4 of 9 kills, 2 of 5 before fifteen.');
+    // The full ledger is the team prompt's; the player prompt has it per seat.
+    expect(p).not.toContain('OUR DEATHS, ONE BY ONE');
+  });
+
+  it('tell the jungler when nobody died within reach, and nothing on the replay tier', () => {
+    const quiet: ReviewContext = { ...ctx, facts: { ...facts, ledger: [facts.ledger![1]] } };
+    expect(buildPlayerPrompt(quiet)).toContain('  No laner died within your reach.');
+    const scrim: ReviewContext = { ...ctx, tier: 'endOfGame', facts: endOfGameFacts({ ...game, queue: 'Scrim' }) };
+    expect(buildPlayerPrompt(scrim)).not.toContain('within your reach');
   });
 
   it('say totals only on the replay tier', () => {
-    const scrim: ReviewContext = { ...ctx, tier: 'endOfGame', deaths: undefined, facts: endOfGameFacts({ ...game, queue: 'Scrim' }) };
+    const scrim: ReviewContext = { ...ctx, tier: 'endOfGame', facts: endOfGameFacts({ ...game, queue: 'Scrim' }) };
     expect(buildTeamPrompt(scrim)).toContain('TIER: totals only, from a replay file.');
   });
 });
@@ -139,6 +160,28 @@ describe('parseTeamReview', () => {
     expect(parseTeamReview({}, ctx).headline).toBeUndefined();
   });
 
+  it('keeps at most six moments, in time order, inside the game, with a sane swing', () => {
+    const got = parseTeamReview(
+      {
+        moments: [
+          { minute: 20, text: 'Baron', swing: 'them' },
+          { minute: 4, text: 'First blood', swing: 'us' },
+          { minute: 99, text: 'Never', swing: 'us' },
+          { minute: 9, text: '', swing: 'us' },
+          { minute: 12, text: 'Dragon', swing: 'sideways' },
+          { minute: 14, text: 'a', swing: 'us' },
+          { minute: 16, text: 'b', swing: 'us' },
+          { minute: 18, text: 'c', swing: 'us' },
+          { minute: 30, text: 'd', swing: 'us' }
+        ]
+      },
+      ctx
+    );
+    expect(got.moments!.map((m) => m.minute)).toEqual([4, 12, 14, 16, 18, 20]);
+    expect(got.moments![1].swing).toBe('even');
+    expect(parseTeamReview({}, ctx).moments).toEqual([]);
+  });
+
   it('is unclear on the comp when there was no comp, whatever the model said', () => {
     expect(parseTeamReview({ compVerdict: 'as drafted' }, { ...ctx, comp: null }).compVerdict).toBe('unclear');
     expect(parseTeamReview({ compVerdict: 'as drafted' }, ctx).compVerdict).toBe('as drafted');
@@ -165,6 +208,33 @@ describe('parsePlayerNotes', () => {
     expect(got[0].strength.text).toBe('');
     expect(got[0].workOn.text).toBe('Do not fight Darius early');
     expect(got[1].strength.minute).toBe(9);
+    expect(got[0].more).toEqual([]);
+  });
+
+  it('keeps at most three further points, each with evidence, and drops an unknown theme', () => {
+    const got = parsePlayerNotes(
+      {
+        players: [
+          {
+            name: 'Jay',
+            strength: { text: 'On the kills', evidence: '4 of 9', minute: null },
+            workOn: { text: 'Top side by seven', evidence: 'minute 12 top death', minute: 12 },
+            more: [
+              { text: 'One', evidence: 'x', minute: 3, theme: 'vision' },
+              { text: 'Two', evidence: '', minute: 4, theme: 'tempo' },
+              { text: 'Three', evidence: 'y', minute: 5, theme: 'vibes' },
+              { text: 'Four', evidence: 'z', minute: 6, theme: 'macro' },
+              { text: 'Five', evidence: 'w', minute: 7, theme: 'macro' }
+            ]
+          }
+        ]
+      },
+      ctx
+    );
+    expect(got).toHaveLength(1);
+    expect(got[0].more!.map((m) => m.text)).toEqual(['One', 'Three', 'Four']);
+    expect(got[0].more![0].theme).toBe('vision');
+    expect(got[0].more![1].theme).toBeUndefined();
   });
 });
 

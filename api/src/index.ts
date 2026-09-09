@@ -2343,8 +2343,9 @@ export const draftAdvice = onRequest(
 
 // ---- The post-game review ------------------------------------------------
 //
-// Two model calls per game over the facts the Games page shows: the team
-// and the draft to Opus, a note per player to Sonnet (`game-review.ts`).
+// Two model calls per game over the facts the Games page shows, the death
+// ledger included: the team and the draft, and the notes per player, both to
+// Opus since version 3 (`game-review.ts`).
 // Written to `gameReviews/{matchId}` by this function only; the browser
 // listens. The button on a game and the morning run share `reviewGame`.
 
@@ -2411,7 +2412,6 @@ async function reviewGame(
   const tier: GameReview['tier'] = game.queue === 'Scrim' ? 'endOfGame' : 'timeline';
 
   let facts: GameFacts;
-  let deaths: ReviewContext['deaths'];
   if (tier === 'timeline') {
     const stored = (await db.doc(`matchTimeline/${matchId}`).get()).data() as MatchTimeline | undefined;
     let timeline: MatchTimeline | null = stored && isTimelineCurrent(stored) && stored.facts ? stored : null;
@@ -2421,7 +2421,6 @@ async function reviewGame(
     }
     if (!timeline) throw new Error(`No timeline could be read for ${matchId}.`);
     facts = (timeline.facts as GameFacts | undefined) ?? gameFacts(timeline, game);
-    deaths = timeline.deaths.map((d) => ({ seat: d.seat, minute: d.minute, zone: d.zone, killers: d.killers, warded: d.warded, executed: d.executed }));
   } else {
     facts = endOfGameFacts(game);
   }
@@ -2450,7 +2449,6 @@ async function reviewGame(
     tier,
     game,
     facts,
-    ...(deaths && { deaths }),
     comp,
     note,
     players: reviewPlayers(game)
@@ -2458,24 +2456,25 @@ async function reviewGame(
 
   const client = new Anthropic({ apiKey: opts.anthropicKey });
   const started = Date.now();
-  // The server-side fallback and the effort dial are Opus features; Sonnet 5
-  // rejects `fallbacks` outright (a 400, seen live on 8 Sep 2026), so the
-  // player call goes plain.
+  // The server-side fallback and the effort dial are Opus features (Sonnet 5
+  // rejected `fallbacks` with a 400 on 8 Sep 2026); both calls are Opus
+  // since version 3, so both get them.
   const ask = (model: string, system: string, schema: unknown, prompt: string, effort: 'low' | 'medium') =>
     client.beta.messages.create({
       model,
-      max_tokens: 4000,
-      ...(model === TEAM_MODEL && { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' }),
+      max_tokens: 6000,
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       output_config: {
-        ...(model === TEAM_MODEL && { effort }),
+        effort,
         format: { type: 'json_schema', schema: schema as Record<string, unknown> }
       },
       messages: [{ role: 'user', content: prompt }]
     });
   const [teamRes, playersRes] = await Promise.all([
     ask(TEAM_MODEL, TEAM_SYSTEM, TEAM_SCHEMA, buildTeamPrompt(ctx), 'medium'),
-    ask(PLAYER_MODEL, PLAYER_SYSTEM, PLAYER_SCHEMA, buildPlayerPrompt(ctx), 'low')
+    ask(PLAYER_MODEL, PLAYER_SYSTEM, PLAYER_SCHEMA, buildPlayerPrompt(ctx), 'medium')
   ]);
   if (teamRes.stop_reason === 'refusal' && playersRes.stop_reason === 'refusal') return null;
 

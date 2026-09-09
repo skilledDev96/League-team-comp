@@ -148,6 +148,47 @@ describe('gameFacts', () => {
   });
 });
 
+describe('the death ledger', () => {
+  it('writes a verdict per death: how it happened and what would have stopped it', () => {
+    const t = timeline({
+      deaths: [
+        { sec: 420, minute: 7, seat: 'Top', zone: 'top', theirSide: false, killers: 2, executed: false, warded: false, theirJungleIn: true, ourJungleDist: 3200, ourJungleZone: 'ourJungle', theirJungleDistBefore: 1400, alliesNear: 0, objectiveNear: false },
+        { sec: 540, minute: 9, seat: 'Mid', zone: 'mid', theirSide: false, killers: 0, executed: true, warded: false, theirJungleIn: false, ourJungleDist: 1000, ourJungleZone: 'mid', alliesNear: 1, objectiveNear: false },
+        { sec: 1200, minute: 20, seat: 'ADC', zone: 'theirJungle', theirSide: true, killers: 4, executed: false, warded: true, theirJungleIn: true, ourJungleDist: 8000, ourJungleZone: 'ourJungle', alliesNear: 0, objectiveNear: false },
+        { sec: 1500, minute: 25, seat: 'Mid', zone: 'theirJungle', theirSide: true, killers: 1, executed: false, warded: false, theirJungleIn: false, ourJungleDist: 2000, ourJungleZone: 'river', alliesNear: 0, objectiveNear: true }
+      ]
+    });
+    const f = gameFacts(t, game({ win: false }));
+    expect(f.ledger!.map((d) => d.how)).toEqual(['gank', 'executed', 'fight', 'solo']);
+    expect(f.ledger!.map((d) => d.could)).toEqual([['jungle', 'ward', 'call'], [], ['position'], ['position']]);
+    expect(f.ledger![0].line).toBe(
+      'Around minute 7: Ruan (Top) died to a gank with their jungler on it in top lane — no ward nearby; their jungler was already close a minute before; our jungler was 3.2k away in our jungle.'
+    );
+    expect(f.ledger![1].line).toBe('Around minute 9: Dan (Mid) died to a tower or a monster in mid lane.');
+    expect(f.ledger![3].line).toBe('Around minute 25: Dan (Mid) died to one of them in their jungle — alone on their side of the map.');
+    expect(f.ledgerSummary).toEqual({ deaths: 4, ganks: 1, dark: 1, inReach: 1, alone: 2 });
+    expect(f.lines[1]).toBe('4 deaths: 1 to a gank, 1 with no ward nearby, 1 with our jungler a screen away, 2 alone on their side.');
+  });
+
+  it('tags nothing on a version-one death, and counts the jungler on our kills', () => {
+    const t = timeline({
+      deaths: [{ sec: 420, minute: 7, seat: 'Top', zone: 'top', theirSide: false, killers: 2, executed: false, warded: true }],
+      theirDeaths: [
+        { sec: 300, minute: 5, zone: 'top', ourInvolved: ['Top', 'Jungle'] },
+        { sec: 600, minute: 10, zone: 'bot', ourInvolved: ['ADC', 'Support'] },
+        { sec: 1200, minute: 20, zone: 'river', ourInvolved: ['Jungle', 'Mid'] }
+      ]
+    });
+    const f = gameFacts(t, game());
+    expect(f.ledger![0]).toMatchObject({ how: 'solo', could: [] });
+    expect(f.presence).toMatchObject({ kills: 2, ofKills: 3, before15: 1, ofBefore15: 2 });
+    expect(f.presence!.line).toBe('Jungle was on 2 of 3 kills, 1 of 2 before fifteen.');
+    expect(f.lines[2]).toBe(f.presence!.line);
+    expect(gameFacts(timeline(), game()).presence).toBeUndefined();
+    expect(gameFacts(timeline(), game()).ledger).toEqual([]);
+  });
+});
+
 describe('endOfGameFacts', () => {
   it('says what a replay can, and labels the rest as totals only', () => {
     const f = endOfGameFacts(

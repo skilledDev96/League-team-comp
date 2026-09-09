@@ -1,12 +1,15 @@
 /**
  * The post-game review: what goes to the model and what comes back.
  *
- * Two questions per game, each to a model that fits it (8 Sep 2026): the
- * team and the draft to Opus — did the comp play out, what to work on, what
- * to keep doing — and a note per player to Sonnet, which is many short
- * answers over the same facts. Neither sees the timeline; both see the
- * facts the Games page shows (`game-facts.ts`), so anything the model says
- * can be checked against what the team already reads.
+ * Two questions per game (8 Sep 2026): the team and the draft — did the
+ * comp play out, the game in moments, what to work on, what to keep doing —
+ * and the notes per player: a strength, the first thing to work on, and up
+ * to three more, each on its own fact. Both go to Opus since version 3
+ * (9 Sep 2026): the player notes reason over the death ledger, which asks
+ * for more than many short answers. Neither sees the timeline; both see the
+ * facts the Games page shows (`game-facts.ts`), the ledger included, so
+ * anything the model says can be checked against what the team already
+ * reads.
  *
  * Rules that came from Riot's policies and are enforced twice, in the
  * prompt and in the validators:
@@ -26,13 +29,13 @@ import { CompExpectation } from './daily-refresh';
 import { compareCurve, GameFacts, k } from './game-facts';
 import { LaneRead, LaneRole, PlayerFacts } from './lane-read';
 
-export const REVIEW_VERSION = 2;
+export const REVIEW_VERSION = 3;
 
 /** What a team point is about; the panel shows it as a tag with an icon. */
 export const REVIEW_THEMES = ['draft', 'lanes', 'fights', 'objectives', 'vision', 'tempo', 'macro'] as const;
 export type ReviewTheme = (typeof REVIEW_THEMES)[number];
 export const TEAM_MODEL = 'claude-opus-5';
-export const PLAYER_MODEL = 'claude-sonnet-5';
+export const PLAYER_MODEL = 'claude-opus-5';
 /** Reviews written by a morning run, at most. */
 export const MAX_AUTO_REVIEWS = 3;
 export const MAX_NOTE = 1500;
@@ -96,6 +99,10 @@ export interface ReviewGameLike {
     cs: number;
     visionScore?: number;
     killParticipation?: number;
+    damage?: number;
+    damageTaken?: number;
+    ccTime?: number;
+    buildingDamage?: number;
     lane?: LaneRead;
     facts?: PlayerFacts;
   }[];
@@ -106,8 +113,6 @@ export interface ReviewContext {
   tier: 'timeline' | 'endOfGame';
   game: ReviewGameLike;
   facts: GameFacts;
-  /** Our deaths from the timeline, for the player notes. Absent on the replay tier. */
-  deaths?: { seat: LaneRole; minute: number; zone: string; killers: number; warded: boolean; executed: boolean }[];
   comp: {
     id: string;
     name: string;
@@ -143,19 +148,20 @@ const RULES = `Rules that never bend:
 - No throat-clearing. Never write "it is worth asking whether", "worth reviewing whether", "is there a way to", "one option is agreeing". Say what happened, then the choice.
 - This is a finished game. Say nothing about a game in progress.
 - Positions, "near" and "warded" come from one frame a minute and are approximate; say "around minute 14", not "at 14:07".
+- The death ledger tags what would have stopped a death, by rules over those frames. "Our jungler a screen away" is a pathing choice and belongs in the jungler's notes; "no ward nearby" belongs to whoever should have warded the spot; "their jungler was already close" belongs to the team's calls; "alone on their side" to the player who stood there. Never blame a laner for a gank nobody could have seen.
 - Plain sentences a player can read on a phone. No headings, no markdown, no bullet characters inside a string.`;
 
 export const TEAM_SYSTEM = `You are the coach reviewing one finished League of Legends game for an amateur five-stack. You are given what the team drafted and what they expected the comp to do, then the facts of the game with the minutes. You say, in a few plain sentences, whether the game went the way the draft intended, what to work on next, and what to keep doing.
 
 ${RULES}
 
-Length: "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences at most and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence.`;
+Length: "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences at most and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence. "moments" is three to six entries in time order that walk through the game: the minute, one sentence of at most 30 words on what happened and why it mattered, and "swing" for whose way it went.`;
 
-export const PLAYER_SYSTEM = `You are the coach writing one short note per player after one finished League of Legends game for an amateur five-stack. For each of OUR players you are given their seat, champion, line, lane read, habits and deaths. You write one strength and one thing to work on per player, each tied to a fact.
+export const PLAYER_SYSTEM = `You are the coach writing the notes per player after one finished League of Legends game for an amateur five-stack. For each of OUR players you are given their seat, champion, line, lane read, habits, damage, and their deaths one by one with what would have stopped each. You write, per player, one strength, the first thing to work on, and up to three more things to work on, each tied to a different fact.
 
 ${RULES}
 
-Length: one entry per player in OUR PLAYERS, in the same order, using exactly the name given. Speak to the player as "you". "strength" and "workOn" are each one sentence of at most 35 words that open with the concrete fact and end with what to keep or what to change, with the evidence beside it in at most 25 words. A player with nothing to fault gets a "workOn" that names the next step up, not a question.`;
+Length: one entry per player in OUR PLAYERS, in the same order, using exactly the name given. Speak to the player as "you". "strength" and "workOn" are each one sentence of at most 35 words that open with the concrete fact and end with what to keep or what to change, with the evidence beside it in at most 25 words. "more" is at most three further things to work on, most important first, each one sentence of at most 35 words with evidence of at most 25 words and a "theme"; each rests on a fact the other points do not use. A player with nothing to fault gets a "workOn" that names the next step up, not a question, and a short "more"; never pad. The jungler's notes weigh the laners' deaths within reach first: for each, say where the jungler was and the choice — either be there by that minute, or tell the lane to hold.`;
 
 function dateOf(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
@@ -179,6 +185,14 @@ function gameSection(ctx: ReviewContext): string[] {
     lines.push(`- ${p.seat}: ${p.name} on ${p.champion}, ${s.kills}/${s.deaths}/${s.assists}, ${s.cs} CS${s.visionScore !== undefined ? `, vision ${s.visionScore}` : ''}${s.killParticipation !== undefined ? `, ${Math.round(s.killParticipation * 100)}% kill participation` : ''}`);
   }
   if (g.enemies?.length) lines.push(`THEIR CHAMPIONS: ${g.enemies.map((e) => `${e.position}: ${e.champion}`).join(', ')}`);
+  const damage = ctx.players
+    .map((p) => {
+      const s = g.players.find((x) => x.name === p.name);
+      if (!s || s.damage === undefined) return null;
+      return `${p.seat} ${k(s.damage)} dealt${s.damageTaken !== undefined ? ` / ${k(s.damageTaken)} taken` : ''}`;
+    })
+    .filter(Boolean);
+  if (damage.length) lines.push(`DAMAGE TO CHAMPIONS, dealt / taken: ${damage.join(', ')}.`);
   return lines;
 }
 
@@ -201,7 +215,7 @@ function compSection(ctx: ReviewContext): string[] {
   return lines;
 }
 
-function happenedSection(ctx: ReviewContext): string[] {
+function happenedSection(ctx: ReviewContext, withLedger: boolean): string[] {
   const f = ctx.facts;
   const lines = ['WHAT HAPPENED', ...f.lines];
   const c = f.curve;
@@ -217,6 +231,7 @@ function happenedSection(ctx: ReviewContext): string[] {
   lines.push(...extra);
   const spend = f.spend.filter((s) => s.firstItemMinute !== undefined).map((s) => `${s.seat} had a first item’s worth of gold spent by minute ${s.firstItemMinute} over ${s.backs} backs`);
   if (spend.length) lines.push(`${spend.join('; ')}.`);
+  if (withLedger && f.ledger?.length) lines.push('OUR DEATHS, ONE BY ONE (what would have stopped each is a rule over one frame a minute)', ...f.ledger.map((d) => d.line));
   if (ctx.tier === 'endOfGame') lines.push('TIER: totals only, from a replay file. There are no minutes, no positions and no per-minute figures; say so where it matters and do not infer timing.');
   return lines;
 }
@@ -227,7 +242,7 @@ function noteSection(ctx: ReviewContext): string[] {
 
 /** The team question, as text the model reads once. */
 export function buildTeamPrompt(ctx: ReviewContext): string {
-  return [`TEAM: ${ctx.teamName}`, '', ...gameSection(ctx), '', ...compSection(ctx), '', ...happenedSection(ctx), '', ...noteSection(ctx)].join('\n').trim();
+  return [`TEAM: ${ctx.teamName}`, '', ...gameSection(ctx), '', ...compSection(ctx), '', ...happenedSection(ctx, true), '', ...noteSection(ctx)].join('\n').trim();
 }
 
 function fmt(n: number | undefined, unit = ''): string | null {
@@ -240,7 +255,13 @@ export function buildPlayerPrompt(ctx: ReviewContext): string {
   for (const p of ctx.players) {
     const s = ctx.game.players.find((x) => x.name === p.name);
     if (!s) continue;
-    per.push(`- ${p.name} (${p.seat}, ${p.champion}): ${s.kills}/${s.deaths}/${s.assists}, ${s.cs} CS${s.visionScore !== undefined ? `, vision ${s.visionScore}` : ''}.`);
+    const figures = [
+      s.damage !== undefined ? `${k(s.damage)} damage to champions` : null,
+      s.damageTaken !== undefined ? `${k(s.damageTaken)} taken` : null,
+      s.ccTime !== undefined ? `${Math.round(s.ccTime)} s of crowd control` : null,
+      s.buildingDamage !== undefined ? `${k(s.buildingDamage)} to buildings` : null
+    ].filter(Boolean);
+    per.push(`- ${p.name} (${p.seat}, ${p.champion}): ${s.kills}/${s.deaths}/${s.assists}, ${s.cs} CS${s.visionScore !== undefined ? `, vision ${s.visionScore}` : ''}${figures.length ? `, ${figures.join(', ')}` : ''}.`);
     const lane = s.lane;
     if (lane && lane.verdict !== 'unknown') {
       const bits = [
@@ -262,13 +283,22 @@ export function buildPlayerPrompt(ctx: ReviewContext): string {
         f.timeDeadSec !== undefined ? `${Math.round(f.timeDeadSec / 60)} min dead` : null,
         f.plates !== undefined ? `${f.plates} plates` : null,
         f.hasTeleport && f.tpTakedowns !== undefined ? `${f.tpTakedowns} Teleport takedowns` : null,
-        f.damageShare !== undefined ? `${Math.round(f.damageShare * 100)}% of the team’s damage` : null
+        f.damageShare !== undefined ? `${Math.round(f.damageShare * 100)}% of the team’s damage` : null,
+        fmt(f.visionPerMin, ' vision/min'),
+        f.dragonTakedowns !== undefined ? `${f.dragonTakedowns} dragon takedowns` : null,
+        f.baronTakedowns !== undefined ? `${f.baronTakedowns} baron takedowns` : null,
+        f.killsNearEnemyTurret !== undefined ? `${f.killsNearEnemyTurret} kills under their tower` : null
       ].filter(Boolean);
       if (bits.length) per.push(`  Habits: ${bits.join(', ')}.`);
     }
-    const deaths = (ctx.deaths ?? []).filter((d) => d.seat === p.seat);
-    if (deaths.length) {
-      per.push(`  Deaths: ${deaths.map((d) => `minute ${d.minute} in ${d.zone.replace(/([A-Z])/g, ' $1').toLowerCase()}${d.executed ? ' to a tower or monster' : d.killers <= 1 ? ' alone' : ` to ${d.killers}`}${d.warded ? ', warded' : ', no ward nearby'}`).join('; ')}.`);
+    const ledger = ctx.facts.ledger ?? [];
+    const mine = ledger.filter((d) => d.seat === p.seat);
+    if (mine.length) per.push('  Deaths, one by one:', ...mine.map((d) => `    ${d.line}`));
+    if (p.seat === 'Jungle' && ctx.facts.ledger) {
+      const reach = ledger.filter((d) => d.seat !== 'Jungle' && d.could.includes('jungle'));
+      if (reach.length) per.push("  Laners' deaths within your reach, about a screen away at the nearest frame:", ...reach.map((d) => `    ${d.line}`));
+      else per.push('  No laner died within your reach.');
+      if (ctx.facts.presence) per.push(`  ${ctx.facts.presence.line}`);
     }
     const seatLane = ctx.facts.lanes.find((l) => l.seat === p.seat);
     if (seatLane && seatLane.flippedAt !== undefined) per.push(`  The lane’s gold lead changed hands around minute ${seatLane.flippedAt}.`);
@@ -277,7 +307,7 @@ export function buildPlayerPrompt(ctx: ReviewContext): string {
     const spend = ctx.facts.spend.find((x) => x.seat === p.seat);
     if (spend?.firstItemMinute !== undefined) per.push(`  First item’s worth of gold spent by minute ${spend.firstItemMinute}, ${spend.backs} backs.`);
   }
-  return [`TEAM: ${ctx.teamName}`, '', ...gameSection(ctx), '', ...compSection(ctx), '', ...happenedSection(ctx), '', ...per, '', ...noteSection(ctx)].join('\n').trim();
+  return [`TEAM: ${ctx.teamName}`, '', ...gameSection(ctx), '', ...compSection(ctx), '', ...happenedSection(ctx, false), '', ...per, '', ...noteSection(ctx)].join('\n').trim();
 }
 
 // ---- The schemas ---------------------------------------------------------------
@@ -293,7 +323,7 @@ const evidenced = {
   additionalProperties: false
 } as const;
 
-const teamPoint = {
+const themedPoint = {
   type: 'object',
   properties: {
     ...evidenced.properties,
@@ -308,12 +338,26 @@ export const TEAM_SCHEMA = {
   properties: {
     headline: { type: 'string', description: 'At most eight words naming how the game was decided.' },
     summary: { type: 'string', description: 'Two sentences at most: how the game went and why. Not a repeat of the headline.' },
-    workOn: { type: 'array', description: 'At most three, most important first.', items: teamPoint },
-    keepDoing: { type: 'array', description: 'At most two.', items: teamPoint },
+    workOn: { type: 'array', description: 'At most three, most important first.', items: themedPoint },
+    keepDoing: { type: 'array', description: 'At most two.', items: themedPoint },
     compVerdict: { type: 'string', enum: ['as drafted', 'off plan', 'unclear'] },
-    compWhy: { type: 'string', description: 'One sentence on the verdict.' }
+    compWhy: { type: 'string', description: 'One sentence on the verdict.' },
+    moments: {
+      type: 'array',
+      description: 'Three to six moments in time order that walk through the game.',
+      items: {
+        type: 'object',
+        properties: {
+          minute: { type: 'number' },
+          text: { type: 'string', description: 'One sentence: what happened and why it mattered.' },
+          swing: { type: 'string', enum: ['us', 'them', 'even'], description: 'Whose way it went.' }
+        },
+        required: ['minute', 'text', 'swing'],
+        additionalProperties: false
+      }
+    }
   },
-  required: ['headline', 'summary', 'workOn', 'keepDoing', 'compVerdict', 'compWhy'],
+  required: ['headline', 'summary', 'workOn', 'keepDoing', 'compVerdict', 'compWhy', 'moments'],
   additionalProperties: false
 } as const;
 
@@ -328,9 +372,10 @@ export const PLAYER_SCHEMA = {
         properties: {
           name: { type: 'string' },
           strength: evidenced,
-          workOn: evidenced
+          workOn: evidenced,
+          more: { type: 'array', description: 'At most three further things to work on, most important first, each on a different fact; fewer when there is less to say.', items: themedPoint }
         },
-        required: ['name', 'strength', 'workOn'],
+        required: ['name', 'strength', 'workOn', 'more'],
         additionalProperties: false
       }
     }
@@ -345,8 +390,15 @@ export interface Evidenced {
   text: string;
   evidence: string;
   minute: number | null;
-  /** Team points only. */
+  /** Team points and a player's further points. */
   theme?: ReviewTheme;
+}
+
+/** One step of the walk through the game. */
+export interface Moment {
+  minute: number;
+  text: string;
+  swing: 'us' | 'them' | 'even';
 }
 
 export interface TeamReview {
@@ -357,6 +409,8 @@ export interface TeamReview {
   keepDoing: Evidenced[];
   compVerdict: 'as drafted' | 'off plan' | 'unclear';
   compWhy: string;
+  /** In time order; absent before version 3. */
+  moments?: Moment[];
 }
 
 export interface PlayerNote {
@@ -365,6 +419,8 @@ export interface PlayerNote {
   champion: string;
   strength: Evidenced;
   workOn: Evidenced;
+  /** Further things to work on, at most three; absent before version 3. */
+  more?: Evidenced[];
 }
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, max) : '');
@@ -381,26 +437,44 @@ function evidencedOf(v: unknown, textMax: number, durationMin: number): Evidence
   return theme ? { text, evidence, minute, theme } : { text, evidence, minute };
 }
 
+function pointsOf(list: unknown, max: number, durationMin: number): Evidenced[] {
+  return Array.isArray(list)
+    ? list
+        .map((x) => evidencedOf(x, 320, durationMin))
+        .filter((x): x is Evidenced => !!x)
+        .slice(0, max)
+    : [];
+}
+
+/** The walk through the game: in time order, inside the game, at most six. */
+function momentsOf(list: unknown, durationMin: number): Moment[] {
+  if (!Array.isArray(list)) return [];
+  const out: Moment[] = [];
+  for (const raw of list) {
+    const row = (raw ?? {}) as Record<string, unknown>;
+    const text = str(row.text, 240);
+    const m = typeof row.minute === 'number' && Number.isFinite(row.minute) ? Math.round(row.minute) : null;
+    if (!text || m === null || m < 0 || m > Math.max(durationMin, 1)) continue;
+    const swing = row.swing === 'us' || row.swing === 'them' ? row.swing : 'even';
+    out.push({ minute: m, text, swing });
+  }
+  return out.sort((a, b) => a.minute - b.minute).slice(0, 6);
+}
+
 /** The team answer, capped and checked; anything without evidence is dropped. */
 export function parseTeamReview(value: unknown, ctx: ReviewContext): TeamReview {
   const v = (value ?? {}) as Record<string, unknown>;
   const d = ctx.facts.durationMin;
-  const items = (list: unknown, max: number) =>
-    Array.isArray(list)
-      ? list
-          .map((x) => evidencedOf(x, 320, d))
-          .filter((x): x is Evidenced => !!x)
-          .slice(0, max)
-      : [];
   const verdict = v.compVerdict === 'as drafted' || v.compVerdict === 'off plan' ? v.compVerdict : 'unclear';
   const headline = str(v.headline, 80).replace(/[.!]+$/, '');
   return {
     ...(headline ? { headline } : {}),
     summary: str(v.summary, 400),
-    workOn: items(v.workOn, 3),
-    keepDoing: items(v.keepDoing, 2),
+    workOn: pointsOf(v.workOn, 3, d),
+    keepDoing: pointsOf(v.keepDoing, 2, d),
     compVerdict: ctx.comp ? verdict : 'unclear',
-    compWhy: str(v.compWhy, 240)
+    compWhy: str(v.compWhy, 240),
+    moments: momentsOf(v.moments, d)
   };
 }
 
@@ -419,7 +493,7 @@ export function parsePlayerNotes(value: unknown, ctx: ReviewContext): PlayerNote
     if (!strength && !workOn) continue;
     seen.add(player.name);
     const blank: Evidenced = { text: '', evidence: '', minute: null };
-    out.push({ name: player.name, seat: player.seat, champion: player.champion, strength: strength ?? blank, workOn: workOn ?? blank });
+    out.push({ name: player.name, seat: player.seat, champion: player.champion, strength: strength ?? blank, workOn: workOn ?? blank, more: pointsOf(row.more, 3, ctx.facts.durationMin) });
   }
   return out.sort((a, b) => ROLES.indexOf(a.seat) - ROLES.indexOf(b.seat));
 }
