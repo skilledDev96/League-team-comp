@@ -127,6 +127,36 @@ describe('the prompts', () => {
     expect(buildTeamPrompt(scrim)).toContain('TIER: totals only, from a replay file.');
   });
 
+  it('carry a recorded custom game’s minutes into what happened, for both calls, and drop the "no minutes" tier line', () => {
+    // 10 Sep 2026: the local recorder watched the replay, because Riot has no
+    // match and no timeline for a custom game. The sentences are the same for
+    // both calls; only the team call gets the frames.
+    const recorded: ReviewContext = {
+      ...ctx,
+      tier: 'endOfGame',
+      facts: endOfGameFacts({ ...game, queue: 'Scrim' }),
+      recordedLines: ['This game was recorded from the replay.', 'Minute 14: their dragon (infernal).']
+    };
+    for (const prompt of [buildTeamPrompt(recorded), buildPlayerPrompt(recorded)]) {
+      expect(prompt).toContain('RECORDED FROM THE REPLAY, MINUTE BY MINUTE');
+      expect(prompt).toContain('Minute 14: their dragon (infernal).');
+      expect(prompt).toContain('TIER: a custom game. Riot has no match and no timeline for it');
+      expect(prompt).toContain('There is no team gold at any minute');
+      expect(prompt).not.toContain('TIER: totals only, from a replay file.');
+    }
+    // A game with a timeline is untouched, and so is a replay with no recording.
+    expect(buildTeamPrompt(ctx)).not.toContain('RECORDED FROM THE REPLAY');
+    expect(buildTeamPrompt({ ...recorded, recordedLines: [] })).toContain('TIER: totals only, from a replay file.');
+  });
+
+  it('tell the team coach that an attached frame is a picture of our own game, read for the minimap and the HUD', () => {
+    expect(TEAM_SYSTEM).toContain('When frames of the game are attached they are pictures of OUR own game');
+    expect(TEAM_SYSTEM).toContain('read the minimap for where everyone was and the HUD for the spectated player');
+    expect(TEAM_SYSTEM).toContain('never describe a person on the other team');
+    // Only the team call is sent pictures, so only its system prompt says how to read one.
+    expect(PLAYER_SYSTEM).not.toContain('When frames of the game are attached');
+  });
+
   it('ask the team question for the version 4 fields, one sentence each', () => {
     expect(TEAM_SYSTEM).toContain('A moment\'s "seats" names the seats of ours it is about, at most three');
     expect(TEAM_SYSTEM).toContain('carries its two choices again in "options" as short imperatives');
@@ -135,7 +165,9 @@ describe('the prompts', () => {
   });
 
   it('ask the team question for the draft with hindsight, and keep the swap about our draft', () => {
-    expect(REVIEW_VERSION).toBe(6);
+    // 7 since 11 Sep 2026: the stored review gained `recorded`, so an older
+    // document is not mistaken for one written off the recorder's minutes.
+    expect(REVIEW_VERSION).toBe(7);
     expect(TEAM_SYSTEM).toContain('"draft" is one sentence ("verdict") on whether the five we drafted fit the game that was played');
     expect(TEAM_SYSTEM).toContain('"swaps" is at most three changes to OUR draft the coach would make with hindsight');
     expect(TEAM_SYSTEM).toContain('("out", exactly as given in OUR PLAYERS)');

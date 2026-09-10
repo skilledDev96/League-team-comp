@@ -42,6 +42,37 @@ export function scoreline(game: AnalysisGame | undefined): ScoreChip[] {
  * older reviews wrote sentences with commas, so a split that gives one piece
  * or more than six leaves the line whole rather than chip a sentence.
  */
+/** Where a review read the game, and whether it has minutes behind it. */
+export interface ReviewSource {
+  tag: string;
+  tip: string;
+  /** True when the review's moments and minutes are real, so the strip shows minute pills rather than dots. */
+  timed: boolean;
+}
+
+/**
+ * Which of the three roads a review came down (11 Sep 2026).
+ *
+ * `tier` says where the totals came from, and it used to be the only answer
+ * on the stored review — so a game the local recorder had walked minute by
+ * minute, with eight frames of the map attached, came back labelled "Totals
+ * only, nothing here is timed" and drew a dot where each minute should have
+ * been. `GameReview.recorded` (review version 7) is the missing half. A
+ * review written before it has neither the field nor a recording behind it,
+ * so the old answer is still the right one for it.
+ */
+export function reviewSource(review: GameReview | undefined): ReviewSource {
+  if (review?.tier === 'timeline') return { tag: 'From the timeline', tip: "Read from Riot's minute-by-minute timeline", timed: true };
+  if (review?.recorded) {
+    return {
+      tag: 'From the recorder',
+      tip: 'Read from the replay recorder: the League client walked the replay a minute at a time and took a frame at each death',
+      timed: true
+    };
+  }
+  return { tag: 'Totals only', tip: 'A replay carries end-of-game totals only; nothing here is timed', timed: false };
+}
+
 export function evidenceChips(evidence: string): string[] {
   const text = evidence.trim();
   if (!text) return [];

@@ -18,6 +18,8 @@ import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { GameCheckComponent } from '../../shared/game-check.component';
 import { GameStoryComponent } from '../../shared/game-story.component';
+import { ReplayFramesComponent } from '../../shared/replay-frames.component';
+import { ReplayRecordingService } from '../../services/replay-recording.service';
 import { BeforeYouPlayComponent } from '../../shared/before-you-play.component';
 import { GameReviewComponent } from '../../shared/game-review.component';
 import { FilmPosterComponent } from '../../shared/film/film-poster.component';
@@ -65,7 +67,7 @@ import { PlayerMarkComponent } from '../../shared/player-mark.component';
     NgModelNameDirective,
     TooltipDirective,
     ReviewComponent,
-    GameCheckComponent, GameStoryComponent, GameReviewComponent, TourPillComponent, BeforeYouPlayComponent],
+    GameCheckComponent, GameStoryComponent, GameReviewComponent, TourPillComponent, BeforeYouPlayComponent, ReplayFramesComponent],
   templateUrl: './games.component.html'
 })
 export class GamesComponent {
@@ -396,6 +398,42 @@ export class GamesComponent {
   /** True once this person reached the film's card for the game: the collapsed row's chip reads Watched instead of Reviewed (10 Sep 2026). */
   protected watched(matchId: string | undefined): boolean {
     return !!matchId && !!this.prefs.filmProgress(matchId)?.done;
+  }
+
+  // ---- The replay recorder's frames (10 Sep 2026) ---------------------------
+
+  protected readonly recordings = inject(ReplayRecordingService);
+
+  /**
+   * Which rows are open. A game row keeps its drawer in the DOM whether it is
+   * folded or not, so this is what tells the frames strip and the recording
+   * read to hold off: the list of two hundred games would otherwise be two
+   * hundred Firestore reads on arrival.
+   */
+  private readonly openRows = signal<ReadonlySet<string>>(new Set());
+
+  protected rowOpen(id: string): boolean {
+    return this.openRows().has(id);
+  }
+
+  protected onRowToggle(id: string, event: Event): void {
+    const open = (event.target as HTMLDetailsElement).open;
+    this.openRows.update((set) => {
+      const next = new Set(set);
+      if (open) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  /**
+   * True when the recorder has written frames for this game. Read through the
+   * service, which only knows about a game whose row has been opened — the
+   * chip is a mark a row keeps once it has been looked at, not a promise the
+   * folded list can make, because knowing would cost a read a row.
+   */
+  protected recorded(matchId: string | undefined): boolean {
+    return this.recordings.has(matchId);
   }
 
   protected setGameComp(matchId: string, compId: string): void {

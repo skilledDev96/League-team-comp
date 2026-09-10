@@ -45,6 +45,8 @@ npm test             # 10 public checks, +10 more if a test account is configure
 npm run deploy:functions   # firebase deploy --only functions (all five)
 npm run deploy:rules       # firestore rules only
 npm run key:check          # probe the Riot API key
+npm run record -- <matchId>  # record a custom game off the replay the League
+                             # client is playing (docs/replay-recorder.md)
 ```
 
 Both packages install and build independently; there is no workspace linking them.
@@ -349,8 +351,63 @@ filter rather than none, so it can never become unpickable.
    *End-of-game tier*: a replay has totals only; `endOfGameFacts` says what
    it can and the review is labelled as such. `AnalysisGame.timelineData`
    marks coverage like `laneData`; Diagnostics counts it.
+   *Recorded tier* — the third road, for the games Riot cannot see at all
+   (10 Sep 2026). A custom game has no match and no timeline, so it is
+   **recorded** off the replay instead: `npm run record -- <matchId>` runs
+   `scripts/replay-recorder.mjs` beside the League client while it plays the
+   replay, reading the Live Client Data API and driving the Replay API to a
+   frame at each death of ours. It writes `replayShots/{matchId}__{sec}`
+   (one picture a document) and then `replayRecordings/{matchId}`, and the
+   lead presses Re-review afterwards — nothing re-runs on its own.
+   `api/src/replay-recording.ts` holds the stored shape, `recordingLines`
+   (the prompt's minute-by-minute lines) and `shotsFor` (at most
+   `MAX_REVIEW_SHOTS`, 8, every death of ours first, then objectives, then
+   the end); `reviewGame` attaches those frames to the team call as image
+   blocks, about five cents a review on top. `core/replay-lines.ts` mirrors
+   the api file exactly, like `compareCurve` — each carries the other's
+   spec, so drift turns a suite red. The app reads both collections on
+   demand through `services/replay-recording.service.ts` (`getDoc`, never a
+   listener; a picture when its thumbnail is in view or tapped, and at most
+   `EAGER_SHOTS` (4) of them before the reader has touched the strip, since a
+   wide drawer has nine thumbnails on screen the moment a row opens): the
+   Games row gets a Recorded chip and `shared/replay-frames.component.ts`
+   above the review panel, and "How the game went" shows the recorder's own
+   lines when there is no timeline. **No name of theirs anywhere** — every
+   side is read off a seat, so theirs are champions in seats in the seats,
+   the checkpoints and the events, and a killer who is not one of the ten
+   becomes "a turret" or "the map". A recording carries **no team gold** (the
+   client gives gold for the spectated player alone) and **no position**
+   except what a frame shows; the review is told so and must not infer
+   either. `docs/replay-recorder.md` is the lead's walkthrough — what to do
+   in the client first, the options, what it costs and how to read a
+   failure. `MAX_SHOT_BYTES` (700 KB) measures the **base64**, in both the
+   recorder and the api: measuring the JPEG let a frame through that the
+   review then silently skipped.
+   **The rule holds of the pixels too** (11 Sep 2026): before the first
+   picture the recorder POSTs `/replay/render` and reads the answer back,
+   turning off every panel that prints a Riot id (`interfaceScoreboard`,
+   `interfaceFrames`, `interfaceTimeline`, `interfaceAnnounce`,
+   `interfaceChat`, `interfaceScore`, `selectionName`, and
+   `healthBarChampions`, since a spectator health bar carries a summoner
+   name) and keeping `interfaceMinimap`, `interfaceAll` and no fog. A flag
+   the client will not confirm as off **stops the pictures** — the samples
+   and the events are still written, and the summary says why. An exception
+   to that would have to be written here beside the rule; a review pass
+   cannot grant one. Two more things the recorder promises: a frame is taken
+   two seconds before the moment it is filed under (the death second is the
+   grey recap screen, and the client renders the range it is *given*, not
+   wherever playback is parked), and a minute the client never landed on is
+   left out of the samples rather than filed with whatever the client was
+   showing — which, since the run parks it at the end first, is the final
+   scoreboard. A recording is read on **either** tier: the recorder takes any
+   dashed id and the Games row lights its Recorded chip either way, so
+   gating the read on the replay tier dropped a Clash recording in silence.
    **The review itself** (`api/src/game-review.ts`, handler `gameReview`,
-   `REVIEW_VERSION` 6 since 10 Sep 2026: 3 on 9 Sep, 4, 5 and 6 on 10 Sep) is
+   `REVIEW_VERSION` 7 since 11 Sep 2026: 3 on 9 Sep, 4, 5 and 6 on 10 Sep,
+   7 on 11 Sep for `GameReview.recorded` — the one field that says a review
+   was written off the recorder's minutes and frames, so the panel stops
+   calling a recorded review "Totals only" and drawing dots where its
+   minutes are) is
    two calls over the facts, both to Opus at medium effort: the team —
    headline, summary, the game in `moments` (three to six, time order),
    `workOn`, `keepDoing`, the comp verdict, and since version 4 and 5 the

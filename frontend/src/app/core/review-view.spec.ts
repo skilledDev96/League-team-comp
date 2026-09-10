@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, DRAFT_GAINS, GameReview, ReviewDraft, TeamObjectives } from '../models/team.models';
-import { alternativesPhrase, askOf, evidenceChips, GAIN_LABELS, ledgerLine, playerStatLine, reviewAsText, scoreline } from './review-view';
+import { alternativesPhrase, askOf, evidenceChips, GAIN_LABELS, ledgerLine, playerStatLine, reviewAsText, reviewSource, scoreline } from './review-view';
 
 const side = (o: Partial<TeamObjectives>): TeamObjectives => ({ firstBlood: false, firstTower: false, dragons: 0, barons: 0, heralds: 0, grubs: 0, towers: 0, inhibitors: 0, ...o });
 const objectives = (ours: Partial<TeamObjectives>, theirs: Partial<TeamObjectives>) => ({ ours: side(ours), theirs: side({ firstBlood: true, firstTower: true, ...theirs }) });
@@ -213,6 +213,21 @@ describe('reviewAsText', () => {
     expect(GAIN_LABELS.splitpush).toBe('Split push');
     expect(GAIN_LABELS.waveclear).toBe('Wave clear');
     expect(Object.keys(GAIN_LABELS).sort()).toEqual([...DRAFT_GAINS].sort());
+  });
+
+  // `tier` says where the totals came from; only `recorded` (review version 7)
+  // says whether the minutes did. Before it, a game the recorder had walked
+  // minute by minute came back labelled "Totals only, nothing here is timed",
+  // and the moment strip drew a dot where each minute should have been.
+  it('names the road a review came down, and calls a recorded review timed', () => {
+    expect(reviewSource({ ...review, tier: 'timeline' } as GameReview)).toMatchObject({ tag: 'From the timeline', timed: true });
+    expect(reviewSource({ ...review, tier: 'endOfGame', recorded: true } as GameReview)).toMatchObject({ tag: 'From the recorder', timed: true });
+    expect(reviewSource({ ...review, tier: 'endOfGame', recorded: true } as GameReview).tip).toContain('replay recorder');
+    // A replay nobody recorded, and every review written before version 7.
+    expect(reviewSource({ ...review, tier: 'endOfGame' } as GameReview)).toMatchObject({ tag: 'Totals only', timed: false });
+    expect(reviewSource(undefined)).toMatchObject({ tag: 'Totals only', timed: false });
+    // A timeline review keeps its label whatever else is stored beside it.
+    expect(reviewSource({ ...review, tier: 'timeline', recorded: true } as GameReview).tag).toBe('From the timeline');
   });
 
   it('titles a review from before the headline with the summary’s first sentence, and has no scoreline without a game', () => {

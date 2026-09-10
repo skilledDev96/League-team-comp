@@ -2,7 +2,7 @@ import { DatePipe, Location } from '@angular/common';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
 import { AnalysisGame, FilmChoice, GameReview, ReviewPoint, ReviewSwap, ReviewTheme } from '../models/team.models';
-import { alternativesPhrase, askOf, gainsPhrase, reviewAsText, scoreline } from '../core/review-view';
+import { alternativesPhrase, askOf, gainsPhrase, reviewAsText, reviewSource, scoreline } from '../core/review-view';
 import { initialsOf } from '../core/initials';
 import { MatchTimelineService } from '../services/match-timeline.service';
 import { ReviewTakeoverService } from '../services/review-takeover.service';
@@ -38,9 +38,7 @@ import { TooltipDirective } from './tooltip.directive';
           <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>
           <strong>Review</strong>
           <span class="game-review-headline">{{ r.team.headline || 'Read the review' }}</span>
-          <span class="tag" [appTip]="r.tier === 'timeline' ? 'Read from Riot\\'s minute-by-minute timeline' : 'A replay carries end-of-game totals only; nothing here is timed'">
-            {{ r.tier === 'timeline' ? 'From the timeline' : 'Totals only' }}
-          </span>
+          <span class="tag" [appTip]="sourceTip()">{{ sourceTag() }}</span>
           <span class="material-symbols-rounded intel-collapse-chevron" aria-hidden="true">chevron_right</span>
         </summary>
         <div class="game-review-body">
@@ -163,8 +161,17 @@ export class GameReviewComponent {
     return id ? (this.timelines.known().get(id) ?? null) : null;
   });
   protected readonly moments = computed(() => this.review()?.team.moments ?? []);
-  /** A replay review has no minutes behind it, so dots instead of minute pills. */
-  protected readonly timed = computed(() => this.review()?.tier === 'timeline');
+  /**
+   * Which of the three roads the review came down, and so whether the strip
+   * shows minute pills or dots. Riot's timeline is one road; the local
+   * recorder's walk through the replay is the other (review version 7,
+   * 11 Sep 2026) — a recorded review is written off minute-by-minute lines
+   * and frames, and calling it untimed threw all of that away.
+   */
+  private readonly source = computed(() => reviewSource(this.review()));
+  protected readonly timed = computed(() => this.source().timed);
+  protected readonly sourceTag = computed(() => this.source().tag);
+  protected readonly sourceTip = computed(() => this.source().tip);
   protected readonly fresh = computed(() => {
     const at = Date.parse(this.review()?.reviewedAt ?? '');
     return Number.isFinite(at) && Date.now() - at < 5 * 60_000;

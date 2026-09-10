@@ -5,6 +5,7 @@
   "scripts": {
     "key:check": "node scripts/riot-key.mjs",
     "key:update": "node scripts/riot-key.mjs --deploy",
+    "record": "node scripts/replay-recorder.mjs",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:rules": "firebase deploy --only firestore:rules"
   }

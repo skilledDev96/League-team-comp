@@ -80,6 +80,7 @@ import {
   TEAM_SYSTEM,
   Usage
 } from './game-review';
+import { MAX_REVIEW_SHOTS, MAX_SHOT_BYTES, recordingLines, ReplayRecording, ReplayShot, ReplayShotRef, shotsFor } from './replay-recording';
 import {
   CompExpectation,
   MAX_TIMELINE_FETCHES,
@@ -2373,6 +2374,91 @@ function usageOf(response: Anthropic.Beta.BetaMessage): Usage {
   };
 }
 
+// ---- A recorded custom game (10 Sep 2026) --------------------------------
+//
+// Riot's API has no match and no timeline for a tournament or a scrim played
+// in a lobby, so a `.rofl` file's totals were all a review of one ever had.
+// The local recorder (`scripts/replay-recorder.mjs`, run beside the League
+// client while it plays the replay) uploads what it read from the Live Client
+// Data API to `replayRecordings/{matchId}`, with one frame per document at
+// `replayShots/{matchId}__{sec}`. Both are optional to a review: a game
+// without a recording is reviewed exactly as before.
+
+/** One frame the team call sends: what it is of, and the picture itself. */
+interface ReviewFrame {
+  ref: ReplayShotRef;
+  shot: ReplayShot;
+}
+
+/** The media types the messages API takes; a recording writes JPEG, and anything else falls back to it rather than being refused. */
+const IMAGE_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const;
+
+function mediaTypeOf(value: unknown): (typeof IMAGE_MEDIA_TYPES)[number] {
+  return (IMAGE_MEDIA_TYPES as readonly string[]).includes(value as string) ? (value as (typeof IMAGE_MEDIA_TYPES)[number]) : 'image/jpeg';
+}
+
+function clock(sec: number): string {
+  const whole = Math.max(0, Math.floor(sec));
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+}
+
+/** The recording for a game, or null when there is none. A read that fails is warned about and treated as none: the review is worth writing without it. */
+async function readRecording(matchId: string): Promise<ReplayRecording | null> {
+  try {
+    const snap = await getFirestore().doc(`replayRecordings/${matchId}`).get();
+    return snap.exists ? (snap.data() as ReplayRecording) : null;
+  } catch (error) {
+    console.warn(`[gameReview] replayRecordings/${matchId} could not be read; the review sees the replay's totals only: ${(error as Error)?.message ?? error}`);
+    return null;
+  }
+}
+
+/**
+ * The pictures behind the chosen frames, in the order they were chosen. One
+ * that is missing, empty or over `MAX_SHOT_BYTES` of base64 is skipped rather
+ * than failing the review — a review with six frames is worth more than none.
+ */
+async function readShots(refs: readonly ReplayShotRef[]): Promise<ReviewFrame[]> {
+  if (refs.length === 0) return [];
+  const db = getFirestore();
+  let snaps;
+  try {
+    snaps = await db.getAll(...refs.map((ref) => db.doc(`replayShots/${ref.docId}`)));
+  } catch (error) {
+    // The frames are optional to a review, as the champion list is: a hiccup
+    // reading them must not cost the game its review.
+    console.warn(`[gameReview] the frames for ${refs[0].docId.split('__')[0]} could not be read: ${(error as Error)?.message ?? error}`);
+    return [];
+  }
+  const frames: ReviewFrame[] = [];
+  snaps.forEach((snap, i) => {
+    const shot = snap.data() as ReplayShot | undefined;
+    if (!shot || typeof shot.data !== 'string' || shot.data.length === 0) return;
+    if (shot.data.length > MAX_SHOT_BYTES) {
+      console.warn(`[gameReview] ${refs[i].docId} is ${shot.data.length} bytes of base64 and was left out of the review.`);
+      return;
+    }
+    frames.push({ ref: refs[i], shot });
+  });
+  return frames;
+}
+
+/**
+ * The team call's user message. The prompt text is the first block; then a
+ * caption and its picture, so the model can tie a minimap to a second of the
+ * game rather than guess which death it is looking at. Nothing changes for a
+ * game with no frames: the content stays the plain string it always was.
+ */
+function teamContentOf(prompt: string, frames: readonly ReviewFrame[]): Anthropic.Beta.BetaContentBlockParam[] | string {
+  if (frames.length === 0) return prompt;
+  const blocks: Anthropic.Beta.BetaContentBlockParam[] = [{ type: 'text', text: prompt }];
+  for (const { ref, shot } of frames) {
+    blocks.push({ type: 'text', text: `FRAME of our own game at ${clock(ref.sec)} — ${ref.label}` });
+    blocks.push({ type: 'image', source: { type: 'base64', media_type: mediaTypeOf(shot.mediaType), data: shot.data } });
+  }
+  return blocks;
+}
+
 /**
  * Review one game and store it. Throws on a model or data error; returns
  * null when the model declined, in which case nothing is written.
@@ -2400,6 +2486,19 @@ async function reviewGame(
   } else {
     facts = endOfGameFacts(game);
   }
+
+  // A game the local recorder watched (10 Sep 2026): its sentences go into
+  // WHAT HAPPENED for both calls, its frames to the team call. Read on either
+  // tier since 11 Sep 2026: the recorder takes any dashed id and never asks
+  // whether Riot can see the game, the Games row lights its Recorded chip and
+  // shows the frames strip either way, and the recorder's last line tells the
+  // lead to press Re-review. Gating this on the replay tier meant a recording
+  // of a Clash or flex game was dropped in silence, with every other surface
+  // saying the frames had been read — and the frames are the only view of the
+  // map either tier has.
+  const recording = await readRecording(matchId);
+  const recordedLines = recording ? recordingLines(recording) : [];
+  const frames = recording ? await readShots(shotsFor(recording, MAX_REVIEW_SHOTS)) : [];
 
   const [settings, compSnap, noteSnap, traitsSnap] = await Promise.all([
     readSettings(),
@@ -2446,7 +2545,8 @@ async function reviewGame(
     comp,
     note,
     players: reviewPlayers(game),
-    championNames
+    championNames,
+    ...(recordedLines.length > 0 && { recordedLines })
   };
 
   const client = new Anthropic({ apiKey: opts.anthropicKey });
@@ -2454,7 +2554,7 @@ async function reviewGame(
   // The server-side fallback and the effort dial are Opus features (Sonnet 5
   // rejected `fallbacks` with a 400 on 8 Sep 2026); both calls are Opus
   // since version 3, so both get them.
-  const ask = (model: string, system: string, schema: unknown, prompt: string, effort: 'low' | 'medium') =>
+  const ask = (model: string, system: string, schema: unknown, content: Anthropic.Beta.BetaContentBlockParam[] | string, effort: 'low' | 'medium') =>
     client.beta.messages.create({
       model,
       max_tokens: 6000,
@@ -2465,10 +2565,13 @@ async function reviewGame(
         effort,
         format: { type: 'json_schema', schema: schema as Record<string, unknown> }
       },
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content }]
     });
+  // The frames ride on the team call only. The usage the API answers with
+  // already counts them, so `costUsd` needs no change; eight of them are
+  // roughly ten thousand input tokens, about five cents at Opus's list price.
   const [teamRes, playersRes] = await Promise.all([
-    ask(TEAM_MODEL, TEAM_SYSTEM, TEAM_SCHEMA, buildTeamPrompt(ctx), 'medium'),
+    ask(TEAM_MODEL, TEAM_SYSTEM, TEAM_SCHEMA, teamContentOf(buildTeamPrompt(ctx), frames), 'medium'),
     ask(PLAYER_MODEL, PLAYER_SYSTEM, PLAYER_SCHEMA, buildPlayerPrompt(ctx), 'medium')
   ]);
   if (teamRes.stop_reason === 'refusal' && playersRes.stop_reason === 'refusal') return null;
@@ -2482,6 +2585,10 @@ async function reviewGame(
     reviewedAt: new Date().toISOString(),
     reviewVersion: REVIEW_VERSION,
     tier,
+    // Version 7 (11 Sep 2026): the one thing on the stored review that says
+    // the minutes and the frames were read. Without it the panel called a
+    // recorded review "Totals only" and drew dots where its minutes were.
+    ...(recording ? { recorded: true } : {}),
     trigger: opts.trigger,
     models: { team: teamRes.model, players: playersRes.model },
     compId: game.compId,

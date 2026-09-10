@@ -17,3 +17,11 @@ api/firebase-debug.log
 # A timeline document made locally by scripts/dev-timeline.mjs (10 Sep 2026): it lands in the
 # working directory by default and carries our players' names, so it never goes in.
 dev-timeline-*.json
+
+# What scripts/replay-recorder.mjs leaves on disk (10 Sep 2026): the frames the League
+# client renders while it walks a replay, and the documents a --dry-run writes instead of
+# uploading. Pictures of our own game, several megabytes a run, and already in Firestore
+# once the run finishes — none of it belongs in the repo.
+replay-shots/
+replay-recording-*.json
+replay-shot-*.json

@@ -25,6 +25,19 @@
  * solo death is a wave-state or trade choice and never a vision problem,
  * after a review prescribed a ward for a laner who died one-on-one.
  *
+ * A recorded game (10 Sep 2026): a custom game that the local recorder
+ * watched arrives as `recordedLines` — the sentences `replay-recording.ts`
+ * reads off `replayRecordings/{matchId}` — inside WHAT HAPPENED, and as
+ * frames of our own game attached to the team call.
+ *
+ * Version 7 (11 Sep 2026) stores `recorded` beside `tier`, because nothing in
+ * a version 6 document said a review had been written off a recording: the
+ * panel read `tier === 'endOfGame'` and told the lead "Totals only, nothing
+ * here is timed" over a review written off forty minute-by-minute lines and
+ * eight frames, and drew a dot where every minute should have been. `tier`
+ * still says where the totals came from; `recorded` says whether the minutes
+ * did.
+ *
  * Rules that came from Riot's policies and are enforced twice, in the
  * prompt and in the validators:
  * - Our own players only. The other team enters as a champion in a seat;
@@ -44,7 +57,7 @@ import { CompExpectation } from './daily-refresh';
 import { compareCurve, GameFacts, k } from './game-facts';
 import { LaneRead, LaneRole, PlayerFacts } from './lane-read';
 
-export const REVIEW_VERSION = 6;
+export const REVIEW_VERSION = 7;
 
 /** What a team point is about; the panel shows it as a tag with an icon. */
 export const REVIEW_THEMES = ['draft', 'lanes', 'fights', 'objectives', 'vision', 'tempo', 'macro'] as const;
@@ -149,6 +162,17 @@ export interface ReviewContext {
    * a champion nobody can look up. Absent or empty: no swap survives.
    */
   championNames?: string[];
+  /**
+   * A game the local recorder watched, as sentences (10 Sep 2026;
+   * `recordingLines` in `replay-recording.ts`). Riot has no match and no
+   * timeline for a custom, so without a recording such a review has the
+   * replay's totals and nothing else — but a recording is read on either tier
+   * since 11 Sep 2026, because the frames are the only view of the map either
+   * tier has, and the recorder will happily record a game Riot can also see.
+   * It carries no team gold and no position; the frames attached to the team
+   * call are the only view of the map.
+   */
+  recordedLines?: string[];
 }
 
 /** Our five as the review names them, from the game's players. */
@@ -181,6 +205,7 @@ export const TEAM_SYSTEM = `You are the coach reviewing one finished League of L
 
 ${RULES}
 - A swap is about OUR draft. The other team's champions may be named as the matchup they posed — "into Darius", "against a Syndra" — never a person.
+- When frames of the game are attached they are pictures of OUR own game, taken from the replay at the second the caption gives: read the minimap for where everyone was and the HUD for the spectated player's abilities and items, say "around minute N" because a frame is one moment and not a stretch of play, and never describe a person on the other team — a frame shows champions in seats.
 
 Length: "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences at most and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence. "moments" is three to six entries in time order that walk through the game: the minute, one sentence of at most 30 words on what happened and why it mattered, and "swing" for whose way it went. A moment's "seats" names the seats of ours it is about, at most three, and stays empty when it is about the whole team. A "workOn" item that offers a choice carries its two choices again in "options" as short imperatives, and leaves them out when it offers none. "lessons" is at most three things a player should be able to answer tomorrow, each on a fact already used by "workOn" or "keepDoing" and about OUR play only: a question of at most 20 words, three options of at most 12 words with one true and the wrong ones plausible, "answer" as the index of the true one, and "why" as one sentence of at most 25 words citing the fact and the minute. "oneThing" is the one thing to watch for next game in at most twelve words, a choice not an order. "draft" is one sentence ("verdict") on whether the five we drafted fit the game that was played, and "swaps" is at most three changes to OUR draft the coach would make with hindsight, each naming the seat, the champion we played ("out", exactly as given in OUR PLAYERS), the champion to try instead ("in", from CHAMPIONS A SWAP MAY NAME, in a similar role for that seat, a mainstream pick not a niche one, never one of our own five in that game), one sentence of at most 40 words on "why" that cites the fact and the minute (for instance the fight around minute 24 where nobody could follow the engage, or the nine deaths of the carry with nobody to peel), "gains" as what the swap buys from the list, and "alternatives" as at most two other champions from CHAMPIONS A SWAP MAY NAME that would do the same job in that seat ("Orianna, or Syndra"), empty when there is no second option; for instance a Malphite for the all-in with Miss Fortune, or a Nautilus for the peel on a hypercarry. "lacked" is what the comp was missing that the game exposed: at most three gains from the same list, each with "why" as one sentence of at most 25 words citing the fact and the minute behind it. Leave both "swaps" and "lacked" empty when the draft held.`;
 
@@ -278,7 +303,17 @@ function happenedSection(ctx: ReviewContext, withLedger: boolean): string[] {
   const spend = f.spend.filter((s) => s.firstItemMinute !== undefined).map((s) => `${s.seat} had a first item’s worth of gold spent by minute ${s.firstItemMinute} over ${s.backs} backs`);
   if (spend.length) lines.push(`${spend.join('; ')}.`);
   if (withLedger && f.ledger?.length) lines.push('OUR DEATHS, ONE BY ONE (what would have stopped each is a rule over one frame a minute)', ...f.ledger.map((d) => d.line));
-  if (ctx.tier === 'endOfGame') lines.push('TIER: totals only, from a replay file. There are no minutes, no positions and no per-minute figures; say so where it matters and do not infer timing.');
+  // A recorded custom game (10 Sep 2026): the totals above come from the
+  // replay file, the minutes below from the recorder that watched it. Both
+  // prompts get the sentences; only the team call gets the frames.
+  if (ctx.recordedLines?.length) lines.push('RECORDED FROM THE REPLAY, MINUTE BY MINUTE', ...ctx.recordedLines);
+  if (ctx.tier === 'endOfGame') {
+    lines.push(
+      ctx.recordedLines?.length
+        ? 'TIER: a custom game. Riot has no match and no timeline for it, so the totals are the replay file’s and the minutes are the recorder’s. There is no team gold at any minute and no position of anyone except what an attached frame shows; say "around minute N" and infer nothing finer.'
+        : 'TIER: totals only, from a replay file. There are no minutes, no positions and no per-minute figures; say so where it matters and do not infer timing.'
+    );
+  }
   return lines;
 }
 
@@ -882,7 +917,15 @@ export interface GameReview {
   matchId: string;
   reviewedAt: string;
   reviewVersion: number;
+  /** Where the totals came from: Riot's timeline, or a replay file's end-of-game figures. */
   tier: 'timeline' | 'endOfGame';
+  /**
+   * Whether the local recorder's walk through the replay was read (version 7,
+   * 11 Sep 2026): the minute-by-minute lines and the frames of our own game.
+   * A replay-tier review with this set is timed after all, and the panel must
+   * not call it "totals only"; absent means no recording was found.
+   */
+  recorded?: boolean;
   trigger: 'manual' | 'auto';
   models: { team: string; players: string };
   compId: string | null;

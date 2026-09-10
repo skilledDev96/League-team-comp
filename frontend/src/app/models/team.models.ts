@@ -790,7 +790,15 @@ export interface GameReview {
   matchId: string;
   reviewedAt: string;
   reviewVersion: number;
+  /** Where the totals came from: Riot's timeline, or a replay file's end-of-game figures. */
   tier: 'timeline' | 'endOfGame';
+  /**
+   * Whether the local recorder's walk through the replay was read (review
+   * version 7, 11 Sep 2026). A replay-tier review with this set was written
+   * off minute-by-minute lines and frames of our own game, so it IS timed and
+   * must not be labelled "totals only". Absent on every review before it.
+   */
+  recorded?: boolean;
   trigger: 'manual' | 'auto';
   models: { team: string; players: string };
   compId: string | null;
@@ -1031,6 +1039,121 @@ export interface GameFacts {
   /** Our jungler on our kills; absent before facts version 2. */
   presence?: { kills: number; ofKills: number; before15: number; ofBefore15: number; line: string };
   lines: string[];
+}
+
+// ---- Recorded custom games --------------------------------------------------
+//
+// Mirrors `api/src/replay-recording.ts` (10 Sep 2026). Riot's API cannot see a
+// custom game at all — a tournament or a scrim played in a lobby has no match
+// and no timeline, and a `.rofl` file gives totals only — so those games are
+// recorded locally instead: a script runs beside the League client while it
+// plays the replay, reads the Live Client Data API each second, and drives the
+// Replay API to a frame at each death. One document per game at
+// `replayRecordings/{matchId}` (the replay's own dashed id, as a Games row
+// carries it), one picture per document at `replayShots/{matchId}__{sec}`.
+//
+// What a recording cannot carry, and what nothing may infer from it:
+// - **No team gold.** The Live Client gives gold for the spectated player
+//   alone, so there is no gold figure for either side at any minute.
+// - **No positions.** Nothing in the client's data says where anyone stood;
+//   the only view of the map is the minimap inside a frame, which is one
+//   moment and approximate by construction.
+//
+// The other team is a champion in a seat throughout: no name, no Riot id and
+// no puuid of theirs is stored anywhere here, and a frame is a picture of our
+// own game.
+
+export type ReplayEventKind = 'kill' | 'objective' | 'tower' | 'inhibitor' | 'first' | 'ace' | 'end';
+export type ReplayShotKind = 'death' | 'objective' | 'end';
+export type ReplaySide = 'us' | 'them';
+
+/** One of the ten, by seat. `name` is ours only, matched from the roster's Riot ids; theirs is a champion in a seat. */
+export interface ReplaySeat {
+  seat: Role;
+  champion: string;
+  ours: boolean;
+  /** OURS ONLY. Absent on every seat of theirs. */
+  name?: string;
+}
+
+/** A player's line at one checkpoint. No gold: the client gives it for the spectated player alone. */
+export interface ReplaySampleRow {
+  seat: Role;
+  cs: number;
+  level: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  wardScore?: number;
+}
+
+/** Where both sides stood at one minute of the game. */
+export interface ReplaySample {
+  minute: number;
+  ours: ReplaySampleRow[];
+  /** Theirs, by seat, with no name anywhere. */
+  theirs: ReplaySampleRow[];
+}
+
+/**
+ * One thing that happened, at the second the replay clock showed. `text` is
+ * the recorder's own sentence, written to follow "Minute 14: " — "their dragon
+ * (infernal)", "Ruan (Top) died to a gank" — because that is how the review
+ * prints it. `seat` is the seat that did it, `victimSeat` the seat it was done
+ * to, on either side; a seat is not a name.
+ */
+export interface ReplayEvent {
+  sec: number;
+  kind: ReplayEventKind;
+  side: ReplaySide;
+  text: string;
+  seat?: Role;
+  victimSeat?: Role;
+  /** The dragon's element, the tower's lane, whatever the kind has more of. */
+  subType?: string;
+}
+
+/** A frame the recorder took, and the document that holds the picture itself. */
+export interface ReplayShotRef {
+  sec: number;
+  kind: ReplayShotKind;
+  /** What the frame is of, in the recorder's words. */
+  label: string;
+  /** Ours; the seat the frame is about, when it is about one. */
+  seat?: Role;
+  /** The `replayShots` document id, `{matchId}__{sec}`. */
+  docId: string;
+}
+
+/** One game as the local recorder saw it (`replayRecordings/{matchId}`). */
+export interface ReplayRecording {
+  matchId: string;
+  recordedAt: string;
+  /** The recorder's shape version; a bump means it keeps something different. */
+  recorderVersion: number;
+  durationSec: number;
+  ourSide: 'blue' | 'red';
+  /** Ten, ours by seat with a name, theirs a champion in a seat. */
+  seats: ReplaySeat[];
+  /** One a minute. */
+  samples: ReplaySample[];
+  events: ReplayEvent[];
+  shots: ReplayShotRef[];
+  bytes: number;
+}
+
+/** One picture (`replayShots/{matchId}__{sec}`), kept well under Firestore's 1 MiB cap. A frame of OUR own game. */
+export interface ReplayShot {
+  matchId: string;
+  sec: number;
+  kind: string;
+  label: string;
+  mediaType: 'image/jpeg';
+  width?: number;
+  height?: number;
+  bytes: number;
+  /** base64, with no `data:` prefix. */
+  data: string;
 }
 
 /** Result of the scheduled Riot API key probe (Firestore `meta/keyHealth`). */

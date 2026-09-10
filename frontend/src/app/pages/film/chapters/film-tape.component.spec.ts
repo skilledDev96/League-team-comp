@@ -633,7 +633,8 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmTapeComponent', () => 
     toolPill(root, 'Work on this second').click();
     fixture.detectChanges();
     const overlay = root.querySelector<HTMLElement>('.film-lab-overlay')!;
-    expect(overlay.getAttribute('role')).toBe('dialog');
+    // A real <dialog> (10 Sep 2026): the role is the element's own, and the top layer is what keeps the tape's pills off it.
+    expect(overlay.tagName).toBe('DIALOG');
     expect(overlay.getAttribute('aria-label')).toBe('Work on 21:00');
     expect(overlay.querySelector('.lab-square')?.getAttribute('aria-label')).toBe('Position lab at 21:00');
     expect(overlay.querySelectorAll('.lab-token')).toHaveLength(10);

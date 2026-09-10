@@ -359,7 +359,7 @@ export function storedSpeedKey(): string | null {
         </div>
         <!-- The position lab over the frame (Part C, 10 Sep 2026): the Rift under it stands paused on the second; Close or Escape returns to the tape, a save keeps the lab open on the board as saved (10 Sep 2026, second fix pass), and a board the film already keeps on the second comes back through the saved input. -->
         @if (labScene(); as l) {
-          <div class="film-lab-overlay" role="dialog" aria-modal="true" [attr.aria-label]="'Work on ' + clockAt(l.sec)">
+          <dialog class="film-lab-overlay" #labDialog [attr.aria-label]="'Work on ' + clockAt(l.sec)" (cancel)="onLabCancel($event)">
             <app-position-lab
               [sec]="l.sec"
               [ourSide]="tape.ourSide"
@@ -374,7 +374,7 @@ export function storedSpeedKey(): string | null {
               (save)="saveLab($event)"
               (close)="closeLab()"
             />
-          </div>
+          </dialog>
         }
       } @else {
         <p class="film-wait">No timeline read for this game, so there is no tape.</p>
@@ -416,6 +416,14 @@ export class FilmTapeComponent {
   private readonly dwellBar = viewChild<ElementRef<HTMLElement>>('dwellBar');
   /** The lab while it is open, for its reading line on Save. */
   private readonly labView = viewChild(PositionLabComponent);
+  /**
+   * The lab is a real `<dialog>` opened with `showModal` (10 Sep 2026, the
+   * evening): as a plain layer it lived inside the chapter's own stacking
+   * context, so the tape's speed and layer pills stayed on top of it and the
+   * screen read as two sets of controls at once. The top layer sits above
+   * every stacking context and every transform, which no z-index can promise.
+   */
+  private readonly labDialog = viewChild<ElementRef<HTMLDialogElement>>('labDialog');
 
   protected readonly Math = Math;
   protected readonly readLabels = READ_LABELS;
@@ -629,6 +637,19 @@ export class FilmTapeComponent {
         this.markShown(beat);
         this.show({ kind: 'beat', sec: beat.sec, beat });
         this.startDwell(beat);
+      });
+    });
+
+    // The lab's dialog goes into the top layer as soon as it is on the page, and comes out with it. A browser without
+    // `showModal` (jsdom in the specs) leaves the element where it stands, which the specs read the same way.
+    afterRenderEffect((onCleanup) => {
+      const dialog = this.labDialog()?.nativeElement;
+      if (!dialog) return;
+      untracked(() => {
+        if (!dialog.open && typeof dialog.showModal === 'function') dialog.showModal();
+      });
+      onCleanup(() => {
+        if (dialog.open && typeof dialog.close === 'function') dialog.close();
       });
     });
 
@@ -921,7 +942,16 @@ export class FilmTapeComponent {
 
   /** Close or Escape: the tape is back, still standing on the second, paused until the reader plays on. A save does not close the lab (10 Sep 2026, second fix pass). */
   protected closeLab(): void {
+    const dialog = this.labDialog()?.nativeElement;
+    // Closing the element takes it out of the top layer; the @if then drops it. A dialog that never opened (no showModal in a spec's jsdom) is left alone.
+    if (dialog?.open && typeof dialog.close === 'function') dialog.close();
     this.lab.set(null);
+  }
+
+  /** Escape inside the dialog: the browser would close the element and leave the chapter's state behind, so the close goes through `closeLab` instead. */
+  protected onLabCancel(event: Event): void {
+    event.preventDefault();
+    this.closeLab();
   }
 
   /** Whether the film keeps a board on a second. */
