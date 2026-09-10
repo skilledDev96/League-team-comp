@@ -3,7 +3,7 @@ import { afterRenderEffect, Component, computed, ElementRef, inject, input, outp
 import { Router, RouterLink } from '@angular/router';
 import { FilmModel } from '../../../core/film-model';
 import { reminderFor } from '../../../core/film-progress';
-import { GAIN_LABELS, reviewAsText } from '../../../core/review-view';
+import { gainsPhrase, reviewAsText } from '../../../core/review-view';
 import { AnalysisGame, FilmChoice, GameReview, LedgerSummary, ReviewSwap, Role } from '../../../models/team.models';
 import { MotionService } from '../../../services/motion.service';
 import { TeamDataService } from '../../../services/team-data.service';
@@ -110,7 +110,7 @@ import { FilmFrameComponent } from '../film-frame.component';
                 <img class="is-out" [src]="ui.championIconUrl(s.out)" alt="" loading="lazy" />
                 <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
                 <img class="is-in" [src]="ui.championIconUrl(s.in)" alt="" loading="lazy" />
-                <span><b>{{ s.in }}</b> for {{ ui.championName(s.out) }}@if (s.gains.length) { <small>{{ gainsOf(s) }}</small> }</span>
+                <span><b>{{ s.in }}</b> for {{ ui.championName(s.out) }}@if (s.gains.length) { <small>· {{ gainsOf(s) }}</small> }</span>
               </p>
             }
           </div>
@@ -204,9 +204,9 @@ export class FilmCardComponent {
   /** Where the asks' entrance stagger starts: after the draft block when there is one. */
   protected readonly askBase = computed(() => (this.draftSwaps().length ? 4 : 3));
 
-  /** "peel and engage": what a swap buys, in a sentence, so the words lose the capital the chips carry. */
+  /** "for peel and engage": what a swap buys, as a phrase after the champions, so the words lose the capital the chips carry. */
   protected gainsOf(s: ReviewSwap): string {
-    return s.gains.map((g) => GAIN_LABELS[g].toLowerCase()).join(' and ');
+    return gainsPhrase(s.gains);
   }
   private readonly commitment = computed(() => this.data.commitmentFor(this.model().matchId));
   private readonly teamChoice = computed<FilmChoice | undefined>(() => {

@@ -473,9 +473,10 @@ function turnOf(timeline: MatchTimeline, win: boolean): FilmTape['turn'] {
   if (gold.length < 2) return null;
   // Read from our side: a loss is a win for them.
   const ours = win ? gold : gold.map((g) => -g);
-  // Minute zero is always level, so the question starts at minute one.
+  // Minute zero is always level, so the question starts at minute one. A lead or deficit under
+  // EVEN_SWING_GOLD is level too: "behind for good after minute 1, from 20 up" said nothing (10 Sep 2026).
   const lowest = Math.min(...ours.slice(1));
-  if (lowest <= 0) {
+  if (lowest <= -EVEN_SWING_GOLD) {
     // Ever behind or level: the last minute it still was.
     let last = -1;
     for (let m = 1; m < ours.length; m += 1) if (ours[m] <= 0) last = m;
@@ -487,9 +488,9 @@ function turnOf(timeline: MatchTimeline, win: boolean): FilmTape['turn'] {
   }
   const edge = ours.findIndex((g) => g >= TURN_EDGE_GOLD);
   if (edge < 0) return null;
-  return win
-    ? { minute: edge, why: `Never behind; it broke open around minute ${edge}, up ${k(ours[edge])}` }
-    : { minute: edge, why: `Never in front; it broke open around minute ${edge}, down ${k(ours[edge])}` };
+  // Level for a while (never more than a few hundred either way), or never behind at all.
+  const opener = lowest <= 0 ? 'Level early;' : win ? 'Never behind;' : 'Never in front;';
+  return { minute: edge, why: `${opener} it broke open around minute ${edge}, ${win ? 'up' : 'down'} ${k(ours[edge])}` };
 }
 
 /** Who sits where, for a token's label and icon: the review's players, or the analysed game's before a review exists. */

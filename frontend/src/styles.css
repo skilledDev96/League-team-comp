@@ -14503,6 +14503,8 @@ body[data-theme="light"] .film-stage { --film-ink: var(--bg-0); --film-ink-1: va
 /* The dot rail: one dot per chapter, the kicker as its tip. */
 .film-dots { position: absolute; left: 0.9rem; top: 50%; z-index: 3; display: grid; gap: 0.6rem; padding: 0; transform: translateY(-50%); }
 .film-dots li { margin: 0; }
+/* Every list on the stage is a rail or a row of chips: no markers, whatever `.list-clean` keeps elsewhere (the dot rail read "1. 2. 3." live, 10 Sep 2026). */
+.film-stage ol, .film-stage ul { list-style: none; }
 .film-dot { display: block; width: 0.7rem; height: 0.7rem; padding: 0; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--film-ink) 45%, transparent); background: color-mix(in srgb, var(--film-ink) 12%, transparent); cursor: pointer; transition: transform calc(200ms * var(--film-tempo, 1)) var(--film-ease, ease), background calc(200ms * var(--film-tempo, 1)) ease; }
 .film-dot:hover, .film-dot:focus-visible { background: color-mix(in srgb, var(--film-a) 50%, transparent); }
 .film-dot.active { background: var(--film-a); border-color: var(--film-a); transform: scale(1.35); }

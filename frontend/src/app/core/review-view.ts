@@ -101,6 +101,17 @@ export const ZONE_LABELS: Record<MapZone, string> = {
   theirJungle: 'their jungle'
 };
 
+/**
+ * What a swap buys as a phrase: "for the peel", "for peel and engage", "for peel, engage and frontline";
+ * empty when the review named no gain. One helper so the panel and the card read the same (10 Sep 2026).
+ */
+export function gainsPhrase(gains: readonly DraftGain[] | undefined): string {
+  const words = (gains ?? []).map((g) => GAIN_LABELS[g]?.toLowerCase()).filter((w): w is string => !!w);
+  if (!words.length) return '';
+  if (words.length === 1) return `for the ${words[0]}`;
+  return `for ${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
+}
+
 /** What a swap in the draft buys, in the team's words (10 Sep 2026); one table for the chapter, the panel and the chat. */
 export const GAIN_LABELS: Record<DraftGain, string> = {
   engage: 'Engage',

@@ -127,7 +127,7 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmCardComponent', () => 
       return { who: text(span).replace(gains, '').trim(), gains };
     });
     expect(rows).toEqual([
-      { who: 'Nautilus for Leona', gains: 'peel and engage' },
+      { who: 'Nautilus for Leona', gains: '· for peel and engage' },
       { who: 'Sejuani for Wukong', gains: '' }
     ]);
     expect(text(root.querySelector('.film-card-draft'))).not.toContain('MonkeyKing');

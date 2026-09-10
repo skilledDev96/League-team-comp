@@ -2,7 +2,7 @@ import { DatePipe, Location } from '@angular/common';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
 import { AnalysisGame, FilmChoice, GameReview, ReviewPoint, ReviewSwap, ReviewTheme } from '../models/team.models';
-import { askOf, GAIN_LABELS, reviewAsText, scoreline } from '../core/review-view';
+import { askOf, gainsPhrase, reviewAsText, scoreline } from '../core/review-view';
 import { initialsOf } from '../core/initials';
 import { MatchTimelineService } from '../services/match-timeline.service';
 import { TeamDataService } from '../services/team-data.service';
@@ -232,9 +232,10 @@ export class GameReviewComponent {
   /** The draft with hindsight (review version 5): the swaps to try, none when the draft held, so the panel stays short. */
   protected readonly draftSwaps = computed<ReviewSwap[]>(() => this.review()?.team.draft?.swaps ?? []);
 
-  /** ", for the peel and engage": what the swap buys, as the tail of the line in sentence case; nothing when the review named no gain. */
+  /** ", for peel and engage": what the swap buys, as the tail of the line; nothing when the review named no gain. */
   protected gainsOf(s: ReviewSwap): string {
-    return s.gains.length ? `, for the ${s.gains.map((g) => GAIN_LABELS[g].toLowerCase()).join(' and ')}` : '';
+    const phrase = gainsPhrase(s.gains);
+    return phrase ? `, ${phrase}` : '';
   }
 
   /** What the team committed to in the film room, and who picked it. */

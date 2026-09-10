@@ -353,6 +353,9 @@ describe('the tape', () => {
     expect(comeback.turn).toEqual({ minute: 6, why: 'In front for good after minute 6, from 1.5k down' });
     const stomp = buildFilm(review, { ...game, win: true }, { ...timeline, goldDiff: [0, 200, 600, 1100, 1500] } as MatchTimeline, previous).tape!;
     expect(stomp.turn).toEqual({ minute: 3, why: 'Never behind; it broke open around minute 3, up 1.1k' });
+    // Twenty gold up at minute one is level, not in front: the game broke open later, and that is the turn.
+    const level = buildFilm(review, { ...game, win: false }, { ...timeline, goldDiff: [0, 20, -200, -600, -1200, -1500] } as MatchTimeline, previous).tape!;
+    expect(level.turn).toEqual({ minute: 4, why: 'Level early; it broke open around minute 4, down 1.2k' });
     const swung = buildFilm(review, game, { ...timeline, facts: { ...timeline.facts!, curve: { shape: 'swung' } } } as MatchTimeline, previous).tape!;
     expect(swung.turn?.minute).toBe(11);
     expect(swung.turn?.why).toContain('ADC');
