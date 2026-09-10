@@ -39,6 +39,9 @@ import { FilmFrameComponent } from '../film-frame.component';
     }
     <app-film-frame [kicker]="kicker()" [index]="index()" [count]="count()" (next)="next.emit()" (back)="back.emit()">
       <div class="film-card">
+        <!-- Two columns on a wide screen (10 Sep 2026): the team's things left, Call it back and the asks right, the reminder row and the pills under both.
+             Under 64rem the columns are display: contents, so the card stacks: head, watch for it, committed to, the draft, keep doing, then the calls and the asks. -->
+        <div class="film-card-col is-left">
         <div class="film-card-head">
           <span class="film-card-result" [class.is-win]="model().title.win" [class.is-loss]="!model().title.win">{{ model().title.win ? 'Win' : 'Loss' }}</span>
           <h2 class="film-card-headline">{{ c.headline }}</h2>
@@ -72,35 +75,6 @@ import { FilmFrameComponent } from '../film-frame.component';
           </div>
         }
 
-        @if (model().lessons; as lessons) {
-          <div class="film-card-block film-card-lessons" [style.--i]="2">
-            <p class="film-card-label">Call it back</p>
-            @for (l of lessons; track l.key) {
-              @let picked = pickOf(l.key);
-              <div class="film-card-lesson" [class.is-done]="picked !== null">
-                <p class="film-call-q film-card-lesson-q">{{ l.question }}</p>
-                <div class="film-chips" role="group" [attr.aria-label]="l.question">
-                  @for (opt of l.options; track opt; let i = $index) {
-                    <button
-                      type="button"
-                      class="film-chip"
-                      [class.is-right]="picked !== null && i === l.answer"
-                      [class.is-wrong]="picked === i && i !== l.answer"
-                      [class.is-picked]="picked === i"
-                      [disabled]="picked !== null"
-                      [attr.aria-pressed]="picked === i"
-                      (click)="answered.emit({ key: l.key, choice: i })"
-                    >{{ opt }}</button>
-                  }
-                </div>
-                @if (picked !== null) {
-                  <p class="film-call-why"><b>{{ picked === l.answer ? 'Called it.' : 'Not this time.' }}</b> {{ l.why }}</p>
-                }
-              </div>
-            }
-          </div>
-        }
-
         @if (draftSwaps().length) {
           <!-- The draft with hindsight (10 Sep 2026): one line a swap, the champion we played struck beside the one to try. -->
           <div class="film-card-block film-card-draft" [style.--i]="3">
@@ -116,20 +90,55 @@ import { FilmFrameComponent } from '../film-frame.component';
           </div>
         }
 
-        @if (asks().length) {
-          <ul class="list-clean film-card-asks" aria-label="One ask each">
-            @for (a of asks(); track a.seat) {
-              <li class="film-card-ask" [class.is-me]="a.seat === mySeat()" [style.--i]="askBase() + $index">
-                <img [src]="ui.championIconUrl(a.champion)" alt="" loading="lazy" />
-                <span><b>{{ a.name }}</b><small>{{ a.seat }}</small>{{ a.ask }}</span>
-              </li>
-            }
-          </ul>
-        }
-
         @if (c.keepDoing) {
           <div class="film-card-row">
             <span class="film-card-keep"><span class="material-symbols-rounded" aria-hidden="true">check_circle</span> {{ c.keepDoing }}</span>
+          </div>
+        }
+        </div>
+
+        @if (model().lessons || asks().length) {
+          <!-- Only when there is something for it: without a right column the card stays one column wide (the stylesheet reads :has). -->
+          <div class="film-card-col is-right">
+          @if (model().lessons; as lessons) {
+            <div class="film-card-block film-card-lessons" [style.--i]="2">
+              <p class="film-card-label">Call it back</p>
+              @for (l of lessons; track l.key) {
+                @let picked = pickOf(l.key);
+                <div class="film-card-lesson" [class.is-done]="picked !== null">
+                  <p class="film-call-q film-card-lesson-q">{{ l.question }}</p>
+                  <div class="film-chips" role="group" [attr.aria-label]="l.question">
+                    @for (opt of l.options; track opt; let i = $index) {
+                      <button
+                        type="button"
+                        class="film-chip"
+                        [class.is-right]="picked !== null && i === l.answer"
+                        [class.is-wrong]="picked === i && i !== l.answer"
+                        [class.is-picked]="picked === i"
+                        [disabled]="picked !== null"
+                        [attr.aria-pressed]="picked === i"
+                        (click)="answered.emit({ key: l.key, choice: i })"
+                      >{{ opt }}</button>
+                    }
+                  </div>
+                  @if (picked !== null) {
+                    <p class="film-call-why"><b>{{ picked === l.answer ? 'Called it.' : 'Not this time.' }}</b> {{ l.why }}</p>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          @if (asks().length) {
+            <ul class="list-clean film-card-asks" aria-label="One ask each">
+              @for (a of asks(); track a.seat) {
+                <li class="film-card-ask" [class.is-me]="a.seat === mySeat()" [style.--i]="askBase() + $index">
+                  <img [src]="ui.championIconUrl(a.champion)" alt="" loading="lazy" />
+                  <span><b>{{ a.name }}</b><small>{{ a.seat }}</small>{{ a.ask }}</span>
+                </li>
+              }
+            </ul>
+          }
           </div>
         }
 
@@ -231,15 +240,16 @@ export class FilmCardComponent {
   /**
    * Make the reminder due right now, so the Before you play card shows on
    * Games at once (editors and viewers alike; it is this person's own
-   * progress). The ask count stays where it is, so the card asks the next
-   * lesson in turn and the ladder carries on from there.
+   * progress). Since 10 Sep 2026 the card reminds rather than asks: the one
+   * thing, the commitment and the asks off `reminderFor`. The asked count
+   * stays where it is, so the ladder carries on from the same rung on Got it.
    */
   protected tryNow(): void {
     const id = this.model().matchId;
     const progress = this.prefs.filmProgress(id) ?? {};
     const item = reminderFor(this.review(), progress, this.commitment(), this.model().seed);
     if (!item) {
-      this.toast.show('Nothing to ask yet', { kind: 'warn', text: 'No lessons in this review, and no commitment picked.' });
+      this.toast.show('Nothing to remind you of', { kind: 'warn', text: 'No one thing, no work-on and no commitment in this review.' });
       return;
     }
     void this.prefs.saveFilmProgress(id, { nextAskAt: new Date().toISOString(), asked: progress.asked ?? 0 });

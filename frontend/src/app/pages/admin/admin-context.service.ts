@@ -209,11 +209,14 @@ export class AdminContextService {
   readonly analysisGeneratedAt = computed(() => this.data.compAnalysis()?.generatedAt ?? '');
 
   // One Firestore document holds the whole analysis; the size is the number
-  // that decides whether the lane reads keep fitting.
+  // that decides whether the figures and lane reads keep fitting.
   readonly payloadKb = computed(() => {
     const bytes = this.data.compAnalysis()?.payloadBytes;
     return bytes === undefined ? null : Math.round(bytes / 1024);
   });
+
+  /** How many games the trim had to strip to fit the document; 0 when it touched none, and the line says nothing (10 Sep 2026). */
+  readonly payloadTrimmed = computed(() => this.data.compAnalysis()?.payloadTrimmed ?? 0);
 
   /** Every analysed game through the same checks, newest first. */
   readonly healthRows = computed(() =>

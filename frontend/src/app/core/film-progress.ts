@@ -1,6 +1,5 @@
-import { FilmChoice, FilmCommitment, FilmPrefs, FilmProgress, GameReview } from '../models/team.models';
-import { lessonCalls } from './film-build';
-import { FilmCall } from './film-model';
+import { FilmChoice, FilmCommitment, FilmPrefs, FilmProgress, GameReview, ReviewPoint, Role } from '../models/team.models';
+import { askOf } from './review-view';
 
 /**
  * The reminder arithmetic for the film room (9 Sep 2026): when "Before you
@@ -59,21 +58,90 @@ function committedIndex(c: FilmCommitment): 0 | 1 | undefined {
   return counts.b > counts.a ? 1 : 0;
 }
 
+/** What the team committed to, in words: the option the majority picked (ties to A), or the sentence whole when the team took it whole or it offered no choice; nothing until somebody picked. */
+function committedLine(c: FilmCommitment | undefined): string | undefined {
+  if (!c || !Object.keys(c.by ?? {}).length) return undefined;
+  const i = committedIndex(c);
+  if (i !== undefined && c.options?.length === 2) return c.options[i];
+  return c.text?.trim() || undefined;
+}
+
+/** How many further asks the card carries at most; the rest stay on the film's card. */
+const MAX_MORE_LINES = 2;
+
 /**
- * What "Before you play" asks about one film: the review's lessons in turn
- * (the one at `asked` modulo their count, built the way the film builds them
- * so the options sit in the same order), else the team's commitment as a
- * two-way call, else nothing, and the card stays away.
+ * What "Before you play" reminds of, for one film (10 Sep 2026): things to
+ * do, not a question. Every line but the one thing is optional; a review
+ * with none of them has no reminder and the card stays away.
  */
-export function reminderFor(review: GameReview, progress: FilmProgress, commitment: FilmCommitment | undefined, seed: number): FilmCall | null {
-  const lessons = lessonCalls(review.team.lessons, seed);
-  if (lessons.length) return lessons[(progress.asked ?? 0) % lessons.length];
-  if (commitment?.options && commitment.options.length === 2) {
-    const answer = committedIndex(commitment);
-    if (answer === undefined) return null;
-    return { key: 'commit', question: 'Last game we committed to one of these. Which was it?', options: [commitment.options[0], commitment.options[1]], answer, why: commitment.text };
+export interface FilmReminder {
+  /** The film's headline, muted over the lines; '' when the review has none. */
+  headline: string;
+  /** The one thing to watch for: the review's own, else the first work-on cut to its ask; '' when the review carries neither. */
+  oneThing: string;
+  /** What the team committed to: the option it picked, or the sentence whole; absent until somebody picked. */
+  commitment?: string;
+  /** The viewer's own seat's ask, when the seat is known and the review has a note for it. */
+  ask?: string;
+  /** Up to two further asks: the team's other work-ons, then the viewer's own further points, each cut to its ask; absent when there are none beyond the lines above. */
+  more?: string[];
+}
+
+/**
+ * The reminder for one film. Until 10 Sep 2026 this was a question (a lesson
+ * with three options, or "which did we commit to?"); the lead wanted a
+ * reminder of what to do instead, so it is now the one thing, the
+ * commitment, the viewer's own ask and up to two further asks, none of them
+ * asked. The further asks were the lessons' whys for a day: a why justifies
+ * an answer ("Three, minutes 4 to 9."), so it read as a fragment on the card
+ * with nothing to do in it; the other work-ons and the viewer's own further
+ * points are imperatives once `askOf` has cut them, which is what the card is
+ * for. `progress` and `seed` stay in the signature for the callers: the
+ * reminder no longer turns with `asked` or draws on the seed, but the ladder
+ * (`nextAskAt`, `advance`, `dueReminders`) still climbs on Got it as it did.
+ * Null when the review has none of a one thing, a work-on or a commitment.
+ */
+export function reminderFor(review: GameReview, _progress: FilmProgress, commitment: FilmCommitment | undefined, _seed: number, seat?: Role): FilmReminder | null {
+  const team = review.team;
+  const first = team.workOn?.[0]?.text?.trim();
+  const oneThing = team.oneThing?.trim() || (first ? askOf(first) : '');
+  const committed = committedLine(commitment);
+  if (!oneThing && !committed) return null;
+  const reminder: FilmReminder = { headline: team.headline?.trim() ?? '', oneThing };
+  if (committed) reminder.commitment = committed;
+  const own = seat ? review.players?.find((p) => p.seat === seat) : undefined;
+  const ownAsk = own?.workOn?.text?.trim();
+  if (ownAsk) reminder.ask = askOf(ownAsk);
+  const more = furtherAsks([...(team.workOn ?? []).slice(1), ...(own?.more ?? [])], [oneThing, reminder.ask ?? '']);
+  if (more.length) reminder.more = more;
+  return reminder;
+}
+
+/**
+ * The further asks, in the order given (the team's other work-ons, then the
+ * viewer's own further points), each cut to its ask; a line already on the
+ * card or already in the list is not said twice, and at most `MAX_MORE_LINES`
+ * are kept.
+ */
+function furtherAsks(points: ReviewPoint[], taken: string[]): string[] {
+  const seen = new Set(taken.map(sameLine));
+  const out: string[] = [];
+  for (const point of points) {
+    const text = point.text?.trim();
+    if (!text) continue;
+    const ask = askOf(text);
+    const key = sameLine(ask);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(ask);
+    if (out.length === MAX_MORE_LINES) break;
   }
-  return null;
+  return out;
+}
+
+/** Two lines are the same ask when they differ only by case or a closing stop. */
+function sameLine(s: string): string {
+  return s.trim().toLowerCase().replace(/[.!?]+$/, '');
 }
 
 /** Every film whose reminder is already due at `nowIso`, earliest first; empty when none is. */

@@ -308,6 +308,15 @@
               </span>
               @if (g.kills) { <span class="games-kills" [appTip]="'Kills, ours first'">{{ g.kills.ours }}&ndash;{{ g.kills.theirs }}</span> }
               @if (g.durationSec) { <span class="opp-history-when">{{ clock(g.durationSec) }}</span> }
+              <!-- A review exists (a signal read: the chip goes when the review does); Watched once this person reached the film's card.
+                   The word is its own span so a narrow phone can take it off the screen and keep the mark; it stays in the tree, visually
+                   hidden, so a reader still hears it (10 Sep 2026, second fix pass: an aria-label on a plain span is not announced).
+                   Ringed while the takeover's landing mark stands on this game (10 Sep 2026): the poster it lights is inside the drawer. -->
+              @if (data.reviewFor(g.matchId)) {
+                <span class="games-row-reviewed" [class.is-watched]="watched(g.matchId)" [class.is-ready]="takeover.ready(g.matchId)" [appTip]="watched(g.matchId) ? 'You reached the end of this film' : 'The coach has reviewed this game; the review and the film room are in the row'">
+                  <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span><span class="games-row-reviewed-word">{{ watched(g.matchId) ? 'Watched' : 'Reviewed' }}</span>
+                </span>
+              }
               @if (g.compName) { <span class="games-comp" [appTip]="'Counted under this comp'">{{ g.compName }}</span> }
               <span class="opp-history-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
             </summary>
@@ -425,15 +434,8 @@
                     </label>
                   }
                 </div>
+                <!-- One door to the film (10 Sep 2026): the poster's pill inside the review panel; the "Watched | Film room" line under it went, and the collapsed row's chip says Reviewed or Watched. -->
                 <app-game-review [review]="data.reviewFor(g.matchId)" [game]="analysisOf(g)" [opponent]="g.opponent" [open]="g.id === focus()" />
-                @if (data.reviewFor(g.matchId); as rv) {
-                  <div class="games-film-line">
-                    <span class="material-symbols-rounded" aria-hidden="true">movie</span>
-                    @if (filmLine(rv.matchId); as line) { <span class="games-film-tally">{{ line }}</span> }
-                    <a class="view-btn" [class.is-ready]="takeover.ready(g.matchId)" [routerLink]="['/film', g.matchId]" (click)="takeover.clearReady(g.matchId)"
-                       [appTip]="takeover.ready(g.matchId) ? 'The film is ready' : 'The review as a film: call the game before the reveal, commit to one thing, ask each seat'">Film room</a>
-                  </div>
-                }
                 <app-game-story data-tour="games-story" [game]="analysisOf(g)" [expect]="expectFor(g)" />
                 <app-game-check [game]="analysisOf(g)" />
               }

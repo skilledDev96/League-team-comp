@@ -586,8 +586,14 @@ body {
   padding: 1.25rem 0 2rem;
 }
 
-/* The header's height, for a screen that fills the viewport under it (the film room). */
-:root { --topbar-h: 5rem; }
+/* The header's height, for a screen that fills the viewport under it (the film room). This is the fallback: the film page measures the
+   real thing (its stage's offset in the document) and sets --topbar-h on the stage, because the topbar wraps (flex-wrap below about
+   80rem, and whenever the activity pill shows during a refresh) and the constant was wrong twice. It said 5rem until 10 Sep 2026, then
+   5.85rem off the brand mark (1.25rem page padding + 3.6rem mark + 1rem margin), but the brand text is the tallest child on a wide
+   screen: 1.9rem at 1.45 line-height plus the 0.8rem "Draft Hub" line at 1.45 is 3.9rem, so the header is 1.25 + 3.9 + 1 = 6.2rem at
+   1920, and 5.85rem only once the brand clamps down to 1.6rem around 1280 (10 Sep 2026, second fix pass). The taller figure is the
+   fallback: too tall leaves a sliver under the footer, too short scrolls the page, which is what the fixed stage set out to stop. */
+:root { --topbar-h: 6.2rem; }
 
 .topbar {
   display: flex;
@@ -14342,10 +14348,20 @@ button .player-mark { vertical-align: -0.3rem; }
 .game-review-foot { margin: 0.2rem 0 0; font-size: 0.72rem; }
 
 /* Under a folded drawer on a game row: the headline and the way into the film, without opening anything. */
-.games-film-line { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; padding: 0.45rem 0.75rem; border-radius: 12px; border: 1px dashed color-mix(in srgb, var(--accent-2) 45%, var(--card-border)); background: color-mix(in srgb, var(--accent-2) 5%, transparent); font-size: 0.86rem; }
-.games-film-line > .material-symbols-rounded { font-size: 1.1rem; color: var(--accent-2); }
-.games-film-tally { flex: 1 1 auto; min-width: 0; font-size: 0.8rem; color: var(--text-1); }
-.games-film-line .view-btn { margin-left: auto; padding: 0.25rem 0.75rem; font-size: 0.78rem; }
+/* The collapsed row's chip (10 Sep 2026, in place of the "Watched | Film room" line that was a second door to the film): Reviewed once the
+   coach has, Watched once this person reached the film's card. Muted. On a narrow phone the word leaves the screen and the mark stays (green
+   once watched, the tip carrying the sentence): the whole chip went at first, and a phone row then said nothing about its review. */
+.games-row-reviewed { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.05rem 0.5rem 0.05rem 0.35rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent-2) 35%, var(--card-border)); font-size: 0.72rem; color: var(--text-1); white-space: nowrap; }
+.games-row-reviewed .material-symbols-rounded { font-size: 0.9rem; color: var(--accent-2); }
+.games-row-reviewed.is-watched { border-color: color-mix(in srgb, var(--ok) 40%, var(--card-border)); }
+.games-row-reviewed.is-watched .material-symbols-rounded { color: var(--ok); }
+@media (max-width: 40rem) {
+  .games-row-reviewed { position: relative; padding: 0.05rem 0.35rem; gap: 0; }
+  /* Off the screen, not out of the tree (10 Sep 2026, second fix pass): display none took the word from a screen reader as well, and the
+     aria-label that stood in for it sat on a plain span, which is not announced, so a phone row's review was a coloured mark nobody using
+     VoiceOver or TalkBack heard. This is the .visually-hidden recipe, inline, since the class cannot be scoped to one width. */
+  .games-row-reviewed-word { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+}
 
 /* ---- The login, 9 Sep 2026: Google only, one centred card ---- */
 .login-body { display: grid; justify-content: center; margin-top: 1.2rem; }
@@ -14470,10 +14486,11 @@ button .player-mark { vertical-align: -0.3rem; }
   --film-tempo: 1;
   position: relative;
   margin-inline: calc(50% - 50vw + var(--sbw, 0px) / 2);
-  min-height: calc(100dvh - var(--topbar-h));
+  min-height: calc(100dvh - var(--topbar-h) - var(--film-under, 0rem));
   overflow-x: clip;
   display: grid;
-  grid-template-rows: auto 1fr;
+  /* The deck's row is capped at the free height (minmax(0, 1fr), not 1fr): a bare 1fr would grow with a tall chapter and the frame below would never get to scroll. */
+  grid-template-rows: auto minmax(0, 1fr);
   background: var(--film-shade);
   color: var(--film-ink);
   font-family: "Sora", sans-serif;
@@ -14509,17 +14526,47 @@ body[data-theme="light"] .film-stage { --film-ink: var(--bg-0); --film-ink-1: va
 .film-dot:hover, .film-dot:focus-visible { background: color-mix(in srgb, var(--film-a) 50%, transparent); }
 .film-dot.active { background: var(--film-a); border-color: var(--film-a); transform: scale(1.35); }
 
-/* The deck and its chapters. Wide: one chapter fills the stage. Narrow: a vertical scroll-snap run. */
+/* The deck and its chapters. Wide: the stage is a fixed box, the screen under the topbar, and one chapter fills it;
+   a chapter taller than that scrolls inside its own frame and never the page (10 Sep 2026: the seat's deaths list
+   and the draft's swap cards ran under the fold with the right half of the screen empty, and the footer showed
+   under the film). The height runs down a chain, stage → deck → chapter → the chapter's host → the frame, each
+   100% of the one above, so the frame's overflow has a bound to scroll against. `.is-narrow` is the page's own
+   flag for the same 48rem the phone block reads, so the box and the phone's scroll-snap deck never both apply.
+   Narrow: a vertical scroll-snap run, set in the phone block below. */
+/* What the page puts under the stage on the film route (10 Sep 2026). The stage is sized off the viewport, so the rest of the document
+   has to be known and small: the page's bottom padding goes, and the Riot notice, which must stay visible on every route, loses its
+   margin and keeps half its padding. That leaves 0.5rem + the 1px rule + one line of the note (0.74rem at 1.5, about 1.1rem), about
+   1.7rem; --film-under carries it with a line of slack. Below about 62rem the note wraps to two lines (text-wrap: balance splits it
+   evenly), so the room under the stage grows with it. Set both from the footer's real box when measured. */
+:root { --film-under: 2.4rem; }
+@media (max-width: 62rem) { :root { --film-under: 3.6rem; } }
+.page:has(> app-film) { padding-bottom: 0; }
+.page:has(> app-film) .site-footer { margin-top: 0; padding-top: 0.5rem; }
+/* --film-h is the stage's real height on a wide screen; the tape, the board and the map size their square against it below. */
+.film-stage:not(.is-narrow) { --film-h: calc(100dvh - var(--topbar-h) - var(--film-under, 0rem)); height: var(--film-h); overflow: hidden; }
 .film-deck { position: relative; min-height: 0; }
-.film-chapter { position: relative; display: none; min-height: calc(100dvh - var(--topbar-h) - 3.4rem); }
+.film-stage:not(.is-narrow) .film-deck { height: 100%; }
+.film-chapter { position: relative; display: none; min-height: calc(100dvh - var(--topbar-h) - var(--film-under, 0rem) - 3.4rem); }
 .film-chapter.is-current { display: block; }
+.film-stage:not(.is-narrow) .film-chapter.is-current { height: 100%; min-height: 0; }
 .film-chapter > * { display: block; position: relative; min-height: inherit; }
-.film-frame { position: relative; z-index: 1; display: grid; grid-template-rows: auto auto 1fr; min-height: inherit; padding: 1.4rem 3.5rem 4.5rem 3.5rem; }
-.film-kicker { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 1rem; font-family: "Chakra Petch", sans-serif; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--film-a); }
+.film-stage:not(.is-narrow) .film-chapter > * { height: 100%; min-height: 0; }
+/* The frame component's host is a bare element between the chapter and the article; it has to pass the height on. */
+.film-stage:not(.is-narrow) app-film-frame { display: block; height: 100%; }
+/* Four rows: the kicker, the body, the reveal (which takes the slack, so the pills sit at the bottom of a short chapter), the pills. */
+.film-frame { position: relative; z-index: 1; display: grid; grid-template-rows: auto auto 1fr auto; min-height: inherit; padding: 0.9rem 3.5rem 1rem 3.5rem; }
+.film-stage:not(.is-narrow) .film-frame { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.film-kicker { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 0.8rem; font-family: "Chakra Petch", sans-serif; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--film-a); }
 .film-kicker-n { padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--film-a) 55%, transparent); font-size: 0.66rem; letter-spacing: 0.08em; }
 .film-frame-body { min-width: 0; }
 .film-frame-reveal { min-width: 0; align-self: end; }
-.film-frame-nav { position: absolute; right: 1.25rem; bottom: 1.1rem; z-index: 2; display: flex; gap: 0.5rem; }
+/* The Back and Next pills are the frame's last row and stick to the bottom of the frame while it scrolls, so they are always
+   in reach (10 Sep 2026; they were absolute at the frame's foot, which a scrolling frame would carry away). The strip lets
+   clicks through to what it floats over; the pills' fills are mixed on the shade, not transparent, so they read over text. */
+.film-frame-nav { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: flex-end; gap: 0.5rem; margin: 0.8rem -2.25rem 0 0; padding: 0.5rem 0 0.1rem; pointer-events: none; }
+.film-frame-nav > * { pointer-events: auto; }
+.film-stage .film-frame-nav .view-btn { background: color-mix(in srgb, var(--film-ink) 10%, var(--film-shade)); }
+.film-stage .film-frame-nav .view-btn.active { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 45%, var(--film-shade)), color-mix(in srgb, var(--film-a) 30%, var(--film-shade))); }
 .film-wait { display: flex; align-items: center; gap: 0.5rem; margin: 2rem 0; font-size: 1rem; color: var(--film-ink-1); }
 .film-wait .btn-spinner { flex: none; }
 
@@ -14554,7 +14601,11 @@ body[data-theme="light"] .film-stage { --film-ink: var(--bg-0); --film-ink-1: va
 .film-letterbox { position: absolute; left: 0; right: 0; z-index: 3; height: 2rem; background: var(--film-shade); }
 .film-letterbox.is-top { top: 0; }
 .film-letterbox.is-bottom { bottom: 0; }
-app-film-title .film-frame { padding-top: 3rem; padding-bottom: 5rem; }
+/* The title's frame clears the two letterbox bars (2rem each): the pills' row ends just above the bottom one. */
+app-film-title .film-frame { padding-top: 3rem; padding-bottom: 2.6rem; }
+/* And its sticky pills rest on the bottom bar rather than under it (10 Sep 2026): the bars are siblings of the frame at z-index 3, so a
+   title tall enough to scroll would otherwise carry Next behind the bottom one. */
+app-film-title .film-frame-nav { bottom: 2rem; }
 .film-last { display: inline-grid; gap: 0.1rem; max-width: 34rem; margin: 0 0 1.2rem; padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent); background: color-mix(in srgb, var(--film-shade) 45%, transparent); color: var(--film-ink); text-decoration: none; }
 .film-last:hover, .film-last:focus-visible { border-color: var(--warn); }
 .film-last-label { font-family: "Chakra Petch", sans-serif; font-size: 0.64rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--warn); }
@@ -14689,6 +14740,16 @@ app-film-title .film-frame { padding-top: 3rem; padding-bottom: 5rem; }
 .film-ring { width: 3rem; height: 3rem; transform: rotate(-90deg); }
 .film-ring-track { fill: none; stroke: color-mix(in srgb, var(--film-ink) 14%, transparent); stroke-width: 4; }
 .film-ring-fill { fill: none; stroke: var(--ok); stroke-width: 4; stroke-linecap: round; }
+/* Your seat on a wide screen (10 Sep 2026): the card left, the deaths, the reads and the ring right and top-aligned, so the reads list
+   never runs under the fold; `.film-seat-layout` is the wrapper in the chapter's template. Under 64rem it is a plain block and the
+   chapter stacks as before. */
+.film-seat-layout { min-width: 0; }
+@media (min-width: 64rem) {
+  .film-seat-layout { display: grid; grid-template-columns: minmax(0, 38rem) minmax(0, 1fr); gap: 0 2.5rem; align-items: start; }
+  .film-flip { max-width: none; }
+  .film-seat-under { display: grid; justify-items: start; align-content: start; gap: 0.8rem; max-width: 42rem; margin-top: 0; }
+  .film-seat-reads { width: 100%; }
+}
 
 /* ---- The card ---- */
 .film-card { display: grid; gap: 0.8rem; width: min(100%, 26rem); padding: 1rem 1.1rem 1.1rem; border-radius: 18px; border: 1px solid var(--film-line); background: linear-gradient(160deg, color-mix(in srgb, var(--surface-hero-a) 80%, var(--film-shade)), color-mix(in srgb, var(--surface-hero-b) 70%, var(--film-shade))); box-shadow: 0 18px 40px color-mix(in srgb, var(--film-shade) 45%, transparent); }
@@ -14717,6 +14778,15 @@ app-film-title .film-frame { padding-top: 3rem; padding-bottom: 5rem; }
 .film-card-ask-again { align-items: center; font-size: 0.84rem; cursor: pointer; }
 .film-card-ask-again input { margin-top: 0; }
 .film-card-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+/* The card on a wide screen (10 Sep 2026): two columns inside the card when there is a right one (Call it back and the asks), the
+   reminder row and the pills under both. The columns are `.film-card-col` in the chapter's template; they dissolve (display: contents)
+   under 64rem and on a film with nothing for the right column, so the card stacks as one column then. */
+.film-card-col { display: contents; }
+@media (min-width: 64rem) {
+  .film-card:has(.film-card-col.is-right) { width: min(100%, 60rem); grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.2rem; }
+  .film-card:has(.film-card-col.is-right) .film-card-col { display: grid; gap: 0.8rem; align-content: start; min-width: 0; }
+  .film-card:has(.film-card-col.is-right) :is(.film-card-ask-row, .film-card-actions) { grid-column: 1 / -1; }
+}
 
 /* ---- The poster, on a game row and the Reviews tab ---- */
 .film-poster { --film-ink: var(--text-0); --film-ink-1: var(--text-1); --film-shade: var(--bg-0); --film-a: var(--accent-2); position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: 0.75rem; overflow: hidden; padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid var(--card-border); background: var(--film-shade); color: var(--film-ink); }
@@ -14895,9 +14965,10 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 /* app-film-scrubber (`.film-scrub`): the play pill and the clock, the track, and Lock while the guess is open.
    The track is the film's one horizontal drag: touch-action none, pointer capture, 4.5rem tall so the
    playhead's hit area clears 3rem. Revealed, the curve is two copies of one polyline clipped above and
-   below zero (--ok and --warn) with pathLength 1000, so the dash offset the component binds hides the
-   part of the game past the second shown. With motion off the curve stands whole and a native range
-   under the track does the dragging. */
+   below zero (--ok and --warn), both inside a group clipped to a rect that runs from the start to the
+   second shown, so the curve's end stands under the playhead (10 Sep 2026: a dash offset in permille
+   of the path fell behind the hand wherever the curve wiggled). With motion off the curve stands whole
+   and a native range under the track does the dragging. */
 .film-scrub { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 0.75rem; width: 100%; min-width: 0; color: var(--film-ink, var(--text-0)); }
 .film-scrub-side { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
 .film-scrub-play { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 50%; }
@@ -14916,7 +14987,7 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 .film-scrub-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .film-scrub-zero { stroke: color-mix(in srgb, var(--film-ink, var(--text-0)) 32%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .film-scrub-tickline { stroke: color-mix(in srgb, var(--film-ink, var(--text-0)) 14%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.film-scrub-curve { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; stroke-dasharray: 1000; }
+.film-scrub-curve { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .film-scrub-curve.is-up { stroke: var(--ok); }
 .film-scrub-curve.is-down { stroke: var(--warn); }
 .film-scrub-tick { position: absolute; bottom: 0.12rem; transform: translateX(-50%); font-size: 0.6rem; font-variant-numeric: tabular-nums; color: var(--film-ink-1, var(--text-1)); pointer-events: none; }
@@ -14982,7 +15053,8 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 
 /* ---- The tape ---- */
 .film-tape { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); grid-template-areas: "map sheet" "scrub scrub"; gap: 0.9rem 1.2rem; align-items: start; max-width: 66rem; }
-.film-tape-map { grid-area: map; width: clamp(16rem, calc(100dvh - var(--topbar-h, 3.5rem) - 21rem), 100%); justify-self: end; }
+/* The square against the stage's real height (10 Sep 2026), less the bar, the frame's padding, the kicker, the scrubber and the pills. */
+.film-tape-map { grid-area: map; width: clamp(16rem, calc(var(--film-h, 100dvh) - 22rem), 100%); justify-self: end; }
 /* The sheet and the beats rail share the column beside the map (cut 4, 10 Sep 2026). */
 .film-tape-side { grid-area: sheet; display: grid; align-content: start; gap: 0.6rem; min-width: 0; }
 .film-tape-sheet { display: grid; align-content: start; justify-items: start; gap: 0.55rem; min-height: 11rem; padding: 0.9rem 1rem; border-radius: 14px; border: 1px solid var(--film-line); background: var(--film-panel); }
@@ -15027,7 +15099,7 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 
 /* ---- The board ---- */
 .film-board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 24rem) minmax(10rem, 14rem); gap: 1rem 1.2rem; align-items: start; max-width: 72rem; }
-.film-board-map { position: relative; width: clamp(16rem, calc(100dvh - var(--topbar-h, 3.5rem) - 14rem), 100%); justify-self: end; }
+.film-board-map { position: relative; width: clamp(16rem, calc(var(--film-h, 100dvh) - 14rem), 100%); justify-self: end; }
 .film-board-chips { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 /* A count where it happened: the label over the figures, stacked down the Baron pit for the three that share it. */
 .film-board-chip { position: absolute; display: inline-flex; flex-direction: column; align-items: center; padding: 0.15rem 0.6rem 0.2rem; border-radius: 999px; border: 1px solid var(--film-line); background: color-mix(in srgb, var(--film-shade) 80%, transparent); color: var(--film-ink); line-height: 1.1; white-space: nowrap; transform: translate(-50%, calc(-50% + var(--stack, 0) * 1.9rem)); }
@@ -15065,8 +15137,14 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 
 /* ---- The map ---- */
 .film-map { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 27rem); gap: 1rem 1.2rem; align-items: start; max-width: 70rem; }
-.film-map-stage { position: relative; width: clamp(16rem, calc(100dvh - var(--topbar-h, 3.5rem) - 12rem), 100%); justify-self: end; }
+/* The square against the stage's real height (10 Sep 2026): the bar, the frame's padding, the kicker, the opening line and the pills spend
+   about 14rem of it, so 12rem off the viewport left the map a hair taller than the frame. */
+.film-map-stage { position: relative; width: clamp(16rem, calc(var(--film-h, 100dvh) - 14rem), 100%); justify-self: end; }
 .film-map-side { display: grid; gap: 0.8rem; min-width: 0; }
+/* On a wide screen the card column is as tall as the square map and scrolls inside itself (a 48-death list is allowed to),
+   and the map stays put should the frame ever scroll; the page never does (10 Sep 2026). */
+.film-stage:not(.is-narrow) .film-map-stage { position: sticky; top: 0; }
+.film-stage:not(.is-narrow) .film-map-side { max-height: max(16rem, calc(var(--film-h, 100dvh) - 14rem)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: 0.3rem; align-content: start; }
 /* The opening line (cut 4, 10 Sep 2026): the count large and counting up, the reads after it in words. */
 .film-map-opening { display: flex; align-items: baseline; gap: 0.45rem; margin: 0; font-size: 0.95rem; }
 .film-map-opening .film-num { font-family: "Chakra Petch", sans-serif; font-size: 1.9rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
@@ -15335,6 +15413,15 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 .film-draft-swap-why { margin: 0; font-size: 0.92rem; line-height: 1.45; }
 .film-draft-swap-actions, .film-draft-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 .film-draft-actions { margin-top: 1rem; }
+/* The draft on a wide screen (10 Sep 2026): the two rows of five left, the swap cards right (side by side when two fit in 52rem),
+   the pills under; `.film-draft-layout` is the wrapper in the chapter's template. Under 64rem it is a plain block and the chapter
+   stacks as before. */
+.film-draft-layout { min-width: 0; }
+@media (min-width: 64rem) {
+  .film-draft-layout { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.6rem 2.5rem; align-items: start; }
+  .film-draft-rows { margin: 0.6rem 0 0; }
+  .film-draft-swaps { max-width: 52rem; margin-top: 0.6rem; }
+}
 
 /* The short panel's line: tiles at text size, the arrow, "<in> for <out>, for the peel and engage", an em-space, then the why cut to the line (the tip has all of it). */
 .game-review-draft { display: flex; align-items: center; gap: 0.45rem; margin: 0; padding: 0.35rem 0.7rem; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--text-0) 12%, transparent); border-left: 3px solid var(--ok); background: color-mix(in srgb, var(--ok) 5%, var(--surface-controls)); font-size: 0.86rem; line-height: 1.4; color: var(--text-0); min-width: 0; }
@@ -15546,8 +15633,11 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .rt-headline { font-family: "Chakra Petch", sans-serif; font-size: clamp(1.3rem, 2.6vw, 1.9rem); font-weight: 700; line-height: 1.15; }
 .rt-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 
-/* The row's Film room pill, once a review landed while the takeover was minimised: lit until it is pressed. */
-.games-film-line .view-btn.is-ready { color: var(--accent); border-color: var(--accent); }
+/* The poster's Open the film room pill (the row's one door since 10 Sep 2026), once a review landed while the takeover was minimised: ringed until it is pressed. */
+.film-poster-open.is-ready { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+/* The folded row's Reviewed chip carries the same ring (10 Sep 2026): that pill sits inside the review drawer, which the landing now
+   opens, but a row still folded shut needs the sign on its face too. */
+.games-row-reviewed.is-ready { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 
 /* A toast with one pill on it ("The film is ready" and its Open). */
 .toast-actions { margin-top: 0.35rem; }
@@ -15577,26 +15667,30 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
   .review-takeover.is-on:not(.is-still) .rt-stage.is-landed .rt-ring-wrap { animation: film-pulse 700ms ease-out 2; }
   .review-takeover.is-on:not(.is-still) .rt-chips.is-landed .score-chip { animation: liftIn 380ms ease both; animation-delay: calc(var(--i, 0) * 60ms); }
   .review-takeover.is-on:not(.is-still) :is(.rt-landed-kicker, .rt-pills, .rt-callout) { animation: film-rise 420ms var(--film-ease) both; }
-  .games-film-line .view-btn.is-ready { animation: draft-map-pulse 1.4s ease-in-out 2; }
+  .film-poster-open.is-ready { animation: draft-map-pulse 1.4s ease-in-out 2; }
+  .games-row-reviewed.is-ready { animation: draft-map-pulse 1.4s ease-in-out 2; }
 }
 
 /* ---- Before you play, 10 Sep 2026 ---- */
-/* One card at the top of Games and in the roster's quick actions when a film's reminder is due: the kicker, the film's headline, one question, its options as pills, then the why. */
+/* One card at the top of Games and in the roster's quick actions when a film's reminder is due: the kicker, the film's headline muted,
+   then what to do as one short line each with the film's own glyph (the one thing under a flag, the commitment under a check, your
+   own seat's ask under footsteps, up to two further asks under a smaller flag), and Got it. Since 10 Sep 2026 it reminds and never asks:
+   no options, nothing right or wrong; the lessons' answers left the card the same day, because a why explains an answer and read as a
+   fragment on its own. */
 .before-you-play { display: grid; gap: 0.6rem; padding: 0.85rem 1rem 0.9rem; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface-controls)); }
 .quick-actions > .before-you-play { flex: 1 1 100%; margin: 0.25rem 0 0.35rem; }
 .byp-kicker { display: inline-flex; align-items: center; gap: 0.3rem; margin: 0; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
 .byp-kicker .material-symbols-rounded { font-size: 1.1rem; }
 .byp-film { margin: 0; font-size: 0.82rem; color: var(--text-1); }
-.byp-q { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: clamp(1.05rem, 2.2vw, 1.3rem); font-weight: 700; line-height: 1.25; color: var(--text-0); }
-.byp-options { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.byp-option { min-height: 2.75rem; padding: 0.5rem 1.1rem; font-size: 0.95rem; text-align: left; white-space: normal; }
-.byp-option:disabled { cursor: default; opacity: 0.55; }
-.byp-option.is-right { opacity: 1; color: var(--text-0); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 24%, var(--surface-btn)); }
-.byp-option.is-wrong { opacity: 1; color: var(--text-0); border-color: var(--warn); background: color-mix(in srgb, var(--warn) 24%, var(--surface-btn)); }
-.byp-why { margin: 0; font-size: 0.9rem; line-height: 1.45; color: var(--text-0); }
-.byp-why > b { margin-right: 0.25rem; }
-.byp-why.is-ok > b { color: var(--ok); }
-.byp-why.is-warn > b { color: var(--warn); }
+.byp-lines { display: grid; gap: 0.45rem; margin: 0; padding: 0; }
+.byp-line { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 0.55rem; margin: 0; font-size: 0.95rem; line-height: 1.4; color: var(--text-0); }
+.byp-line .film-glyph { margin-top: 0.15rem; color: var(--accent); }
+/* The one thing leads, set like the film's point. */
+.byp-line.is-one { font-family: "Chakra Petch", sans-serif; font-size: clamp(1.05rem, 2.2vw, 1.3rem); font-weight: 700; line-height: 1.25; }
+.byp-line.is-one .film-glyph { margin-top: 0.1rem; color: var(--warn); }
+.byp-line.is-commit .film-glyph { color: var(--ok); }
+.byp-line.is-more { font-size: 0.88rem; color: var(--text-1); }
+.byp-line.is-more .film-glyph { color: var(--text-1); }
 .byp-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 
 /* The card's Try it now beside the reminder toggle. */
@@ -15622,6 +15716,5 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 
 @media (max-width: 48rem) {
   .before-you-play { padding: 0.75rem 0.8rem 0.8rem; }
-  .byp-options { display: grid; grid-template-columns: minmax(0, 1fr); }
-  .byp-option { justify-content: flex-start; }
+  .byp-actions .view-btn { min-height: 2.75rem; }
 }

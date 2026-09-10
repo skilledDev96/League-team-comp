@@ -277,14 +277,19 @@ filter rather than none, so it can never become unpickable.
    for a player who took Teleport, control wards, solo kills, time dead).
    Both ship on the analysis as `AnalysisPlayer.lane` and `.facts`; the raw
    extras stay in `matchCache`, because `meta/compAnalysis` is one document
-   with a 1 MiB cap (`payloadBytes` is reported, and past 850 KB the oldest
-   games lose their lane reads first). The Patterns tab
+   with a 1 MiB cap (`payloadBytes` is reported, and past 850 KB the games
+   older than the newest 120 lose their enemies' figures first, then their
+   lane reads and facts only if the document is still over; when even that
+   leaves it over, every game is stripped the same way and `payloadTrimmed`
+   counts the games touched — `api/src/analysis-payload.ts`). The Patterns tab
    (`frontend/src/app/pages/review/win-loss-splits.ts`, pure) turns this
    into **Work on / Keep doing** sentences from the biggest wins-versus-losses
    gaps that clear `MIN_FOR_A_CLAIM` on both sides, a lane table, and the
    team and each player split by result. Replays have totals only, so a
    scrim's lanes stay `unknown` and the table counts it as skipped. A bump
    to v5 refills forty entries a run; the tab says how many are waiting.
+   Since 10 Sep 2026 `AnalysisGame.enemies[].stats` carries the other side's
+   figures (`enemyStats`), so the post-game graphs draw both sides.
 6. **Patterns reads Riot games and replays apart, serious games only by
    default, and opens on an overview.** `sourceOf` (queue `Scrim` → replay)
    drives a source switch; `MetricSplit.needs` marks the per-minute and
@@ -398,8 +403,11 @@ filter rather than none, so it can never become unpickable.
    The landing guard is `Date.parse(reviewedAt) > t0`, or the very document
    the function answered with; Minimise parks the watch (a second game
    opened meanwhile keeps the first parked) and the landing is a toast
-   plus the row's Film room pill pulsing twice; `?fresh=1` opens the film on
-   the tape. Chapters: the tape (`chapters/film-tape`, the Rift over the
+   plus the poster's Open the film room pill pulsing twice (since 10 Sep
+   2026 that pill, inside the review panel, is the row's one door to the
+   film: the "Watched | Film room" line under the panel went, and the
+   collapsed row carries a Reviewed chip, Watched once this person reached
+   the card); `?fresh=1` opens the film on the tape. Chapters: the tape (`chapters/film-tape`, the Rift over the
    scrubber `shared/film/film-scrubber.component.ts`, the one horizontal
    drag; since cut 4 the curve stands as soon as the chapter has a clock
    and draws itself to the turn once when the chapter comes up, the hand
@@ -423,11 +431,19 @@ filter rather than none, so it can never become unpickable.
    (Call it back on the card, keys `lesson:<i>`; the validator cuts our own
    Riot tags and drops a lesson naming anyone else) and the Before you play
    card (`shared/before-you-play.component.ts`, on Games and compact in the
-   roster's quick actions; it walks every due film earliest first and
-   switches off one with nothing to ask). Reaching the card arms the first
-   reminder only when `reminderFor` has something; `advance` counts from the
-   later of `done` and now, so a late answer never lands on a past date. A
-   moment's seats light the map's tokens within 120 s of its minute only.
+   roster's quick actions; since 10 Sep 2026 a reminder, never a question:
+   `reminderFor` returns a `FilmReminder`, the one thing (the review's, else
+   the first work-on as an ask), what the team committed to, the viewer's
+   own seat's ask and up to two further asks (the other work-ons, then the
+   viewer's own further points, each through `askOf`; until 10 Sep 2026 these
+   were the lessons' whys, which explain an answer and read as fragments),
+   each one line with a glyph,
+   and Got it climbs the ladder; it walks every due film earliest first and
+   switches off one with nothing to remind of). Reaching the card arms the
+   first reminder only when `reminderFor` has something; `advance` counts
+   from the later of `done` and now, so a late Got it never lands on a past
+   date. A moment's seats light the map's tokens within 120 s of its minute
+   only.
    **Cut 4 (10 Sep 2026): the film tells instead of asking.** The reads
    (`core/death-reads.ts`): every death of ours is read as one of four
    kinds, checked in this order — `bought` when an objective of ours fell
@@ -463,8 +479,24 @@ filter rather than none, so it can never become unpickable.
    so it is a Data Dragon spelling while `out` is Riot's id), read by
    `buildDraft` into the chapter 'The draft, again'
    (`chapters/film-draft.component.ts`, right after The one thing): the
-   seats turn from the champion played to the one to try, and Save with
-   <champion> writes a comp variant with `countsUnder` the comp we played.
+   seats turn from the champion played to the one to try, and every pill
+   leads to a comp (10 Sep 2026): Save with <champion> writes a comp
+   variant with `countsUnder` the comp we played and the pill then reads
+   Open <name> and opens it (`/comps?comp=<id>`: the Comps page unfolds
+   that card, scrolls to it and drops the param;
+   `pages/comps/open-comp.util.ts` decides which, and waits for the list);
+   a swap whose variant is already saved (five picks equal, compared
+   through `championName` with a pick's " - note" dropped) offers Open
+   <name> to everyone; the bottom pill is Open <comp> when the review
+   names the comp we played or a saved comp carries the five picks as
+   played (the review says `compId: null` until the next analysis run, and
+   the chapter is rebuilt on every visit, so the picks lookup is what keeps
+   a second visit from offering Save again), Save as a comp and open for an
+   editor when neither holds (the comp as played, no `countsUnder`; a
+   variant saved after counts under it), nothing while the review names a
+   comp the list has not delivered, and Open Comps for a viewer. The film
+   page measures the header (`--topbar-h` on the stage; the stylesheet's
+   6.2rem is the fallback) because the topbar wraps.
    The old progress keys `map:*` and `tape:*` are ignored: `tallyLine`
    only counts that calls exist, so an old film still reads "Continue".
    **Post-game graphs** (`shared/game-graphs.component.ts`) sit behind a
@@ -505,7 +537,9 @@ the e2e console sweep runs on every page). The overlay
 (`shared/tour-overlay.component.ts`) is fixed at the app root, never inside a
 `.card` (cards carry a transform), and lets clicks through everywhere but the
 card; the last button is "Got it" and the escape is "Skip tour", the two names
-`e2e/tests/auth.setup.ts` and the `authenticated.spec.ts` beforeEach click.
+`e2e/tests/auth.setup.ts` and the `authenticated.spec.ts` beforeEach click,
+scoped to `.tour-card` since 10 Sep 2026 because the Before you play reminder
+and the Games banner carry a "Got it" of their own.
 Never name a tour button with "edit mode": a viewer test asserts none exists.
 Nothing a tour adds to the draft room may change its height. Seen state is
 `userPrefs/{email}.toursSeen` (`services/user-prefs.service.ts`, localStorage

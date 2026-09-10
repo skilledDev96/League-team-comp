@@ -1,10 +1,12 @@
 import { Component, computed, inject, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { buildFilm } from '../../core/film-build';
 import { tallyLine } from '../../core/film-progress';
 import { AnalysisGame, GameReview } from '../../models/team.models';
+import { ReviewTakeoverService } from '../../services/review-takeover.service';
 import { UiService } from '../../services/ui.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
+import { TooltipDirective } from '../tooltip.directive';
 
 /** Where a person left a film, per browser: the page writes the chapter index here and the poster reads it. */
 export const FILM_CHAPTER_KEY = 'bom-film-chapter:';
@@ -16,10 +18,13 @@ export const FILM_CHAPTER_KEY = 'bom-film-chapter:';
  * "Continue · 3 of 4" or "Watched" from this person's progress; on a game
  * row the drawer bar already shows the headline, so the strip carries only
  * that progress line and the pill. Self-contained, so both can drop it in.
+ * Since 10 Sep 2026 the pill is the row's one door to the film: it lights up
+ * (`is-ready`) when a review landed while the takeover was minimised, and
+ * pressing it clears the mark.
  */
 @Component({
   selector: 'app-film-poster',
-  imports: [RouterLink],
+  imports: [TooltipDirective],
   template: `
     @let r = review();
     <div class="film-poster" [class]="'stock-' + stock()" [class.is-row]="size() === 'row'" [class.is-card]="size() === 'card'" [class.is-win]="win()" [class.is-loss]="!win()">
@@ -37,10 +42,13 @@ export const FILM_CHAPTER_KEY = 'bom-film-chapter:';
           <span class="film-poster-kicker">{{ line() }}</span>
         }
       </div>
-      <a class="view-btn active film-poster-open" [routerLink]="['/film', r.matchId]">
+      <!-- The one door to the film (10 Sep 2026): a review that landed while the takeover was minimised lights this pill until it is pressed.
+           A button, as every action is (10 Sep 2026, second fix pass: it was a routerLink styled as a pill). -->
+      <button type="button" class="view-btn active film-poster-open" [class.is-ready]="takeover.ready(r.matchId)" (click)="openFilm(r.matchId)"
+              [appTip]="takeover.ready(r.matchId) ? 'The film is ready' : 'The review as a film: the tape, the map, the one thing, the draft again, your seat, the card'">
         <span class="material-symbols-rounded" aria-hidden="true">movie</span>
         {{ (size() === 'card' && line()) || 'Open the film room' }}
-      </a>
+      </button>
     </div>
   `
 })
@@ -53,6 +61,9 @@ export class FilmPosterComponent {
 
   protected readonly ui = inject(UiService);
   private readonly prefs = inject(UserPrefsService);
+  private readonly router = inject(Router);
+  /** The takeover's "ready" mark: the review landed while its stage was minimised, and this pill is where it is announced now that the row has one door (10 Sep 2026). */
+  protected readonly takeover = inject(ReviewTakeoverService);
 
   /** The title card's model, without a timeline or a previous film: the protagonist and the headline need neither. */
   private readonly model = computed(() => buildFilm(this.review(), this.game(), null, null, this.opponent()));
@@ -74,4 +85,10 @@ export class FilmPosterComponent {
     }
     return tallyLine(progress, m.chapters.length, at);
   });
+
+  /** Into the film room, clearing the takeover's landing mark on the way: this pill is where it was announced. */
+  protected openFilm(matchId: string): void {
+    this.takeover.clearReady(matchId);
+    void this.router.navigate(['/film', matchId]);
+  }
 }

@@ -133,6 +133,15 @@ export class FilmComponent {
   protected readonly current = computed(() => this.model()?.chapters[this.chapter()]);
 
   private readonly deck = viewChild<ElementRef<HTMLElement>>('deck');
+  private readonly stage = viewChild<ElementRef<HTMLElement>>('stage');
+  /**
+   * The header's real height, measured, as `--topbar-h` on the stage (10 Sep 2026, second fix pass). The stylesheet's
+   * value is a constant, but the topbar wraps: below about 80rem, or whenever the activity pill shows during a refresh,
+   * the user bar drops to a second line and the header grows by a couple of rem, the fixed stage overran the viewport
+   * by as much, and a wheel over a short chapter scrolled the page again. Null until measured, so the stylesheet's
+   * fallback stands meanwhile and wherever layout cannot be read.
+   */
+  protected readonly topbarH = signal<string | null>(null);
   private wanted: string | null = null;
   private placed = false;
   /** The card's write happens once a visit, and only on walking onto it from the chapter before. */
@@ -229,6 +238,31 @@ export class FilmComponent {
       });
       onCleanup(() => io.disconnect());
     });
+
+    // The header is measured, not assumed: everything above the stage is the header, so the stage's own offset in the
+    // document is `--topbar-h`. Re-measured when the topbar's box changes (the activity pill coming and going mid-film,
+    // a font landing) and on a resize, which is when it wraps or unwraps.
+    afterRenderEffect((onCleanup) => {
+      const el = this.stage()?.nativeElement;
+      if (!el || typeof window === 'undefined') return;
+      const measure = () => untracked(() => this.measureTopbar(el));
+      measure();
+      const topbar = document.querySelector('.topbar');
+      const ro = topbar && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+      if (topbar && ro) ro.observe(topbar);
+      window.addEventListener('resize', measure);
+      onCleanup(() => {
+        ro?.disconnect();
+        window.removeEventListener('resize', measure);
+      });
+    });
+  }
+
+  /** The stage's top edge in document space, in rem so it scales with the root size like every other length; nothing when layout has no answer (jsdom). */
+  private measureTopbar(stage: HTMLElement): void {
+    const top = stage.getBoundingClientRect().top + window.scrollY;
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    this.topbarH.set(top > 0 ? `${Math.round((top / rem) * 1000) / 1000}rem` : null);
   }
 
   /** What the url asks for on arrival: ?c is the chapter (?fresh=1 is the takeover's link, straight off a landing: the tape, where the guess it took reveals), ?t the tape's second. */
@@ -365,8 +399,9 @@ export class FilmComponent {
 
   /**
    * Reaching the card is finishing the film: the time, the calls, and the
-   * first reminder if none was ever set and the film has something to ask
-   * (a lesson, or a two-way commitment the team picked on); a reminder with
+   * first reminder if none was ever set and the review has something to
+   * remind of (since 10 Sep 2026 `reminderFor` reads a one thing, a work-on
+   * or a commitment somebody picked on, never a lesson); a reminder with
    * nothing behind it would only stand in front of the next film's. Once a visit.
    */
   private reachCard(): void {

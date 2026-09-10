@@ -362,8 +362,28 @@ export interface AnalysisGame {
    * The enemy five with their roles, sorted, for a lane-by-lane comparison.
    * Absent until the analysis is re-run; `enemyChampions` is the flat list the
    * ban suggestions and the tournament planner still read.
+   *
+   * `stats` is each seat's figures, from the cache, after a Refresh on or after
+   * 10 Sep 2026; absent before, and on the oldest games once the analysis
+   * document nears its cap. The same shape as ours minus the per-player
+   * extras, so the graphs can pair the two sides seat by seat; a missing
+   * figure is a dash on the page, never a zero.
    */
-  enemies?: { position: string; champion: string }[];
+  enemies?: {
+    position: string;
+    champion: string;
+    stats?: {
+      kills: number;
+      deaths: number;
+      assists: number;
+      cs: number;
+      damage: number;
+      damageTaken?: number;
+      visionScore?: number;
+      /** Share of their team's kills this seat was in on, 0-1. */
+      killParticipation?: number;
+    };
+  }[];
   /**
    * Set when a person placed this game rather than the champion matcher —
    * `manual` for an override on this match, `alias` for a comp's `countsUnder`.
@@ -405,6 +425,8 @@ export interface CompAnalysis {
   generatedAt: string;
   /** Size of the document as JSON; one Firestore document, 1 MiB cap. */
   payloadBytes?: number;
+  /** How many games the trim stripped to fit under the cap; absent when it touched none (10 Sep 2026). */
+  payloadTrimmed?: number;
 }
 
 export type PlayPhase = 'Early' | 'Mid' | 'Late';

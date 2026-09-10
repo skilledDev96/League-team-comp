@@ -3,7 +3,7 @@ import { FilmMoment } from '../../core/film-model';
 import { MotionService } from '../../services/motion.service';
 import { TooltipDirective } from '../tooltip.directive';
 
-/** The curve's own length unit: the polyline carries pathLength=1000 so its dash offset is a permille of the game. */
+/** The curve's own x space: the svg is 1000 wide, so a second's x is a permille of the game's length. */
 const CURVE_LEN = 1000;
 /** The minute ticks under the track, the ones the game reaches. */
 const TICK_MINUTES = [5, 10, 15, 20, 25, 30, 35];
@@ -43,8 +43,8 @@ export function clockText(sec: number): string {
  * The film's one horizontal drag (9 Sep 2026): a track that is a bare minute
  * line while the reader still has to say where the game turned, and the
  * gold curve once that is revealed. Revealed, the curve is drawn only as far
- * as the second shown (the dash offset follows `t`, so scrub and play are
- * one path), moments sit on it as pins coloured by their swing, and the
+ * as the second shown (a clip rect runs to x(t), so scrub and play are one
+ * path and the end sits under the hand), moments sit on it as pins coloured by their swing, and the
  * reader's guess and the answer are labelled markers with a dashed rule
  * between them (cut 4, 10 Sep 2026: the call marks went with the tape's
  * calls; the beats have their own rail under the sheet). Not revealed, a
@@ -94,14 +94,18 @@ export function clockText(sec: number): string {
           <defs>
             <clipPath [attr.id]="'film-scrub-up-' + id"><rect x="0" y="0" width="1000" height="50" /></clipPath>
             <clipPath [attr.id]="'film-scrub-down-' + id"><rect x="0" y="50" width="1000" height="50" /></clipPath>
+            <!-- The reveal, by time: the curve shows from the start to x(t), so its end stands under the playhead however much it wiggles (10 Sep 2026). -->
+            <clipPath [attr.id]="'film-scrub-shown-' + id"><rect class="film-scrub-shown" x="0" y="0" [attr.width]="shownWidth()" height="100" /></clipPath>
           </defs>
           <line class="film-scrub-zero" x1="0" y1="50" x2="1000" y2="50" />
           @for (m of ticks(); track m) {
             <line class="film-scrub-tickline" [attr.x1]="x(m * 60)" y1="0" [attr.x2]="x(m * 60)" y2="100" />
           }
           @if (revealed() && curve(); as c) {
-            <polyline class="film-scrub-curve is-up" [attr.points]="c" pathLength="1000" [attr.clip-path]="'url(#film-scrub-up-' + id + ')'" [style.stroke-dashoffset]="dashOffset()" />
-            <polyline class="film-scrub-curve is-down" [attr.points]="c" pathLength="1000" [attr.clip-path]="'url(#film-scrub-down-' + id + ')'" [style.stroke-dashoffset]="dashOffset()" />
+            <g [attr.clip-path]="'url(#film-scrub-shown-' + id + ')'">
+              <polyline class="film-scrub-curve is-up" [attr.points]="c" [attr.clip-path]="'url(#film-scrub-up-' + id + ')'" />
+              <polyline class="film-scrub-curve is-down" [attr.points]="c" [attr.clip-path]="'url(#film-scrub-down-' + id + ')'" />
+            </g>
           }
         </svg>
 
@@ -211,12 +215,17 @@ export class FilmScrubberComponent {
     return g.map((v, m) => `${this.x(m * 60).toFixed(1)},${(50 - (v / max) * 46).toFixed(1)}`).join(' ');
   });
 
-  /** How much of the curve is hidden past the second shown; none with motion off, so the curve stands whole. */
-  protected readonly dashOffset = computed(() => {
-    if (this.motion.reduced()) return 0;
-    const d = this.durationSec();
-    if (d <= 0) return CURVE_LEN;
-    return Math.round(Math.min(CURVE_LEN, Math.max(0, CURVE_LEN - (CURVE_LEN * this.t()) / d)));
+  /**
+   * How far along the curve's own x axis the reveal reaches: x(t), so the
+   * visible end is under the playhead. The dash offset it replaces (10 Sep
+   * 2026) ran in permille of the path's length, and a stretch of curve that
+   * wiggles is longer per minute than a flat one, so the end fell behind the
+   * hand (at 30 min it stood near 23). With motion off the whole curve stands.
+   */
+  protected readonly shownWidth = computed(() => {
+    if (this.motion.reduced()) return CURVE_LEN;
+    if (this.durationSec() <= 0) return 0;
+    return Math.round(this.x(this.t()));
   });
 
   protected readonly close = computed(() => {

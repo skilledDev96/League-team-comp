@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { FilmCommitment, FilmPrefs, GameReview } from '../models/team.models';
-import { lessonCalls } from './film-build';
 import { advance, dueReminder, dueReminders, nextAskAt, reminderFor, tallyLine } from './film-progress';
 
 const done = '2026-09-09T20:00:00.000Z';
@@ -37,32 +36,86 @@ describe('advance', () => {
 describe('reminderFor', () => {
   const lessons = [
     { question: 'How many early deaths had no ward nearby?', options: ['One', 'Two', 'Three'], answer: 2, why: 'Three, minutes 4 to 9.' },
-    { question: 'Whose dragon at 20?', options: ['Ours', 'Theirs', 'Nobody'], answer: 1, why: 'Their infernal, uncontested.' }
+    { question: 'Whose dragon at 20?', options: ['Ours', 'Theirs', 'Nobody'], answer: 1, why: 'Their infernal, uncontested.' },
+    { question: 'Who took first blood?', options: ['Us', 'Them', 'Nobody'], answer: 1, why: 'Theirs, bot at 4.' }
   ];
-  const base = { matchId: 'EUW1_1', team: { workOn: [], keepDoing: [] } } as unknown as GameReview;
-  const withLessons = { ...base, team: { ...base.team, lessons } } as unknown as GameReview;
+  const players = [
+    {
+      name: 'Rhu',
+      seat: 'ADC',
+      champion: 'Jinx',
+      strength: { text: '' },
+      workOn: { text: 'Died early, so hold the wave under tower.' },
+      more: [{ text: 'Flashed forward into three at 14; keep Flash for the way out.', evidence: '', minute: 14, theme: 'fights' }]
+    },
+    { name: 'Go10x', seat: 'Jungle', champion: 'MonkeyKing', strength: { text: '' }, workOn: { text: '' } }
+  ];
+  const empty = { matchId: 'EUW1_1', team: { workOn: [], keepDoing: [] }, players: [] } as unknown as GameReview;
+  const firstWorkOn = { text: 'Jinx died three times before ten; either play safer trades or ask for jungle pressure earlier.', evidence: '', minute: 9 };
+  const secondWorkOn = { text: 'Nobody warded the river before the 20-minute dragon; either a control ward at 18 or the jungler paths there.', evidence: '', minute: 18 };
+  /** A version 3 review: a work-on and nothing else the reminder reads. */
+  const v3 = { ...empty, team: { ...empty.team, workOn: [firstWorkOn] } } as unknown as GameReview;
+  /** A version 5 review: the headline, the one thing, two work-ons, the lessons, a note per player. */
+  const v5 = { ...v3, players, team: { ...v3.team, workOn: [firstWorkOn, secondWorkOn], headline: 'Bled 35 kills while farming even', oneThing: 'Play safer trades or ask for jungle pressure earlier.', lessons } } as unknown as GameReview;
   const commitment: FilmCommitment = { matchId: 'EUW1_1', text: 'Either ward the river or ask for a gank.', options: ['Ward the river', 'Ask for a gank'], by: { a: 'b', b: 'b', c: 'a' } };
 
-  it('asks the lessons in turn, built the way the film builds them', () => {
-    const calls = lessonCalls(lessons, 42);
-    expect(reminderFor(withLessons, { done, asked: 0 }, commitment, 42)).toEqual(calls[0]);
-    expect(reminderFor(withLessons, { done, asked: 1 }, commitment, 42)).toEqual(calls[1]);
-    expect(reminderFor(withLessons, { done, asked: 2 }, commitment, 42)).toEqual(calls[0]);
-    expect(reminderFor(withLessons, { done }, undefined, 42)).toEqual(calls[0]);
+  it('reminds of the one thing, the commitment, your own ask and two further asks, and asks nothing', () => {
+    const r = reminderFor(v5, { done, asked: 0 }, commitment, 42, 'ADC');
+    expect(r).toEqual({
+      headline: 'Bled 35 kills while farming even',
+      oneThing: 'Play safer trades or ask for jungle pressure earlier.',
+      commitment: 'Ask for a gank',
+      ask: 'Hold the wave under tower.',
+      more: ['Either a control ward at 18 or the jungler paths there.', 'Keep Flash for the way out.']
+    });
+    // The words of a question never reach the card, and nor do the lessons' answers (10 Sep 2026: a why explains an answer, so it read as a fragment).
+    expect(JSON.stringify(r)).not.toMatch(/question|options|answer|minutes 4 to 9|infernal/);
+    // It no longer turns with how often it has asked: the same reminder every time the ladder brings it back.
+    expect(reminderFor(v5, { done, asked: 2 }, commitment, 42, 'ADC')).toEqual(r);
   });
 
-  it('falls back to the commitment as a two-way call with the team\'s pick as the answer', () => {
-    const call = reminderFor(base, { done, asked: 0 }, commitment, 42)!;
-    expect(call).toEqual({ key: 'commit', question: 'Last game we committed to one of these. Which was it?', options: ['Ward the river', 'Ask for a gank'], answer: 1, why: 'Either ward the river or ask for a gank.' });
-    expect(reminderFor(base, { done }, { ...commitment, by: { a: 'a', b: 'b' } }, 42)!.answer).toBe(0);
+  it('keeps the further asks to two, the team\'s before the viewer\'s own, never a line already on the card, and none when there is only one work-on', () => {
+    // Without a seat the viewer's own further points are unknown, so only the team's second work-on is left.
+    expect(reminderFor(v5, { done }, undefined, 42)!.more).toEqual(['Either a control ward at 18 or the jungler paths there.']);
+    // A third work-on fills the second slot before the viewer's own point does.
+    const third = { text: 'The mid laner roamed with no ward on the wave; ping before leaving lane.', evidence: '', minute: 12 };
+    const three = { ...v5, team: { ...v5.team, workOn: [firstWorkOn, secondWorkOn, third] } } as unknown as GameReview;
+    expect(reminderFor(three, { done }, undefined, 42, 'ADC')!.more).toEqual(['Either a control ward at 18 or the jungler paths there.', 'Ping before leaving lane.']);
+    // A work-on whose ask is the one thing, or the viewer's own ask, is not said twice; a closing stop or a capital does not make it new.
+    const echo = { text: 'Jinx kept dying; play safer trades or ask for jungle pressure earlier', evidence: '', minute: 9 };
+    const echoOwn = { text: 'Rhu died early; hold the wave under tower.', evidence: '', minute: 5 };
+    const echoed = { ...v5, team: { ...v5.team, workOn: [firstWorkOn, echo, echoOwn, secondWorkOn] } } as unknown as GameReview;
+    expect(reminderFor(echoed, { done }, undefined, 42, 'ADC')!.more).toEqual(['Either a control ward at 18 or the jungler paths there.', 'Keep Flash for the way out.']);
+    // Only the lessons and one work-on: nothing further, and the field is absent rather than empty.
+    const one = { ...v5, team: { ...v5.team, workOn: [firstWorkOn] } } as unknown as GameReview;
+    const r = reminderFor(one, { done }, undefined, 42)!;
+    expect(r.more).toBeUndefined();
+    expect('more' in r).toBe(false);
   });
 
-  it('asks nothing without lessons and without a two-way commitment the team picked on', () => {
-    expect(reminderFor(base, { done }, undefined, 42)).toBeNull();
-    expect(reminderFor(base, { done }, { ...commitment, options: undefined }, 42)).toBeNull();
-    expect(reminderFor(base, { done }, { ...commitment, by: {} }, 42)).toBeNull();
-    expect(reminderFor(base, { done }, { ...commitment, by: { a: 'commit' } }, 42)).toBeNull();
-    expect(reminderFor({ ...withLessons, team: { ...withLessons.team, lessons: [] } } as GameReview, { done }, undefined, 42)).toBeNull();
+  it('reads the commitment as the team\'s pick, ties to A, the sentence whole when the team took it whole, and nothing until somebody picked', () => {
+    expect(reminderFor(v5, { done }, { ...commitment, by: { a: 'a', b: 'b' } }, 42)!.commitment).toBe('Ward the river');
+    expect(reminderFor(v5, { done }, { ...commitment, by: { a: 'commit' } }, 42)!.commitment).toBe('Either ward the river or ask for a gank.');
+    expect(reminderFor(v5, { done }, { ...commitment, options: undefined, by: { a: 'commit' } }, 42)!.commitment).toBe('Either ward the river or ask for a gank.');
+    expect(reminderFor(v5, { done }, { ...commitment, by: {} }, 42)!.commitment).toBeUndefined();
+    expect(reminderFor(v5, { done }, undefined, 42)!.commitment).toBeUndefined();
+  });
+
+  it('leaves out the ask without a seat, or for a seat the review has no note for', () => {
+    expect(reminderFor(v5, { done }, undefined, 42)!.ask).toBeUndefined();
+    expect(reminderFor(v5, { done }, undefined, 42, 'Jungle')!.ask).toBeUndefined();
+    expect(reminderFor(v5, { done }, undefined, 42, 'Top')!.ask).toBeUndefined();
+  });
+
+  it('falls back to the first work-on as an ask for a version 3 review, with nothing else on the card', () => {
+    expect(reminderFor(v3, { done }, undefined, 42, 'ADC')).toEqual({ headline: '', oneThing: 'Either play safer trades or ask for jungle pressure earlier.' });
+  });
+
+  it('is nothing without a one thing, a work-on or a commitment somebody picked on', () => {
+    expect(reminderFor(empty, { done }, undefined, 42)).toBeNull();
+    expect(reminderFor(empty, { done }, { ...commitment, by: {} }, 42)).toBeNull();
+    // A commitment alone is a reminder; the one thing is then blank and the card shows the commitment line.
+    expect(reminderFor(empty, { done }, commitment, 42)).toEqual({ headline: '', oneThing: '', commitment: 'Ask for a gank' });
   });
 });
 

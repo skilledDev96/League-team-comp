@@ -1,5 +1,5 @@
-<section class="film-stage" [class]="stageClasses()" [class.is-narrow]="narrow()" [class.is-still]="motion.reduced()"
-         [style.--film-tempo]="tempo()" [style.--film-ease]="ease()" aria-label="The film room">
+<section class="film-stage" #stage [class]="stageClasses()" [class.is-narrow]="narrow()" [class.is-still]="motion.reduced()"
+         [style.--film-tempo]="tempo()" [style.--film-ease]="ease()" [style.--topbar-h]="topbarH()" aria-label="The film room">
   <header class="film-bar">
     <a class="view-btn film-bar-back" [routerLink]="['/games']" [queryParams]="{ match: matchId(), tab: 'games' }">
       <span class="material-symbols-rounded" aria-hidden="true">arrow_back</span> Back

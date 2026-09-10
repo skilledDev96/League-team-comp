@@ -4,8 +4,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { effectiveComp } from '../../core/comp-alias';
-import { FILM_CHAPTER_COUNT } from '../../core/film-build';
-import { tallyLine } from '../../core/film-progress';
 import { AuthService } from '../../services/auth.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { ChampionFilterService } from '../../services/champion-filter.service';
@@ -395,9 +393,9 @@ export class GamesComponent {
     return row.matchId ? this.analysisById().get(row.matchId) : undefined;
   }
 
-  /** "Continue · 3 of 4" or "Watched" under a reviewed row, from this person's film progress; blank before they open it. */
-  protected filmLine(matchId: string): string {
-    return tallyLine(this.prefs.filmProgress(matchId), FILM_CHAPTER_COUNT);
+  /** True once this person reached the film's card for the game: the collapsed row's chip reads Watched instead of Reviewed (10 Sep 2026). */
+  protected watched(matchId: string | undefined): boolean {
+    return !!matchId && !!this.prefs.filmProgress(matchId)?.done;
   }
 
   protected setGameComp(matchId: string, compId: string): void {

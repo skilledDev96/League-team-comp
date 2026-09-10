@@ -5,6 +5,7 @@ import { AnalysisGame, FilmChoice, GameReview, ReviewPoint, ReviewSwap, ReviewTh
 import { askOf, gainsPhrase, reviewAsText, scoreline } from '../core/review-view';
 import { initialsOf } from '../core/initials';
 import { MatchTimelineService } from '../services/match-timeline.service';
+import { ReviewTakeoverService } from '../services/review-takeover.service';
 import { TeamDataService } from '../services/team-data.service';
 import { ToastService } from '../services/toast.service';
 import { UiService } from '../services/ui.service';
@@ -32,7 +33,7 @@ import { TooltipDirective } from './tooltip.directive';
   imports: [DatePipe, TooltipDirective, InfoTipComponent, PlayerMarkComponent, FilmPosterComponent],
   template: `
     @if (review(); as r) {
-      <details class="intel-collapse game-review" [open]="open() || fresh()" aria-label="Game review">
+      <details class="intel-collapse game-review" [open]="open() || fresh() || takeover.ready(r.matchId)" aria-label="Game review">
         <summary class="game-review-toggle">
           <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>
           <strong>Review</strong>
@@ -152,6 +153,8 @@ export class GameReviewComponent {
   private readonly router = inject(Router);
   private readonly location = inject(Location);
   protected readonly ui = inject(UiService);
+  /** The takeover's landing mark (10 Sep 2026): the poster it rings lives in this drawer, so a review that landed while the takeover was minimised opens the drawer rather than lighting a pill behind a closed one. */
+  protected readonly takeover = inject(ReviewTakeoverService);
 
   /** The timeline the drawer reads too; only its ledger summary is used here, for the chat copy. */
   private readonly timeline = computed(() => {

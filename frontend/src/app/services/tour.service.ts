@@ -41,7 +41,7 @@ export class TourService {
   private editModeBefore: boolean | null = null;
   private missing = new Set<number>();
   private observer: ResizeObserver | null = null;
-  private frame = 0;
+  private frame: ReturnType<typeof setTimeout> | undefined;
   private lastAutoUrl = '';
   /** True while the tour itself is navigating, so its own NavigationEnd does not end it. */
   private walking = false;

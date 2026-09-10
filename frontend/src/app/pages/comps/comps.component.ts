@@ -1,7 +1,8 @@
 import { ChampionFilterService } from '../../services/champion-filter.service';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { DatePipe } from '@angular/common';
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastService } from '../../services/toast.service';
 import { FormsModule } from '@angular/forms';
@@ -18,9 +19,11 @@ import { compIconFor } from '../../core/comp-identity';
 import { effectiveComp } from '../../core/comp-alias';
 import { EXPECT_AXES, EXPECT_LABEL, ExpectAxis, LEVEL_LABEL, LEVELS } from '../../core/comp-expectation';
 import { CompExpectationService } from '../../services/comp-expectation.service';
+import { MotionService } from '../../services/motion.service';
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { TacticalBoardComponent } from './tactical-board.component';
 import { NoteRollup, rollupNotes } from './note-insights.util';
+import { compToOpen, revealBehavior } from './open-comp.util';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { TourPillComponent } from '../../shared/tour-pill.component';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
@@ -48,11 +51,15 @@ export class CompsComponent {
   private readonly toast = inject(ToastService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly motion = inject(MotionService);
 
   // ---- Adding a comp, here rather than in Admin (8 Sep 2026) ----------------
 
-  /** The comp whose panel is held open because it was just made. */
+  /** The comp whose panel is held open because it was just made, or because a link asked for it. */
   protected readonly openCompId = signal<string | null>(null);
+
+  /** The comp a link asked for with ?comp=<id>, until the list holds it and it has been opened. */
+  private readonly wantedComp = signal<string | null>(null);
 
   constructor() {
     // "Add a comp" from the quick actions lands here with ?add=comp: one
@@ -65,6 +72,50 @@ export class CompsComponent {
         void this.addComp();
       }
     });
+
+    // The film's draft chapter lands here with ?comp=<id> (10 Sep 2026): after
+    // it saved a variant, or when the review names the comp we played. Read as
+    // a stream, the way the Games page reads its params, so a second arrival
+    // with another id works and not only the first.
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
+      const id = params.get('comp');
+      if (id) this.wantedComp.set(id);
+    });
+    // The list may still be empty on the first tick; the effect runs again
+    // when the comps land. The decision itself is `compToOpen`, kept pure so
+    // it has a spec of its own in bare vitest; the page's spec covers the reveal.
+    effect(() => {
+      const id = compToOpen(this.wantedComp(), this.data.comps());
+      if (id) untracked(() => this.revealComp(id));
+    });
+    // Leaving the page before the reveal's timer fires must not scroll whatever
+    // page comes next (10 Sep 2026: the spec caught one test's card scrolling in
+    // the next test).
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.revealTimer));
+  }
+
+  /** The reveal's pending scroll, so leaving the page cancels it. */
+  private revealTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** Open one comp's panel, drop the param that asked for it and bring its card to the top of the screen. */
+  private revealComp(id: string): void {
+    this.wantedComp.set(null);
+    // The category filter could hide the card; a link to a comp means that comp.
+    this.compCategoryFilter.set('all');
+    // So could the shared champion filter, which follows across pages (10 Sep 2026, second fix pass: a person who had filtered
+    // Games on a champion and then pressed Open <name> in the film for a comp without it landed here with no card, the panel
+    // marked open, the param already gone and nothing on screen saying why). Cleared only when it would hide this comp.
+    const comp = this.data.comps().find((c) => c.id === id);
+    if (comp && !this.filter.passes(this.championsOf(comp))) this.filter.clear();
+    this.openCompId.set(id);
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { comp: null }, queryParamsHandling: 'merge', replaceUrl: true });
+    clearTimeout(this.revealTimer);
+    this.revealTimer = setTimeout(() => {
+      const card = document.querySelector<HTMLElement>(`[data-comp="${CSS.escape(id)}"]`);
+      // Not every DOM has scrollIntoView (jsdom has none); opening the panel is the part that matters, the scroll is the courtesy.
+      if (!card || typeof card.scrollIntoView !== 'function') return;
+      card.scrollIntoView({ behavior: revealBehavior(this.motion.reduced()), block: 'start' });
+    }, 80);
   }
 
   protected async addComp(): Promise<void> {
@@ -114,10 +165,13 @@ export class CompsComponent {
     const comps = this.data.comps();
     const byCategory = filter === 'all' ? comps : comps.filter((c) => (c.category ?? '') === filter);
     // The shared champion filter: only the comps that champion is drafted in.
-    return byCategory.filter((c) =>
-      this.filter.passes(this.roles.map((r) => this.ui.parseCompLine(c.picks[r] ?? '').champion))
-    );
+    return byCategory.filter((c) => this.filter.passes(this.championsOf(c)));
   });
+
+  /** A comp's five champions as the filter compares them: the pick with its " - note" dropped. */
+  private championsOf(comp: Comp): string[] {
+    return this.roles.map((r) => this.ui.parseCompLine(comp.picks[r] ?? '').champion);
+  }
 
   // Per-comp game plan, phase by phase — the macro that applies to this draft.
   protected readonly gamePlanPhases = [

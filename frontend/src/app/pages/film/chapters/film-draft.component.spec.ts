@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { environment } from '../../../../environments/environment';
 import { FilmDraft, FilmModel } from '../../../core/film-model';
@@ -157,12 +157,12 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmDraftComponent', () =>
     expect(root.querySelector('.film-draft-seat.is-swapped')).not.toBeNull();
   });
 
-  it('shows the Save pill to editors only, and saves a variant of the comp we played', async () => {
+  it('shows the Save pill to editors only, saves a variant of the comp we played, and the pill then opens it', async () => {
     canEdit.set(false);
     const viewer = mount(modelWith(draft));
     const viewerRoot = viewer.nativeElement as HTMLElement;
     expect(viewerRoot.querySelector('.film-draft-swap .view-btn')).toBeNull();
-    expect(text(viewerRoot.querySelector('.film-draft-actions .view-btn'))).toContain('Open Comps');
+    expect(viewerRoot.querySelector('.film-draft-swap-actions')).toBeNull();
     viewer.destroy();
 
     canEdit.set(true);
@@ -170,6 +170,8 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmDraftComponent', () =>
     const root = fixture.nativeElement as HTMLElement;
     const pill = root.querySelector('.film-draft-swap .view-btn') as HTMLButtonElement;
     expect(text(pill)).toContain('Save with Nautilus');
+    expect(pill.disabled).toBe(false);
+    // The id alone, with the list not yet carrying the comp: the pill reads from what the chapter made, not from the list.
     const create = vi.spyOn(data, 'createComp').mockResolvedValue('c2');
     pill.click();
     await fixture.whenStable();
@@ -188,10 +190,187 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmDraftComponent', () =>
     expect(saved.expectSource).toBe('derived');
     expect('id' in saved).toBe(false);
     expect('order' in saved).toBe(false);
+
     const after = root.querySelector('.film-draft-swap .view-btn') as HTMLButtonElement;
-    expect(text(after)).toContain('Saved');
-    expect(after.disabled).toBe(true);
-    expect(TestBed.inject(ToastService).toasts()[0]?.title).toBe('Saved to Comps');
+    expect(text(after)).toContain('Open Front to back · Nautilus');
+    expect(after.classList.contains('active')).toBe(true);
+    expect(after.disabled).toBe(false);
+    expect(root.querySelectorAll('.film-draft-swap .view-btn')).toHaveLength(1);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    after.click();
+    expect(navigate).toHaveBeenCalledWith(['/comps'], { queryParams: { comp: 'c2' } });
+    // The toast offers the same door.
+    const toast = TestBed.inject(ToastService).toasts()[0];
+    expect(toast?.title).toBe('Saved to Comps');
+    expect(toast?.text).toBe('Front to back · Nautilus');
+    expect(toast?.action?.label).toBe('Open');
+    toast?.action?.run();
+    expect(navigate).toHaveBeenCalledTimes(2);
+    expect(navigate).toHaveBeenLastCalledWith(['/comps'], { queryParams: { comp: 'c2' } });
+  });
+
+  it('offers Open <name> from the start when the variant is already saved, to a viewer too, with no Save pill', () => {
+    // Played off no comp, so the base is the five as played; Top carries Riot's id while the saved comp spells the
+    // name, and the saved comp's Support pick carries a note: the match still holds through championName and parseCompLine.
+    const played: FilmDraft = {
+      ...draft,
+      ours: draft.ours.map((s) => (s.seat === 'Top' ? { ...s, champion: 'MonkeyKing' } : s)),
+      compId: null,
+      compName: null,
+      variantName: null
+    };
+    const variant: Comp = {
+      id: 'c5',
+      name: 'Wukong front to back',
+      picks: { Top: 'Wukong', Jungle: 'Trundle', Mid: 'Orianna', ADC: 'Jinx', Support: 'Nautilus - peel' },
+      order: 1
+    };
+    data.comps.set([comp, variant]);
+
+    canEdit.set(false);
+    const viewer = mount(modelWith(played));
+    const viewerRoot = viewer.nativeElement as HTMLElement;
+    const pills = viewerRoot.querySelectorAll<HTMLButtonElement>('.film-draft-swap .view-btn');
+    expect(pills).toHaveLength(1);
+    expect(text(pills[0])).toContain('Open Wukong front to back');
+    expect(text(pills[0])).not.toContain('Save');
+    expect(pills[0].classList.contains('active')).toBe(true);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    pills[0].click();
+    expect(navigate).toHaveBeenCalledWith(['/comps'], { queryParams: { comp: 'c5' } });
+    viewer.destroy();
+
+    canEdit.set(true);
+    const editorRoot = mount(modelWith(played)).nativeElement as HTMLElement;
+    const editorPills = editorRoot.querySelectorAll<HTMLButtonElement>('.film-draft-swap .view-btn');
+    expect(editorPills).toHaveLength(1);
+    expect(text(editorPills[0])).toContain('Open Wukong front to back');
+  });
+
+  it('opens the comp we played from the bottom pill when the review names it', () => {
+    canEdit.set(false);
+    const root = mount(modelWith(draft)).nativeElement as HTMLElement;
+    const pills = root.querySelectorAll<HTMLButtonElement>('.film-draft-actions .view-btn');
+    expect(pills).toHaveLength(1);
+    expect(text(pills[0])).toContain('Open Front to back');
+    expect(text(pills[0])).not.toContain('Open Comps');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    pills[0].click();
+    expect(navigate).toHaveBeenCalledWith(['/comps'], { queryParams: { comp: 'c1' } });
+  });
+
+  it('lets an editor save the draft as played and open it when the review names no comp, and a variant after that counts under it', async () => {
+    // No comp on the list carries these five: were one there, the pill would open it instead (the case below).
+    data.comps.set([]);
+    const fixture = mount(modelWith({ ...draft, compId: null, compName: null, variantName: 'Jinx comp · Nautilus' }));
+    const root = fixture.nativeElement as HTMLElement;
+    const bottom = () => root.querySelector('.film-draft-actions .view-btn') as HTMLButtonElement;
+    expect(text(bottom())).toContain('Save as a comp and open');
+    expect(root.querySelectorAll('.film-draft-actions .view-btn')).toHaveLength(1);
+    // `createComp` as the service does it: the new comp is on the list before the promise settles.
+    const ids = ['c9', 'c10'];
+    const create = vi.spyOn(data, 'createComp').mockImplementation(async (c) => {
+      const id = ids.shift() as string;
+      data.comps.update((list) => [...list, { ...c, id, order: list.length }]);
+      return id;
+    });
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    // Twice, as a double click lands: one comp.
+    bottom().click();
+    bottom().click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(create).toHaveBeenCalledTimes(1);
+    const made = create.mock.calls[0][0];
+    expect(made.name).toBe('Jinx comp');
+    expect(made.picks).toEqual({ Top: 'Ornn', Jungle: 'Trundle', Mid: 'Orianna', ADC: 'Jinx', Support: 'Leona' });
+    expect(made.notes).toBe(`From the review of 9 Sep 2026: ${draft.verdict}`);
+    expect(made.expect).toEqual(EXPECT);
+    expect(made.countsUnder).toBeUndefined();
+    expect(made.category).toBeUndefined();
+    expect('id' in made).toBe(false);
+    expect(navigate).toHaveBeenCalledWith(['/comps'], { queryParams: { comp: 'c9' } });
+    expect(text(bottom())).toContain('Open Jinx comp');
+    expect(TestBed.inject(ToastService).toasts()[0]?.action?.label).toBe('Open');
+
+    // The swap's variant now counts under the comp just made, with its picks as the base.
+    const swapPill = root.querySelector('.film-draft-swap .view-btn') as HTMLButtonElement;
+    expect(text(swapPill)).toContain('Save with Nautilus');
+    swapPill.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(create).toHaveBeenCalledTimes(2);
+    const variant = create.mock.calls[1][0];
+    expect(variant.name).toBe('Jinx comp · Nautilus');
+    expect(variant.countsUnder).toBe('c9');
+    expect(variant.picks).toEqual({ Top: 'Ornn', Jungle: 'Trundle', Mid: 'Orianna', ADC: 'Jinx', Support: 'Nautilus' });
+    expect(text(root.querySelector('.film-draft-swap .view-btn'))).toContain('Open Jinx comp · Nautilus');
+  });
+
+  it('opens the saved comp whose five picks are ours as played when the review names none, for editor and viewer, and never offers Save again', async () => {
+    // The visit after "Save as a comp and open": the review still says compId null and the chapter is fresh, but the
+    // comp is on the list (spelt the Comps way, one pick with a note); the pill finds it by its picks and nothing is made.
+    const asPlayed: Comp = {
+      id: 'c7',
+      name: 'Jinx comp',
+      picks: { Top: 'Ornn', Jungle: 'Trundle', Mid: 'Orianna', ADC: 'Jinx', Support: 'Leona - peel' },
+      order: 1
+    };
+    data.comps.set([asPlayed]);
+    const noComp: FilmDraft = { ...draft, compId: null, compName: null, variantName: 'Jinx comp · Nautilus' };
+    const create = vi.spyOn(data, 'createComp').mockResolvedValue('never');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+    const editor = mount(modelWith(noComp));
+    const editorRoot = editor.nativeElement as HTMLElement;
+    const pills = editorRoot.querySelectorAll<HTMLButtonElement>('.film-draft-actions .view-btn');
+    expect(pills).toHaveLength(1);
+    expect(text(pills[0])).toContain('Open Jinx comp');
+    expect(text(pills[0])).not.toContain('Save');
+    pills[0].click();
+    expect(navigate).toHaveBeenCalledWith(['/comps'], { queryParams: { comp: 'c7' } });
+    // The swap's variant counts under the comp found by its picks, as it would under one the review named.
+    (editorRoot.querySelector('.film-draft-swap .view-btn') as HTMLButtonElement).click();
+    await editor.whenStable();
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0][0].countsUnder).toBe('c7');
+    expect(create.mock.calls[0][0].name).toBe('Jinx comp · Nautilus');
+    editor.destroy();
+
+    canEdit.set(false);
+    const viewerRoot = mount(modelWith(noComp)).nativeElement as HTMLElement;
+    const viewerPills = viewerRoot.querySelectorAll<HTMLButtonElement>('.film-draft-actions .view-btn');
+    expect(viewerPills).toHaveLength(1);
+    expect(text(viewerPills[0])).toContain('Open Jinx comp');
+    expect(text(viewerPills[0])).not.toContain('Open Comps');
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no bottom pill while the review names a comp the list has not delivered, then opens it when the list lands', () => {
+    data.comps.set([]);
+    const fixture = mount(modelWith(draft));
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.film-draft-actions')).toBeNull();
+    data.comps.set([comp]);
+    fixture.detectChanges();
+    expect(text(root.querySelector('.film-draft-actions .view-btn'))).toContain('Open Front to back');
+    // The list is here and lacks the comp: it was deleted, and an editor may save the draft as played again.
+    data.comps.set([{ ...comp, id: 'other', picks: { ...comp.picks, Top: 'Sion' } }]);
+    fixture.detectChanges();
+    expect(text(root.querySelector('.film-draft-actions .view-btn'))).toContain('Save as a comp and open');
+  });
+
+  it('sends a viewer to the Comps page when the review names no comp and no saved comp carries the five as played', () => {
+    canEdit.set(false);
+    data.comps.set([]);
+    const root = mount(modelWith({ ...draft, compId: null, compName: null })).nativeElement as HTMLElement;
+    expect(root.querySelector('.film-draft-swap .view-btn')).toBeNull();
+    const pills = root.querySelectorAll<HTMLButtonElement>('.film-draft-actions .view-btn');
+    expect(pills).toHaveLength(1);
+    expect(text(pills[0])).toContain('Open Comps');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    pills[0].click();
+    expect(navigate).toHaveBeenCalledWith(['/comps']);
   });
 
   it('names the second of two swaps off its own champion alone, with only its seat changed', async () => {
@@ -216,16 +395,19 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmDraftComponent', () =>
     expect(saved.picks).toEqual({ Top: 'Ornn', Jungle: 'Sejuani', Mid: 'Orianna', ADC: 'Jinx', Support: 'Leona' });
     expect(saved.countsUnder).toBe('c1');
     expect(TestBed.inject(ToastService).toasts()[0]?.text).toBe('Front to back · Sejuani');
-    // Only the swap saved reads Saved; the first is still on offer, and the first swap's variant keeps the build's name.
+    // Only the swap saved opens its variant; the first is still on offer, and the first swap's variant keeps the build's name.
     const after = root.querySelectorAll<HTMLButtonElement>('.film-draft-swap .view-btn');
+    expect(text(after[0])).toContain('Save with Nautilus');
     expect(after[0].disabled).toBe(false);
-    expect(after[1].disabled).toBe(true);
+    expect(text(after[1])).toContain('Open Front to back · Sejuani');
+    expect(after[1].disabled).toBe(false);
     after[0].click();
     await fixture.whenStable();
     expect(create.mock.calls[1][0].name).toBe(two.variantName);
   });
 
   it('builds a comp of its own when the game was played off no saved comp, named off the protagonist and the swap', async () => {
+    data.comps.set([]);
     const fixture = mount(modelWith({ ...draft, compId: null, compName: null, variantName: 'Jinx comp · Nautilus' }));
     const root = fixture.nativeElement as HTMLElement;
     const create = vi.spyOn(data, 'createComp').mockResolvedValue('c3');
@@ -276,7 +458,8 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmDraftComponent', () =>
     const art = root.querySelector('.film-chapter-art') as HTMLElement;
     expect(art.classList.contains('is-dim')).toBe(true);
     expect(art.querySelector('img')?.getAttribute('src')).toContain('jinx');
-    expect(text(root.querySelector('.film-draft-actions .view-btn'))).toContain('Open Comps');
+    // The review names the comp we played, so the one pill opens it.
+    expect(text(root.querySelector('.film-draft-actions .view-btn'))).toContain('Open Front to back');
   });
 
   it('says so when the review carries no draft at all', () => {

@@ -9,7 +9,7 @@
     <span>frontend <code>{{ ctx.frontendSha }}</code></span>
     <span>backend <code>{{ ctx.backendSha() || 'unknown' }}</code></span>
     @if (ctx.payloadKb() !== null) {
-      <span [appTip]="'The analysis is one Firestore document with a 1024 KB cap; past 850 KB the oldest games lose their lane reads first'">analysis <code>{{ ctx.payloadKb() }} KB</code></span>
+      <span [appTip]="'The analysis is one Firestore document with a 1024 KB cap; past 850 KB the games older than the newest 120 lose the other side\'s figures first, then their lane reads, and every game the same way if it is still over'">analysis <code>{{ ctx.payloadKb() }} KB</code>@if (ctx.payloadTrimmed(); as n) {, {{ n }} {{ n === 1 ? 'game' : 'games' }} trimmed}</span>
     }
     @if (ctx.shaMismatch()) {
       <span class="build-sha-note">versions differ — redeploy functions</span>

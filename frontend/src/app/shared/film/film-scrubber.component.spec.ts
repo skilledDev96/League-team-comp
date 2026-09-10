@@ -59,13 +59,28 @@ describe('FilmScrubberComponent', () => {
     const el = fixture.nativeElement as HTMLElement;
     const curves = el.querySelectorAll('polyline.film-scrub-curve');
     expect(curves.length).toBe(2);
-    // 600 of 1800 seconds shown: two thirds of the path stays hidden.
-    expect((curves[0] as SVGElement).style.strokeDashoffset).toBe('667');
+    // 600 of 1800 seconds shown: the clip runs a third of the way along the curve's x space, and no dash offset is left on the lines.
+    expect(el.querySelector('.film-scrub-shown')?.getAttribute('width')).toBe('333');
+    for (const c of Array.from(curves)) expect((c as SVGElement).style.strokeDashoffset).toBe('');
     expect(el.querySelector('.film-scrub-clock')?.textContent?.trim()).toBe('10:00');
     expect(el.querySelector('.film-scrub-verdict')?.textContent?.trim()).toBe('You said 14, it turned around 12');
     expect(el.querySelector('.film-scrub-verdict')?.classList.contains('is-close')).toBe(true);
     expect(el.querySelectorAll('.film-scrub-moment').length).toBe(3);
     expect(el.querySelector('.film-scrub-lock')).toBeNull();
+  });
+
+  it('reveals the curve by time, so its end stands under the playhead: half the game is half the width, and none at the start', () => {
+    const fixture = mount({ t: 900 });
+    const rect = () => (fixture.nativeElement as HTMLElement).querySelector('.film-scrub-shown')?.getAttribute('width');
+    expect(rect()).toBe('500');
+    fixture.componentRef.setInput('t', 0);
+    fixture.detectChanges();
+    expect(rect()).toBe('0');
+    fixture.componentRef.setInput('t', 1800);
+    fixture.detectChanges();
+    expect(rect()).toBe('1000');
+    // The clipped group is what carries the reveal; the lines themselves carry no dash.
+    expect((fixture.nativeElement as HTMLElement).querySelector('g[clip-path*="film-scrub-shown"] polyline.film-scrub-curve')).not.toBeNull();
   });
 
   it('hides the curve and the moments until the reveal and offers Lock once a guess is placed', () => {

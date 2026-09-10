@@ -10,6 +10,7 @@ import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
 import { attributeComp } from './comp-attribution';
 import { killParticipation, tallyKills } from './fights';
+import { EnemyStats, enemyStats, trimAnalysisPayload } from './analysis-payload';
 import { ChampionRecord, summarizeMatches } from './match-stats';
 import { classifyArchetype, describePlayer } from './insights';
 import { CACHE_VERSION, isCacheCurrent, isCacheUsable, parseCompAnalysisRequest } from './analysis-cache';
@@ -1284,8 +1285,13 @@ interface AnalysisGameResponse {
   win: boolean;
   side: 'blue' | 'red';
   enemyChampions: string[];
-  /** The enemy five with their roles, sorted, for a lane-by-lane comparison. */
-  enemies?: { position: string; champion: string }[];
+  /**
+   * The enemy five with their roles, sorted, for a lane-by-lane comparison.
+   * Since 10 Sep 2026 each carries its figures too (`analysis-payload.ts`),
+   * so the post-game graphs and the scoreboard's other side have bars rather
+   * than dashes; absent on the oldest games once the document guard trips.
+   */
+  enemies?: { position: string; champion: string; stats?: EnemyStats }[];
   queue: string;
   date: number;
   players: AnalysisPlayerResponse[];
@@ -1632,6 +1638,8 @@ interface CompAnalysisResponse {
   generatedAt: string;
   /** Size of this document as JSON; `meta/compAnalysis` is one Firestore document with a 1 MiB cap. */
   payloadBytes?: number;
+  /** How many games the trim stripped to fit under the cap; absent when it touched none (`analysis-payload.ts`, 10 Sep 2026). */
+  payloadTrimmed?: number;
 }
 
 /** The roster with Riot's ids attached, resolved once per run. */
@@ -1830,11 +1838,16 @@ async function computeCompAnalysis(
     // The same five again, carrying their role, so the review page can line a
     // draft up against ours lane by lane. Kept beside `enemyChampions` rather
     // than replacing it: the ban suggestions and the tournament planner read
-    // that flat list and do not care who played what.
+    // that flat list and do not care who played what. Since 10 Sep 2026 each
+    // seat carries its figures as well, read off the same cached participant
+    // the players block reads ours from, so the graphs show both sides. No
+    // cache bump was needed for that: every participant's figures were cached
+    // all along, so one Refresh on the Games page fills every row.
     const enemies = enemyParts
       .map((p) => ({
         position: TEAM_POSITION_TO_ROLE[p.teamPosition] ?? p.teamPosition ?? '',
-        champion: displayChampionName(p.championName)
+        champion: displayChampionName(p.championName),
+        stats: enemyStats(p, fights.theirs)
       }))
       .sort((a, b) => (roleOrder[a.position] ?? 9) - (roleOrder[b.position] ?? 9));
     const lanes = readLanes(match.participants, rosterTeamId, durationSec);
@@ -1961,27 +1974,15 @@ async function computeCompAnalysis(
     apiSha: API_SHA,
     generatedAt: new Date().toISOString()
   };
-  // One Firestore document holds all of this. The lane reads and facts are the
-  // only part that grows per player; past the guard they come off the oldest
-  // games first, so the newest keep their story.
-  let bytes = JSON.stringify(response).length;
-  if (bytes > PAYLOAD_GUARD_BYTES) {
-    for (const game of games.slice(PAYLOAD_KEEP_DETAIL)) {
-      for (const player of game.players) {
-        delete player.lane;
-        delete player.facts;
-      }
-    }
-    bytes = JSON.stringify(response).length;
-  }
-  response.payloadBytes = bytes;
+  // One Firestore document holds all of this. The lane reads and facts on our
+  // players and the figures on the enemy seats are what grows per game; past
+  // the guard they come off the oldest games first, enemy figures before lane
+  // reads, so the newest keep their story, and off every game only when that
+  // was not enough (`analysis-payload.ts` says why). The trim also sets
+  // `payloadTrimmed` on the response when it touched anything.
+  response.payloadBytes = trimAnalysisPayload(response);
   return response;
 }
-
-/** Well under the 1 MiB document cap, with room for the rest of the document. */
-const PAYLOAD_GUARD_BYTES = 850_000;
-/** How many of the newest games keep their lane reads when the guard trips. */
-const PAYLOAD_KEEP_DETAIL = 120;
 
 export const getCompAnalysis = onRequest(
   { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 300 },

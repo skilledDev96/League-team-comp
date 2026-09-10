@@ -47,6 +47,28 @@ describe('game rows', () => {
     expect(row).toMatchObject({ source: 'riot', label: 'Flex', win: true, side: 'blue', compId: 'c1', compName: 'Dive', kills: { ours: 20, theirs: 12 } });
   });
 
+  it('carries their figures when the analysis has them, and leaves a seat without them without', () => {
+    // A Riot game refreshed on or after 10 Sep 2026: each enemy seat has its figures off the cache.
+    const row = fromAnalysis(
+      analysis({
+        enemies: [
+          { position: 'JUNGLE', champion: 'Lee Sin', stats: { kills: 3, deaths: 5, assists: 6, cs: 160, damage: 9_500, damageTaken: 21_000, visionScore: 18, killParticipation: 0.75 } },
+          { position: 'TOP', champion: 'Renekton', stats: { kills: 5, deaths: 4, assists: 2, cs: 230, damage: 52_500 } },
+          { position: 'MIDDLE', champion: 'Ahri' }
+        ]
+      }),
+      null
+    );
+    expect(row.theirs.map((p) => p.champion)).toEqual(['Renekton', 'Lee Sin', 'Ahri']);
+    expect(row.theirs[0].stats).toEqual({ kills: 5, deaths: 4, assists: 2, cs: 230, damage: 52_500 });
+    expect(row.theirs[1].stats).toEqual({ kills: 3, deaths: 5, assists: 6, cs: 160, damage: 9_500, damageTaken: 21_000, vision: 18, killParticipation: 0.75 });
+    expect(row.theirs[1].player).toBeNull();
+    // The seat the analysis did not figure stays unfigured: the page shows a dash, not a zero.
+    expect(row.theirs[2].stats).toBeUndefined();
+    // An analysis from before the figures shipped is unchanged.
+    expect(fromAnalysis(analysis(), null).theirs.every((p) => p.stats === undefined)).toBe(true);
+  });
+
   it('reads a scrim from the roster side, and leaves one out whose side nobody can tell', () => {
     const ours = rosterIds(roster);
     const row = fromScrim(scrim(), ours)!;

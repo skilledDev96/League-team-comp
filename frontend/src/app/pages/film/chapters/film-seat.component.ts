@@ -81,6 +81,8 @@ interface StatToken {
       }
 
       @if (seat(); as s) {
+        <!-- On a wide screen the card stands left and the deaths, the reads and the ring right, so nothing runs under the fold (10 Sep 2026). -->
+        <div class="film-seat-layout">
         <div class="film-flip" [class.is-flipped]="flipped()" [class.is-still]="motion.reduced()">
           <div class="film-flip-inner">
             <button type="button" class="film-flip-face is-front" (click)="flipped.set(true)" [attr.aria-hidden]="flipped()" [tabindex]="flipped() ? -1 : 0">
@@ -177,6 +179,7 @@ interface StatToken {
             </div>
           }
           <button type="button" class="view-btn" [class.active]="!gotIt()" (click)="got()">{{ gotIt() ? 'Got it' : 'Got it?' }}</button>
+        </div>
         </div>
       } @else {
         <p class="film-wait">The review carries no player notes for this game.</p>

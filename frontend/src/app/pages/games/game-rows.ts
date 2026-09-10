@@ -102,9 +102,30 @@ export function fromAnalysis(g: AnalysisGame, comp: { id: string; name: string }
       }
     }))
     .sort(bySeat);
+  // Their figures ride on the analysis since 10 Sep 2026 (a Refresh fills
+  // them from the cache); a seat without them stays without, so the graphs
+  // draw a dash for it rather than a zero-length bar. Gold is not among them
+  // because our own Riot figures do not carry it either.
   const theirs: RowPlayer[] = (
-    g.enemies?.map((e) => ({ role: POSITION_ROLE[e.position] ?? e.position, champion: e.champion, player: null })) ??
-    (g.enemyChampions ?? []).map((c) => ({ role: '', champion: c, player: null }))
+    g.enemies?.map((e) => ({
+      role: POSITION_ROLE[e.position] ?? e.position,
+      champion: e.champion,
+      player: null,
+      ...(e.stats
+        ? {
+            stats: {
+              kills: e.stats.kills,
+              deaths: e.stats.deaths,
+              assists: e.stats.assists,
+              cs: e.stats.cs,
+              damage: e.stats.damage,
+              ...(e.stats.damageTaken !== undefined ? { damageTaken: e.stats.damageTaken } : {}),
+              ...(e.stats.killParticipation !== undefined ? { killParticipation: e.stats.killParticipation } : {}),
+              ...(e.stats.visionScore !== undefined ? { vision: e.stats.visionScore } : {})
+            }
+          }
+        : {})
+    })) ?? (g.enemyChampions ?? []).map((c) => ({ role: '', champion: c, player: null }))
   ).sort(bySeat);
   const row: GameRow = {
     id: `riot-${g.matchId}`,

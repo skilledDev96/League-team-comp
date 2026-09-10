@@ -16,11 +16,17 @@ import { expect, test } from '@playwright/test';
  * The setup step dismisses the welcome tour, but a fresh account or a lost
  * userPrefs write would bring it back over the page. Cheap to absorb here
  * rather than have every test fail on an overlay.
+ *
+ * Scoped to the tour's card (10 Sep 2026): the Before you play reminder and
+ * the Games banner each end in a "Got it" of their own, and a second match
+ * makes the unscoped locator throw in strict mode instead of clicking.
  */
+const tourButton = (page: import('@playwright/test').Page) =>
+  page.locator('.tour-card').getByRole('button', { name: /^(Skip tour|Got it)$/ });
+
 test.beforeEach(async ({ page }) => {
   page.on('load', () => {
-    void page
-      .getByRole('button', { name: /^(Skip tour|Got it)$/ })
+    void tourButton(page)
       .click({ timeout: 2_000 })
       .catch(() => undefined);
   });
@@ -83,7 +89,7 @@ test('the draft board loads', async ({ page }) => {
   await page.goto('./tournaments');
   await page.getByRole('button', { name: /^Draft$/ }).click();
   // An in-app navigation fires no load event; a tour due on the draft view is dismissed here.
-  await page.getByRole('button', { name: /^(Skip tour|Got it)$/ }).click({ timeout: 2_000 }).catch(() => undefined);
+  await tourButton(page).click({ timeout: 2_000 }).catch(() => undefined);
   // A series with games, or the message saying there are none — either is the
   // page working; which one depends on where the split happens to be. Match
   // that message exactly rather than any .muted, which every page has.

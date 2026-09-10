@@ -45,7 +45,10 @@ setup('sign in', async ({ page, context }) => {
   // A new account is met by the welcome tour, which covers the page. Dismissing
   // it here writes userPrefs/{email} — a rule every signed-in user may write,
   // viewer included — so it stays dismissed rather than reappearing per test.
-  const gotIt = page.getByRole('button', { name: /^(Skip tour|Got it)$/ });
+  // Scoped to the tour's card (10 Sep 2026): the Before you play reminder and
+  // the Games banner each end in a "Got it" of their own, and two matches make
+  // the unscoped locator throw in strict mode.
+  const gotIt = page.locator('.tour-card').getByRole('button', { name: /^(Skip tour|Got it)$/ });
   if (await gotIt.isVisible().catch(() => false)) {
     await gotIt.click();
     await expect(gotIt).toBeHidden();
