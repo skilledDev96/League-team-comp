@@ -15884,13 +15884,21 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
    is as large as the stage allows, --film-h less the tools row, the reading line and the legend under it (13rem), so at
    1920x1080 (root 18px, --film-h 58.3rem) it is 45.3rem (815px), at 2560x1271 (root 21px) 47.5rem (998px). The Rift under it
    stands paused on the second. */
-.film-lab-overlay { position: absolute; inset: 0; z-index: 8; display: grid; place-items: start center; padding: 0.75rem 1rem 1rem; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; background: color-mix(in srgb, var(--film-shade) 92%, transparent); }
-.film-lab-overlay .lab { width: min(100%, calc(var(--film-h, 100dvh) - 13rem)); }
+/* Fixed to the screen, not to the frame (10 Sep 2026, the evening): inside the scrolling frame the overlay was as tall as the
+   chapter's content, so on a tall chapter the toolbar fell below the fold and the lab read as a map you could only drag on.
+   The square now takes the height that is left after the tools and the reading line, which are always in sight. */
+.film-lab-overlay { position: fixed; inset: 0 0 var(--film-under, 0rem) 0; z-index: 30; display: grid; place-items: center; padding: 0.75rem 1rem 0.9rem; overflow: hidden; overscroll-behavior: contain; background: color-mix(in srgb, var(--film-shade) 94%, transparent); }
+.film-lab-overlay .lab { width: 100%; max-width: min(100%, 74rem); height: 100%; grid-template-rows: minmax(0, 1fr) auto auto; justify-items: center; }
+.film-lab-overlay .lab-square { height: 100%; width: auto; max-width: 100%; }
+.film-lab-overlay .lab-tools, .film-lab-overlay .lab-reading { width: 100%; max-width: 58rem; }
+.film-lab-overlay .lab-reading { text-align: center; }
 /* Phones: the overlay is the screen down to the Riot notice (which stays visible wherever the app shows), the lab's square is
    the width, and the pills grow to a thumb. */
 @media (max-width: 48rem) {
-  .film-lab-overlay { position: fixed; inset: 0 0 var(--film-under, 0rem) 0; z-index: 30; padding: 0.5rem 0 1rem; }
-  .film-lab-overlay .lab { width: 100%; }
+  .film-lab-overlay { padding: 0.5rem 0.4rem 0.8rem; }
+  /* On a phone the width is the binding side, so the square takes it and the rows stack as they come. */
+  .film-lab-overlay .lab { max-width: 100%; grid-template-rows: auto auto auto; }
+  .film-lab-overlay .lab-square { width: 100%; height: auto; }
   .film-layers { justify-content: center; }
   .film-layer-btn, .film-lab-btn { min-height: 2.75rem; }
 }
