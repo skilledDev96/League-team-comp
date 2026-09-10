@@ -1,16 +1,90 @@
 import { Component, computed, inject, input, output } from '@angular/core';
 import { DeathReadKind } from '../../core/death-reads';
-import { COULD_GLYPHS, FilmDeathPin, FilmGlyph, FilmMap, FilmTapeEvent } from '../../core/film-model';
-import { DeathCould, Role } from '../../models/team.models';
+import { placeAt, wardsAt } from '../../core/film-build';
+import { COULD_GLYPHS, FilmDeathPin, FilmFrame, FilmFramePlace, FilmGlyph, FilmMap, FilmTapeEvent, FilmWard } from '../../core/film-model';
+import { DeathCould, Role, TimelineWardType } from '../../models/team.models';
 import { MotionService } from '../../services/motion.service';
 import { UiService } from '../../services/ui.service';
 import { TooltipDirective } from '../tooltip.directive';
 import { FilmGlyphComponent, GLYPH_TIPS } from './film-glyph.component';
+import { clockText } from './film-scrubber.component';
 
-/** The most tokens the map draws at once; past that the oldest backs go first, then plates, firsts and their dots. */
+/** The most tokens the map draws at once; past that the oldest backs go first, then plates, firsts and their dots. The layers (positions, wards, heat) never count. */
 export const MAX_TOKENS = 60;
 /** How far from a moment's second a lit seat's token still rings, either way. */
 export const LIT_WINDOW_SEC = 120;
+/**
+ * How long a live token stays faded after a death of its seat (Part C, 10 Sep
+ * 2026). The timeline carries no respawn, and a respawn timer runs from
+ * about ten seconds at level one to over fifty late, so a flat twenty is the
+ * simple, honest middle: long enough to read "fell here", short enough that
+ * the token is back by the time the frame after moves it to the fountain.
+ */
+export const DEAD_WINDOW_SEC = 20;
+/** The heat layer's opacity band: the lightest cell still reads as a wash, the heaviest never hides the Rift under it. */
+export const HEAT_OPACITY_MIN = 0.08;
+export const HEAT_OPACITY_MAX = 0.35;
+
+/**
+ * One cell of the vision heat map (Part C, 10 Sep 2026): where our wards
+ * stood against where we died, over the whole game or a slice of it. The
+ * chapter builds the cells (percent space, `r` in percent, `weight` 0 to 1);
+ * the map only draws them, as a wash under everything, so "were we warding
+ * the wrong side" is a look, not a figure.
+ */
+export interface FilmHeatCell {
+  x: number;
+  y: number;
+  r: number;
+  kind: 'ward' | 'death';
+  weight: number;
+}
+
+/** One champion standing on the Rift at the clock second: ours in a ring of --accent, theirs faded in --warn, a champion in a seat and never a name. */
+export interface RiftLiveToken {
+  /** "us:Jungle" or "them:Jungle": stable across seconds, so the same element slides rather than a new one dropping in. */
+  key: string;
+  side: 'us' | 'them';
+  seat: Role;
+  champion?: string;
+  x: number;
+  y: number;
+  /** "Our Jungle · Lee Sin" or "Their Jungle · Rammus"; the seat alone when the champion is unknown. */
+  tip: string;
+  /** A death of this seat fell within DEAD_WINDOW_SEC before the clock second. */
+  dead: boolean;
+}
+
+/** A live ward of ours on the map: the ward itself plus the words for its mark. */
+export interface RiftWardMark {
+  key: string;
+  ward: FilmWard;
+  tip: string;
+}
+
+/** Maps a heat cell's weight (0 to 1, clamped) onto the opacity band. */
+export function heatOpacity(weight: number): number {
+  const w = Math.min(1, Math.max(0, Number.isFinite(weight) ? weight : 0));
+  return HEAT_OPACITY_MIN + w * (HEAT_OPACITY_MAX - HEAT_OPACITY_MIN);
+}
+
+/** The words on a live token: side and seat, then the champion after a middle dot. Theirs is a champion in a seat, by the Riot rules; ours too, since a frame carries no player. */
+export function liveTip(place: Pick<FilmFramePlace, 'seat' | 'champion'>, side: 'us' | 'them'): string {
+  const who = `${side === 'us' ? 'Our' : 'Their'} ${place.seat}`;
+  return place.champion ? `${who} · ${place.champion}` : who;
+}
+
+const WARD_WORDS: Record<TimelineWardType, string> = { trinket: 'Trinket ward', control: 'Control ward', other: 'Ward' };
+
+/** The words on a ward mark: the kind, the seat, the clock it went down, and that it stands where the placer stood, because a ward event carries no position. */
+export function wardTip(w: Pick<FilmWard, 'seat' | 'type' | 'sec'>): string {
+  return `${WARD_WORDS[w.type] ?? WARD_WORDS.other}, ${w.seat}, placed ${clockText(w.sec)} · where the placer stood, approximate`;
+}
+
+/** Whether any of `deathSecs` fell within DEAD_WINDOW_SEC before `until` (a death at the second itself counts; one after it does not). */
+export function diedWithin(deathSecs: readonly number[], until: number): boolean {
+  return deathSecs.some((s) => s <= until && until - s <= DEAD_WINDOW_SEC);
+}
 
 /** How a rendered token looks, resolved once per event so the template only branches on `kind`. */
 export type RiftTokenKind = 'ourDeath' | 'theirDeath' | 'objective' | 'first' | 'plate' | 'back';
@@ -121,15 +195,62 @@ export function staysForSeat(tok: RiftToken, seat: Role, selected: string | null
  * deaths, backs and plates leave the list (`staysForSeat`) — while their
  * deaths fade and the objectives stay, so the seat's own story stands on a
  * quiet map. The host carries `has-seat-filter` while a seat is set.
+ *
+ * The layers (Part C, 10 Sep 2026; the lead: "we want to see where our
+ * vision was placed" and "where do we have vision, safe zones and danger
+ * zones, almost like a heat map"). Three layers stand under the event
+ * tokens, and none counts against MAX_TOKENS, since a layer is not a
+ * token: it may draw ten champions and every live ward.
+ * - `.rift-live`: everyone on the map. `frames` are the timeline's once-a-
+ *   minute positions in percent space; `placeAt` interpolates the ten to the
+ *   clock second (`until`), and each token moves on transform alone (a
+ *   300 ms transition in the film room block, none with motion off, so they
+ *   jump). Ours wear the champion tile ringed in --accent with the seat
+ *   under it on hover; theirs the tile faded and ringed in --warn, the seat
+ *   only. A seat of ours whose death fell within DEAD_WINDOW_SEC before the
+ *   second fades (`is-dead`); the timeline says nothing about respawns.
+ *   `seatFilter` keeps that seat of ours and all of theirs. With no clock
+ *   second (the map chapter's `until` is null) the layer has nowhere to
+ *   stand and stays off.
+ * - `.rift-vision`: our wards. A ward event carries no position, so each
+ *   mark stands where the placer stood at the nearest frame, and every
+ *   word about it says so; a ward shows from its placing until its end
+ *   (`wardsAt`), a control ward in --accent-2 and a trinket in --ok, with
+ *   its sight as a dashed circle in the SVG. The seat filter keeps that
+ *   seat's wards.
+ * - `.rift-heat`: the vision heat map, cells the chapter builds
+ *   (`FilmHeatCell`), a wash of --ok for wards and --warn for deaths whose
+ *   opacity follows the weight, drawn first in the SVG so everything else
+ *   stands on it. Not cut by the clock or the seat: the cells are the
+ *   whole game's.
+ * The corner note gains "positions once a minute" and "wards where the
+ * placer stood" while those layers show, so every placed position on the
+ * map says approximate.
  */
 @Component({
   selector: 'app-rift-map',
   imports: [TooltipDirective, FilmGlyphComponent],
-  host: { class: 'rift-map', '[class.is-dim]': 'dim()', '[class.is-still]': 'motion.reduced()', '[class.has-selection]': '!!selected()', '[class.has-seat-filter]': "seatFilter() !== 'all'" },
+  host: {
+    class: 'rift-map',
+    '[class.is-dim]': 'dim()',
+    '[class.is-still]': 'motion.reduced()',
+    '[class.has-selection]': '!!selected()',
+    '[class.has-seat-filter]': "seatFilter() !== 'all'",
+    '[class.has-live]': 'live().length > 0',
+    '[class.has-vision]': 'vision().length > 0',
+    '[class.has-heat]': 'heatCells().length > 0'
+  },
   template: `
     <div class="rift-map-square">
       <img class="rift-map-img" src="assets/maps/summoners-rift.png" alt="" draggable="false" />
       <svg class="rift-map-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <!-- The heat first, so the fights, the sight and the rings all stand on it. -->
+        @for (h of heatCells(); track $index) {
+          <circle [class]="'rift-heat is-' + h.kind" [attr.cx]="h.x" [attr.cy]="h.y" [attr.r]="h.r" [attr.opacity]="heatOpacity(h.weight)" />
+        }
+        @for (m of vision(); track m.key) {
+          <circle [class]="'rift-sight is-' + m.ward.type" [attr.cx]="m.ward.x" [attr.cy]="m.ward.y" [attr.r]="m.ward.r" />
+        }
         @for (c of shownClusters(); track $index) {
           <circle class="rift-cluster" [attr.cx]="c.x" [attr.cy]="c.y" [attr.r]="c.r" [appTip]="c.line" />
         }
@@ -140,6 +261,33 @@ export function staysForSeat(tok: RiftToken, seat: Role, selected: string | null
           }
         }
       </svg>
+      <!-- The layers stand under the event tokens (10 Sep 2026): a death's pip lands on top of the champion who fell, and a selected pin's badges are never covered. Neither layer takes pointer events; the marks and tiles do, for their tips. -->
+      @if (vision().length) {
+        <div class="rift-vision" role="group" aria-label="Our wards, where the placer stood, approximate">
+          @for (m of vision(); track m.key) {
+            <span [class]="'rift-ward is-' + m.ward.type" [style.left.%]="m.ward.x" [style.top.%]="m.ward.y" role="img" [attr.aria-label]="m.tip" [appTip]="m.tip">
+              <app-film-glyph name="ward" [size]="0.7" />
+            </span>
+          }
+        </div>
+      }
+      @if (live().length) {
+        <div class="rift-live" role="group" aria-label="Where everyone stood, approximate, positions once a minute">
+          @for (p of live(); track p.key) {
+            <!-- A full-size box slid by its place in percent of itself (its box is the square, so x% of it is x% of the map): the one way to move on transform alone; the tile sits at the box's origin. -->
+            <div [class]="'rift-live-token is-' + (p.side === 'us' ? 'ours' : 'theirs')" [class.is-dead]="p.dead" [style.transform]="'translate(' + p.x + '%, ' + p.y + '%)'" [attr.data-seat]="p.seat">
+              <span class="rift-live-tile" role="img" [attr.aria-label]="p.tip" [appTip]="p.tip">
+                @if (p.champion) {
+                  <img class="rift-live-img" [src]="ui.championIconUrl(p.champion)" alt="" loading="lazy" draggable="false" />
+                } @else {
+                  <span class="rift-live-fallback" aria-hidden="true">{{ p.seat.charAt(0) }}</span>
+                }
+                <small class="rift-live-seat" aria-hidden="true">{{ p.seat }}</small>
+              </span>
+            </div>
+          }
+        </div>
+      }
       <div class="rift-tokens">
         @for (tok of tokens(); track tok.key) {
           <button
@@ -197,7 +345,7 @@ export function staysForSeat(tok: RiftToken, seat: Role, selected: string | null
         <span class="rift-map-hint"><span class="material-symbols-rounded" aria-hidden="true">show_chart</span> The gold curve shows once you lock a guess</span>
       }
       @if (note()) {
-        <span class="rift-map-note">Approximate, by zone</span>
+        <span class="rift-map-note">{{ noteText() }}</span>
       }
     </div>
     <div class="rift-map-caption"><ng-content select="[caption]" /></div>
@@ -236,6 +384,18 @@ export class RiftMapComponent {
   readonly showCurveHint = input<boolean>(false);
   /** The "Approximate, by zone" corner note; off where nothing on the map came out of a zone. */
   readonly note = input<boolean>(true);
+  /** Where the ten stood once a minute, percent space (timeline version 3); absent on an older document, and the live layer stays off. */
+  readonly frames = input<FilmFrame[] | undefined>(undefined);
+  /** The live layer's switch: everyone on the map, moving between frames. On by default; a chapter turns it off to leave the deaths alone. */
+  readonly showEveryone = input<boolean>(true);
+  /** Our wards with their sight, percent space (timeline version 3). */
+  readonly wards = input<FilmWard[] | undefined>(undefined);
+  /** The vision layer's switch, off by default: the chapter's toggle turns it on. */
+  readonly showVision = input<boolean>(false);
+  /** The heat map's cells, built by the chapter; the map only draws them. */
+  readonly heat = input<FilmHeatCell[] | undefined>(undefined);
+  /** The heat layer's switch, off by default. */
+  readonly showHeat = input<boolean>(false);
   /** A death of ours was tapped: its ledger key. */
   readonly pick = output<string>();
   /** Any token was tapped: the token itself, so the tape can show its label. */
@@ -243,6 +403,77 @@ export class RiftMapComponent {
 
   protected readonly ui = inject(UiService);
   protected readonly motion = inject(MotionService);
+  protected readonly heatOpacity = heatOpacity;
+
+  /**
+   * Every death by side and seat, from the pins and the tape's events (a pin
+   * and its event carry the same second, and a duplicate second changes
+   * nothing). Their deaths carry no seat on the tape, so a token of theirs
+   * never fades: the map cannot say which of them fell.
+   */
+  private readonly deathSecs = computed<Map<string, number[]>>(() => {
+    const out = new Map<string, number[]>();
+    const add = (side: 'us' | 'them', seat: Role | undefined, sec: number) => {
+      if (!seat) return;
+      const key = `${side}:${seat}`;
+      const list = out.get(key);
+      if (list) list.push(sec);
+      else out.set(key, [sec]);
+    };
+    for (const p of this.pins()) add('us', p.seat, p.sec);
+    for (const e of this.events()) {
+      if (e.kind === 'ourDeath') add('us', e.seat, e.sec);
+      else if (e.kind === 'theirDeath') add('them', e.seat, e.sec);
+    }
+    return out;
+  });
+
+  /** The ten at the clock second: ours (that seat alone under the seat filter) then theirs, each keyed by side and seat so the same element slides between seconds. */
+  protected readonly live = computed<RiftLiveToken[]>(() => {
+    const frames = this.frames();
+    const until = this.until();
+    if (!this.showEveryone() || !frames?.length || until === null) return [];
+    const at = placeAt(frames, until);
+    if (!at) return [];
+    const seat = this.seatFilter();
+    const deaths = this.deathSecs();
+    const token = (p: FilmFramePlace, side: 'us' | 'them'): RiftLiveToken => ({
+      key: `${side}:${p.seat}`,
+      side,
+      seat: p.seat,
+      champion: p.champion,
+      x: p.x,
+      y: p.y,
+      tip: liveTip(p, side),
+      dead: diedWithin(deaths.get(`${side}:${p.seat}`) ?? [], until)
+    });
+    const ours = at.ours.filter((p) => seat === 'all' || p.seat === seat).map((p) => token(p, 'us'));
+    const theirs = at.theirs.map((p) => token(p, 'them'));
+    return [...ours, ...theirs];
+  });
+
+  /** The wards standing at the clock second as `wardsAt` reads it (placed by then and not yet gone; the very second one ends it still shows), that seat's alone under the seat filter; off without a second, since "standing at" needs one. */
+  protected readonly vision = computed<RiftWardMark[]>(() => {
+    const wards = this.wards();
+    const until = this.until();
+    if (!this.showVision() || !wards?.length || until === null) return [];
+    const seat = this.seatFilter();
+    // Keyed by the ward's place in the input, not in the live list, so a mark keeps its element when an earlier ward expires.
+    return wardsAt(wards, until)
+      .filter((w) => seat === 'all' || w.seat === seat)
+      .map((w) => ({ key: `w:${wards.indexOf(w)}`, ward: w, tip: wardTip(w) }));
+  });
+
+  /** The heat cells while the layer is on; never cut by the clock or the seat, since the cells are the whole game's. */
+  protected readonly heatCells = computed<FilmHeatCell[]>(() => (this.showHeat() ? (this.heat() ?? []) : []));
+
+  /** The corner note: "Approximate, by zone" for the deaths, and a clause per layer that places something another way. */
+  protected readonly noteText = computed(() => {
+    const parts = ['Approximate, by zone'];
+    if (this.live().length) parts.push('positions once a minute');
+    if (this.vision().length) parts.push('wards where the placer stood');
+    return parts.join(' · ');
+  });
 
   /** Every token in time order, cut to `until`, to the seat in view, and capped at MAX_TOKENS. */
   protected readonly tokens = computed<RiftToken[]>(() => {

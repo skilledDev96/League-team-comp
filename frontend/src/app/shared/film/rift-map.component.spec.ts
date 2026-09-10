@@ -1,8 +1,25 @@
-import { Role } from '../../models/team.models';
+import { Role, ROLES } from '../../models/team.models';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
-import { FilmDeathPin, FilmDeathScene, FilmTapeEvent } from '../../core/film-model';
-import { capTokens, LIT_WINDOW_SEC, MAX_TOKENS, objectiveGlyph, plateLane, RiftMapComponent, RiftToken, staysForSeat } from './rift-map.component';
+import { FilmDeathPin, FilmDeathScene, FilmFrame, FilmTapeEvent, FilmWard } from '../../core/film-model';
+import {
+  capTokens,
+  DEAD_WINDOW_SEC,
+  diedWithin,
+  FilmHeatCell,
+  HEAT_OPACITY_MAX,
+  HEAT_OPACITY_MIN,
+  heatOpacity,
+  LIT_WINDOW_SEC,
+  liveTip,
+  MAX_TOKENS,
+  objectiveGlyph,
+  plateLane,
+  RiftMapComponent,
+  RiftToken,
+  staysForSeat,
+  wardTip
+} from './rift-map.component';
 
 const events: FilmTapeEvent[] = [
   { sec: 95, kind: 'back', label: 'Top backed', side: 'us', seat: 'Top', x: 8, y: 92 },
@@ -264,5 +281,258 @@ describe('RiftMapComponent', () => {
     const el = fixture.nativeElement as HTMLElement;
     const badges = Array.from(el.querySelectorAll('.rift-token.is-selected .rift-badge svg.film-glyph')).map((b) => b.getAttribute('data-glyph'));
     expect(badges).toEqual(['horn']);
+  });
+});
+
+/* ---- The layers (Part C, 10 Sep 2026): everyone on the map, our vision, the heat ---- */
+
+const OUR_CHAMPS: Record<Role, string> = { Top: 'Ornn', Jungle: 'Lee Sin', Mid: 'Ahri', ADC: 'Jinx', Support: 'Leona' };
+const THEIR_CHAMPS: Record<Role, string> = { Top: 'Sett', Jungle: 'Rammus', Mid: 'Syndra', ADC: 'Caitlyn', Support: 'Nautilus' };
+
+/** Already in percent space (the model's contract): ours march up from the blue base and theirs down from the red, each seat a step apart, so the ten spots differ. */
+function frame(minute: number, shift: number): FilmFrame {
+  return {
+    minute,
+    ours: ROLES.map((seat, i) => ({ seat, champion: OUR_CHAMPS[seat], x: 10 + i * 4 + shift, y: 90 - i * 4 - shift })),
+    theirs: ROLES.map((seat, i) => ({ seat, champion: THEIR_CHAMPS[seat], x: 90 - i * 4 - shift, y: 10 + i * 4 + shift }))
+  };
+}
+
+/** Two frames, minute 5 and minute 15, twenty percent apart: halfway between them (600 s) every token sits ten percent along. */
+const twoFrames: FilmFrame[] = [frame(5, 0), frame(15, 20)];
+
+const wards: FilmWard[] = [
+  { sec: 300, untilSec: 390, seat: 'Jungle', type: 'trinket', x: 40, y: 60, r: 6 },
+  { sec: 320, untilSec: 900, seat: 'Support', type: 'control', x: 70, y: 72, r: 6 }
+];
+
+/** Reads the place a live token was slid to: "translate(20%, 80%)" as [20, 80]. */
+function placeOf(token: Element | null): [number, number] {
+  const m = /translate\(\s*([-\d.]+)%\s*,\s*([-\d.]+)%\s*\)/.exec((token as HTMLElement | null)?.style.transform ?? '');
+  if (!m) throw new Error('no place on ' + token?.className);
+  return [Number(m[1]), Number(m[2])];
+}
+
+describe('the layers\' words and figures', () => {
+  it('names a champion in a seat, never a name, on either side', () => {
+    expect(liveTip({ seat: 'Jungle', champion: 'Rammus' }, 'them')).toBe('Their Jungle · Rammus');
+    expect(liveTip({ seat: 'Jungle', champion: 'Lee Sin' }, 'us')).toBe('Our Jungle · Lee Sin');
+    expect(liveTip({ seat: 'Top' }, 'them')).toBe('Their Top');
+  });
+
+  it('says a ward stands where the placer stood, approximate', () => {
+    expect(wardTip(wards[0])).toBe('Trinket ward, Jungle, placed 5:00 · where the placer stood, approximate');
+    expect(wardTip(wards[1])).toContain('Control ward, Support, placed 5:20');
+  });
+
+  it('counts a death within the window before the second, never one after it', () => {
+    expect(DEAD_WINDOW_SEC).toBe(20);
+    expect(diedWithin([600], 600)).toBe(true);
+    expect(diedWithin([600], 610)).toBe(true);
+    expect(diedWithin([600], 620)).toBe(true);
+    expect(diedWithin([600], 621)).toBe(false);
+    expect(diedWithin([600], 599)).toBe(false);
+    expect(diedWithin([], 600)).toBe(false);
+  });
+
+  it('maps a weight onto the opacity band and clamps what falls outside it', () => {
+    expect(heatOpacity(0)).toBeCloseTo(HEAT_OPACITY_MIN);
+    expect(heatOpacity(1)).toBeCloseTo(HEAT_OPACITY_MAX);
+    expect(heatOpacity(0.5)).toBeCloseTo((HEAT_OPACITY_MIN + HEAT_OPACITY_MAX) / 2);
+    expect(heatOpacity(2)).toBeCloseTo(HEAT_OPACITY_MAX);
+    expect(heatOpacity(-1)).toBeCloseTo(HEAT_OPACITY_MIN);
+    expect(heatOpacity(Number.NaN)).toBeCloseTo(HEAT_OPACITY_MIN);
+    expect(HEAT_OPACITY_MIN).toBe(0.08);
+    expect(HEAT_OPACITY_MAX).toBe(0.35);
+  });
+});
+
+describe('RiftMapComponent layers', () => {
+  function mount(inputs: Partial<Record<string, unknown>> = {}) {
+    const fixture = TestBed.createComponent(RiftMapComponent);
+    for (const [k, v] of Object.entries(inputs)) fixture.componentRef.setInput(k, v);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('stands the ten at the interpolated spot halfway between two frames, as a layer and never as tokens', () => {
+    const fixture = mount({ frames: twoFrames, until: 600 });
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('.rift-live-token').length).toBe(10);
+    expect(el.querySelectorAll('.rift-live-token.is-ours').length).toBe(5);
+    expect(el.querySelectorAll('.rift-live-token.is-theirs').length).toBe(5);
+    // Ours Top: (10, 90) at 5 min and (30, 70) at 15 min, so (20, 80) at 10; theirs Top the mirror.
+    const [ox, oy] = placeOf(el.querySelector('.rift-live-token.is-ours[data-seat="Top"]'));
+    expect(ox).toBeCloseTo(20, 5);
+    expect(oy).toBeCloseTo(80, 5);
+    const [tx, ty] = placeOf(el.querySelector('.rift-live-token.is-theirs[data-seat="Top"]'));
+    expect(tx).toBeCloseTo(80, 5);
+    expect(ty).toBeCloseTo(20, 5);
+    // Every one of the ten is a distinct spot, moved on transform alone: no left or top on the box.
+    const spots = new Set(Array.from(el.querySelectorAll('.rift-live-token')).map((t) => placeOf(t).join(',')));
+    expect(spots.size).toBe(10);
+    expect((el.querySelector('.rift-live-token') as HTMLElement).style.left).toBe('');
+    // A layer, not tokens: the cap counts nothing here, and the corner says the positions are once a minute.
+    expect(el.querySelectorAll('.rift-token').length).toBe(0);
+    expect(el.classList.contains('has-live')).toBe(true);
+    expect(el.querySelector('.rift-map-note')?.textContent).toBe('Approximate, by zone · positions once a minute');
+    // At a frame itself the token stands on the frame.
+    fixture.componentRef.setInput('until', 300);
+    fixture.detectChanges();
+    expect(placeOf(el.querySelector('.rift-live-token.is-ours[data-seat="Top"]'))).toEqual([10, 90]);
+  });
+
+  it('never renders a name of theirs: the tile is a champion in a seat, the word under it the seat alone', () => {
+    const fixture = mount({ frames: twoFrames, until: 600 });
+    const el = fixture.nativeElement as HTMLElement;
+    const theirJungle = el.querySelector('.rift-live-token.is-theirs[data-seat="Jungle"]') as HTMLElement;
+    expect(theirJungle.querySelector('.rift-live-tile')?.getAttribute('aria-label')).toBe('Their Jungle · Rammus');
+    expect(theirJungle.querySelector('.rift-live-img')?.getAttribute('alt')).toBe('');
+    expect(theirJungle.textContent?.trim()).toBe('Jungle');
+    const ourJungle = el.querySelector('.rift-live-token.is-ours[data-seat="Jungle"]') as HTMLElement;
+    expect(ourJungle.querySelector('.rift-live-tile')?.getAttribute('aria-label')).toBe('Our Jungle · Lee Sin');
+    expect(ourJungle.querySelector('.rift-live-img')).not.toBeNull();
+    // Without a champion the tile falls back to the seat's initial, and the tip to the seat.
+    const bare: FilmFrame[] = [{ minute: 5, ours: [{ seat: 'Mid', x: 50, y: 50 }], theirs: [{ seat: 'Mid', x: 52, y: 48 }] }, { minute: 15, ours: [{ seat: 'Mid', x: 50, y: 50 }], theirs: [{ seat: 'Mid', x: 52, y: 48 }] }];
+    fixture.componentRef.setInput('frames', bare);
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-live-token').length).toBe(2);
+    expect(el.querySelector('.rift-live-token.is-theirs .rift-live-fallback')?.textContent).toBe('M');
+    expect(el.querySelector('.rift-live-token.is-theirs .rift-live-tile')?.getAttribute('aria-label')).toBe('Their Mid');
+  });
+
+  it('keeps one seat of ours and all of theirs under the seat filter', () => {
+    const fixture = mount({ frames: twoFrames, until: 600, seatFilter: 'Mid' });
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('.rift-live-token.is-ours').length).toBe(1);
+    expect(el.querySelector('.rift-live-token.is-ours')?.getAttribute('data-seat')).toBe('Mid');
+    expect(el.querySelectorAll('.rift-live-token.is-theirs').length).toBe(5);
+    fixture.componentRef.setInput('seatFilter', 'all');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-live-token.is-ours').length).toBe(5);
+  });
+
+  it('fades a seat for twenty seconds after its death, and hides the layer with showEveryone off or no clock second', () => {
+    const death: FilmTapeEvent[] = [{ sec: 600, kind: 'ourDeath', label: 'Ornn (Top) died', side: 'us', seat: 'Top', champion: 'Ornn', x: 20, y: 80, key: 'd:10:Top' }];
+    const fixture = mount({ frames: twoFrames, events: death, until: 610 });
+    const el = fixture.nativeElement as HTMLElement;
+    const dead = () => Array.from(el.querySelectorAll('.rift-live-token.is-dead')).map((t) => t.getAttribute('data-seat'));
+    expect(dead()).toEqual(['Top']);
+    fixture.componentRef.setInput('until', 621);
+    fixture.detectChanges();
+    expect(dead()).toEqual([]);
+    fixture.componentRef.setInput('until', 590);
+    fixture.detectChanges();
+    expect(dead()).toEqual([]);
+    // A pin fades its seat the same way.
+    fixture.componentRef.setInput('events', []);
+    fixture.componentRef.setInput('pins', pins.filter((p) => p.key === 'd:14:Top').map((p) => ({ ...p, sec: 600, minute: 10 })));
+    fixture.componentRef.setInput('until', 615);
+    fixture.detectChanges();
+    expect(dead()).toEqual(['Top']);
+    // Their deaths carry no seat on the tape, so none of theirs ever fades.
+    expect(el.querySelectorAll('.rift-live-token.is-theirs.is-dead').length).toBe(0);
+    fixture.componentRef.setInput('showEveryone', false);
+    fixture.detectChanges();
+    expect(el.querySelector('.rift-live')).toBeNull();
+    expect(el.classList.contains('has-live')).toBe(false);
+    expect(el.querySelector('.rift-map-note')?.textContent).toBe('Approximate, by zone');
+    fixture.componentRef.setInput('showEveryone', true);
+    fixture.componentRef.setInput('until', null);
+    fixture.detectChanges();
+    expect(el.querySelector('.rift-live')).toBeNull();
+  });
+
+  it('shows a ward only while it is live, marked by its kind with its sight, and the seat filter keeps that seat\'s', () => {
+    const fixture = mount({ wards, showVision: true, until: 200 });
+    const el = fixture.nativeElement as HTMLElement;
+    const marks = () => el.querySelectorAll('.rift-ward').length;
+    const sights = () => el.querySelectorAll('.rift-sight').length;
+    expect(marks()).toBe(0);
+    expect(sights()).toBe(0);
+    expect(el.querySelector('.rift-map-note')?.textContent).toBe('Approximate, by zone');
+    // At its placing the trinket is live, alone.
+    fixture.componentRef.setInput('until', 300);
+    fixture.detectChanges();
+    expect(marks()).toBe(1);
+    expect(sights()).toBe(1);
+    const trinket = el.querySelector('.rift-ward') as HTMLElement;
+    expect(trinket.classList.contains('is-trinket')).toBe(true);
+    expect(trinket.querySelector('svg.film-glyph')?.getAttribute('data-glyph')).toBe('ward');
+    expect(trinket.getAttribute('aria-label')).toBe('Trinket ward, Jungle, placed 5:00 · where the placer stood, approximate');
+    expect(trinket.style.left).toBe('40%');
+    const sight = el.querySelector('.rift-sight') as SVGCircleElement;
+    expect(sight.getAttribute('cx')).toBe('40');
+    expect(sight.getAttribute('r')).toBe('6');
+    expect(el.querySelector('.rift-map-note')?.textContent).toBe('Approximate, by zone · wards where the placer stood');
+    expect(el.classList.contains('has-vision')).toBe(true);
+    // Both live at 350; the trinket ends at 390 and still shows that very second, as `wardsAt` reads it, and is gone the second after.
+    fixture.componentRef.setInput('until', 350);
+    fixture.detectChanges();
+    expect(marks()).toBe(2);
+    expect(sights()).toBe(2);
+    expect(el.querySelectorAll('.rift-ward.is-control').length).toBe(1);
+    fixture.componentRef.setInput('until', 390);
+    fixture.detectChanges();
+    expect(marks()).toBe(2);
+    fixture.componentRef.setInput('until', 391);
+    fixture.detectChanges();
+    expect(marks()).toBe(1);
+    expect(sights()).toBe(1);
+    expect(el.querySelector('.rift-ward')?.classList.contains('is-control')).toBe(true);
+    // The seat filter keeps that seat's wards alone.
+    fixture.componentRef.setInput('until', 350);
+    fixture.componentRef.setInput('seatFilter', 'Support');
+    fixture.detectChanges();
+    expect(marks()).toBe(1);
+    expect(el.querySelector('.rift-ward')?.classList.contains('is-control')).toBe(true);
+    fixture.componentRef.setInput('seatFilter', 'Top');
+    fixture.detectChanges();
+    expect(marks()).toBe(0);
+    // Off by default, and off with the switch.
+    fixture.componentRef.setInput('seatFilter', 'all');
+    fixture.componentRef.setInput('showVision', false);
+    fixture.detectChanges();
+    expect(marks()).toBe(0);
+    expect(sights()).toBe(0);
+  });
+
+  it('draws the heat cells as a wash whose opacity follows the weight, only while the layer is on', () => {
+    const heat: FilmHeatCell[] = [
+      { x: 30, y: 70, r: 8, kind: 'ward', weight: 1 },
+      { x: 60, y: 40, r: 10, kind: 'death', weight: 0 },
+      { x: 50, y: 50, r: 6, kind: 'ward', weight: 0.5 }
+    ];
+    const fixture = mount({ heat, showHeat: true });
+    const el = fixture.nativeElement as HTMLElement;
+    const cells = el.querySelectorAll('.rift-heat');
+    expect(cells.length).toBe(3);
+    expect(el.querySelectorAll('.rift-heat.is-ward').length).toBe(2);
+    expect(el.querySelectorAll('.rift-heat.is-death').length).toBe(1);
+    expect(Number(cells[0].getAttribute('opacity'))).toBeCloseTo(0.35);
+    expect(Number(cells[1].getAttribute('opacity'))).toBeCloseTo(0.08);
+    expect(cells[1].getAttribute('r')).toBe('10');
+    expect(el.classList.contains('has-heat')).toBe(true);
+    // The heat is drawn before everything else in the overlay, so the rest stands on it.
+    expect(el.querySelector('.rift-map-overlay > :first-child')?.classList.contains('rift-heat')).toBe(true);
+    // Not cut by the clock or the seat: the cells are the whole game's.
+    fixture.componentRef.setInput('until', 0);
+    fixture.componentRef.setInput('seatFilter', 'Top');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-heat').length).toBe(3);
+    fixture.componentRef.setInput('showHeat', false);
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-heat').length).toBe(0);
+    expect(el.classList.contains('has-heat')).toBe(false);
+  });
+
+  it('keeps the event tokens and their cap untouched under every layer', () => {
+    const crowded: FilmTapeEvent[] = Array.from({ length: MAX_TOKENS + 5 }, (_, i) => ({ sec: i + 1, kind: 'back' as const, label: 'Top backed', side: 'us' as const, seat: 'Top' as const, x: 8, y: 92 }));
+    const fixture = mount({ events: crowded, frames: twoFrames, wards, showVision: true, heat: [{ x: 50, y: 50, r: 6, kind: 'ward', weight: 1 }], showHeat: true, until: 600 });
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('.rift-token').length).toBe(MAX_TOKENS);
+    expect(el.querySelectorAll('.rift-live-token').length).toBe(10);
+    expect(el.querySelectorAll('.rift-ward').length).toBe(1);
+    expect(el.querySelectorAll('.rift-heat').length).toBe(1);
   });
 });

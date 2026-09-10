@@ -13,3 +13,7 @@ frontend/riot-key.txt
 firebase-debug.log
 api/firebase-debug.log
 *.log
+
+# A timeline document made locally by scripts/dev-timeline.mjs (10 Sep 2026): it lands in the
+# working directory by default and carries our players' names, so it never goes in.
+dev-timeline-*.json

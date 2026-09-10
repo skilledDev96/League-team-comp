@@ -3,10 +3,12 @@ import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { environment } from '../../../../environments/environment';
-import { FilmDeathPin, FilmDeathScene, FilmMap, FilmModel } from '../../../core/film-model';
+import { FilmDeathPin, FilmDeathScene, FilmFrame, FilmMap, FilmModel, FilmTape } from '../../../core/film-model';
 import { styleFor } from '../../../core/film-style';
+import { ROLES } from '../../../models/team.models';
+import { heatOpacity } from '../../../shared/film/rift-map.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
-import { APPROXIMATE_TIP, costLine, FilmMapComponent, k, signedK } from './film-map.component';
+import { APPROXIMATE_TIP, costLine, FilmMapComponent, HEAT_NOTE, HEAT_TIP, k, signedK } from './film-map.component';
 
 // Local mode, the way the film page's spec does it: no listeners, no backend.
 const realApiKey = environment.firebase.apiKey;
@@ -47,7 +49,32 @@ const map: FilmMap = {
   order: 'chronological'
 };
 
-function modelWith(m: FilmMap | undefined): FilmModel {
+/* ---- Part C (10 Sep 2026): a version 3 tape beside the map, with the frames and the wards ---- */
+
+/** Two frames, percent space (the model's contract), so the tape has positions and the map may offer the lab. */
+const frames: FilmFrame[] = [0, 30].map((minute) => ({
+  minute,
+  ours: ROLES.map((seat, i) => ({ seat, x: 10 + i * 4 + minute / 2, y: 90 - i * 4 - minute / 2 })),
+  theirs: ROLES.map((seat, i) => ({ seat, x: 90 - i * 4 - minute / 2, y: 10 + i * 4 + minute / 2 }))
+}));
+
+/** A control ward that stood five minutes and a trinket that lived its 90 s: two cells of different weight. */
+const v3Tape = {
+  durationSec: 1800,
+  ourSide: 'blue',
+  goldDiff: [],
+  turn: null,
+  moments: [],
+  events: [],
+  beats: [],
+  frames,
+  wards: [
+    { sec: 300, untilSec: 600, seat: 'Support', type: 'control', x: 70, y: 72, r: 7 },
+    { sec: 1000, untilSec: 1090, seat: 'Jungle', type: 'trinket', x: 40, y: 60, r: 7 }
+  ]
+} as FilmTape;
+
+function modelWith(m: FilmMap | undefined, tape?: FilmTape): FilmModel {
   return {
     matchId: 'EUW1_7000000001',
     tier: 'timeline',
@@ -62,6 +89,7 @@ function modelWith(m: FilmMap | undefined): FilmModel {
       { seat: 'Support', name: 'Nia', champion: 'Leona' }
     ],
     title: { headline: 'Bled 35 kills', win: false, protagonist: { seat: 'ADC', champion: 'Jinx', name: 'Rhu' }, lowerThird: { date: 0, compName: null, compVerdict: 'off plan', compWhy: '', tier: 'timeline' } },
+    tape,
     map: m
   } as unknown as FilmModel;
 }
@@ -120,9 +148,9 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmMapComponent', () => {
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
   });
 
-  function mount(m: FilmMap | undefined) {
+  function mount(m: FilmMap | undefined, tape?: FilmTape) {
     const fixture = TestBed.createComponent(FilmMapComponent);
-    fixture.componentRef.setInput('model', modelWith(m));
+    fixture.componentRef.setInput('model', modelWith(m, tape));
     fixture.detectChanges();
     return { fixture, root: fixture.nativeElement as HTMLElement };
   }
@@ -384,6 +412,78 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmMapComponent', () => {
     fixture.detectChanges();
     expect(root.querySelector('.film-map-table')).toBeNull();
     expect(text(root.querySelector('.film-death-n'))).toBe('3 / 3');
+  });
+
+  /* ---- Part C (10 Sep 2026): the vision heat and the way to the lab ---- */
+
+  it('offers Vision heat when the timeline kept our wards: a wash of every ward and every death under the pins, whole under any seat, and the corner note saying where the wards stood', () => {
+    const { fixture, root } = mount(map, v3Tape);
+    expect(legend(root)).toEqual(['All 3', 'Avoidable 1', 'Traded 1', 'Bought an objective 1', 'Vision heat', 'table_rows As a table', 'fullscreen Full screen']);
+    const heat = () => legendPill(root, 'Vision heat');
+    expect(heat().getAttribute('aria-pressed')).toBe('false');
+    expect(heat().querySelector('.film-glyph')?.getAttribute('data-glyph')).toBe('ward');
+    expect(fixture.debugElement.query(By.css('.film-heat-btn')).injector.get(TooltipDirective).appTip()).toBe(HEAT_TIP);
+    expect(root.querySelector('.rift-heat')).toBeNull();
+    expect(root.querySelector('.rift-map.has-heat')).toBeNull();
+    heat().click();
+    fixture.detectChanges();
+    expect(heat().getAttribute('aria-pressed')).toBe('true');
+    expect(heat().classList.contains('active')).toBe(true);
+    expect(root.querySelector('.rift-map.has-heat')).not.toBeNull();
+    // Two wards of different lives, three deaths at full weight; the heat draws first in the overlay so everything stands on it.
+    const wards = Array.from(root.querySelectorAll('.rift-heat.is-ward'));
+    expect(wards).toHaveLength(2);
+    expect(wards.map((c) => c.getAttribute('opacity'))).toEqual([String(heatOpacity(1)), String(heatOpacity(0.3))]);
+    expect(wards[0].getAttribute('r')).toBe('7');
+    const deaths = Array.from(root.querySelectorAll('.rift-heat.is-death'));
+    expect(deaths).toHaveLength(3);
+    expect(deaths.map((c) => c.getAttribute('opacity'))).toEqual(Array(3).fill(String(heatOpacity(1))));
+    expect(deaths.map((c) => c.getAttribute('r'))).toEqual(['6', '6', '6']);
+    expect(root.querySelector('.rift-map-overlay')?.firstElementChild?.classList.contains('rift-heat')).toBe(true);
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(3);
+    // The corner note says the wards are placed another way, and its tip says how.
+    expect(text(root.querySelector('.film-map-note'))).toBe(`Approximate, by zone · ${HEAT_NOTE}`);
+    expect(HEAT_NOTE).toBe('where our wards stood, approximate');
+    expect(fixture.debugElement.query(By.css('.film-map-note')).injector.get(TooltipDirective).appTip()).toBe(`${APPROXIMATE_TIP} ${HEAT_TIP}`);
+    expect(text(root.querySelector('.film-map-stage .visually-hidden'))).toContain('where our wards stood against where we died');
+    // The cells are the whole game's: a seat's view leaves the wash whole while the pins follow the seat.
+    tile(root, 'ADC').click();
+    fixture.detectChanges();
+    expect(root.querySelectorAll('.rift-heat')).toHaveLength(5);
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(1);
+    // Off again.
+    heat().click();
+    fixture.detectChanges();
+    expect(root.querySelector('.rift-heat')).toBeNull();
+    expect(text(root.querySelector('.film-map-note'))).toBe('Approximate, by zone');
+    // A timeline that kept no wards has no pill and no wash; every action stayed a pill.
+    const older = mount(map);
+    expect(older.root.querySelector('.film-heat-btn')).toBeNull();
+    expect(older.root.querySelector('.rift-heat')).toBeNull();
+    expect(root.querySelectorAll('.film-legend a')).toHaveLength(0);
+  });
+
+  it('hands Work on this second the death\'s own second when the tape has frames, and keeps the pill away otherwise', () => {
+    const { fixture, root } = mount(map, v3Tape);
+    const labs: number[] = [];
+    fixture.componentInstance.lab.subscribe((sec) => labs.push(sec));
+    const btn = Array.from(root.querySelectorAll<HTMLButtonElement>('.film-death-actions .view-btn')).find((b) => text(b).includes('Work on this second'));
+    if (!btn) throw new Error('no Work on this second pill on the card');
+    expect(btn.tagName).toBe('BUTTON');
+    expect(btn.classList.contains('film-lab-btn')).toBe(true);
+    btn.click();
+    expect(labs).toEqual([252]);
+    // The second death's card asks for its own second.
+    click(root, '.film-death-actions .view-btn.active');
+    fixture.detectChanges();
+    root.querySelector<HTMLButtonElement>('.film-death-actions .film-lab-btn')!.click();
+    expect(labs).toEqual([252, 1210]);
+    // Wards without frames (the size cap took the positions but not the wards is not a shape the api writes; a tape with neither is): no lab.
+    const older = mount(map);
+    expect(older.root.querySelector('.film-death-actions .film-lab-btn')).toBeNull();
+    const noFrames = mount(map, { ...v3Tape, frames: undefined });
+    expect(noFrames.root.querySelector('.film-death-actions .film-lab-btn')).toBeNull();
+    expect(noFrames.root.querySelector('.film-heat-btn')).not.toBeNull();
   });
 
   it('says so with no deaths, and with no ledger', () => {

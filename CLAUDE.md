@@ -328,7 +328,14 @@ filter rather than none, so it can never become unpickable.
    kill, our jungler's distance and zone at the nearest frame, their
    jungler's distance a frame before, allies near, an objective in the same
    minute; which of our seats were on each of their deaths; and damage
-   dealt and taken per five minutes. The facts read off it
+   dealt and taken per five minutes. Version 3 (10 Sep 2026) keeps
+   positions once a minute per seat on both sides (Riot units to 100, one
+   flat list of x, y pairs per seat with -1, -1 for a frame without one,
+   since Firestore refuses an array inside an array; `nestedArrayPath`
+   guards it) and our wards at the placer's frame position with the
+   type and the earliest matching kill; `scripts/dev-timeline.mjs` makes
+   one locally from `api/lib` for the dev override (the film room's Part C
+   paragraph). The facts read off it
    (`api/src/game-facts.ts`: curve shape, lanes with the minute, fights,
    solo deaths, objectives given up, vision, and the **death ledger** — a
    verdict per death, `how` and what `could` have stopped it: `jungle`
@@ -568,6 +575,60 @@ filter rather than none, so it can never become unpickable.
    and the prompt's shared RULES say so to both calls.
    The old progress keys `map:*` and `tape:*` are ignored: `tallyLine`
    only counts that calls exist, so an old film still reads "Continue".
+   **Part C (10 Sep 2026, shipped locally, waiting for a deploy): positions,
+   vision and a place to work on the game.** The lead: "we want to see where
+   our vision was placed, to see did we have to place a ward there or not",
+   "a visualisation tool from a certain point in this timeline map to see
+   where we could have been better positioned", "safe zones and danger
+   zones, almost like a heat map". Timeline version 3 keeps `positions`
+   (every seat on both sides once a minute, Riot units rounded to 100, null
+   without a frame, theirs keyed by seat and never a puuid or a name) and
+   `wards` (ours: `sec`, `seat`, `type` trinket/control/other, `x`/`y` at
+   the placer's frame position because a ward event carries no position of
+   its own, `killedSec` from the earliest matching kill by one of theirs);
+   both are the second trim step after `theirDeaths` under `MAX_BYTES`, and
+   every surface that draws either says approximate. `core/rift-zones.ts`
+   `riotToPercent` maps Riot units onto the image by a two-point fit to the
+   table's own Baron and Dragon pits (so the frames agree with the
+   zone-placed deaths; re-measure the pits against the PNG and it re-fits
+   itself), `framesOf`/`wardsOf` in `core/film-build.ts` build
+   `FilmTape.frames`/`wards` (a control ward stands to the end, anything
+   else 90 s, a kill wins), and `placeAt` blends the two nearest frames to
+   any second. The layers on `app-rift-map` (never tokens, so never against
+   the sixty cap): Everyone (`frames` + `showEveryone`, the ten sliding on
+   transform alone, ours ringed in the accent, theirs faded, a champion in a
+   seat; a seat that died fades for `DEAD_WINDOW_SEC`), Vision (`wards` +
+   `showVision`, the film's ward glyph at the placer's spot with its sight
+   as a dashed circle) and the heat (`heat` + `showHeat`, `FilmHeatCell`s
+   from `core/film-heat.ts` `buildHeat`: a cell per ward at its sight
+   weighted by its life over `HEAT_FULL_LIFE_SEC`, a cell per death at
+   `HEAT_DEATH_R`, a wash of --ok and --warn under everything). The tape
+   wears Everyone (on) and Vision (off) as pills in its tools row when the
+   tape has frames, and Work on this second (also on a death beat's card)
+   opens the **position lab** (`shared/film/position-lab.component.ts`,
+   `core/position-lab.ts` pure) over the frame with the Rift paused: the
+   ten where the blended frame put them, drag ours (a ghost stays where the
+   minute put them), put a trinket or a control ward down, draw move, path
+   and dive arrows (the coach's hand-drawn board), and read the ground —
+   their reach over the next thirty seconds off their pace between the two
+   frames (dashed --warn), our sight (--ok) and the shading between (safe,
+   seen, dark) — with one line under the map reading the difference
+   (`readingOf`). Save (editors; a viewer gets the lab without it) writes
+   the drawing as a film note keyed `lab:<sec>` (`FilmNote.lab`, a
+   `FilmLabDrawing`: the moves, the wards, the arrows, percent space) with
+   the reading line as its text, through `saveFilmNote`'s optional `lab`;
+   Escape closes the lab before the drawer or the full screen. The map
+   chapter offers Vision heat beside the legend when the timeline kept the
+   wards (the corner note gains "where our wards stood, approximate") and
+   Work on this second on a death's card, which reaches the tape as a seek
+   request with `lab` (`FilmSeekRequest.lab`) on the death's own second.
+   Until the functions are deployed only the dev road makes a version 3
+   document: `scripts/dev-timeline.mjs` (`RIOT_API_KEY=... node
+   scripts/dev-timeline.mjs <matchId>` after `cd api && npm run build`)
+   builds one from `api/lib` and prints a `localStorage.setItem` line for
+   the dev override `bom-dev-timeline:<matchId>`, which
+   `MatchTimelineService.load` reads in dev builds only (after its cache,
+   before Firestore; a bad paste warns once and falls through).
    **Post-game graphs** (`shared/game-graphs.component.ts`) sit behind a
    Table | Graphs segment on every Games row's scoreboard, drawn from the
    row's `RowStats` so replays and Riot games get the same view; a figure a

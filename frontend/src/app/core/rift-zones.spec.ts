@@ -3,7 +3,10 @@ import { MapZone, Role } from '../models/team.models';
 import {
   BARON_PIT,
   DRAGON_PIT,
+  MAP_MAX,
   MAP_SPOTS,
+  RIOT_BARON_PIT,
+  RIOT_DRAGON_PIT,
   RiftSide,
   areaAt,
   clusterSpot,
@@ -11,6 +14,8 @@ import {
   objectivePit,
   placeDeath,
   regionFor,
+  riotToPercent,
+  unitsToPercent,
   zoneAt
 } from './rift-zones';
 
@@ -78,6 +83,11 @@ describe('areaAt and zoneAt', () => {
     expect(areaAt(50, 50)).toBe('mid');
     expect(areaAt(31, 30)).toBe('river');
     expect(areaAt(69, 69)).toBe('river');
+    // The pits are cut into the wall beside the river: their floor is river ground, the jungle behind them is not.
+    expect(areaAt(37, 28)).toBe('river');
+    expect(areaAt(65, 72)).toBe('river');
+    expect(areaAt(41, 25)).toBe('redJungle');
+    expect(areaAt(60, 75)).toBe('blueJungle');
     expect(areaAt(25, 60)).toBe('blueJungle');
     expect(areaAt(60, 75)).toBe('blueJungle');
     expect(areaAt(40, 25)).toBe('redJungle');
@@ -242,5 +252,81 @@ describe('clusterSpot', () => {
       }
     }
     expect(clusterSpot('river', 'blue', 'EUW1_3')).not.toEqual(clusterSpot('river', 'blue', 'EUW1_4'));
+  });
+});
+
+describe('riotToPercent and unitsToPercent', () => {
+  it('lands Riot\'s two pits on the table\'s own pits, in the river', () => {
+    const baron = riotToPercent(RIOT_BARON_PIT.x, RIOT_BARON_PIT.y);
+    const dragon = riotToPercent(RIOT_DRAGON_PIT.x, RIOT_DRAGON_PIT.y);
+    expect(dist(baron, BARON_PIT)).toBeLessThanOrEqual(0.5);
+    expect(dist(dragon, DRAGON_PIT)).toBeLessThanOrEqual(0.5);
+    expect(areaAt(baron.x, baron.y)).toBe('river');
+    expect(areaAt(dragon.x, dragon.y)).toBe('river');
+  });
+
+  it('puts the blue corner bottom-left inside the image near (3, 98) and the red corner top-right near (99, 2), clamping only beyond them', () => {
+    // Inside, not on the edge (10 Sep 2026, second fix pass): the first fit put both corners off the image, and a clamped 0 passed as "near 2".
+    const blue = riotToPercent(0, 0);
+    expect(blue.x).toBeGreaterThan(1);
+    expect(blue.x).toBeLessThan(5);
+    expect(blue.y).toBeGreaterThan(95);
+    expect(blue.y).toBeLessThan(99.5);
+    const red = riotToPercent(MAP_MAX, MAP_MAX);
+    expect(red.x).toBeGreaterThan(97);
+    expect(red.x).toBeLessThan(99.9);
+    expect(red.y).toBeGreaterThan(0.5);
+    expect(red.y).toBeLessThan(4);
+    expect(riotToPercent(-2000, -2000)).toEqual({ x: 0, y: 100 });
+    expect(riotToPercent(30000, 30000)).toEqual({ x: 100, y: 0 });
+  });
+
+  it('lands the fountains in the bases and the outer towers on their lanes, with one scale for both axes', () => {
+    // Riot's own spots: the blue fountain, the red one, and the tier-one towers the timeline's building kills carry.
+    const blueFountain = riotToPercent(554, 581);
+    expect(areaAt(blueFountain.x, blueFountain.y)).toBe('blueBase');
+    const redFountain = riotToPercent(14300, 14400);
+    expect(areaAt(redFountain.x, redFountain.y)).toBe('redBase');
+    const blueTopTower = riotToPercent(981, 10441);
+    expect(areaAt(blueTopTower.x, blueTopTower.y)).toBe('top');
+    const redBotTower = riotToPercent(13866, 4505);
+    expect(areaAt(redBotTower.x, redBotTower.y)).toBe('bot');
+    const blueMidTower = riotToPercent(5846, 6396);
+    expect(areaAt(blueMidTower.x, blueMidTower.y)).toBe('mid');
+    // One scale: 900 units across is 900 units up, so a ward's sight is one round circle.
+    const across = riotToPercent(7435 + 900, 7435).x - riotToPercent(7435, 7435).x;
+    const up = riotToPercent(7435, 7435).y - riotToPercent(7435, 7435 + 900).y;
+    expect(Math.abs(across - up)).toBeLessThanOrEqual(0.15);
+    expect(Math.abs(across - unitsToPercent(900))).toBeLessThanOrEqual(0.15);
+    expect(unitsToPercent(900)).toBeGreaterThan(5.5);
+    expect(unitsToPercent(900)).toBeLessThan(6.5);
+  });
+
+  it('keeps the middle in the middle, x running right and Riot\'s y running up the image', () => {
+    // The map's centre sits a hair right of the PNG's (the nexuses' midpoint is near (51, 49)), so within a percent and a half.
+    const mid = riotToPercent(MAP_MAX / 2, MAP_MAX / 2);
+    expect(dist(mid, { x: 50, y: 50 })).toBeLessThanOrEqual(1.5);
+    expect(areaAt(mid.x, mid.y)).toBe('mid');
+    expect(riotToPercent(10000, 7435).x).toBeGreaterThan(riotToPercent(5000, 7435).x);
+    expect(riotToPercent(7435, 10000).y).toBeLessThan(riotToPercent(7435, 5000).y);
+  });
+
+  it('rounds to a tenth of a percent and hands back a fresh point', () => {
+    const p = riotToPercent(1234, 5678);
+    expect(p.x).toBe(Math.round(p.x * 10) / 10);
+    expect(p.y).toBe(Math.round(p.y * 10) / 10);
+    expect(riotToPercent(1234, 5678)).not.toBe(p);
+  });
+
+  it('makes a 900-unit sight radius about six percent of the map, a shade more after the fit, on the x axis\'s own scale', () => {
+    const r = unitsToPercent(900);
+    expect(r).toBeGreaterThan(5.5);
+    expect(r).toBeLessThan(7.5);
+    expect(unitsToPercent(0)).toBe(0);
+    expect(unitsToPercent(1800)).toBeCloseTo(r * 2, 6);
+    // 900 units left of the pit is that many percent left of it on the image.
+    const at = riotToPercent(RIOT_BARON_PIT.x, RIOT_BARON_PIT.y);
+    const left = riotToPercent(RIOT_BARON_PIT.x - 900, RIOT_BARON_PIT.y);
+    expect(at.x - left.x).toBeCloseTo(r, 0);
   });
 });

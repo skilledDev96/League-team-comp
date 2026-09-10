@@ -46,6 +46,8 @@ import {
   PracticeGame,
   FilmChoice,
   FilmCommitment,
+  FilmLabDrawing,
+  FilmNote,
   FilmNotes
 } from '../models/team.models';
 import { normalizeEmail } from '../core/access';
@@ -176,20 +178,28 @@ export class TeamDataService {
     else await setDoc(ref, { matchId, text, ...(options && { options }), by: { [key]: choice } }, { merge: true });
   }
 
-  /** One line on a moment ("m:<index>") or a death ("d:<minute>:<seat>"); an empty text takes the note down. */
-  async saveFilmNote(matchId: string, key: string, text: string): Promise<void> {
+  /**
+   * One line on a moment ("m:<index>") or a death ("d:<minute>:<seat>"); an
+   * empty text takes the note down. With a drawing from the position lab
+   * (Part C, 10 Sep 2026) the note is keyed on the second ("lab:<sec>") and
+   * carries the drawing as `lab`, the text being the lab's own reading line;
+   * a note without one never gets an empty `lab` key, so an old note and a
+   * plain one read the same.
+   */
+  async saveFilmNote(matchId: string, key: string, text: string, lab?: FilmLabDrawing): Promise<void> {
     const trimmed = text.trim();
     const by = this.emailKey();
     const at = new Date().toISOString();
+    const note: FilmNote = lab ? { text: trimmed, by, at, lab } : { text: trimmed, by, at };
     const current = this.notesFor(matchId);
     const notes = { ...(current?.notes ?? {}) };
-    if (trimmed) notes[key] = { text: trimmed, by, at };
+    if (trimmed) notes[key] = note;
     else delete notes[key];
     this.filmNotes.set([...this.filmNotes().filter((n) => n.matchId !== matchId), { matchId, notes }]);
     if (this.mode !== 'firebase') return;
     const db = getDb();
     if (!db) return;
-    await setDoc(doc(db, 'filmNotes', matchId), { matchId, notes: { [key]: trimmed ? { text: trimmed, by, at } : deleteField() } }, { merge: true });
+    await setDoc(doc(db, 'filmNotes', matchId), { matchId, notes: { [key]: trimmed ? note : deleteField() } }, { merge: true });
   }
 
   /** The signed-in email, lowercased, as the key a person's pick or note is stored under. */

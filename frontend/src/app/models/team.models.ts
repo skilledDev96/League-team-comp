@@ -555,6 +555,16 @@ export interface FilmNote {
   by: string;
   /** ISO time. */
   at: string;
+  /** A drawing from the position lab (10 Sep 2026), when the note was saved from it; keys "lab:<sec>". */
+  lab?: FilmLabDrawing;
+}
+
+/** What the position lab keeps: the second, where ours were moved to, the wards tried, the arrows drawn; percent space of the Rift image. */
+export interface FilmLabDrawing {
+  sec: number;
+  moved: { seat: Role; x: number; y: number }[];
+  wards: { type: TimelineWardType; x: number; y: number }[];
+  arrows: { x1: number; y1: number; x2: number; y2: number; kind: 'move' | 'path' | 'dive' }[];
 }
 
 /** The team's notes on a film, at `filmNotes/{matchId}`, keyed "m:<moment index>", "d:<minute>:<seat>" or "w:<work-on index>". */
@@ -873,6 +883,32 @@ export interface TimelineDeath {
   objectiveNear?: boolean;
 }
 
+/**
+ * Positions by minute: `minutes[i]` is the frame's minute and each seat's track one flat list of pairs, `[x0, y0, x1, y1, ...]`,
+ * so frame i is `track[2 * i]`, `track[2 * i + 1]` in Riot units; a seat missing a frame carries NO_POSITION twice. Flat, not a
+ * list of pairs, because Firestore refuses an array inside an array (10 Sep 2026, second fix pass). Mirrors the api's.
+ */
+export interface TimelinePositions {
+  minutes: number[];
+  ours: Partial<Record<Role, number[]>>;
+  theirs: Partial<Record<Role, number[]>>;
+}
+
+/** Both halves of a frame's pair when the seat had no position there; never a real value, since the api keeps positions to hundreds. */
+export const NO_POSITION = -1;
+
+export type TimelineWardType = 'trinket' | 'control' | 'other';
+
+/** One ward of ours: when, who, which kind, where the placer stood at the nearest frame (Riot units), and when it was killed if the log says. */
+export interface TimelineWard {
+  sec: number;
+  seat: Role;
+  type: TimelineWardType;
+  x: number;
+  y: number;
+  killedSec?: number;
+}
+
 export interface MatchTimeline {
   matchId: string;
   timelineVersion: number;
@@ -906,6 +942,14 @@ export interface MatchTimeline {
   spend: { seat: Role; firstItemMinute?: number; secondItemMinute?: number; backs: number[] }[];
   /** Damage to champions dealt and taken per five minutes, our five only; absent before version 2. */
   damage?: { seat: Role; dealt: number[]; taken: number[] }[];
+  /**
+   * Where everyone stood, once a minute, from timeline version 3 (10 Sep 2026); absent before it.
+   * Riot map units (0 to 14870 on both axes, blue base at the origin), rounded to 100. Theirs are
+   * a champion in a seat, never a name. Frames are sixty seconds apart, so every use says approximate.
+   */
+  positions?: TimelinePositions;
+  /** Our wards, from timeline version 3: the placer's position at the nearest frame, because a ward event carries none. */
+  wards?: TimelineWard[];
   /** The facts read off the figures, stored beside them; mirrors `api/src/game-facts.ts`. */
   facts?: GameFacts;
   bytes: number;

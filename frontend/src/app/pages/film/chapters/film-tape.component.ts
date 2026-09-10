@@ -2,16 +2,19 @@ import { Location } from '@angular/common';
 import { afterRenderEffect, Component, computed, DestroyRef, effect, ElementRef, HostListener, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { READ_LABELS } from '../../../core/death-reads';
-import { railGroups } from '../../../core/film-build';
+import { placeAt, railGroups, wardsAt } from '../../../core/film-build';
 import { createFilmClock, FilmClock } from '../../../core/film-clock';
-import { FilmBeat, FilmDeathPin, FilmModel, FilmSeat } from '../../../core/film-model';
+import { FilmBeat, FilmDeathPin, FilmFrame, FilmModel, FilmSeat, FilmWard } from '../../../core/film-model';
 import { FilmTapeSpeedKey, TAPE_SPEED_STORAGE_KEY, TAPE_SPEEDS, tapeSpeedFor, voiceOf } from '../../../core/film-style';
-import { Role, ROLES } from '../../../models/team.models';
+import { FilmLabDrawing, Role, ROLES } from '../../../models/team.models';
+import { AuthService } from '../../../services/auth.service';
 import { MotionService } from '../../../services/motion.service';
+import { TeamDataService } from '../../../services/team-data.service';
 import { ToastService } from '../../../services/toast.service';
 import { UiService } from '../../../services/ui.service';
 import { FilmGlyphComponent } from '../../../shared/film/film-glyph.component';
 import { clockText, FilmScrubberComponent } from '../../../shared/film/film-scrubber.component';
+import { PositionLabComponent } from '../../../shared/film/position-lab.component';
 import { RiftMapComponent, RiftToken } from '../../../shared/film/rift-map.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { FilmFrameComponent } from '../film-frame.component';
@@ -28,6 +31,10 @@ const DWELL_PER_WORD_MS = 280;
 const BEAT_NEAR_SEC = 30;
 /** The words on the tape's speed group, said once as a tip: what a thirty-minute game takes at each step. */
 const SPEED_TIP = 'A thirty-minute game runs 3 min, 90 s, 45 s or 22 s';
+/** The lab shows the deaths of ours this close to its second either way (Part C, 10 Sep 2026): the one it was opened on, and what fell just before or after it. */
+export const LAB_DEATH_WINDOW_SEC = 60;
+/** The lab's note key on the film: "lab:<sec>". */
+export const LAB_NOTE_PREFIX = 'lab:';
 
 /** A request from the page to move the hand: `n` makes a second request to the same second distinct. */
 export interface FilmSeekRequest {
@@ -35,6 +42,38 @@ export interface FilmSeekRequest {
   n: number;
   /** Play on from there; the page asks for it off the map's Watch it. */
   play?: boolean;
+  /** Open the position lab on that second once the hand stands there (Part C, 10 Sep 2026); the page asks for it off the map's Work on this second. Never with `play`. */
+  lab?: boolean;
+}
+
+/** What the lab stands on once opened: the second, the frame blended to it, the frame a minute before for their pace, the wards live then, and the deaths of ours around it. */
+export interface FilmLabScene {
+  sec: number;
+  frame: FilmFrame;
+  previous: FilmFrame | null;
+  wards: FilmWard[];
+  deaths: FilmDeathPin[];
+}
+
+/**
+ * The scene for the lab at a second, off the tape's frames (Part C, 10 Sep
+ * 2026): `placeAt` blends the ten to the second, the frame a minute before
+ * (blended too, so their pace reads over a whole minute; none in the first
+ * minute, where the lab falls back to its floor), `wardsAt` the wards live
+ * then, and the map's pins within LAB_DEATH_WINDOW_SEC either way. Null
+ * without frames: an older timeline has no lab.
+ */
+export function labSceneAt(frames: readonly FilmFrame[] | undefined, wards: readonly FilmWard[] | undefined, pins: readonly FilmDeathPin[], sec: number): FilmLabScene | null {
+  const frame = placeAt(frames, sec);
+  if (!frame) return null;
+  const previous = sec >= 60 ? placeAt(frames, sec - 60) : null;
+  return {
+    sec,
+    frame,
+    previous,
+    wards: wardsAt(wards, sec),
+    deaths: pins.filter((p) => Math.abs(p.sec - sec) <= LAB_DEATH_WINDOW_SEC).sort((a, b) => a.sec - b.sec)
+  };
 }
 
 /** One of our five as a tile over the map: the seat, the champion and the name, from the film's seats. */
@@ -123,17 +162,34 @@ export function storedSpeedKey(): string | null {
  * stage, the sheet and the rail moving into a drawer with a close pill
  * (the page's Escape, through `closeTick`, closes the drawer first and the
  * full screen next; neither is stored, a visit starts small).
+ *
+ * Part C (10 Sep 2026; the lead: "we want to see where our vision was
+ * placed", "a visualisation tool from a certain point in this timeline map
+ * to see where we could have been better positioned"). On a version 3
+ * timeline the tape carries frames and wards, and the Rift grows two layers
+ * behind two pills in the tools row: Everyone (on by default; the ten
+ * moving between the minutes) and Vision (off; our wards with their sight,
+ * each where the placer stood). Work on this second opens the position lab
+ * (`app-position-lab`) over the frame on the hand's second, the Rift
+ * paused: the ten where the blended frame put them, the frame a minute
+ * before for their pace, the wards live then and the deaths around it; a
+ * death beat's card offers the same pill at the death's second, and the
+ * map's Work on this second arrives as a seek request with `lab`. Save
+ * writes the drawing as a film note keyed "lab:<sec>" with the lab's
+ * reading line as its text (editors only; a viewer gets the lab without
+ * Save), Close or Escape returns to the tape (Escape closes the lab before
+ * the drawer or the full screen). An older timeline shows none of it.
  */
 @Component({
   selector: 'app-film-tape',
-  imports: [TooltipDirective, FilmFrameComponent, RiftMapComponent, FilmScrubberComponent, FilmGlyphComponent],
+  imports: [TooltipDirective, FilmFrameComponent, RiftMapComponent, FilmScrubberComponent, FilmGlyphComponent, PositionLabComponent],
   template: `
     @let tape = model().tape;
     <app-film-frame [kicker]="kicker()" [index]="index()" [count]="count()" (next)="next.emit()" (back)="back.emit()">
       @if (tape) {
         <div class="film-tape" [class.is-revealed]="revealed()" [class.is-full]="full()" [class.is-drawer-closed]="full() && !drawer()">
           <div class="film-tape-map">
-            <app-rift-map [events]="tape.events" [until]="t()" [highlightSeats]="litSeats()" [highlightSec]="litSec()" [seatFilter]="seatFilter()" (tap)="onTap($event)" />
+            <app-rift-map [events]="tape.events" [until]="t()" [highlightSeats]="litSeats()" [highlightSec]="litSec()" [seatFilter]="seatFilter()" [frames]="tape.frames" [showEveryone]="showEveryone()" [wards]="tape.wards" [showVision]="showVision()" (tap)="onTap($event)" />
             @if (full() && !drawer()) {
               <button type="button" class="view-btn film-full-open" appTip="Bring the sheet and the rail back" (click)="openDrawer()"><span class="material-symbols-rounded" aria-hidden="true">dock_to_right</span> Sheet</button>
             }
@@ -206,6 +262,10 @@ export function storedSpeedKey(): string | null {
                         } @else {
                           <button type="button" class="view-btn active" (click)="resume()"><span class="material-symbols-rounded" aria-hidden="true">play_arrow</span> {{ voice().momentContinue }}</button>
                         }
+                        <!-- A death's card (Part C, 10 Sep 2026): the lab on the death's second, where the frames carry one; a fight or a moment a death was folded into counts, and opens on the folded death's own second (labSecOf). Where a board was saved on that second the pill opens the board. -->
+                        @if (hasFrames() && isDeathBeat(s.beat)) {
+                          <button type="button" class="view-btn film-lab-btn" [appTip]="labPillTip(labSecOf(s.beat))" (click)="openLab(labSecOf(s.beat))"><span class="material-symbols-rounded" aria-hidden="true">draw</span> {{ labPillWord(labSecOf(s.beat)) }}</button>
+                        }
                       </div>
                     </article>
                   }
@@ -243,7 +303,7 @@ export function storedSpeedKey(): string | null {
                 <ol class="list-clean film-beats" aria-label="The beats of this game, by minute">
                   @for (g of rail(); track g.minute) {
                     <li>
-                      <button type="button" class="film-beat-chip" [class.is-current]="isCurrent(g)" [class.is-skipped]="isSkipped(g)" [class.is-ok]="g.beats[0].swing === 'us'" [class.is-warn]="g.beats[0].swing === 'them'" [attr.aria-current]="isCurrent(g) ? 'true' : null" [attr.aria-label]="groupLabel(g)" [appTip]="groupTip(g)" (click)="showGroup(g)">
+                      <button type="button" class="film-beat-chip" [class.is-current]="isCurrent(g)" [class.is-skipped]="isSkipped(g)" [class.has-board]="hasBoard(g)" [class.is-ok]="g.beats[0].swing === 'us'" [class.is-warn]="g.beats[0].swing === 'them'" [attr.aria-current]="isCurrent(g) ? 'true' : null" [attr.aria-label]="groupLabel(g)" [appTip]="groupTip(g)" (click)="showGroup(g)">
                         <app-film-glyph [name]="g.beats[0].glyph" />
                         <span>{{ g.minute }}</span>
                         @if (g.beats.length > 1) { <small class="film-beat-count">{{ g.beats.length }}</small> }
@@ -278,7 +338,17 @@ export function storedSpeedKey(): string | null {
                   <button type="button" class="view-btn" [class.active]="speed().key === s.key" [attr.aria-pressed]="speed().key === s.key" (click)="pickSpeed(s.key)">{{ s.label }}</button>
                 }
               </div>
+              @if (hasFrames()) {
+                <!-- The layers (Part C, 10 Sep 2026): Everyone on by default, Vision off, both per visit. A timeline before version 3 carries neither, so the pills stay away rather than promise a layer the document cannot draw. -->
+                <span class="film-layers" role="group" aria-label="Layers on the Rift">
+                  <button type="button" class="view-btn film-layer-btn" [class.active]="showEveryone()" [attr.aria-pressed]="showEveryone()" appTip="Everyone on the Rift, moving between the minutes; approximate, positions once a minute" (click)="toggleEveryone()"><span class="material-symbols-rounded" aria-hidden="true">groups</span> Everyone</button>
+                  <button type="button" class="view-btn film-layer-btn" [class.active]="showVision()" [attr.aria-pressed]="showVision()" appTip="Our wards and their sight, each where the placer stood at the nearest minute; approximate" (click)="toggleVision()"><app-film-glyph name="ward" /> Vision</button>
+                </span>
+              }
               <span class="film-tape-tools-end">
+                @if (hasFrames()) {
+                  <button type="button" class="view-btn film-lab-btn" [appTip]="labPillTip(t())" (click)="openLab()"><span class="material-symbols-rounded" aria-hidden="true">draw</span> {{ labPillWord(t()) }}</button>
+                }
                 <button type="button" class="view-btn film-full-btn" [class.active]="full()" [attr.aria-pressed]="full()" [appTip]="full() ? 'Back to the tape beside its sheet' : 'The Rift takes the stage; the sheet and the rail move into a drawer'" (click)="toggleFull()">
                   <span class="material-symbols-rounded" aria-hidden="true">{{ full() ? 'fullscreen_exit' : 'fullscreen' }}</span> {{ full() ? 'Exit full screen' : 'Full screen' }}
                 </button>
@@ -287,6 +357,25 @@ export function storedSpeedKey(): string | null {
             </div>
           </div>
         </div>
+        <!-- The position lab over the frame (Part C, 10 Sep 2026): the Rift under it stands paused on the second; Close or Escape returns to the tape, a save keeps the lab open on the board as saved (10 Sep 2026, second fix pass), and a board the film already keeps on the second comes back through the saved input. -->
+        @if (labScene(); as l) {
+          <div class="film-lab-overlay" role="dialog" aria-modal="true" [attr.aria-label]="'Work on ' + clockAt(l.sec)">
+            <app-position-lab
+              [sec]="l.sec"
+              [ourSide]="tape.ourSide"
+              [frame]="l.frame"
+              [previous]="l.previous"
+              [wards]="l.wards"
+              [deaths]="l.deaths"
+              [ours]="model().seats"
+              [matchId]="model().matchId"
+              [canSave]="auth.canEdit()"
+              [saved]="labSaved()"
+              (save)="saveLab($event)"
+              (close)="closeLab()"
+            />
+          </div>
+        }
       } @else {
         <p class="film-wait">No timeline read for this game, so there is no tape.</p>
       }
@@ -317,17 +406,22 @@ export class FilmTapeComponent {
 
   protected readonly motion = inject(MotionService);
   protected readonly ui = inject(UiService);
+  protected readonly auth = inject(AuthService);
+  private readonly data = inject(TeamDataService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dwellBar = viewChild<ElementRef<HTMLElement>>('dwellBar');
+  /** The lab while it is open, for its reading line on Save. */
+  private readonly labView = viewChild(PositionLabComponent);
 
   protected readonly Math = Math;
   protected readonly readLabels = READ_LABELS;
   protected readonly speeds = TAPE_SPEEDS;
   protected readonly speedTip = SPEED_TIP;
+  protected readonly isDeathBeat = isDeathBeat;
   private readonly clock = signal<FilmClock | null>(null);
   protected readonly t = computed(() => this.clock()?.t() ?? 0);
   protected readonly playing = computed(() => this.clock()?.playing() ?? false);
@@ -352,11 +446,18 @@ export class FilmTapeComponent {
   /** Full screen: the Rift takes the stage and the side column is a drawer; `drawer` is whether that drawer is open. Both per visit, never stored. */
   protected readonly full = signal(false);
   protected readonly drawer = signal(true);
+  /** The layers on the Rift (Part C, 10 Sep 2026): everyone on the map, on by default; our vision, off by default. Per visit. */
+  protected readonly showEveryone = signal(true);
+  protected readonly showVision = signal(false);
+  /** The second the position lab is open on; null while it is closed. Per visit. */
+  protected readonly lab = signal<number | null>(null);
   private dwellTimer: ReturnType<typeof setTimeout> | undefined;
   private lastT = -1;
   private drawn = false;
   private drawFrame: number | null = null;
   private seekHandled = 0;
+  /** The page's Escape counter as last seen; null before the chapter's first look at it, which is its creation and never a press. */
+  private closeSeen: number | null = null;
   /** Watch it asked for play while the chapter was still off stage: play once it is on. */
   private playWhenActive = false;
   /**
@@ -406,6 +507,30 @@ export class FilmTapeComponent {
   });
   /** The map's pins by key, for the deaths a beat folded and the seat a folded death belongs to. */
   private readonly pinsByKey = computed(() => new Map((this.model().map?.pins ?? []).map((p) => [p.key, p])));
+  /** Whether the timeline kept the positions (version 3): the layer pills and the lab exist only then. */
+  protected readonly hasFrames = computed(() => (this.model().tape?.frames?.length ?? 0) > 0);
+  /** What the lab stands on, read off the model so a rebuilt model (another review landing) keeps the lab whole; null while it is closed or without frames. */
+  protected readonly labScene = computed<FilmLabScene | null>(() => {
+    const sec = this.lab();
+    const tape = this.model().tape;
+    if (sec === null || !tape) return null;
+    return labSceneAt(tape.frames, tape.wards, this.model().map?.pins ?? [], sec);
+  });
+  /** The boards the film keeps, by second (10 Sep 2026, second fix pass): every note keyed "lab:<sec>" that carries a drawing. Read off the live notes, so a save shows at once. */
+  private readonly boards = computed<Map<number, FilmLabDrawing>>(() => {
+    const out = new Map<number, FilmLabDrawing>();
+    for (const [key, note] of Object.entries(this.data.notesFor(this.model().matchId)?.notes ?? {})) {
+      if (!key.startsWith(LAB_NOTE_PREFIX) || !note.lab) continue;
+      const sec = Number(key.slice(LAB_NOTE_PREFIX.length));
+      if (Number.isFinite(sec)) out.set(sec, note.lab);
+    }
+    return out;
+  });
+  /** The board kept on the lab's second, for the lab to open on; null without one or while the lab is closed. */
+  protected readonly labSaved = computed<FilmLabDrawing | null>(() => {
+    const sec = this.lab();
+    return sec === null ? null : (this.boards().get(sec) ?? null);
+  });
   /**
    * The beats the hand stops on: every beat, cut to the deaths under Deaths
    * only and to one seat's under a seat's view. Prev, Next, Shift with an
@@ -451,6 +576,9 @@ export class FilmTapeComponent {
         this.deathsOnly.set(false);
         this.full.set(false);
         this.drawer.set(true);
+        this.showEveryone.set(true);
+        this.showVision.set(false);
+        this.lab.set(null);
         const init = this.initialSec();
         if (init !== null && Number.isFinite(init)) clock.seek(init);
         this.lastT = clock.t();
@@ -519,7 +647,7 @@ export class FilmTapeComponent {
       });
     });
 
-    // The page asks for a second: the map's Watch it, twenty seconds before the death.
+    // The page asks for a second: the map's Watch it, twenty seconds before the death; or its Work on this second, which opens the lab there.
     effect(() => {
       const req = this.seekTo();
       const clock = this.clock();
@@ -530,6 +658,10 @@ export class FilmTapeComponent {
         // seconds before the death and plays, and the curve is not swept from 0:00 under a clock already running (10 Sep 2026).
         this.drawn = true;
         this.seek(req.sec);
+        if (req.lab) {
+          this.openLab(req.sec);
+          return;
+        }
         if (!req.play || this.motion.reduced()) return;
         // The page is still fading the map out when this lands: only the chapter on stage plays.
         if (this.active()) clock.play();
@@ -541,8 +673,20 @@ export class FilmTapeComponent {
     // closes something says so through `escaped`, so the page's second-press rule (two Escapes within two seconds go Back) only arms
     // on a press that found nothing to close: Escape, Escape out of full screen used to drop the reader on Games (second fix pass).
     effect(() => {
-      this.closeTick();
+      const tick = this.closeTick();
       untracked(() => {
+        // The first run is the chapter's creation, not a press (Part C, 10 Sep 2026): the page's counter may already stand at
+        // three from earlier presses on the map, and a lab the seek request has just opened must not be closed by it.
+        if (this.closeSeen === tick) return;
+        const first = this.closeSeen === null;
+        this.closeSeen = tick;
+        if (first) return;
+        // The lab first (Part C, 10 Sep 2026): it stands over everything else, so it is what an Escape means while it is open.
+        if (this.lab() !== null) {
+          this.closeLab();
+          this.escaped.emit();
+          return;
+        }
         if (!this.full()) return;
         if (this.drawer()) this.drawer.set(false);
         else this.full.set(false);
@@ -751,6 +895,91 @@ export class FilmTapeComponent {
     this.drawer.set(true);
   }
 
+  protected toggleEveryone(): void {
+    this.showEveryone.set(!this.showEveryone());
+  }
+
+  protected toggleVision(): void {
+    this.showVision.set(!this.showVision());
+  }
+
+  /**
+   * Work on this second (Part C, 10 Sep 2026): the lab opens on the hand's
+   * second, or the one asked for (a death beat's, the map's), with the Rift
+   * paused under it and whatever card was dwelling let go, since the lab is
+   * the thing to read now. Nothing without frames: an older timeline has no
+   * positions to stand the ten on.
+   */
+  protected openLab(sec = this.t()): void {
+    const tape = this.model().tape;
+    if (!tape?.frames?.length) return;
+    this.cancelDwell();
+    this.queue = [];
+    this.clock()?.pause();
+    this.lab.set(Math.min(Math.max(0, Math.round(sec)), tape.durationSec));
+  }
+
+  /** Close or Escape: the tape is back, still standing on the second, paused until the reader plays on. A save does not close the lab (10 Sep 2026, second fix pass). */
+  protected closeLab(): void {
+    this.lab.set(null);
+  }
+
+  /** Whether the film keeps a board on a second. */
+  protected hasBoardAt(sec: number): boolean {
+    return this.boards().has(Math.round(sec));
+  }
+
+  /** A minute on the rail carries a board when one was saved on a second inside it. */
+  protected hasBoard(g: RailGroup): boolean {
+    for (const sec of this.boards().keys()) if (Math.floor(sec / 60) === g.minute) return true;
+    return false;
+  }
+
+  /**
+   * The second the lab opens on from a card: a death's own, or the first
+   * death folded into a fight, an objective or a moment (its pin's second,
+   * up to 45 s from the host's; 10 Sep 2026, second fix pass), else the
+   * beat's.
+   */
+  protected labSecOf(b: FilmBeat): number {
+    if (b.kind === 'death') return b.sec;
+    return this.deathsOf(b)[0]?.sec ?? b.sec;
+  }
+
+  /** The lab pill's words: the board where the film keeps one on the second, the lab otherwise. */
+  protected labPillWord(sec: number): string {
+    return this.hasBoardAt(sec) ? 'Open the board' : 'Work on this second';
+  }
+
+  protected labPillTip(sec: number): string {
+    return this.hasBoardAt(sec)
+      ? `Open the board saved on ${clockText(Math.round(sec))}: the drawing comes back, and Save keeps a change`
+      : 'Open the position lab on this second: drag ours, try a ward, read the ground';
+  }
+
+  /**
+   * Save from the lab: the drawing goes on the film's notes under
+   * "lab:<sec>" with the lab's reading line as the note's text (the line
+   * the coach would have said over the board), and the toast says so once
+   * the write has landed. The lab stays open on the board as saved, so the
+   * next Save is an edit (10 Sep 2026, second fix pass: two comments had
+   * promised a return to the tape that nothing did, and the board is the
+   * better place to stay). A board cleared to nothing takes the note off
+   * the film. The lab only offers Save to an editor, so the write is theirs.
+   */
+  protected async saveLab(drawing: FilmLabDrawing): Promise<void> {
+    const matchId = this.model().matchId;
+    const key = `${LAB_NOTE_PREFIX}${drawing.sec}`;
+    if (!drawing.moved.length && !drawing.wards.length && !drawing.arrows.length) {
+      await this.data.saveFilmNote(matchId, key, '');
+      this.toast.show("Board taken off the film's notes", { kind: 'ok', icon: 'draw', text: clockText(drawing.sec) });
+      return;
+    }
+    const line = this.labView()?.readingLine().trim() || `A drawing from the position lab at ${clockText(drawing.sec)}`;
+    await this.data.saveFilmNote(matchId, key, line, drawing);
+    this.toast.show("Saved to the film's notes", { kind: 'ok', icon: 'draw', text: `${clockText(drawing.sec)} · ${line}` });
+  }
+
   /** A minute's chip is lit while the card stands on one of its beats, or while the hand is within half a minute of one. */
   protected isCurrent(g: RailGroup): boolean {
     const s = this.stop();
@@ -771,7 +1000,8 @@ export class FilmTapeComponent {
   }
 
   protected groupTip(g: RailGroup): string {
-    return g.beats.map((b) => b.title).join(', ');
+    const tip = g.beats.map((b) => b.title).join(', ');
+    return this.hasBoard(g) ? `${tip}, a board saved` : tip;
   }
 
   protected tileTip(s: FilmSeatTile): string {
@@ -803,6 +1033,8 @@ export class FilmTapeComponent {
   @HostListener('window:keydown', ['$event'])
   protected onKey(event: KeyboardEvent): void {
     if (!this.active() || !this.clock()) return;
+    // The lab has the keys while it is open (Part C, 10 Sep 2026): a space over its square is not a play.
+    if (this.lab() !== null) return;
     // A key pressed on the window itself (nothing focused) has no element to ask; the scrubber's track and any control handle their own keys.
     const target = event.target instanceof HTMLElement ? event.target : null;
     if (target && (target.closest('.film-scrub-track') || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(target.tagName) || target.isContentEditable)) return;

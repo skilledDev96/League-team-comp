@@ -61,7 +61,7 @@
                 }
                 @case ('map') {
                   <app-film-map [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()"
-                                (escaped)="onEscaped()" (watch)="onWatch($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                                (escaped)="onEscaped()" (watch)="onWatch($event)" (lab)="onLab($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @case ('one-thing') {
                   <app-film-one-thing [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()" [ownChoice]="progress()?.choice"

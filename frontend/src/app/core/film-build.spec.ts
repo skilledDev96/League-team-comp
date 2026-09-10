@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, GameReview, MatchTimeline, TeamObjectives, TimelineDeath } from '../models/team.models';
-import { buildFilm, FILM_CHAPTER_COUNT, lessonCalls, optionsOf, placeOurDeath, railGroups, reelTallyOf, splitOptions, tapeEventsOf } from './film-build';
+import { buildFilm, FILM_CHAPTER_COUNT, framesOf, lessonCalls, optionsOf, placeAt, placeOurDeath, railGroups, reelTallyOf, splitOptions, tapeEventsOf, wardsAt, wardsOf } from './film-build';
 import { styleFor } from './film-style';
-import { objectivePit, regionFor } from './rift-zones';
+import { objectivePit, regionFor, riotToPercent, unitsToPercent } from './rift-zones';
 import { seedOf } from './seed';
 
 const side = (o: Partial<TeamObjectives>): TeamObjectives => ({ firstBlood: false, firstTower: false, dragons: 0, barons: 0, heralds: 0, grubs: 0, towers: 0, inhibitors: 0, ...o });
@@ -1210,6 +1210,147 @@ describe('splitOptions', () => {
     expect(splitOptions('We took no plates, or dragons, so next time rotate bot.')).toBeUndefined();
     expect(splitOptions('We took no plates, or dragons; next time rotate bot as five.')).toBeUndefined();
     expect(splitOptions('Rotate bot as five after the first back, or send the jungler top for the plates.')).toEqual(['Rotate bot as five after the first back', 'Send the jungler top for the plates']);
+  });
+});
+
+describe('the frames and the wards (Part C, a version 3 timeline)', () => {
+  // Riot units: three frames for a few seats, ours and theirs, each seat one flat list of pairs; a seat with no position at a frame carries -1, -1.
+  const positions = {
+    minutes: [0, 1, 2],
+    ours: {
+      Top: [500, 500, 1000, 9000, 1500, 12000],
+      Jungle: [1000, 1000, 3000, 5000, 5000, 7000],
+      Mid: [700, 700, 7000, 7000, 7435, 7435],
+      ADC: [1200, 900, 11000, 2000, -1, -1],
+      Support: [1100, 1000, 11500, 2400, 12000, 2600]
+    },
+    theirs: {
+      Jungle: [13800, 13800, 11000, 9000, 9000, 9000],
+      Mid: [13500, 13500, 8000, 8000, 7435, 7435]
+    }
+  };
+  // Out of time order on purpose, with one placed after the game ended.
+  const wards = [
+    { sec: 200, seat: 'ADC', type: 'control', x: 11000, y: 2000, killedSec: 400 },
+    { sec: 95, seat: 'Support', type: 'trinket', x: 11500, y: 2400 },
+    { sec: 130, seat: 'Support', type: 'control', x: 12000, y: 2600 },
+    { sec: 140, seat: 'Jungle', type: 'other', x: 5000, y: 7000, killedSec: 170 },
+    { sec: 3000, seat: 'Jungle', type: 'trinket', x: 5000, y: 7000 }
+  ];
+  const v3 = { ...timeline, timelineVersion: 3, positions, wards } as unknown as MatchTimeline;
+  const gameV3 = { ...game, enemies: [{ position: 'JUNGLE', champion: 'Vi' }, { position: 'MIDDLE', champion: 'Syndra' }, { position: 'BOTTOM', champion: 'Caitlyn' }] } as AnalysisGame;
+  const at = (x: number, y: number) => riotToPercent(x, y);
+  const halfway = (a: { x: number; y: number }, b: { x: number; y: number }) => ({ x: Math.round(((a.x + b.x) / 2) * 10) / 10, y: Math.round(((a.y + b.y) / 2) * 10) / 10 });
+  const film = buildFilm(review, gameV3, v3, previous);
+  const tape = film.tape!;
+
+  it('builds neither off an older document, so the tape carries no frames and no wards key at all', () => {
+    const old = buildFilm(review, gameV3, timeline, previous).tape!;
+    expect('frames' in old).toBe(false);
+    expect('wards' in old).toBe(false);
+    expect(framesOf(timeline)).toBeUndefined();
+    expect(wardsOf(timeline)).toBeUndefined();
+    // A version 3 game we placed no ward in is a fact, not a gap.
+    expect(wardsOf({ ...v3, wards: [] } as MatchTimeline)).toEqual([]);
+  });
+
+  it('maps every frame to the image in lane order, ours with the champions the review, the game or the lanes name, theirs with the enemies\' champion by seat', () => {
+    expect(tape.frames!.map((f) => f.minute)).toEqual([0, 1, 2]);
+    const one = tape.frames![1];
+    expect(one.ours).toEqual([
+      { seat: 'Top', champion: 'Ornn', ...at(1000, 9000) },
+      { seat: 'Jungle', champion: 'Trundle', ...at(3000, 5000) },
+      { seat: 'Mid', champion: 'Ahri', ...at(7000, 7000) },
+      { seat: 'ADC', champion: 'Jinx', ...at(11000, 2000) },
+      { seat: 'Support', champion: 'Leona', ...at(11500, 2400) }
+    ]);
+    expect(one.theirs).toEqual([
+      { seat: 'Jungle', champion: 'Vi', ...at(11000, 9000) },
+      { seat: 'Mid', champion: 'Syndra', ...at(8000, 8000) }
+    ]);
+    // A seat with no position at a frame is left out of it.
+    expect(tape.frames![2].ours.map((p) => p.seat)).toEqual(['Top', 'Jungle', 'Mid', 'Support']);
+    // Everything lands on the image, and the same place the calibrated conversion gives.
+    for (const f of tape.frames!) for (const p of [...f.ours, ...f.theirs]) {
+      expect(p.x).toBeGreaterThanOrEqual(0);
+      expect(p.x).toBeLessThanOrEqual(100);
+      expect(p.y).toBeGreaterThanOrEqual(0);
+      expect(p.y).toBeLessThanOrEqual(100);
+    }
+  });
+
+  it('never carries a name for anyone, and leaves the champion off a seat nothing names', () => {
+    for (const f of tape.frames!) for (const p of [...f.ours, ...f.theirs]) expect(Object.keys(p).sort()).toEqual(['champion', 'seat', 'x', 'y']);
+    const bare = framesOf(v3)!;
+    for (const p of [...bare[1].ours, ...bare[1].theirs]) expect(Object.keys(p).sort()).toEqual(['seat', 'x', 'y']);
+    expect(framesOf(v3, [{ seat: 'Jungle', champion: 'Trundle' }])![1].ours.find((p) => p.seat === 'Jungle')?.champion).toBe('Trundle');
+  });
+
+  it('lists our wards in time order, each to its end: killed when the log says, a control ward to the end of the game, anything else 90 s on, sighted 900 units', () => {
+    const r = Math.round(unitsToPercent(900) * 100) / 100;
+    expect(tape.wards).toEqual([
+      { sec: 95, untilSec: 185, seat: 'Support', type: 'trinket', ...at(11500, 2400), r },
+      { sec: 130, untilSec: 34 * 60 + 13, seat: 'Support', type: 'control', ...at(12000, 2600), r },
+      { sec: 140, untilSec: 170, seat: 'Jungle', type: 'other', ...at(5000, 7000), r },
+      { sec: 200, untilSec: 400, seat: 'ADC', type: 'control', ...at(11000, 2000), r }
+    ]);
+    expect(r).toBeGreaterThan(5.5);
+    expect(r).toBeLessThan(7.5);
+    // A trinket dropped in the last seconds never outlives the game.
+    expect(wardsOf({ ...v3, wards: [{ sec: 2040, seat: 'Top', type: 'trinket', x: 7435, y: 7435 }] } as MatchTimeline)![0].untilSec).toBe(2053);
+  });
+
+  it('ends a control ward at the same seat\'s next control ward, a player holding one on the map, and a kill before that still wins (10 Sep 2026, second fix pass)', () => {
+    const control = (sec: number, seat: 'Support' | 'Jungle', killedSec?: number) => ({ sec, seat, type: 'control' as const, x: 9000, y: 4000, ...(killedSec !== undefined && { killedSec }) });
+    const ends = wardsOf({ ...v3, wards: [control(600, 'Support'), control(1200, 'Support'), control(300, 'Support', 500), control(400, 'Jungle')] } as MatchTimeline)!.map((w) => [w.sec, w.untilSec]);
+    // 300 killed at 500; 600 stands until the next at 1200; 1200 to the end; the jungler's own is nobody's replacement.
+    expect(ends).toEqual([
+      [300, 500],
+      [400, 34 * 60 + 13],
+      [600, 1200],
+      [1200, 34 * 60 + 13]
+    ]);
+  });
+
+  it('places the ten at a second by blending the frames on either side, holding the ends, and hands back a copy', () => {
+    const frames = tape.frames!;
+    expect(placeAt(undefined, 30)).toBeNull();
+    expect(placeAt([], 30)).toBeNull();
+    const first = placeAt(frames, -30)!;
+    expect(first).toEqual(frames[0]);
+    expect(first).not.toBe(frames[0]);
+    expect(first.ours[0]).not.toBe(frames[0].ours[0]);
+    expect(placeAt(frames, 0)).toEqual(frames[0]);
+    expect(placeAt(frames, 60)).toEqual(frames[1]);
+    expect(placeAt(frames, 9999)).toEqual(frames[2]);
+    const mid = placeAt(frames, 90)!;
+    expect(mid.minute).toBe(1.5);
+    expect(mid.ours.find((p) => p.seat === 'Jungle')).toEqual({ seat: 'Jungle', champion: 'Trundle', ...halfway(at(3000, 5000), at(5000, 7000)) });
+    expect(mid.theirs.find((p) => p.seat === 'Mid')).toEqual({ seat: 'Mid', champion: 'Syndra', ...halfway(at(8000, 8000), at(7435, 7435)) });
+    // A seat only one of the two frames has stands where that frame put it.
+    expect(mid.ours.find((p) => p.seat === 'ADC')).toEqual({ seat: 'ADC', champion: 'Jinx', ...at(11000, 2000) });
+    expect(mid.ours.map((p) => p.seat)).toEqual(['Top', 'Jungle', 'Mid', 'ADC', 'Support']);
+    // Frames handed over out of order still blend between the right two.
+    expect(placeAt([frames[2], frames[0], frames[1]], 90)).toEqual(mid);
+  });
+
+  it('says which wards stand at a second, a ward gone that very second still showing', () => {
+    const secs = (sec: number) => wardsAt(tape.wards, sec).map((w) => w.sec);
+    expect(secs(94)).toEqual([]);
+    expect(secs(95)).toEqual([95]);
+    expect(secs(185)).toEqual([95, 130]);
+    expect(secs(186)).toEqual([130]);
+    expect(secs(300)).toEqual([130, 200]);
+    expect(secs(400)).toEqual([130, 200]);
+    expect(secs(401)).toEqual([130]);
+    expect(secs(34 * 60 + 13)).toEqual([130]);
+    expect(wardsAt(undefined, 100)).toEqual([]);
+  });
+
+  it('is the same every time', () => {
+    const again = buildFilm(review, gameV3, v3, previous).tape!;
+    expect(again.frames).toEqual(tape.frames);
+    expect(again.wards).toEqual(tape.wards);
   });
 });
 

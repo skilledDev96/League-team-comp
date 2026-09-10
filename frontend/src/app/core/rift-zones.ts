@@ -10,7 +10,9 @@ import { rng, seedOf } from './seed';
  * The space is percent of the image, x to the right and y DOWN. Blue base is
  * bottom-left at (10, 90), red base top-right at (90, 10). Mid runs base to
  * base along x + y = 100; the river runs top-left to bottom-right along
- * y = x, Baron pit near (31, 30), Dragon pit near (69, 69). Blue's half of the
+ * y = x, Baron pit near (35.5, 30), Dragon pit near (66.5, 69.5), both
+ * measured on the PNG (10 Sep 2026, second fix pass; the first pair was
+ * eyeballed 4% off). Blue's half of the
  * map is y > x, red's is y < x. Top lane is the left edge and the top edge,
  * bot lane the bottom edge and the right edge; the jungles are what is left
  * between the lanes on each side of the river.
@@ -55,8 +57,93 @@ export const MAP_SPOTS: Record<RiftSide, Record<Role, Point>> = {
   }
 };
 
-export const BARON_PIT: Point = { x: 31, y: 30 };
-export const DRAGON_PIT: Point = { x: 69, y: 69 };
+/** The centre of each pit's floor on the PNG, measured against a percent grid over the image (10 Sep 2026, second fix pass). */
+export const BARON_PIT: Point = { x: 35.5, y: 30 };
+export const DRAGON_PIT: Point = { x: 66.5, y: 69.5 };
+/** The pits are cut into the wall beside the river; ground this close to one is river ground, so a death at the pit reads as a river death. */
+const PIT_RADIUS = 4;
+
+// ---- Riot units to the image (Part C, 10 Sep 2026) ---------------------------
+//
+// The timeline's positions and its kill events come in Riot's map units:
+// MAP_MAX on each axis, blue base at the origin, y running up toward red's
+// base. The image's y runs down, so the plain conversion flips it. On top of
+// that sits one fit so that Riot's Baron pit lands on BARON_PIT and its
+// Dragon pit on DRAGON_PIT: a single scale for both axes (the pits' distance
+// apart on the image over their distance apart in Riot's space) and an
+// offset per axis (the pits' midpoints put together). One scale, not one per
+// axis (10 Sep 2026, second fix pass): a fit per axis turns any error in the
+// two measured pits into a stretch of the whole map — the first pair,
+// eyeballed 4% off, stretched x by 16%, put both fountains off the image and
+// drew every sight circle 21% taller than wide — and a ward's sight has to
+// be one round circle. With the pits measured on the PNG the fit lands the
+// fountains, the nexuses and the outer towers within a percent of where the
+// image draws them. Why fit to the table rather than to the image: the
+// table above is the one space every pin, spot and region on the Rift is
+// drawn in, so a champion standing at the pit at a frame has to land where
+// the map already puts the pit, or the frames and the zone-placed deaths
+// would disagree about where the pit is. The fit is computed off the
+// table, so re-measuring the pits re-fits the frames without touching this
+// code.
+
+/** Riot's map is this many units on each axis. */
+export const MAP_MAX = 14870;
+
+/** Where Riot's timeline puts the two pits, in map units: the monster's own spot on a kill event. */
+export const RIOT_BARON_PIT: Point = { x: 5007, y: 10471 };
+export const RIOT_DRAGON_PIT: Point = { x: 9866, y: 4414 };
+
+/** The plain conversion before the fit: x across, y flipped. */
+const rawPercent = (x: number, y: number): Point => ({ x: (x / MAP_MAX) * 100, y: 100 - (y / MAP_MAX) * 100 });
+
+interface MapFit {
+  /** Percent of the image per percent of Riot's square, the same on both axes. */
+  scale: number;
+  dx: number;
+  dy: number;
+}
+
+/** The one scale and the two offsets that put Riot's pits on the table's. */
+function fitPits(): MapFit {
+  const rawBaron = rawPercent(RIOT_BARON_PIT.x, RIOT_BARON_PIT.y);
+  const rawDragon = rawPercent(RIOT_DRAGON_PIT.x, RIOT_DRAGON_PIT.y);
+  const scale = Math.hypot(DRAGON_PIT.x - BARON_PIT.x, DRAGON_PIT.y - BARON_PIT.y) / Math.hypot(rawDragon.x - rawBaron.x, rawDragon.y - rawBaron.y);
+  return {
+    scale,
+    dx: (BARON_PIT.x + DRAGON_PIT.x) / 2 - scale * ((rawBaron.x + rawDragon.x) / 2),
+    dy: (BARON_PIT.y + DRAGON_PIT.y) / 2 - scale * ((rawBaron.y + rawDragon.y) / 2)
+  };
+}
+
+const FIT = fitPits();
+
+const clampPercent = (v: number): number => Math.min(100, Math.max(0, v));
+const tenth = (v: number): number => Math.round(v * 10) / 10;
+
+/**
+ * A Riot position as a point of the image: the plain conversion, the fit to
+ * the table's pits, clamped to the image and rounded to a tenth of a percent
+ * (finer than the hundred units the timeline keeps a position to). Riot's
+ * square lands just inside the image (the PNG has a margin around the map),
+ * so nothing playable clamps; only a position Riot reports beyond its own
+ * square does.
+ */
+export function riotToPercent(x: number, y: number): Point {
+  const raw = rawPercent(x, y);
+  return {
+    x: tenth(clampPercent(FIT.scale * raw.x + FIT.dx)),
+    y: tenth(clampPercent(FIT.scale * raw.y + FIT.dy))
+  };
+}
+
+/**
+ * A distance in Riot units as percent of the image: the one scale of the
+ * fit, so a ward's sight (about 900 units) is one round circle and a
+ * distance the lab measures reads the same up the map as across it.
+ */
+export function unitsToPercent(units: number): number {
+  return (units / MAP_MAX) * 100 * FIT.scale;
+}
 
 const BASE: Record<RiftSide, Point> = { blue: { x: 10, y: 90 }, red: { x: 90, y: 10 } };
 const BASE_RADIUS = 9;
@@ -85,9 +172,10 @@ const inMid = (x: number, y: number): boolean => {
   const s = x + y;
   return s >= 94 && s <= 106 && x >= 16 && x <= 84 && !inBase('blue', x, y) && !inBase('red', x, y);
 };
+const nearPit = (x: number, y: number): boolean => Math.hypot(x - BARON_PIT.x, y - BARON_PIT.y) <= PIT_RADIUS || Math.hypot(x - DRAGON_PIT.x, y - DRAGON_PIT.y) <= PIT_RADIUS;
 const inRiver = (x: number, y: number): boolean => {
   const s = x + y;
-  return Math.abs(x - y) <= 6 && s >= 40 && s <= 160;
+  return (Math.abs(x - y) <= 6 && s >= 40 && s <= 160) || nearPit(x, y);
 };
 const inJungle = (side: RiftSide, x: number, y: number): boolean => {
   const across = side === 'blue' ? y - x : x - y;

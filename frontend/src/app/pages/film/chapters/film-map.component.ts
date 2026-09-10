@@ -1,6 +1,7 @@
 import { afterRenderEffect, Component, computed, effect, ElementRef, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DEATH_READS, DeathReadKind, READ_LABELS, readCounts } from '../../../core/death-reads';
+import { buildHeat } from '../../../core/film-heat';
 import { COULD_GLYPHS, FilmDeathPin, FilmModel, FilmSeat } from '../../../core/film-model';
 import { voiceOf } from '../../../core/film-style';
 import { initialsOf } from '../../../core/initials';
@@ -22,6 +23,9 @@ import { FilmSeatTile } from './film-tape.component';
 const COST_SAYS_GOLD = 300;
 /** The sentence the corner note carries as its tip (10 Sep 2026: it ran under the square until the Rift grew to the stage). */
 export const APPROXIMATE_TIP = 'Positions are approximate: one frame a minute, placed inside the zone the frame put them in.';
+/** The corner note while the vision heat shows (Part C, 10 Sep 2026): a ward event carries no position, so every ward's cell is where its placer stood at the nearest minute. */
+export const HEAT_NOTE = 'where our wards stood, approximate';
+export const HEAT_TIP = 'The wash is where our wards stood against where we died, over the whole game: a ward at the spot its placer stood at the nearest minute (a ward event carries no position of its own), heavier the longer it lived; a death as a patch where the zone put it.';
 
 /** Thousands as "1.2k", under a thousand as the number; the same shape as the facts' own lines and the tape's consequences. */
 export function k(gold: number): string {
@@ -64,6 +68,14 @@ export function costLine(cost: number | undefined): string {
  * screen gives the Rift the stage with the side column as a drawer (the
  * page's Escape, through `closeTick`, closes the drawer first and the full
  * screen next). None of it is stored; a visit opens on All, small.
+ *
+ * Part C (10 Sep 2026; the lead: "where do we have vision, safe zones and
+ * danger zones, almost like a heat map"): when the timeline kept our wards
+ * (version 3) a Vision heat pill beside the legend lays `buildHeat`'s cells
+ * on the Rift, where our wards stood against where we died over the whole
+ * game, and the corner note says the wards are approximate too. A death's
+ * card gains Work on this second, which hands the page the death's second
+ * for the tape to open the position lab on; only where the tape has frames.
  */
 @Component({
   selector: 'app-film-map',
@@ -85,11 +97,13 @@ export function costLine(cost: number | undefined): string {
               [unreadKeys]="[]"
               [dim]="false"
               [note]="false"
+              [heat]="heat()"
+              [showHeat]="heatOn()"
               (pick)="jumpTo($event)"
             />
-            <!-- The Rift's own corner note is off and this one stands in its place (10 Sep 2026): the same words, with the sentence that used to run under the square as its tip; the sentence stays in the DOM for a screen reader. -->
-            <span class="rift-map-note film-map-note" [appTip]="approximateTip">Approximate, by zone</span>
-            <p class="visually-hidden">{{ approximateTip }}</p>
+            <!-- The Rift's own corner note is off and this one stands in its place (10 Sep 2026): the same words, with the sentence that used to run under the square as its tip; the sentence stays in the DOM for a screen reader. With the heat on it gains the wards' clause (Part C). -->
+            <span class="rift-map-note film-map-note" [appTip]="cornerTip()">{{ cornerText() }}</span>
+            <p class="visually-hidden">{{ cornerTip() }}</p>
             @if (full() && !drawer()) {
               <button type="button" class="view-btn film-full-open" appTip="Bring the cards back" (click)="openDrawer()"><span class="material-symbols-rounded" aria-hidden="true">dock_to_right</span> Cards</button>
             }
@@ -125,6 +139,10 @@ export function costLine(cost: number | undefined): string {
                   <button type="button" [class]="'view-btn film-legend-read is-read-' + r" [class.active]="readFilter() === r" [attr.aria-pressed]="readFilter() === r" [attr.aria-label]="readLabels[r].label + ', ' + counts()[r]" [appTip]="readLabels[r].tip" (click)="toggleRead(r)">
                     <app-film-glyph [name]="readLabels[r].icon" /><span class="film-legend-word">{{ readLabels[r].label }}</span>{{ ' ' }}<small>{{ counts()[r] }}</small>
                   </button>
+                }
+                @if (hasWards()) {
+                  <!-- The vision heat (Part C, 10 Sep 2026): only where the timeline kept our wards; the cells are the whole game's, never cut by the seat. -->
+                  <button type="button" class="view-btn film-heat-btn film-layer-btn" [class.active]="heatOn()" [attr.aria-pressed]="heatOn()" [appTip]="heatTip" (click)="heatOn.set(!heatOn())"><app-film-glyph name="ward" /> Vision heat</button>
                 }
                 <button type="button" class="view-btn film-map-table-btn" [class.active]="table()" [attr.aria-pressed]="table()" (click)="table.set(!table())"><span class="material-symbols-rounded" aria-hidden="true">table_rows</span> As a table</button>
                 <button type="button" class="view-btn film-full-btn" [class.active]="full()" [attr.aria-pressed]="full()" [appTip]="full() ? 'Back to the map beside its cards' : 'The Rift takes the stage; the cards move into a drawer'" (click)="toggleFull()">
@@ -231,6 +249,9 @@ export function costLine(cost: number | undefined): string {
                       <button type="button" class="view-btn" [disabled]="cursor() === 0" (click)="step(-1)"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span> Previous</button>
                       <button type="button" class="view-btn active" [disabled]="cursor() >= walk().length - 1" (click)="step(1)">{{ voice().nextDeath }} <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button>
                       <button type="button" class="view-btn" [appTip]="'Open the tape twenty seconds before this death'" (click)="watch.emit(p.sec)"><span class="material-symbols-rounded" aria-hidden="true">play_circle</span> {{ voice().watchIt }}</button>
+                      @if (hasFrames()) {
+                        <button type="button" class="view-btn film-lab-btn" appTip="Open the position lab on the tape at this death's second: drag ours, try a ward, read the ground" (click)="lab.emit(p.sec)"><span class="material-symbols-rounded" aria-hidden="true">draw</span> Work on this second</button>
+                      }
                     </div>
                   </article>
                 }
@@ -257,6 +278,8 @@ export class FilmMapComponent {
   readonly escaped = output<void>();
   /** Watch it: the second of the death, for the page to hand the tape. */
   readonly watch = output<number>();
+  /** Work on this second (Part C, 10 Sep 2026): the death's second, for the page to hand the tape with the lab open on it. */
+  readonly lab = output<number>();
   readonly next = output<void>();
   readonly back = output<void>();
 
@@ -270,8 +293,21 @@ export class FilmMapComponent {
   protected readonly couldLabels = COULD_LABELS;
   protected readonly couldGlyphs = COULD_GLYPHS;
   protected readonly approximateTip = APPROXIMATE_TIP;
+  protected readonly heatTip = HEAT_TIP;
   /** The chrome's strings for this film: Next death, Watch it. Never the ledger's words. */
   protected readonly voice = computed(() => voiceOf(this.model().style));
+
+  /** The vision heat layer, off until the pill turns it on. Per visit. */
+  protected readonly heatOn = signal(false);
+  /** Whether the timeline kept our wards (version 3; an empty list is a fact worth drawing, so it counts): the heat pill exists only then. */
+  protected readonly hasWards = computed(() => Array.isArray(this.model().tape?.wards));
+  /** Whether the timeline kept the positions: Work on this second exists only then, since the lab has nothing to stand the ten on otherwise. */
+  protected readonly hasFrames = computed(() => (this.model().tape?.frames?.length ?? 0) > 0);
+  /** The heat's cells: every ward of ours and every death of ours, the whole game's, however the seat or the read is filtered. */
+  protected readonly heat = computed(() => (this.hasWards() ? buildHeat(this.model().tape?.wards, this.model().map?.pins) : undefined));
+  /** The corner note's words: the deaths by zone, and the wards' clause while the heat shows. */
+  protected readonly cornerText = computed(() => (this.heatOn() && this.hasWards() ? `Approximate, by zone · ${HEAT_NOTE}` : 'Approximate, by zone'));
+  protected readonly cornerTip = computed(() => (this.heatOn() && this.hasWards() ? `${APPROXIMATE_TIP} ${HEAT_TIP}` : APPROXIMATE_TIP));
 
   protected readonly cursor = signal(0);
   protected readonly readFilter = signal<DeathReadKind | 'all'>('all');
@@ -368,6 +404,7 @@ export class FilmMapComponent {
         this.table.set(false);
         this.full.set(false);
         this.drawer.set(true);
+        this.heatOn.set(false);
       });
     });
 

@@ -132,7 +132,7 @@ export class FilmComponent {
   protected readonly turnGuess = computed<number | undefined>(() => this.progress()?.calls?.['turn']);
   /** The second a shared link opened on (?t=), handed to the tape once; only Copy link ever writes it back. */
   protected readonly initialSec = signal<number | null>(null);
-  /** The map's Watch it: the tape seeks to a little before the death and plays. */
+  /** The map's Watch it: the tape seeks to a little before the death and plays; its Work on this second: the tape seeks to the death and opens the lab (`lab`). */
   protected readonly seekRequest = signal<FilmSeekRequest | null>(null);
   /** The reminder is on until the card is reached, then whatever the toggle last said. */
   protected readonly askAgain = computed(() => {
@@ -421,6 +421,16 @@ export class FilmComponent {
     if (i < 0) return;
     const at = Math.max(0, Math.round(sec) - WATCH_LEAD_SEC);
     this.seekRequest.set({ sec: at, n: (this.seekRequest()?.n ?? 0) + 1, play: true });
+    void this.go(i);
+  }
+
+  /** The map's Work on this second (Part C, 10 Sep 2026): go to the tape and ask it to open the position lab on the death's own second, standing, not playing. */
+  protected onLab(sec: number): void {
+    const m = this.model();
+    if (!m) return;
+    const i = m.chapters.findIndex((c) => c.kind === 'tape');
+    if (i < 0) return;
+    this.seekRequest.set({ sec: Math.max(0, Math.round(sec)), n: (this.seekRequest()?.n ?? 0) + 1, lab: true });
     void this.go(i);
   }
 

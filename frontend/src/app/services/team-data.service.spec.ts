@@ -50,6 +50,22 @@ describe('TeamDataService in local mode', () => {
     expect(data.ready()).toBe(true);
   });
 
+  it('keeps a film note, and with a drawing from the position lab carries it as lab under the second\'s key; a plain note has no lab key', async () => {
+    const drawing = { sec: 840, moved: [{ seat: 'ADC' as const, x: 60.5, y: 80 }], wards: [{ type: 'control' as const, x: 70, y: 72 }], arrows: [] };
+    await data.saveFilmNote('EUW1_1', 'lab:840', 'From here the river would have been in sight', drawing);
+    const lab = data.notesFor('EUW1_1')?.notes['lab:840'];
+    expect(lab?.text).toBe('From here the river would have been in sight');
+    expect(lab?.lab).toEqual(drawing);
+    await data.saveFilmNote('EUW1_1', 'd:4:ADC', 'Hold the wave.');
+    const plain = data.notesFor('EUW1_1')?.notes['d:4:ADC'];
+    expect(plain?.text).toBe('Hold the wave.');
+    expect(plain && 'lab' in plain).toBe(false);
+    // Both stand on the same film; an empty text takes a note down, drawing or not.
+    expect(Object.keys(data.notesFor('EUW1_1')?.notes ?? {}).sort()).toEqual(['d:4:ADC', 'lab:840']);
+    await data.saveFilmNote('EUW1_1', 'lab:840', '', drawing);
+    expect(data.notesFor('EUW1_1')?.notes['lab:840']).toBeUndefined();
+  });
+
   it('starters leaves out whoever is marked as a sub, in roster order', () => {
     const [first, ...rest] = data.players();
     data.players.set([{ ...first, sub: true }, ...rest]);

@@ -247,6 +247,51 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
     expect(await landed(harness)).toBe(`/games?match=${ID}&tab=games`);
   });
 
+  it('Work on this second on the map opens the tape with the position lab on the death\'s second, and Escape closes the lab first (Part C, 10 Sep 2026)', async () => {
+    // A version 3 timeline: the positions once a minute (Riot units) and one ward of ours, so the tape has frames and the map offers the lab.
+    const v3 = {
+      ...timeline,
+      timelineVersion: 3,
+      positions: {
+        minutes: [0, 34],
+        ours: { Jungle: [1000, 1000, 9000, 9000], ADC: [1200, 800, 12000, 3000], Support: [1300, 900, 12200, 3100] },
+        theirs: { Top: [13800, 13800, 3000, 12000], Jungle: [13000, 13000, 8000, 8000] }
+      },
+      wards: [{ sec: 120, seat: 'Support', type: 'control', x: 9000, y: 4000 }]
+    } as unknown as MatchTimeline;
+    const known = signal<ReadonlyMap<string, MatchTimeline | null>>(new Map([[ID, v3]]));
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideRouter(ROUTES), { provide: MatchTimelineService, useValue: { known, load: async () => null } }] });
+    data = TestBed.inject(TeamDataService);
+    data.gameReviews.set([review]);
+    data.compAnalysis.set({ games: [game] } as never);
+    const { harness, root } = await open(`/film/${ID}?c=map`);
+    expect(text(root, '.film-kicker')).toContain('The map');
+    const btn = Array.from(root.querySelectorAll<HTMLButtonElement>('.film-death-actions .view-btn')).find((b) => (b.textContent ?? '').includes('Work on this second'));
+    if (!btn) throw new Error('no Work on this second pill on the map');
+    btn.click();
+    await settle(harness);
+    // The tape is on stage with the lab open on 4:12, the death's own second, standing.
+    expect(text(root, '.film-chapter.is-current .film-kicker')).toContain('The tape');
+    expect(root.querySelector('.film-chapter.is-current .film-lab-overlay .lab-square')?.getAttribute('aria-label')).toBe('Position lab at 4:12');
+    expect(text(root, '.film-scrub-clock')).toBe('4:12');
+    expect(root.querySelectorAll('.film-lab-overlay .lab-death')).toHaveLength(1);
+    // Their tokens in the lab carry a champion in a seat at most, never a name.
+    for (const tile of Array.from(root.querySelectorAll('.film-lab-overlay .lab-token.is-them .lab-tile'))) expect(tile.getAttribute('aria-label')?.startsWith('Their ')).toBe(true);
+    // Escape closes the lab and stays; the press was the lab's, so the next one arms the window rather than leaving.
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000_000);
+    key('Escape');
+    expect(await landed(harness)).toBe(`/film/${ID}?c=tape`);
+    expect(root.querySelector('.film-lab-overlay')).toBeNull();
+    now.mockReturnValue(1_000_500);
+    key('Escape');
+    expect(await landed(harness)).toBe(`/film/${ID}?c=tape`);
+    now.mockReturnValue(1_001_000);
+    key('Escape');
+    expect(await landed(harness)).toBe(`/games?match=${ID}&tab=games`);
+  });
+
   it('opens on the title card, takes the call, lands the headline and remembers the call', async () => {
     const { harness, root } = await open(`/film/${ID}`);
     // Title, the board (no timeline in local mode), the one thing, the seat, the card.

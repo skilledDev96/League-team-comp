@@ -1,4 +1,4 @@
-import { DeathCould, DeathHow, DeathVerdict, DraftGain, GameReview, LedgerSummary, MapZone, ReviewPoint, ReviewTheme, Role, TimelineObjective } from '../models/team.models';
+import { DeathCould, DeathHow, DeathVerdict, DraftGain, GameReview, LedgerSummary, MapZone, ReviewPoint, ReviewTheme, Role, TimelineObjective, TimelineWardType } from '../models/team.models';
 import { DeathReadKind } from './death-reads';
 import { FilmStyle } from './film-style';
 import { ScoreChip } from './review-view';
@@ -231,6 +231,47 @@ export interface FilmBeat {
   deaths?: string[];
 }
 
+/** One champion on the Rift at a frame, percent space; theirs carry a champion in a seat, never a name. */
+export interface FilmFramePlace {
+  seat: Role;
+  champion?: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * Where the ten stood at one minute (Part C, 10 Sep 2026), in lane order,
+ * from `framesOf` in `film-build.ts`; a seat with no position at that frame
+ * is left out. `placeAt(frames, sec)` blends the two nearest into one at a
+ * fractional minute, so the tape and the lab can stand the ten at any second;
+ * approximate by construction, since a frame is a minute apart from the next.
+ */
+export interface FilmFrame {
+  minute: number;
+  ours: FilmFramePlace[];
+  theirs: FilmFramePlace[];
+}
+
+/**
+ * A ward of ours on the Rift, from `wardsOf` in `film-build.ts`: from its
+ * placing to its end (`untilSec`: killed when the log says, else a control
+ * ward stands to the game's end and anything else 90 s), percent space, with
+ * its sight radius in percent. `x` and `y` are the placer's spot at the
+ * nearest frame, because a ward event carries no position of its own:
+ * approximate by a minute, and every surface that draws one says so.
+ * `wardsAt(wards, sec)` lists the ones standing at a second.
+ */
+export interface FilmWard {
+  sec: number;
+  untilSec: number;
+  seat: Role;
+  type: TimelineWardType;
+  x: number;
+  y: number;
+  /** Sight radius in percent of the map (about 900 units for a trinket or control ward). */
+  r: number;
+}
+
 export interface FilmTape {
   durationSec: number;
   ourSide: 'blue' | 'red';
@@ -243,6 +284,10 @@ export interface FilmTape {
   events: FilmTapeEvent[];
   /** In time order, at most forty (fourteen until 10 Sep 2026, when every death became a beat); what the tape stops on and explains. `railGroups` in `film-build.ts` folds them by minute for the rail. */
   beats: FilmBeat[];
+  /** Timeline version 3 only: where the ten stood, once a minute; absent on older documents, and every chapter that draws them says approximate. */
+  frames?: FilmFrame[];
+  /** Timeline version 3 only: our wards with their sight. */
+  wards?: FilmWard[];
 }
 
 /** The replay tier's static board: the counts, with one call before they show. */

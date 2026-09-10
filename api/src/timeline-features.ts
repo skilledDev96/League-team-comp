@@ -28,12 +28,23 @@
  * and taken per five minutes. All of it feeds the death ledger in
  * `game-facts.ts`: the jungler's question "could I have been there".
  *
+ * Version 3 (10 Sep 2026, Part C: the lead asked to see where our vision was
+ * and to work on a position from a second of the tape) keeps the positions:
+ * every participant's spot once a minute, keyed by seat on both sides, and
+ * every ward of ours at the placer's spot. Both are layers for the film's
+ * Rift, never read by the facts, and both are approximate by a minute; the
+ * ward's spot doubly so, because a ward event carries no position at all.
+ *
  * Pure. The fetch and the write live in index.ts.
  */
 import { LaneRole, POSITION_ROLE } from './lane-read';
 
-/** Bump when the derived shape changes; entries below this are rebuilt inside the budget. */
-export const TIMELINE_VERSION = 2;
+/**
+ * Bump when the derived shape changes; entries below this are rebuilt inside
+ * the budget: the morning refresh rebuilds twenty a run, so a bump refills
+ * the prep games over a few mornings, newest first. 3 since 10 Sep 2026.
+ */
+export const TIMELINE_VERSION = 3;
 export const FRAME_SEC = 60;
 /** Summoner's Rift, both axes; blue base at the origin. */
 export const MAP_MAX = 14870;
@@ -63,6 +74,15 @@ export const MAX_DEATHS = 60;
 export const MAX_BACKS = 12;
 /** The document has to stay small: two hundred of these are read by the app. */
 export const MAX_BYTES = 40_000;
+/** Positions are kept to this grid (10 Sep 2026): a frame is a minute wide, so a hundred units is nothing beside it, and it keeps ten seats over forty frames near 4 KB. */
+export const POSITION_GRID = 100;
+/**
+ * The longest a placed ward other than a control ward lives: the support
+ * item's sight ward, 150 s (a trinket is 90 to 120 s by level). A kill later
+ * than that after the placing cannot be that ward, so it is left for a later
+ * one when kills are matched to wards (10 Sep 2026).
+ */
+export const WARD_LIFE_MAX_SEC = 150;
 
 export type MapZone = 'ourBase' | 'theirBase' | 'top' | 'mid' | 'bot' | 'river' | 'ourJungle' | 'theirJungle';
 export type Side = 'us' | 'them';
@@ -183,6 +203,74 @@ export interface TimelineDeath {
   objectiveNear?: boolean;
 }
 
+/**
+ * Where everyone stood, once a minute (version 3, 10 Sep 2026). `minutes[i]`
+ * is the frame's minute and each seat's track one flat list of pairs,
+ * `[x0, y0, x1, y1, ...]`, so frame i sits at `track[2 * i]`, `track[2 * i + 1]`
+ * in Riot units (0 to MAP_MAX on both axes, blue base at the origin, y up),
+ * rounded to POSITION_GRID; a seat with no position that frame carries
+ * NO_POSITION twice, never a guess. Flat because the first shape, a list of
+ * [x, y] pairs, was an array inside an array, which Firestore refuses on a
+ * write (10 Sep 2026, second fix pass: the dev road never touched Firestore,
+ * so nothing caught it); `nestedArrayPath` guards the rule. Theirs are
+ * keyed by seat through the same seat map as the lanes: a champion in a
+ * seat, no puuid, no name. Mirrors the app's `TimelinePositions`.
+ */
+export interface TimelinePositions {
+  minutes: number[];
+  ours: Partial<Record<LaneRole, number[]>>;
+  theirs: Partial<Record<LaneRole, number[]>>;
+}
+
+/** Both halves of a frame's pair when the seat had no position: never a grid value, since toGrid rounds to hundreds. */
+export const NO_POSITION = -1;
+
+/**
+ * The first array nested in an array, as a path, or null when there is
+ * none. Firestore rejects an array element that is itself an array, and the
+ * Admin SDK does not check it before the write, so the reducer's output is
+ * walked once in its spec; exported so a future shape can be checked the
+ * same way.
+ */
+export function nestedArrayPath(value: unknown, path = '$'): string | null {
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      if (Array.isArray(value[i])) return `${path}[${i}]`;
+      const inner = nestedArrayPath(value[i], `${path}[${i}]`);
+      if (inner) return inner;
+    }
+    return null;
+  }
+  if (value && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const inner = nestedArrayPath(v, `${path}.${k}`);
+      if (inner) return inner;
+    }
+  }
+  return null;
+}
+
+/** A trinket (the yellow trinket or the support item's sight ward), a control ward, or anything else Riot logs (a farsight ward, a zombie ward). */
+export type TimelineWardType = 'trinket' | 'control' | 'other';
+
+/**
+ * One ward of ours (version 3): when, who, which kind, and where the placer
+ * stood at the nearest frame, to POSITION_GRID — a ward event carries no
+ * position, so this is approximate by a minute and every surface drawing it
+ * says so. `killedSec` is the earliest kill of the same Riot ward type after
+ * it by someone not ours, once per kill; the log carries no ward id, so that
+ * is a guess too, and absent when no kill fits (a trinket that timed out, a
+ * control ward that stood to the end). Mirrors the app's `TimelineWard`.
+ */
+export interface TimelineWard {
+  sec: number;
+  seat: LaneRole;
+  type: TimelineWardType;
+  x: number;
+  y: number;
+  killedSec?: number;
+}
+
 export interface MatchTimeline {
   matchId: string;
   timelineVersion: number;
@@ -219,6 +307,10 @@ export interface MatchTimeline {
   spend: { seat: LaneRole; firstItemMinute?: number; secondItemMinute?: number; backs: number[] }[];
   /** Damage to champions dealt and taken per five-minute bucket, our five only. Absent below version 2. */
   damage?: { seat: LaneRole; dealt: number[]; taken: number[] }[];
+  /** Where the ten stood, once a minute. Absent below version 3, and when the size cap took the layers. */
+  positions?: TimelinePositions;
+  /** Our wards at the placer's position, in time order. Absent below version 3, and when the size cap took the layers. */
+  wards?: TimelineWard[];
   /** The facts read off the figures above (`game-facts.ts`), stored beside them. */
   facts?: unknown;
   bytes: number;
@@ -661,6 +753,80 @@ export function buildMatchTimeline(
     if (prev) damage.push({ seat, dealt: dealt.map(round), taken: taken.map(round) });
   }
 
+  // Where everyone stood, once a minute (version 3, 10 Sep 2026). One seat
+  // per side through the same seat map the lanes use, first participant in
+  // Riot's order when two share one; a participant without a seat is not
+  // drawn at all. Nothing of theirs but the seat leaves here. The frames are
+  // read through `frameByMinute`, so two frames rounding to one minute (the
+  // last frame lands where the game ended) resolve as goldDiff does: the
+  // later one wins, and `minutes` stays strictly increasing.
+  const seatPids = (pids: Iterable<number>): [LaneRole, number][] => {
+    const taken = new Map<LaneRole, number>();
+    for (const pid of pids) {
+      const seat = ids.seatOf.get(pid);
+      if (seat && !taken.has(seat)) taken.set(seat, pid);
+    }
+    return [...taken.entries()].sort((a, b) => SEAT_ORDER[a[0]] - SEAT_ORDER[b[0]]);
+  };
+  const minuteFrames = [...frameByMinute.entries()];
+  // One flat list per seat, a pair a frame (see `TimelinePositions`): a
+  // list of pairs is an array in an array, and Firestore refuses the write.
+  const placeOf = (frame: FrameLike, pid: number): [number, number] => {
+    const pos = positionIn(frame, pid);
+    return pos ? [toGrid(pos.x), toGrid(pos.y)] : [NO_POSITION, NO_POSITION];
+  };
+  const track = (seats: [LaneRole, number][]): TimelinePositions['ours'] => {
+    const out: TimelinePositions['ours'] = {};
+    for (const [seat, pid] of seats) out[seat] = minuteFrames.flatMap(([, f]) => placeOf(f, pid));
+    return out;
+  };
+  const positions: TimelinePositions = {
+    minutes: minuteFrames.map(([m]) => m),
+    ours: track(seatPids(ids.ours)),
+    theirs: track(seatPids(theirs))
+  };
+
+  // Our wards with where the placer stood (version 3). A ward event carries
+  // no position, so the spot is the placer's at the nearest frame — the same
+  // read `warded()` makes, approximate by a minute — and a ward whose placer
+  // has no position that frame is left out rather than placed on a guess.
+  // The log carries no ward id either, so a kill is matched by type: the
+  // earliest WARD_KILL of the same Riot wardType at or after the placing, by
+  // someone not ours, not already claimed by an earlier ward, and for
+  // anything but a control ward within WARD_LIFE_MAX_SEC (a kill later than
+  // the ward could have lived is someone else's). A control ward's window
+  // ends where its placer's next control ward begins (10 Sep 2026, second
+  // fix pass): a player holds one on the map, so the next placing removes
+  // the last, and a kill after it is the replacement's. Teemo's shrooms are
+  // traps, not vision, and 'UNDEFINED' is Riot's placeholder: neither is a
+  // ward here.
+  const wardKills = events.filter(
+    (e) => e.type === 'WARD_KILL' && e.killerId !== undefined && e.killerId !== 0 && !ids.ours.has(e.killerId) && !!e.wardType
+  );
+  const claimed = new Set<TimelineEventLike>();
+  const wardList: TimelineWard[] = [];
+  const nextControlBy = (pid: number, after: number): number =>
+    wards.reduce((next, o) => (o.creatorId === pid && o.wardType === 'CONTROL_WARD' && o.timestamp > after && o.timestamp < next ? o.timestamp : next), Number.POSITIVE_INFINITY);
+  for (const w of wards) {
+    if (w.wardType === 'TEEMO_MUSHROOM') continue;
+    const pid = w.creatorId as number;
+    const seat = ids.seatOf.get(pid);
+    const pos = positionIn(frameAt(frames, w.timestamp), pid);
+    if (!seat || !pos) continue;
+    const type = wardKindOf(w.wardType);
+    const until = type === 'control' ? nextControlBy(pid, w.timestamp) : w.timestamp + WARD_LIFE_MAX_SEC * 1000;
+    const kill = wardKills.find((k) => !claimed.has(k) && k.wardType === w.wardType && k.timestamp >= w.timestamp && k.timestamp <= until);
+    if (kill) claimed.add(kill);
+    wardList.push({
+      sec: Math.round(w.timestamp / 1000),
+      seat,
+      type,
+      x: toGrid(pos.x),
+      y: toGrid(pos.y),
+      ...(kill && { killedSec: Math.round(kill.timestamp / 1000) })
+    });
+  }
+
   const doc: MatchTimeline = {
     matchId,
     timelineVersion: TIMELINE_VERSION,
@@ -679,6 +845,8 @@ export function buildMatchTimeline(
     vision: [...vision.entries()].map(([seat, v]) => ({ seat, ...v })).sort((a, b) => SEAT_ORDER[a.seat] - SEAT_ORDER[b.seat]),
     spend: spend.sort((a, b) => SEAT_ORDER[a.seat] - SEAT_ORDER[b.seat]),
     damage: damage.sort((a, b) => SEAT_ORDER[a.seat] - SEAT_ORDER[b.seat]),
+    positions,
+    wards: wardList,
     bytes: 0
   };
   doc.bytes = measure(doc);
@@ -687,7 +855,33 @@ export function buildMatchTimeline(
     doc.theirDeaths = [];
     doc.bytes = measure(doc);
   }
+  if (doc.bytes > MAX_BYTES) {
+    // Still over: the layers go (10 Sep 2026). The facts and the reads never
+    // read them, and the app draws a document without them as it draws one
+    // written before version 3. A thirty-five-minute game is nowhere near
+    // this; it is the guard for a game that ran an hour.
+    delete doc.positions;
+    delete doc.wards;
+    doc.bytes = measure(doc);
+  }
   return doc;
+}
+
+function toGrid(n: number): number {
+  return Math.round(n / POSITION_GRID) * POSITION_GRID;
+}
+
+/** Riot's ward types folded to the three the film draws: sight for 90 s, a control ward until it is killed, and the rest. */
+function wardKindOf(wardType: string | undefined): TimelineWardType {
+  switch (wardType) {
+    case 'YELLOW_TRINKET':
+    case 'SIGHT_WARD':
+      return 'trinket';
+    case 'CONTROL_WARD':
+      return 'control';
+    default:
+      return 'other';
+  }
 }
 
 /** The size as stored, the figure itself included: a second pass settles its digits. */

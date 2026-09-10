@@ -12,6 +12,7 @@ import { UiService } from '../../../services/ui.service';
 import { UserPrefsService } from '../../../services/user-prefs.service';
 import { initialsOf } from '../../../core/initials';
 import { countAll } from '../../../shared/film/film-count';
+import { clockText } from '../../../shared/film/film-scrubber.component';
 import { FilmFrameComponent } from '../film-frame.component';
 
 /**
@@ -279,9 +280,10 @@ export class FilmCardComponent {
   protected async copy(): Promise<void> {
     const r = this.review();
     const id = this.model().matchId;
+    // A note saved from the position lab carries a board: the copy says the second it was drawn on (10 Sep 2026, second fix pass), since the line alone reads as nobody's.
     const notes = Object.values(this.data.notesFor(id)?.notes ?? {})
       .sort((a, b) => a.at.localeCompare(b.at))
-      .map((n) => `(${initialsOf(n.by)}) ${n.text}`);
+      .map((n) => `(${initialsOf(n.by)}) ${n.lab ? `Board ${clockText(n.lab.sec)}: ` : ''}${n.text}`);
     const text = reviewAsText(r, this.game(), this.opponent(), this.link(['/games'], { match: id, tab: 'games' }), this.ledger(), {
       filmLink: this.link(['/film', id]),
       commitment: this.commitLine(),

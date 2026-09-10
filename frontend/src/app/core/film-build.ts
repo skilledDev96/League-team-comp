@@ -8,6 +8,7 @@ import {
   LedgerSummary,
   MapZone,
   MatchTimeline,
+  NO_POSITION,
   REVIEW_THEMES,
   ReviewLesson,
   ReviewMoment,
@@ -16,7 +17,9 @@ import {
   ROLES,
   TimelineDeath,
   TimelineObjective,
-  TimelineSide
+  TimelinePositions,
+  TimelineSide,
+  TimelineWard
 } from '../models/team.models';
 import { mentionedSeat } from './champion-mention';
 import { DeathRead, DeathReadKind, READ_LABELS, readCounts, readDeath, readsLine } from './death-reads';
@@ -31,6 +34,8 @@ import {
   FilmDeathScene,
   FilmDraft,
   FilmDraftSeat,
+  FilmFrame,
+  FilmFramePlace,
   FilmMap,
   FilmModel,
   FilmMoment,
@@ -39,11 +44,12 @@ import {
   FilmTape,
   FilmTapeEvent,
   FilmTitle,
+  FilmWard,
   GAIN_GLYPHS,
   OBJECTIVE_GLYPHS
 } from './film-model';
 import { askOf, playerStatLine, scoreline, ZONE_LABELS } from './review-view';
-import { clusterSpot, laneSpot, objectivePit, placeDeath, PlaceDeathArgs, Point, regionFor, RiftSide } from './rift-zones';
+import { clusterSpot, laneSpot, objectivePit, placeDeath, PlaceDeathArgs, Point, regionFor, RiftSide, riotToPercent, unitsToPercent } from './rift-zones';
 import { FilmDeathOrder, styleFor } from './film-style';
 import { seedOf, shuffle } from './seed';
 
@@ -94,6 +100,13 @@ function firstSentence(text: string): string {
 
 function seatOf(player: AnalysisPlayer): Role | undefined {
   return POSITION_SEAT[player.position];
+}
+
+/** Their five as the game knows them: a champion in a seat, never a name, because the api sends none of theirs. Unordered. */
+function enemySeats(game: AnalysisGame | undefined): { seat: Role; champion: string }[] {
+  return (game?.enemies ?? [])
+    .map((e) => ({ seat: POSITION_SEAT[e.position], champion: e.champion }))
+    .filter((e): e is { seat: Role; champion: string } => !!e.seat && !!e.champion);
 }
 
 /** The seat whose champion the headline names as a whole word, when it names one of ours; the first in lane order when it names two. */
@@ -805,10 +818,168 @@ export function railGroups(beats: readonly FilmBeat[]): { minute: number; beats:
   return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([minute, list]) => ({ minute, beats: list }));
 }
 
-function buildTape(review: GameReview, timeline: MatchTimeline, win: boolean, ourSpots: Map<string, Point>, pins: readonly FilmDeathPin[]): FilmTape {
+// ---- Part C (10 Sep 2026): where everyone stood, and where our wards were --------
+//
+// A version 3 timeline keeps every participant's position once a minute and
+// each ward of ours with the placer's position at the nearest frame, because
+// a ward event carries no position of its own. Both are Riot units; here they
+// become the image's percent space through the one calibrated conversion in
+// `rift-zones.ts`, so a champion at the pit stands where the map draws the
+// pit. Everything below is approximate by a minute, and every chapter that
+// draws it says so. An older document has neither, and the tape carries
+// neither key.
+
+/** How long a stealth ward stands: 90 s when levelled early, the figure the film uses, since nothing in the log carries a ward's timer. */
+const WARD_LIFE_SEC = 90;
+/** How far a trinket or control ward sees, in Riot units. */
+const WARD_SIGHT_UNITS = 900;
+
+/**
+ * Frame i of a seat's track: the flat list's pair at 2i, 2i + 1, or nothing
+ * when the frame carries NO_POSITION. A track of [x, y] pairs, the shape the
+ * first dev files carried before Firestore refused it (10 Sep 2026, second
+ * fix pass), still reads, so a dev timeline pasted that morning is not
+ * silently frameless.
+ */
+const placeIn = (track: unknown, i: number): [number, number] | null => {
+  if (!Array.isArray(track)) return null;
+  const nested = track[i];
+  if (Array.isArray(nested)) return Number.isFinite(nested[0]) && Number.isFinite(nested[1]) ? [nested[0], nested[1]] : null;
+  const x = track[2 * i];
+  const y = track[2 * i + 1];
+  return Number.isFinite(x) && Number.isFinite(y) && x !== NO_POSITION && y !== NO_POSITION ? [x, y] : null;
+};
+
+/** Which champion sits in each seat, from whichever list names it first. */
+function championsBySeat(...lists: readonly (readonly { seat: Role; champion?: string }[])[]): Map<Role, string> {
+  const out = new Map<Role, string>();
+  for (const list of lists) for (const p of list) if (p.champion && !out.has(p.seat)) out.set(p.seat, p.champion);
+  return out;
+}
+
+/**
+ * Our five for the frames' tiles: the review's players first, then the
+ * analysed game's, then the lanes the timeline matched, so a seat the review
+ * left out still shows its champion rather than a blank tile.
+ */
+function ourSeats(review: GameReview, game: AnalysisGame | undefined, timeline: MatchTimeline): { seat: Role; champion?: string }[] {
+  const fromGame = (game?.players ?? []).map((p) => ({ seat: seatOf(p), champion: p.champion })).filter((p): p is { seat: Role; champion: string } => !!p.seat);
+  const fromLanes = [...(timeline.lanes ?? []), ...(timeline.facts?.lanes ?? [])].map((l) => ({ seat: l.seat, champion: l.champion }));
+  return [...review.players, ...fromGame, ...fromLanes];
+}
+
+/**
+ * The frames of a version 3 timeline in the image's space: the ten, once a
+ * minute, in lane order, ours with our champions and theirs with the game's
+ * enemies' champions by seat (a champion in a seat, never a name). A seat
+ * with no position at a frame is left out of that frame. Undefined on an
+ * older document, so the tape carries no `frames` key at all.
+ */
+export function framesOf(timeline: MatchTimeline, ours: readonly { seat: Role; champion?: string }[] = [], theirs: readonly { seat: Role; champion?: string }[] = []): FilmFrame[] | undefined {
+  const positions = timeline.positions;
+  if (!positions || !Array.isArray(positions.minutes)) return undefined;
+  const ourChampions = championsBySeat(ours);
+  const theirChampions = championsBySeat(theirs);
+  const placesAt = (side: TimelinePositions['ours'] | undefined, champions: Map<Role, string>, i: number): FilmFramePlace[] => {
+    const out: FilmFramePlace[] = [];
+    for (const seat of ROLES) {
+      const pair = placeIn(side?.[seat], i);
+      if (!pair) continue;
+      const { x, y } = riotToPercent(pair[0], pair[1]);
+      const champion = champions.get(seat);
+      out.push(champion ? { seat, champion, x, y } : { seat, x, y });
+    }
+    return out;
+  };
+  const frames: FilmFrame[] = [];
+  positions.minutes.forEach((minute, i) => {
+    if (!Number.isFinite(minute)) return;
+    frames.push({ minute, ours: placesAt(positions.ours, ourChampions, i), theirs: placesAt(positions.theirs, theirChampions, i) });
+  });
+  return frames.sort((a, b) => a.minute - b.minute);
+}
+
+/**
+ * Our wards off a version 3 timeline, each from its placing to its end, in
+ * time order: killed when the log says so, else a control ward stands until
+ * the same seat's next control ward (a player holds one on the map, so the
+ * next placing removes the last; 10 Sep 2026, second fix pass) or the end of
+ * the game, and anything else for WARD_LIFE_SEC. The spot is the placer's at
+ * the nearest frame, and `r` is the sight drawn around it. Undefined on an
+ * older document; an empty list on a game with no ward of ours, which is a
+ * fact worth drawing.
+ */
+export function wardsOf(timeline: MatchTimeline): FilmWard[] | undefined {
+  if (!Array.isArray(timeline.wards)) return undefined;
+  const end = timeline.durationSec;
+  const r = Math.round(unitsToPercent(WARD_SIGHT_UNITS) * 100) / 100;
+  const valid = timeline.wards.filter((w) => !!w && Number.isFinite(w.sec) && w.sec <= end && Number.isFinite(w.x) && Number.isFinite(w.y) && ROLES.includes(w.seat));
+  const nextControlOf = (w: TimelineWard): number =>
+    valid.reduce((next, o) => (o !== w && o.seat === w.seat && o.type === 'control' && o.sec > w.sec && o.sec < next ? o.sec : next), end);
+  return valid
+    .map((w): FilmWard => {
+      const lives = w.type === 'control' ? nextControlOf(w) : w.sec + WARD_LIFE_SEC;
+      const untilSec = Math.min(end, Number.isFinite(w.killedSec) ? Math.max(w.sec, w.killedSec as number) : lives);
+      const { x, y } = riotToPercent(w.x, w.y);
+      return { sec: w.sec, untilSec, seat: w.seat, type: w.type, x, y, r };
+    })
+    .sort((a, b) => a.sec - b.sec);
+}
+
+const tenth = (v: number): number => Math.round(v * 10) / 10;
+
+/** A copy of a frame, so the lab can drag a token without moving the tape's own frame. */
+const copyFrame = (f: FilmFrame, minute = f.minute): FilmFrame => ({ minute, ours: f.ours.map((p) => ({ ...p })), theirs: f.theirs.map((p) => ({ ...p })) });
+
+/** The places of one side blended between two frames; a seat only one frame has stands where that frame put it. */
+function blendPlaces(before: readonly FilmFramePlace[], after: readonly FilmFramePlace[], f: number): FilmFramePlace[] {
+  const out: FilmFramePlace[] = [];
+  for (const seat of ROLES) {
+    const a = before.find((p) => p.seat === seat);
+    const b = after.find((p) => p.seat === seat);
+    if (a && b) {
+      const place: FilmFramePlace = { seat, x: tenth(a.x + (b.x - a.x) * f), y: tenth(a.y + (b.y - a.y) * f) };
+      const champion = b.champion ?? a.champion;
+      out.push(champion ? { ...place, champion } : place);
+    } else if (a || b) {
+      out.push({ ...(a ?? b)! });
+    }
+  }
+  return out;
+}
+
+/**
+ * Where the ten stood at a second: the frames on either side blended
+ * linearly, so a token slides between minutes rather than jumping; the
+ * first frame before the first, the last after the last, and a fresh copy
+ * every time. Null without frames. A blend is a guess: a back between two
+ * frames reads as a walk across the map, which is what "approximate by a
+ * minute" means here, and the Rift and the lab both say it.
+ */
+export function placeAt(frames: readonly FilmFrame[] | undefined, sec: number): FilmFrame | null {
+  if (!frames?.length) return null;
+  const t = sec / 60;
+  let before: FilmFrame | undefined;
+  let after: FilmFrame | undefined;
+  for (const f of frames) {
+    if (f.minute <= t && (!before || f.minute > before.minute)) before = f;
+    if (f.minute >= t && (!after || f.minute < after.minute)) after = f;
+  }
+  if (!before) return copyFrame(after!);
+  if (!after || after === before || after.minute === before.minute) return copyFrame(before);
+  const f = (t - before.minute) / (after.minute - before.minute);
+  return { minute: t, ours: blendPlaces(before.ours, after.ours, f), theirs: blendPlaces(before.theirs, after.theirs, f) };
+}
+
+/** The wards standing at a second: placed by then and not yet gone (one killed or expired that very second still shows). */
+export function wardsAt(wards: readonly FilmWard[] | undefined, sec: number): FilmWard[] {
+  return (wards ?? []).filter((w) => w.sec <= sec && sec <= w.untilSec);
+}
+
+function buildTape(review: GameReview, game: AnalysisGame | undefined, timeline: MatchTimeline, win: boolean, ourSpots: Map<string, Point>, pins: readonly FilmDeathPin[]): FilmTape {
   const goldDiff = timeline.goldDiff ?? [];
   const turn = turnOf(timeline, win);
-  return {
+  const tape: FilmTape = {
     durationSec: timeline.durationSec,
     ourSide: timeline.ourSide,
     goldDiff: goldDiff.slice(),
@@ -817,6 +988,12 @@ function buildTape(review: GameReview, timeline: MatchTimeline, win: boolean, ou
     events: buildTapeEvents(review.players, timeline, ourSpots),
     beats: buildBeats(review, timeline, timeline.facts, review.players, turn, win, pins)
   };
+  // The layers (Part C, 10 Sep 2026): on a version 3 document only, and never an empty key on an older one, so a chapter can tell "no positions kept" from "nobody moved".
+  const frames = framesOf(timeline, ourSeats(review, game, timeline), enemySeats(game));
+  if (frames) tape.frames = frames;
+  const wards = wardsOf(timeline);
+  if (wards) tape.wards = wards;
+  return tape;
 }
 
 /**
@@ -1045,10 +1222,7 @@ function buildDraft(review: GameReview, game: AnalysisGame | undefined, protagon
   if (!draft?.verdict?.trim()) return undefined;
   const bySeat = (a: FilmDraftSeat, b: FilmDraftSeat) => seatIndex(a.seat) - seatIndex(b.seat);
   const ours: FilmDraftSeat[] = review.players.map((p) => ({ seat: p.seat, champion: p.champion, name: p.name })).sort(bySeat);
-  const theirs: FilmDraftSeat[] = (game?.enemies ?? [])
-    .map((e) => ({ seat: POSITION_SEAT[e.position], champion: e.champion }))
-    .filter((e): e is FilmDraftSeat => !!e.seat && !!e.champion)
-    .sort(bySeat);
+  const theirs: FilmDraftSeat[] = enemySeats(game).sort(bySeat);
   const swaps: FilmDraft['swaps'] = (draft.swaps ?? []).slice(0, MAX_SWAPS).map((s) => {
     const gains = (s.gains ?? []).filter((g) => g in GAIN_GLYPHS).slice(0, 3);
     const glyphs = gains.map((g) => GAIN_GLYPHS[g]);
@@ -1126,7 +1300,7 @@ export function buildFilm(review: GameReview, game: AnalysisGame | undefined, ti
       model.map = buildMap(review, game, timeline, ledger, style.deathOrder, ourSpots);
       for (const seat of model.seats) seat.pins = model.map.pins.filter((p) => p.seat === seat.seat).sort((a, b) => a.sec - b.sec);
     }
-    model.tape = buildTape(review, timeline, title.win, ourSpots, model.map?.pins ?? []);
+    model.tape = buildTape(review, game, timeline, title.win, ourSpots, model.map?.pins ?? []);
     middle.push(TAPE_CHAPTER);
     if (model.map) {
       if (ledger!.length >= MAP_FIRST_DEATHS) middle.unshift(MAP_CHAPTER);
