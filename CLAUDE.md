@@ -338,10 +338,12 @@ filter rather than none, so it can never become unpickable.
    it can and the review is labelled as such. `AnalysisGame.timelineData`
    marks coverage like `laneData`; Diagnostics counts it.
    **The review itself** (`api/src/game-review.ts`, handler `gameReview`,
-   `REVIEW_VERSION` 3 since 9 Sep 2026) is two calls over the facts, both
-   to Opus at medium effort: the team — headline, summary, the game in
-   `moments` (three to six, time order), `workOn`, `keepDoing`, the comp
-   verdict — and the players — `strength`, `workOn`, and `more` (up to
+   `REVIEW_VERSION` 5 since 10 Sep 2026: 3 on 9 Sep, 4 and 5 on 10 Sep) is
+   two calls over the facts, both to Opus at medium effort: the team —
+   headline, summary, the game in `moments` (three to six, time order),
+   `workOn`, `keepDoing`, the comp verdict, and since version 4 and 5 the
+   `lessons`, `oneThing` and `draft` the film room reads — and the players —
+   `strength`, `workOn`, and `more` (up to
    three further work-ons, each with a `theme`); both JSON-schema output,
    both validated (caps, evidence required, a minute outside the game
    nulled, moments sorted and capped, unknown player names dropped, seats
@@ -399,15 +401,17 @@ filter rather than none, so it can never become unpickable.
    plus the row's Film room pill pulsing twice; `?fresh=1` opens the film on
    the tape. Chapters: the tape (`chapters/film-tape`, the Rift over the
    scrubber `shared/film/film-scrubber.component.ts`, the one horizontal
-   drag; the curve draws only on the reveal of the guess; calls a minute
-   before an objective or a fight cluster, keys `tape:o:<min>` /
-   `tape:f:<min>`; Copy link is `?c=tape&t=<sec>`, and a link opens
-   revealed without a verdict), the board (replay tier: tallies at the
+   drag; since cut 4 the curve stands as soon as the chapter has a clock
+   and draws itself to the turn once when the chapter comes up, the hand
+   stops on the beats and narrates them (below), Copy link is
+   `?c=tape&t=<sec>`, and the takeover's guess, when there is one, is the
+   only verdict the sheet shows), the board (replay tier: tallies at the
    pits, "Which count was furthest apart?") and the map
-   (`chapters/film-map`: the dark count under `map:dark`, each death's
-   call as a bit mask under `map:<ledger key>`, unread pins hollow and
-   never faded by a filter, Watch it seeks the tape to twenty seconds
-   before). **The zone rule:** `core/rift-zones.ts` is the one table for the
+   (`chapters/film-map`: one line over the deaths with the reads' counts,
+   a legend that lights one read at a time, the deaths that cost most as a
+   strip, and a card per death with its read, its scene and its cost;
+   every pin carries its read from the start, nothing is hollow, and Watch
+   it seeks the tape to twenty seconds before). **The zone rule:** `core/rift-zones.ts` is the one table for the
    Rift image (percent space, blue base bottom-left; `MAP_SPOTS` also feeds
    the draft room and the tactical board): a death is placed by a seeded
    sample inside its zone's region, consequences are badges on the pip and
@@ -424,6 +428,45 @@ filter rather than none, so it can never become unpickable.
    reminder only when `reminderFor` has something; `advance` counts from the
    later of `done` and now, so a late answer never lands on a past date. A
    moment's seats light the map's tokens within 120 s of its minute only.
+   **Cut 4 (10 Sep 2026): the film tells instead of asking.** The reads
+   (`core/death-reads.ts`): every death of ours is read as one of four
+   kinds, checked in this order — `bought` when an objective of ours fell
+   within 60 s of it either way and the death was where the fight over it
+   was (river or a jungle, or the victim on the take or near the pit),
+   `avoidable` when the ledger carries a tag, `traded` when at least as
+   many of theirs fell within 30 s in the same zone or with the victim on
+   the kill and there is no tag, `clean` otherwise — with a line in the
+   read's words, up to three glyphs, and the cost as the gold swing over
+   the two minutes after (`readDeath`, `readCounts`, `readsLine`);
+   `FilmDeathPin` carries all of it and `FilmMap` the counts (`reads`), the
+   opening line and the three costliest avoidable keys (only deaths the
+   gold fell after; a second death of one seat inside a minute is keyed
+   `d:<minute>:<seat>:<sec>`). The beats (`FilmTape.beats`, at most
+   fourteen): the tape narrates the coach's moments, the objectives, the
+   fights, the firsts, the turn and the costliest deaths, folding a first,
+   an objective, a fight or a death within 45 s of a moment into it; each
+   card holds for a dwell measured off its words (3.5 to 8 s at the film's
+   tempo, a bar running down through `MotionService.play`) and plays on,
+   Pause holds it, a rail under the sheet jumps to any beat, and nothing
+   on the tape or the map is a question any more. The glyphs
+   (`shared/film/film-glyph.component.ts`, `app-film-glyph`): thirty
+   hand-drawn 24×24 outline glyphs, one per `FilmGlyph`, in currentColor,
+   with `GLYPH_TIPS`; the death scene
+   (`shared/film/death-scene.component.ts`, `app-death-scene`) draws what
+   was around a death from `FilmDeathScene` — the victim ringed in the
+   read's colour, the slashed ward, our jungler a screen away, their
+   jungler already close, the midline, the objective, the tower, the
+   killers, the allies, the trade — with the parts rising in story order.
+   Review version 5 adds `team.draft` (`ReviewDraft`: a verdict and up to
+   two swaps, each `seat`, `out`, `in`, `why`, `gains` from `DRAFT_GAINS`;
+   `in` is validated against the display names in `meta/championTraits`,
+   so it is a Data Dragon spelling while `out` is Riot's id), read by
+   `buildDraft` into the chapter 'The draft, again'
+   (`chapters/film-draft.component.ts`, right after The one thing): the
+   seats turn from the champion played to the one to try, and Save with
+   <champion> writes a comp variant with `countsUnder` the comp we played.
+   The old progress keys `map:*` and `tape:*` are ignored: `tallyLine`
+   only counts that calls exist, so an old film still reads "Continue".
    **Post-game graphs** (`shared/game-graphs.component.ts`) sit behind a
    Table | Graphs segment on every Games row's scoreboard, drawn from the
    row's `RowStats` so replays and Riot games get the same view; a figure a

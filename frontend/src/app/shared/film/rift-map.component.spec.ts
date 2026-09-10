@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
-import { FilmDeathPin, FilmTapeEvent } from '../../core/film-model';
-import { capTokens, LIT_WINDOW_SEC, MAX_TOKENS, objectiveIcon, RiftMapComponent, RiftToken } from './rift-map.component';
+import { FilmDeathPin, FilmDeathScene, FilmTapeEvent } from '../../core/film-model';
+import { capTokens, LIT_WINDOW_SEC, MAX_TOKENS, objectiveGlyph, RiftMapComponent, RiftToken } from './rift-map.component';
 
 const events: FilmTapeEvent[] = [
   { sec: 95, kind: 'back', label: 'Top backed', side: 'us', seat: 'Top', x: 8, y: 92 },
@@ -12,23 +12,41 @@ const events: FilmTapeEvent[] = [
   { sec: 1500, kind: 'objective', label: 'Our baron', side: 'us', x: 31, y: 30 }
 ];
 
+const scene: FilmDeathScene = { could: [], killers: 1, executed: false, traded: 0, warded: false };
+
 const pins: FilmDeathPin[] = [
-  { key: 'd:3:ADC', sec: 210, minute: 3, seat: 'ADC', name: 'Rhu', champion: 'Jinx', zone: 'bot', x: 85, y: 84, how: 'solo', could: ['ward', 'position'], line: 'Rhu (ADC) died at 3 min, alone, in the dark' } as unknown as FilmDeathPin,
-  { key: 'd:14:Top', sec: 840, minute: 14, seat: 'Top', champion: 'Ornn', zone: 'river', x: 30, y: 30, how: 'fight', could: ['jungle'], line: 'Ornn died at 14 min in a fight at Baron' } as unknown as FilmDeathPin
+  {
+    key: 'd:3:ADC', sec: 210, minute: 3, seat: 'ADC', name: 'Rhu', champion: 'Jinx', zone: 'bot', x: 85, y: 84, how: 'solo', could: ['ward', 'position'],
+    line: 'Rhu (ADC) died at 3 min, alone, in the dark',
+    read: 'avoidable', readLine: 'Avoidable: no ward had gone down nearby.', glyphs: ['ward-off', 'footsteps'], scene: { ...scene, could: ['ward', 'position'] }
+  },
+  {
+    key: 'd:14:Top', sec: 840, minute: 14, seat: 'Top', champion: 'Ornn', zone: 'river', x: 30, y: 30, how: 'fight', could: ['jungle'],
+    line: 'Ornn died at 14 min in a fight at Baron',
+    read: 'bought', readLine: 'Bought the baron at minute 14.', glyphs: ['coin', 'baron'], scene: { ...scene, could: ['jungle'], objective: { type: 'baron', ours: true } }
+  }
 ];
 
-describe('objectiveIcon', () => {
-  it('reads the kind off the tape label', () => {
-    expect(objectiveIcon('Their dragon (infernal)')).toBe('pets');
-    expect(objectiveIcon('Our Baron')).toBe('shield');
-    expect(objectiveIcon('Grubs, theirs (3)')).toBe('bug_report');
-    expect(objectiveIcon('Our herald')).toBe('visibility');
-    expect(objectiveIcon('Something else')).toBe('flag');
+/** A pin from before the reads existed: no glyphs, so the badges fall back to its tags'. */
+const bareTagPin: FilmDeathPin = {
+  key: 'd:20:Mid', sec: 1200, minute: 20, seat: 'Mid', champion: 'Ahri', zone: 'mid', x: 50, y: 50, how: 'gank', could: ['call'],
+  line: 'Ahri died at 20 min to a gank', read: 'avoidable', readLine: 'Avoidable: a call would have pulled her out.', glyphs: [], scene: { ...scene, could: ['call'] }
+};
+
+describe('objectiveGlyph', () => {
+  it('reads the kind off the tape label as one of the film\'s own glyphs', () => {
+    expect(objectiveGlyph('Their dragon (infernal)')).toBe('dragon');
+    expect(objectiveGlyph('Our elder dragon')).toBe('dragon');
+    expect(objectiveGlyph('Our Baron')).toBe('baron');
+    expect(objectiveGlyph('Grubs, theirs (3)')).toBe('grubs');
+    expect(objectiveGlyph('Our herald')).toBe('herald');
+    expect(objectiveGlyph('Their Atakhan')).toBe('atakhan');
+    expect(objectiveGlyph('Something else')).toBe('flag');
   });
 });
 
 describe('capTokens', () => {
-  const tok = (kind: RiftToken['kind'], sec: number): RiftToken => ({ key: `${kind}:${sec}`, kind, sec, x: 0, y: 0, label: kind, icon: '' });
+  const tok = (kind: RiftToken['kind'], sec: number): RiftToken => ({ key: `${kind}:${sec}`, kind, sec, x: 0, y: 0, label: kind });
 
   it('keeps everything under the cap', () => {
     const list = [tok('back', 1), tok('ourDeath', 2)];
@@ -60,8 +78,10 @@ describe('RiftMapComponent', () => {
     fixture.componentRef.setInput('until', null);
     fixture.detectChanges();
     expect(el.querySelectorAll('.rift-token').length).toBe(6);
-    expect(el.querySelector('.rift-token.is-objective.is-them .material-symbols-rounded')?.textContent).toBe('pets');
-    expect(el.querySelector('.rift-token.is-objective.is-us .material-symbols-rounded')?.textContent).toBe('shield');
+    // The pits wear the film's own glyphs, the same dragon the tape's card draws, and no Material icon anywhere on the map.
+    expect(el.querySelector('.rift-token.is-objective.is-them .rift-obj svg.film-glyph')?.getAttribute('data-glyph')).toBe('dragon');
+    expect(el.querySelector('.rift-token.is-objective.is-us .rift-obj svg.film-glyph')?.getAttribute('data-glyph')).toBe('baron');
+    expect(el.querySelector('.rift-obj .material-symbols-rounded')).toBeNull();
   });
 
   it('lights a seat\'s tokens only near the moment\'s second, every one of them with no second', () => {
@@ -88,7 +108,9 @@ describe('RiftMapComponent', () => {
     expect(deaths.length).toBe(2);
     const selected = el.querySelector('.rift-token.is-selected') as HTMLButtonElement;
     expect(selected.getAttribute('aria-label')).toContain('Rhu');
-    expect(Array.from(selected.querySelectorAll('.rift-badge .material-symbols-rounded')).map((b) => b.textContent)).toEqual(['visibility_off', 'person_pin_circle']);
+    // The badges are the film's own glyphs, the pin's list in its order, and no Material icon.
+    expect(Array.from(selected.querySelectorAll('.rift-badge svg.film-glyph')).map((b) => b.getAttribute('data-glyph'))).toEqual(['ward-off', 'footsteps']);
+    expect(selected.querySelector('.rift-badge .material-symbols-rounded')).toBeNull();
     expect(el.querySelectorAll('.rift-ring').length).toBe(2);
     const picked: string[] = [];
     fixture.componentInstance.pick.subscribe((k) => picked.push(k));
@@ -104,5 +126,41 @@ describe('RiftMapComponent', () => {
     expect(faded[0].getAttribute('aria-label')).toContain('Rhu');
     expect(el.querySelectorAll('.rift-cluster').length).toBe(1);
     expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(1);
+  });
+
+  it('marks each pin with its read, and the read filter fades the pins of the other reads', () => {
+    const fixture = mount({ pins, readFilter: 'bought' });
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.rift-token.is-read-bought')?.getAttribute('aria-label')).toContain('Ornn');
+    expect(el.querySelector('.rift-token.is-read-avoidable')?.getAttribute('aria-label')).toContain('Rhu');
+    let faded = el.querySelectorAll('.rift-token.is-faded');
+    expect(faded.length).toBe(1);
+    expect(faded[0].classList.contains('is-read-avoidable')).toBe(true);
+    // Both filters stack: a bought death with the jungle tag passes both, an avoidable one with it fails the read.
+    fixture.componentRef.setInput('filter', 'jungle');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-token.is-faded').length).toBe(1);
+    fixture.componentRef.setInput('readFilter', 'all');
+    fixture.componentRef.setInput('filter', 'all');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-token.is-faded').length).toBe(0);
+    // An unread pin never fades, whatever the read filter says.
+    fixture.componentRef.setInput('readFilter', 'bought');
+    fixture.componentRef.setInput('unreadKeys', ['d:3:ADC']);
+    fixture.detectChanges();
+    faded = el.querySelectorAll('.rift-token.is-faded');
+    expect(faded.length).toBe(0);
+    // A tape event for a death of ours carries no read, so it gets no read class.
+    fixture.componentRef.setInput('pins', []);
+    fixture.componentRef.setInput('events', events);
+    fixture.detectChanges();
+    expect(el.querySelector('.rift-token.is-ourDeath')?.className).not.toContain('is-read-');
+  });
+
+  it('falls back to the tags\' glyphs as badges when a pin carries none', () => {
+    const fixture = mount({ pins: [bareTagPin], selected: 'd:20:Mid' });
+    const el = fixture.nativeElement as HTMLElement;
+    const badges = Array.from(el.querySelectorAll('.rift-token.is-selected .rift-badge svg.film-glyph')).map((b) => b.getAttribute('data-glyph'));
+    expect(badges).toEqual(['horn']);
   });
 });

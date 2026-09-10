@@ -1,9 +1,11 @@
 import { Component, computed, inject, input, output } from '@angular/core';
-import { FilmDeathPin, FilmMap, FilmTapeEvent } from '../../core/film-model';
+import { DeathReadKind } from '../../core/death-reads';
+import { COULD_GLYPHS, FilmDeathPin, FilmGlyph, FilmMap, FilmTapeEvent } from '../../core/film-model';
 import { DeathCould, Role } from '../../models/team.models';
 import { MotionService } from '../../services/motion.service';
 import { UiService } from '../../services/ui.service';
 import { TooltipDirective } from '../tooltip.directive';
+import { FilmGlyphComponent, GLYPH_TIPS } from './film-glyph.component';
 
 /** The most tokens the map draws at once; past that the oldest backs go first, then plates, firsts and their dots. */
 export const MAX_TOKENS = 60;
@@ -24,28 +26,36 @@ export interface RiftToken {
   side?: 'us' | 'them';
   seat?: Role;
   champion?: string;
-  /** The Material Symbol for an objective or a first; empty otherwise. */
-  icon: string;
+  /** The film's glyph for an objective (10 Sep 2026: the same dragon the tape's card and the death scene draw, never a Material paw); absent otherwise. */
+  glyph?: FilmGlyph;
   /** For a death of ours: the ledger key the chapter selects by, and the tags a filter reads. */
   pinKey?: string;
   could?: DeathCould[];
+  /** For a death of ours (cut 4, 10 Sep 2026): how the film reads it, for the pip's colour and the read filter. */
+  read?: DeathReadKind;
+  /** The imagery beside a selected pin, most telling first; the tags' glyphs when the pin carries none. */
+  glyphs?: FilmGlyph[];
   /** The token's place in its own list (a pin's in `pins`, an event's in `events`), as `--i` for a staggered entrance. */
   order?: number;
 }
 
-/** The badge drawn beside a selected pin for each tag in its `could`. */
-export const COULD_ICONS: Record<DeathCould, string> = {
-  ward: 'visibility_off',
-  jungle: 'alt_route',
-  call: 'campaign',
-  position: 'person_pin_circle'
-};
-
+/**
+ * The tip beside each tag's glyph says what would have stopped the death,
+ * which is more than the glyph's own name says; every other glyph (the
+ * read's mark, an objective) keeps its name from `GLYPH_TIPS`.
+ */
 const COULD_TIPS: Record<DeathCould, string> = {
   ward: 'A ward would have shown it',
   jungle: 'The jungler could have been there',
   call: 'A call would have pulled them out',
   position: 'Standing elsewhere would have done it'
+};
+
+const GLYPH_COULD: Partial<Record<FilmGlyph, DeathCould>> = {
+  'ward-off': 'ward',
+  'jungler-far': 'jungle',
+  horn: 'call',
+  footsteps: 'position'
 };
 
 /** The order tokens are dropped in when the map holds too many: the least telling first. */
@@ -65,10 +75,17 @@ const DROP_ORDER: RiftTokenKind[] = ['back', 'plate', 'first', 'theirDeath', 'ob
  * most, never a name, by the Riot rules. A death of ours is a button that
  * emits `pick` with its ledger key; the rest are buttons only so their
  * tooltips reach the keyboard.
+ *
+ * Cut 4 (10 Sep 2026): a pin carries the film's read of the death, so the
+ * pip wears the read's colour (`is-read-avoidable` and the rest, tokens in
+ * the film room block) and `readFilter` fades the pins of the other reads
+ * the way `filter` fades the other tags. The badges beside a selected pin
+ * are the film's own glyphs (`app-film-glyph`), the pin's `glyphs` first and
+ * its tags' glyphs when it carries none.
  */
 @Component({
   selector: 'app-rift-map',
-  imports: [TooltipDirective],
+  imports: [TooltipDirective, FilmGlyphComponent],
   host: { class: 'rift-map', '[class.is-dim]': 'dim()', '[class.is-still]': 'motion.reduced()', '[class.has-selection]': '!!selected()' },
   template: `
     <div class="rift-map-square">
@@ -88,7 +105,7 @@ const DROP_ORDER: RiftTokenKind[] = ['back', 'plate', 'first', 'theirDeath', 'ob
         @for (tok of tokens(); track tok.key) {
           <button
             type="button"
-            [class]="'rift-token is-' + tok.kind + (tok.side ? ' is-' + tok.side : '')"
+            [class]="'rift-token is-' + tok.kind + (tok.side ? ' is-' + tok.side : '') + (tok.read ? ' is-read-' + tok.read : '')"
             [class.is-selected]="tok.pinKey !== undefined && tok.pinKey === selected()"
             [class.is-unread]="unread(tok)"
             [class.is-faded]="faded(tok)"
@@ -110,10 +127,10 @@ const DROP_ORDER: RiftTokenKind[] = ['back', 'plate', 'first', 'theirDeath', 'ob
                     <span class="material-symbols-rounded" aria-hidden="true">skull</span>
                   }
                 </span>
-                @if (tok.pinKey === selected() && tok.could?.length) {
+                @if (tok.pinKey === selected() && badges(tok).length) {
                   <span class="rift-badges">
-                    @for (tag of tok.could ?? []; track tag) {
-                      <span class="rift-badge" [appTip]="tip(tag)"><span class="material-symbols-rounded" aria-hidden="true">{{ icon(tag) }}</span></span>
+                    @for (g of badges(tok); track $index) {
+                      <span class="rift-badge" [appTip]="tip(g)"><app-film-glyph [name]="g" /></span>
                     }
                   </span>
                 }
@@ -122,7 +139,7 @@ const DROP_ORDER: RiftTokenKind[] = ['back', 'plate', 'first', 'theirDeath', 'ob
                 <span class="rift-dot"></span>
               }
               @case ('objective') {
-                <span class="rift-obj"><span class="material-symbols-rounded" aria-hidden="true">{{ tok.icon }}</span></span>
+                <span class="rift-obj"><app-film-glyph [name]="tok.glyph ?? 'flag'" /></span>
               }
               @case ('first') {
                 <span class="rift-first">1st</span>
@@ -160,6 +177,8 @@ export class RiftMapComponent {
   readonly selected = input<string | null>(null);
   /** A pin whose `could` lacks this tag dims. */
   readonly filter = input<DeathCould | 'all'>('all');
+  /** A pin whose read is not this one dims; the two filters stack. */
+  readonly readFilter = input<DeathReadKind | 'all'>('all');
   /** Pins not yet called: drawn hollow, and never faded by a filter, since their tags are not on the map yet. */
   readonly unreadKeys = input<readonly string[]>([]);
   /** Seats of ours to light with an accent ring: the tape passes a moment's seats while the hand pauses on it. */
@@ -213,9 +232,13 @@ export class RiftMapComponent {
     return at === null || Math.abs(tok.sec - at) <= LIT_WINDOW_SEC;
   }
 
+  /** Faded by either filter; an unread pin never fades, since what it carries is not on the map yet. */
   protected faded(tok: RiftToken): boolean {
+    if (tok.kind !== 'ourDeath' || this.unread(tok)) return false;
     const f = this.filter();
-    return f !== 'all' && tok.kind === 'ourDeath' && !this.unread(tok) && !(tok.could ?? []).includes(f);
+    if (f !== 'all' && !(tok.could ?? []).includes(f)) return true;
+    const r = this.readFilter();
+    return r !== 'all' && tok.read !== r;
   }
 
   protected onTap(tok: RiftToken): void {
@@ -223,12 +246,14 @@ export class RiftMapComponent {
     if (tok.pinKey) this.pick.emit(tok.pinKey);
   }
 
-  protected icon(tag: DeathCould): string {
-    return COULD_ICONS[tag] ?? 'label';
+  /** The glyphs beside a selected pin: the pin's own, else its tags' in the ledger's order. */
+  protected badges(tok: RiftToken): FilmGlyph[] {
+    return tok.glyphs?.length ? tok.glyphs : (tok.could ?? []).map((c) => COULD_GLYPHS[c]);
   }
 
-  protected tip(tag: DeathCould): string {
-    return COULD_TIPS[tag] ?? tag;
+  protected tip(g: FilmGlyph): string {
+    const could = GLYPH_COULD[g];
+    return could ? COULD_TIPS[could] : (GLYPH_TIPS[g] ?? g);
   }
 }
 
@@ -244,9 +269,10 @@ function pinToken(p: FilmDeathPin, order: number): RiftToken {
     side: 'us',
     seat: p.seat,
     champion: p.champion,
-    icon: '',
     pinKey: p.key,
     could: p.could,
+    read: p.read,
+    glyphs: p.glyphs,
     order
   };
 }
@@ -262,7 +288,7 @@ function eventToken(e: FilmTapeEvent, i: number): RiftToken {
     side: e.side,
     seat: e.seat,
     champion: e.champion,
-    icon: e.kind === 'objective' ? objectiveIcon(e.label) : '',
+    ...(e.kind === 'objective' && { glyph: objectiveGlyph(e.label) }),
     pinKey: e.kind === 'ourDeath' ? e.key : undefined,
     order: i
   };
@@ -277,20 +303,19 @@ function theirToken(d: { x: number; y: number; minute: number }, i: number): Rif
     y: d.y,
     label: `One of theirs died at ${d.minute} min`,
     side: 'them',
-    icon: '',
     order: i
   };
 }
 
-/** The tape's objective labels carry the kind in words ("Their dragon (infernal)"); the icon reads it off them. */
-export function objectiveIcon(label: string): string {
+/** The tape's objective labels carry the kind in words ("Their dragon (infernal)"); the glyph reads it off them, so the pit shows the same dragon the tape's card and the death scene draw. */
+export function objectiveGlyph(label: string): FilmGlyph {
   const l = label.toLowerCase();
-  if (l.includes('baron')) return 'shield';
-  if (l.includes('grub')) return 'bug_report';
-  if (l.includes('herald')) return 'visibility';
-  if (l.includes('dragon') || l.includes('drake') || l.includes('elder')) return 'pets';
-  if (l.includes('atakhan')) return 'skull';
-  if (l.includes('tower') || l.includes('turret')) return 'castle';
+  if (l.includes('baron')) return 'baron';
+  if (l.includes('grub')) return 'grubs';
+  if (l.includes('herald')) return 'herald';
+  if (l.includes('dragon') || l.includes('drake') || l.includes('elder')) return 'dragon';
+  if (l.includes('atakhan')) return 'atakhan';
+  if (l.includes('tower') || l.includes('turret')) return 'tower';
   return 'flag';
 }
 

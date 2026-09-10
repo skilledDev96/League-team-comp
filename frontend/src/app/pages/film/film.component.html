@@ -50,21 +50,25 @@
                                   (answered)="onAnswered($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @case ('tape') {
-                  <app-film-tape [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [active]="i === chapter()" [guess]="turnGuess()" [calls]="calls()"
+                  <app-film-tape [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [active]="i === chapter()" [guess]="turnGuess()"
                                  [initialSec]="initialSec()" [seekTo]="seekRequest()"
-                                 (answered)="onAnswered($event)" (copied)="onCopied($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                                 (copied)="onCopied($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @case ('board') {
                   <app-film-board [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()" [earlier]="calls()?.['board']"
                                   (answered)="onAnswered($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @case ('map') {
-                  <app-film-map [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()" [calls]="calls()"
-                                (answered)="onAnswered($event)" (watch)="onWatch($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                  <app-film-map [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()"
+                                (watch)="onWatch($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @case ('one-thing') {
                   <app-film-one-thing [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()" [ownChoice]="progress()?.choice"
                                       (chosen)="onChosen($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                }
+                @case ('draft') {
+                  <app-film-draft [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [active]="i === chapter()" [closeTick]="escapeTick()"
+                                  (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @case ('seat') {
                   <app-film-seat [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()" [calls]="calls()" [ledger]="ledgerSummary()" [active]="i === chapter()"

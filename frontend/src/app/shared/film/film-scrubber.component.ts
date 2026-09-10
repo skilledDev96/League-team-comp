@@ -1,5 +1,5 @@
 import { Component, computed, ElementRef, inject, input, output, signal, viewChild } from '@angular/core';
-import { FilmMoment, FilmTapeCall } from '../../core/film-model';
+import { FilmMoment } from '../../core/film-model';
 import { MotionService } from '../../services/motion.service';
 import { TooltipDirective } from '../tooltip.directive';
 
@@ -44,9 +44,11 @@ export function clockText(sec: number): string {
  * line while the reader still has to say where the game turned, and the
  * gold curve once that is revealed. Revealed, the curve is drawn only as far
  * as the second shown (the dash offset follows `t`, so scrub and play are
- * one path), moments sit on it as pins coloured by their swing, calls as
- * marks, and the reader's guess and the answer as labelled markers with a
- * dashed rule between them. Not revealed, a drag moves the guess and Lock
+ * one path), moments sit on it as pins coloured by their swing, and the
+ * reader's guess and the answer are labelled markers with a dashed rule
+ * between them (cut 4, 10 Sep 2026: the call marks went with the tape's
+ * calls; the beats have their own rail under the sheet). Not revealed, a
+ * drag moves the guess and Lock
  * keeps it. Pointer capture and `touch-action: none` keep a phone's scroll
  * out of it; the keyboard walks a minute, Shift a moment, Space plays and
  * Enter locks. With motion off the curve stands whole and a native range
@@ -127,12 +129,9 @@ export function clockText(sec: number): string {
         }
       </div>
 
-      <!-- The moments and the calls sit over the track, not in it: a slider holds no buttons. A moment's tip says when, not what; the sheet reads it once the hand is there. -->
+      <!-- The moments sit over the track, not in it: a slider holds no buttons. A moment's tip says when, not what; the sheet reads it once the hand is there. -->
       @if (revealed()) {
         <div class="film-scrub-over">
-          @for (c of calls(); track c.key) {
-            <span class="film-scrub-call" [style.left.%]="pct(c.atSec)" [appTip]="'A call at ' + clockAt(c.atSec)" role="img" [attr.aria-label]="'A call at ' + clockAt(c.atSec)"></span>
-          }
           @for (m of moments(); track m.minute + ':' + m.text) {
             <button type="button" [class]="'film-scrub-moment is-' + m.swing" [style.left.%]="pct(m.minute * 60)" [appTip]="momentTip(m)" [attr.aria-label]="momentTip(m)" (click)="seek.emit(m.minute * 60)"></button>
           }
@@ -172,13 +171,12 @@ export class FilmScrubberComponent {
   /** The second shown. */
   readonly t = input<number>(0);
   readonly moments = input<FilmMoment[]>([]);
-  /** False until the reader has locked a guess: the curve, the moments and the calls stay hidden. */
+  /** False until the reader has locked a guess: the curve and the moments stay hidden. */
   readonly revealed = input<boolean>(false);
   /** The minute the reader placed. */
   readonly guess = input<number | null>(null);
   /** The minute it turned. */
   readonly answer = input<number | null>(null);
-  readonly calls = input<FilmTapeCall[]>([]);
   readonly playing = input<boolean>(false);
   /** The question over the track before the reveal; the film's voice sets it, the takeover keeps the default. "Drag" reads "Slide" with motion off. */
   readonly ask = input<string>(DEFAULT_ASK);
@@ -257,10 +255,6 @@ export class FilmScrubberComponent {
   /** A second in the curve's own x space. */
   protected x(sec: number): number {
     return (this.pct(sec) * CURVE_LEN) / 100;
-  }
-
-  protected clockAt(sec: number): string {
-    return clockText(sec);
   }
 
   /** When a moment is and which way it went; never its sentence, which could give a call away before its reveal. */

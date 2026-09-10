@@ -1,4 +1,5 @@
-import { AnalysisGame, AnalysisPlayer, DeathCould, DeathHow, GameReview, LedgerSummary, MapZone } from '../models/team.models';
+import { AnalysisGame, AnalysisPlayer, DeathCould, DeathHow, DraftGain, GameReview, LedgerSummary, MapZone, ReviewDraft } from '../models/team.models';
+import { DeathReadKind, readsLine } from './death-reads';
 
 /**
  * The review panel's read side (9 Sep 2026): the scoreline every point
@@ -100,6 +101,20 @@ export const ZONE_LABELS: Record<MapZone, string> = {
   theirJungle: 'their jungle'
 };
 
+/** What a swap in the draft buys, in the team's words (10 Sep 2026); one table for the chapter, the panel and the chat. */
+export const GAIN_LABELS: Record<DraftGain, string> = {
+  engage: 'Engage',
+  peel: 'Peel',
+  frontline: 'Frontline',
+  poke: 'Poke',
+  sustain: 'Sustain',
+  splitpush: 'Split push',
+  waveclear: 'Wave clear',
+  pick: 'Pick',
+  disengage: 'Disengage',
+  damage: 'Damage'
+};
+
 /** `💀 11 deaths · 6 with no ward nearby · 3 with the jungle a screen away`, or nothing without deaths. */
 export function ledgerLine(summary: LedgerSummary | undefined): string {
   if (!summary?.deaths) return '';
@@ -121,6 +136,32 @@ export interface ReviewTextExtras {
   commitment?: string;
   /** Team notes, one line each, after the asks; the caller prefixes each with who wrote it, "(RH) text". */
   notes?: string[];
+  /** The film's reads of our deaths (`core/death-reads.ts`); when given, the deaths line is theirs rather than the ledger's counts. */
+  reads?: Record<DeathReadKind, number>;
+  /** The draft with hindsight (review version 5): one Draft line per swap, or the verdict alone when the draft held. */
+  draft?: ReviewDraft;
+  /** The display name for a champion however it was spelt (`UiService.championName`): a swap's `out` is Riot's id and its `in` Data Dragon's name, and one sentence must not mix "Wukong for MonkeyKing". */
+  championName?: (name: string) => string;
+}
+
+/** The reads as the chat's deaths line: "💀 11 deaths: 6 avoidable, 2 traded, 1 bought an objective, 2 clean.", or nothing without deaths. */
+function readsSubtext(reads: Record<DeathReadKind, number>): string {
+  const total = Object.values(reads).reduce((n, c) => n + (c ?? 0), 0);
+  return total ? `💀 ${readsLine(reads)}` : '';
+}
+
+/** "Nautilus for Leona (Peel, Pick): why" per swap, or the verdict alone when the coach would change nothing. */
+function draftLines(draft: ReviewDraft | undefined, championName: (name: string) => string = (name) => name): string[] {
+  if (!draft) return [];
+  const swaps = (draft.swaps ?? []).filter((s) => s.in && s.out);
+  if (swaps.length) {
+    return swaps.map((s) => {
+      const gains = (s.gains ?? []).map((g) => GAIN_LABELS[g]).filter(Boolean);
+      return `-# Draft: ${s.in} for ${championName(s.out)}${gains.length ? ` (${gains.join(', ')})` : ''}: ${s.why}`;
+    });
+  }
+  const verdict = draft.verdict?.trim();
+  return verdict ? [`-# Draft: ${verdict}`] : [];
 }
 
 /**
@@ -130,6 +171,9 @@ export interface ReviewTextExtras {
  * adds one line of subtext when the timeline carries it, and the commitment
  * one more. The full review with the figures stays on the Games page, and
  * the last lines say so, with the film room after it when there is one.
+ * Since 10 Sep 2026 the deaths line is the film's reads when the caller has
+ * them, and the draft with hindsight adds a Draft line per swap after the
+ * asks.
  */
 export function reviewAsText(review: GameReview, game: AnalysisGame | undefined, opponent?: string, link?: string, ledger?: LedgerSummary, extras?: ReviewTextExtras): string {
   const title = review.team.headline || firstSentence(review.team.summary) || 'Game review';
@@ -145,7 +189,7 @@ export function reviewAsText(review: GameReview, game: AnalysisGame | undefined,
   ].filter(Boolean);
   const lines: string[] = [`## ${title}`];
   if (bits.length) lines.push(`-# ${bits.join(' · ')}`);
-  const deaths = ledgerLine(ledger);
+  const deaths = extras?.reads ? readsSubtext(extras.reads) : ledgerLine(ledger);
   if (deaths) lines.push(`-# ${deaths}`);
   const committed = extras?.commitment?.trim();
   if (committed) lines.push(`-# We committed to: ${committed}`);
@@ -158,6 +202,8 @@ export function reviewAsText(review: GameReview, game: AnalysisGame | undefined,
     lines.push('', '**👥 One ask each**');
     for (const p of asks) lines.push(`• **${p.name}** (${p.champion}) — ${askOf(p.workOn.text)}`);
   }
+  const draft = draftLines(extras?.draft, extras?.championName);
+  if (draft.length) lines.push('', ...draft);
   const notes = (extras?.notes ?? []).map((n) => n.trim()).filter(Boolean);
   if (notes.length) lines.push('', ...notes.map((n) => `-# Note ${n}`));
   // Angle brackets keep Discord from unfurling the link into an embed.

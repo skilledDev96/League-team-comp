@@ -14668,6 +14668,18 @@ app-film-title .film-frame { padding-top: 3rem; padding-bottom: 5rem; }
 .film-death.is-ward { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 60%, transparent); background: color-mix(in srgb, var(--warn) 12%, transparent); }
 .film-death.is-call { color: var(--film-ink); border-color: color-mix(in srgb, var(--film-ink) 45%, transparent); }
 .film-death.is-position { color: var(--film-ink-1); background: color-mix(in srgb, var(--film-ink) 8%, transparent); }
+/* The read pills (cut 4, 10 Sep 2026): once the film has read a seat's deaths each pill wears its read's colour and
+   glyph (the tokens are set on .film-stage in the glyphs block below); the tag colours above stay for a film without reads. */
+.film-death .film-glyph { align-self: center; margin-right: 0.2rem; font-size: 0.95rem; }
+.film-death.is-read-avoidable { color: var(--read-avoidable); border-color: color-mix(in srgb, var(--read-avoidable) 60%, transparent); background: color-mix(in srgb, var(--read-avoidable) 12%, transparent); }
+.film-death.is-read-traded { color: var(--read-traded); border-color: color-mix(in srgb, var(--read-traded) 60%, transparent); background: color-mix(in srgb, var(--read-traded) 12%, transparent); }
+.film-death.is-read-bought { color: var(--read-bought); border-color: color-mix(in srgb, var(--read-bought) 60%, transparent); background: color-mix(in srgb, var(--read-bought) 12%, transparent); }
+.film-death.is-read-clean { color: var(--read-clean); border-color: color-mix(in srgb, var(--read-clean) 45%, transparent); }
+/* The reads in sentences under the pills, "Your deaths, read": minute, badge, line, taking the strip's whole row. */
+.film-seat-reads { flex: 1 1 100%; display: grid; gap: 0.4rem; }
+.film-seat-reads-list { display: grid; gap: 0.35rem; margin: 0; padding: 0; }
+.film-seat-read { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 0.5rem; margin: 0; font-size: 0.86rem; line-height: 1.35; }
+.film-seat-read-line { min-width: 0; color: var(--film-ink-1); }
 .film-presence { display: inline-flex; align-items: center; gap: 0.5rem; }
 .film-presence-text { display: grid; line-height: 1.2; }
 .film-presence-text b { font-family: "Chakra Petch", sans-serif; font-size: 1rem; }
@@ -14969,20 +14981,47 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 /* ---- The tape ---- */
 .film-tape { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem); grid-template-areas: "map sheet" "scrub scrub"; gap: 0.9rem 1.2rem; align-items: start; max-width: 66rem; }
 .film-tape-map { grid-area: map; width: clamp(16rem, calc(100dvh - var(--topbar-h, 3.5rem) - 21rem), 100%); justify-self: end; }
-.film-tape-sheet { grid-area: sheet; display: grid; align-content: start; justify-items: start; gap: 0.55rem; min-height: 11rem; padding: 0.9rem 1rem; border-radius: 14px; border: 1px solid var(--film-line); background: var(--film-panel); }
+/* The sheet and the beats rail share the column beside the map (cut 4, 10 Sep 2026). */
+.film-tape-side { grid-area: sheet; display: grid; align-content: start; gap: 0.6rem; min-width: 0; }
+.film-tape-sheet { display: grid; align-content: start; justify-items: start; gap: 0.55rem; min-height: 11rem; padding: 0.9rem 1rem; border-radius: 14px; border: 1px solid var(--film-line); background: var(--film-panel); }
 .film-tape-sheet-kicker { display: flex; align-items: center; gap: 0.45rem; margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--film-ink-1); }
 .film-tape-sheet-kicker.is-ok { color: var(--ok); }
 .film-tape-sheet-kicker.is-warn { color: var(--warn); }
 .film-tape-sheet-text { margin: 0; font-size: 1.02rem; line-height: 1.35; }
-.film-tape-sheet-q { font-size: 1.15rem; }
 .film-tape-sheet-line { margin: 0; font-size: 0.88rem; color: var(--film-ink-1); }
 .film-tape-sheet-line.is-ok { color: var(--ok); }
 .film-tape-sheet-hint { margin: 0; font-size: 0.76rem; color: var(--film-ink-1); }
-.film-tape-sheet .film-chips { gap: 0.4rem; }
-.film-tape-sheet .film-chip { min-height: 2.75rem; font-size: 0.9rem; }
 .film-tape-steps { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.3rem; }
 .film-tape-scrub { grid-area: scrub; display: grid; gap: 0.45rem; min-width: 0; }
 .film-tape-tools { display: flex; justify-content: flex-end; gap: 0.45rem; }
+/* A beat's card (cut 4, 10 Sep 2026): the film's glyph beside the kicker and the title, the text under them, the
+   champions it was about as tiles with the seat under each, what the gold did next, the dwell bar and the pills.
+   The swing colours the glyph's ring and the kicker, never the text. */
+.film-beat { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "glyph kicker" "glyph title" "text text" "tiles tiles" "line line" "dwell dwell" "actions actions"; gap: 0.2rem 0.65rem; align-items: center; width: 100%; }
+.film-beat-glyph { grid-area: glyph; display: inline-grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; border: 1px solid var(--film-line); background: color-mix(in srgb, var(--film-ink) 6%, transparent); color: var(--film-a); }
+.film-beat-glyph.is-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
+.film-beat-glyph.is-warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, transparent); }
+.film-beat-kicker { grid-area: kicker; }
+.film-beat-title { grid-area: title; margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.15rem; font-weight: 600; line-height: 1.15; }
+.film-beat-text { grid-area: text; margin-top: 0.35rem; }
+.film-beat-tiles { grid-area: tiles; display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.35rem; }
+.film-beat-tile { display: inline-grid; justify-items: center; gap: 0.15rem; }
+.film-beat-tile img { width: 2.2rem; height: 2.2rem; border-radius: 50%; object-fit: cover; border: 1px solid var(--film-line); background: var(--film-panel); }
+.film-beat-tile small { font-family: "Chakra Petch", sans-serif; font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--film-ink-1); }
+.film-beat-consequence { grid-area: line; margin-top: 0.25rem; }
+/* The dwell: a thin bar the card's width that MotionService.play runs down from full to nothing over the dwell, so the
+   reader can see the tape is about to play on; it is only in the DOM while a dwell is counting, so a seek drops it. */
+.film-beat-dwell { grid-area: dwell; display: block; width: 100%; height: 0.2rem; margin-top: 0.4rem; border-radius: 999px; background: color-mix(in srgb, var(--film-a) 70%, transparent); transform-origin: left center; transform: scaleX(1); }
+.film-beat-actions { grid-area: actions; display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.5rem; }
+/* The beats rail under the sheet: one chip per beat with its glyph and its minute, the current one in the accent. */
+.film-beats { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; padding: 0; }
+.film-beats li { margin: 0; }
+.film-beat-chip { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 2rem; padding: 0.2rem 0.6rem 0.2rem 0.45rem; border-radius: 999px; border: 1px solid var(--film-line); background: var(--film-panel); color: var(--film-ink-1); font-family: "Chakra Petch", sans-serif; font-size: 0.78rem; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer; transition: border-color calc(200ms * var(--film-tempo, 1)) ease, color calc(200ms * var(--film-tempo, 1)) ease, background calc(200ms * var(--film-tempo, 1)) ease; }
+.film-beat-chip .film-glyph { font-size: 1rem; }
+.film-beat-chip.is-ok .film-glyph { color: var(--ok); }
+.film-beat-chip.is-warn .film-glyph { color: var(--warn); }
+.film-beat-chip:hover, .film-beat-chip:focus-visible { border-color: var(--film-a); color: var(--film-ink); }
+.film-beat-chip.is-current { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--film-ink); }
 
 /* ---- The board ---- */
 .film-board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 24rem) minmax(10rem, 14rem); gap: 1rem 1.2rem; align-items: start; max-width: 72rem; }
@@ -15025,20 +15064,42 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 /* ---- The map ---- */
 .film-map { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 27rem); gap: 1rem 1.2rem; align-items: start; max-width: 70rem; }
 .film-map-stage { position: relative; width: clamp(16rem, calc(100dvh - var(--topbar-h, 3.5rem) - 12rem), 100%); justify-self: end; }
-.film-map-tally { position: absolute; left: 0.5rem; top: 0.5rem; z-index: 4; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--film-a) 55%, transparent); background: color-mix(in srgb, var(--film-shade) 78%, transparent); color: var(--film-ink); font-family: "Chakra Petch", sans-serif; font-size: 0.7rem; font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
 .film-map-side { display: grid; gap: 0.8rem; min-width: 0; }
-/* The opener: one count as a range with a Lock pill; then the answer counting up beside the verdict. */
-.film-map-opener { max-width: none; }
-.film-map-range { display: flex; align-items: center; gap: 0.8rem; }
-.film-map-range input { flex: 1 1 auto; height: 2.75rem; margin: 0; accent-color: var(--accent); cursor: pointer; }
-.film-map-range-n { min-width: 2.4rem; text-align: center; font-family: "Chakra Petch", sans-serif; font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.film-map-dark { display: flex; align-items: baseline; gap: 0.45rem; margin: 0; font-size: 0.95rem; }
-.film-map-dark .film-num { font-family: "Chakra Petch", sans-serif; font-size: 1.9rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
-.film-map-dark.is-ok { color: var(--ok); }
-.film-map-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
-.film-map-filters .view-btn small { margin-left: 0.3rem; font-size: 0.72rem; opacity: 0.75; font-variant-numeric: tabular-nums; }
+/* The opening line (cut 4, 10 Sep 2026): the count large and counting up, the reads after it in words. */
+.film-map-opening { display: flex; align-items: baseline; gap: 0.45rem; margin: 0; font-size: 0.95rem; }
+.film-map-opening .film-num { font-family: "Chakra Petch", sans-serif; font-size: 1.9rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+/* The legend: All, one pill per read present (its glyph, word and count, lit in the read's own colour), As a table at the end. */
+.film-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.film-legend .view-btn small { margin-left: 0.3rem; font-size: 0.72rem; opacity: 0.75; font-variant-numeric: tabular-nums; }
+.film-legend .view-btn .film-glyph { margin-right: 0.3rem; font-size: 1.05rem; vertical-align: -0.2rem; }
+.film-legend-read.is-read-avoidable .film-glyph { color: var(--read-avoidable); }
+.film-legend-read.is-read-traded .film-glyph { color: var(--read-traded); }
+.film-legend-read.is-read-bought .film-glyph { color: var(--read-bought); }
+.film-legend-read.is-read-clean .film-glyph { color: var(--read-clean); }
+.film-stage .film-legend-read.is-read-avoidable.active { background: color-mix(in srgb, var(--read-avoidable) 24%, transparent); border-color: color-mix(in srgb, var(--read-avoidable) 70%, transparent); }
+.film-stage .film-legend-read.is-read-traded.active { background: color-mix(in srgb, var(--read-traded) 24%, transparent); border-color: color-mix(in srgb, var(--read-traded) 70%, transparent); }
+.film-stage .film-legend-read.is-read-bought.active { background: color-mix(in srgb, var(--read-bought) 24%, transparent); border-color: color-mix(in srgb, var(--read-bought) 70%, transparent); }
+.film-stage .film-legend-read.is-read-clean.active { background: color-mix(in srgb, var(--read-clean) 18%, transparent); border-color: color-mix(in srgb, var(--read-clean) 60%, transparent); }
 .film-map-table-btn { margin-left: auto; }
-/* The ledger as a table, in the panel's own classes with the film's ink. A row not yet called keeps its verdict. */
+/* The strip of the deaths that cost most: up to three mini cards (tile, who, minute, the cost in gold over the two
+   minutes after); a tap jumps the card to that death. The left rule is the avoidable colour, since only those are here. */
+.film-costliest { display: grid; gap: 0.4rem; }
+.film-costliest-label { font-family: "Chakra Petch", sans-serif; font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--film-ink-1); }
+.film-costliest-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.45rem; }
+.film-costliest-card { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "tile who" "tile min" "cost cost"; gap: 0.1rem 0.5rem; align-items: center; padding: 0.5rem 0.65rem; border-radius: 10px; border: 1px solid var(--film-line); border-left: 3px solid var(--read-avoidable); background: var(--film-panel); color: var(--film-ink); text-align: left; font-family: "Sora", sans-serif; cursor: pointer; transition: border-color calc(200ms * var(--film-tempo, 1)) ease, background calc(200ms * var(--film-tempo, 1)) ease; }
+.film-costliest-card:hover, .film-costliest-card:focus-visible { border-color: var(--film-a); border-left-color: var(--read-avoidable); }
+.film-costliest-card.active { background: color-mix(in srgb, var(--accent) 16%, transparent); border-color: var(--accent); border-left-color: var(--read-avoidable); }
+.film-costliest-tile { grid-area: tile; width: 2.2rem; height: 2.2rem; border-radius: 50%; object-fit: cover; border: 1px solid var(--film-line); }
+.film-costliest-who { grid-area: who; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.86rem; font-weight: 600; }
+.film-costliest-card .film-tape-min { grid-area: min; justify-self: start; }
+.film-costliest-cost { grid-area: cost; margin-top: 0.2rem; font-family: "Chakra Petch", sans-serif; font-size: 1.05rem; font-variant-numeric: tabular-nums; color: var(--warn); }
+/* The read's badge: a pill in the read's colour, wherever a read is named (the card, the table, the seat's list). */
+.film-read-badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.65rem 0.15rem 0.45rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--read-clean) 45%, transparent); background: color-mix(in srgb, var(--read-clean) 12%, transparent); color: var(--read-clean); font-family: "Chakra Petch", sans-serif; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; justify-self: start; }
+.film-read-badge .film-glyph { font-size: 1rem; }
+.film-read-badge.is-read-avoidable { color: var(--read-avoidable); border-color: color-mix(in srgb, var(--read-avoidable) 60%, transparent); background: color-mix(in srgb, var(--read-avoidable) 14%, transparent); }
+.film-read-badge.is-read-traded { color: var(--read-traded); border-color: color-mix(in srgb, var(--read-traded) 60%, transparent); background: color-mix(in srgb, var(--read-traded) 14%, transparent); }
+.film-read-badge.is-read-bought { color: var(--read-bought); border-color: color-mix(in srgb, var(--read-bought) 60%, transparent); background: color-mix(in srgb, var(--read-bought) 14%, transparent); }
+/* The ledger as a table, in the panel's own classes with the film's ink, a Read column beside the tags. */
 .film-map-table { max-height: 24rem; overflow: auto; border-radius: 10px; border: 1px solid var(--film-line); }
 .film-stage .game-review-ledger-table th, .film-stage .game-review-ledger-table td { border-color: var(--film-line); color: var(--film-ink); }
 .film-stage .game-review-ledger-table th { color: var(--film-ink-1); }
@@ -15048,7 +15109,9 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 .film-stage .could-chip { color: var(--film-ink); border-color: var(--film-line); }
 .film-stage .could-chip.is-jungle { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 .film-stage .could-chip.is-ward { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 60%, transparent); }
-/* One death at a time: who, when, how and where, the call over the four tags, the note, and the pills. */
+.film-stage .could-chip .film-glyph { margin-right: 0.15rem; font-size: 0.9rem; }
+/* One death at a time: who, when, how and where, the read's badge, the drawn scene, the read in a sentence, its cost,
+   the ledger's line when it says more, the tags as chips, the note, and the pills. */
 .film-death-card { display: grid; gap: 0.8rem; padding: 0.9rem 1rem; border-radius: 14px; border: 1px solid var(--film-line); background: var(--film-panel); }
 .film-death-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: 0.2rem 0.65rem; align-items: center; }
 .film-death-icon { grid-row: 1 / 3; width: 2.6rem; height: 2.6rem; border-radius: 50%; object-fit: cover; border: 2px solid var(--warn); box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--warn) 30%, transparent); }
@@ -15058,15 +15121,15 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 .film-death-meta { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; font-size: 0.78rem; color: var(--film-ink-1); }
 .film-death-how { padding: 0 0.45rem; border-radius: 999px; border: 1px solid var(--film-line); }
 .film-death-n { grid-column: 3; grid-row: 1; font-family: "Chakra Petch", sans-serif; font-size: 0.7rem; letter-spacing: 0.1em; font-variant-numeric: tabular-nums; color: var(--film-ink-1); }
-.film-death-card .film-call { max-width: none; }
-.film-death-q { font-size: 1.15rem; }
-.film-death-card .film-chip { min-height: 2.75rem; font-size: 0.88rem; }
-.film-death-card .film-chip.is-picked { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--film-shade) 40%); }
-/* A tag that was right but not picked: outlined, so the miss reads without shouting. */
-.film-death-card .film-chip.is-missed { opacity: 1; border-style: dashed; border-color: var(--ok); color: var(--ok); }
-.film-death-hint { margin: 0; font-size: 0.76rem; color: var(--film-ink-1); }
-.film-death-line { font-size: 0.92rem; color: var(--film-ink); }
+/* The scene sits in its own panel inside the card, no wider than the read line reads comfortably. */
+.film-death-card .death-scene-host { max-width: 30rem; border-radius: 10px; border: 1px solid var(--film-line); background: color-mix(in srgb, var(--film-shade) 40%, transparent); }
+.film-death-line { margin: 0; font-size: 0.98rem; line-height: 1.4; color: var(--film-ink); }
 .film-death-line.is-ok { color: var(--ok); }
+.film-death-line.is-warn { color: color-mix(in srgb, var(--warn) 80%, var(--film-ink)); }
+.film-death-cost { margin: 0; font-size: 0.88rem; color: var(--film-ink-1); }
+.film-death-ledger { margin: 0; font-size: 0.8rem; }
+.film-death-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.film-death-tags .could-chip { margin: 0; padding: 0.15rem 0.6rem 0.15rem 0.4rem; font-size: 0.74rem; }
 .film-death-notes { margin-bottom: 0; }
 .film-death-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 
@@ -15077,29 +15140,242 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   .film-map { grid-template-columns: minmax(0, 1fr); }
   .film-tape-map, .film-board-map, .film-map-stage { width: min(100vw - 2rem, 58dvh); justify-self: center; }
   .film-tape-sheet { min-height: 0; }
+  .film-beat-actions .view-btn, .film-tape-steps .view-btn { min-height: 2.75rem; }
+  .film-beat-chip { min-height: 2.75rem; padding-inline: 0.75rem 0.6rem; }
   .film-board-rail { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }
-  .film-map-filters .view-btn { min-height: 2.75rem; }
-  /* The tag pills go icon and count only, so the six fit two lines. */
-  .film-map-filter-word { display: none; }
-  .film-map-filters .view-btn small { margin-left: 0.15rem; }
+  .film-legend .view-btn { min-height: 2.75rem; }
+  /* The read pills go glyph and count only, so the legend fits two lines. */
+  .film-legend-word { display: none; }
+  .film-legend .view-btn small { margin-left: 0.15rem; }
   .film-map-table-btn { margin-left: 0; }
+  .film-costliest-card { min-height: 2.75rem; }
   .film-death-actions .view-btn { min-height: 2.75rem; }
+  /* The seat's read lines wrap the sentence under the minute and the badge. */
+  .film-seat-read { grid-template-columns: auto minmax(0, 1fr); }
+  .film-seat-read-line { grid-column: 1 / -1; }
 }
 
 /* Motion for the three chapters: the board's bars race in 120 ms apart and its chips and moments drop
-   and rise in turn; the sheet's lines rise as they change; the map's pins drop 90 ms apart in the
-   walk's order (the rift-map sets --i from each token's place), and the dark count pulses when it was
-   called. All gated on the current chapter and off with the film's Motion pill. */
+   and rise in turn; the sheet's lines rise as they change and a beat's tiles drop in 60 ms apart (the
+   dwell bar is left to MotionService.play); the map's opening line rises, its legend and costliest cards
+   drop in turn, its pins drop 90 ms apart in the walk's order (the rift-map sets --i from each token's
+   place), and the seat's read lines rise after its pills. All gated on the current chapter and off with
+   the film's Motion pill. */
 @media (prefers-reduced-motion: no-preference) {
   @keyframes film-bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   .film-stage:not(.is-still) .film-chapter.is-current .film-board-bar-track i { animation: film-bar-grow calc(700ms * var(--film-tempo, 1)) var(--film-ease) calc(var(--i, 0) * 120ms * var(--film-tempo, 1)) both; }
   .film-stage:not(.is-still) .film-chapter.is-current .film-board-chip { animation: film-drop calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc((200ms + var(--i, 0) * 60ms) * var(--film-tempo, 1)) both; }
   .film-stage:not(.is-still) .film-chapter.is-current .film-board-rail li { animation: film-rise calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc((300ms + var(--i, 0) * 50ms) * var(--film-tempo, 1)) both; }
   .film-stage:not(.is-still) .film-chapter.is-current .film-tape-sheet > * { animation: film-word-rise calc(320ms * var(--film-tempo, 1)) var(--film-ease) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-beat > :not(.film-beat-dwell) { animation: film-word-rise calc(320ms * var(--film-tempo, 1)) var(--film-ease) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-beat-glyph { animation-name: film-drop; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-beat-tile { animation: film-drop calc(300ms * var(--film-tempo, 1)) var(--film-ease) calc((200ms + var(--i, 0) * 60ms) * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-map-opening { animation: film-word-rise calc(360ms * var(--film-tempo, 1)) var(--film-ease) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-legend { animation: film-rise calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc(160ms * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-costliest-card { animation: film-drop calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc((320ms + var(--i, 0) * 90ms) * var(--film-tempo, 1)) both; }
   .film-stage:not(.is-still) .film-chapter.is-current .film-map-stage .rift-token > :first-child { animation-delay: calc(var(--i, 0) * 90ms * var(--film-tempo, 1)); }
   .film-stage:not(.is-still) .film-chapter.is-current .film-map-stage .rift-token::after { animation-delay: calc(var(--i, 0) * 90ms * var(--film-tempo, 1)); }
   .film-stage:not(.is-still) .film-chapter.is-current .film-death-card { animation: film-drop calc(360ms * var(--film-tempo, 1)) var(--film-ease) both; }
-  .film-stage:not(.is-still) .film-chapter.is-current .film-map-dark.is-ok .film-num { animation: film-pulse calc(700ms * var(--film-tempo, 1)) ease-out calc(900ms * var(--film-tempo, 1)) 2; border-radius: 999px; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-seat-read { animation: film-rise calc(320ms * var(--film-tempo, 1)) var(--film-ease) calc((520ms + var(--i, 0) * 50ms) * var(--film-tempo, 1)) both; }
+}
+
+/* ---- Cut 4 (10 Sep 2026), builder C: the film's glyphs, the read colours, the death scene ----------
+   Self-contained: the Wire phase drops this into the film room block of styles.css. Sizes in rem
+   (borders, radii and shadows in px, as everywhere), colours through tokens and color-mix only.
+   SVG stroke widths are unitless viewBox units, not px; the death scene's text sizes live on the
+   template's font-size attributes so they scale with the panel. */
+
+/* app-film-glyph (`.film-glyph`): one hand-drawn outline in currentColor, the size of the text around
+   it, scaled by --g in em (the component's `size`). vertical-align sits it on the line like a capital;
+   flex: none stops a chip or a badge squeezing it. */
+.film-glyph { display: inline-block; width: calc(var(--g, 1) * 1em); height: calc(var(--g, 1) * 1em); vertical-align: -0.15em; flex: none; overflow: visible; }
+
+/* The four reads (`core/death-reads.ts`) as colours, on the film stage and on any map (the takeover's
+   reel draws a rift-map outside the stage): avoidable is the loss colour, traded the second accent,
+   bought the win colour, clean the quiet ink. Everything below that says "read" points at these. */
+.film-stage, .rift-map {
+  --read-avoidable: var(--warn);
+  --read-traded: var(--accent-2);
+  --read-bought: var(--ok);
+  --read-clean: var(--film-ink-1, var(--text-1));
+}
+
+/* A pin's pip wears its read's colour. Selection keeps the accent ring the whole film uses, and an
+   unread pin keeps its dashed outline, so both rules stand aside for those. */
+.rift-token.is-ourDeath.is-read-avoidable:not(.is-selected):not(.is-unread) .rift-pip { border-color: var(--read-avoidable); box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--read-avoidable) 35%, transparent), 0 2px 8px color-mix(in srgb, var(--bg-0) 60%, transparent); }
+.rift-token.is-ourDeath.is-read-traded:not(.is-selected):not(.is-unread) .rift-pip { border-color: var(--read-traded); box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--read-traded) 35%, transparent), 0 2px 8px color-mix(in srgb, var(--bg-0) 60%, transparent); }
+.rift-token.is-ourDeath.is-read-bought:not(.is-selected):not(.is-unread) .rift-pip { border-color: var(--read-bought); box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--read-bought) 35%, transparent), 0 2px 8px color-mix(in srgb, var(--bg-0) 60%, transparent); }
+.rift-token.is-ourDeath.is-read-clean:not(.is-selected):not(.is-unread) .rift-pip { border-color: var(--read-clean); box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--read-clean) 30%, transparent), 0 2px 8px color-mix(in srgb, var(--bg-0) 60%, transparent); }
+.rift-token.is-ourDeath.is-read-clean:not(.is-selected):not(.is-unread) .rift-pip .material-symbols-rounded { color: var(--read-clean); }
+.rift-token.is-ourDeath.is-read-bought:not(.is-selected):not(.is-unread) .rift-pip .material-symbols-rounded { color: var(--read-bought); }
+.rift-token.is-ourDeath.is-read-traded:not(.is-selected):not(.is-unread) .rift-pip .material-symbols-rounded { color: var(--read-traded); }
+
+/* A badge beside a selected pin holds one glyph now, not a Material icon; the font size is the glyph's
+   size, and line-height 0 keeps the round badge round. */
+.rift-badge { font-size: 0.8rem; line-height: 0; }
+.rift-badge .film-glyph { vertical-align: 0; }
+
+/* app-death-scene (`.death-scene`): a chalkboard panel of one death. The svg fills its box and keeps
+   its 8:5 shape; the host is a block so a card can size it. */
+.death-scene-host { display: block; min-width: 0; }
+.death-scene { display: block; width: 100%; height: auto; color: var(--film-ink, var(--text-0)); overflow: visible; }
+.death-scene text { font-family: inherit; }
+.death-scene-ground { fill: color-mix(in srgb, var(--film-ink, var(--text-0)) 6%, transparent); stroke: var(--film-line, var(--card-border)); stroke-width: 1; stroke-dasharray: 4 3; }
+.death-scene-tile { fill: var(--film-panel, var(--surface-btn)); stroke: var(--film-line, var(--card-border)); stroke-width: 1; }
+.death-scene-tile.is-us { stroke: color-mix(in srgb, var(--ok) 60%, transparent); }
+.death-scene-tile.is-them { stroke: color-mix(in srgb, var(--warn) 60%, transparent); }
+.death-scene-ring { fill: none; stroke: var(--read-clean); stroke-width: 3; }
+.death-scene-ring.is-read-avoidable { stroke: var(--read-avoidable); }
+.death-scene-ring.is-read-traded { stroke: var(--read-traded); }
+.death-scene-ring.is-read-bought { stroke: var(--read-bought); }
+.death-scene-ring.is-read-clean { stroke: var(--read-clean); }
+.death-scene-caption { fill: var(--film-ink-1, var(--text-1)); letter-spacing: 0.02em; }
+.death-scene-caption.is-strong { fill: var(--film-ink, var(--text-0)); font-weight: 600; }
+.death-scene-caption.is-muted { opacity: 0.75; }
+/* Glyphs drawn inside the scene reuse the film-glyph strokes; a filled circle is a pupil or a toe. */
+.death-scene-glyph { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.death-scene-glyph .is-fill { fill: currentColor; stroke: none; }
+.death-scene-glyph.is-us { color: var(--ok); }
+.death-scene-glyph.is-them { color: var(--warn); }
+.death-scene-bush { fill: color-mix(in srgb, var(--ok) 16%, transparent); stroke: color-mix(in srgb, var(--ok) 40%, transparent); stroke-width: 1; }
+.death-scene-ward .death-scene-glyph { color: var(--read-avoidable); }
+.death-scene-line { fill: none; stroke: var(--film-ink-1, var(--text-1)); stroke-width: 1.6; stroke-dasharray: 5 4; }
+.death-scene-midline { fill: none; stroke: var(--film-ink-1, var(--text-1)); stroke-width: 1.4; stroke-dasharray: 6 5; opacity: 0.7; }
+.death-scene-arrow { fill: none; stroke: var(--warn); stroke-width: 2; stroke-linecap: round; }
+.death-scene-arrow-head { fill: none; stroke: var(--warn); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.death-scene-glow { fill: color-mix(in srgb, var(--film-a, var(--accent-2)) 22%, transparent); stroke: color-mix(in srgb, var(--film-a, var(--accent-2)) 45%, transparent); stroke-width: 1; }
+.death-scene-glow.is-theirs { fill: color-mix(in srgb, var(--warn) 20%, transparent); stroke: color-mix(in srgb, var(--warn) 45%, transparent); }
+.death-scene-obj { color: var(--film-a, var(--accent-2)); }
+.death-scene-obj.is-theirs { color: var(--warn); }
+.death-scene-tower { color: var(--film-ink-1, var(--text-1)); opacity: 0.55; }
+.death-scene-hostile { fill: color-mix(in srgb, var(--warn) 80%, var(--film-ink, var(--text-0))); stroke: none; }
+.death-scene-ally { fill: var(--ok); stroke: color-mix(in srgb, var(--film-shade, var(--bg-0)) 60%, transparent); stroke-width: 1; }
+.death-scene-swords { color: var(--read-traded); }
+
+/* The entrance: parts rise in story order (--i from the template) and the arrow draws itself, only in
+   the current chapter with motion on, and only once the scene is active. Still, or off, everything is
+   simply there. The rise is a CSS transform on the part group, which is why the groups that place
+   and scale things sit inside the part rather than being it: a transform attribute would be
+   overwritten by the animation. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes death-scene-rise { from { opacity: 0; transform: translateY(0.375rem); } to { opacity: 1; transform: none; } }
+  @keyframes death-scene-draw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+  .film-stage:not(.is-still) .film-chapter.is-current .death-scene.is-active .death-scene-part { animation: death-scene-rise calc(420ms * var(--film-tempo, 1)) var(--film-ease, ease-out) both; animation-delay: calc(var(--i, 0) * 90ms * var(--film-tempo, 1)); }
+  .film-stage:not(.is-still) .film-chapter.is-current .death-scene.is-active .death-scene-arrow { stroke-dasharray: 100; animation: death-scene-draw calc(520ms * var(--film-tempo, 1)) var(--film-ease, ease-out) both; animation-delay: calc((var(--i, 0) * 90ms + 120ms) * var(--film-tempo, 1)); }
+  .film-stage:not(.is-still) .film-chapter.is-current .death-scene.is-active .death-scene-arrow-head { animation: death-scene-rise calc(240ms * var(--film-tempo, 1)) var(--film-ease, ease-out) both; animation-delay: calc((var(--i, 0) * 90ms + 560ms) * var(--film-tempo, 1)); }
+}
+
+/* Phones: the scene's captions are viewBox units and scale with the panel, so nothing here; the
+   badges beside a pin stay tappable through the pin itself (2.75rem at this width, already set). */
+
+/* ---- Cut 4, builder D (10 Sep 2026): the draft with hindsight — the film's draft chapter
+   (`pages/film/chapters/film-draft.component.ts`), the one line on the short review panel
+   (`shared/game-review.component.ts`) and the "Next time in the draft" block on the card
+   (`pages/film/chapters/film-card.component.ts`). Self-contained: tokens only through color-mix,
+   rem only, every duration calc(<ms> * var(--film-tempo, 1)) with var(--film-ease), and every keyframe
+   under prefers-reduced-motion: no-preference, gated on the current chapter of a stage that is not
+   still, the way the other chapters' are. The Wire phase merges this into styles.css after the film
+   block; `film-drop` and `film-rise` are the stylesheet's own keyframes, reused here by name. ---- */
+
+/* The verdict leads: one sentence on how the comp fit the game, set like a headline's little brother. */
+.film-draft-verdict { max-width: 40rem; margin: 0 0 0.4rem; font-family: "Chakra Petch", sans-serif; font-size: clamp(1.25rem, 3vw, 1.7rem); font-weight: 600; line-height: 1.2; text-wrap: balance; text-shadow: 0 2px 14px color-mix(in srgb, var(--film-shade) 70%, transparent); }
+/* "The draft held.": a quiet pill in --ok, because nothing needs changing. */
+.film-draft-held { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0.2rem 0 0.6rem; padding: 0.3rem 0.85rem 0.3rem 0.6rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--ok) 55%, transparent); background: color-mix(in srgb, var(--ok) 14%, var(--film-shade) 30%); color: var(--film-ink); font-size: 0.86rem; }
+.film-draft-held .material-symbols-rounded { font-size: 1.1rem; color: var(--ok); }
+
+/* Two rows of five, ours over theirs, the "vs" between. Theirs is faint and carries no names: a champion in a seat is all the Riot rule allows. */
+.film-draft-rows { display: grid; gap: 0.45rem; justify-items: start; margin: 0.9rem 0 1.3rem; }
+.film-draft-row { display: grid; grid-template-columns: repeat(5, minmax(3.4rem, 4.8rem)); gap: 0.5rem; margin: 0; padding: 0; }
+.film-draft-row.is-theirs { opacity: 0.6; }
+.film-draft-vs { padding-left: 0.3rem; font-family: "Chakra Petch", sans-serif; font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--film-ink-1); }
+.film-draft-seat { display: grid; justify-items: center; gap: 0.25rem; margin: 0; text-align: center; }
+/* The tile stack: the out tile and the in tile share one cell, the badge hangs off its corner. The perspective is for the turn. */
+.film-draft-tiles { position: relative; display: grid; width: 3rem; height: 3rem; perspective: 30rem; }
+.film-draft-tiles > .film-draft-tile { grid-area: 1 / 1; width: 3rem; height: 3rem; }
+.film-draft-seat-name { font-family: "Chakra Petch", sans-serif; font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--film-ink-1); }
+.film-draft-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; color: var(--film-ink); }
+
+/* The tile itself: round, ringed. The champion to try is ringed in --ok; the one we played is inked down and, in a swap, struck. */
+.film-draft-tile { display: block; width: 3.4rem; height: 3.4rem; border-radius: 50%; object-fit: cover; border: 2px solid var(--film-line); background: var(--film-panel); box-shadow: 0 4px 14px color-mix(in srgb, var(--film-shade) 45%, transparent); }
+.film-draft-tile.is-in { border-color: var(--ok); box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--ok) 28%, transparent), 0 4px 14px color-mix(in srgb, var(--film-shade) 45%, transparent); }
+.film-draft-tile.is-out { border-color: color-mix(in srgb, var(--film-ink-1) 70%, transparent); }
+/* The strike sits on a wrapper, because an <img> takes no pseudo-element; the tile under it loses its colour. */
+.film-draft-out { position: relative; display: block; }
+.film-draft-out .film-draft-tile { filter: saturate(0.35) brightness(0.8); }
+.film-draft-out::after { content: ""; position: absolute; left: 10%; right: 10%; top: 50%; height: 0.16rem; border-radius: 999px; background: color-mix(in srgb, var(--warn) 85%, var(--film-ink)); box-shadow: 0 0 0 0.1rem color-mix(in srgb, var(--film-shade) 60%, transparent); transform: translateY(-50%) rotate(-40deg); pointer-events: none; }
+
+/* A seat with a swap: before the turn, the out tile stands alone; after it, the in tile stands and the out tile hangs small and struck off the corner. Without motion the class change is the whole turn. */
+.film-draft-seat.has-swap .film-draft-tile.is-in { opacity: 0; }
+.film-draft-seat.has-swap.is-swapped .film-draft-tile.is-in { opacity: 1; }
+.film-draft-seat.has-swap.is-swapped .film-draft-tile.is-out { opacity: 0; }
+.film-draft-badge { position: absolute; left: -0.55rem; bottom: -0.3rem; z-index: 1; width: 1.5rem; height: 1.5rem; opacity: 0; pointer-events: none; }
+.film-draft-badge img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 1px solid color-mix(in srgb, var(--film-ink-1) 70%, transparent); background: var(--film-shade); filter: saturate(0.3) brightness(0.75); }
+.film-draft-badge::after { content: ""; position: absolute; left: 12%; right: 12%; top: 50%; height: 0.12rem; border-radius: 999px; background: color-mix(in srgb, var(--warn) 85%, var(--film-ink)); transform: translateY(-50%) rotate(-40deg); }
+.film-draft-seat.is-swapped .film-draft-badge { opacity: 1; }
+
+/* The swap cards: out | glyph | in, then what it buys as chips, then why, then the Save pill for editors. Two swaps sit side by side when there is room. */
+.film-draft-swaps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 0.8rem; max-width: 44rem; }
+.film-draft-swap { display: grid; gap: 0.6rem; padding: 0.9rem 1rem; border-radius: 14px; border: 1px solid var(--film-line); background: color-mix(in srgb, var(--film-shade) 40%, var(--film-panel)); color: var(--film-ink); box-shadow: 0 14px 34px color-mix(in srgb, var(--film-shade) 40%, transparent); }
+.film-draft-swap-seat { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--film-a); }
+.film-draft-swap-pair { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.6rem; }
+.film-draft-swap-side { display: grid; justify-items: center; gap: 0.3rem; min-width: 0; text-align: center; }
+.film-draft-champ { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.92rem; }
+.film-draft-swap-side.is-out { color: var(--film-ink-1); }
+.film-draft-swap-side.is-out .film-draft-champ { text-decoration: line-through; text-decoration-thickness: 0.1rem; text-decoration-color: color-mix(in srgb, var(--warn) 80%, var(--film-ink)); }
+.film-draft-swap-side.is-in .film-draft-champ { font-weight: 700; color: var(--film-ink); }
+/* The film's own swap glyph between the two, in the accent; the host is sized here so the SVG inside fills it whatever the glyph component's own default is. */
+.film-draft-swap-glyph { display: inline-grid; place-items: center; width: 1.9rem; height: 1.9rem; color: var(--film-a); }
+.film-draft-swap-glyph svg { display: block; width: 100%; height: 100%; }
+.film-gain-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; padding: 0; }
+.film-gain-chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.7rem 0.2rem 0.5rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent-2) 55%, transparent); background: color-mix(in srgb, var(--accent-2) 16%, transparent); color: var(--film-ink); font-size: 0.8rem; line-height: 1.3; }
+.film-gain-chip app-film-glyph { display: inline-grid; place-items: center; width: 1rem; height: 1rem; color: var(--accent-2); }
+.film-gain-chip app-film-glyph svg { display: block; width: 100%; height: 100%; }
+.film-draft-swap-why { margin: 0; font-size: 0.92rem; line-height: 1.45; }
+.film-draft-swap-actions, .film-draft-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.film-draft-actions { margin-top: 1rem; }
+
+/* The short panel's line: tiles at text size, the arrow, "<in> for <out>, for the peel and engage", an em-space, then the why cut to the line (the tip has all of it). */
+.game-review-draft { display: flex; align-items: center; gap: 0.45rem; margin: 0; padding: 0.35rem 0.7rem; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--text-0) 12%, transparent); border-left: 3px solid var(--ok); background: color-mix(in srgb, var(--ok) 5%, var(--surface-controls)); font-size: 0.86rem; line-height: 1.4; color: var(--text-0); min-width: 0; }
+.game-review-draft .player-mark { flex: none; width: 1.4rem; height: 1.4rem; margin: 0; vertical-align: middle; }
+.game-review-draft .player-mark.is-out { filter: saturate(0.4) brightness(0.9); }
+.game-review-draft .player-mark.is-in { border-color: var(--ok); }
+.game-review-draft > .material-symbols-rounded { flex: none; font-size: 1rem; color: var(--ok); }
+.game-review-draft > span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.game-review-draft-why { color: var(--text-1); }
+
+/* The card's block: the champion we played struck beside the one to try, "<in> for <out>", the gains under. Joins the card's own entrance stagger through .film-card-block. */
+.film-card-draft { border-left-color: var(--ok); gap: 0.4rem; }
+.film-card-draft-row { display: flex; align-items: center; gap: 0.4rem; margin: 0; min-width: 0; font-size: 0.86rem; line-height: 1.3; }
+.film-card-draft-row img { flex: none; width: 1.6rem; height: 1.6rem; border-radius: 50%; object-fit: cover; border: 1px solid var(--film-line); background: var(--film-panel); }
+.film-card-draft-row img.is-out { filter: saturate(0.4) brightness(0.85); }
+.film-card-draft-row img.is-in { border-color: var(--ok); }
+.film-card-draft-row > .material-symbols-rounded { flex: none; font-size: 1rem; color: var(--film-a); }
+.film-card-draft-row > span { min-width: 0; }
+.film-card-draft-row small { display: block; color: var(--film-ink-1); }
+
+/* A phone: the rows fill the width at five tiles of 2.75rem, the swap cards stack, and every pill is a thumb's height. */
+@media (max-width: 48rem) {
+  .film-draft-rows { justify-items: stretch; }
+  .film-draft-row { grid-template-columns: repeat(5, minmax(2.75rem, 1fr)); gap: 0.35rem; }
+  .film-draft-tiles, .film-draft-tiles > .film-draft-tile { width: 2.75rem; height: 2.75rem; }
+  .film-draft-badge { width: 1.3rem; height: 1.3rem; left: -0.45rem; }
+  .film-draft-name { font-size: 0.72rem; }
+  .film-draft-swaps { grid-template-columns: minmax(0, 1fr); }
+  .film-draft-swap { padding: 0.8rem 0.85rem; }
+  .film-draft-swap-actions .view-btn, .film-draft-actions .view-btn { min-height: 2.75rem; }
+}
+
+/* ---- Motion: the ten tiles rise in one after the other, the swapped seat turns (the out tile away, the in tile in, the badge dropping onto the corner), and the swap cards drop in a quarter second apart. The seat's turn starts from the component's own timer (900 ms after the chapter shows, 250 ms a swap, both scaled by the tempo it reads off --film-tempo), so the CSS only has to play it when .is-swapped lands. ---- */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes film-draft-turn-out { from { opacity: 1; transform: rotateY(0deg); } to { opacity: 0; transform: rotateY(92deg); } }
+  @keyframes film-draft-turn-in { from { opacity: 0; transform: rotateY(-92deg); } 70% { opacity: 1; transform: rotateY(0deg) scale(1.1); } to { opacity: 1; transform: none; } }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-draft-seat { animation: film-rise calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc((200ms + var(--i, 0) * 40ms) * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-draft-seat.is-swapped .film-draft-tile.is-out { animation: film-draft-turn-out calc(300ms * var(--film-tempo, 1)) var(--film-ease) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-draft-seat.is-swapped .film-draft-tile.is-in { animation: film-draft-turn-in calc(380ms * var(--film-tempo, 1)) var(--film-ease) calc(240ms * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-draft-seat.is-swapped .film-draft-badge { animation: film-drop calc(280ms * var(--film-tempo, 1)) var(--film-ease) calc(560ms * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-draft-held { animation: film-drop calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc(420ms * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-draft-swap { animation: film-drop calc(420ms * var(--film-tempo, 1)) var(--film-ease) calc((900ms + var(--i, 0) * 250ms) * var(--film-tempo, 1)) both; }
+  .film-stage:not(.is-still) .film-chapter.is-current .film-draft-actions { animation: film-rise calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc(1200ms * var(--film-tempo, 1)) both; }
 }
 
 /* ---- The stocks, the title treatments and the entrances, 10 Sep 2026 ---- */
@@ -15110,7 +15386,7 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 
 /* Broadcast: a chyron lower third, the kicker inverted on a solid bar, sharp corners on every card and pill. */
 .film-stage.stock-broadcast { --film-a: var(--accent-2); }
-.film-stage.stock-broadcast :is(.view-btn, .film-chip, .film-kicker-n, .film-commit-card, .film-rest-card, .film-card, .film-card-block, .film-card-ask.is-me, .film-tape-sheet, .film-flip-face, .film-seat-tab, .film-seat-strip, .film-death, .film-death-how, .film-board-moment, .film-death-card, .film-note-form input, .film-last, .film-verdict, .film-map-table, .film-map-tally, .film-stamp) { border-radius: 4px; }
+.film-stage.stock-broadcast :is(.view-btn, .film-chip, .film-kicker-n, .film-commit-card, .film-rest-card, .film-card, .film-card-block, .film-card-ask.is-me, .film-tape-sheet, .film-flip-face, .film-seat-tab, .film-seat-strip, .film-death, .film-death-how, .film-board-moment, .film-death-card, .film-draft-swap, .film-costliest-card, .film-note-form input, .film-last, .film-verdict, .film-map-table, .film-stamp) { border-radius: 4px; }
 .film-stage.stock-broadcast .film-kicker { justify-self: start; padding: 0.3rem 0.7rem; background: var(--film-a); color: var(--film-shade); }
 .film-stage.stock-broadcast .film-kicker-n { border-color: color-mix(in srgb, var(--film-shade) 55%, transparent); }
 .film-stage.stock-broadcast .film-lower-third { border-left: 0; background: var(--film-a); color: var(--film-shade); }
@@ -15123,14 +15399,14 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 .film-stage.stock-noir .film-chapter::before { top: 0; border-bottom: 1px solid var(--film-line); }
 .film-stage.stock-noir .film-chapter::after { bottom: 0; border-top: 1px solid var(--film-line); }
 /* The desaturation sits on the containers, never on a pill or a chip: one paint layer per sheet, not one per button on a low-end phone. */
-.film-stage.stock-noir :is(.film-card, .film-commit-card, .film-rest-card, .film-tape-sheet, .film-board-moment, .film-death-card, .film-seat-tab, .film-lower-third, .film-last) { filter: saturate(0.7); }
-.film-stage.stock-noir :is(.film-card, .film-commit-card, .film-rest-card, .film-tape-sheet, .film-board-moment, .film-death-card, .film-flip-face) { box-shadow: 0.35rem 0.35rem 0 color-mix(in srgb, var(--film-shade) 82%, var(--film-ink)); }
+.film-stage.stock-noir :is(.film-card, .film-commit-card, .film-rest-card, .film-tape-sheet, .film-board-moment, .film-death-card, .film-draft-swap, .film-costliest-card, .film-seat-tab, .film-lower-third, .film-last) { filter: saturate(0.7); }
+.film-stage.stock-noir :is(.film-card, .film-commit-card, .film-rest-card, .film-tape-sheet, .film-board-moment, .film-death-card, .film-draft-swap, .film-costliest-card, .film-flip-face) { box-shadow: 0.35rem 0.35rem 0 color-mix(in srgb, var(--film-shade) 82%, var(--film-ink)); }
 .film-stage.stock-noir .film-headline { text-shadow: 0.2rem 0.2rem 0 color-mix(in srgb, var(--film-shade) 82%, var(--film-ink)); }
 
 /* Blueprint: a faint grid behind the stage (an SVG tile as a mask, so the ink colours it), dashed hairlines, tabular figures. */
 .film-stage.stock-blueprint { --film-a: color-mix(in srgb, var(--accent) 60%, var(--ok)); isolation: isolate; font-variant-numeric: tabular-nums; }
 .film-stage.stock-blueprint::before { content: ""; position: absolute; inset: 0; z-index: -1; background: color-mix(in srgb, var(--film-ink) 9%, transparent); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cpath d='M0 .5H32M.5 0V32' stroke='%23000' fill='none'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cpath d='M0 .5H32M.5 0V32' stroke='%23000' fill='none'/%3E%3C/svg%3E"); -webkit-mask-size: 2rem 2rem; mask-size: 2rem 2rem; pointer-events: none; }
-.film-stage.stock-blueprint :is(.view-btn, .film-chip, .film-kicker-n, .film-card, .film-card-block, .film-commit-card, .film-rest-card, .film-tape-sheet, .film-flip-face, .film-seat-tab, .film-death, .film-death-how, .film-board-moment, .film-death-card, .film-note-form input, .film-last, .film-verdict, .film-map-table, .film-map-tally) { border-style: dashed; }
+.film-stage.stock-blueprint :is(.view-btn, .film-chip, .film-kicker-n, .film-card, .film-card-block, .film-commit-card, .film-rest-card, .film-tape-sheet, .film-flip-face, .film-seat-tab, .film-death, .film-death-how, .film-board-moment, .film-death-card, .film-draft-swap, .film-costliest-card, .film-note-form input, .film-last, .film-verdict, .film-map-table) { border-style: dashed; }
 .film-stage.stock-blueprint .film-lower-third { border-left-style: dashed; }
 /* The light theme's accents were mixed for a pale page; on the graphite stage they are lifted toward the ink to read (noir's already is). */
 body[data-theme="light"] .film-stage.stock-broadcast { --film-a: color-mix(in srgb, var(--accent-2) 45%, var(--film-ink)); }

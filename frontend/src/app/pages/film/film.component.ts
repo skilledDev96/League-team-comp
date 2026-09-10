@@ -15,6 +15,7 @@ import { FILM_CHAPTER_KEY } from '../../shared/film/film-poster.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { FilmBoardComponent } from './chapters/film-board.component';
 import { FilmCardComponent } from './chapters/film-card.component';
+import { FilmDraftComponent } from './chapters/film-draft.component';
 import { FilmMapComponent } from './chapters/film-map.component';
 import { FilmOneThingComponent } from './chapters/film-one-thing.component';
 import { FilmSeatComponent } from './chapters/film-seat.component';
@@ -37,7 +38,7 @@ const NARROW_QUERY = '(max-width: 48rem)';
  */
 @Component({
   selector: 'app-film',
-  imports: [RouterLink, TooltipDirective, FilmTitleComponent, FilmTapeComponent, FilmBoardComponent, FilmMapComponent, FilmOneThingComponent, FilmSeatComponent, FilmCardComponent],
+  imports: [RouterLink, TooltipDirective, FilmTitleComponent, FilmTapeComponent, FilmBoardComponent, FilmMapComponent, FilmOneThingComponent, FilmDraftComponent, FilmSeatComponent, FilmCardComponent],
   templateUrl: './film.component.html'
 })
 export class FilmComponent {
@@ -118,7 +119,7 @@ export class FilmComponent {
   protected readonly escapeTick = signal(0);
   protected readonly progress = computed<FilmProgress | undefined>(() => this.prefs.filmProgress(this.matchId()));
   protected readonly calls = computed(() => this.progress()?.calls);
-  /** The minute the reader said the game turned: written by the takeover's reel or the tape's own Lock, read by the tape. */
+  /** The minute the reader said the game turned: written by the takeover's reel (the tape stopped asking on 10 Sep 2026), read by the tape for its verdict line. */
   protected readonly turnGuess = computed<number | undefined>(() => this.progress()?.calls?.['turn']);
   /** The second a shared link opened on (?t=), handed to the tape once; only Copy link ever writes it back. */
   protected readonly initialSec = signal<number | null>(null);
@@ -141,12 +142,11 @@ export class FilmComponent {
   /** Counts every move, so a fade that finishes after a later move does not land its stale target. */
   private moves = 0;
 
+  /** The match the page last stood on, so a change of :matchId under a reused page is told from the first arrival. */
+  private lastMatchId: string | null = null;
+
   constructor() {
-    // ?fresh=1 is the takeover's link, straight off a landing: the film opens on the tape, where the guess it took reveals.
-    const fresh = this.route.snapshot.queryParamMap.get('fresh') === '1';
-    this.wanted = this.route.snapshot.queryParamMap.get('c') ?? (fresh ? 'tape' : null);
-    const t = Number(this.route.snapshot.queryParamMap.get('t'));
-    if (this.route.snapshot.queryParamMap.has('t') && Number.isFinite(t) && t >= 0) this.initialSec.set(Math.round(t));
+    this.readQuery();
     this.watchWidth();
 
     // The timeline is read on demand, once, the way the review panel reads it.
@@ -160,12 +160,32 @@ export class FilmComponent {
     effect(() => {
       const m = this.model();
       if (!m || this.placed) return;
-      // A chapter the timeline brings (the tape, the map) is not in the list until the timeline lands; wait for it.
+      // The chapter list shifts when the timeline lands (the board gives way to the tape and the map), so a kind
+      // is only resolved once the list is final: any ?c=<kind> waits for the timeline, not only the tape and the
+      // map (10 Sep 2026, second review: ?c=draft used to land on the draft and then find The one thing on stage).
+      // The title card, chapter 0, is what shows meanwhile and needs no timeline.
       const kind = this.wanted;
-      if (kind && !/^\d+$/.test(kind) && !m.chapters.some((c) => c.kind === kind) && this.timelinePending()) return;
+      if (kind && !/^\d+$/.test(kind) && this.timelinePending()) return;
       this.placed = true;
       const i = this.resolveChapter(m, kind);
       untracked(() => void this.go(i));
+    });
+
+    // The title card links film to film and the route reuses this page: a new match starts over, with the new url's
+    // ?c and ?t, and nothing of the last film's Watch it or card write carries into it (10 Sep 2026, second review).
+    effect(() => {
+      const id = this.matchId();
+      untracked(() => {
+        if (this.lastMatchId === id) return;
+        const first = this.lastMatchId === null;
+        this.lastMatchId = id;
+        if (first) return;
+        this.readQuery();
+        this.seekRequest.set(null);
+        this.placed = false;
+        this.cardReached = false;
+        this.chapter.set(0);
+      });
     });
 
     // The chapter goes back into the url and this browser, so a link and the poster both know where the film is.
@@ -209,6 +229,14 @@ export class FilmComponent {
       });
       onCleanup(() => io.disconnect());
     });
+  }
+
+  /** What the url asks for on arrival: ?c is the chapter (?fresh=1 is the takeover's link, straight off a landing: the tape, where the guess it took reveals), ?t the tape's second. */
+  private readQuery(): void {
+    const q = this.route.snapshot.queryParamMap;
+    this.wanted = q.get('c') ?? (q.get('fresh') === '1' ? 'tape' : null);
+    const t = Number(q.get('t'));
+    this.initialSec.set(q.has('t') && Number.isFinite(t) && t >= 0 ? Math.round(t) : null);
   }
 
   private watchWidth(): void {

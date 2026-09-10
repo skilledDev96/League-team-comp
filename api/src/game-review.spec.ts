@@ -4,6 +4,7 @@ import {
   buildPlayerPrompt,
   buildTeamPrompt,
   costUsd,
+  DRAFT_GAINS,
   MAX_AUTO_REVIEWS,
   parseGameReviewRequest,
   parsePlayerNotes,
@@ -126,20 +127,74 @@ describe('the prompts', () => {
   });
 
   it('ask the team question for the version 4 fields, one sentence each', () => {
-    expect(REVIEW_VERSION).toBe(4);
     expect(TEAM_SYSTEM).toContain('A moment\'s "seats" names the seats of ours it is about, at most three');
     expect(TEAM_SYSTEM).toContain('carries its two choices again in "options" as short imperatives');
     expect(TEAM_SYSTEM).toContain('"lessons" is at most three things a player should be able to answer tomorrow, each on a fact already used by "workOn" or "keepDoing" and about OUR play only');
     expect(TEAM_SYSTEM).toContain('"oneThing" is the one thing to watch for next game in at most twelve words, a choice not an order.');
   });
+
+  it('ask the team question for the draft with hindsight, and keep the swap about our draft', () => {
+    expect(REVIEW_VERSION).toBe(5);
+    expect(TEAM_SYSTEM).toContain('"draft" is one sentence ("verdict") on whether the five we drafted fit the game that was played');
+    expect(TEAM_SYSTEM).toContain('"swaps" is at most two changes to OUR draft the coach would make with hindsight');
+    expect(TEAM_SYSTEM).toContain('("out", exactly as given in OUR PLAYERS)');
+    expect(TEAM_SYSTEM).toContain('("in", from CHAMPIONS A SWAP MAY NAME');
+    expect(TEAM_SYSTEM).toContain('a Malphite for the all-in with Miss Fortune, or a Nautilus for the peel on a hypercarry');
+    expect(TEAM_SYSTEM).toContain('Swaps are empty when the draft held.');
+    expect(TEAM_SYSTEM).toContain("A swap is about OUR draft. The other team's champions may be named as the matchup they posed");
+    expect(TEAM_SYSTEM).toContain('never a person.');
+  });
+
+  it('list the champions a swap may name only when given, after the comp and before what happened', () => {
+    const bare = buildTeamPrompt(ctx);
+    expect(bare).toContain('THE DRAFT WITH HINDSIGHT');
+    expect(bare).not.toContain('CHAMPIONS A SWAP MAY NAME');
+    expect(bare).toContain('No champion list is available for this review, so leave the swaps empty.');
+    expect(buildTeamPrompt({ ...ctx, championNames: [] })).not.toContain('CHAMPIONS A SWAP MAY NAME');
+    const listed = buildTeamPrompt({ ...ctx, championNames: ["Kai'Sa", 'Miss Fortune', 'Wukong'] });
+    expect(listed).toContain("CHAMPIONS A SWAP MAY NAME (Data Dragon spelling): Kai'Sa, Miss Fortune, Wukong");
+    expect(listed).not.toContain('No champion list is available');
+    expect(listed.indexOf('THE COMP')).toBeLessThan(listed.indexOf('THE DRAFT WITH HINDSIGHT'));
+    expect(listed.indexOf('THE DRAFT WITH HINDSIGHT')).toBeLessThan(listed.indexOf('WHAT HAPPENED'));
+    // The player prompt has no draft field and asks nothing about one.
+    expect(buildPlayerPrompt({ ...ctx, championNames: ['Wukong'] })).not.toContain('THE DRAFT WITH HINDSIGHT');
+    expect(buildPlayerPrompt({ ...ctx, championNames: ['Wukong'] })).not.toContain('CHAMPIONS A SWAP MAY NAME');
+  });
 });
 
 describe('the schemas', () => {
   it('carry no cap the API rejects; the caps live in the prompt and the validators', () => {
-    for (const schema of [TEAM_SCHEMA, PLAYER_SCHEMA]) {
+    // The draft object rides inside TEAM_SCHEMA; it is walked on its own as well so a cap slipped into a swap is named by this test.
+    for (const schema of [TEAM_SCHEMA, PLAYER_SCHEMA, TEAM_SCHEMA.properties.draft, TEAM_SCHEMA.properties.draft.properties.swaps.items]) {
       const json = JSON.stringify(schema);
       for (const word of ['maxItems', 'minItems', 'minimum', 'maximum', 'minLength', 'maxLength']) expect(json).not.toContain(word);
     }
+  });
+
+  it('require the draft with hindsight, every field of a swap, and only the gains and seats the app knows', () => {
+    expect(TEAM_SCHEMA.required).toContain('draft');
+    const draft = TEAM_SCHEMA.properties.draft;
+    expect(draft.type).toBe('object');
+    expect(draft.required).toEqual(['verdict', 'swaps']);
+    expect(draft.additionalProperties).toBe(false);
+    const swap = draft.properties.swaps.items;
+    expect(swap.required).toEqual(['seat', 'out', 'in', 'why', 'gains']);
+    expect(swap.additionalProperties).toBe(false);
+    expect(swap.properties.seat.enum).toEqual(['Top', 'Jungle', 'Mid', 'ADC', 'Support']);
+    expect(swap.properties.gains.items.enum).toEqual([...DRAFT_GAINS]);
+    expect(DRAFT_GAINS).toEqual(['engage', 'peel', 'frontline', 'poke', 'sustain', 'splitpush', 'waveclear', 'pick', 'disengage', 'damage']);
+    // Every schema object stays closed and fully required, as the rest of the schema does.
+    const walk = (node: unknown): void => {
+      if (!node || typeof node !== 'object') return;
+      const n = node as Record<string, unknown>;
+      if (n.type === 'object' && n.properties) {
+        expect(n.additionalProperties).toBe(false);
+        expect([...(n.required as string[])].sort()).toEqual(Object.keys(n.properties as object).sort());
+        for (const child of Object.values(n.properties as Record<string, unknown>)) walk(child);
+      }
+      if (n.items) walk(n.items);
+    };
+    walk(draft);
   });
 
   it('require the version 4 fields, and leave a point\'s options optional', () => {
@@ -333,6 +388,118 @@ describe('parseTeamReview', () => {
     expect(got.lessons![0].why).toHaveLength(200);
     expect(parseTeamReview({}, ctx).lessons).toEqual([]);
     expect(parseTeamReview({ lessons: 'none' }, ctx).lessons).toEqual([]);
+  });
+});
+
+describe('parseTeamReview: the draft with hindsight', () => {
+  const names = ['Ahri', 'Jinx', 'Lee Sin', 'Leona', 'Malphite', 'Miss Fortune', 'Nautilus', 'Ornn', 'Sion', 'Wukong'];
+  const five: ReviewContext = {
+    ...ctx,
+    players: [...ctx.players, { name: 'Kai', seat: 'ADC', champion: 'Jinx' }, { name: 'Lu', seat: 'Support', champion: 'Leona' }],
+    championNames: names
+  };
+  const swap = (over: Record<string, unknown>) => ({ seat: 'ADC', out: 'Jinx', in: 'Miss Fortune', why: 'Nobody could follow the engage around minute 24.', gains: ['damage'], ...over });
+  const parse = (draft: unknown, c: ReviewContext = five) => parseTeamReview({ draft }, c).draft;
+
+  it('keeps a valid swap and re-stamps both spellings: ours for out, Data Dragon\'s for in', () => {
+    const got = parse({
+      verdict: 'The five fit a game that never came: no engage to open the fights.',
+      swaps: [swap({ out: 'jinx', in: 'miss fortune', gains: ['damage', 'engage'] }), swap({ seat: 'Jungle', out: 'lee sin', in: 'wukong', gains: ['engage'] })]
+    });
+    expect(got).toEqual({
+      verdict: 'The five fit a game that never came: no engage to open the fights.',
+      swaps: [
+        { seat: 'ADC', out: 'Jinx', in: 'Miss Fortune', why: 'Nobody could follow the engage around minute 24.', gains: ['damage', 'engage'] },
+        { seat: 'Jungle', out: 'LeeSin', in: 'Wukong', why: 'Nobody could follow the engage around minute 24.', gains: ['engage'] }
+      ]
+    });
+  });
+
+  it('drops an in that is not on the list, or that one of our five played', () => {
+    const got = parse({
+      verdict: 'v',
+      swaps: [swap({ in: 'Zilean' }), swap({ in: 'lee sin' }), swap({ seat: 'Top', out: 'Ornn', in: 'ahri' }), swap({ in: 7 }), swap({ in: 'Sion' })]
+    });
+    expect(got!.swaps.map((s) => s.in)).toEqual(['Sion']);
+    // The context spells our five Riot's way and the list Data Dragon's: Wukong is MonkeyKing, and still one of ours.
+    const wukong: ReviewContext = { ...five, players: five.players.map((p) => (p.seat === 'Jungle' ? { ...p, champion: 'MonkeyKing' } : p)) };
+    const played = parse({ verdict: 'v', swaps: [swap({ seat: 'Top', out: 'Ornn', in: 'Wukong' }), swap({ seat: 'Jungle', out: 'MonkeyKing', in: 'wukong' }), swap({ in: 'Sion' })] }, wukong);
+    expect(played!.swaps.map((s) => [s.seat, s.in])).toEqual([['ADC', 'Sion']]);
+  });
+
+  it('drops a swap whose out is not what we played in that seat, and a seat that is not ours', () => {
+    const got = parse({
+      verdict: 'v',
+      swaps: [
+        swap({ seat: 'Top', out: 'Ahri', in: 'Sion' }),
+        swap({ seat: 'Top', out: 'Darius', in: 'Sion' }),
+        swap({ seat: 'Darius', out: 'Ornn', in: 'Sion' }),
+        swap({ seat: undefined, out: 'Ornn', in: 'Sion' }),
+        swap({ seat: 'Top', out: 4, in: 'Sion' }),
+        swap({ seat: 'Top', out: 'ornn', in: 'Sion' })
+      ]
+    });
+    expect(got!.swaps).toEqual([{ seat: 'Top', out: 'Ornn', in: 'Sion', why: 'Nobody could follow the engage around minute 24.', gains: ['damage'] }]);
+    // ADC is not on the three-player roster.
+    expect(parse({ verdict: 'v', swaps: [swap({})] }, { ...ctx, championNames: names })!.swaps).toEqual([]);
+  });
+
+  it('keeps at most two swaps, and the first of two in one seat', () => {
+    const three = parse({
+      verdict: 'v',
+      swaps: [swap({ seat: 'Top', out: 'Ornn', in: 'Sion' }), swap({ seat: 'Jungle', out: 'LeeSin', in: 'Wukong' }), swap({ in: 'Miss Fortune' })]
+    });
+    expect(three!.swaps.map((s) => s.seat)).toEqual(['Top', 'Jungle']);
+    const same = parse({ verdict: 'v', swaps: [swap({ in: 'Miss Fortune' }), swap({ in: 'Sion' }), swap({ seat: 'Top', out: 'Ornn', in: 'Malphite' })] });
+    expect(same!.swaps.map((s) => [s.seat, s.in])).toEqual([
+      ['ADC', 'Miss Fortune'],
+      ['Top', 'Malphite']
+    ]);
+    // A dropped first swap does not block a valid second in the same seat.
+    const second = parse({ verdict: 'v', swaps: [swap({ in: 'Zilean' }), swap({ in: 'Sion' })] });
+    expect(second!.swaps.map((s) => s.in)).toEqual(['Sion']);
+  });
+
+  it('keeps the gains it knows, once each, at most three, and allows none', () => {
+    const got = parse({
+      verdict: 'v',
+      swaps: [swap({ gains: ['peel', 'damage', 'peel', 'vibes', 'engage', 'frontline', 'poke'] }), swap({ seat: 'Top', out: 'Ornn', in: 'Sion', gains: [] }), swap({ seat: 'Jungle', out: 'LeeSin', in: 'Wukong', gains: 'engage' })]
+    });
+    expect(got!.swaps.map((s) => s.gains)).toEqual([['peel', 'damage', 'engage'], []]);
+    expect(parse({ verdict: 'v', swaps: [swap({ gains: 'engage' })] })!.swaps[0].gains).toEqual([]);
+  });
+
+  it('needs a why, caps it, drops a swap naming anyone off our five by Riot id, and cuts our own tags', () => {
+    expect(parse({ verdict: 'v', swaps: [swap({ why: '' }), swap({ why: 7 }), swap({ why: undefined })] })!.swaps).toEqual([]);
+    expect(parse({ verdict: 'v', swaps: [swap({ why: 'w'.repeat(400) })] })!.swaps[0].why).toHaveLength(300);
+    const got = parse({
+      verdict: 'v',
+      swaps: [swap({ why: 'Darius#EUW dived Kai twice before ten.' }), swap({ seat: 'Top', out: 'Ornn', in: 'Sion', why: 'Ruan#EUW was alone in their jungle at 12, Group at #20.' })]
+    });
+    expect(got!.swaps.map((s) => s.why)).toEqual(['Ruan was alone in their jungle at 12, Group at #20.']);
+    expect(parse({ verdict: 'v', swaps: [swap({ why: 'someone#euw dived' })] })!.swaps).toEqual([]);
+  });
+
+  it('keeps the verdict but no swap when no champion list was offered', () => {
+    const noList = { verdict: 'The draft held.', swaps: [swap({})] };
+    expect(parse(noList, { ...five, championNames: [] })).toEqual({ verdict: 'The draft held.', swaps: [] });
+    expect(parse(noList, { ...five, championNames: undefined })).toEqual({ verdict: 'The draft held.', swaps: [] });
+    expect(parse({ verdict: 'The draft held.', swaps: [] })).toEqual({ verdict: 'The draft held.', swaps: [] });
+    expect(parse({ verdict: 'The draft held.' })).toEqual({ verdict: 'The draft held.', swaps: [] });
+    expect(parse({ verdict: 'The draft held.', swaps: 'none' })).toEqual({ verdict: 'The draft held.', swaps: [] });
+  });
+
+  it('drops the whole draft without a verdict, and caps the verdict on a word', () => {
+    expect(parseTeamReview({ draft: { verdict: '', swaps: [swap({})] } }, five)).not.toHaveProperty('draft');
+    expect(parseTeamReview({ draft: { verdict: '   ', swaps: [swap({})] } }, five)).not.toHaveProperty('draft');
+    expect(parseTeamReview({ draft: { verdict: 9, swaps: [] } }, five)).not.toHaveProperty('draft');
+    expect(parseTeamReview({ draft: { swaps: [swap({})] } }, five)).not.toHaveProperty('draft');
+    expect(parseTeamReview({ draft: 'held' }, five)).not.toHaveProperty('draft');
+    expect(parseTeamReview({}, five)).not.toHaveProperty('draft');
+    const long = `${'word '.repeat(60)}end`;
+    expect(parse({ verdict: long })!.verdict).toBe('word '.repeat(48).trim());
+    expect(parse({ verdict: long })!.verdict.length).toBeLessThanOrEqual(240);
+    expect(parse({ verdict: '  The  five fit. ' })!.verdict).toBe('The five fit.');
   });
 });
 

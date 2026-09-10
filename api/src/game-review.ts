@@ -12,7 +12,11 @@
  * reads. Version 4 (10 Sep 2026) adds what the film room asks the team to
  * call back: up to three lessons on facts the points already used, the one
  * thing to watch for next game, the seats a moment is about, and the two
- * choices a work-on sentence offers.
+ * choices a work-on sentence offers. Version 5 (10 Sep 2026) adds the draft
+ * with hindsight: one sentence on how the five fit the game that was played,
+ * and up to two swaps to OUR draft — a Malphite for the all-in with a Miss
+ * Fortune, a Nautilus for the peel — each resolved against the champion list
+ * the prompt offered, so the film can show real art for a real champion.
  *
  * Rules that came from Riot's policies and are enforced twice, in the
  * prompt and in the validators:
@@ -28,15 +32,19 @@
  * games to review each morning, and the cost arithmetic. The calls and the
  * writes live in index.ts.
  */
+import { displayChampionName } from './champion-names';
 import { CompExpectation } from './daily-refresh';
 import { compareCurve, GameFacts, k } from './game-facts';
 import { LaneRead, LaneRole, PlayerFacts } from './lane-read';
 
-export const REVIEW_VERSION = 4;
+export const REVIEW_VERSION = 5;
 
 /** What a team point is about; the panel shows it as a tag with an icon. */
 export const REVIEW_THEMES = ['draft', 'lanes', 'fights', 'objectives', 'vision', 'tempo', 'macro'] as const;
 export type ReviewTheme = (typeof REVIEW_THEMES)[number];
+/** What a swap in the draft buys (version 5); the app mirrors this list in `team.models.ts`, so a change here is a change there. */
+export const DRAFT_GAINS = ['engage', 'peel', 'frontline', 'poke', 'sustain', 'splitpush', 'waveclear', 'pick', 'disengage', 'damage'] as const;
+export type DraftGain = (typeof DRAFT_GAINS)[number];
 export const TEAM_MODEL = 'claude-opus-5';
 export const PLAYER_MODEL = 'claude-opus-5';
 /** Reviews written by a morning run, at most. */
@@ -127,6 +135,13 @@ export interface ReviewContext {
   /** The team's own match note, trimmed. */
   note: string;
   players: ReviewPlayer[];
+  /**
+   * Every champion's display name in Data Dragon's spelling ("Miss Fortune",
+   * "Kai'Sa", "Wukong"), sorted, from `meta/championTraits`. A swap's "in" is
+   * resolved against this list and dropped otherwise, so the film never shows
+   * a champion nobody can look up. Absent or empty: no swap survives.
+   */
+  championNames?: string[];
 }
 
 /** Our five as the review names them, from the game's players. */
@@ -154,11 +169,12 @@ const RULES = `Rules that never bend:
 - The death ledger tags what would have stopped a death, by rules over those frames. "Our jungler a screen away" is a pathing choice and belongs in the jungler's notes; "no ward nearby" belongs to whoever should have warded the spot; "their jungler was already close" belongs to the team's calls; "alone on their side" to the player who stood there. Never blame a laner for a gank nobody could have seen.
 - Plain sentences a player can read on a phone. No headings, no markdown, no bullet characters inside a string.`;
 
-export const TEAM_SYSTEM = `You are the coach reviewing one finished League of Legends game for an amateur five-stack. You are given what the team drafted and what they expected the comp to do, then the facts of the game with the minutes. You say, in a few plain sentences, whether the game went the way the draft intended, what to work on next, and what to keep doing.
+export const TEAM_SYSTEM = `You are the coach reviewing one finished League of Legends game for an amateur five-stack. You are given what the team drafted and what they expected the comp to do, then the facts of the game with the minutes. You say, in a few plain sentences, whether the game went the way the draft intended, what to work on next, what to keep doing, and what you would draft differently with hindsight.
 
 ${RULES}
+- A swap is about OUR draft. The other team's champions may be named as the matchup they posed — "into Darius", "against a Syndra" — never a person.
 
-Length: "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences at most and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence. "moments" is three to six entries in time order that walk through the game: the minute, one sentence of at most 30 words on what happened and why it mattered, and "swing" for whose way it went. A moment's "seats" names the seats of ours it is about, at most three, and stays empty when it is about the whole team. A "workOn" item that offers a choice carries its two choices again in "options" as short imperatives, and leaves them out when it offers none. "lessons" is at most three things a player should be able to answer tomorrow, each on a fact already used by "workOn" or "keepDoing" and about OUR play only: a question of at most 20 words, three options of at most 12 words with one true and the wrong ones plausible, "answer" as the index of the true one, and "why" as one sentence of at most 25 words citing the fact and the minute. "oneThing" is the one thing to watch for next game in at most twelve words, a choice not an order.`;
+Length: "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences at most and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence. "moments" is three to six entries in time order that walk through the game: the minute, one sentence of at most 30 words on what happened and why it mattered, and "swing" for whose way it went. A moment's "seats" names the seats of ours it is about, at most three, and stays empty when it is about the whole team. A "workOn" item that offers a choice carries its two choices again in "options" as short imperatives, and leaves them out when it offers none. "lessons" is at most three things a player should be able to answer tomorrow, each on a fact already used by "workOn" or "keepDoing" and about OUR play only: a question of at most 20 words, three options of at most 12 words with one true and the wrong ones plausible, "answer" as the index of the true one, and "why" as one sentence of at most 25 words citing the fact and the minute. "oneThing" is the one thing to watch for next game in at most twelve words, a choice not an order. "draft" is one sentence ("verdict") on whether the five we drafted fit the game that was played, and "swaps" is at most two changes to OUR draft the coach would make with hindsight, each naming the seat, the champion we played ("out", exactly as given in OUR PLAYERS), the champion to try instead ("in", from CHAMPIONS A SWAP MAY NAME, in a similar role for that seat, a mainstream pick not a niche one, never one of our own five in that game), one sentence of at most 40 words on "why" that cites the fact and the minute (for instance the fight around minute 24 where nobody could follow the engage, or the nine deaths of the carry with nobody to peel), and "gains" as what the swap buys from the list; for instance a Malphite for the all-in with Miss Fortune, or a Nautilus for the peel on a hypercarry. Swaps are empty when the draft held.`;
 
 export const PLAYER_SYSTEM = `You are the coach writing the notes per player after one finished League of Legends game for an amateur five-stack. For each of OUR players you are given their seat, champion, line, lane read, habits, damage, and their deaths one by one with what would have stopped each. You write, per player, one strength, the first thing to work on, and up to three more things to work on, each tied to a different fact.
 
@@ -218,6 +234,23 @@ function compSection(ctx: ReviewContext): string[] {
   return lines;
 }
 
+/**
+ * The team question's ask on the draft (version 5, 10 Sep 2026). The champion
+ * list is printed in full so the model spells a swap the way Data Dragon does
+ * and the validator can find it; a name off the list is dropped, so when there
+ * is no list the prompt says so rather than let the model spend words on swaps
+ * nothing will keep.
+ */
+function draftSection(ctx: ReviewContext): string[] {
+  const lines = [
+    'THE DRAFT WITH HINDSIGHT',
+    'Knowing how this game went, say in one sentence whether the five we drafted fit it. Then name at most two changes to OUR draft you would make with hindsight: the seat, the champion we played there, a mainstream champion in a similar role to try instead, why in one sentence on the fact and the minute, and what the swap buys. Leave the swaps empty when the draft held.'
+  ];
+  if (ctx.championNames?.length) lines.push(`CHAMPIONS A SWAP MAY NAME (Data Dragon spelling): ${ctx.championNames.join(', ')}`);
+  else lines.push('No champion list is available for this review, so leave the swaps empty.');
+  return lines;
+}
+
 function happenedSection(ctx: ReviewContext, withLedger: boolean): string[] {
   const f = ctx.facts;
   const lines = ['WHAT HAPPENED', ...f.lines];
@@ -243,9 +276,9 @@ function noteSection(ctx: ReviewContext): string[] {
   return ctx.note ? ['OUR OWN NOTE (written by the team, may be in Afrikaans)', ctx.note] : [];
 }
 
-/** The team question, as text the model reads once. */
+/** The team question, as text the model reads once. The draft block is the team's alone; the player prompt has no draft field. */
 export function buildTeamPrompt(ctx: ReviewContext): string {
-  return [`TEAM: ${ctx.teamName}`, '', ...gameSection(ctx), '', ...compSection(ctx), '', ...happenedSection(ctx, true), '', ...noteSection(ctx)].join('\n').trim();
+  return [`TEAM: ${ctx.teamName}`, '', ...gameSection(ctx), '', ...compSection(ctx), '', ...draftSection(ctx), '', ...happenedSection(ctx, true), '', ...noteSection(ctx)].join('\n').trim();
 }
 
 function fmt(n: number | undefined, unit = ''): string | null {
@@ -364,6 +397,34 @@ const lesson = {
   additionalProperties: false
 } as const;
 
+/**
+ * One change to our draft with hindsight. The caps (two swaps, three gains, 40
+ * words) live in the descriptions and `draftOf`, never as schema keywords: the
+ * API rejects maxItems and friends (structured-output schema limits, 10 Sep 2026).
+ */
+const swap = {
+  type: 'object',
+  properties: {
+    seat: { type: 'string', enum: [...ROLES], description: 'The seat of ours the swap is in.' },
+    out: { type: 'string', description: 'The champion we played in that seat, exactly as given in OUR PLAYERS.' },
+    in: { type: 'string', description: 'The champion to try instead, from CHAMPIONS A SWAP MAY NAME, in a similar role for that seat, a mainstream pick; never one of our own five in this game.' },
+    why: { type: 'string', description: 'One sentence of at most 40 words citing the fact and the minute.' },
+    gains: { type: 'array', items: { type: 'string', enum: [...DRAFT_GAINS] }, description: 'What the swap buys, at most three.' }
+  },
+  required: ['seat', 'out', 'in', 'why', 'gains'],
+  additionalProperties: false
+} as const;
+
+const draft = {
+  type: 'object',
+  properties: {
+    verdict: { type: 'string', description: 'One sentence on how the comp fit the game that was played.' },
+    swaps: { type: 'array', description: 'At most two changes to OUR draft the coach would make with hindsight; empty when the draft held.', items: swap }
+  },
+  required: ['verdict', 'swaps'],
+  additionalProperties: false
+} as const;
+
 export const TEAM_SCHEMA = {
   type: 'object',
   properties: {
@@ -398,9 +459,10 @@ export const TEAM_SCHEMA = {
         'Up to three things a player should be able to answer tomorrow, each on a fact already used by workOn or keepDoing, about OUR play only; three options, one true, the wrong ones plausible; question at most 20 words, options at most 12 words, why one sentence of at most 25 words citing the fact and the minute',
       items: lesson
     },
-    oneThing: { type: 'string', description: 'The one thing to watch for next game, at most twelve words, a choice not an order' }
+    oneThing: { type: 'string', description: 'The one thing to watch for next game, at most twelve words, a choice not an order' },
+    draft
   },
-  required: ['headline', 'summary', 'workOn', 'keepDoing', 'compVerdict', 'compWhy', 'moments', 'lessons', 'oneThing'],
+  required: ['headline', 'summary', 'workOn', 'keepDoing', 'compVerdict', 'compWhy', 'moments', 'lessons', 'oneThing', 'draft'],
   additionalProperties: false
 } as const;
 
@@ -459,6 +521,27 @@ export interface Lesson {
   theme?: ReviewTheme;
 }
 
+/** One change to our draft the coach would make with hindsight; version 5. Mirrored as `ReviewSwap` in the app. */
+export interface ReviewSwap {
+  seat: LaneRole;
+  /** The champion we played in that seat, in our own spelling (Riot's id, as the game carries it). */
+  out: string;
+  /** The champion to try instead, in Data Dragon's spelling, from the list the prompt offered. */
+  in: string;
+  /** One sentence citing the fact and the minute. */
+  why: string;
+  /** What the swap buys, distinct, at most three; may be empty. */
+  gains: DraftGain[];
+}
+
+/** The draft with hindsight; version 5. Mirrored as `ReviewDraft` in the app. */
+export interface ReviewDraft {
+  /** One sentence on how the five fit the game that was played. */
+  verdict: string;
+  /** At most two; empty when the draft held or no champion list was offered. */
+  swaps: ReviewSwap[];
+}
+
 export interface TeamReview {
   /** At most eight words on how the game was decided; absent on reviews before version 2. */
   headline?: string;
@@ -473,6 +556,8 @@ export interface TeamReview {
   lessons?: Lesson[];
   /** At most twelve words, a choice not an order; absent before version 4 and when the model gave none. */
   oneThing?: string;
+  /** The draft with hindsight; absent before version 5 and when the model gave no verdict. */
+  draft?: ReviewDraft;
 }
 
 export interface PlayerNote {
@@ -593,6 +678,51 @@ function lessonsOf(list: unknown, ctx: ReviewContext): Lesson[] {
   return out;
 }
 
+/**
+ * The draft with hindsight (version 5, 10 Sep 2026): one sentence on the fit,
+ * then at most two swaps. A swap is kept only when it is about a seat of ours,
+ * names the champion we actually played there, and picks a champion from the
+ * list the prompt offered that none of our five played; the model's spelling
+ * is re-stamped to ours for "out" and to Data Dragon's for "in", so the app
+ * can look both up for art. Without the list nothing can be resolved and no
+ * swap survives, but the verdict still does. Two swaps in one seat keep the
+ * first. A "why" naming anyone off our five by Riot id drops the swap, as a
+ * lesson's option would; our own tags are cut. No verdict, no draft: a swap
+ * without the sentence it hangs on says nothing on the card.
+ */
+function draftOf(v: unknown, ctx: ReviewContext): ReviewDraft | undefined {
+  const row = (v ?? {}) as Record<string, unknown>;
+  const verdict = strWords(row.verdict, 240);
+  if (!verdict) return undefined;
+  const ours = new Set(ctx.players.map((p) => norm(p.name)));
+  const played = new Map<LaneRole, string>(ctx.players.map((p) => [p.seat, p.champion]));
+  // Our five under both spellings: the context carries Riot's id ("MonkeyKing") and the pick comes back as the
+  // list's display name ("Wukong"), and the two normalise alike for every champion but Wukong, Nunu & Willump
+  // and Renata Glasc (10 Sep 2026, second review).
+  const ourChampions = new Set(ctx.players.flatMap((p) => [norm(p.champion), norm(displayChampionName(p.champion))]));
+  const offered = new Map((ctx.championNames ?? []).filter((n) => n).map((n) => [norm(n), n]));
+  const swaps: ReviewSwap[] = [];
+  const seen = new Set<LaneRole>();
+  for (const raw of Array.isArray(row.swaps) ? row.swaps : []) {
+    if (swaps.length === 2) break;
+    const s = (raw ?? {}) as Record<string, unknown>;
+    const seat = s.seat as LaneRole;
+    const out = played.get(seat);
+    if (!out || seen.has(seat)) continue;
+    if (typeof s.out !== 'string' || norm(s.out) !== norm(out)) continue;
+    const pick = typeof s.in === 'string' ? offered.get(norm(s.in)) : undefined;
+    if (!pick || ourChampions.has(norm(pick))) continue;
+    const why = optionNamingOurs(str(s.why, 300), ours);
+    if (!why) continue;
+    const gains = Array.isArray(s.gains)
+      ? (s.gains.filter((g, i, all): g is DraftGain => (DRAFT_GAINS as readonly unknown[]).includes(g) && all.indexOf(g) === i) as DraftGain[]).slice(0, 3)
+      : [];
+    seen.add(seat);
+    swaps.push({ seat, out, in: pick, why, gains });
+  }
+  return { verdict, swaps };
+}
+
 /** The team answer, capped and checked; anything without evidence is dropped. */
 export function parseTeamReview(value: unknown, ctx: ReviewContext): TeamReview {
   const v = (value ?? {}) as Record<string, unknown>;
@@ -600,6 +730,7 @@ export function parseTeamReview(value: unknown, ctx: ReviewContext): TeamReview 
   const verdict = v.compVerdict === 'as drafted' || v.compVerdict === 'off plan' ? v.compVerdict : 'unclear';
   const headline = str(v.headline, 80).replace(/[.!]+$/, '');
   const oneThing = strWords(v.oneThing, 90);
+  const draft = draftOf(v.draft, ctx);
   return {
     ...(headline ? { headline } : {}),
     summary: str(v.summary, 400),
@@ -609,7 +740,8 @@ export function parseTeamReview(value: unknown, ctx: ReviewContext): TeamReview 
     compWhy: str(v.compWhy, 240),
     moments: momentsOf(v.moments, d, ctx.players.map((p) => p.seat)),
     lessons: lessonsOf(v.lessons, ctx),
-    ...(oneThing ? { oneThing } : {})
+    ...(oneThing ? { oneThing } : {}),
+    ...(draft ? { draft } : {})
   };
 }
 

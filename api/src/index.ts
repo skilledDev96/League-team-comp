@@ -50,6 +50,7 @@ import {
 } from './team-history';
 import { buildIndex, indexDocPath, splitIndexId, RawMatchupDoc } from './matchup-index';
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
+import { displayChampionName } from './champion-names';
 import { ChampionTraits, toTraits } from './champion-traits';
 import { API_SHA, BUILD_SHA } from './build-info';
 import { LaneRead, PlayerFacts, playerFacts, readLanes } from './lane-read';
@@ -216,28 +217,6 @@ interface EnrichResponse {
 const BOOTSTRAP_ADMIN_EMAILS = new Set(['ruanhart7@gmail.com']);
 const DDRAGON_VERSION = '14.24.1';
 
-// Riot's internal championName (Data Dragon id) doesn't always match the display name we store.
-const DDRAGON_TO_DISPLAY: Record<string, string> = {
-  Belveth: "Bel'Veth",
-  Velkoz: "Vel'Koz",
-  DrMundo: 'Dr. Mundo',
-  MissFortune: 'Miss Fortune',
-  JarvanIV: 'Jarvan IV',
-  Kaisa: "Kai'Sa",
-  Khazix: "Kha'Zix",
-  KogMaw: "Kog'Maw",
-  Leblanc: 'LeBlanc',
-  Nunu: 'Nunu & Willump',
-  RekSai: "Rek'Sai",
-  Renata: 'Renata Glasc',
-  TahmKench: 'Tahm Kench',
-  TwistedFate: 'Twisted Fate',
-  XinZhao: 'Xin Zhao',
-  AurelionSol: 'Aurelion Sol',
-  Chogath: "Cho'Gath",
-  MonkeyKing: 'Wukong'
-};
-
 // Maps our app's short region code to Riot's platform + regional routing values.
 const REGION_ROUTING: Record<string, { platform: string; regional: string }> = {
   euw: { platform: 'euw1', regional: 'europe' },
@@ -316,10 +295,6 @@ async function getAccessRoleByEmail(email: string): Promise<AccessRole | null> {
   }
 
   return data.role;
-}
-
-function displayChampionName(riotChampionName: string): string {
-  return DDRAGON_TO_DISPLAY[riotChampionName] ?? riotChampionName;
 }
 
 /** One champion's mastery, as the app shows it. */
@@ -2425,11 +2400,29 @@ async function reviewGame(
     facts = endOfGameFacts(game);
   }
 
-  const [settings, compSnap, noteSnap] = await Promise.all([
+  const [settings, compSnap, noteSnap, traitsSnap] = await Promise.all([
     readSettings(),
     game.compId ? db.doc(`comps/${game.compId}`).get() : Promise.resolve(null),
-    db.doc(`matchNotes/${matchId}`).get()
+    db.doc(`matchNotes/${matchId}`).get(),
+    // Every champion's display name, for the draft with hindsight (version 5,
+    // 10 Sep 2026): a swap's "in" is resolved against this list and dropped
+    // otherwise, so the model spells it Data Dragon's way and the film can show
+    // real art. The doc is written by `writeChampionTraits`; missing means no
+    // swaps, and so does a read that fails: the list is optional to the review,
+    // so a Firestore hiccup here must not fail the whole game (second review).
+    db
+      .doc('meta/championTraits')
+      .get()
+      .catch((err: unknown) => {
+        console.warn(`[gameReview] meta/championTraits could not be read for ${matchId}; the review carries no swaps: ${(err as Error)?.message ?? err}`);
+        return null;
+      })
   ]);
+  const traits = (traitsSnap?.data() as { traits?: Record<string, ChampionTraits> } | undefined)?.traits ?? {};
+  const championNames = Object.values(traits)
+    .map((t) => t.name)
+    .filter((n): n is string => typeof n === 'string' && n.length > 0)
+    .sort();
   const storedComp = compSnap?.exists ? (compSnap.data() as Omit<StoredComp, 'id'>) : null;
   const comp: ReviewContext['comp'] =
     game.compId && (storedComp || game.compName)
@@ -2451,7 +2444,8 @@ async function reviewGame(
     facts,
     comp,
     note,
-    players: reviewPlayers(game)
+    players: reviewPlayers(game),
+    championNames
   };
 
   const client = new Anthropic({ apiKey: opts.anthropicKey });

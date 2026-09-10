@@ -3,8 +3,8 @@ import { afterRenderEffect, Component, computed, ElementRef, inject, input, outp
 import { Router, RouterLink } from '@angular/router';
 import { FilmModel } from '../../../core/film-model';
 import { reminderFor } from '../../../core/film-progress';
-import { reviewAsText } from '../../../core/review-view';
-import { AnalysisGame, FilmChoice, GameReview, LedgerSummary, Role } from '../../../models/team.models';
+import { GAIN_LABELS, reviewAsText } from '../../../core/review-view';
+import { AnalysisGame, FilmChoice, GameReview, LedgerSummary, ReviewSwap, Role } from '../../../models/team.models';
 import { MotionService } from '../../../services/motion.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { ToastService } from '../../../services/toast.service';
@@ -101,10 +101,25 @@ import { FilmFrameComponent } from '../film-frame.component';
           </div>
         }
 
+        @if (draftSwaps().length) {
+          <!-- The draft with hindsight (10 Sep 2026): one line a swap, the champion we played struck beside the one to try. -->
+          <div class="film-card-block film-card-draft" [style.--i]="3">
+            <p class="film-card-label">Next time in the draft</p>
+            @for (s of draftSwaps(); track s.seat + ':' + s.in) {
+              <p class="film-card-draft-row">
+                <img class="is-out" [src]="ui.championIconUrl(s.out)" alt="" loading="lazy" />
+                <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
+                <img class="is-in" [src]="ui.championIconUrl(s.in)" alt="" loading="lazy" />
+                <span><b>{{ s.in }}</b> for {{ ui.championName(s.out) }}@if (s.gains.length) { <small>{{ gainsOf(s) }}</small> }</span>
+              </p>
+            }
+          </div>
+        }
+
         @if (asks().length) {
           <ul class="list-clean film-card-asks" aria-label="One ask each">
             @for (a of asks(); track a.seat) {
-              <li class="film-card-ask" [class.is-me]="a.seat === mySeat()" [style.--i]="3 + $index">
+              <li class="film-card-ask" [class.is-me]="a.seat === mySeat()" [style.--i]="askBase() + $index">
                 <img [src]="ui.championIconUrl(a.champion)" alt="" loading="lazy" />
                 <span><b>{{ a.name }}</b><small>{{ a.seat }}</small>{{ a.ask }}</span>
               </li>
@@ -184,6 +199,15 @@ export class FilmCardComponent {
     const asks = this.model().card.asks;
     return mine ? [...asks.filter((a) => a.seat === mine), ...asks.filter((a) => a.seat !== mine)] : asks;
   });
+  /** The swaps to try next draft (review version 5); none when the draft held, and the block stays away. */
+  protected readonly draftSwaps = computed<ReviewSwap[]>(() => this.model().draft?.swaps ?? []);
+  /** Where the asks' entrance stagger starts: after the draft block when there is one. */
+  protected readonly askBase = computed(() => (this.draftSwaps().length ? 4 : 3));
+
+  /** "peel and engage": what a swap buys, in a sentence, so the words lose the capital the chips carry. */
+  protected gainsOf(s: ReviewSwap): string {
+    return s.gains.map((g) => GAIN_LABELS[g].toLowerCase()).join(' and ');
+  }
   private readonly commitment = computed(() => this.data.commitmentFor(this.model().matchId));
   private readonly teamChoice = computed<FilmChoice | undefined>(() => {
     const c = this.commitment();
@@ -236,11 +260,15 @@ export class FilmCardComponent {
     const text = reviewAsText(r, this.game(), this.opponent(), this.link(['/games'], { match: id, tab: 'games' }), this.ledger(), {
       filmLink: this.link(['/film', id]),
       commitment: this.commitLine(),
-      notes
+      notes,
+      // What the card itself shows goes in the copy too (10 Sep 2026, second review): the swaps to try, and the film's reads of the deaths over the ledger's counts.
+      draft: r.team.draft,
+      reads: this.model().map?.reads,
+      championName: (name) => this.ui.championName(name)
     });
     try {
       await navigator.clipboard.writeText(text);
-      this.toast.show('Card copied', { kind: 'ok', icon: 'content_copy', text: 'Paste it in the team chat; the commitment and the film link are in it.' });
+      this.toast.show('Card copied', { kind: 'ok', icon: 'content_copy', text: 'Paste it in the team chat; the commitment, the draft to try and the film link are in it.' });
     } catch {
       this.toast.show('Could not copy', { kind: 'warn', text: 'The browser refused the clipboard; select the text and copy it by hand.' });
     }

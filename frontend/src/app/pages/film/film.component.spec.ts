@@ -1,9 +1,11 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { environment } from '../../../environments/environment';
-import { AnalysisGame, GameReview } from '../../models/team.models';
+import { AnalysisGame, GameReview, MatchTimeline } from '../../models/team.models';
+import { MatchTimelineService } from '../../services/match-timeline.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { FilmComponent } from './film.component';
@@ -197,6 +199,88 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
     harness.detectChanges();
     expect(prefs.filmProgress(ID)?.nextAskAt).toBeUndefined();
     expect(prefs.filmProgress(ID)?.done).toBeTruthy();
+  });
+
+  it('adds The draft, again after the one thing when the review carries a draft verdict', async () => {
+    const v5 = {
+      ...review,
+      reviewVersion: 5,
+      team: { ...review.team, draft: { verdict: 'The comp wanted a slow game and the fights came early.', swaps: [{ seat: 'Support', out: 'Leona', in: 'Nautilus', why: 'Nautilus peels Jinx through the dive and still starts a fight.', gains: ['peel', 'engage'] }] } }
+    } as unknown as GameReview;
+    data.gameReviews.set([v5]);
+    const { root } = await open(`/film/${ID}?c=draft`);
+    // Title, the board, the one thing, the draft, the seat, the card.
+    expect(root.querySelectorAll('.film-dot')).toHaveLength(6);
+    expect(root.querySelector('.film-dot.active')?.getAttribute('aria-label')).toBe('The draft, again');
+    expect(text(root, '.film-kicker')).toContain('The draft, again');
+    expect(text(root, '.film-draft-verdict')).toBe('The comp wanted a slow game and the fights came early.');
+    expect(root.querySelectorAll('.film-draft-swap')).toHaveLength(1);
+    expect(text(root, '.film-draft-swap')).toContain('Nautilus');
+  });
+
+  it('waits for the timeline before landing a ?c link, since the tape and the map shift the chapters when it arrives', async () => {
+    const v5 = {
+      ...review,
+      reviewVersion: 5,
+      team: { ...review.team, draft: { verdict: 'The comp wanted a slow game and the fights came early.', swaps: [{ seat: 'Support', out: 'Leona', in: 'Nautilus', why: 'Peel for Jinx.', gains: ['peel'] }] } }
+    } as unknown as GameReview;
+    // The timeline read is the page's to wait on: nothing known while it is in flight, then a timeline with one death in the ledger, so the film has a tape and a map.
+    const known = signal<ReadonlyMap<string, MatchTimeline | null>>(new Map());
+    const timelines = { known, load: async () => null };
+    const timeline = {
+      matchId: ID,
+      timelineVersion: 2,
+      builtAt: '2026-09-09T06:30:00.000Z',
+      ourSide: 'blue',
+      durationSec: 34 * 60,
+      frameSec: 60,
+      goldDiff: Array.from({ length: 35 }, (_, m) => -m * 250),
+      curve: { leadAt: {}, biggestLead: { gold: 0, minute: 0 }, biggestDeficit: { gold: -8500, minute: 34 } },
+      lanes: [],
+      firsts: {},
+      objectives: [],
+      plates: { ours: { top: 0, mid: 0, bot: 0 }, theirs: { top: 0, mid: 0, bot: 0 } },
+      deaths: [{ sec: 252, minute: 4, seat: 'ADC', zone: 'bot', theirSide: false, killers: 2, executed: false, warded: false }],
+      theirDeaths: [],
+      vision: [],
+      spend: [],
+      facts: {
+        factsVersion: 2,
+        tier: 'timeline',
+        result: 'loss',
+        durationMin: 34,
+        curve: { shape: 'trailed throughout' },
+        lanes: [],
+        firsts: {},
+        objectives: [],
+        deathClusters: [],
+        soloDeaths: [],
+        vision: [],
+        spend: [],
+        ledger: [{ minute: 4, seat: 'ADC', zone: 'bot', how: 'gank', could: ['ward'], line: 'Minute 4: Jinx to a gank in bot lane with no ward nearby.' }],
+        ledgerSummary: { deaths: 1, ganks: 1, dark: 1, inReach: 0, alone: 0 },
+        lines: []
+      },
+      bytes: 0
+    } as unknown as MatchTimeline;
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'film/:matchId', component: FilmComponent }]), { provide: MatchTimelineService, useValue: timelines }] });
+    data = TestBed.inject(TeamDataService);
+    data.gameReviews.set([v5]);
+    data.compAnalysis.set({ games: [game] } as never);
+
+    const { harness, root } = await open(`/film/${ID}?c=draft`);
+    // In flight: the title card stands and nothing has been placed; the draft is in the list already, but not where it will end up.
+    expect(root.querySelector('.film-dot.active')?.getAttribute('aria-label')).toBe('The game');
+    expect(root.querySelectorAll('.film-dot')).toHaveLength(6);
+
+    known.set(new Map([[ID, timeline]]));
+    await settle(harness);
+    // Landed: the tape and the map sit before The one thing, the draft is fifth, and that is where the film opens.
+    expect(root.querySelectorAll('.film-dot')).toHaveLength(7);
+    expect(root.querySelector('.film-dot.active')?.getAttribute('aria-label')).toBe('The draft, again');
+    expect(text(root, '.film-kicker')).toContain('The draft, again');
+    expect(text(root, '.film-draft-verdict')).toBe('The comp wanted a slow game and the fights came early.');
   });
 
   it('opens on the chapter ?c names, and a shared card link writes no progress', async () => {

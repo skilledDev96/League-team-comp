@@ -31,6 +31,18 @@ describe('UiService', () => {
     });
   });
 
+  describe('championName', () => {
+    it('says a champion the display way whether it came as Riot\'s id or Data Dragon\'s name, and leaves an unknown one alone', () => {
+      // Before the live index loads (fetch is off in tests) the static map answers.
+      expect(ui.championName('MonkeyKing')).toBe('Wukong');
+      expect(ui.championName('TahmKench')).toBe('Tahm Kench');
+      expect(ui.championName('Nunu')).toBe('Nunu & Willump');
+      expect(ui.championName('Wukong')).toBe('Wukong');
+      expect(ui.championName('Leona')).toBe('Leona');
+      expect(ui.championName('')).toBe('');
+    });
+  });
+
   describe('championArtUrl', () => {
     it('asks for the centered splash, which is composed for a wide crop', () => {
       // Data Dragon's splash puts the champion wherever the art wants them, so

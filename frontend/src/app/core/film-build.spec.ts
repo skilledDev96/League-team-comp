@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, GameReview, MatchTimeline, TeamObjectives, TimelineDeath } from '../models/team.models';
-import { buildFilm, lessonCalls, optionsOf, placeOurDeath, reelTallyOf, splitOptions, tapeEventsOf } from './film-build';
+import { buildFilm, FILM_CHAPTER_COUNT, lessonCalls, optionsOf, placeOurDeath, reelTallyOf, splitOptions, tapeEventsOf } from './film-build';
 import { styleFor } from './film-style';
 import { objectivePit, regionFor } from './rift-zones';
+import { seedOf } from './seed';
 
 const side = (o: Partial<TeamObjectives>): TeamObjectives => ({ firstBlood: false, firstTower: false, dragons: 0, barons: 0, heralds: 0, grubs: 0, towers: 0, inhibitors: 0, ...o });
 
@@ -98,7 +99,8 @@ const timeline = {
   theirDeaths: [
     { sec: 380, minute: 6, zone: 'ourJungle', ourInvolved: ['Jungle'] },
     { sec: 1215, minute: 20, zone: 'river', ourInvolved: ['Jungle', 'ADC'] },
-    { sec: 1500, minute: 25, zone: 'mid' }
+    // Trundle was on this kill, so it is the same fight as his own death at 24:33 in their jungle (the reads ask where, not only when).
+    { sec: 1500, minute: 25, zone: 'mid', ourInvolved: ['Jungle'] }
   ],
   vision: [],
   spend: [
@@ -152,6 +154,9 @@ describe('buildFilm on the timeline tier', () => {
     expect(film.seed).toBe(360062704);
     expect(film.tier).toBe('timeline');
     expect(film.board).toBeUndefined();
+    // A version 3 review wrote no draft, so there is no draft chapter; the fullest film has one more.
+    expect(film.draft).toBeUndefined();
+    expect(FILM_CHAPTER_COUNT).toBe(7);
   });
 
   it('carries the style drawn from the seed and the result, and another id draws another look', () => {
@@ -455,24 +460,87 @@ describe('the tape', () => {
     expect(buildFilm(review, game, many, previous).tape!.events.filter((e) => e.kind === 'back')).toHaveLength(24);
   });
 
-  it('calls the first four objectives and the fight cluster a minute early, in time order, with the answers; a cluster reveals on its first death', () => {
-    expect(tape.calls.map((c) => [c.key, c.atSec, c.revealSec, c.answer])).toEqual([
-      ['tape:o:6', 300, 360, 0],
-      ['tape:o:8', 420, 480, 0],
-      ['tape:f:19', 1080, 1210, 2],
-      ['tape:o:20', 1140, 1200, 1],
-      ['tape:o:27', 1560, 1620, 1]
+  it('stops on the beats in time order: the firsts, the costliest deaths, the turn, the objectives, the moments and the fight, keyed by kind and second', () => {
+    expect(tape.beats.map((b) => [b.sec, b.kind, b.key])).toEqual([
+      [240, 'first', 'b:first:240'],
+      [252, 'death', 'd:4:ADC'],
+      [300, 'turn', 'b:turn:300'],
+      [360, 'objective', 'b:objective:360'],
+      [480, 'moment', 'b:moment:480'],
+      [540, 'first', 'b:first:540'],
+      [545, 'death', 'd:9:Support'],
+      [720, 'moment', 'b:moment:720'],
+      [1200, 'objective', 'b:objective:1200'],
+      [1210, 'fight', 'b:fight:1210'],
+      [1620, 'objective', 'b:objective:1620'],
+      [1680, 'moment', 'b:moment:1680'],
+      [1860, 'objective', 'b:objective:1860'],
+      [1980, 'moment', 'b:moment:1980']
     ]);
-    expect(tape.calls[0].question).toBe('Whose grubs is this?');
-    expect(tape.calls[0].options).toEqual(['Ours', 'Theirs']);
-    expect(tape.calls[2].question).toBe('How many of ours fall here?');
-    expect(tape.calls[2].options).toEqual(['1', '2', '3 or more']);
-    expect(tape.calls[2].why).toBe('Minutes 19 to 21: three of ours fell in the river for one of theirs.');
-    expect(tape.calls[3].why).toBe('Minute 20: their dragon (infernal), uncontested.');
-    expect(tape.calls[4].why).toBe('Their baron at minute 27');
+    expect(tape.beats).toHaveLength(14);
+    expect(new Set(tape.beats.map((b) => b.key)).size).toBe(14);
+    expect((tape as unknown as { calls?: unknown }).calls).toBeUndefined();
   });
 
-  it('never calls more than six, and skips a cluster with one of ours', () => {
+  it('writes each beat in the facts\' own words, with its glyph, its swing and the champions it was about', () => {
+    const by = (key: string) => tape.beats.find((b) => b.key === key)!;
+    expect(by('b:first:240')).toMatchObject({ title: 'First blood, theirs', swing: 'them', glyph: 'blood', text: 'The first kill of the game went their way, around minute 4.' });
+    expect(by('b:first:540')).toMatchObject({ title: 'First tower, bot, theirs', swing: 'them', glyph: 'tower', text: 'The first tower fell in bot lane around minute 9, to them.' });
+    expect(by('b:turn:300')).toMatchObject({ title: 'Where it turned', text: 'Behind for good after minute 5, from 400 up', swing: 'them', glyph: 'coin' });
+    // An objective without a facts line falls back to its label and minute; with one, the facts speak.
+    expect(by('b:objective:360')).toMatchObject({ title: 'Our grubs', text: 'Our grubs at minute 6.', swing: 'us', glyph: 'grubs', seats: ['Jungle'], champions: ['Trundle'] });
+    expect(by('b:objective:1200')).toMatchObject({ title: 'Their dragon (infernal)', text: 'Minute 20: their dragon (infernal), uncontested.', swing: 'them', glyph: 'dragon' });
+    expect(by('b:objective:1200').seats).toBeUndefined();
+    expect(by('b:objective:1620')).toMatchObject({ title: 'Their baron', text: 'Their baron at minute 27.', glyph: 'baron' });
+    expect(by('b:fight:1210')).toMatchObject({
+      title: 'Fight in the river',
+      text: 'Minutes 19 to 21: three of ours fell in the river for one of theirs.',
+      swing: 'them',
+      glyph: 'swords',
+      seats: ['Support', 'ADC', 'Jungle'],
+      champions: ['Leona', 'Jinx', 'Trundle']
+    });
+    // The costliest avoidable deaths, titled by the name, with the read as the line and the first glyph as the card's.
+    expect(by('d:4:ADC')).toMatchObject({
+      title: 'Rhu falls, avoidable',
+      text: 'Avoidable: two came in and no ward had gone down nearby, and their jungler had been on this side a minute earlier.',
+      swing: 'them',
+      glyph: 'ward-off',
+      seats: ['ADC'],
+      champions: ['Jinx']
+    });
+    expect(by('d:9:Support')).toMatchObject({ title: 'Nia falls, avoidable', glyph: 'ward-off', champions: ['Leona'] });
+    // The moments are titled by their swing, never "Minute N", and carry the consequence.
+    expect(by('b:moment:1680')).toMatchObject({ title: 'Even', text: 'A quiet stretch nobody used.', swing: 'even', glyph: 'flag', consequence: 'Over the next three minutes: about even' });
+    expect(by('b:moment:1980')).toMatchObject({ title: 'Their way', glyph: 'flag' });
+    expect(by('b:moment:1980').consequence).toBeUndefined();
+    for (const b of tape.beats) expect(b.title).not.toMatch(/^Minute \d/);
+    for (const b of tape.beats) expect(b.text).not.toMatch(/\?$/);
+  });
+
+  it('folds a first, an objective, a fight or a death within 45 s into the coach\'s moment, which takes its glyph and its champions', () => {
+    const keys = tape.beats.map((b) => b.key);
+    // The dragon at 8 is the moment at 8; Jinx falling at 12:40 is the moment at 12.
+    expect(keys).not.toContain('b:objective:480');
+    expect(keys).not.toContain('d:12:ADC');
+    const dragon = tape.beats.find((b) => b.key === 'b:moment:480')!;
+    expect(dragon).toMatchObject({ title: 'Our way', text: 'Dragon at 8 with all five nearby.', swing: 'us', glyph: 'dragon', seats: ['Jungle', 'ADC'], champions: ['Trundle', 'Jinx'], consequence: 'Over the next three minutes: -1.7k' });
+    const caught = tape.beats.find((b) => b.key === 'b:moment:720')!;
+    expect(caught).toMatchObject({ title: 'Their way', text: 'Jinx caught again in bot.', glyph: 'horn', seats: ['ADC'], champions: ['Jinx'] });
+    // A moment that already took a glyph keeps it, and the champions stay at three.
+    const crowded = { ...timeline, objectives: [...timeline.objectives, { minute: 8, type: 'herald', side: 'us', ourInvolved: ['Support', 'Top', 'Mid'], ourNear: [] }] } as MatchTimeline;
+    const v4 = { ...review, team: { ...review.team, moments: [{ ...review.team.moments![0], seats: ['Jungle'] }, ...review.team.moments!.slice(1)] } } as GameReview;
+    const both = buildFilm(v4, game, crowded, previous).tape!.beats.find((b) => b.key === 'b:moment:480')!;
+    expect(both.glyph).toBe('dragon');
+    expect(both.seats).toEqual(['Jungle', 'ADC', 'Support']);
+    expect(both.champions).toEqual(['Trundle', 'Jinx', 'Leona']);
+    // The turn never folds: it is the game's, not an event.
+    const near = buildFilm({ ...review, team: { ...review.team, moments: [{ minute: 5, text: 'Slid here.', swing: 'them' }] } } as GameReview, game, timeline, previous).tape!.beats;
+    expect(near.map((b) => b.key)).toContain('b:turn:300');
+    expect(near.map((b) => b.key)).toContain('b:moment:300');
+  });
+
+  it('caps the beats at fourteen, dropping the firsts before the deaths, the deaths before the fights, and never a moment', () => {
     const facts = timeline.facts!;
     const busy = {
       ...timeline,
@@ -486,10 +554,39 @@ describe('the tape', () => {
         ]
       }
     } as MatchTimeline;
-    const calls = buildFilm(review, game, busy, previous).tape!.calls;
-    expect(calls).toHaveLength(6);
-    expect(calls.map((c) => c.key)).toEqual(['tape:o:6', 'tape:o:8', 'tape:f:19', 'tape:o:20', 'tape:f:23', 'tape:o:27']);
-    expect(calls[4].answer).toBe(1);
+    const beats = buildFilm(review, game, busy, previous).tape!.beats;
+    expect(beats).toHaveLength(14);
+    expect(beats.map((b) => b.sec)).toEqual(beats.map((b) => b.sec).sort((a, b) => a - b));
+    expect(beats.filter((b) => b.kind === 'first')).toHaveLength(0);
+    expect(beats.filter((b) => b.kind === 'moment')).toHaveLength(4);
+    // A cluster with one death in it is not a fight; the even one at 23 stops on our first death in it, the one-sided one on its minute.
+    expect(beats.filter((b) => b.kind === 'fight').map((b) => [b.key, b.swing, b.title])).toEqual([
+      ['b:fight:1210', 'them', 'Fight in the river'],
+      ['b:fight:1473', 'even', 'Fight in mid lane'],
+      ['b:fight:1740', 'them', 'Fight in their base']
+    ]);
+    expect(beats.filter((b) => b.kind === 'death')).toHaveLength(2);
+    // With two more objectives the deaths go before the fights do.
+    const busier = { ...busy, objectives: [...busy.objectives, { minute: 14, type: 'herald', side: 'them', ourInvolved: [], ourNear: [] }, { minute: 25, type: 'grubs', side: 'us', ourInvolved: [], ourNear: [] }] } as MatchTimeline;
+    const more = buildFilm(review, game, busier, previous).tape!.beats;
+    expect(more).toHaveLength(14);
+    expect(more.filter((b) => b.kind === 'death')).toHaveLength(0);
+    expect(more.filter((b) => b.kind === 'fight')).toHaveLength(3);
+    expect(more.filter((b) => b.kind === 'objective')).toHaveLength(6);
+  });
+
+  it('gives two beats of one kind in the same second their own keys', () => {
+    const twice = { ...timeline, objectives: [...timeline.objectives, { minute: 6, type: 'herald', side: 'them', ourInvolved: [], ourNear: [] }] } as MatchTimeline;
+    const keys = buildFilm(review, game, twice, previous).tape!.beats.map((b) => b.key);
+    expect(keys).toContain('b:objective:360');
+    expect(keys).toContain('b:objective:360:2');
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('has no turn beat on a flat game', () => {
+    const flat = buildFilm(review, game, { ...timeline, goldDiff: [0, 100, -100, 50] } as MatchTimeline, previous).tape!;
+    expect(flat.turn).toBeNull();
+    expect(flat.beats.some((b) => b.kind === 'turn')).toBe(false);
   });
 });
 
@@ -564,11 +661,167 @@ describe('the map', () => {
     if (map.order === 'chronological') {
       expect(minutes).toEqual([4, 7, 9, 12, 20, 24]);
     } else {
-      expect(minutes).toEqual([4, 9, 7, 12, 20, 24]);
+      expect(minutes).toEqual([9, 12, 4, 24, 20, 7]);
     }
     // The other order on another match id.
     const otherOrder = buildFilm({ ...review, matchId: 'EUW1_7000000002' } as GameReview, game, { ...timeline, matchId: 'EUW1_7000000002' } as MatchTimeline, previous).map!.order;
     expect(['chronological', 'worst-first']).toContain(otherOrder);
+  });
+
+  it('walks worst-first by the read and the cost: the avoidable deaths most costly first, then the trade, the clean ones, and last what bought something', () => {
+    const ids = Array.from({ length: 40 }, (_, i) => `EUW1_70000001${String(i).padStart(2, '0')}`);
+    const worst = ids.find((id) => styleFor(seedOf(id), false).deathOrder === 'worst-first')!;
+    const chrono = ids.find((id) => styleFor(seedOf(id), false).deathOrder === 'chronological')!;
+    expect(worst).toBeDefined();
+    const ordered = buildFilm({ ...review, matchId: worst } as GameReview, game, { ...timeline, matchId: worst } as MatchTimeline, previous).map!;
+    expect(ordered.order).toBe('worst-first');
+    expect(ordered.pins.map((p) => [p.minute, p.read, p.cost])).toEqual([
+      [9, 'avoidable', -1100],
+      [12, 'avoidable', -900],
+      [4, 'avoidable', -500],
+      [24, 'avoidable', -500],
+      [20, 'traded', -700],
+      [7, 'bought', -1200]
+    ]);
+    // A clean death sits between the trade and the buy; an avoidable one the curve does not reach comes after the priced ones.
+    const late = { ...timeline, facts: { ...timeline.facts!, ledger: [...timeline.facts!.ledger!, death(27, 'Top', [], 'Minute 27: Ornn in a fight.', 'mid', 'fight'), death(34, 'Mid', ['ward'], 'Minute 34: Ahri in the dark.', 'mid')] } } as MatchTimeline;
+    const withLate = buildFilm({ ...review, matchId: worst } as GameReview, game, { ...late, matchId: worst } as MatchTimeline, previous).map!;
+    expect(withLate.pins.map((p) => [p.minute, p.read])).toEqual([
+      [9, 'avoidable'],
+      [12, 'avoidable'],
+      [4, 'avoidable'],
+      [24, 'avoidable'],
+      [34, 'avoidable'],
+      [20, 'traded'],
+      [27, 'clean'],
+      [7, 'bought']
+    ]);
+    expect(withLate.pins[4].cost).toBeUndefined();
+    const plain = buildFilm({ ...review, matchId: chrono } as GameReview, game, { ...timeline, matchId: chrono } as MatchTimeline, previous).map!;
+    expect(plain.pins.map((p) => p.minute)).toEqual([4, 7, 9, 12, 20, 24]);
+  });
+
+  it('reads every pin: the verdict, its line, its glyphs and what it cost over the next two minutes', () => {
+    const by = (key: string) => map.pins.find((p) => p.key === key)!;
+    expect(by('d:4:ADC')).toMatchObject({ read: 'avoidable', glyphs: ['ward-off', 'horn'], cost: -500, readLine: 'Avoidable: two came in and no ward had gone down nearby, and their jungler had been on this side a minute earlier.' });
+    expect(by('d:7:ADC')).toMatchObject({ read: 'bought', glyphs: ['dragon'], cost: -1200, readLine: 'Bought the dragon: it fell to us within a minute.' });
+    expect(by('d:9:Support')).toMatchObject({ read: 'avoidable', glyphs: ['ward-off', 'jungler-far'], cost: -1100, readLine: 'Avoidable: three came in and no ward had gone down nearby, and our jungler was about a screen away.' });
+    expect(by('d:12:ADC')).toMatchObject({ read: 'avoidable', glyphs: ['horn'], cost: -900, readLine: 'Avoidable: their jungler had been on this side a minute earlier.' });
+    expect(by('d:20:Support')).toMatchObject({ read: 'traded', glyphs: ['swords'], cost: -700, readLine: 'Traded: one of theirs fell in the same fight.' });
+    expect(by('d:24:Jungle')).toMatchObject({ read: 'avoidable', glyphs: ['footsteps'], cost: -500, readLine: 'Avoidable: alone on their side of the map, though one of theirs fell too.' });
+    // The read line never repeats the name or the minute the card already shows.
+    for (const p of map.pins) {
+      expect(p.readLine).not.toContain(p.name!);
+      expect(p.readLine).not.toMatch(new RegExp(`\\b${p.minute}\\b`));
+      expect(p.readLine.length).toBeLessThanOrEqual(145);
+    }
+  });
+
+  it('draws the scene around each death: who came in, where the junglers were, what was up, whether a ward was down', () => {
+    const by = (key: string) => map.pins.find((p) => p.key === key)!.scene;
+    expect(by('d:4:ADC')).toEqual({
+      could: ['ward', 'call'],
+      killers: 2,
+      executed: false,
+      traded: 0,
+      warded: false,
+      ourJungler: { champion: 'Trundle', far: false },
+      theirJungler: { close: true }
+    });
+    expect(by('d:9:Support')).toMatchObject({ killers: 3, ourJungler: { champion: 'Trundle', far: true } });
+    expect(by('d:9:Support').theirJungler).toBeUndefined();
+    expect(by('d:20:Support')).toEqual({ could: [], killers: 4, executed: false, traded: 1, warded: true, ourJungler: { champion: 'Trundle', far: false }, objective: { type: 'dragon', ours: false } });
+    expect(by('d:7:ADC').objective).toEqual({ type: 'dragon', ours: true });
+    // The jungler's own death has no jungler to have come.
+    expect(by('d:24:Jungle').ourJungler).toBeUndefined();
+    expect(by('d:24:Jungle').traded).toBe(1);
+    // Their jungler is a champion in a seat off the analysed game, never a name; our jungler's zone rides along when the timeline has it.
+    const enemies = [{ position: 'JUNGLE', champion: 'LeeSin' }, { position: 'BOTTOM', champion: 'Caitlyn' }];
+    const placed = { ...timeline, deaths: timeline.deaths.map((d) => (d.sec === 252 ? { ...d, ourJungleZone: 'ourJungle', alliesNear: 1, theirJungleIn: true } : d)) } as MatchTimeline;
+    const scene = buildFilm(review, { ...game, enemies } as AnalysisGame, placed, previous).map!.pins.find((p) => p.key === 'd:4:ADC')!.scene;
+    expect(scene.ourJungler).toEqual({ champion: 'Trundle', zone: 'ourJungle', far: false });
+    expect(scene.theirJungler).toEqual({ champion: 'LeeSin', close: true });
+    expect(scene.alliesNear).toBe(1);
+    const quiet = buildFilm(review, { ...game, enemies } as AnalysisGame, timeline, previous).map!.pins.find((p) => p.key === 'd:9:Support')!.scene;
+    expect(quiet.theirJungler).toEqual({ champion: 'LeeSin', close: false });
+    expect(JSON.stringify(buildFilm(review, { ...game, enemies } as AnalysisGame, timeline, previous).map)).not.toMatch(RIOT_TAG);
+  });
+
+  it('counts the reads, opens with them, and names the three costliest avoidable deaths', () => {
+    expect(map.reads).toEqual({ avoidable: 4, traded: 1, bought: 1, clean: 0 });
+    expect(map.opening).toBe('6 deaths: 4 avoidable, 1 traded, 1 bought an objective.');
+    expect(map.costliest).toEqual(['d:9:Support', 'd:12:ADC', 'd:4:ADC']);
+    // Without a curve to price them, the avoidable deaths with the most tags stand in.
+    const unpriced = buildFilm(review, game, { ...timeline, goldDiff: [] } as MatchTimeline, previous).map!;
+    expect(unpriced.pins.every((p) => p.cost === undefined)).toBe(true);
+    expect(unpriced.costliest).toEqual(['d:4:ADC', 'd:9:Support', 'd:12:ADC']);
+    // No avoidable death, nothing costliest, and the opening still counts.
+    const clean = { ...timeline, facts: { ...timeline.facts!, ledger: [death(20, 'Support', [], 'Minute 20: Leona in a fight.', 'river', 'fight')] } } as MatchTimeline;
+    const cleanMap = buildFilm(review, game, clean, previous).map!;
+    expect(cleanMap.costliest).toEqual([]);
+    expect(cleanMap.opening).toBe('1 death: 1 traded.');
+    expect(cleanMap.reads).toEqual({ avoidable: 0, traded: 1, bought: 0, clean: 0 });
+  });
+
+  it('never names a death the gold rose after as one that cost most, and the tape stops on none when there is none', () => {
+    // The same game won the other way round: every avoidable death is followed by a gain.
+    const climb = GOLD_DIFF.map((g) => -g);
+    const won = buildFilm({ ...review, matchId: 'EUW1_7000000003' } as GameReview, { ...game, win: true } as AnalysisGame, { ...timeline, matchId: 'EUW1_7000000003', goldDiff: climb } as MatchTimeline, previous);
+    expect(won.map!.pins.filter((p) => p.read === 'avoidable').every((p) => (p.cost ?? 0) > 0)).toBe(true);
+    expect(won.map!.costliest).toEqual([]);
+    expect(won.tape!.beats.some((b) => b.kind === 'death')).toBe(false);
+    // One dip among the gains: only that death is named, never padded with a plus.
+    const dip = climb.slice();
+    dip[14] = dip[12] - 200;
+    const mixed = buildFilm(review, { ...game, win: true } as AnalysisGame, { ...timeline, goldDiff: dip } as MatchTimeline, previous).map!;
+    expect(mixed.pins.find((p) => p.key === 'd:12:ADC')!.cost).toBe(-200);
+    expect(mixed.costliest).toEqual(['d:12:ADC']);
+    // Deaths the curve does not reach still stand in, but only those; a priced gain never does.
+    const short = buildFilm(review, game, { ...timeline, goldDiff: climb.slice(0, 11) } as MatchTimeline, previous).map!;
+    expect(short.pins.find((p) => p.key === 'd:4:ADC')!.cost).toBeGreaterThan(0);
+    expect(short.costliest).toEqual(['d:9:Support', 'd:12:ADC', 'd:24:Jungle']);
+  });
+
+  it('keys a second death of one seat inside a minute on its own, and matches each ledger row to its own death', () => {
+    // Jinx dies at 4:12 and again at 4:50 (a respawn under ten seconds, early): two rows, one minute, one seat.
+    const twice = {
+      ...timeline,
+      deaths: [fell(252, 'ADC', 'bot'), fell(290, 'ADC', 'bot', { theirSide: true, killers: 1 }), ...timeline.deaths.slice(1)],
+      facts: { ...timeline.facts!, ledger: [timeline.facts!.ledger![0], death(4, 'ADC', ['position'], 'Minute 4: Jinx alone on their side.'), ...timeline.facts!.ledger!.slice(1)] }
+    } as MatchTimeline;
+    const film = buildFilm(review, game, twice, previous);
+    const pins = film.map!.pins.filter((p) => p.minute === 4);
+    expect(pins.map((p) => [p.key, p.sec, p.could])).toEqual([
+      ['d:4:ADC', 252, ['ward', 'call']],
+      ['d:4:ADC:290', 290, ['position']]
+    ]);
+    expect(pins[0].x === pins[1].x && pins[0].y === pins[1].y).toBe(false);
+    // The tape's tokens carry the same keys, so a tap on the second finds the second.
+    const events = film.tape!.events.filter((e) => e.kind === 'ourDeath' && e.sec < 300);
+    expect(events.map((e) => [e.key, e.sec])).toEqual([
+      ['d:4:ADC', 252],
+      ['d:4:ADC:290', 290]
+    ]);
+    // Every list that tracks by key is free of doubles: the map, each seat, the costliest strip and the beats.
+    const keys = film.map!.pins.map((p) => p.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    const adc = film.seats.find((s) => s.seat === 'ADC')!.pins!.map((p) => p.key);
+    expect(new Set(adc).size).toBe(adc.length);
+    expect(adc).toContain('d:4:ADC:290');
+    expect(new Set(film.map!.costliest).size).toBe(film.map!.costliest.length);
+    const beatKeys = film.tape!.beats.map((b) => b.key);
+    expect(new Set(beatKeys).size).toBe(beatKeys.length);
+  });
+
+  it('hands each seat its own pins in time order, and none without a map', () => {
+    const seats = new Map(film.seats.map((s) => [s.seat, s]));
+    expect(seats.get('ADC')!.pins!.map((p) => p.key)).toEqual(['d:4:ADC', 'd:7:ADC', 'd:12:ADC']);
+    expect(seats.get('Support')!.pins!.map((p) => p.key)).toEqual(['d:9:Support', 'd:20:Support']);
+    expect(seats.get('Jungle')!.pins!.map((p) => p.key)).toEqual(['d:24:Jungle']);
+    for (const s of film.seats) for (const p of s.pins!) expect(map.pins).toContain(p);
+    const { ledger: _ledger, ledgerSummary: _summary, ...noLedger } = timeline.facts!;
+    const bare = buildFilm(review, game, { ...timeline, facts: noLedger } as MatchTimeline, previous);
+    expect(bare.seats.every((s) => s.pins === undefined)).toBe(true);
   });
 
   it('places a ledger row the timeline has no death for on its own', () => {
@@ -580,14 +833,14 @@ describe('the map', () => {
     expect(pin).toMatchObject(placeOurDeath('EUW1_7000000001', 'blue', { sec: 1800, seat: 'Top', zone: 'top' }, 0));
   });
 
-  it('draws their deaths, the clusters, the summary and the dark call', () => {
+  it('draws their deaths, the clusters and the summary, and asks nothing', () => {
     expect(map.theirs.map((t) => t.minute)).toEqual([6, 20, 25]);
     expect(map.theirs[0]).toMatchObject({ x: tape.events.find((e) => e.kind === 'theirDeath')!.x });
     expect(map.clusters).toHaveLength(1);
     expect(map.clusters[0]).toMatchObject({ ours: 3, theirs: 1, r: 6.2, line: 'Minutes 19 to 21: three of ours fell in the river for one of theirs.' });
     expect(regionFor('river', 'blue').inside(map.clusters[0].x, map.clusters[0].y)).toBe(true);
     expect(map.summary).toEqual({ deaths: 6, ganks: 3, dark: 3, inReach: 1, alone: 1 });
-    expect(map.darkCall).toEqual({ answer: 3, max: 6 });
+    expect((map as unknown as { darkCall?: unknown }).darkCall).toBeUndefined();
   });
 
   it('caps a cluster blob at seven', () => {
@@ -611,6 +864,93 @@ describe('buildFilm on the replay tier', () => {
     expect(film.seats.every((s) => s.deaths.length === 0)).toBe(true);
     expect(film.title.win).toBe(false);
     expect(film.title.protagonist.seat).toBe('ADC');
+  });
+
+  it('builds no map, no tape and so no beats, and no pins on the seats', () => {
+    expect(film.map).toBeUndefined();
+    expect(film.tape).toBeUndefined();
+    expect(film.seats.every((s) => s.pins === undefined)).toBe(true);
+    // A replay tier with a timeline lying around still shows the board.
+    const stray = buildFilm(replay, game, timeline, null);
+    expect(stray.tape).toBeUndefined();
+    expect(stray.map).toBeUndefined();
+    expect(stray.chapters.map((c) => c.kind)).toEqual(['title', 'board', 'one-thing', 'seat', 'card']);
+  });
+});
+
+describe('the draft, again', () => {
+  const enemies = [
+    { position: 'UTILITY', champion: 'Lulu' },
+    { position: 'TOP', champion: 'Aatrox' },
+    { position: 'JUNGLE', champion: 'LeeSin' },
+    { position: 'BOTTOM', champion: 'Caitlyn' },
+    { position: 'MIDDLE', champion: 'Syndra' }
+  ];
+  const draft = {
+    verdict: 'The comp wanted a slow game and the fights came early.',
+    swaps: [
+      { seat: 'Support', out: 'Leona', in: 'Nautilus', why: 'Peel for Jinx instead of an engage she could not follow.', gains: ['peel', 'pick'] },
+      { seat: 'Jungle', out: 'Trundle', in: 'Sejuani', why: 'A frontline that starts the fight.', gains: ['frontline', 'engage', 'disengage', 'damage'] }
+    ]
+  };
+  const v5 = { ...review, reviewVersion: 5, team: { ...review.team, draft } } as unknown as GameReview;
+  const film = buildFilm(v5, { ...game, enemies } as AnalysisGame, timeline, previous, 'MOSS 2');
+
+  it('adds the draft chapter right after the one thing, on the timeline tier and on a replay', () => {
+    expect(film.chapters.map((c) => c.kind)).toEqual(['title', 'tape', 'map', 'one-thing', 'draft', 'seat', 'card']);
+    expect(film.chapters[4].title).toBe('The draft, again');
+    expect(film.chapters).toHaveLength(FILM_CHAPTER_COUNT);
+    const replay = buildFilm({ ...v5, tier: 'endOfGame' } as GameReview, game, null, null);
+    expect(replay.chapters.map((c) => c.kind)).toEqual(['title', 'board', 'one-thing', 'draft', 'seat', 'card']);
+    expect(replay.draft).toBeDefined();
+  });
+
+  it('lists our five with their names and theirs as champions in seats only, both in lane order', () => {
+    expect(film.draft!.ours).toEqual([
+      { seat: 'Jungle', champion: 'Trundle', name: 'Go10x' },
+      { seat: 'ADC', champion: 'Jinx', name: 'Rhu' },
+      { seat: 'Support', champion: 'Leona', name: 'Nia' }
+    ]);
+    expect(film.draft!.theirs).toEqual([
+      { seat: 'Top', champion: 'Aatrox' },
+      { seat: 'Jungle', champion: 'LeeSin' },
+      { seat: 'Mid', champion: 'Syndra' },
+      { seat: 'ADC', champion: 'Caitlyn' },
+      { seat: 'Support', champion: 'Lulu' }
+    ]);
+    expect(film.draft!.theirs.every((t) => t.name === undefined)).toBe(true);
+    expect(JSON.stringify(film.draft)).not.toMatch(RIOT_TAG);
+    // Without the analysed game's enemies their side stays empty rather than guessed.
+    expect(buildFilm(v5, game, timeline, previous).draft!.theirs).toEqual([]);
+    expect(buildFilm(v5, undefined, timeline, previous).draft!.theirs).toEqual([]);
+  });
+
+  it('carries the verdict, the swaps with their glyphs capped at three, the comp, and a variant name off the first swap', () => {
+    expect(film.draft!.verdict).toBe('The comp wanted a slow game and the fights came early.');
+    expect(film.draft!.swaps).toEqual([
+      { seat: 'Support', out: 'Leona', in: 'Nautilus', why: 'Peel for Jinx instead of an engage she could not follow.', gains: ['peel', 'pick'], glyphs: ['shield', 'hook'] },
+      { seat: 'Jungle', out: 'Trundle', in: 'Sejuani', why: 'A frontline that starts the fight.', gains: ['frontline', 'engage', 'disengage'], glyphs: ['wall', 'fist', 'wind'] }
+    ]);
+    expect(film.draft!.compId).toBeNull();
+    expect(film.draft!.compName).toBe('Front to back');
+    expect(film.draft!.variantName).toBe('Front to back · Nautilus');
+    // Off the books, the protagonist's champion names the comp.
+    const loose = buildFilm({ ...v5, compName: null } as GameReview, game, timeline, previous).draft!;
+    expect(loose.variantName).toBe('Jinx comp · Nautilus');
+    // A swap with no gains wears the swap glyph; no swaps, no variant.
+    const bare = buildFilm({ ...v5, team: { ...v5.team, draft: { verdict: 'It held.', swaps: [{ seat: 'Top', out: 'Ornn', in: 'Malphite', why: 'The all-in.', gains: [] }] } } } as unknown as GameReview, game, timeline, previous).draft!;
+    expect(bare.swaps[0].glyphs).toEqual(['swap']);
+    expect(bare.variantName).toBe('Front to back · Malphite');
+    const held = buildFilm({ ...v5, team: { ...v5.team, draft: { verdict: 'It held.', swaps: [] } } } as unknown as GameReview, game, timeline, previous).draft!;
+    expect(held.swaps).toEqual([]);
+    expect(held.variantName).toBeNull();
+  });
+
+  it('builds no draft, and no chapter, for a review without a verdict', () => {
+    expect(buildFilm(review, game, timeline, previous).draft).toBeUndefined();
+    const blank = buildFilm({ ...v5, team: { ...v5.team, draft: { verdict: '  ', swaps: draft.swaps } } } as unknown as GameReview, game, timeline, previous);
+    expect(blank.draft).toBeUndefined();
+    expect(blank.chapters.map((c) => c.kind)).toEqual(['title', 'tape', 'map', 'one-thing', 'seat', 'card']);
   });
 
   it('keeps the recurrence off when the previous theme has no ledger tag, or this game has no ledger', () => {

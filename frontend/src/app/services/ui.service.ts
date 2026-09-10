@@ -30,6 +30,9 @@ const CHAMP_DDRAGON_MAP: Record<string, string> = {
   Wukong: 'MonkeyKing'
 };
 
+/** The other way round: Riot's id to the display name, for before the live index has loaded. */
+const DDRAGON_TO_DISPLAY: Record<string, string> = Object.fromEntries(Object.entries(CHAMP_DDRAGON_MAP).map(([name, id]) => [id, name]));
+
 const ROLE_BADGE: Record<string, string> = {
   Top: 'TOP',
   Jungle: 'JG',
@@ -103,6 +106,18 @@ export class UiService {
       CHAMP_DDRAGON_MAP[championName] ??
       championName.replace(/[^A-Za-z0-9]/g, '')
     );
+  }
+
+  /**
+   * The display name for a champion however it was spelt (10 Sep 2026):
+   * Riot's id off the match data ("MonkeyKing", "TahmKench") and Data
+   * Dragon's name off the champion list ("Wukong", "Tahm Kench") both come
+   * back as the name, so one sentence never reads "Wukong for MonkeyKing".
+   * The live index answers first; before it loads the static map does; a
+   * name neither knows stays as written.
+   */
+  championName(championName: string): string {
+    return this.champions.resolve(championName)?.name ?? DDRAGON_TO_DISPLAY[championName] ?? championName;
   }
 
   championIconUrl(championName: string): string {

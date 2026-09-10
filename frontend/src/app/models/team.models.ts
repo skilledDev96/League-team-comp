@@ -719,6 +719,28 @@ export interface ReviewLesson {
   theme?: ReviewTheme;
 }
 
+/** What a swap in the draft buys, from review version 5; mirrors `DRAFT_GAINS` in `api/src/game-review.ts`. */
+export type DraftGain = 'engage' | 'peel' | 'frontline' | 'poke' | 'sustain' | 'splitpush' | 'waveclear' | 'pick' | 'disengage' | 'damage';
+export const DRAFT_GAINS: readonly DraftGain[] = ['engage', 'peel', 'frontline', 'poke', 'sustain', 'splitpush', 'waveclear', 'pick', 'disengage', 'damage'];
+
+/** One change to our draft the coach would make with hindsight: the champion we played in a seat, the one to try instead, and why. */
+export interface ReviewSwap {
+  seat: Role;
+  /** The champion we played in that seat, in our own spelling. */
+  out: string;
+  /** The champion to try instead, in Data Dragon's spelling. */
+  in: string;
+  why: string;
+  /** What the swap buys, at most three. */
+  gains: DraftGain[];
+}
+
+/** The draft with hindsight, from review version 5: one sentence on how the comp fit the game, and up to two swaps; none when the draft held. */
+export interface ReviewDraft {
+  verdict: string;
+  swaps: ReviewSwap[];
+}
+
 export interface GameReview {
   matchId: string;
   reviewedAt: string;
@@ -743,6 +765,8 @@ export interface GameReview {
     oneThing?: string;
     /** Up to three, from review version 4. */
     lessons?: ReviewLesson[];
+    /** The draft with hindsight, from review version 5. */
+    draft?: ReviewDraft;
   };
   players: {
     name: string;

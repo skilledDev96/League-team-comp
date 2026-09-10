@@ -48,7 +48,7 @@ describe('the scrubber seek math', () => {
 describe('FilmScrubberComponent', () => {
   function mount(inputs: Partial<Record<string, unknown>> = {}) {
     const fixture = TestBed.createComponent(FilmScrubberComponent);
-    const all = { durationSec: 1800, goldDiff: [0, 200, -400, -1500, -900, 300], t: 600, moments, revealed: true, guess: 14, answer: 12, calls: [], playing: false, ...inputs };
+    const all = { durationSec: 1800, goldDiff: [0, 200, -400, -1500, -900, 300], t: 600, moments, revealed: true, guess: 14, answer: 12, playing: false, ...inputs };
     for (const [k, v] of Object.entries(all)) fixture.componentRef.setInput(k, v);
     fixture.detectChanges();
     return fixture;

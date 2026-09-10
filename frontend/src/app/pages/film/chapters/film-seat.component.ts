@@ -1,5 +1,6 @@
 import { afterRenderEffect, Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked, viewChildren } from '@angular/core';
-import { FilmModel, FilmSeat } from '../../../core/film-model';
+import { READ_LABELS } from '../../../core/death-reads';
+import { FilmDeathPin, FilmGlyph, FilmModel, FilmSeat } from '../../../core/film-model';
 import { evidenceChips } from '../../../core/review-view';
 import { pick } from '../../../core/seed';
 import { DeathVerdict, LedgerSummary, Role } from '../../../models/team.models';
@@ -8,6 +9,7 @@ import { UiService } from '../../../services/ui.service';
 import { UserPrefsService } from '../../../services/user-prefs.service';
 import { ChampionMotionComponent } from '../../../shared/film/champion-motion.component';
 import { countAll } from '../../../shared/film/film-count';
+import { FilmGlyphComponent } from '../../../shared/film/film-glyph.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { FilmFrameComponent, themeIcon } from '../film-frame.component';
 
@@ -19,6 +21,9 @@ const RING = 2 * Math.PI * 18;
 
 /** How long the new seat's layer takes to fade in over the old one (and the old to fade under it), before the tempo. */
 const CROSSFADE_MS = 400;
+
+/** The reads list under the card names at most this many deaths; a seat with more has the map for the rest. */
+const MAX_READ_LINES = 6;
 
 /**
  * A seat's stat line split so the figures can count: "8/3/2 · 312 CS" is
@@ -40,13 +45,17 @@ interface StatToken {
  * clip plays. The front of the card is
  * the seat's splash strip, stat line (its figures counting up as the card
  * shows) and strength; the back is the work-on with the further points
- * stacked under it. This seat's deaths sit under the card as minute pills
- * coloured by what would have stopped them, and the jungler's presence on
- * our kills is a ring. With motion off the card swaps instead of turning.
+ * stacked under it. This seat's deaths sit under the card as minute pills:
+ * when the film has read them (cut 4, 10 Sep 2026, `FilmSeat.pins`) each
+ * pill wears its read's colour and glyph with the read's line as its tip,
+ * and a short list under them says each read in a sentence, at most six;
+ * without the reads they are coloured by what would have stopped them, as
+ * before. The jungler's presence on our kills is a ring. With motion off the
+ * card swaps instead of turning.
  */
 @Component({
   selector: 'app-film-seat',
-  imports: [TooltipDirective, FilmFrameComponent, ChampionMotionComponent],
+  imports: [TooltipDirective, FilmFrameComponent, ChampionMotionComponent, FilmGlyphComponent],
   template: `
     <div class="film-chapter-art" aria-hidden="true">
       @for (l of layers(); track l.id; let last = $last) {
@@ -78,7 +87,7 @@ interface StatToken {
               <span class="film-seat-strip">
                 <img class="film-splash" [src]="ui.championArtUrl(s.champion)" (error)="ui.artFallback($event, s.champion)" alt="" />
               </span>
-              <span class="film-seat-who"><b>{{ s.name }}</b><small>{{ s.seat }} · {{ s.champion }}</small></span>
+              <span class="film-seat-who"><b>{{ s.name }}</b><small>{{ s.seat }} · {{ ui.championName(s.champion) }}</small></span>
               @if (s.statLine) {
                 <span class="film-seat-stats">
                   <!-- Keyed by seat so a change of seat remounts the spans; a figure's text belongs to the counter alone, off data-count. -->
@@ -127,10 +136,34 @@ interface StatToken {
           @if (ledger()) {
             <div class="film-deaths" aria-label="This seat's deaths">
               <span class="film-deaths-label">{{ s.deaths.length ? 'Deaths' : 'No deaths' }}</span>
-              @for (d of s.deaths; track d.seat + ':' + $index) {
-                <span [class]="'film-death is-' + tagOf(d)" [style.--i]="$index" [appTip]="d.line">{{ d.minute }}<small>min</small></span>
+              @if (s.pins; as pins) {
+                @for (p of pins; track p.key) {
+                  <span [class]="'film-death is-read-' + p.read" [style.--i]="$index" [appTip]="p.readLine"><app-film-glyph [name]="glyphOf(p)" />{{ p.minute }}<small>min</small></span>
+                }
+              } @else {
+                @for (d of s.deaths; track d.seat + ':' + $index) {
+                  <span [class]="'film-death is-' + tagOf(d)" [style.--i]="$index" [appTip]="d.line">{{ d.minute }}<small>min</small></span>
+                }
               }
             </div>
+            @if (readLines(s).length) {
+              <div class="film-seat-reads">
+                <!-- Anyone can read any seat: "Your" only when this one is the reader's. -->
+                <span class="film-deaths-label">{{ s.seat === mySeat() ? 'Your deaths, read' : 'Deaths, read' }}</span>
+                <ul class="list-clean film-seat-reads-list">
+                  @for (p of readLines(s); track p.key) {
+                    <li class="film-seat-read" [style.--i]="$index">
+                      <span class="film-tape-min">{{ p.minute }} min</span>
+                      <span [class]="'film-read-badge is-read-' + p.read" [appTip]="readLabels[p.read].tip"><app-film-glyph [name]="readLabels[p.read].icon" />{{ readLabels[p.read].label }}</span>
+                      <span class="film-seat-read-line">{{ p.readLine }}</span>
+                    </li>
+                  }
+                </ul>
+                @if (moreOnMap(s); as n) {
+                  <span class="film-deaths-label film-seat-reads-more">and {{ n }} more on the map</span>
+                }
+              </div>
+            }
           } @else if (timed()) {
             <div class="film-deaths"><span class="film-deaths-label">No timeline read for this game yet</span></div>
           }
@@ -175,6 +208,7 @@ export class FilmSeatComponent {
   private readonly nums = viewChildren<ElementRef<HTMLElement>>('num');
 
   protected readonly ring = RING;
+  protected readonly readLabels = READ_LABELS;
   private readonly chosen = signal<Role | undefined>(undefined);
   protected readonly flipped = signal(false);
   private readonly gotNow = signal<ReadonlySet<Role>>(new Set());
@@ -262,6 +296,21 @@ export class FilmSeatComponent {
   /** The first tag on a death colours its pill; a death nothing would have stopped is plain. */
   protected tagOf(d: DeathVerdict): string {
     return d.could[0] ?? 'none';
+  }
+
+  /** The glyph on a read pill: the pin's most telling one, else the read's own mark. */
+  protected glyphOf(p: FilmDeathPin): FilmGlyph {
+    return p.glyphs[0] ?? READ_LABELS[p.read].icon;
+  }
+
+  /** The reads said in sentences under the pills, in time order, at most six; nothing without the film's reads. */
+  protected readLines(s: FilmSeat): FilmDeathPin[] {
+    return (s.pins ?? []).slice(0, MAX_READ_LINES);
+  }
+
+  /** How many of this seat's deaths the list leaves to the map, so a player who died nine times knows where the other three are. */
+  protected moreOnMap(s: FilmSeat): number {
+    return Math.max(0, (s.pins ?? []).length - MAX_READ_LINES);
   }
 
   protected ringOffset(pr: { kills: number; ofKills: number }): number {

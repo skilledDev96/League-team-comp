@@ -1,12 +1,13 @@
 import { DatePipe, Location } from '@angular/common';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
-import { AnalysisGame, FilmChoice, GameReview, ReviewPoint, ReviewTheme } from '../models/team.models';
-import { askOf, reviewAsText, scoreline } from '../core/review-view';
+import { AnalysisGame, FilmChoice, GameReview, ReviewPoint, ReviewSwap, ReviewTheme } from '../models/team.models';
+import { askOf, GAIN_LABELS, reviewAsText, scoreline } from '../core/review-view';
 import { initialsOf } from '../core/initials';
 import { MatchTimelineService } from '../services/match-timeline.service';
 import { TeamDataService } from '../services/team-data.service';
 import { ToastService } from '../services/toast.service';
+import { UiService } from '../services/ui.service';
 import { FilmPosterComponent } from './film/film-poster.component';
 import { InfoTipComponent } from './info-tip.component';
 import { PlayerMarkComponent } from './player-mark.component';
@@ -118,6 +119,16 @@ import { TooltipDirective } from './tooltip.directive';
           </p>
         }
 
+        @for (s of draftSwaps(); track s.seat + ':' + s.in) {
+          <!-- The draft with hindsight, one line a swap (10 Sep 2026): the why is cut to the line here; the film's draft chapter has the whole of it. -->
+          <p class="game-review-draft" [appTip]="s.why">
+            <img class="player-mark is-out" [src]="ui.championIconUrl(s.out)" alt="" loading="lazy" />
+            <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
+            <img class="player-mark is-in" [src]="ui.championIconUrl(s.in)" alt="" loading="lazy" />
+            <span><b>{{ s.in }}</b> for {{ ui.championName(s.out) }}{{ gainsOf(s) }}&#8195;<span class="game-review-draft-why">{{ s.why }}</span></span>
+          </p>
+        }
+
         <p class="muted game-review-foot">
           Written {{ r.reviewedAt | date: 'd MMM, HH:mm' }} by {{ models() }} for about {{ cost() }}{{ r.trigger === 'auto' ? ', by the morning run' : '' }}.
           <app-info-tip text="Every point should match a fact in How the game went; if one does not, the review is wrong, not the game. The reasoning and the figures are in the film room." label="How to read the review" />
@@ -140,6 +151,7 @@ export class GameReviewComponent {
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
+  protected readonly ui = inject(UiService);
 
   /** The timeline the drawer reads too; only its ledger summary is used here, for the chat copy. */
   private readonly timeline = computed(() => {
@@ -217,6 +229,13 @@ export class GameReviewComponent {
   protected readonly oneThing = computed(() => this.review()?.team.oneThing?.trim() ?? '');
   protected readonly keep = computed<ReviewPoint | undefined>(() => this.review()?.team.keepDoing[0]);
   protected readonly asks = computed(() => (this.review()?.players ?? []).filter((p) => p.workOn.text));
+  /** The draft with hindsight (review version 5): the swaps to try, none when the draft held, so the panel stays short. */
+  protected readonly draftSwaps = computed<ReviewSwap[]>(() => this.review()?.team.draft?.swaps ?? []);
+
+  /** ", for the peel and engage": what the swap buys, as the tail of the line in sentence case; nothing when the review named no gain. */
+  protected gainsOf(s: ReviewSwap): string {
+    return s.gains.length ? `, for the ${s.gains.map((g) => GAIN_LABELS[g].toLowerCase()).join(' and ')}` : '';
+  }
 
   /** What the team committed to in the film room, and who picked it. */
   private readonly commitment = computed(() => this.data.commitmentFor(this.review()?.matchId));
@@ -250,7 +269,10 @@ export class GameReviewComponent {
         reviewAsText(r, this.game(), this.opponent(), this.gameLink(r.matchId), this.timeline()?.facts?.ledgerSummary, {
           filmLink: this.filmLink(r.matchId),
           commitment: this.commitLine(),
-          notes
+          notes,
+          // The swaps to try, so the chat copy says what to draft next time (10 Sep 2026); "out" is Riot's id, said the display way.
+          draft: r.team.draft,
+          championName: (name) => this.ui.championName(name)
         })
       );
       this.toast.show('Review copied', { kind: 'ok', icon: 'content_copy', text: 'Paste it in the team chat; the headline, the points, every player’s ask and the film room’s link are in it.' });
