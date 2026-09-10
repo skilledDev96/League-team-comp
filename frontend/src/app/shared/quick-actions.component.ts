@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import { TeamDataService } from '../services/team-data.service';
+import { BeforeYouPlayComponent } from './before-you-play.component';
 import { TooltipDirective } from './tooltip.directive';
 
 /**
@@ -13,10 +14,11 @@ import { TooltipDirective } from './tooltip.directive';
  */
 @Component({
   selector: 'app-quick-actions',
-  imports: [RouterLink, TooltipDirective],
+  imports: [RouterLink, TooltipDirective, BeforeYouPlayComponent],
   template: `
     <section class="card quick-actions" aria-label="Quick actions" data-tour="quick-actions">
       <span class="quick-actions-label"><span class="material-symbols-rounded" aria-hidden="true">bolt</span>Quick actions</span>
+      <app-before-you-play [compact]="true" />
       <div class="quick-actions-row">
         @if (auth.canEdit()) {
           <a class="view-btn active quick-action" [routerLink]="['/games']" [queryParams]="{ refresh: 1 }"

@@ -1,6 +1,7 @@
 import { afterRenderEffect, Component, computed, effect, ElementRef, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { FilmDeathPin, FilmModel } from '../../../core/film-model';
+import { voiceOf } from '../../../core/film-style';
 import { initialsOf } from '../../../core/initials';
 import { COULD_LABELS, HOW_LABELS, ZONE_LABELS } from '../../../core/review-view';
 import { DeathCould, DeathHow, FilmNote, MapZone } from '../../../models/team.models';
@@ -78,7 +79,7 @@ const DARK_KEY = 'map:dark';
                   <input type="range" min="0" [max]="map.darkCall.max" step="1" [value]="darkGuess()" (input)="darkGuess.set(+$any($event.target).value)" />
                   <b class="film-map-range-n">{{ darkGuess() }}</b>
                 </label>
-                <button type="button" class="view-btn active" (click)="lockDark()"><span class="material-symbols-rounded" aria-hidden="true">lock</span> Lock</button>
+                <button type="button" class="view-btn active" (click)="lockDark()"><span class="material-symbols-rounded" aria-hidden="true">lock</span> {{ voice().lockPill }}</button>
               </div>
             } @else {
               @if (darkVerdict(); as v) {
@@ -165,7 +166,7 @@ const DARK_KEY = 'map:dark';
                       </div>
                       @if (!isRead(p.key)) {
                         <p class="film-death-hint">Pick any that apply, or none, then reveal.</p>
-                        <button type="button" class="view-btn active" (click)="reveal(p)"><span class="material-symbols-rounded" aria-hidden="true">visibility</span> Reveal</button>
+                        <button type="button" class="view-btn active" (click)="reveal(p)"><span class="material-symbols-rounded" aria-hidden="true">visibility</span> {{ voice().revealPill }}</button>
                       } @else {
                         <p class="film-call-why film-death-line" [class.is-ok]="calledRight(p)">
                           @if (pickedMask(p.key) !== null) { <b>{{ calledRight(p) ? 'Called it. ' : '' }}</b> }
@@ -194,8 +195,8 @@ const DARK_KEY = 'map:dark';
 
                     <div class="film-death-actions">
                       <button type="button" class="view-btn" [disabled]="cursor() === 0" (click)="step(-1)"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span> Previous</button>
-                      <button type="button" class="view-btn" [class.active]="isRead(p.key)" [disabled]="cursor() >= map.pins.length - 1" (click)="step(1)">Next death <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button>
-                      <button type="button" class="view-btn" [appTip]="'Open the tape twenty seconds before this death'" (click)="watch.emit(p.sec)"><span class="material-symbols-rounded" aria-hidden="true">play_circle</span> Watch it</button>
+                      <button type="button" class="view-btn" [class.active]="isRead(p.key)" [disabled]="cursor() >= map.pins.length - 1" (click)="step(1)">{{ voice().nextDeath }} <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button>
+                      <button type="button" class="view-btn" [appTip]="'Open the tape twenty seconds before this death'" (click)="watch.emit(p.sec)"><span class="material-symbols-rounded" aria-hidden="true">play_circle</span> {{ voice().watchIt }}</button>
                     </div>
                   </article>
                 }
@@ -234,6 +235,8 @@ export class FilmMapComponent {
 
   protected readonly couldOrder = COULD_ORDER;
   protected readonly couldLabels = COULD_LABELS;
+  /** The chrome's strings for this film: Lock, Reveal, Next death, Watch it. Never the ledger's words. */
+  protected readonly voice = computed(() => voiceOf(this.model().style));
 
   protected readonly darkGuess = signal(0);
   private readonly darkLocked = signal<number | null>(null);

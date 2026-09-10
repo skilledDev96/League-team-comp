@@ -1,4 +1,5 @@
 import { DeathCould, DeathHow, DeathVerdict, GameReview, LedgerSummary, MapZone, ReviewPoint, ReviewTheme, Role } from '../models/team.models';
+import { FilmStyle } from './film-style';
 import { ScoreChip } from './review-view';
 
 /**
@@ -120,6 +121,8 @@ export interface FilmMoment {
   swing: 'us' | 'them' | 'even';
   /** What the gold did over the next three minutes: "Over the next three minutes: -1.4k". */
   consequence?: string;
+  /** The seats of ours the moment is about: the map lights their tokens while the hand pauses here. */
+  seats?: Role[];
 }
 
 /** A call the tape pauses for, a game-minute before the thing happens. */
@@ -182,6 +185,8 @@ export interface FilmModel {
   matchId: string;
   tier: GameReview['tier'];
   seed: number;
+  /** How this film looks and moves, drawn from the seed and the result (`core/film-style.ts`). */
+  style: FilmStyle;
   chapters: FilmChapter[];
   title: FilmTitle;
   oneThing: FilmOneThing;
@@ -193,4 +198,6 @@ export interface FilmModel {
   board?: FilmBoard;
   /** Timeline tier with a ledger only. */
   map?: FilmMap;
+  /** The review's lessons (version 4) as calls, keyed "lesson:<index>", options in a seeded order; absent when the review has none. */
+  lessons?: FilmCall[];
 }

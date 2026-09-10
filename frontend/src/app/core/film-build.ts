@@ -9,6 +9,7 @@ import {
   MapZone,
   MatchTimeline,
   REVIEW_THEMES,
+  ReviewLesson,
   ReviewMoment,
   ReviewPoint,
   Role,
@@ -21,7 +22,8 @@ import { mentionedSeat } from './champion-mention';
 import { FilmBoard, FilmCall, FilmCard, FilmChapter, FilmDeathPin, FilmMap, FilmModel, FilmMoment, FilmOneThing, FilmSeat, FilmTape, FilmTapeCall, FilmTapeEvent, FilmTitle } from './film-model';
 import { askOf, playerStatLine, scoreline } from './review-view';
 import { clusterSpot, laneSpot, objectivePit, placeDeath, PlaceDeathArgs, Point, regionFor, RiftSide } from './rift-zones';
-import { pick, seedOf, shuffle } from './seed';
+import { FilmDeathOrder, styleFor } from './film-style';
+import { seedOf, shuffle } from './seed';
 
 /**
  * The film room's model, built once from the review, the analysed game and
@@ -200,6 +202,14 @@ function buildTitle(review: GameReview, game: AnalysisGame | undefined, facts: G
   return title;
 }
 
+/** The two choices of a work-on: the model's own (review version 4) when it wrote exactly two, else read off the sentence. */
+export function optionsOf(point: ReviewPoint | undefined): [string, string] | undefined {
+  if (!point) return undefined;
+  const own = point.options;
+  if (own && own.length === 2 && own[0]?.trim() && own[1]?.trim()) return [own[0].trim(), own[1].trim()];
+  return splitOptions(point.text);
+}
+
 function buildOneThing(review: GameReview): FilmOneThing {
   const { workOn, keepDoing } = review.team;
   const point = workOn[0] ?? BLANK_POINT;
@@ -207,8 +217,32 @@ function buildOneThing(review: GameReview): FilmOneThing {
     point,
     rest: [...workOn.slice(1).map((p) => ({ kind: 'workOn' as const, point: p })), ...keepDoing.map((p) => ({ kind: 'keepDoing' as const, point: p }))]
   };
-  const options = splitOptions(point.text);
+  const options = optionsOf(point);
   if (options) out.options = options;
+  return out;
+}
+
+/**
+ * The review's lessons (version 4) as calls: the options in a seeded order,
+ * salted by the lesson's index so adding one never reorders another, the
+ * answer following its option. A lesson the validator should have dropped
+ * (fewer than two options, an answer off the list) is skipped here too, so
+ * an old or hand-edited document never shows a call with no right answer.
+ */
+export function lessonCalls(lessons: ReviewLesson[] | undefined, seed: number): FilmCall[] {
+  const out: FilmCall[] = [];
+  (lessons ?? []).forEach((l, i) => {
+    if (!l || !Array.isArray(l.options) || l.options.length < 2 || !l.question?.trim()) return;
+    if (!Number.isInteger(l.answer) || l.answer < 0 || l.answer >= l.options.length) return;
+    const order = shuffle(
+      seed,
+      l.options.map((_, j) => j),
+      'lesson:' + i
+    );
+    const call: FilmCall = { key: 'lesson:' + i, question: l.question.trim(), options: order.map((j) => l.options[j]), answer: order.indexOf(l.answer), why: l.why ?? '' };
+    if (l.theme) call.theme = l.theme;
+    out.push(call);
+  });
   return out;
 }
 
@@ -237,10 +271,12 @@ function buildSeats(review: GameReview, game: AnalysisGame | undefined, facts: G
 
 function buildCard(review: GameReview, game: AnalysisGame | undefined, headline: string): FilmCard {
   const first = review.team.workOn[0];
+  // The model's own one thing (version 4) when it wrote one; else the first work-on as an ask.
+  const oneThing = review.team.oneThing?.trim();
   const card: FilmCard = {
     headline,
     scoreline: scoreline(game),
-    oneThing: first?.text ? askOf(first.text) : '',
+    oneThing: oneThing || (first?.text ? askOf(first.text) : ''),
     asks: review.players
       .slice()
       .sort((a, b) => seatIndex(a.seat) - seatIndex(b.seat))
@@ -339,8 +375,15 @@ function objectiveLabel(o: Pick<TimelineObjective, 'type' | 'subType' | 'side'>)
   return `${o.side === 'us' ? 'Our' : 'Their'} ${word}`;
 }
 
-function withConsequence(m: ReviewMoment, goldDiff: number[]): FilmMoment {
+/** A moment as the film shows it: the seats it is about ride along (review version 4). */
+function momentOf(m: ReviewMoment): FilmMoment {
   const out: FilmMoment = { minute: m.minute, text: m.text, swing: m.swing };
+  if (m.seats?.length) out.seats = m.seats.slice();
+  return out;
+}
+
+function withConsequence(m: ReviewMoment, goldDiff: number[]): FilmMoment {
+  const out = momentOf(m);
   const from = goldDiff[m.minute];
   const to = goldDiff[m.minute + 3];
   if (typeof from === 'number' && typeof to === 'number') {
@@ -589,7 +632,7 @@ export function boardCountsOf(game: AnalysisGame | undefined, matchId: string): 
 }
 
 function buildBoard(review: GameReview, game: AnalysisGame | undefined): FilmBoard {
-  return { ...boardCountsOf(game, review.matchId), moments: (review.team.moments ?? []).map((m) => ({ minute: m.minute, text: m.text, swing: m.swing })) };
+  return { ...boardCountsOf(game, review.matchId), moments: (review.team.moments ?? []).map(momentOf) };
 }
 
 /** The ledger's counts when the facts carry the rows but not the summary (a document written between versions). */
@@ -603,7 +646,7 @@ function summarise(ledger: DeathVerdict[]): LedgerSummary {
   };
 }
 
-function buildMap(review: GameReview, timeline: MatchTimeline, ledger: DeathVerdict[], seed: number, ourSpots: Map<string, Point>): FilmMap {
+function buildMap(review: GameReview, timeline: MatchTimeline, ledger: DeathVerdict[], order: FilmDeathOrder, ourSpots: Map<string, Point>): FilmMap {
   const ourSide = timeline.ourSide;
   const facts = timeline.facts!;
   const players = new Map(review.players.map((p) => [p.seat, p]));
@@ -632,7 +675,7 @@ function buildMap(review: GameReview, timeline: MatchTimeline, ledger: DeathVerd
       return pin;
     });
 
-  const order = pick(seed, ['chronological', 'worst-first'] as const, 'map-order');
+  // The walk's order is the film's style (`deathOrder`), drawn once from the seed and the result.
   if (order === 'worst-first') {
     const bad = (p: FilmDeathPin) => (p.could.length >= 2 ? 0 : 1);
     pins.sort((a, b) => bad(a) - bad(b) || a.minute - b.minute || seatIndex(a.seat) - seatIndex(b.seat));
@@ -672,16 +715,21 @@ export function buildFilm(review: GameReview, game: AnalysisGame | undefined, ti
   const facts = timeline?.facts;
   const title = buildTitle(review, game, facts, previous, opponent, seed);
   const oneThing = buildOneThing(review);
+  // The look, the motion and the chrome's voice: one draw per field off the seed, biased by the result.
+  const style = styleFor(seed, title.win);
   const model: FilmModel = {
     matchId: review.matchId,
     tier: review.tier,
     seed,
+    style,
     chapters: [],
     title,
     oneThing,
     seats: buildSeats(review, game, facts),
     card: buildCard(review, game, title.headline)
   };
+  const lessons = lessonCalls(review.team.lessons, seed);
+  if (lessons.length) model.lessons = lessons;
 
   // The chapter order is led by the data, never the seed: the tape needs a
   // timeline, the map a ledger, and eight or more deaths put the map first.
@@ -694,7 +742,7 @@ export function buildFilm(review: GameReview, game: AnalysisGame | undefined, ti
     middle.push(TAPE_CHAPTER);
     const ledger = facts?.ledger;
     if (ledger) {
-      model.map = buildMap(review, timeline, ledger, seed, ourSpots);
+      model.map = buildMap(review, timeline, ledger, style.deathOrder, ourSpots);
       if (ledger.length >= MAP_FIRST_DEATHS) middle.unshift(MAP_CHAPTER);
       else middle.push(MAP_CHAPTER);
     }

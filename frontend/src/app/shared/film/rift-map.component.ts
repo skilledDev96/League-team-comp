@@ -7,6 +7,8 @@ import { TooltipDirective } from '../tooltip.directive';
 
 /** The most tokens the map draws at once; past that the oldest backs go first, then plates, firsts and their dots. */
 export const MAX_TOKENS = 60;
+/** How far from a moment's second a lit seat's token still rings, either way. */
+export const LIT_WINDOW_SEC = 120;
 
 /** How a rendered token looks, resolved once per event so the template only branches on `kind`. */
 export type RiftTokenKind = 'ourDeath' | 'theirDeath' | 'objective' | 'first' | 'plate' | 'back';
@@ -90,6 +92,7 @@ const DROP_ORDER: RiftTokenKind[] = ['back', 'plate', 'first', 'theirDeath', 'ob
             [class.is-selected]="tok.pinKey !== undefined && tok.pinKey === selected()"
             [class.is-unread]="unread(tok)"
             [class.is-faded]="faded(tok)"
+            [class.is-lit]="lit(tok)"
             [style.left.%]="tok.x"
             [style.top.%]="tok.y"
             [style.--i]="tok.order ?? 0"
@@ -159,6 +162,10 @@ export class RiftMapComponent {
   readonly filter = input<DeathCould | 'all'>('all');
   /** Pins not yet called: drawn hollow, and never faded by a filter, since their tags are not on the map yet. */
   readonly unreadKeys = input<readonly string[]>([]);
+  /** Seats of ours to light with an accent ring: the tape passes a moment's seats while the hand pauses on it. */
+  readonly highlightSeats = input<readonly Role[]>([]);
+  /** The second the lit seats are about: only their tokens within LIT_WINDOW_SEC of it light. Null lights the seat's every token. */
+  readonly highlightSec = input<number | null>(null);
   readonly dim = input<boolean>(false);
   readonly showCurveHint = input<boolean>(false);
   /** The "Approximate, by zone" corner note; off where nothing on the map came out of a zone. */
@@ -193,9 +200,17 @@ export class RiftMapComponent {
   });
 
   private readonly unreadSet = computed(() => new Set(this.unreadKeys()));
+  private readonly litSeats = computed(() => new Set(this.highlightSeats()));
 
   protected unread(tok: RiftToken): boolean {
     return tok.pinKey !== undefined && this.unreadSet().has(tok.pinKey);
+  }
+
+  /** A token of ours whose seat the chapter is pointing at, near the second it is pointing at (a Jungle moment at 25 min never rings the jungler's death at 4). */
+  protected lit(tok: RiftToken): boolean {
+    if (tok.seat === undefined || !this.litSeats().has(tok.seat)) return false;
+    const at = this.highlightSec();
+    return at === null || Math.abs(tok.sec - at) <= LIT_WINDOW_SEC;
   }
 
   protected faded(tok: RiftToken): boolean {

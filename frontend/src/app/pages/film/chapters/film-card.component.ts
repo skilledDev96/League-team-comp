@@ -2,6 +2,7 @@ import { Location } from '@angular/common';
 import { afterRenderEffect, Component, computed, ElementRef, inject, input, output, untracked, viewChildren } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FilmModel } from '../../../core/film-model';
+import { reminderFor } from '../../../core/film-progress';
 import { reviewAsText } from '../../../core/review-view';
 import { AnalysisGame, FilmChoice, GameReview, LedgerSummary, Role } from '../../../models/team.models';
 import { MotionService } from '../../../services/motion.service';
@@ -18,9 +19,11 @@ import { FilmFrameComponent } from '../film-frame.component';
  * keep, over the protagonist's splash dimmed and panning slowly (no clip
  * here: two clips a film is enough), the scoreline's figures counting up
  * chip by chip. The headline over the scoreline, what to watch for next game, the
- * commitment with the initials of who picked, one ask per player with your
- * own seat first, one keep-doing, and the toggle that asks you
- * again before the next game. Copy for Discord carries the same review text
+ * commitment with the initials of who picked, Call it back (the review's
+ * lessons, version 4, each a question with three chips and the fact after the
+ * pick; a pick is a call in the progress), one ask per player with your own
+ * seat first, one keep-doing, and the toggle that asks you again before the
+ * next game. Copy for Discord carries the same review text
  * the panel copies, plus the commitment, the film link and the notes.
  */
 @Component({
@@ -69,10 +72,39 @@ import { FilmFrameComponent } from '../film-frame.component';
           </div>
         }
 
+        @if (model().lessons; as lessons) {
+          <div class="film-card-block film-card-lessons" [style.--i]="2">
+            <p class="film-card-label">Call it back</p>
+            @for (l of lessons; track l.key) {
+              @let picked = pickOf(l.key);
+              <div class="film-card-lesson" [class.is-done]="picked !== null">
+                <p class="film-call-q film-card-lesson-q">{{ l.question }}</p>
+                <div class="film-chips" role="group" [attr.aria-label]="l.question">
+                  @for (opt of l.options; track opt; let i = $index) {
+                    <button
+                      type="button"
+                      class="film-chip"
+                      [class.is-right]="picked !== null && i === l.answer"
+                      [class.is-wrong]="picked === i && i !== l.answer"
+                      [class.is-picked]="picked === i"
+                      [disabled]="picked !== null"
+                      [attr.aria-pressed]="picked === i"
+                      (click)="answered.emit({ key: l.key, choice: i })"
+                    >{{ opt }}</button>
+                  }
+                </div>
+                @if (picked !== null) {
+                  <p class="film-call-why"><b>{{ picked === l.answer ? 'Called it.' : 'Not this time.' }}</b> {{ l.why }}</p>
+                }
+              </div>
+            }
+          </div>
+        }
+
         @if (asks().length) {
           <ul class="list-clean film-card-asks" aria-label="One ask each">
             @for (a of asks(); track a.seat) {
-              <li class="film-card-ask" [class.is-me]="a.seat === mySeat()" [style.--i]="2 + $index">
+              <li class="film-card-ask" [class.is-me]="a.seat === mySeat()" [style.--i]="3 + $index">
                 <img [src]="ui.championIconUrl(a.champion)" alt="" loading="lazy" />
                 <span><b>{{ a.name }}</b><small>{{ a.seat }}</small>{{ a.ask }}</span>
               </li>
@@ -86,10 +118,13 @@ import { FilmFrameComponent } from '../film-frame.component';
           </div>
         }
 
-        <label class="field-check film-card-ask-again">
-          <input type="checkbox" [checked]="askAgain()" (change)="askAgainChange.emit($any($event.target).checked)" />
-          <span>Ask me again before the next game</span>
-        </label>
+        <div class="film-card-ask-row">
+          <label class="field-check film-card-ask-again">
+            <input type="checkbox" [checked]="askAgain()" (change)="askAgainChange.emit($any($event.target).checked)" />
+            <span>Ask me again before the next game</span>
+          </label>
+          <button type="button" class="view-btn film-card-try" (click)="tryNow()"><span class="material-symbols-rounded" aria-hidden="true">bolt</span> Try it now</button>
+        </div>
 
         <div class="film-card-actions">
           <button type="button" class="view-btn active" (click)="copy()"><span class="material-symbols-rounded" aria-hidden="true">content_copy</span> Copy for Discord</button>
@@ -112,6 +147,9 @@ export class FilmCardComponent {
   /** Whether the reminder is on; the page keeps it in the progress. */
   readonly askAgain = input<boolean>(true);
   readonly askAgainChange = output<boolean>();
+  /** The calls made so far, keyed as the model keys them; a lesson called here stays called. */
+  readonly calls = input<Record<string, number> | undefined>(undefined);
+  readonly answered = output<{ key: string; choice: number }>();
   readonly watchAgain = output<void>();
   readonly next = output<void>();
   readonly back = output<void>();
@@ -135,6 +173,11 @@ export class FilmCardComponent {
   }
 
   protected readonly mySeat = computed<Role | undefined>(() => this.prefs.filmSeat());
+  /** The option called on one lesson, or null while it is still open. */
+  protected pickOf(key: string): number | null {
+    const v = this.calls()?.[key];
+    return typeof v === 'number' ? v : null;
+  }
   /** Own seat first, the rest in lane order. */
   protected readonly asks = computed(() => {
     const mine = this.mySeat();
@@ -160,6 +203,24 @@ export class FilmCardComponent {
       .filter(([, v]) => v === choice)
       .map(([key]) => initialsOf(key));
   });
+
+  /**
+   * Make the reminder due right now, so the Before you play card shows on
+   * Games at once (editors and viewers alike; it is this person's own
+   * progress). The ask count stays where it is, so the card asks the next
+   * lesson in turn and the ladder carries on from there.
+   */
+  protected tryNow(): void {
+    const id = this.model().matchId;
+    const progress = this.prefs.filmProgress(id) ?? {};
+    const item = reminderFor(this.review(), progress, this.commitment(), this.model().seed);
+    if (!item) {
+      this.toast.show('Nothing to ask yet', { kind: 'warn', text: 'No lessons in this review, and no commitment picked.' });
+      return;
+    }
+    void this.prefs.saveFilmProgress(id, { nextAskAt: new Date().toISOString(), asked: progress.asked ?? 0 });
+    this.toast.show('Reminder set', { kind: 'ok', icon: 'bolt', text: 'At the top of Games and in the roster quick actions. Ask me again is on.' });
+  }
 
   private link(path: string[], query?: Record<string, string>): string {
     const url = this.router.serializeUrl(this.router.createUrlTree(path, query ? { queryParams: query } : {}));

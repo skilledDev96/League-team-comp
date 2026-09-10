@@ -9,7 +9,10 @@
  * for more than many short answers. Neither sees the timeline; both see the
  * facts the Games page shows (`game-facts.ts`), the ledger included, so
  * anything the model says can be checked against what the team already
- * reads.
+ * reads. Version 4 (10 Sep 2026) adds what the film room asks the team to
+ * call back: up to three lessons on facts the points already used, the one
+ * thing to watch for next game, the seats a moment is about, and the two
+ * choices a work-on sentence offers.
  *
  * Rules that came from Riot's policies and are enforced twice, in the
  * prompt and in the validators:
@@ -29,7 +32,7 @@ import { CompExpectation } from './daily-refresh';
 import { compareCurve, GameFacts, k } from './game-facts';
 import { LaneRead, LaneRole, PlayerFacts } from './lane-read';
 
-export const REVIEW_VERSION = 3;
+export const REVIEW_VERSION = 4;
 
 /** What a team point is about; the panel shows it as a tag with an icon. */
 export const REVIEW_THEMES = ['draft', 'lanes', 'fights', 'objectives', 'vision', 'tempo', 'macro'] as const;
@@ -155,7 +158,7 @@ export const TEAM_SYSTEM = `You are the coach reviewing one finished League of L
 
 ${RULES}
 
-Length: "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences at most and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence. "moments" is three to six entries in time order that walk through the game: the minute, one sentence of at most 30 words on what happened and why it mattered, and "swing" for whose way it went.`;
+Length: "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences at most and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence. "moments" is three to six entries in time order that walk through the game: the minute, one sentence of at most 30 words on what happened and why it mattered, and "swing" for whose way it went. A moment's "seats" names the seats of ours it is about, at most three, and stays empty when it is about the whole team. A "workOn" item that offers a choice carries its two choices again in "options" as short imperatives, and leaves them out when it offers none. "lessons" is at most three things a player should be able to answer tomorrow, each on a fact already used by "workOn" or "keepDoing" and about OUR play only: a question of at most 20 words, three options of at most 12 words with one true and the wrong ones plausible, "answer" as the index of the true one, and "why" as one sentence of at most 25 words citing the fact and the minute. "oneThing" is the one thing to watch for next game in at most twelve words, a choice not an order.`;
 
 export const PLAYER_SYSTEM = `You are the coach writing the notes per player after one finished League of Legends game for an amateur five-stack. For each of OUR players you are given their seat, champion, line, lane read, habits, damage, and their deaths one by one with what would have stopped each. You write, per player, one strength, the first thing to work on, and up to three more things to work on, each tied to a different fact.
 
@@ -333,12 +336,40 @@ const themedPoint = {
   additionalProperties: false
 } as const;
 
+/** A team work-on: a themed point that may carry the two choices its sentence offers. */
+const choicePoint = {
+  type: 'object',
+  properties: {
+    ...themedPoint.properties,
+    options: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'The two choices the sentence offers, as short imperatives; only when the sentence offers a choice.'
+    }
+  },
+  required: ['text', 'evidence', 'minute', 'theme'],
+  additionalProperties: false
+} as const;
+
+const lesson = {
+  type: 'object',
+  properties: {
+    question: { type: 'string', description: 'At most 20 words, on our play.' },
+    options: { type: 'array', items: { type: 'string' }, description: 'Three options of at most 12 words, one true, the wrong ones plausible.' },
+    answer: { type: 'integer', description: 'The index of the true option.' },
+    why: { type: 'string', description: 'One sentence of at most 25 words citing the fact and the minute.' },
+    theme: { type: 'string', enum: [...REVIEW_THEMES], description: 'What the lesson is about.' }
+  },
+  required: ['question', 'options', 'answer', 'why', 'theme'],
+  additionalProperties: false
+} as const;
+
 export const TEAM_SCHEMA = {
   type: 'object',
   properties: {
     headline: { type: 'string', description: 'At most eight words naming how the game was decided.' },
     summary: { type: 'string', description: 'Two sentences at most: how the game went and why. Not a repeat of the headline.' },
-    workOn: { type: 'array', description: 'At most three, most important first.', items: themedPoint },
+    workOn: { type: 'array', description: 'At most three, most important first.', items: choicePoint },
     keepDoing: { type: 'array', description: 'At most two.', items: themedPoint },
     compVerdict: { type: 'string', enum: ['as drafted', 'off plan', 'unclear'] },
     compWhy: { type: 'string', description: 'One sentence on the verdict.' },
@@ -350,14 +381,26 @@ export const TEAM_SCHEMA = {
         properties: {
           minute: { type: 'number' },
           text: { type: 'string', description: 'One sentence: what happened and why it mattered.' },
-          swing: { type: 'string', enum: ['us', 'them', 'even'], description: 'Whose way it went.' }
+          swing: { type: 'string', enum: ['us', 'them', 'even'], description: 'Whose way it went.' },
+          seats: {
+            type: 'array',
+            items: { type: 'string', enum: [...ROLES] },
+            description: 'The seats this moment is about, at most three, only when it is about particular seats.'
+          }
         },
-        required: ['minute', 'text', 'swing'],
+        required: ['minute', 'text', 'swing', 'seats'],
         additionalProperties: false
       }
-    }
+    },
+    lessons: {
+      type: 'array',
+      description:
+        'Up to three things a player should be able to answer tomorrow, each on a fact already used by workOn or keepDoing, about OUR play only; three options, one true, the wrong ones plausible; question at most 20 words, options at most 12 words, why one sentence of at most 25 words citing the fact and the minute',
+      items: lesson
+    },
+    oneThing: { type: 'string', description: 'The one thing to watch for next game, at most twelve words, a choice not an order' }
   },
-  required: ['headline', 'summary', 'workOn', 'keepDoing', 'compVerdict', 'compWhy', 'moments'],
+  required: ['headline', 'summary', 'workOn', 'keepDoing', 'compVerdict', 'compWhy', 'moments', 'lessons', 'oneThing'],
   additionalProperties: false
 } as const;
 
@@ -392,6 +435,8 @@ export interface Evidenced {
   minute: number | null;
   /** Team points and a player's further points. */
   theme?: ReviewTheme;
+  /** The two choices the sentence offers, when it offers one; team work-ons since version 4. */
+  options?: [string, string];
 }
 
 /** One step of the walk through the game. */
@@ -399,6 +444,19 @@ export interface Moment {
   minute: number;
   text: string;
   swing: 'us' | 'them' | 'even';
+  /** The seats of ours it is about, at most three; absent when it is about the whole team, and before version 4. */
+  seats?: LaneRole[];
+}
+
+/** Something a player should be able to answer tomorrow, on a fact the points already used; version 4. */
+export interface Lesson {
+  question: string;
+  /** Three, distinct. */
+  options: string[];
+  /** The index of the true option. */
+  answer: number;
+  why: string;
+  theme?: ReviewTheme;
 }
 
 export interface TeamReview {
@@ -411,6 +469,10 @@ export interface TeamReview {
   compWhy: string;
   /** In time order; absent before version 3. */
   moments?: Moment[];
+  /** At most three; absent before version 4. */
+  lessons?: Lesson[];
+  /** At most twelve words, a choice not an order; absent before version 4 and when the model gave none. */
+  oneThing?: string;
 }
 
 export interface PlayerNote {
@@ -424,7 +486,30 @@ export interface PlayerNote {
 }
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, max) : '');
+/** `str`, but a cut lands on a word boundary when there is one, so the twelfth word is never half a word. */
+const strWords = (v: unknown, max: number): string => {
+  const whole = typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : '';
+  if (whole.length <= max) return whole;
+  const cut = whole.slice(0, max);
+  if (whole[max] === ' ') return cut;
+  const space = cut.lastIndexOf(' ');
+  return space > 0 ? cut.slice(0, space) : cut;
+};
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+/** A Riot id, as in Name#EUW: a name stuck to a tag of two to five letters and digits with at least one letter, so "#20" in "Group at #20" is not one. The tag is a person's, never shown. */
+const RIOT_ID = /(\S+?)#(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{2,5}\b/g;
+
+function themeOf(v: unknown): ReviewTheme | undefined {
+  return (REVIEW_THEMES as readonly string[]).includes(v as string) ? (v as ReviewTheme) : undefined;
+}
+
+/** The two choices a sentence offers: kept only when there are exactly two and both say something. */
+function optionsOf(v: unknown): [string, string] | undefined {
+  if (!Array.isArray(v) || v.length !== 2) return undefined;
+  const a = str(v[0], 90);
+  const b = str(v[1], 90);
+  return a && b ? [a, b] : undefined;
+}
 
 function evidencedOf(v: unknown, textMax: number, durationMin: number): Evidenced | null {
   const row = (v ?? {}) as Record<string, unknown>;
@@ -433,8 +518,9 @@ function evidencedOf(v: unknown, textMax: number, durationMin: number): Evidence
   if (!text || !evidence) return null;
   const m = typeof row.minute === 'number' && Number.isFinite(row.minute) ? Math.round(row.minute) : null;
   const minute = m !== null && m >= 0 && m <= Math.max(durationMin, 1) ? m : null;
-  const theme = (REVIEW_THEMES as readonly string[]).includes(row.theme as string) ? (row.theme as ReviewTheme) : undefined;
-  return theme ? { text, evidence, minute, theme } : { text, evidence, minute };
+  const theme = themeOf(row.theme);
+  const options = optionsOf(row.options);
+  return { text, evidence, minute, ...(theme && { theme }), ...(options && { options }) };
 }
 
 function pointsOf(list: unknown, max: number, durationMin: number): Evidenced[] {
@@ -446,8 +532,8 @@ function pointsOf(list: unknown, max: number, durationMin: number): Evidenced[] 
     : [];
 }
 
-/** The walk through the game: in time order, inside the game, at most six. */
-function momentsOf(list: unknown, durationMin: number): Moment[] {
+/** The walk through the game: in time order, inside the game, at most six; a moment's seats are ours, at most three. */
+function momentsOf(list: unknown, durationMin: number, seats: readonly LaneRole[]): Moment[] {
   if (!Array.isArray(list)) return [];
   const out: Moment[] = [];
   for (const raw of list) {
@@ -456,9 +542,55 @@ function momentsOf(list: unknown, durationMin: number): Moment[] {
     const m = typeof row.minute === 'number' && Number.isFinite(row.minute) ? Math.round(row.minute) : null;
     if (!text || m === null || m < 0 || m > Math.max(durationMin, 1)) continue;
     const swing = row.swing === 'us' || row.swing === 'them' ? row.swing : 'even';
-    out.push({ minute: m, text, swing });
+    const about = Array.isArray(row.seats)
+      ? (row.seats.filter((s, i, all): s is LaneRole => (seats as readonly unknown[]).includes(s) && all.indexOf(s) === i) as LaneRole[]).slice(0, 3)
+      : [];
+    out.push({ minute: m, text, swing, ...(about.length > 0 && { seats: about }) });
   }
   return out.sort((a, b) => a.minute - b.minute).slice(0, 6);
+}
+
+/**
+ * An option with the Riot tags of our own five cut off (the tag is never
+ * shown, the name is ours to show), or null when it names anyone else by
+ * Riot id: a person not on our five, and the lesson goes with it.
+ */
+function optionNamingOurs(text: string, ours: ReadonlySet<string>): string | null {
+  let stranger = false;
+  const out = text.replace(RIOT_ID, (whole, name: string) => {
+    if (ours.has(norm(name))) return name;
+    stranger = true;
+    return whole;
+  });
+  return stranger ? null : out;
+}
+
+/**
+ * The lessons: at most three, each with a question, three distinct options that
+ * name nobody off our five, an answer that points at one of them, and a why.
+ * A lesson missing any of that is dropped whole rather than patched, since a
+ * dropped option would move the answer.
+ */
+function lessonsOf(list: unknown, ctx: ReviewContext): Lesson[] {
+  if (!Array.isArray(list)) return [];
+  const ours = new Set(ctx.players.map((p) => norm(p.name)));
+  const out: Lesson[] = [];
+  for (const raw of list) {
+    if (out.length === 3) break;
+    const row = (raw ?? {}) as Record<string, unknown>;
+    const question = str(row.question, 160);
+    const why = str(row.why, 200);
+    const named = Array.isArray(row.options) ? row.options.map((o) => optionNamingOurs(str(o, 90), ours)) : [];
+    if (!question || !why || named.length !== 3) continue;
+    if (named.some((o) => !o)) continue;
+    const options = named as string[];
+    if (new Set(options.map((o) => o.toLowerCase())).size !== 3) continue;
+    const answer = row.answer;
+    if (typeof answer !== 'number' || !Number.isInteger(answer) || answer < 0 || answer > 2) continue;
+    const theme = themeOf(row.theme);
+    out.push({ question, options, answer, why, ...(theme && { theme }) });
+  }
+  return out;
 }
 
 /** The team answer, capped and checked; anything without evidence is dropped. */
@@ -467,6 +599,7 @@ export function parseTeamReview(value: unknown, ctx: ReviewContext): TeamReview 
   const d = ctx.facts.durationMin;
   const verdict = v.compVerdict === 'as drafted' || v.compVerdict === 'off plan' ? v.compVerdict : 'unclear';
   const headline = str(v.headline, 80).replace(/[.!]+$/, '');
+  const oneThing = strWords(v.oneThing, 90);
   return {
     ...(headline ? { headline } : {}),
     summary: str(v.summary, 400),
@@ -474,7 +607,9 @@ export function parseTeamReview(value: unknown, ctx: ReviewContext): TeamReview 
     keepDoing: pointsOf(v.keepDoing, 2, d),
     compVerdict: ctx.comp ? verdict : 'unclear',
     compWhy: str(v.compWhy, 240),
-    moments: momentsOf(v.moments, d)
+    moments: momentsOf(v.moments, d, ctx.players.map((p) => p.seat)),
+    lessons: lessonsOf(v.lessons, ctx),
+    ...(oneThing ? { oneThing } : {})
   };
 }
 

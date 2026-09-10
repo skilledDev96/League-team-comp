@@ -416,7 +416,14 @@ filter rather than none, so it can never become unpickable.
    "Approximate, by zone" (plates read "by 14 min"; the board hides the
    note since nothing on it is placed). Their deaths carry side only. At
    most 60 tokens on a map. Slice 3: three film stocks, schema v4 lessons
-   and the Before you play card.
+   (Call it back on the card, keys `lesson:<i>`; the validator cuts our own
+   Riot tags and drops a lesson naming anyone else) and the Before you play
+   card (`shared/before-you-play.component.ts`, on Games and compact in the
+   roster's quick actions; it walks every due film earliest first and
+   switches off one with nothing to ask). Reaching the card arms the first
+   reminder only when `reminderFor` has something; `advance` counts from the
+   later of `done` and now, so a late answer never lands on a past date. A
+   moment's seats light the map's tokens within 120 s of its minute only.
    **Post-game graphs** (`shared/game-graphs.component.ts`) sit behind a
    Table | Graphs segment on every Games row's scoreboard, drawn from the
    row's `RowStats` so replays and Riot games get the same view; a figure a

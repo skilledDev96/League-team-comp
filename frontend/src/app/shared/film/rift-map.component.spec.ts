@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 import { FilmDeathPin, FilmTapeEvent } from '../../core/film-model';
-import { capTokens, MAX_TOKENS, objectiveIcon, RiftMapComponent, RiftToken } from './rift-map.component';
+import { capTokens, LIT_WINDOW_SEC, MAX_TOKENS, objectiveIcon, RiftMapComponent, RiftToken } from './rift-map.component';
 
 const events: FilmTapeEvent[] = [
   { sec: 95, kind: 'back', label: 'Top backed', side: 'us', seat: 'Top', x: 8, y: 92 },
@@ -62,6 +62,23 @@ describe('RiftMapComponent', () => {
     expect(el.querySelectorAll('.rift-token').length).toBe(6);
     expect(el.querySelector('.rift-token.is-objective.is-them .material-symbols-rounded')?.textContent).toBe('pets');
     expect(el.querySelector('.rift-token.is-objective.is-us .material-symbols-rounded')?.textContent).toBe('shield');
+  });
+
+  it('lights a seat\'s tokens only near the moment\'s second, every one of them with no second', () => {
+    const late: FilmTapeEvent[] = [...events, { sec: 1520, kind: 'ourDeath', label: 'Rhu (ADC) died', side: 'us', seat: 'ADC', champion: 'Jinx', x: 30, y: 32, key: 'd:25:ADC' }];
+    const fixture = mount({ events: late, highlightSeats: ['ADC'], highlightSec: 25 * 60 });
+    const el = fixture.nativeElement as HTMLElement;
+    const lit = () => el.querySelectorAll('.rift-token.is-lit').length;
+    expect(lit()).toBe(1);
+    expect(el.querySelector('.rift-token.is-lit')?.className).toContain('is-ourDeath');
+    fixture.componentRef.setInput('highlightSec', null);
+    fixture.detectChanges();
+    expect(lit()).toBe(2);
+    // The Top back at 95 s is not the ADC's; the ADC's death at 210 s is within the window, the one at 1520 s is not.
+    fixture.componentRef.setInput('highlightSec', 95);
+    fixture.detectChanges();
+    expect(lit()).toBe(1);
+    expect(LIT_WINDOW_SEC).toBe(120);
   });
 
   it('lets a pin outrank the tape event with the same key, selects it with badges, and emits pick on tap', () => {

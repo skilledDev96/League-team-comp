@@ -3,6 +3,8 @@ import { Component, computed, DestroyRef, effect, ElementRef, HostListener, inje
 import { Router } from '@angular/router';
 import { createFilmClock, FilmClock } from '../../../core/film-clock';
 import { FilmModel, FilmMoment, FilmTapeCall } from '../../../core/film-model';
+import { voiceOf } from '../../../core/film-style';
+import { Role } from '../../../models/team.models';
 import { MotionService } from '../../../services/motion.service';
 import { ToastService } from '../../../services/toast.service';
 import { clockText, FilmScrubberComponent, neighbourMoment } from '../../../shared/film/film-scrubber.component';
@@ -10,7 +12,7 @@ import { RiftMapComponent, RiftToken } from '../../../shared/film/rift-map.compo
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { FilmFrameComponent } from '../film-frame.component';
 
-/** Real seconds per game minute: a 30-minute game plays in 36 s. */
+/** Real seconds per game minute before the film's own rate: a 30-minute game plays in 36 s at 1, 31 s at 0.85, 45 s at 1.25. */
 const RATE = 1.2;
 /** How long the curve takes to draw on the reveal, before the tempo. */
 const DRAW_MS = 1200;
@@ -54,7 +56,7 @@ type TapeStop =
       @if (tape) {
         <div class="film-tape" [class.is-revealed]="revealed()">
           <div class="film-tape-map">
-            <app-rift-map [events]="tape.events" [until]="t()" [showCurveHint]="!revealed()" (tap)="onTap($event)" />
+            <app-rift-map [events]="tape.events" [until]="t()" [showCurveHint]="!revealed()" [highlightSeats]="litSeats()" [highlightSec]="litSec()" (tap)="onTap($event)" />
           </div>
 
           <aside class="film-tape-sheet" aria-live="polite">
@@ -70,7 +72,7 @@ type TapeStop =
                   </p>
                   <p class="film-tape-sheet-text">{{ s.moment.text }}</p>
                   @if (s.moment.consequence) { <p class="film-tape-sheet-line">{{ s.moment.consequence }}</p> }
-                  <button type="button" class="view-btn active" (click)="resume()"><span class="material-symbols-rounded" aria-hidden="true">play_arrow</span> Continue</button>
+                  <button type="button" class="view-btn active" (click)="resume()"><span class="material-symbols-rounded" aria-hidden="true">play_arrow</span> {{ voice().momentContinue }}</button>
                 }
                 @case ('call') {
                   <p class="film-tape-sheet-kicker">Call it, <span class="film-tape-min">{{ minuteOf(s.call.revealSec) }} min</span></p>
@@ -86,7 +88,7 @@ type TapeStop =
                   <p class="film-tape-sheet-kicker"><span class="film-tape-min">{{ clockAt(s.sec) }}</span></p>
                   <p class="film-tape-sheet-text">{{ s.label }}</p>
                   @if (s.line) { <p class="film-tape-sheet-line">{{ s.line }}</p> }
-                  <button type="button" class="view-btn active" (click)="resume()"><span class="material-symbols-rounded" aria-hidden="true">play_arrow</span> Continue</button>
+                  <button type="button" class="view-btn active" (click)="resume()"><span class="material-symbols-rounded" aria-hidden="true">play_arrow</span> {{ voice().momentContinue }}</button>
                 }
               }
             } @else if (outcome(); as o) {
@@ -125,6 +127,8 @@ type TapeStop =
               [answer]="tape.turn?.minute ?? null"
               [calls]="tape.calls"
               [playing]="playing()"
+              [ask]="voice().turnQuestion"
+              [lockLabel]="voice().lockPill"
               (seek)="seek($event)"
               (guessChange)="dragging.set($event)"
               (lock)="lock()"
@@ -211,6 +215,18 @@ export class FilmTapeComponent {
     if (g === null || a === null) return '';
     return g === a ? `You said ${g}, and that is when it turned` : `You said ${g}, it turned around ${a}`;
   });
+  /** The chrome's strings for this film: the question over the scrubber, Lock, and the pill after a moment. Never the coach's text. */
+  protected readonly voice = computed(() => voiceOf(this.model().style));
+  /** The seats a paused-on moment is about (review version 4): the map rings their tokens around that minute while the hand stands there. */
+  protected readonly litSeats = computed<readonly Role[]>(() => {
+    const s = this.stop();
+    return s?.kind === 'moment' ? (s.moment.seats ?? []) : [];
+  });
+  /** The moment's second, so only the seat's tokens near it light, not every death and back since minute 0. */
+  protected readonly litSec = computed<number | null>(() => {
+    const s = this.stop();
+    return s?.kind === 'moment' ? s.moment.minute * 60 : null;
+  });
   protected readonly prevMoment = computed(() => neighbourMoment(this.model().tape?.moments ?? [], this.t(), -1));
   protected readonly nextMoment = computed(() => neighbourMoment(this.model().tape?.moments ?? [], this.t(), 1));
 
@@ -220,7 +236,9 @@ export class FilmTapeComponent {
       const key = this.clockKey();
       if (!key) return;
       const durationSec = Number(key.slice(key.lastIndexOf(':') + 1));
-      const clock = createFilmClock({ durationSec, secPerGameMinute: RATE });
+      // The film's own rate (0.85, 1 or 1.25 on the base) is a pure function of the match id, so it never moves under a running clock.
+      const tapeRate = untracked(() => this.model().style.tapeRate);
+      const clock = createFilmClock({ durationSec, secPerGameMinute: RATE * tapeRate });
       untracked(() => {
         const init = this.initialSec();
         if (init !== null && Number.isFinite(init)) clock.seek(init);

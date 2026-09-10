@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, GameReview, MatchTimeline, TeamObjectives, TimelineDeath } from '../models/team.models';
-import { buildFilm, placeOurDeath, reelTallyOf, splitOptions, tapeEventsOf } from './film-build';
+import { buildFilm, lessonCalls, optionsOf, placeOurDeath, reelTallyOf, splitOptions, tapeEventsOf } from './film-build';
+import { styleFor } from './film-style';
 import { objectivePit, regionFor } from './rift-zones';
-import { pick } from './seed';
 
 const side = (o: Partial<TeamObjectives>): TeamObjectives => ({ firstBlood: false, firstTower: false, dragons: 0, barons: 0, heralds: 0, grubs: 0, towers: 0, inhibitors: 0, ...o });
 
@@ -154,6 +154,17 @@ describe('buildFilm on the timeline tier', () => {
     expect(film.board).toBeUndefined();
   });
 
+  it('carries the style drawn from the seed and the result, and another id draws another look', () => {
+    expect(film.style).toEqual(styleFor(film.seed, false));
+    expect(film.title.win).toBe(false);
+    const won = buildFilm(review, { ...game, win: true } as AnalysisGame, timeline, previous);
+    expect(won.style).toEqual(styleFor(film.seed, true));
+    // The seed is the match id: a different id, a different draw somewhere in the style.
+    const ids = ['EUW1_7000000002', 'EUW1_7000000003', 'EUW1_7000000004', 'EUW1_7000000005'];
+    const styles = ids.map((matchId) => JSON.stringify(buildFilm({ ...review, matchId } as GameReview, game, null, null).style));
+    expect(new Set([JSON.stringify(film.style), ...styles]).size).toBeGreaterThan(1);
+  });
+
   it('puts the map before the tape from eight deaths, and drops the map without a ledger', () => {
     const facts = timeline.facts!;
     const eight = { ...timeline, facts: { ...facts, ledger: [...facts.ledger!, death(27, 'Jungle', [], 'Minute 27: Trundle in a fight.'), death(31, 'ADC', ['ward'], 'Minute 31: Jinx in the dark.')] } } as MatchTimeline;
@@ -242,6 +253,77 @@ describe('buildFilm on the timeline tier', () => {
 
   it('is the same film every time', () => {
     expect(JSON.stringify(buildFilm(review, game, timeline, previous, 'MOSS 2'))).toBe(JSON.stringify(film));
+  });
+
+  it('carries no lessons and no seats on a version 3 review', () => {
+    expect(film.lessons).toBeUndefined();
+    expect(film.tape!.moments.every((m) => m.seats === undefined)).toBe(true);
+  });
+});
+
+describe('buildFilm on a version 4 review', () => {
+  const lessons = [
+    { question: 'How many of our deaths before ten had no ward nearby?', options: ['One', 'Two', 'Three'], answer: 2, why: 'Three of the four early deaths fell in the dark, minutes 4 to 9.', theme: 'vision' },
+    { question: 'Whose dragon was the one at 20?', options: ['Ours', 'Theirs', 'Nobody took it'], answer: 1, why: 'Their infernal at minute 20 went uncontested.' }
+  ];
+  const v4 = {
+    ...review,
+    reviewVersion: 4,
+    team: {
+      ...review.team,
+      oneThing: 'Trade safer early, or bring the jungler bot?',
+      lessons,
+      workOn: [{ ...review.team.workOn[0], options: ['Trade safer before towers fall', 'Bring the jungler bot before ten'] }, review.team.workOn[1]],
+      moments: [{ ...review.team.moments![0], seats: ['Jungle', 'ADC'] }, ...review.team.moments!.slice(1)]
+    }
+  } as unknown as GameReview;
+  const film = buildFilm(v4, game, timeline, previous, 'MOSS 2');
+
+  it('puts the model\'s one thing on the card, over the ask of the first work-on', () => {
+    expect(film.card.oneThing).toBe('Trade safer early, or bring the jungler bot?');
+    const blank = buildFilm({ ...v4, team: { ...v4.team, oneThing: '  ' } } as GameReview, game, timeline, previous);
+    expect(blank.card.oneThing).toBe('Either play safer trades before towers fall or ask for jungle pressure earlier.');
+  });
+
+  it('splits the one thing on the model\'s own options first, and falls back to the sentence', () => {
+    expect(film.oneThing.options).toEqual(['Trade safer before towers fall', 'Bring the jungler bot before ten']);
+    expect(optionsOf({ text: 'Either ward the river bush or ask for a gank.', evidence: '', minute: null, options: ['Only one'] as unknown as [string, string] })).toEqual(['Ward the river bush', 'Ask for a gank']);
+    expect(optionsOf({ text: 'Trade the third grub for dragon tempo.', evidence: '', minute: null, options: ['A', ''] })).toBeUndefined();
+    expect(optionsOf(undefined)).toBeUndefined();
+  });
+
+  it('carries the seats of a moment through to the tape and the board', () => {
+    expect(film.tape!.moments[0].seats).toEqual(['Jungle', 'ADC']);
+    expect(film.tape!.moments[1].seats).toBeUndefined();
+    const board = buildFilm({ ...v4, tier: 'endOfGame' } as GameReview, game, null, null).board!;
+    expect(board.moments[0].seats).toEqual(['Jungle', 'ADC']);
+  });
+
+  it('builds the lessons as calls keyed by index, the options shuffled by the seed with the answer following', () => {
+    expect(film.lessons).toHaveLength(2);
+    film.lessons!.forEach((call, i) => {
+      expect(call.key).toBe('lesson:' + i);
+      expect(call.question).toBe(lessons[i].question);
+      expect(call.options.slice().sort()).toEqual(lessons[i].options.slice().sort());
+      expect(call.options[call.answer]).toBe(lessons[i].options[lessons[i].answer]);
+      expect(call.why).toBe(lessons[i].why);
+    });
+    expect(film.lessons![0].theme).toBe('vision');
+    expect(film.lessons![1].theme).toBeUndefined();
+    expect(lessonCalls(v4.team.lessons, film.seed)).toEqual(film.lessons);
+    // Another match id, another order for at least one of the two (the seed is what moves them).
+    const orders = [360062704, 1, 2, 3, 4, 5].map((s) => lessonCalls(v4.team.lessons, s).map((c) => c.options.join('|')).join('/'));
+    expect(new Set(orders).size).toBeGreaterThan(1);
+  });
+
+  it('skips a lesson with no right answer and gives nothing without any', () => {
+    const broken = [{ question: 'Q', options: ['A', 'B', 'C'], answer: 3, why: 'w' }, { question: '', options: ['A', 'B'], answer: 0, why: 'w' }, { question: 'Ok', options: ['A', 'B'], answer: 1, why: 'w' }] as unknown as GameReview['team']['lessons'];
+    const calls = lessonCalls(broken, 7);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].key).toBe('lesson:2');
+    expect(calls[0].options[calls[0].answer]).toBe('B');
+    expect(lessonCalls(undefined, 7)).toEqual([]);
+    expect(buildFilm({ ...v4, team: { ...v4.team, lessons: [] } } as GameReview, game, timeline, previous).lessons).toBeUndefined();
   });
 });
 
@@ -475,8 +557,9 @@ describe('the map', () => {
     expect(first).toMatchObject({ sec: 252, minute: 4, seat: 'ADC', name: 'Rhu', champion: 'Jinx', zone: 'bot', how: 'gank', could: ['ward', 'call'], line: 'Minute 4: Jinx to a gank in bot lane with no ward nearby.' });
   });
 
-  it('walks the pins in the order the seed chose', () => {
-    expect(map.order).toBe(pick(film.seed, ['chronological', 'worst-first'], 'map-order'));
+  it('walks the pins in the order the film\'s style chose', () => {
+    expect(map.order).toBe(film.style.deathOrder);
+    expect(map.order).toBe(styleFor(film.seed, false).deathOrder);
     const minutes = map.pins.map((p) => p.minute);
     if (map.order === 'chronological') {
       expect(minutes).toEqual([4, 7, 9, 12, 20, 24]);

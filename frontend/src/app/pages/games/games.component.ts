@@ -20,6 +20,7 @@ import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { GameCheckComponent } from '../../shared/game-check.component';
 import { GameStoryComponent } from '../../shared/game-story.component';
+import { BeforeYouPlayComponent } from '../../shared/before-you-play.component';
 import { GameReviewComponent } from '../../shared/game-review.component';
 import { FilmPosterComponent } from '../../shared/film/film-poster.component';
 import { GameGraphsComponent } from '../../shared/game-graphs.component';
@@ -66,7 +67,7 @@ import { PlayerMarkComponent } from '../../shared/player-mark.component';
     NgModelNameDirective,
     TooltipDirective,
     ReviewComponent,
-    GameCheckComponent, GameStoryComponent, GameReviewComponent, TourPillComponent],
+    GameCheckComponent, GameStoryComponent, GameReviewComponent, TourPillComponent, BeforeYouPlayComponent],
   templateUrl: './games.component.html'
 })
 export class GamesComponent {

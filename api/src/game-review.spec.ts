@@ -8,9 +8,13 @@ import {
   parseGameReviewRequest,
   parsePlayerNotes,
   parseTeamReview,
+  PLAYER_SCHEMA,
+  REVIEW_VERSION,
   reviewCandidates,
   ReviewContext,
-  reviewPlayers
+  reviewPlayers,
+  TEAM_SCHEMA,
+  TEAM_SYSTEM
 } from './game-review';
 
 const game: ReviewContext['game'] = {
@@ -120,6 +124,35 @@ describe('the prompts', () => {
     const scrim: ReviewContext = { ...ctx, tier: 'endOfGame', facts: endOfGameFacts({ ...game, queue: 'Scrim' }) };
     expect(buildTeamPrompt(scrim)).toContain('TIER: totals only, from a replay file.');
   });
+
+  it('ask the team question for the version 4 fields, one sentence each', () => {
+    expect(REVIEW_VERSION).toBe(4);
+    expect(TEAM_SYSTEM).toContain('A moment\'s "seats" names the seats of ours it is about, at most three');
+    expect(TEAM_SYSTEM).toContain('carries its two choices again in "options" as short imperatives');
+    expect(TEAM_SYSTEM).toContain('"lessons" is at most three things a player should be able to answer tomorrow, each on a fact already used by "workOn" or "keepDoing" and about OUR play only');
+    expect(TEAM_SYSTEM).toContain('"oneThing" is the one thing to watch for next game in at most twelve words, a choice not an order.');
+  });
+});
+
+describe('the schemas', () => {
+  it('carry no cap the API rejects; the caps live in the prompt and the validators', () => {
+    for (const schema of [TEAM_SCHEMA, PLAYER_SCHEMA]) {
+      const json = JSON.stringify(schema);
+      for (const word of ['maxItems', 'minItems', 'minimum', 'maximum', 'minLength', 'maxLength']) expect(json).not.toContain(word);
+    }
+  });
+
+  it('require the version 4 fields, and leave a point\'s options optional', () => {
+    expect(TEAM_SCHEMA.required).toEqual(expect.arrayContaining(['lessons', 'oneThing', 'moments']));
+    expect(TEAM_SCHEMA.properties.moments.items.required).toContain('seats');
+    expect(TEAM_SCHEMA.properties.moments.items.properties.seats.items.enum).toEqual(['Top', 'Jungle', 'Mid', 'ADC', 'Support']);
+    expect(TEAM_SCHEMA.properties.lessons.items.required).toEqual(['question', 'options', 'answer', 'why', 'theme']);
+    expect(TEAM_SCHEMA.properties.workOn.items.properties.options.type).toBe('array');
+    expect(TEAM_SCHEMA.properties.workOn.items.required as readonly string[]).not.toContain('options');
+    expect(TEAM_SCHEMA.properties.workOn.items.additionalProperties).toBe(false);
+    expect(TEAM_SCHEMA.properties.keepDoing.items.properties).not.toHaveProperty('options');
+    expect(PLAYER_SCHEMA.properties.players.items.properties.more.items.properties).not.toHaveProperty('options');
+  });
 });
 
 describe('parseTeamReview', () => {
@@ -185,6 +218,121 @@ describe('parseTeamReview', () => {
   it('is unclear on the comp when there was no comp, whatever the model said', () => {
     expect(parseTeamReview({ compVerdict: 'as drafted' }, { ...ctx, comp: null }).compVerdict).toBe('unclear');
     expect(parseTeamReview({ compVerdict: 'as drafted' }, ctx).compVerdict).toBe('as drafted');
+  });
+
+  it('keeps a moment\'s seats only when they are ours, once each, at most three, and leaves them out when empty', () => {
+    const got = parseTeamReview(
+      {
+        moments: [
+          { minute: 4, text: 'Gank', swing: 'them', seats: ['Top', 'Jungle', 'Top', 'Darius', 'ADC', 'Support'] },
+          { minute: 8, text: 'Dragon', swing: 'them', seats: ['ADC', 'Support'] },
+          { minute: 12, text: 'Solo death', swing: 'them', seats: 'Top' },
+          { minute: 16, text: 'Team fight', swing: 'us', seats: [] }
+        ]
+      },
+      ctx
+    );
+    // The context knows Top, Mid and Jungle; ADC and Support are not on this roster.
+    expect(got.moments![0].seats).toEqual(['Top', 'Jungle']);
+    expect(got.moments![1]).not.toHaveProperty('seats');
+    expect(got.moments![2]).not.toHaveProperty('seats');
+    expect(got.moments![3]).not.toHaveProperty('seats');
+    const five: ReviewContext = { ...ctx, players: [...ctx.players, { name: 'Kai', seat: 'ADC', champion: 'Jinx' }, { name: 'Lu', seat: 'Support', champion: 'Leona' }] };
+    expect(parseTeamReview({ moments: [{ minute: 4, text: 'x', swing: 'us', seats: ['Support', 'ADC', 'Mid', 'Top'] }] }, five).moments![0].seats).toEqual(['Support', 'ADC', 'Mid']);
+  });
+
+  it('keeps a work-on\'s options only when there are exactly two and both say something', () => {
+    const got = parseTeamReview(
+      {
+        workOn: [
+          { text: 'One', evidence: 'a', minute: null, options: ['Be there by seven', 'Tell the lane to hold'] },
+          { text: 'Two', evidence: 'b', minute: null, options: ['Only one'] },
+          { text: 'Three', evidence: 'c', minute: null, options: ['Fine', '  '] }
+        ],
+        keepDoing: [{ text: 'Four', evidence: 'd', minute: null, options: ['A', 'B', 'C'] }]
+      },
+      ctx
+    );
+    expect(got.workOn[0].options).toEqual(['Be there by seven', 'Tell the lane to hold']);
+    expect(got.workOn[1]).not.toHaveProperty('options');
+    expect(got.workOn[2]).not.toHaveProperty('options');
+    expect(got.keepDoing[0]).not.toHaveProperty('options');
+    const long = parseTeamReview({ workOn: [{ text: 'x', evidence: 'y', minute: null, options: ['a'.repeat(120), 'b'] }] }, ctx);
+    expect(long.workOn[0].options![0]).toHaveLength(90);
+  });
+
+  it('keeps the one thing, trimmed and capped, and leaves it out when there is none', () => {
+    expect(parseTeamReview({ oneThing: '  Either ward the river or hold  the wave. ' }, ctx).oneThing).toBe('Either ward the river or hold the wave.');
+    expect(parseTeamReview({ oneThing: 'x'.repeat(200) }, ctx).oneThing).toHaveLength(90);
+    // Long words run past 90 characters; the cut lands between words, never through the last one.
+    const twelve = 'Either contest the second dragon together or concede it and take the herald instead tonight';
+    expect(twelve.length).toBeGreaterThan(90);
+    expect(parseTeamReview({ oneThing: twelve }, ctx).oneThing).toBe('Either contest the second dragon together or concede it and take the herald instead');
+    expect(parseTeamReview({ oneThing: 'a'.repeat(90) + ' more' }, ctx).oneThing).toBe('a'.repeat(90));
+    expect(parseTeamReview({ oneThing: '' }, ctx)).not.toHaveProperty('oneThing');
+    expect(parseTeamReview({ oneThing: 7 }, ctx)).not.toHaveProperty('oneThing');
+    expect(parseTeamReview({}, ctx)).not.toHaveProperty('oneThing');
+  });
+
+  it('keeps at most three lessons, each whole or not at all', () => {
+    const good = (n: number) => ({ question: `Q${n}`, options: ['A', 'B', 'C'], answer: 1, why: `because ${n}`, theme: 'vision' });
+    const got = parseTeamReview(
+      {
+        lessons: [
+          good(1),
+          { ...good(2), options: ['A', 'a', 'B'] },
+          { ...good(3), options: ['A', 'B'] },
+          { ...good(4), options: ['A', 'B', 'C', 'D'] },
+          { ...good(5), options: ['A', '', 'C'] },
+          { ...good(6), options: ['A', 'Darius#EUW went in', 'C'] },
+          { ...good(7), answer: 3 },
+          { ...good(8), answer: -1 },
+          { ...good(9), answer: 1.5 },
+          { ...good(10), answer: '1' },
+          { ...good(11), why: '' },
+          { ...good(12), question: '' },
+          { ...good(13), theme: 'vibes' },
+          good(14),
+          good(15)
+        ]
+      },
+      ctx
+    );
+    expect(got.lessons!.map((l) => l.question)).toEqual(['Q1', 'Q13', 'Q14']);
+    expect(got.lessons![0].theme).toBe('vision');
+    expect(got.lessons![1]).not.toHaveProperty('theme');
+    expect(got.lessons![0]).toEqual({ question: 'Q1', options: ['A', 'B', 'C'], answer: 1, why: 'because 1', theme: 'vision' });
+  });
+
+  it('drops a lesson naming anyone off our five by Riot id, cuts our own tags, and leaves a bare number alone', () => {
+    const lesson = (options: string[]) => ({ question: 'Q', options, answer: 0, why: 'w' });
+    const got = parseTeamReview(
+      {
+        lessons: [
+          lesson(['Ruan#EUW went in', 'Group at #20', 'Hold']),
+          lesson(['Darius#EUW went in', 'B', 'C']),
+          lesson(['someone#euw dived', 'B', 'C']),
+          lesson(['Ruan#BOM1 alone', 'B', 'C'])
+        ]
+      },
+      ctx
+    );
+    expect(got.lessons!.map((l) => l.options)).toEqual([
+      ['Ruan went in', 'Group at #20', 'Hold'],
+      ['Ruan alone', 'B', 'C']
+    ]);
+  });
+
+  it('caps a lesson\'s strings and leaves the list empty when the model sent none', () => {
+    const got = parseTeamReview(
+      { lessons: [{ question: 'q'.repeat(300), options: ['a'.repeat(120), 'b', 'c'], answer: 0, why: 'w'.repeat(300) }] },
+      ctx
+    );
+    expect(got.lessons![0].question).toHaveLength(160);
+    expect(got.lessons![0].options[0]).toHaveLength(90);
+    expect(got.lessons![0].why).toHaveLength(200);
+    expect(parseTeamReview({}, ctx).lessons).toEqual([]);
+    expect(parseTeamReview({ lessons: 'none' }, ctx).lessons).toEqual([]);
   });
 });
 

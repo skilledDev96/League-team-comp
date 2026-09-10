@@ -696,6 +696,8 @@ export interface ReviewPoint {
   minute: number | null;
   /** Team points from review version 2, and a player's further points from version 3. */
   theme?: ReviewTheme;
+  /** The two choices the sentence offers, as short imperatives; from review version 4, only when there are exactly two. */
+  options?: [string, string];
 }
 
 /** One step of the walk through the game, from review version 3. */
@@ -703,6 +705,18 @@ export interface ReviewMoment {
   minute: number;
   text: string;
   swing: 'us' | 'them' | 'even';
+  /** The seats of ours the moment is about, at most three; from review version 4. */
+  seats?: Role[];
+}
+
+/** One thing the model asks the team to call back, from review version 4: three options, one true, on a fact the review already used. */
+export interface ReviewLesson {
+  question: string;
+  options: string[];
+  /** Index into `options`. */
+  answer: number;
+  why: string;
+  theme?: ReviewTheme;
 }
 
 export interface GameReview {
@@ -725,6 +739,10 @@ export interface GameReview {
     compWhy: string;
     /** Three to six, in time order; absent before review version 3. */
     moments?: ReviewMoment[];
+    /** The one thing to watch for next game, a choice not an order, in at most twelve words; from review version 4. */
+    oneThing?: string;
+    /** Up to three, from review version 4. */
+    lessons?: ReviewLesson[];
   };
   players: {
     name: string;

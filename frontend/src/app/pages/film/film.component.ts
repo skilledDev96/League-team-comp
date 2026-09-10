@@ -3,7 +3,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { buildFilm, FilmPrevious } from '../../core/film-build';
 import { FilmModel } from '../../core/film-model';
-import { nextAskAt } from '../../core/film-progress';
+import { nextAskAt, reminderFor } from '../../core/film-progress';
+import { easeOf, stageClasses, tempoOf } from '../../core/film-style';
 import { FilmChoice, FilmProgress, GameReview } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { MatchTimelineService } from '../../services/match-timeline.service';
@@ -95,6 +96,20 @@ export class FilmComponent {
   protected readonly model = computed<FilmModel | undefined>(() => {
     const r = this.review();
     return r ? buildFilm(r, this.game(), this.timeline(), this.previous(), this.opponent()) : undefined;
+  });
+
+  /** The film's look on the stage: `stock-*`, `title-*`, `motion-*`, `enter-*`, with the tempo and the ease as inline custom properties. */
+  protected readonly stageClasses = computed(() => {
+    const s = this.model()?.style;
+    return s ? stageClasses(s) : [];
+  });
+  protected readonly tempo = computed(() => {
+    const s = this.model()?.style;
+    return s ? String(tempoOf(s)) : null;
+  });
+  protected readonly ease = computed(() => {
+    const s = this.model()?.style;
+    return s ? easeOf(s) : null;
   });
 
   protected readonly chapter = signal(0);
@@ -320,7 +335,12 @@ export class FilmComponent {
     void this.prefs.saveFilmProgress(this.matchId(), patch);
   }
 
-  /** Reaching the card is finishing the film: the time, the calls, and the first reminder if none was ever set. Once a visit. */
+  /**
+   * Reaching the card is finishing the film: the time, the calls, and the
+   * first reminder if none was ever set and the film has something to ask
+   * (a lesson, or a two-way commitment the team picked on); a reminder with
+   * nothing behind it would only stand in front of the next film's. Once a visit.
+   */
   private reachCard(): void {
     const id = this.matchId();
     if (!id || this.cardReached) return;
@@ -328,7 +348,9 @@ export class FilmComponent {
     const p = this.progress();
     const done = p?.done ?? new Date().toISOString();
     const patch: Partial<FilmProgress> = { done, calls: p?.calls ?? {} };
-    if (p?.asked === undefined) {
+    const review = this.review();
+    const m = this.model();
+    if (p?.asked === undefined && review && m && reminderFor(review, {}, this.data.commitmentFor(id), m.seed)) {
       patch.nextAskAt = nextAskAt(done, 0);
       patch.asked = 0;
     }

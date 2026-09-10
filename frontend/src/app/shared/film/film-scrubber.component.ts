@@ -9,6 +9,8 @@ const CURVE_LEN = 1000;
 const TICK_MINUTES = [5, 10, 15, 20, 25, 30, 35];
 /** A guess this close to the answer counts as called. */
 const CLOSE_MINUTES = 2;
+/** The default voice's question, the one the takeover asks: it has no film yet. */
+const DEFAULT_ASK = 'Where did it turn? Drag, then lock';
 
 let uid = 0;
 
@@ -64,7 +66,7 @@ export function clockText(sec: number): string {
 
     <div class="film-scrub-main">
       @if (!revealed()) {
-        <p class="film-scrub-ask" [attr.id]="'film-scrub-ask-' + id">Where did it turn? {{ motion.reduced() ? 'Slide, then lock' : 'Drag, then lock' }}</p>
+        <p class="film-scrub-ask" [attr.id]="'film-scrub-ask-' + id">{{ askShown() }}</p>
       }
 
       <div class="film-scrub-band">
@@ -158,7 +160,7 @@ export function clockText(sec: number): string {
 
     @if (!revealed()) {
       <button type="button" class="view-btn active film-scrub-lock" [disabled]="guess() === null" (click)="lock.emit()">
-        <span class="material-symbols-rounded" aria-hidden="true">lock</span> Lock
+        <span class="material-symbols-rounded" aria-hidden="true">lock</span> {{ lockLabel() }}
       </button>
     }
   `
@@ -178,6 +180,10 @@ export class FilmScrubberComponent {
   readonly answer = input<number | null>(null);
   readonly calls = input<FilmTapeCall[]>([]);
   readonly playing = input<boolean>(false);
+  /** The question over the track before the reveal; the film's voice sets it, the takeover keeps the default. "Drag" reads "Slide" with motion off. */
+  readonly ask = input<string>(DEFAULT_ASK);
+  /** The Lock pill's word, from the film's voice. */
+  readonly lockLabel = input<string>('Lock');
 
   /** A second to move the hand to. */
   readonly seek = output<number>();
@@ -194,6 +200,7 @@ export class FilmScrubberComponent {
   protected readonly dragging = signal(false);
   private pointerId: number | null = null;
 
+  protected readonly askShown = computed(() => (this.motion.reduced() ? this.ask().replace('Drag', 'Slide') : this.ask()));
   protected readonly durationMin = computed(() => Math.max(1, Math.round(this.durationSec() / 60)));
   protected readonly clock = computed(() => clockText(this.t()));
   protected readonly ticks = computed(() => TICK_MINUTES.filter((m) => m * 60 <= this.durationSec()));

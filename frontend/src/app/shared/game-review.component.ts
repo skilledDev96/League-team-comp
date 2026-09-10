@@ -87,7 +87,7 @@ import { TooltipDirective } from './tooltip.directive';
             <b>First thing next game</b>
             @if (f.theme) { <span class="review-theme" [appTip]="f.theme"><span class="material-symbols-rounded" aria-hidden="true">{{ icon(f.theme) }}</span></span> }
             @if (f.minute !== null && timed()) { <span class="review-minute">{{ f.minute }} min</span> }
-            <span>{{ ask(f.text) }}</span>
+            <span>{{ oneThing() || ask(f.text) }}</span>
           </p>
         }
         @if (keep(); as k) {
@@ -213,6 +213,8 @@ export class GameReviewComponent {
 
   protected readonly score = computed(() => scoreline(this.game()));
   protected readonly first = computed<ReviewPoint | undefined>(() => this.review()?.team.workOn[0]);
+  /** The model's own one thing (review version 4); the line falls back to the first work-on as an ask. */
+  protected readonly oneThing = computed(() => this.review()?.team.oneThing?.trim() ?? '');
   protected readonly keep = computed<ReviewPoint | undefined>(() => this.review()?.team.keepDoing[0]);
   protected readonly asks = computed(() => (this.review()?.players ?? []).filter((p) => p.workOn.text));
 

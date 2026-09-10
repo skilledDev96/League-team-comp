@@ -10,6 +10,9 @@
   <button class="view-btn" type="button" [class.active]="tab() === 'reviews'" (click)="tab.set('reviews')">Reviews @if (data.gameReviews().length) { <small>{{ data.gameReviews().length }}</small> }</button>
 </section>
 
+<!-- One thing the last film taught, when its reminder is due; nothing otherwise. -->
+<app-before-you-play />
+
 <!-- The Riot data line: who refreshed what, and the button to do it again.
      Small on purpose — it used to be the top third of the Analysis page. -->
 <section class="card games-data" aria-label="Riot match data">

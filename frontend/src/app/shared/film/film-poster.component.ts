@@ -22,7 +22,7 @@ export const FILM_CHAPTER_KEY = 'bom-film-chapter:';
   imports: [RouterLink],
   template: `
     @let r = review();
-    <div class="film-poster" [class.is-row]="size() === 'row'" [class.is-card]="size() === 'card'" [class.is-win]="win()" [class.is-loss]="!win()">
+    <div class="film-poster" [class]="'stock-' + stock()" [class.is-row]="size() === 'row'" [class.is-card]="size() === 'card'" [class.is-win]="win()" [class.is-loss]="!win()">
       <div class="film-poster-art" aria-hidden="true">
         @if (champion()) {
           <img class="film-splash" [src]="ui.championArtUrl(champion())" (error)="ui.artFallback($event, champion())" alt="" loading="lazy" />
@@ -59,6 +59,8 @@ export class FilmPosterComponent {
   protected readonly champion = computed(() => this.model().title.protagonist.champion);
   protected readonly headline = computed(() => this.model().title.headline);
   protected readonly win = computed(() => this.model().title.win);
+  /** The film's stock, so the row hints at the look before the film opens. */
+  protected readonly stock = computed(() => this.model().style.stock);
 
   protected readonly line = computed(() => {
     const m = this.model();

@@ -1,4 +1,5 @@
-<section class="film-stage" [class.is-narrow]="narrow()" [class.is-still]="motion.reduced()" aria-label="The film room">
+<section class="film-stage" [class]="stageClasses()" [class.is-narrow]="narrow()" [class.is-still]="motion.reduced()"
+         [style.--film-tempo]="tempo()" [style.--film-ease]="ease()" aria-label="The film room">
   <header class="film-bar">
     <a class="view-btn film-bar-back" [routerLink]="['/games']" [queryParams]="{ match: matchId(), tab: 'games' }">
       <span class="material-symbols-rounded" aria-hidden="true">arrow_back</span> Back
@@ -71,8 +72,8 @@
                 }
                 @case ('card') {
                   <app-film-card [model]="m" [review]="review()!" [game]="game()" [opponent]="opponent()" [ledger]="ledgerSummary()"
-                                 [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [askAgain]="askAgain()"
-                                 (askAgainChange)="onAskAgain($event)" (watchAgain)="go(0)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                                 [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [askAgain]="askAgain()" [calls]="calls()"
+                                 (answered)="onAnswered($event)" (askAgainChange)="onAskAgain($event)" (watchAgain)="go(0)" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @default {
                   <div class="film-frame">
