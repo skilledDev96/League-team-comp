@@ -474,15 +474,34 @@ describe('the tape', () => {
       [545, 'death', 'd:9:Support'],
       [720, 'moment', 'b:moment:720'],
       [1200, 'objective', 'b:objective:1200'],
-      [1210, 'fight', 'b:fight:1210'],
       [1620, 'objective', 'b:objective:1620'],
       [1680, 'moment', 'b:moment:1680'],
       [1860, 'objective', 'b:objective:1860'],
       [1980, 'moment', 'b:moment:1980']
     ]);
-    expect(tape.beats).toHaveLength(14);
-    expect(new Set(tape.beats.map((b) => b.key)).size).toBe(14);
+    expect(tape.beats).toHaveLength(13);
+    expect(new Set(tape.beats.map((b) => b.key)).size).toBe(13);
     expect((tape as unknown as { calls?: unknown }).calls).toBeUndefined();
+  });
+
+  it('folds a fight over an objective into the objective, a death in a fight into the fight, and a first tower taken with an objective into it', () => {
+    const t = {
+      ...timeline,
+      objectives: [{ minute: 9, type: 'grubs', side: 'them', ourInvolved: [], ourNear: [] }],
+      firsts: { ...timeline.firsts, tower: { minute: 9, side: 'them', lane: 'bot' } },
+      facts: {
+        ...timeline.facts!,
+        objectives: [{ minute: 9, type: 'grubs', side: 'them', ourNearCount: 0, ourInvolved: [], setup: 'traded', line: 'Minute 9: their grubs, traded for one of ours.' }],
+        deathClusters: [{ fromMinute: 9, toMinute: 9, zone: 'river', ours: 1, theirs: 1, seats: ['Support'], line: 'Minute 9: one for one in the river.' }]
+      }
+    } as MatchTimeline;
+    const beats = buildFilm(review, game, t, previous).tape!.beats.filter((b) => b.sec >= 500 && b.sec <= 600);
+    // The grubs host the fight, the first tower and the Support's death at 545: one chip at minute 9, not four.
+    expect(beats).toHaveLength(1);
+    expect(beats[0]).toMatchObject({ kind: 'objective', title: 'Their grubs', glyph: 'grubs', seats: ['Support'] });
+    expect(beats[0].text).toContain('Minute 9: their grubs, traded for one of ours.');
+    expect(beats[0].text).toContain('Minute 9: one for one in the river.');
+    expect(beats[0].text).toContain('The first tower fell in bot lane around minute 9, to them.');
   });
 
   it('writes each beat in the facts\' own words, with its glyph, its swing and the champions it was about', () => {
@@ -492,17 +511,17 @@ describe('the tape', () => {
     expect(by('b:turn:300')).toMatchObject({ title: 'Where it turned', text: 'Behind for good after minute 5, from 400 up', swing: 'them', glyph: 'coin' });
     // An objective without a facts line falls back to its label and minute; with one, the facts speak.
     expect(by('b:objective:360')).toMatchObject({ title: 'Our grubs', text: 'Our grubs at minute 6.', swing: 'us', glyph: 'grubs', seats: ['Jungle'], champions: ['Trundle'] });
-    expect(by('b:objective:1200')).toMatchObject({ title: 'Their dragon (infernal)', text: 'Minute 20: their dragon (infernal), uncontested.', swing: 'them', glyph: 'dragon' });
-    expect(by('b:objective:1200').seats).toBeUndefined();
-    expect(by('b:objective:1620')).toMatchObject({ title: 'Their baron', text: 'Their baron at minute 27.', glyph: 'baron' });
-    expect(by('b:fight:1210')).toMatchObject({
-      title: 'Fight in the river',
-      text: 'Minutes 19 to 21: three of ours fell in the river for one of theirs.',
+    // The fight in the river ten seconds after the dragon is the fight over it: one card, the dragon's words first, the fight's after, the fight's seats along.
+    expect(by('b:objective:1200')).toMatchObject({
+      title: 'Their dragon (infernal)',
+      text: 'Minute 20: their dragon (infernal), uncontested. Minutes 19 to 21: three of ours fell in the river for one of theirs.',
       swing: 'them',
-      glyph: 'swords',
+      glyph: 'dragon',
       seats: ['Support', 'ADC', 'Jungle'],
       champions: ['Leona', 'Jinx', 'Trundle']
     });
+    expect(by('b:objective:1620')).toMatchObject({ title: 'Their baron', text: 'Their baron at minute 27.', glyph: 'baron' });
+    expect(tape.beats.find((b) => b.key === 'b:fight:1210')).toBeUndefined();
     // The costliest avoidable deaths, titled by the name, with the read as the line and the first glyph as the card's.
     expect(by('d:4:ADC')).toMatchObject({
       title: 'Rhu falls, avoidable',
@@ -560,11 +579,11 @@ describe('the tape', () => {
     const beats = buildFilm(review, game, busy, previous).tape!.beats;
     expect(beats).toHaveLength(14);
     expect(beats.map((b) => b.sec)).toEqual(beats.map((b) => b.sec).sort((a, b) => a - b));
-    expect(beats.filter((b) => b.kind === 'first')).toHaveLength(0);
+    // The fight over the dragon folded into it, which leaves room for the first blood; the first tower, later, is the one dropped.
+    expect(beats.filter((b) => b.kind === 'first').map((b) => b.key)).toEqual(['b:first:240']);
     expect(beats.filter((b) => b.kind === 'moment')).toHaveLength(4);
     // A cluster with one death in it is not a fight; the even one at 23 stops on our first death in it, the one-sided one on its minute.
     expect(beats.filter((b) => b.kind === 'fight').map((b) => [b.key, b.swing, b.title])).toEqual([
-      ['b:fight:1210', 'them', 'Fight in the river'],
       ['b:fight:1473', 'even', 'Fight in mid lane'],
       ['b:fight:1740', 'them', 'Fight in their base']
     ]);
@@ -573,8 +592,10 @@ describe('the tape', () => {
     const busier = { ...busy, objectives: [...busy.objectives, { minute: 14, type: 'herald', side: 'them', ourInvolved: [], ourNear: [] }, { minute: 25, type: 'grubs', side: 'us', ourInvolved: [], ourNear: [] }] } as MatchTimeline;
     const more = buildFilm(review, game, busier, previous).tape!.beats;
     expect(more).toHaveLength(14);
-    expect(more.filter((b) => b.kind === 'death')).toHaveLength(0);
-    expect(more.filter((b) => b.kind === 'fight')).toHaveLength(3);
+    // The mid fight at 24:33 is the fight over the grubs at 25: folded, so two fights stand, and one death still fits under the cap.
+    expect(more.filter((b) => b.kind === 'fight').map((b) => b.key)).toEqual(['b:fight:1740']);
+    expect(more.find((b) => b.key === 'b:objective:1500')!.text).toContain('Two.');
+    expect(more.filter((b) => b.kind === 'first')).toHaveLength(0);
     expect(more.filter((b) => b.kind === 'objective')).toHaveLength(6);
   });
 

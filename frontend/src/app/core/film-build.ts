@@ -611,6 +611,19 @@ const BEAT_PRIORITY: Record<FilmBeatKind, number> = { moment: 0, turn: 1, object
 const SWING_TITLES: Record<FilmMoment['swing'], string> = { us: 'Our way', them: 'Their way', even: 'Even' };
 /** Kinds the tape folds into a coach's moment when they are the same event. */
 const FOLDS_INTO_MOMENT: ReadonlySet<FilmBeatKind> = new Set<FilmBeatKind>(['first', 'objective', 'fight', 'death']);
+/**
+ * Among the rest, what hosts what within the same fold: a death inside a fight
+ * or at an objective is that fight, a first tower taken with an objective is
+ * that objective, and a fight over an objective is the objective. The host
+ * keeps its title and glyph and says the other's line after its own. Three
+ * chips at minute 9 (grubs, the fight over them, the death in it) read as
+ * three things live (10 Sep 2026); they are one.
+ */
+const FOLDS_INTO_KIND: Partial<Record<FilmBeatKind, readonly FilmBeatKind[]>> = {
+  death: ['turn', 'objective', 'fight'],
+  first: ['objective', 'fight'],
+  fight: ['objective']
+};
 
 const uniqueSlice = <T>(items: readonly T[], max: number): T[] => [...new Set(items)].slice(0, max);
 
@@ -700,9 +713,27 @@ function buildBeats(review: GameReview, timeline: MatchTimeline, facts: GameFact
     if (champions.length) host.champions = champions;
   }
 
+  // Then the rest fold among themselves, the higher kind hosting (see FOLDS_INTO_KIND): its words first, the other's after.
+  const merged: FilmBeat[] = [];
+  for (const beat of kept.slice().sort((a, b) => BEAT_PRIORITY[a.kind] - BEAT_PRIORITY[b.kind] || a.sec - b.sec)) {
+    const hosts = FOLDS_INTO_KIND[beat.kind];
+    const host = hosts
+      ? merged.filter((h) => hosts.includes(h.kind) && Math.abs(h.sec - beat.sec) <= BEAT_FOLD_SEC).sort((a, b) => Math.abs(a.sec - beat.sec) - Math.abs(b.sec - beat.sec))[0]
+      : undefined;
+    if (!host) {
+      merged.push(beat);
+      continue;
+    }
+    if (beat.text && !host.text.includes(beat.text)) host.text = `${host.text} ${beat.text}`;
+    const seats = uniqueSlice([...(host.seats ?? []), ...(beat.seats ?? [])], MAX_BEAT_SEATS);
+    if (seats.length) host.seats = seats;
+    const champions = uniqueSlice([...(host.champions ?? []), ...(beat.champions ?? [])], MAX_BEAT_SEATS);
+    if (champions.length) host.champions = champions;
+  }
+
   // Two beats of one kind in the same second (grubs and a dragon in one minute) would share a key; the second takes a suffix so a list can track them.
   const seen = new Set<string>();
-  const all = [...moments, ...kept].map((b) => {
+  const all = [...moments, ...merged].map((b) => {
     let key = b.key;
     for (let n = 2; seen.has(key); n += 1) key = `${b.key}:${n}`;
     seen.add(key);
