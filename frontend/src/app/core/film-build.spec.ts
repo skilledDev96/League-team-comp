@@ -599,6 +599,13 @@ describe('the tape', () => {
     expect(more.filter((b) => b.kind === 'objective')).toHaveLength(6);
   });
 
+  it('makes three grubs in one minute one beat, and two different objectives in one minute two', () => {
+    const grubs = { ...timeline, objectives: [...timeline.objectives, { minute: 6, type: 'grubs', side: 'us', ourInvolved: ['Jungle'], ourNear: ['Jungle'] }, { minute: 6, type: 'grubs', side: 'us', ourInvolved: ['Jungle'], ourNear: ['Jungle'] }] } as MatchTimeline;
+    const at6 = buildFilm(review, game, grubs, previous).tape!.beats.filter((b) => b.sec === 360);
+    expect(at6).toHaveLength(1);
+    expect(at6[0]).toMatchObject({ kind: 'objective', title: 'Our grubs', key: 'b:objective:360' });
+  });
+
   it('gives two beats of one kind in the same second their own keys', () => {
     const twice = { ...timeline, objectives: [...timeline.objectives, { minute: 6, type: 'herald', side: 'them', ourInvolved: [], ourNear: [] }] } as MatchTimeline;
     const keys = buildFilm(review, game, twice, previous).tape!.beats.map((b) => b.key);

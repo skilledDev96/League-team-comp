@@ -661,8 +661,14 @@ function buildBeats(review: GameReview, timeline: MatchTimeline, facts: GameFact
     rest.push({ key: keyOf('turn', sec), sec, kind: 'turn', title: 'Where it turned', text: turn.why, swing: win ? 'us' : 'them', glyph: 'coin' });
   }
 
+  // The timeline keeps every grub (three a minute) and every dragon as its own row; on the rail one minute of one
+  // objective for one side is one beat, or the rail read "Their grubs, Their grubs, Their grubs" (live, 10 Sep 2026).
+  const seenObjectives = new Set<string>();
   for (const o of timeline.objectives ?? []) {
     const sec = o.minute * 60;
+    const same = `${o.minute}:${o.type}:${o.side}`;
+    if (seenObjectives.has(same)) continue;
+    seenObjectives.add(same);
     const line = facts?.objectives?.find((f) => f.minute === o.minute && f.type === o.type && f.side === o.side)?.line;
     rest.push(withSeats({ key: keyOf('objective', sec), sec, kind: 'objective', title: objectiveLabel(o), text: line ?? `${objectiveLabel(o)} at minute ${o.minute}.`, swing: o.side, glyph: OBJECTIVE_GLYPHS[o.type] }, o.ourInvolved ?? []));
   }
