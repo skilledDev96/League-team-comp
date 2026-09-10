@@ -668,6 +668,8 @@ export interface TeamData {
   painPoints: PainPoint[];
   learnEntries: LearnEntry[];
   compAnalysis?: CompAnalysis;
+  /** Reviews for local mode (10 Sep 2026): Firestore's gameReviews listener does not run there, so a local preview carries them in the blob. */
+  gameReviews?: GameReview[];
   teamIdentity: TeamIdentity;
   resourceLinks: ResourceLinks;
   tournaments: Tournament[];

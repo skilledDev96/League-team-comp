@@ -267,6 +267,7 @@ export class TeamDataService {
     this.compOverrides.set([...(data.compOverrides ?? [])]);
     this.practiceGames.set([...(data.practiceGames ?? [])]);
     this.compAnalysis.set(data.compAnalysis ?? null);
+    this.gameReviews.set([...(data.gameReviews ?? [])]);
     this.resourceLinks.set(data.resourceLinks);
     this.settings.set(data.settings);
   }
@@ -296,6 +297,7 @@ export class TeamDataService {
       compOverrides: this.compOverrides(),
       practiceGames: this.practiceGames(),
       compAnalysis: this.compAnalysis() ?? undefined,
+      gameReviews: this.gameReviews(),
       selfScout: this.selfScout() ?? undefined,
       resourceLinks: this.resourceLinks()
     };

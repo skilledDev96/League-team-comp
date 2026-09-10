@@ -68,7 +68,7 @@ until a user noticed.
 `frontend/src/app/core/firebase.ts` `isFirebaseConfigured()` returns true when `environment.firebase.apiKey` **and** `projectId` are set. This single flag drives the whole app:
 
 - **Firebase mode**: Firestore is the source of truth; login is Google sign-in gated by `access/{email}` role docs.
-- **Local mode**: no backend. `TeamDataService` seeds from `SEED_DATA` into `localStorage` (`bom-team-data`), and one **Enter local preview** click is an admin session (`AuthService.enterLocal`, `sessionStorage` flag `bom-local-auth`).
+- **Local mode**: no backend. `TeamDataService` seeds from `SEED_DATA` into `localStorage` (`bom-team-data`), and one **Enter local preview** click is an admin session (`AuthService.enterLocal`, `sessionStorage` flag `bom-local-auth`). Since 10 Sep 2026 the blob may carry `gameReviews` too (the Firestore listener does not run in local mode), so a film can be previewed locally: put a review and its analysis game in the blob and, in a dev build, the timeline under `bom-dev-timeline:<matchId>`.
 
 `environment.ts` is committed **with real Firebase web config**, so `npm start` runs against real Firebase and requires sign-in. To develop offline in local mode, blank the `apiKey` in `environment.ts` — **do not commit that change**. (Firebase web config is public by design; it is not a secret.)
 
