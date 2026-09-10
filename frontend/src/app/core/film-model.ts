@@ -303,7 +303,8 @@ export interface FilmMap {
   /** In the order the chapter walks them. */
   pins: FilmDeathPin[];
   theirs: { x: number; y: number; minute: number }[];
-  clusters: { x: number; y: number; r: number; ours: number; theirs: number; line: string }[];
+  /** The fight blobs; `seats` are ours who fell in it, so the per-champion filter can hide the fights that seat was not in (10 Sep 2026). */
+  clusters: { x: number; y: number; r: number; ours: number; theirs: number; line: string; seats?: Role[] }[];
   summary: LedgerSummary;
   /** How many deaths fall under each read. */
   reads: Record<DeathReadKind, number>;

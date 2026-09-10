@@ -1003,7 +1003,7 @@ describe('the map', () => {
     expect(map.theirs.map((t) => t.minute)).toEqual([6, 20, 25]);
     expect(map.theirs[0]).toMatchObject({ x: tape.events.find((e) => e.kind === 'theirDeath')!.x });
     expect(map.clusters).toHaveLength(1);
-    expect(map.clusters[0]).toMatchObject({ ours: 3, theirs: 1, r: 6.2, line: 'Minutes 19 to 21: three of ours fell in the river for one of theirs.' });
+    expect(map.clusters[0]).toMatchObject({ ours: 3, theirs: 1, r: 6.2, line: 'Minutes 19 to 21: three of ours fell in the river for one of theirs.', seats: ['Support', 'ADC', 'Jungle'] });
     expect(regionFor('river', 'blue').inside(map.clusters[0].x, map.clusters[0].y)).toBe(true);
     expect(map.summary).toEqual({ deaths: 6, ganks: 3, dark: 3, inReach: 1, alone: 1 });
     expect((map as unknown as { darkCall?: unknown }).darkCall).toBeUndefined();

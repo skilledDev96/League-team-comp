@@ -98,7 +98,7 @@ import { FilmFrameComponent } from '../film-frame.component';
         }
         </div>
 
-        @if (model().lessons || asks().length) {
+        @if (model().lessons) {
           <!-- Only when there is something for it: without a right column the card stays one column wide (the stylesheet reads :has). -->
           <div class="film-card-col is-right">
           @if (model().lessons; as lessons) {
@@ -130,7 +130,11 @@ import { FilmFrameComponent } from '../film-frame.component';
             </div>
           }
 
-          @if (asks().length) {
+          </div>
+        }
+        @if (asks().length) {
+          <!-- The asks take a third column on a wide screen (10 Sep 2026): the card used a third of the stage and scrolled. -->
+          <div class="film-card-col is-asks">
             <ul class="list-clean film-card-asks" aria-label="One ask each">
               @for (a of asks(); track a.seat) {
                 <li class="film-card-ask" [class.is-me]="a.seat === mySeat()" [style.--i]="askBase() + $index">
@@ -139,7 +143,6 @@ import { FilmFrameComponent } from '../film-frame.component';
                 </li>
               }
             </ul>
-          }
           </div>
         }
 

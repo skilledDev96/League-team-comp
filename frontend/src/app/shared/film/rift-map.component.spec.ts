@@ -1,3 +1,4 @@
+import { Role } from '../../models/team.models';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 import { FilmDeathPin, FilmDeathScene, FilmTapeEvent } from '../../core/film-model';
@@ -145,6 +146,19 @@ describe('RiftMapComponent', () => {
     fixture.componentInstance.pick.subscribe((k) => picked.push(k));
     (deaths[1] as HTMLButtonElement).click();
     expect(picked).toEqual(['d:14:Top']);
+  });
+
+  it('hides the fights the filtered seat was not in, and every blob without seats', () => {
+    const clusters = [
+      { x: 30, y: 30, r: 6, ours: 2, theirs: 1, line: 'A fight at Baron', seats: ['Jungle', 'Top'] as Role[] },
+      { x: 60, y: 60, r: 5, ours: 1, theirs: 1, line: 'A fight at dragon', seats: ['ADC'] as Role[] },
+      { x: 50, y: 50, r: 4, ours: 2, theirs: 0, line: 'An old blob' }
+    ];
+    const fixture = mount({ pins, clusters, seatFilter: 'Top' });
+    expect(fixture.nativeElement.querySelectorAll('.rift-cluster')).toHaveLength(1);
+    fixture.componentRef.setInput('seatFilter', 'all');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.rift-cluster')).toHaveLength(3);
   });
 
   it('dims a pin the filter does not match and draws the clusters', () => {

@@ -1011,7 +1011,7 @@ function buildMap(review: GameReview, game: AnalysisGame | undefined, timeline: 
   const clusters = (facts.deathClusters ?? []).map((c) => {
     const spot = clusterSpot(c.zone, ourSide, timeline.matchId);
     // A blob says "a fight happened here", not how big; a 53-death game must not become one red map.
-    return { x: spot.x, y: spot.y, r: Math.min(7, 3 + 0.8 * (c.ours + c.theirs)), ours: c.ours, theirs: c.theirs, line: c.line };
+    return { x: spot.x, y: spot.y, r: Math.min(7, 3 + 0.8 * (c.ours + c.theirs)), ours: c.ours, theirs: c.theirs, line: c.line, seats: (c.seats ?? []).slice() };
   });
 
   const summary = facts.ledgerSummary ?? summarise(ledger);

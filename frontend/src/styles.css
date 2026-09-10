@@ -14791,9 +14791,12 @@ app-film-title .film-frame-nav { bottom: 2rem; }
    under 64rem and on a film with nothing for the right column, so the card stacks as one column then. */
 .film-card-col { display: contents; }
 @media (min-width: 64rem) {
-  .film-card:has(.film-card-col.is-right) { width: min(100%, 60rem); grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.2rem; }
-  .film-card:has(.film-card-col.is-right) .film-card-col { display: grid; gap: 0.8rem; align-content: start; min-width: 0; }
-  .film-card:has(.film-card-col.is-right) :is(.film-card-ask-row, .film-card-actions) { grid-column: 1 / -1; }
+  .film-card:has(.film-card-col.is-right, .film-card-col.is-asks) { width: min(100%, 60rem); grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.2rem; }
+  .film-card:has(.film-card-col.is-right, .film-card-col.is-asks) .film-card-col { display: grid; gap: 0.8rem; align-content: start; min-width: 0; }
+  .film-card:has(.film-card-col.is-right, .film-card-col.is-asks) :is(.film-card-ask-row, .film-card-actions) { grid-column: 1 / -1; }
+  /* Three columns when the asks have their own (10 Sep 2026): the team's things, Call it back, one ask each; the card takes the
+     stage's width instead of a third of it, so it fits without scrolling on a wide screen. */
+  .film-card:has(.film-card-col.is-right):has(.film-card-col.is-asks) { width: min(100%, 110rem); grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); }
 }
 
 /* ---- The poster, on a game row and the Reviews tab ---- */

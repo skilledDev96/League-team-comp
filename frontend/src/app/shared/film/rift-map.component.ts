@@ -130,7 +130,7 @@ export function staysForSeat(tok: RiftToken, seat: Role, selected: string | null
     <div class="rift-map-square">
       <img class="rift-map-img" src="assets/maps/summoners-rift.png" alt="" draggable="false" />
       <svg class="rift-map-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        @for (c of clusters(); track $index) {
+        @for (c of shownClusters(); track $index) {
           <circle class="rift-cluster" [attr.cx]="c.x" [attr.cy]="c.y" [attr.r]="c.r" [appTip]="c.line" />
         }
         @if (selectedToken(); as s) {
@@ -220,6 +220,12 @@ export class RiftMapComponent {
   readonly readFilter = input<DeathReadKind | 'all'>('all');
   /** One seat of ours at a time: the other seats' deaths, backs and plates hide, their deaths fade, objectives stay; the selected pin is never hidden. */
   readonly seatFilter = input<Role | 'all'>('all');
+  /** The fight blobs under the seat filter: only the fights that seat fell in; a blob that carries no seats hides with any filter (the lead saw the river fight stay red under Top, 10 Sep 2026). */
+  protected readonly shownClusters = computed(() => {
+    const seat = this.seatFilter();
+    const all = this.clusters();
+    return seat === 'all' ? all : all.filter((c) => c.seats?.includes(seat));
+  });
   /** Pins not yet called: drawn hollow, and never faded by a filter, since their tags are not on the map yet. */
   readonly unreadKeys = input<readonly string[]>([]);
   /** Seats of ours to light with an accent ring: the tape passes a moment's seats while the hand pauses on it. */
