@@ -202,17 +202,20 @@ export type FilmBeatKind = 'first' | 'objective' | 'fight' | 'moment' | 'turn' |
 
 /**
  * A beat the tape stops on and explains (cut 4, 10 Sep 2026): the coach's
- * moments, the objectives, the fights, the firsts, the turn and the
- * costliest avoidable deaths, in time order. The tape pauses on each with
- * its card (glyph, title, text, the champions it is about, what the gold
- * did next) and plays on after a dwell; nothing here is a question.
+ * moments, the objectives, the fights, the firsts, the turn and every death
+ * of ours, in time order. The tape pauses on each with its card (glyph,
+ * title, text, the champions it is about, what the gold did next) and plays
+ * on after a dwell; nothing here is a question. Since 10 Sep 2026 (the lead
+ * asked for the timeline broken down on the deaths) each death is a beat of
+ * its own, titled by its read; a death inside a fight, at an objective or
+ * in a coach's moment is that beat, which lists it in `deaths`.
  */
 export interface FilmBeat {
   /** A stable key: "b:<kind>:<sec>", or the death's ledger key for a death beat. */
   key: string;
   sec: number;
   kind: FilmBeatKind;
-  /** Short: "First blood, theirs", "Our infernal dragon", "Fight in the river", "Where it turned", "Ruan falls, avoidable". */
+  /** Short: "First blood, theirs", "Our infernal dragon", "Fight in the river", "Where it turned", "Ruan falls, avoidable", "Nia falls, bought an objective". */
   title: string;
   /** The line under it: the facts' own line, the moment's sentence, the death's read. */
   text: string;
@@ -224,6 +227,8 @@ export interface FilmBeat {
   champions?: string[];
   /** What the gold did over the next three minutes, as the moments carry it. */
   consequence?: string;
+  /** The pin keys of the deaths folded into this beat, in time order (10 Sep 2026): the tape draws each one's tile and read under the card, so a fight still says who fell in it. Absent when none did; never on a death beat itself. */
+  deaths?: string[];
 }
 
 export interface FilmTape {
@@ -236,7 +241,7 @@ export interface FilmTape {
   moments: FilmMoment[];
   /** In time order. */
   events: FilmTapeEvent[];
-  /** In time order, at most fourteen; what the tape stops on and explains. */
+  /** In time order, at most forty (fourteen until 10 Sep 2026, when every death became a beat); what the tape stops on and explains. `railGroups` in `film-build.ts` folds them by minute for the rail. */
   beats: FilmBeat[];
 }
 
@@ -320,12 +325,20 @@ export interface FilmDraftSeat {
  * The draft with hindsight (cut 4, 10 Sep 2026): our five and theirs, the
  * coach's verdict on the fit, and the swaps to try, each with why and what
  * it buys. `variantName` is what Save as a variant would call the comp.
+ * Review version 6 (10 Sep 2026, the lead asked for more than one swap)
+ * adds up to three swaps, a second option or two under each
+ * (`alternatives`, Data Dragon spelling like `in`) and what the comp
+ * `lacked` as chips; a version 5 review carries neither and the chapter
+ * shows the swaps alone.
  */
 export interface FilmDraft {
   verdict: string;
   ours: FilmDraftSeat[];
   theirs: FilmDraftSeat[];
-  swaps: { seat: Role; out: string; in: string; why: string; gains: DraftGain[]; glyphs: FilmGlyph[] }[];
+  /** At most three; `alternatives` at most two, never the played or the swapped-in champion, absent when the review names none. */
+  swaps: { seat: Role; out: string; in: string; why: string; gains: DraftGain[]; glyphs: FilmGlyph[]; alternatives?: string[] }[];
+  /** What the comp lacked, as chips above the swaps (review version 6); each with its glyph. */
+  lacked?: { gain: DraftGain; glyph: FilmGlyph; why: string }[];
   compId: string | null;
   compName: string | null;
   variantName: string | null;

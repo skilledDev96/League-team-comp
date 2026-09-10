@@ -15,6 +15,12 @@
  * tags are rules over the timeline's figures, so a player can check every
  * one against the drawer; the model only reads them.
  *
+ * A solo death is not a vision problem (10 Sep 2026): the ledger has only
+ * ever tagged `ward` when two or more came in, but the vision line counted
+ * every unwarded death as "no ward nearby" and the solo lines said so too,
+ * and a review prescribed a ward for a laner who died one-on-one. Now a dark
+ * death needs two or more killers, and a solo death says "one-on-one".
+ *
  * A replay has totals only, so `endOfGameFacts` says what it can from the
  * lane reads and the objective counts and labels itself as such.
  *
@@ -128,7 +134,9 @@ export interface GameFacts {
     line: string;
   }[];
   deathClusters: { fromMinute: number; toMinute: number; zone: MapZone; ours: number; theirs: number; seats: LaneRole[]; line: string }[];
+  /** Deaths with at most one killer; `warded` is kept for the record, the line no longer says it (10 Sep 2026). */
   soloDeaths: { minute: number; seat: LaneRole; zone: MapZone; warded: boolean; theirSide: boolean; line: string }[];
+  /** `darkDeaths` counts deaths to two or more with no ward nearby; a solo death or an execution is never dark (10 Sep 2026). */
   vision: { seat: LaneRole; name?: string; placedPer5: number[]; darkDeaths: number; line: string }[];
   spend: { seat: LaneRole; firstItemMinute?: number; backs: number }[];
   /** One verdict per death of ours, in time order. Absent on the replay tier and on facts before version 2. */
@@ -369,6 +377,11 @@ export function gameFacts(timeline: MatchTimeline, game: AnalysisGameLike): Game
       return { fromMinute, toMinute, zone: c[0].zone, ours, theirs, seats, line: `${when}, ${ZONE_WORDS[c[0].zone]}: a fight went ${score}${fell}.` };
     });
 
+  // A solo death is a wave-state or trade choice, so the line says "one-on-one" and nothing about wards (10 Sep 2026):
+  // "with no ward nearby" on a one-on-one death read as a vision problem, and the review prescribed a ward for it.
+  // The line is worded off who the one killer was (10 Sep 2026, second fix pass): their jungler alone is a gank the
+  // ledger already calls one, so the line says so rather than "one-on-one", which the prompt's rule reads as the lane
+  // opponent and would have told the model to withhold the ward advice exactly where a ward was the answer.
   const soloDeaths: GameFacts['soloDeaths'] = timeline.deaths
     .filter((d) => d.killers <= 1)
     .map((d) => ({
@@ -377,11 +390,15 @@ export function gameFacts(timeline: MatchTimeline, game: AnalysisGameLike): Game
       zone: d.zone,
       warded: d.warded,
       theirSide: d.theirSide,
-      line: `Minute ${d.minute}: ${seatName(d.seat, names)} died alone in ${ZONE_WORDS[d.zone]}${d.executed ? ' to a tower or a monster' : ''}, ${d.warded ? 'with a ward nearby' : 'with no ward nearby'}.`
+      line: `Minute ${d.minute}: ${seatName(d.seat, names)} died alone in ${ZONE_WORDS[d.zone]}${d.executed ? ' to a tower or a monster' : d.theirJungleIn ? ' to their jungler alone' : ', one-on-one'}.`
     }));
 
   const vision: GameFacts['vision'] = timeline.vision.map((v) => {
-    const dark = timeline.deaths.filter((d) => d.seat === v.seat && !d.warded && !d.executed).length;
+    // Only a death to two or more can be dark, the same bar the ledger sets for its `ward` tag (10 Sep 2026): a ward does
+    // not stop a one-on-one death or an execution, so neither counts against the seat's vision. A laner killed by their
+    // jungler alone stays out too, on purpose: the ledger tags no `ward` on it either, and the ledger's rules are the one
+    // place the tags are argued, so this count never says more than the ledger does (10 Sep 2026, second fix pass).
+    const dark = timeline.deaths.filter((d) => d.seat === v.seat && !d.warded && !d.executed && d.killers >= 2).length;
     const deaths = timeline.deaths.filter((d) => d.seat === v.seat).length;
     const per5 = v.placed.join(', ');
     return {

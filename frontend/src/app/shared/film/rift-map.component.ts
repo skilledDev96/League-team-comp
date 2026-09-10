@@ -61,6 +61,38 @@ const GLYPH_COULD: Partial<Record<FilmGlyph, DeathCould>> = {
 /** The order tokens are dropped in when the map holds too many: the least telling first. */
 const DROP_ORDER: RiftTokenKind[] = ['back', 'plate', 'first', 'theirDeath', 'objective', 'ourDeath'];
 
+type PlateLane = 'top' | 'mid' | 'bot';
+/** The lane each seat's plates are in; the jungler has none, so a seat's view of the Jungle shows no plates. */
+const SEAT_LANE: Record<Role, PlateLane | null> = { Top: 'top', Jungle: null, Mid: 'mid', ADC: 'bot', Support: 'bot' };
+
+/** A plate token carries no seat, only its lane in the label ("2 plates down, bot, by 14 min"); the lane is read off it the way `objectiveGlyph` reads the kind. */
+export function plateLane(label: string): PlateLane | null {
+  const m = /\b(top|mid|bot)\b/i.exec(label);
+  return m ? (m[1].toLowerCase() as PlateLane) : null;
+}
+
+/**
+ * What one seat's view of the map keeps (10 Sep 2026, the lead asked for
+ * the map filterable per champion to lose the clutter): that seat's deaths
+ * and backs, the plates of its lane, every objective and first (the game's
+ * landmarks, not clutter), and their deaths, which `faded` steps back. The
+ * selected pin stays whichever seat it belongs to, so a filter never hides
+ * what the reader is looking at. Pure; the tokens list shrinks by it before
+ * the cap, so the seat's own tokens never lose their place to hidden ones.
+ */
+export function staysForSeat(tok: RiftToken, seat: Role, selected: string | null): boolean {
+  if (tok.pinKey !== undefined && tok.pinKey === selected) return true;
+  switch (tok.kind) {
+    case 'ourDeath':
+    case 'back':
+      return tok.seat === seat;
+    case 'plate':
+      return plateLane(tok.label) === SEAT_LANE[seat];
+    default:
+      return true;
+  }
+}
+
 /**
  * The Rift with a game on it (9 Sep 2026): the PNG as a square, blue base
  * bottom-left and red top-right, an SVG under the tokens for the fight
@@ -82,11 +114,18 @@ const DROP_ORDER: RiftTokenKind[] = ['back', 'plate', 'first', 'theirDeath', 'ob
  * the way `filter` fades the other tags. The badges beside a selected pin
  * are the film's own glyphs (`app-film-glyph`), the pin's `glyphs` first and
  * its tags' glyphs when it carries none.
+ *
+ * `seatFilter` (10 Sep 2026, later the same day) is the per-champion view
+ * the tape's and the map's tiles set: one seat of ours at a time. Unlike
+ * the two filters above it hides rather than fades — our other seats'
+ * deaths, backs and plates leave the list (`staysForSeat`) — while their
+ * deaths fade and the objectives stay, so the seat's own story stands on a
+ * quiet map. The host carries `has-seat-filter` while a seat is set.
  */
 @Component({
   selector: 'app-rift-map',
   imports: [TooltipDirective, FilmGlyphComponent],
-  host: { class: 'rift-map', '[class.is-dim]': 'dim()', '[class.is-still]': 'motion.reduced()', '[class.has-selection]': '!!selected()' },
+  host: { class: 'rift-map', '[class.is-dim]': 'dim()', '[class.is-still]': 'motion.reduced()', '[class.has-selection]': '!!selected()', '[class.has-seat-filter]': "seatFilter() !== 'all'" },
   template: `
     <div class="rift-map-square">
       <img class="rift-map-img" src="assets/maps/summoners-rift.png" alt="" draggable="false" />
@@ -179,6 +218,8 @@ export class RiftMapComponent {
   readonly filter = input<DeathCould | 'all'>('all');
   /** A pin whose read is not this one dims; the two filters stack. */
   readonly readFilter = input<DeathReadKind | 'all'>('all');
+  /** One seat of ours at a time: the other seats' deaths, backs and plates hide, their deaths fade, objectives stay; the selected pin is never hidden. */
+  readonly seatFilter = input<Role | 'all'>('all');
   /** Pins not yet called: drawn hollow, and never faded by a filter, since their tags are not on the map yet. */
   readonly unreadKeys = input<readonly string[]>([]);
   /** Seats of ours to light with an accent ring: the tape passes a moment's seats while the hand pauses on it. */
@@ -197,9 +238,11 @@ export class RiftMapComponent {
   protected readonly ui = inject(UiService);
   protected readonly motion = inject(MotionService);
 
-  /** Every token in time order, cut to `until` and capped at MAX_TOKENS. */
+  /** Every token in time order, cut to `until`, to the seat in view, and capped at MAX_TOKENS. */
   protected readonly tokens = computed<RiftToken[]>(() => {
     const until = this.until();
+    const seat = this.seatFilter();
+    const selected = this.selected();
     const pinKeys = new Set(this.pins().map((p) => p.key));
     const all: RiftToken[] = [];
     this.pins().forEach((p, i) => all.push(pinToken(p, i)));
@@ -208,7 +251,9 @@ export class RiftMapComponent {
       all.push(eventToken(e, i));
     });
     this.theirs().forEach((d, i) => all.push(theirToken(d, i)));
-    const shown = until === null ? all : all.filter((t) => t.sec <= until);
+    const byNow = until === null ? all : all.filter((t) => t.sec <= until);
+    // The seat's view hides rather than fades (10 Sep 2026): the list shrinks before the cap, so the seat's own tokens never lose their place to hidden ones.
+    const shown = seat === 'all' ? byNow : byNow.filter((t) => staysForSeat(t, seat, selected));
     shown.sort((a, b) => a.sec - b.sec || a.key.localeCompare(b.key));
     return capTokens(shown, MAX_TOKENS);
   });
@@ -232,8 +277,10 @@ export class RiftMapComponent {
     return at === null || Math.abs(tok.sec - at) <= LIT_WINDOW_SEC;
   }
 
-  /** Faded by either filter; an unread pin never fades, since what it carries is not on the map yet. */
+  /** Faded by either filter, or their deaths under a seat's view; an unread pin never fades, since what it carries is not on the map yet. */
   protected faded(tok: RiftToken): boolean {
+    // Under one seat's view their deaths step back so the seat's own stand out (10 Sep 2026); the objectives keep their weight, being the game's landmarks.
+    if (tok.kind === 'theirDeath') return this.seatFilter() !== 'all';
     if (tok.kind !== 'ourDeath' || this.unread(tok)) return false;
     const f = this.filter();
     if (f !== 'all' && !(tok.could ?? []).includes(f)) return true;

@@ -2,7 +2,7 @@ import { DatePipe, Location } from '@angular/common';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
 import { AnalysisGame, FilmChoice, GameReview, ReviewPoint, ReviewSwap, ReviewTheme } from '../models/team.models';
-import { askOf, gainsPhrase, reviewAsText, scoreline } from '../core/review-view';
+import { alternativesPhrase, askOf, gainsPhrase, reviewAsText, scoreline } from '../core/review-view';
 import { initialsOf } from '../core/initials';
 import { MatchTimelineService } from '../services/match-timeline.service';
 import { ReviewTakeoverService } from '../services/review-takeover.service';
@@ -121,12 +121,13 @@ import { TooltipDirective } from './tooltip.directive';
         }
 
         @for (s of draftSwaps(); track s.seat + ':' + s.in) {
-          <!-- The draft with hindsight, one line a swap (10 Sep 2026): the why is cut to the line here; the film's draft chapter has the whole of it. -->
+          <!-- The draft with hindsight, one line a swap (10 Sep 2026): the why is cut to the line here; the film's draft chapter has the whole of it.
+               Since review version 6 the swap's other options follow the champion, "Nautilus, or Braum for Leona"; the gaps the comp lacked stay in the film. -->
           <p class="game-review-draft" [appTip]="s.why">
             <img class="player-mark is-out" [src]="ui.championIconUrl(s.out)" alt="" loading="lazy" />
             <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
             <img class="player-mark is-in" [src]="ui.championIconUrl(s.in)" alt="" loading="lazy" />
-            <span><b>{{ s.in }}</b> for {{ ui.championName(s.out) }}{{ gainsOf(s) }}&#8195;<span class="game-review-draft-why">{{ s.why }}</span></span>
+            <span><b>{{ s.in }}</b>@if (altsOf(s); as alts) {<span class="game-review-draft-alt">, {{ alts }}</span>} for {{ ui.championName(s.out) }}{{ gainsOf(s) }}&#8195;<span class="game-review-draft-why">{{ s.why }}</span></span>
           </p>
         }
 
@@ -239,6 +240,11 @@ export class GameReviewComponent {
   protected gainsOf(s: ReviewSwap): string {
     const phrase = gainsPhrase(s.gains);
     return phrase ? `, ${phrase}` : '';
+  }
+
+  /** "or Braum, or Alistar": the swap's other options (review version 6), empty for a review that named none. */
+  protected altsOf(s: ReviewSwap): string {
+    return alternativesPhrase(s.alternatives);
   }
 
   /** What the team committed to in the film room, and who picked it. */

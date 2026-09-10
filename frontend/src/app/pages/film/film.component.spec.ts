@@ -1,10 +1,11 @@
-import { signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { environment } from '../../../environments/environment';
 import { AnalysisGame, GameReview, MatchTimeline } from '../../models/team.models';
+import { AuthService } from '../../services/auth.service';
 import { MatchTimelineService } from '../../services/match-timeline.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
@@ -20,7 +21,16 @@ afterAll(() => {
 
 const ID = 'EUW1_7000000001';
 
-const point = (text: string, theme?: string, minute: number | null = null) => ({ text, evidence: 'kills 14-35 · 312 CS', minute, theme });
+/** Where Back lands: the Games page stands in for itself, since only the url is asserted. */
+@Component({ selector: 'app-games-stub', template: '<p class="games-stub">Games</p>' })
+class GamesStub {}
+
+const ROUTES = [
+  { path: 'film/:matchId', component: FilmComponent },
+  { path: 'games', component: GamesStub }
+];
+
+const point =(text: string, theme?: string, minute: number | null = null) => ({ text, evidence: 'kills 14-35 · 312 CS', minute, theme });
 
 const game = {
   matchId: ID,
@@ -61,6 +71,44 @@ const review = {
   usage: { team: { input: 0, cachedInput: 0, output: 0 }, players: { input: 0, cachedInput: 0, output: 0 }, costUsd: 0, tookMs: 0 }
 } as unknown as GameReview;
 
+/** A timeline with one death in the ledger, so a film built on it has a tape and a map. */
+const timeline = {
+  matchId: ID,
+  timelineVersion: 2,
+  builtAt: '2026-09-09T06:30:00.000Z',
+  ourSide: 'blue',
+  durationSec: 34 * 60,
+  frameSec: 60,
+  goldDiff: Array.from({ length: 35 }, (_, m) => -m * 250),
+  curve: { leadAt: {}, biggestLead: { gold: 0, minute: 0 }, biggestDeficit: { gold: -8500, minute: 34 } },
+  lanes: [],
+  firsts: {},
+  objectives: [],
+  plates: { ours: { top: 0, mid: 0, bot: 0 }, theirs: { top: 0, mid: 0, bot: 0 } },
+  deaths: [{ sec: 252, minute: 4, seat: 'ADC', zone: 'bot', theirSide: false, killers: 2, executed: false, warded: false }],
+  theirDeaths: [],
+  vision: [],
+  spend: [],
+  facts: {
+    factsVersion: 2,
+    tier: 'timeline',
+    result: 'loss',
+    durationMin: 34,
+    curve: { shape: 'trailed throughout' },
+    lanes: [],
+    firsts: {},
+    objectives: [],
+    deathClusters: [],
+    soloDeaths: [],
+    vision: [],
+    spend: [],
+    ledger: [{ minute: 4, seat: 'ADC', zone: 'bot', how: 'gank', could: ['ward'], line: 'Minute 4: Jinx to a gank in bot lane with no ward nearby.' }],
+    ledgerSummary: { deaths: 1, ganks: 1, dark: 1, inReach: 0, alone: 0 },
+    lines: []
+  },
+  bytes: 0
+} as unknown as MatchTimeline;
+
 function text(root: HTMLElement, selector: string): string {
   return (root.querySelector(selector)?.textContent ?? '').replace(/\s+/g, ' ').trim();
 }
@@ -85,6 +133,18 @@ async function open(url: string): Promise<{ harness: RouterTestingHarness; root:
   return { harness, root: harness.routeNativeElement as HTMLElement };
 }
 
+/** A navigation the page started (Back, Escape twice) runs through the router's own tasks: give it a turn of the clock, then read the url. */
+async function landed(harness: RouterTestingHarness): Promise<string> {
+  await new Promise((r) => setTimeout(r, 0));
+  await harness.fixture.whenStable();
+  harness.detectChanges();
+  return TestBed.inject(Router).url;
+}
+
+function key(name: string): void {
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: name }));
+}
+
 // The page renders under TestBed, which needs the DOM that only the Angular
 // runner (ng test, jsdom) provides. Bare vitest has no window, so the spec
 // steps aside there instead of failing on the first localStorage call.
@@ -98,17 +158,93 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
     // counting up over frames jsdom does not draw, and a chapter changes without its fade.
     localStorage.setItem('bom-motion', 'off');
     TestBed.resetTestingModule();
-    TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'film/:matchId', component: FilmComponent }])] });
+    TestBed.configureTestingModule({ providers: [provideRouter(ROUTES)] });
     data = TestBed.inject(TeamDataService);
     prefs = TestBed.inject(UserPrefsService);
     data.gameReviews.set([review]);
     data.compAnalysis.set({ games: [game] } as never);
   });
 
-  it('says so when there is no review', async () => {
-    const { root } = await open('/film/none');
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('says so when there is no review, and the way to Games is a pill', async () => {
+    // Local mode is an editor; with edit mode on the page offers the review, and every action on the film is a button, never a link.
+    TestBed.inject(AuthService).editMode.set(true);
+    const { harness, root } = await open('/film/none');
     expect(text(root, '.film-empty p')).toBe('No review for this game yet.');
     expect(root.querySelector('.film-dots')).toBeNull();
+    const go = root.querySelector<HTMLElement>('.film-empty .view-btn')!;
+    expect(go.tagName).toBe('BUTTON');
+    expect(root.querySelector('.film-empty a')).toBeNull();
+    go.click();
+    expect(await landed(harness)).toBe('/games?match=none&tab=games');
+  });
+
+  it('Back is a pill in the film bar that returns to the game on Games', async () => {
+    const { harness, root } = await open(`/film/${ID}`);
+    const back = root.querySelector<HTMLElement>('.film-bar-back')!;
+    expect(back.tagName).toBe('BUTTON');
+    expect(back.getAttribute('type')).toBe('button');
+    expect(text(root, '.film-bar-back')).toBe('arrow_back Back');
+    expect(root.querySelector('.film-bar a')).toBeNull();
+    back.click();
+    expect(await landed(harness)).toBe(`/games?match=${ID}&tab=games`);
+  });
+
+  it('Escape once folds what is open and stays; a second within two seconds goes Back', async () => {
+    const { harness, root } = await open(`/film/${ID}`);
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000_000);
+    key('Escape');
+    expect(await landed(harness)).toBe(`/film/${ID}?c=title`);
+    expect(root.querySelector('.film-stage')).not.toBeNull();
+    // Too late: two seconds and a tick on, the second press is a first press again.
+    now.mockReturnValue(1_002_001);
+    key('Escape');
+    expect(await landed(harness)).toBe(`/film/${ID}?c=title`);
+    // In time: it leaves.
+    now.mockReturnValue(1_003_000);
+    key('Escape');
+    expect(await landed(harness)).toBe(`/games?match=${ID}&tab=games`);
+  });
+
+  it('Escape, Escape out of full screen closes the drawer and the full screen and stays on the film; only two presses with nothing to close go Back', async () => {
+    // 10 Sep 2026, second fix pass: the chapter reports a press that closed something (`escaped`), so the page's two-second rule never counts it.
+    const known = signal<ReadonlyMap<string, MatchTimeline | null>>(new Map([[ID, timeline]]));
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideRouter(ROUTES), { provide: MatchTimelineService, useValue: { known, load: async () => null } }] });
+    data = TestBed.inject(TeamDataService);
+    data.gameReviews.set([review]);
+    data.compAnalysis.set({ games: [game] } as never);
+    const { harness, root } = await open(`/film/${ID}?c=map`);
+    expect(text(root, '.film-kicker')).toContain('The map');
+    const fullBtn = Array.from(root.querySelectorAll<HTMLButtonElement>('.film-legend .view-btn')).find((b) => (b.textContent ?? '').includes('Full screen'));
+    if (!fullBtn) throw new Error('no Full screen pill on the map');
+    fullBtn.click();
+    harness.detectChanges();
+    expect(root.querySelector('.film-map.is-full')).not.toBeNull();
+    expect(root.querySelector('.film-map.is-drawer-closed')).toBeNull();
+
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000_000);
+    key('Escape');
+    expect(await landed(harness)).toBe(`/film/${ID}?c=map`);
+    expect(root.querySelector('.film-map.is-full.is-drawer-closed')).not.toBeNull();
+    // Half a second on, the natural second press: the full screen goes, the film stays.
+    now.mockReturnValue(1_000_500);
+    key('Escape');
+    expect(await landed(harness)).toBe(`/film/${ID}?c=map`);
+    expect(root.querySelector('.film-map.is-full')).toBeNull();
+    expect(root.querySelector('.film-stage')).not.toBeNull();
+    // Nothing left to close: the next press arms the window, and the one after leaves.
+    now.mockReturnValue(1_001_000);
+    key('Escape');
+    expect(await landed(harness)).toBe(`/film/${ID}?c=map`);
+    now.mockReturnValue(1_001_500);
+    key('Escape');
+    expect(await landed(harness)).toBe(`/games?match=${ID}&tab=games`);
   });
 
   it('opens on the title card, takes the call, lands the headline and remembers the call', async () => {
@@ -224,47 +360,11 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
       reviewVersion: 5,
       team: { ...review.team, draft: { verdict: 'The comp wanted a slow game and the fights came early.', swaps: [{ seat: 'Support', out: 'Leona', in: 'Nautilus', why: 'Peel for Jinx.', gains: ['peel'] }] } }
     } as unknown as GameReview;
-    // The timeline read is the page's to wait on: nothing known while it is in flight, then a timeline with one death in the ledger, so the film has a tape and a map.
+    // The timeline read is the page's to wait on: nothing known while it is in flight, then `timeline` (one death in the ledger), so the film has a tape and a map.
     const known = signal<ReadonlyMap<string, MatchTimeline | null>>(new Map());
     const timelines = { known, load: async () => null };
-    const timeline = {
-      matchId: ID,
-      timelineVersion: 2,
-      builtAt: '2026-09-09T06:30:00.000Z',
-      ourSide: 'blue',
-      durationSec: 34 * 60,
-      frameSec: 60,
-      goldDiff: Array.from({ length: 35 }, (_, m) => -m * 250),
-      curve: { leadAt: {}, biggestLead: { gold: 0, minute: 0 }, biggestDeficit: { gold: -8500, minute: 34 } },
-      lanes: [],
-      firsts: {},
-      objectives: [],
-      plates: { ours: { top: 0, mid: 0, bot: 0 }, theirs: { top: 0, mid: 0, bot: 0 } },
-      deaths: [{ sec: 252, minute: 4, seat: 'ADC', zone: 'bot', theirSide: false, killers: 2, executed: false, warded: false }],
-      theirDeaths: [],
-      vision: [],
-      spend: [],
-      facts: {
-        factsVersion: 2,
-        tier: 'timeline',
-        result: 'loss',
-        durationMin: 34,
-        curve: { shape: 'trailed throughout' },
-        lanes: [],
-        firsts: {},
-        objectives: [],
-        deathClusters: [],
-        soloDeaths: [],
-        vision: [],
-        spend: [],
-        ledger: [{ minute: 4, seat: 'ADC', zone: 'bot', how: 'gank', could: ['ward'], line: 'Minute 4: Jinx to a gank in bot lane with no ward nearby.' }],
-        ledgerSummary: { deaths: 1, ganks: 1, dark: 1, inReach: 0, alone: 0 },
-        lines: []
-      },
-      bytes: 0
-    } as unknown as MatchTimeline;
     TestBed.resetTestingModule();
-    TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'film/:matchId', component: FilmComponent }]), { provide: MatchTimelineService, useValue: timelines }] });
+    TestBed.configureTestingModule({ providers: [provideRouter(ROUTES), { provide: MatchTimelineService, useValue: timelines }] });
     data = TestBed.inject(TeamDataService);
     data.gameReviews.set([v5]);
     data.compAnalysis.set({ games: [game] } as never);

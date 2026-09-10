@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { pick, seedOf } from './seed';
 import {
   DEATH_ORDERS,
+  defaultSpeedFor,
   easeOf,
   ENTRANCES,
   FilmStyle,
@@ -11,6 +12,9 @@ import {
   STYLE_SALTS,
   styleFor,
   TAPE_RATES,
+  TAPE_SPEED_STORAGE_KEY,
+  TAPE_SPEEDS,
+  tapeSpeedFor,
   tempoOf,
   TITLE_TREATMENTS,
   VOICE_INDEXES,
@@ -129,6 +133,46 @@ describe('the stage', () => {
     expect(tempoOf({ ...style, motion: 'snappy' })).toBe(0.85);
     expect(easeOf(style)).toBe('cubic-bezier(.4,0,.2,1)');
     expect(easeOf({ ...style, motion: 'snappy' })).toBe('cubic-bezier(.2,.9,.3,1)');
+  });
+});
+
+describe('the tape speeds', () => {
+  const style: FilmStyle = { stock: 'broadcast', title: 'curtain', motion: 'soft', entrance: 'rise', deathOrder: 'chronological', tapeRate: 1, voice: 0 };
+
+  it('offers four steps, each its own key and label, and a thirty-minute game runs 3 min, 90 s, 45 s and 22 s on them', () => {
+    expect(TAPE_SPEEDS.map((s) => [s.key, s.label, s.secPerGameMinute])).toEqual([
+      ['slow', '½×', 6],
+      ['normal', '1×', 3],
+      ['fast', '2×', 1.5],
+      ['faster', '4×', 0.75]
+    ]);
+    expect(new Set(TAPE_SPEEDS.map((s) => s.key)).size).toBe(4);
+    expect(new Set(TAPE_SPEEDS.map((s) => s.label)).size).toBe(4);
+    expect(TAPE_SPEEDS.map((s) => Math.round(30 * s.secPerGameMinute))).toEqual([180, 90, 45, 23]);
+    // Slower to faster, so the pill group reads left to right; none stalls the clock.
+    for (let i = 1; i < TAPE_SPEEDS.length; i += 1) expect(TAPE_SPEEDS[i].secPerGameMinute).toBeLessThan(TAPE_SPEEDS[i - 1].secPerGameMinute);
+    for (const s of TAPE_SPEEDS) expect(s.secPerGameMinute).toBeGreaterThan(0);
+    expect(TAPE_SPEED_STORAGE_KEY).toBe('bom-film-speed');
+  });
+
+  it('opens a film at the step its stock leans to: 1× at rate 1, ½× at 1.25, and 1× at 0.85 too, never faster on its own', () => {
+    expect(defaultSpeedFor(style)).toBe('normal');
+    expect(defaultSpeedFor({ ...style, tapeRate: 1.25 })).toBe('slow');
+    // A brisk stock opened at 2× until the second fix pass (10 Sep 2026): 1.5 s a game minute is a hair under the pace the lead called too fast.
+    expect(defaultSpeedFor({ ...style, tapeRate: 0.85 })).toBe('normal');
+    // Every rate the seed can draw lands on a step the tape offers, and none of them faster than 1×.
+    for (const tapeRate of TAPE_RATES) expect(['slow', 'normal']).toContain(defaultSpeedFor({ ...style, tapeRate }));
+    // The film's character survives across seeds: the same seed always opens at the same step.
+    for (const seed of SEEDS.slice(0, 30)) expect(defaultSpeedFor(styleFor(seed, true))).toBe(defaultSpeedFor(styleFor(seed, false)));
+  });
+
+  it('reads the viewer\'s stored pick, and falls back to the film\'s default on nothing or nonsense', () => {
+    expect(tapeSpeedFor('faster', style)).toBe(TAPE_SPEEDS[3]);
+    expect(tapeSpeedFor('slow', { ...style, tapeRate: 0.85 })).toBe(TAPE_SPEEDS[0]);
+    expect(tapeSpeedFor(null, style)).toBe(TAPE_SPEEDS[1]);
+    expect(tapeSpeedFor(undefined, { ...style, tapeRate: 1.25 })).toBe(TAPE_SPEEDS[0]);
+    expect(tapeSpeedFor('1.2', { ...style, tapeRate: 0.85 })).toBe(TAPE_SPEEDS[1]);
+    expect(tapeSpeedFor('', style).key).toBe('normal');
   });
 });
 

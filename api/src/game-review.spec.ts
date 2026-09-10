@@ -10,6 +10,7 @@ import {
   parsePlayerNotes,
   parseTeamReview,
   PLAYER_SCHEMA,
+  PLAYER_SYSTEM,
   REVIEW_VERSION,
   reviewCandidates,
   ReviewContext,
@@ -46,7 +47,7 @@ const facts: GameFacts = {
   firsts: { blood: { minute: 4, side: 'them' } },
   objectives: [{ minute: 8, type: 'dragon', subType: 'infernal', side: 'them', ourNearCount: 0, ourInvolved: [], setup: 'uncontested', line: 'Minute 8: their dragon (infernal), nobody of ours near.' }],
   deathClusters: [],
-  soloDeaths: [{ minute: 12, seat: 'Top', zone: 'theirJungle', warded: false, theirSide: true, line: 'Minute 12: Ruan (Top) died alone in their jungle, with no ward nearby.' }],
+  soloDeaths: [{ minute: 12, seat: 'Top', zone: 'theirJungle', warded: false, theirSide: true, line: 'Minute 12: Ruan (Top) died alone in their jungle, one-on-one.' }],
   vision: [],
   spend: [{ seat: 'Top', firstItemMinute: 11, backs: 4 }],
   ledger: [
@@ -55,7 +56,7 @@ const facts: GameFacts = {
   ],
   ledgerSummary: { deaths: 2, ganks: 0, dark: 1, inReach: 1, alone: 1 },
   presence: { kills: 4, ofKills: 9, before15: 2, ofBefore15: 5, line: 'Jay (Jungle) was on 4 of 9 kills, 2 of 5 before fifteen.' },
-  lines: ['Lost in 31 minutes, behind all game: the worst deficit was 6k at 29.', 'Ruan (Top) on Ornn lost the lane into Darius down 900 at ten, and the lead changed hands at 6.', 'Minute 8: their dragon (infernal), nobody of ours near.', 'Minute 12: Ruan (Top) died alone in their jungle, with no ward nearby.']
+  lines: ['Lost in 31 minutes, behind all game: the worst deficit was 6k at 29.', 'Ruan (Top) on Ornn lost the lane into Darius down 900 at ten, and the lead changed hands at 6.', 'Minute 8: their dragon (infernal), nobody of ours near.', 'Minute 12: Ruan (Top) died alone in their jungle, one-on-one.']
 };
 
 const ctx: ReviewContext = {
@@ -134,22 +135,37 @@ describe('the prompts', () => {
   });
 
   it('ask the team question for the draft with hindsight, and keep the swap about our draft', () => {
-    expect(REVIEW_VERSION).toBe(5);
+    expect(REVIEW_VERSION).toBe(6);
     expect(TEAM_SYSTEM).toContain('"draft" is one sentence ("verdict") on whether the five we drafted fit the game that was played');
-    expect(TEAM_SYSTEM).toContain('"swaps" is at most two changes to OUR draft the coach would make with hindsight');
+    expect(TEAM_SYSTEM).toContain('"swaps" is at most three changes to OUR draft the coach would make with hindsight');
     expect(TEAM_SYSTEM).toContain('("out", exactly as given in OUR PLAYERS)');
     expect(TEAM_SYSTEM).toContain('("in", from CHAMPIONS A SWAP MAY NAME');
     expect(TEAM_SYSTEM).toContain('a Malphite for the all-in with Miss Fortune, or a Nautilus for the peel on a hypercarry');
-    expect(TEAM_SYSTEM).toContain('Swaps are empty when the draft held.');
+    expect(TEAM_SYSTEM).toContain('"alternatives" as at most two other champions from CHAMPIONS A SWAP MAY NAME that would do the same job in that seat');
+    expect(TEAM_SYSTEM).toContain('"lacked" is what the comp was missing that the game exposed: at most three gains from the same list');
+    expect(TEAM_SYSTEM).toContain('Leave both "swaps" and "lacked" empty when the draft held.');
     expect(TEAM_SYSTEM).toContain("A swap is about OUR draft. The other team's champions may be named as the matchup they posed");
     expect(TEAM_SYSTEM).toContain('never a person.');
+  });
+
+  it('tell both coaches that a solo death is a wave-state or trade choice, never a vision problem', () => {
+    // 10 Sep 2026: a review prescribed a ward for a laner who died one-on-one. The rule is shared, so both prompts carry it.
+    const rule =
+      'A solo death - one killer, the lane opponent - is a wave-state or trade choice: the advice is to hold the wave, trade differently, or wait for the jungler before stepping up. Never prescribe a ward for a solo death, and never count a solo death as evidence about vision';
+    expect(TEAM_SYSTEM).toContain(rule);
+    expect(PLAYER_SYSTEM).toContain(rule);
+    expect(PLAYER_SYSTEM).toContain("'barely a ward down' is not a reason a laner died one-on-one.");
   });
 
   it('list the champions a swap may name only when given, after the comp and before what happened', () => {
     const bare = buildTeamPrompt(ctx);
     expect(bare).toContain('THE DRAFT WITH HINDSIGHT');
+    expect(bare).toContain('name at most three changes to OUR draft');
+    expect(bare).toContain('up to two other champions that would do the same job in that seat');
+    expect(bare).toContain('say what the five lacked that the game exposed: at most three gains');
     expect(bare).not.toContain('CHAMPIONS A SWAP MAY NAME');
     expect(bare).toContain('No champion list is available for this review, so leave the swaps empty.');
+    expect(bare).toContain('Say what the five lacked all the same.');
     expect(buildTeamPrompt({ ...ctx, championNames: [] })).not.toContain('CHAMPIONS A SWAP MAY NAME');
     const listed = buildTeamPrompt({ ...ctx, championNames: ["Kai'Sa", 'Miss Fortune', 'Wukong'] });
     expect(listed).toContain("CHAMPIONS A SWAP MAY NAME (Data Dragon spelling): Kai'Sa, Miss Fortune, Wukong");
@@ -164,24 +180,36 @@ describe('the prompts', () => {
 
 describe('the schemas', () => {
   it('carry no cap the API rejects; the caps live in the prompt and the validators', () => {
-    // The draft object rides inside TEAM_SCHEMA; it is walked on its own as well so a cap slipped into a swap is named by this test.
-    for (const schema of [TEAM_SCHEMA, PLAYER_SCHEMA, TEAM_SCHEMA.properties.draft, TEAM_SCHEMA.properties.draft.properties.swaps.items]) {
+    // The draft object rides inside TEAM_SCHEMA; it is walked on its own as well so a cap slipped into a swap, its alternatives or a gap is named by this test.
+    const draft = TEAM_SCHEMA.properties.draft;
+    for (const schema of [TEAM_SCHEMA, PLAYER_SCHEMA, draft, draft.properties.swaps.items, draft.properties.swaps.items.properties.alternatives, draft.properties.lacked, draft.properties.lacked.items]) {
       const json = JSON.stringify(schema);
       for (const word of ['maxItems', 'minItems', 'minimum', 'maximum', 'minLength', 'maxLength']) expect(json).not.toContain(word);
     }
   });
 
-  it('require the draft with hindsight, every field of a swap, and only the gains and seats the app knows', () => {
+  it('require the draft with hindsight, every field of a swap and a gap, and only the gains and seats the app knows', () => {
     expect(TEAM_SCHEMA.required).toContain('draft');
     const draft = TEAM_SCHEMA.properties.draft;
     expect(draft.type).toBe('object');
-    expect(draft.required).toEqual(['verdict', 'swaps']);
+    expect(draft.required).toEqual(['verdict', 'swaps', 'lacked']);
     expect(draft.additionalProperties).toBe(false);
     const swap = draft.properties.swaps.items;
-    expect(swap.required).toEqual(['seat', 'out', 'in', 'why', 'gains']);
+    expect(swap.required).toEqual(['seat', 'out', 'in', 'why', 'gains', 'alternatives']);
     expect(swap.additionalProperties).toBe(false);
     expect(swap.properties.seat.enum).toEqual(['Top', 'Jungle', 'Mid', 'ADC', 'Support']);
     expect(swap.properties.gains.items.enum).toEqual([...DRAFT_GAINS]);
+    expect(swap.properties.alternatives.type).toBe('array');
+    expect(swap.properties.alternatives.items).toEqual({ type: 'string' });
+    expect(swap.properties.alternatives.description).toContain('At most two');
+    const gap = draft.properties.lacked.items;
+    expect(gap.type).toBe('object');
+    expect(gap.required).toEqual(['gain', 'why']);
+    expect(gap.additionalProperties).toBe(false);
+    expect(gap.properties.gain.enum).toEqual([...DRAFT_GAINS]);
+    expect(gap.properties.why.type).toBe('string');
+    expect(draft.properties.lacked.description).toContain('at most three');
+    expect(draft.properties.swaps.description).toContain('At most three');
     expect(DRAFT_GAINS).toEqual(['engage', 'peel', 'frontline', 'poke', 'sustain', 'splitpush', 'waveclear', 'pick', 'disengage', 'damage']);
     // Every schema object stays closed and fully required, as the rest of the schema does.
     const walk = (node: unknown): void => {
@@ -444,12 +472,18 @@ describe('parseTeamReview: the draft with hindsight', () => {
     expect(parse({ verdict: 'v', swaps: [swap({})] }, { ...ctx, championNames: names })!.swaps).toEqual([]);
   });
 
-  it('keeps at most two swaps, and the first of two in one seat', () => {
-    const three = parse({
+  it('keeps at most three swaps, and the first of two in one seat', () => {
+    // Two until version 6; the lead asked whether one champion swap was all the advice there was (10 Sep 2026).
+    const four = parse({
       verdict: 'v',
-      swaps: [swap({ seat: 'Top', out: 'Ornn', in: 'Sion' }), swap({ seat: 'Jungle', out: 'LeeSin', in: 'Wukong' }), swap({ in: 'Miss Fortune' })]
+      swaps: [
+        swap({ seat: 'Top', out: 'Ornn', in: 'Sion' }),
+        swap({ seat: 'Jungle', out: 'LeeSin', in: 'Wukong' }),
+        swap({ in: 'Miss Fortune' }),
+        swap({ seat: 'Support', out: 'Leona', in: 'Nautilus' })
+      ]
     });
-    expect(three!.swaps.map((s) => s.seat)).toEqual(['Top', 'Jungle']);
+    expect(four!.swaps.map((s) => s.seat)).toEqual(['Top', 'Jungle', 'ADC']);
     const same = parse({ verdict: 'v', swaps: [swap({ in: 'Miss Fortune' }), swap({ in: 'Sion' }), swap({ seat: 'Top', out: 'Ornn', in: 'Malphite' })] });
     expect(same!.swaps.map((s) => [s.seat, s.in])).toEqual([
       ['ADC', 'Miss Fortune'],
@@ -465,7 +499,8 @@ describe('parseTeamReview: the draft with hindsight', () => {
       verdict: 'v',
       swaps: [swap({ gains: ['peel', 'damage', 'peel', 'vibes', 'engage', 'frontline', 'poke'] }), swap({ seat: 'Top', out: 'Ornn', in: 'Sion', gains: [] }), swap({ seat: 'Jungle', out: 'LeeSin', in: 'Wukong', gains: 'engage' })]
     });
-    expect(got!.swaps.map((s) => s.gains)).toEqual([['peel', 'damage', 'engage'], []]);
+    // Three swaps survive since version 6; the third's gains came as a string, so it has none.
+    expect(got!.swaps.map((s) => s.gains)).toEqual([['peel', 'damage', 'engage'], [], []]);
     expect(parse({ verdict: 'v', swaps: [swap({ gains: 'engage' })] })!.swaps[0].gains).toEqual([]);
   });
 
@@ -478,6 +513,76 @@ describe('parseTeamReview: the draft with hindsight', () => {
     });
     expect(got!.swaps.map((s) => s.why)).toEqual(['Ruan was alone in their jungle at 12, Group at #20.']);
     expect(parse({ verdict: 'v', swaps: [swap({ why: 'someone#euw dived' })] })!.swaps).toEqual([]);
+  });
+
+  it('keeps at most two alternatives per swap, re-stamped to the list, none of our five, not the pick itself, once each, and leaves them out when empty', () => {
+    const got = parse({
+      verdict: 'v',
+      swaps: [
+        swap({ alternatives: ['sion', 'Zilean', 'Miss Fortune', 'jinx', 'Nautilus', 'SION', 'Malphite'] }),
+        swap({ seat: 'Top', out: 'Ornn', in: 'Sion', alternatives: [] }),
+        swap({ seat: 'Jungle', out: 'LeeSin', in: 'Wukong', alternatives: 'Nautilus' })
+      ]
+    });
+    // Zilean is off the list, Miss Fortune is the pick, Jinx is ours, the second Sion is the first again, and Malphite is a third.
+    expect(got!.swaps[0].alternatives).toEqual(['Sion', 'Nautilus']);
+    expect(got!.swaps[1]).not.toHaveProperty('alternatives');
+    expect(got!.swaps[2]).not.toHaveProperty('alternatives');
+    expect(parse({ verdict: 'v', swaps: [swap({})] })!.swaps[0]).not.toHaveProperty('alternatives');
+    expect(parse({ verdict: 'v', swaps: [swap({ alternatives: [7, null, 'Zilean'] })] })!.swaps[0]).not.toHaveProperty('alternatives');
+    // A bad alternative never costs the swap itself.
+    expect(parse({ verdict: 'v', swaps: [swap({ alternatives: ['Zilean'] })] })!.swaps.map((s) => s.in)).toEqual(['Miss Fortune']);
+    // Wukong is MonkeyKing in our own spelling, and still one of ours.
+    const wukong: ReviewContext = { ...five, players: five.players.map((p) => (p.seat === 'Jungle' ? { ...p, champion: 'MonkeyKing' } : p)) };
+    expect(parse({ verdict: 'v', swaps: [swap({ alternatives: ['Wukong', 'Nautilus'] })] }, wukong)!.swaps[0].alternatives).toEqual(['Nautilus']);
+  });
+
+  it('keeps what the five lacked: known gains once each, at most three, each with a why, under the same Riot-id check as a swap', () => {
+    const got = parse({
+      verdict: 'v',
+      swaps: [],
+      lacked: [
+        { gain: 'frontline', why: 'Nobody could stand in front around minute 24, and Kai died first in every fight.' },
+        { gain: 'vibes', why: 'x' },
+        { gain: 'frontline', why: 'again' },
+        { gain: 'peel', why: '' },
+        { gain: 'peel', why: 7 },
+        { gain: 'engage', why: 'Darius#EUW walked away from every fight.' },
+        { gain: 'engage', why: 'Ruan#EUW had no way in at 18, Group at #20.' },
+        { gain: 'waveclear', why: 'w'.repeat(300) },
+        { gain: 'poke', why: 'Their Syndra sat at range all game.' },
+        'damage'
+      ]
+    });
+    // A dropped gap does not block its gain: the second engage stands with our tag cut and a bare number left alone.
+    expect(got!.lacked).toEqual([
+      { gain: 'frontline', why: 'Nobody could stand in front around minute 24, and Kai died first in every fight.' },
+      { gain: 'engage', why: 'Ruan had no way in at 18, Group at #20.' },
+      { gain: 'waveclear', why: 'w'.repeat(200) }
+    ]);
+  });
+
+  it('leaves lacked out when the model gave none, and keeps it without a champion list', () => {
+    expect(parse({ verdict: 'v', swaps: [], lacked: [] })).toEqual({ verdict: 'v', swaps: [] });
+    expect(parse({ verdict: 'v', swaps: [], lacked: 'none' })).toEqual({ verdict: 'v', swaps: [] });
+    expect(parse({ verdict: 'v', swaps: [], lacked: [{ gain: 'vibes', why: 'x' }, { gain: 'peel' }] })).toEqual({ verdict: 'v', swaps: [] });
+    expect(parse({ verdict: 'v', swaps: [] })).not.toHaveProperty('lacked');
+    // The gaps name no champion, so they survive a review with no list to offer, where every swap falls.
+    const gap = { gain: 'frontline', why: 'Nobody could stand in front around minute 24.' };
+    expect(parse({ verdict: 'v', swaps: [swap({})], lacked: [gap] }, { ...five, championNames: [] })).toEqual({ verdict: 'v', swaps: [], lacked: [gap] });
+  });
+
+  it('stores the version 6 shape: verdict, swaps with their alternatives, and lacked', () => {
+    const got = parse({
+      verdict: 'No front line and no way in.',
+      swaps: [swap({ seat: 'Top', out: 'Ornn', in: 'Malphite', gains: ['engage', 'frontline'], alternatives: ['Sion'] })],
+      lacked: [{ gain: 'engage', why: 'Nobody could open the fight around minute 24.' }]
+    });
+    expect(got).toEqual({
+      verdict: 'No front line and no way in.',
+      swaps: [{ seat: 'Top', out: 'Ornn', in: 'Malphite', why: 'Nobody could follow the engage around minute 24.', gains: ['engage', 'frontline'], alternatives: ['Sion'] }],
+      lacked: [{ gain: 'engage', why: 'Nobody could open the fight around minute 24.' }]
+    });
   });
 
   it('keeps the verdict but no swap when no champion list was offered', () => {

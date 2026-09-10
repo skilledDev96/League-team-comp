@@ -40,6 +40,13 @@ export class App {
   private readonly router = inject(Router);
 
   protected readonly navigating = signal(false);
+  /**
+   * True on the film room (10 Sep 2026, the lead: "we don't have to see the top bar etc, make the whole screen fixed on
+   * the review with the back button visible"). The shell reads it as `.page.is-film`: the topbar and the page's padding
+   * go, and the Riot notice thins to one line under the stage. Set from the router's own url, not from the outlet's
+   * child, so the class lands in the same change detection as the route and the film measures a header that is already gone.
+   */
+  protected readonly filmRoute = signal(false);
   // Full-screen loader only for signed-in users waiting on initial Firestore data.
   protected readonly initialLoading = computed(
     () => this.auth.ready() && this.auth.isAuthed() && !this.data.ready()
@@ -93,10 +100,10 @@ export class App {
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationStart) {
         this.navigating.set(true);
-      } else if (
-        event instanceof NavigationEnd ||
-        event instanceof NavigationCancel
-      ) {
+      } else if (event instanceof NavigationEnd) {
+        this.navigating.set(false);
+        this.filmRoute.set(/^\/film(\/|\?|$)/.test(event.urlAfterRedirects));
+      } else if (event instanceof NavigationCancel) {
         this.navigating.set(false);
       } else if (event instanceof NavigationError) {
         this.navigating.set(false);

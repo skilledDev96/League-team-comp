@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { environment } from '../../../../environments/environment';
 import { FilmModel } from '../../../core/film-model';
@@ -110,10 +110,10 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmCardComponent', () => 
     else delete (navigator as unknown as { clipboard?: unknown }).clipboard;
   });
 
-  function mount() {
+  function mount(m: FilmModel = model, r: GameReview = review) {
     const fixture = TestBed.createComponent(FilmCardComponent);
-    fixture.componentRef.setInput('model', model);
-    fixture.componentRef.setInput('review', review);
+    fixture.componentRef.setInput('model', m);
+    fixture.componentRef.setInput('review', r);
     fixture.componentRef.setInput('ledger', { deaths: 3, ganks: 1, dark: 2, inReach: 0, alone: 0 });
     fixture.detectChanges();
     return { fixture, root: fixture.nativeElement as HTMLElement };
@@ -133,6 +133,18 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmCardComponent', () => 
     expect(text(root.querySelector('.film-card-draft'))).not.toContain('MonkeyKing');
   });
 
+  it('Back to the game is a pill, never a link, and goes to the game\'s row on Games', () => {
+    // 10 Sep 2026, second fix pass: it was a routerLink styled as a pill, the one link left on the film.
+    const { root } = mount();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    expect(root.querySelector('.film-card-actions a')).toBeNull();
+    const back = Array.from(root.querySelectorAll<HTMLButtonElement>('.film-card-actions .view-btn')).find((b) => text(b).includes('Back to the game'))!;
+    expect(back.tagName).toBe('BUTTON');
+    expect(back.getAttribute('type')).toBe('button');
+    back.click();
+    expect(navigate).toHaveBeenCalledWith(['/games'], { queryParams: { match: model.matchId, tab: 'games' } });
+  });
+
   it('copies what the card shows: the draft to try and the film\'s reads of the deaths, over the ledger\'s counts', async () => {
     const { fixture, root } = mount();
     const copy = Array.from(root.querySelectorAll<HTMLButtonElement>('.film-card-actions .view-btn')).find((b) => text(b).includes('Copy for Discord'))!;
@@ -150,5 +162,40 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmCardComponent', () => 
     expect(lines.filter((l) => l.startsWith('-# Draft')).join('\n')).not.toContain('MonkeyKing');
     expect(lines.at(-1)).toContain(`/film/${ID}`);
     expect(TestBed.inject(ToastService).toasts()[0]?.title).toBe('Card copied');
+  });
+
+  it('names the swap\'s other options after the champion to try, and copies them with what the comp lacked (review version 6)', async () => {
+    const draft = model.draft!;
+    const v6 = { ...model, draft: { ...draft, swaps: [{ ...draft.swaps[0], alternatives: ['Braum', 'Alistar'] }, draft.swaps[1]] } } as FilmModel;
+    const v6review = {
+      ...review,
+      reviewVersion: 6,
+      team: {
+        ...review.team,
+        draft: {
+          ...review.team.draft!,
+          swaps: [{ ...review.team.draft!.swaps[0], alternatives: ['Braum', 'Alistar'] }, review.team.draft!.swaps[1]],
+          lacked: [{ gain: 'peel', why: 'Jinx had no one between her and the dive.' }]
+        }
+      }
+    } as GameReview;
+    const { fixture, root } = mount(v6, v6review);
+    const rows = Array.from(root.querySelectorAll('.film-card-draft-row span:last-child')).map((span) => {
+      const gains = text(span.querySelector('small'));
+      return { who: text(span).replace(gains, '').trim(), gains };
+    });
+    expect(rows).toEqual([
+      { who: 'Nautilus, or Braum, or Alistar for Leona', gains: '· for peel and engage' },
+      { who: 'Sejuani for Wukong', gains: '' }
+    ]);
+    expect(Array.from(root.querySelectorAll('.film-card-draft-alt')).map(text)).toEqual([', or Braum, or Alistar']);
+    // The copy carries the same options in brackets, and the gaps as one Lacked line.
+    const copy = Array.from(root.querySelectorAll<HTMLButtonElement>('.film-card-actions .view-btn')).find((b) => text(b).includes('Copy for Discord'))!;
+    copy.click();
+    await fixture.whenStable();
+    const lines = written[0].split('\n');
+    expect(lines).toContain('-# Draft: Nautilus (or Braum, or Alistar) for Leona (Peel, Engage): Nautilus peels Jinx through the dive.');
+    expect(lines).toContain('-# Draft: Sejuani for Wukong: A frontline that starts the fight.');
+    expect(lines).toContain('-# Lacked: peel (Jinx had no one between her and the dive)');
   });
 });

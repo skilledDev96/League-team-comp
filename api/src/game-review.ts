@@ -17,6 +17,13 @@
  * and up to two swaps to OUR draft — a Malphite for the all-in with a Miss
  * Fortune, a Nautilus for the peel — each resolved against the champion list
  * the prompt offered, so the film can show real art for a real champion.
+ * Version 6 (10 Sep 2026) widens the draft after the lead asked whether one
+ * swap was all there was: up to three swaps, each with up to two alternatives
+ * that would do the same job in that seat ("Orianna, or Syndra"), and what
+ * the five lacked as gains with the fact behind each, so the film can show
+ * the gaps as chips over the swaps. The same version adds the rule that a
+ * solo death is a wave-state or trade choice and never a vision problem,
+ * after a review prescribed a ward for a laner who died one-on-one.
  *
  * Rules that came from Riot's policies and are enforced twice, in the
  * prompt and in the validators:
@@ -37,12 +44,12 @@ import { CompExpectation } from './daily-refresh';
 import { compareCurve, GameFacts, k } from './game-facts';
 import { LaneRead, LaneRole, PlayerFacts } from './lane-read';
 
-export const REVIEW_VERSION = 5;
+export const REVIEW_VERSION = 6;
 
 /** What a team point is about; the panel shows it as a tag with an icon. */
 export const REVIEW_THEMES = ['draft', 'lanes', 'fights', 'objectives', 'vision', 'tempo', 'macro'] as const;
 export type ReviewTheme = (typeof REVIEW_THEMES)[number];
-/** What a swap in the draft buys (version 5); the app mirrors this list in `team.models.ts`, so a change here is a change there. */
+/** What a swap in the draft buys, and what a comp can lack (version 5, and version 6's "lacked"); the app mirrors this list in `team.models.ts`, so a change here is a change there. */
 export const DRAFT_GAINS = ['engage', 'peel', 'frontline', 'poke', 'sustain', 'splitpush', 'waveclear', 'pick', 'disengage', 'damage'] as const;
 export type DraftGain = (typeof DRAFT_GAINS)[number];
 export const TEAM_MODEL = 'claude-opus-5';
@@ -167,6 +174,7 @@ const RULES = `Rules that never bend:
 - This is a finished game. Say nothing about a game in progress.
 - Positions, "near" and "warded" come from one frame a minute and are approximate; say "around minute 14", not "at 14:07".
 - The death ledger tags what would have stopped a death, by rules over those frames. "Our jungler a screen away" is a pathing choice and belongs in the jungler's notes; "no ward nearby" belongs to whoever should have warded the spot; "their jungler was already close" belongs to the team's calls; "alone on their side" to the player who stood there. Never blame a laner for a gank nobody could have seen.
+- A solo death - one killer, the lane opponent - is a wave-state or trade choice: the advice is to hold the wave, trade differently, or wait for the jungler before stepping up. Never prescribe a ward for a solo death, and never count a solo death as evidence about vision; 'barely a ward down' is not a reason a laner died one-on-one.
 - Plain sentences a player can read on a phone. No headings, no markdown, no bullet characters inside a string.`;
 
 export const TEAM_SYSTEM = `You are the coach reviewing one finished League of Legends game for an amateur five-stack. You are given what the team drafted and what they expected the comp to do, then the facts of the game with the minutes. You say, in a few plain sentences, whether the game went the way the draft intended, what to work on next, what to keep doing, and what you would draft differently with hindsight.
@@ -174,7 +182,7 @@ export const TEAM_SYSTEM = `You are the coach reviewing one finished League of L
 ${RULES}
 - A swap is about OUR draft. The other team's champions may be named as the matchup they posed — "into Darius", "against a Syndra" — never a person.
 
-Length: "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences at most and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence. "moments" is three to six entries in time order that walk through the game: the minute, one sentence of at most 30 words on what happened and why it mattered, and "swing" for whose way it went. A moment's "seats" names the seats of ours it is about, at most three, and stays empty when it is about the whole team. A "workOn" item that offers a choice carries its two choices again in "options" as short imperatives, and leaves them out when it offers none. "lessons" is at most three things a player should be able to answer tomorrow, each on a fact already used by "workOn" or "keepDoing" and about OUR play only: a question of at most 20 words, three options of at most 12 words with one true and the wrong ones plausible, "answer" as the index of the true one, and "why" as one sentence of at most 25 words citing the fact and the minute. "oneThing" is the one thing to watch for next game in at most twelve words, a choice not an order. "draft" is one sentence ("verdict") on whether the five we drafted fit the game that was played, and "swaps" is at most two changes to OUR draft the coach would make with hindsight, each naming the seat, the champion we played ("out", exactly as given in OUR PLAYERS), the champion to try instead ("in", from CHAMPIONS A SWAP MAY NAME, in a similar role for that seat, a mainstream pick not a niche one, never one of our own five in that game), one sentence of at most 40 words on "why" that cites the fact and the minute (for instance the fight around minute 24 where nobody could follow the engage, or the nine deaths of the carry with nobody to peel), and "gains" as what the swap buys from the list; for instance a Malphite for the all-in with Miss Fortune, or a Nautilus for the peel on a hypercarry. Swaps are empty when the draft held.`;
+Length: "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences at most and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence. "moments" is three to six entries in time order that walk through the game: the minute, one sentence of at most 30 words on what happened and why it mattered, and "swing" for whose way it went. A moment's "seats" names the seats of ours it is about, at most three, and stays empty when it is about the whole team. A "workOn" item that offers a choice carries its two choices again in "options" as short imperatives, and leaves them out when it offers none. "lessons" is at most three things a player should be able to answer tomorrow, each on a fact already used by "workOn" or "keepDoing" and about OUR play only: a question of at most 20 words, three options of at most 12 words with one true and the wrong ones plausible, "answer" as the index of the true one, and "why" as one sentence of at most 25 words citing the fact and the minute. "oneThing" is the one thing to watch for next game in at most twelve words, a choice not an order. "draft" is one sentence ("verdict") on whether the five we drafted fit the game that was played, and "swaps" is at most three changes to OUR draft the coach would make with hindsight, each naming the seat, the champion we played ("out", exactly as given in OUR PLAYERS), the champion to try instead ("in", from CHAMPIONS A SWAP MAY NAME, in a similar role for that seat, a mainstream pick not a niche one, never one of our own five in that game), one sentence of at most 40 words on "why" that cites the fact and the minute (for instance the fight around minute 24 where nobody could follow the engage, or the nine deaths of the carry with nobody to peel), "gains" as what the swap buys from the list, and "alternatives" as at most two other champions from CHAMPIONS A SWAP MAY NAME that would do the same job in that seat ("Orianna, or Syndra"), empty when there is no second option; for instance a Malphite for the all-in with Miss Fortune, or a Nautilus for the peel on a hypercarry. "lacked" is what the comp was missing that the game exposed: at most three gains from the same list, each with "why" as one sentence of at most 25 words citing the fact and the minute behind it. Leave both "swaps" and "lacked" empty when the draft held.`;
 
 export const PLAYER_SYSTEM = `You are the coach writing the notes per player after one finished League of Legends game for an amateur five-stack. For each of OUR players you are given their seat, champion, line, lane read, habits, damage, and their deaths one by one with what would have stopped each. You write, per player, one strength, the first thing to work on, and up to three more things to work on, each tied to a different fact.
 
@@ -235,19 +243,21 @@ function compSection(ctx: ReviewContext): string[] {
 }
 
 /**
- * The team question's ask on the draft (version 5, 10 Sep 2026). The champion
- * list is printed in full so the model spells a swap the way Data Dragon does
- * and the validator can find it; a name off the list is dropped, so when there
- * is no list the prompt says so rather than let the model spend words on swaps
- * nothing will keep.
+ * The team question's ask on the draft (version 5, 10 Sep 2026; three swaps,
+ * alternatives and the gaps since version 6 the same day). The champion list
+ * is printed in full so the model spells a swap the way Data Dragon does and
+ * the validator can find it; a name off the list is dropped, so when there is
+ * no list the prompt says so rather than let the model spend words on swaps
+ * nothing will keep. What the five lacked names no champion, so it is asked
+ * for either way.
  */
 function draftSection(ctx: ReviewContext): string[] {
   const lines = [
     'THE DRAFT WITH HINDSIGHT',
-    'Knowing how this game went, say in one sentence whether the five we drafted fit it. Then name at most two changes to OUR draft you would make with hindsight: the seat, the champion we played there, a mainstream champion in a similar role to try instead, why in one sentence on the fact and the minute, and what the swap buys. Leave the swaps empty when the draft held.'
+    'Knowing how this game went, say in one sentence whether the five we drafted fit it. Then name at most three changes to OUR draft you would make with hindsight: the seat, the champion we played there, a mainstream champion in a similar role to try instead, why in one sentence on the fact and the minute, what the swap buys, and up to two other champions that would do the same job in that seat. Then say what the five lacked that the game exposed: at most three gains, each with the fact and the minute behind it. Leave the swaps and the lacked list empty when the draft held.'
   ];
   if (ctx.championNames?.length) lines.push(`CHAMPIONS A SWAP MAY NAME (Data Dragon spelling): ${ctx.championNames.join(', ')}`);
-  else lines.push('No champion list is available for this review, so leave the swaps empty.');
+  else lines.push('No champion list is available for this review, so leave the swaps empty. Say what the five lacked all the same.');
   return lines;
 }
 
@@ -398,9 +408,10 @@ const lesson = {
 } as const;
 
 /**
- * One change to our draft with hindsight. The caps (two swaps, three gains, 40
- * words) live in the descriptions and `draftOf`, never as schema keywords: the
- * API rejects maxItems and friends (structured-output schema limits, 10 Sep 2026).
+ * One change to our draft with hindsight. The caps (three swaps, three gains,
+ * two alternatives, 40 words) live in the descriptions and `draftOf`, never as
+ * schema keywords: the API rejects maxItems and friends (structured-output
+ * schema limits, 10 Sep 2026).
  */
 const swap = {
   type: 'object',
@@ -409,9 +420,25 @@ const swap = {
     out: { type: 'string', description: 'The champion we played in that seat, exactly as given in OUR PLAYERS.' },
     in: { type: 'string', description: 'The champion to try instead, from CHAMPIONS A SWAP MAY NAME, in a similar role for that seat, a mainstream pick; never one of our own five in this game.' },
     why: { type: 'string', description: 'One sentence of at most 40 words citing the fact and the minute.' },
-    gains: { type: 'array', items: { type: 'string', enum: [...DRAFT_GAINS] }, description: 'What the swap buys, at most three.' }
+    gains: { type: 'array', items: { type: 'string', enum: [...DRAFT_GAINS] }, description: 'What the swap buys, at most three.' },
+    alternatives: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'At most two other champions from CHAMPIONS A SWAP MAY NAME that would do the same job in that seat; may be empty.'
+    }
   },
-  required: ['seat', 'out', 'in', 'why', 'gains'],
+  required: ['seat', 'out', 'in', 'why', 'gains', 'alternatives'],
+  additionalProperties: false
+} as const;
+
+/** Something the five lacked that the game exposed (version 6): a gain from the same list a swap buys, and the fact behind it. */
+const gap = {
+  type: 'object',
+  properties: {
+    gain: { type: 'string', enum: [...DRAFT_GAINS], description: 'What the comp was missing.' },
+    why: { type: 'string', description: 'One sentence of at most 25 words citing the fact and the minute that showed it.' }
+  },
+  required: ['gain', 'why'],
   additionalProperties: false
 } as const;
 
@@ -419,9 +446,10 @@ const draft = {
   type: 'object',
   properties: {
     verdict: { type: 'string', description: 'One sentence on how the comp fit the game that was played.' },
-    swaps: { type: 'array', description: 'At most two changes to OUR draft the coach would make with hindsight; empty when the draft held.', items: swap }
+    swaps: { type: 'array', description: 'At most three changes to OUR draft the coach would make with hindsight; empty when the draft held.', items: swap },
+    lacked: { type: 'array', description: 'What the five we drafted lacked, at most three, each with one sentence of at most 25 words citing the fact and the minute; empty when the draft held.', items: gap }
   },
-  required: ['verdict', 'swaps'],
+  required: ['verdict', 'swaps', 'lacked'],
   additionalProperties: false
 } as const;
 
@@ -532,14 +560,25 @@ export interface ReviewSwap {
   why: string;
   /** What the swap buys, distinct, at most three; may be empty. */
   gains: DraftGain[];
+  /** Other champions that would do the same job in that seat, Data Dragon's spelling, distinct, at most two; version 6, absent when none resolved. */
+  alternatives?: string[];
+}
+
+/** Something the five we drafted lacked, with the fact that showed it; version 6. Mirrored as `ReviewGap` in the app. */
+export interface ReviewGap {
+  gain: DraftGain;
+  /** One sentence citing the fact and the minute. */
+  why: string;
 }
 
 /** The draft with hindsight; version 5. Mirrored as `ReviewDraft` in the app. */
 export interface ReviewDraft {
   /** One sentence on how the five fit the game that was played. */
   verdict: string;
-  /** At most two; empty when the draft held or no champion list was offered. */
+  /** At most two before version 6, three from it; empty when the draft held or no champion list was offered. */
   swaps: ReviewSwap[];
+  /** What the comp lacked, distinct gains, at most three; version 6, absent when the draft held or nothing resolved. */
+  lacked?: ReviewGap[];
 }
 
 export interface TeamReview {
@@ -679,16 +718,43 @@ function lessonsOf(list: unknown, ctx: ReviewContext): Lesson[] {
 }
 
 /**
+ * What the five lacked (version 6, 10 Sep 2026): a gain the app knows, once
+ * each, at most three, each with the sentence that shows it. A "why" naming
+ * anyone off our five by Riot id drops the gap, as it drops a swap; our own
+ * tags are cut. Nothing here depends on the champion list, so the gaps survive
+ * a review that had none to offer.
+ */
+function lackedOf(list: unknown, ours: ReadonlySet<string>): ReviewGap[] {
+  const out: ReviewGap[] = [];
+  for (const raw of Array.isArray(list) ? list : []) {
+    if (out.length === 3) break;
+    const g = (raw ?? {}) as Record<string, unknown>;
+    const gain = g.gain;
+    if (!(DRAFT_GAINS as readonly unknown[]).includes(gain) || out.some((x) => x.gain === gain)) continue;
+    const why = optionNamingOurs(str(g.why, 200), ours);
+    if (!why) continue;
+    out.push({ gain: gain as DraftGain, why });
+  }
+  return out;
+}
+
+/**
  * The draft with hindsight (version 5, 10 Sep 2026): one sentence on the fit,
- * then at most two swaps. A swap is kept only when it is about a seat of ours,
- * names the champion we actually played there, and picks a champion from the
- * list the prompt offered that none of our five played; the model's spelling
- * is re-stamped to ours for "out" and to Data Dragon's for "in", so the app
- * can look both up for art. Without the list nothing can be resolved and no
- * swap survives, but the verdict still does. Two swaps in one seat keep the
- * first. A "why" naming anyone off our five by Riot id drops the swap, as a
- * lesson's option would; our own tags are cut. No verdict, no draft: a swap
- * without the sentence it hangs on says nothing on the card.
+ * then at most three swaps (two until version 6, the same day) and what the
+ * five lacked. A swap is kept only when it is about a seat of ours, names the
+ * champion we actually played there, and picks a champion from the list the
+ * prompt offered that none of our five played; the model's spelling is
+ * re-stamped to ours for "out" and to Data Dragon's for "in", so the app can
+ * look both up for art. A swap's alternatives resolve the same way as "in" —
+ * the list's spelling, none of our five, not the pick itself, once each, at
+ * most two — and a name that fails is dropped alone: the swap stands on its
+ * "in". Without the list nothing can be resolved and no swap survives, but the
+ * verdict and the gaps still do. Two swaps in one seat keep the first. A "why"
+ * naming anyone off our five by Riot id drops the swap, as a lesson's option
+ * would; our own tags are cut. No verdict, no draft: a swap without the
+ * sentence it hangs on says nothing on the card. Empty alternatives and an
+ * empty lacked list are left out rather than stored as [] (10 Sep 2026): the
+ * app's mirror declares both optional, and a version 5 document has neither.
  */
 function draftOf(v: unknown, ctx: ReviewContext): ReviewDraft | undefined {
   const row = (v ?? {}) as Record<string, unknown>;
@@ -704,7 +770,7 @@ function draftOf(v: unknown, ctx: ReviewContext): ReviewDraft | undefined {
   const swaps: ReviewSwap[] = [];
   const seen = new Set<LaneRole>();
   for (const raw of Array.isArray(row.swaps) ? row.swaps : []) {
-    if (swaps.length === 2) break;
+    if (swaps.length === 3) break;
     const s = (raw ?? {}) as Record<string, unknown>;
     const seat = s.seat as LaneRole;
     const out = played.get(seat);
@@ -717,10 +783,19 @@ function draftOf(v: unknown, ctx: ReviewContext): ReviewDraft | undefined {
     const gains = Array.isArray(s.gains)
       ? (s.gains.filter((g, i, all): g is DraftGain => (DRAFT_GAINS as readonly unknown[]).includes(g) && all.indexOf(g) === i) as DraftGain[]).slice(0, 3)
       : [];
+    const alternatives: string[] = [];
+    for (const a of Array.isArray(s.alternatives) ? s.alternatives : []) {
+      if (alternatives.length === 2) break;
+      const other = typeof a === 'string' ? offered.get(norm(a)) : undefined;
+      // `offered` re-stamps every spelling to the list's, so an exact `includes` is the dedup.
+      if (!other || norm(other) === norm(pick) || ourChampions.has(norm(other)) || alternatives.includes(other)) continue;
+      alternatives.push(other);
+    }
     seen.add(seat);
-    swaps.push({ seat, out, in: pick, why, gains });
+    swaps.push({ seat, out, in: pick, why, gains, ...(alternatives.length > 0 && { alternatives }) });
   }
-  return { verdict, swaps };
+  const lacked = lackedOf(row.lacked, ours);
+  return { verdict, swaps, ...(lacked.length > 0 && { lacked }) };
 }
 
 /** The team answer, capped and checked; anything without evidence is dropped. */

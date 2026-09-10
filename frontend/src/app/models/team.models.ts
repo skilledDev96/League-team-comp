@@ -755,12 +755,23 @@ export interface ReviewSwap {
   why: string;
   /** What the swap buys, at most three. */
   gains: DraftGain[];
+  /** Other champions that would do the same job in that seat, at most two, Data Dragon spelling; from review version 6. */
+  alternatives?: string[];
+}
+
+/** Something the five we drafted lacked, with the fact that showed it; from review version 6. */
+export interface ReviewGap {
+  gain: DraftGain;
+  why: string;
 }
 
 /** The draft with hindsight, from review version 5: one sentence on how the comp fit the game, and up to two swaps; none when the draft held. */
 export interface ReviewDraft {
   verdict: string;
+  /** Up to two before review version 6, up to three from it. */
   swaps: ReviewSwap[];
+  /** What the comp lacked, at most three; from review version 6, absent when the draft held. */
+  lacked?: ReviewGap[];
 }
 
 export interface GameReview {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, DRAFT_GAINS, GameReview, ReviewDraft, TeamObjectives } from '../models/team.models';
-import { askOf, evidenceChips, GAIN_LABELS, ledgerLine, playerStatLine, reviewAsText, scoreline } from './review-view';
+import { alternativesPhrase, askOf, evidenceChips, GAIN_LABELS, ledgerLine, playerStatLine, reviewAsText, scoreline } from './review-view';
 
 const side = (o: Partial<TeamObjectives>): TeamObjectives => ({ firstBlood: false, firstTower: false, dragons: 0, barons: 0, heralds: 0, grubs: 0, towers: 0, inhibitors: 0, ...o });
 const objectives = (ours: Partial<TeamObjectives>, theirs: Partial<TeamObjectives>) => ({ ours: side(ours), theirs: side({ firstBlood: true, firstTower: true, ...theirs }) });
@@ -157,6 +157,55 @@ describe('reviewAsText', () => {
     expect(held).toContain('Path safer.\n\n-# Draft: The draft held; the fights were lost on the calls.\n\n-# The full review');
     expect(reviewAsText(review, game, 'MOSS 2', undefined, undefined, { draft: { verdict: '  ', swaps: [] } })).not.toContain('-# Draft');
     expect(reviewAsText(review, game, 'MOSS 2')).not.toContain('-# Draft');
+  });
+
+  it('names a swap\'s other options in brackets and adds one Lacked line off a version 6 review, and neither off a version 5 one', () => {
+    const v6: ReviewDraft = {
+      verdict: 'The comp had no one to start a fight and no one to stop one.',
+      swaps: [
+        { seat: 'Support', out: 'Leona', in: 'Nautilus', why: 'Peel for Jinx.', gains: ['peel'], alternatives: ['Braum', 'Alistar'] },
+        { seat: 'Jungle', out: 'MonkeyKing', in: 'Sejuani', why: 'A frontline.', gains: [], alternatives: ['Zac'] },
+        // Blank entries and an empty list print nothing: no "(or )".
+        { seat: 'Mid', out: 'Ahri', in: 'Orianna', why: 'Wave clear.', gains: ['waveclear'], alternatives: [' ', ''] }
+      ],
+      lacked: [
+        { gain: 'frontline', why: 'Ornn was the only tank and died first in every fight from 14.' },
+        // The why's own full stop comes off inside the brackets; a why with none is left as it is.
+        { gain: 'peel', why: 'Jinx had no one between her and the dive' },
+        // A gain the table does not know is dropped rather than printed as a code.
+        { gain: 'tank' as unknown as 'peel', why: 'never' },
+        // A gap with no why is the word alone.
+        { gain: 'waveclear', why: '  ' }
+      ]
+    };
+    const text = reviewAsText(review, game, 'MOSS 2', undefined, undefined, { draft: v6, championName: (n) => (n === 'MonkeyKing' ? 'Wukong' : n), notes: ['(RH) Bot backed at 13'] });
+    expect(text).toContain(
+      '• **Go10x** (Trundle) — Path safer.\n\n' +
+        '-# Draft: Nautilus (or Braum, or Alistar) for Leona (Peel): Peel for Jinx.\n' +
+        '-# Draft: Sejuani (or Zac) for Wukong: A frontline.\n' +
+        '-# Draft: Orianna for Ahri (Wave clear): Wave clear.\n' +
+        '-# Lacked: frontline (Ornn was the only tank and died first in every fight from 14); peel (Jinx had no one between her and the dive); wave clear\n\n' +
+        '-# Note (RH) Bot backed at 13'
+    );
+    expect(text).not.toContain('(or )');
+    expect(text).not.toContain('tank (');
+    expect(text).not.toContain('never');
+    // The draft held on the swaps but the review still says what the five lacked: the verdict line, then the gaps.
+    const heldButLacking = reviewAsText(review, game, 'MOSS 2', undefined, undefined, { draft: { verdict: 'No swap fixes it.', swaps: [], lacked: [{ gain: 'engage', why: 'Nobody could start the fight.' }] } });
+    expect(heldButLacking).toContain('Path safer.\n\n-# Draft: No swap fixes it.\n-# Lacked: engage (Nobody could start the fight)\n\n-# The full review');
+    // A version 5 draft, or a version 6 one with the lists empty, prints the lines it always did and no Lacked line.
+    const v5 = reviewAsText(review, game, 'MOSS 2', undefined, undefined, { draft: { verdict: 'v', swaps: [{ seat: 'Support', out: 'Leona', in: 'Nautilus', why: 'Peel for Jinx.', gains: ['peel'] }] } });
+    expect(v5).toContain('-# Draft: Nautilus for Leona (Peel): Peel for Jinx.');
+    expect(v5).not.toContain('Lacked');
+    expect(reviewAsText(review, game, 'MOSS 2', undefined, undefined, { draft: { verdict: 'v', swaps: [], lacked: [] } })).not.toContain('Lacked');
+  });
+
+  it('phrases a swap\'s other options as "or X, or Y", dropping blanks, and nothing without any', () => {
+    expect(alternativesPhrase(['Braum', 'Alistar'])).toBe('or Braum, or Alistar');
+    expect(alternativesPhrase([' Zac '])).toBe('or Zac');
+    expect(alternativesPhrase(['', '  ', 'Braum'])).toBe('or Braum');
+    expect(alternativesPhrase([])).toBe('');
+    expect(alternativesPhrase(undefined)).toBe('');
   });
 
   it('has a word for every gain a swap can buy', () => {

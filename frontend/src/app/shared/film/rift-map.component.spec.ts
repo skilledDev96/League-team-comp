@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 import { FilmDeathPin, FilmDeathScene, FilmTapeEvent } from '../../core/film-model';
-import { capTokens, LIT_WINDOW_SEC, MAX_TOKENS, objectiveGlyph, RiftMapComponent, RiftToken } from './rift-map.component';
+import { capTokens, LIT_WINDOW_SEC, MAX_TOKENS, objectiveGlyph, plateLane, RiftMapComponent, RiftToken, staysForSeat } from './rift-map.component';
 
 const events: FilmTapeEvent[] = [
   { sec: 95, kind: 'back', label: 'Top backed', side: 'us', seat: 'Top', x: 8, y: 92 },
@@ -42,6 +42,35 @@ describe('objectiveGlyph', () => {
     expect(objectiveGlyph('Our herald')).toBe('herald');
     expect(objectiveGlyph('Their Atakhan')).toBe('atakhan');
     expect(objectiveGlyph('Something else')).toBe('flag');
+  });
+});
+
+describe('plateLane and staysForSeat', () => {
+  const tok = (kind: RiftToken['kind'], label: string, extra: Partial<RiftToken> = {}): RiftToken => ({ key: `${kind}:${label}`, kind, sec: 0, x: 0, y: 0, label, ...extra });
+
+  it('reads the lane off a plate\'s label, and nothing off a label without one', () => {
+    expect(plateLane('Plate down, top, by 14 min')).toBe('top');
+    expect(plateLane('2 plates down, bot, by 14 min')).toBe('bot');
+    expect(plateLane('3 plates down, mid, by 14 min')).toBe('mid');
+    expect(plateLane('A plate')).toBeNull();
+  });
+
+  it('keeps the seat\'s deaths and backs, its lane\'s plates, every objective and first, their deaths, and always the selected pin', () => {
+    expect(staysForSeat(tok('ourDeath', 'Rhu died', { seat: 'ADC', pinKey: 'd:3:ADC' }), 'ADC', null)).toBe(true);
+    expect(staysForSeat(tok('ourDeath', 'Rhu died', { seat: 'ADC', pinKey: 'd:3:ADC' }), 'Top', null)).toBe(false);
+    expect(staysForSeat(tok('ourDeath', 'Rhu died', { seat: 'ADC', pinKey: 'd:3:ADC' }), 'Top', 'd:3:ADC')).toBe(true);
+    expect(staysForSeat(tok('back', 'Top backed', { seat: 'Top' }), 'Top', null)).toBe(true);
+    expect(staysForSeat(tok('back', 'Top backed', { seat: 'Top' }), 'Jungle', null)).toBe(false);
+    // Bot lane's plates belong to the ADC's and the Support's view alike; the jungler has no lane.
+    expect(staysForSeat(tok('plate', '2 plates down, bot, by 14 min'), 'ADC', null)).toBe(true);
+    expect(staysForSeat(tok('plate', '2 plates down, bot, by 14 min'), 'Support', null)).toBe(true);
+    expect(staysForSeat(tok('plate', '2 plates down, bot, by 14 min'), 'Mid', null)).toBe(false);
+    expect(staysForSeat(tok('plate', 'Plate down, top, by 14 min'), 'Jungle', null)).toBe(false);
+    for (const seat of ['Top', 'Jungle', 'Mid', 'ADC', 'Support'] as const) {
+      expect(staysForSeat(tok('objective', 'Their dragon (infernal)', { side: 'them' }), seat, null)).toBe(true);
+      expect(staysForSeat(tok('first', 'First blood, theirs', { side: 'them' }), seat, null)).toBe(true);
+      expect(staysForSeat(tok('theirDeath', 'One of theirs died', { side: 'them' }), seat, null)).toBe(true);
+    }
   });
 });
 
@@ -155,6 +184,65 @@ describe('RiftMapComponent', () => {
     fixture.componentRef.setInput('events', events);
     fixture.detectChanges();
     expect(el.querySelector('.rift-token.is-ourDeath')?.className).not.toContain('is-read-');
+  });
+
+  it('shows one seat at a time: its deaths and backs, its lane\'s plates, every objective, their dots faded, and never hides the selected pin', () => {
+    const fixture = mount({ events, pins, theirs: [{ x: 50, y: 50, minute: 9 }], seatFilter: 'ADC' });
+    const el = fixture.nativeElement as HTMLElement;
+    const count = (sel: string) => el.querySelectorAll(sel).length;
+    // ADC: Rhu's pin stays and Ornn's (Top) goes; the Top back goes; the bot plate stays; both pits and the first stay; their dot steps back.
+    expect(count('.rift-token.is-ourDeath')).toBe(1);
+    expect(el.querySelector('.rift-token.is-ourDeath')?.getAttribute('aria-label')).toContain('Rhu');
+    expect(count('.rift-token.is-back')).toBe(0);
+    expect(count('.rift-token.is-plate')).toBe(1);
+    expect(count('.rift-token.is-objective')).toBe(2);
+    expect(count('.rift-token.is-first')).toBe(1);
+    expect(el.querySelector('.rift-token.is-theirDeath')?.classList.contains('is-faded')).toBe(true);
+    expect(count('.rift-token.is-faded')).toBe(1);
+    expect(el.classList.contains('has-seat-filter')).toBe(true);
+    // Top: Ornn's pin and the Top back stay, the bot plate goes.
+    fixture.componentRef.setInput('seatFilter', 'Top');
+    fixture.detectChanges();
+    expect(count('.rift-token.is-ourDeath')).toBe(1);
+    expect(el.querySelector('.rift-token.is-ourDeath')?.getAttribute('aria-label')).toContain('Ornn');
+    expect(count('.rift-token.is-back')).toBe(1);
+    expect(count('.rift-token.is-plate')).toBe(0);
+    expect(count('.rift-token.is-objective')).toBe(2);
+    // Jungle: no death of the jungler's here and no lane, so no plates; the pits still stand.
+    fixture.componentRef.setInput('seatFilter', 'Jungle');
+    fixture.detectChanges();
+    expect(count('.rift-token.is-ourDeath')).toBe(0);
+    expect(count('.rift-token.is-plate')).toBe(0);
+    expect(count('.rift-token.is-objective')).toBe(2);
+    // The selected pin is never hidden, whichever seat is in view, and keeps its ring.
+    fixture.componentRef.setInput('seatFilter', 'Top');
+    fixture.componentRef.setInput('selected', 'd:3:ADC');
+    fixture.detectChanges();
+    expect(count('.rift-token.is-ourDeath')).toBe(2);
+    expect(el.querySelector('.rift-token.is-selected')?.getAttribute('aria-label')).toContain('Rhu');
+    expect(count('.rift-ring')).toBe(2);
+    // All puts everything back, their dot at full weight.
+    fixture.componentRef.setInput('seatFilter', 'all');
+    fixture.detectChanges();
+    expect(count('.rift-token')).toBe(8);
+    expect(count('.rift-token.is-faded')).toBe(0);
+    expect(el.classList.contains('has-seat-filter')).toBe(false);
+  });
+
+  it('shrinks the list before the cap, so a seat\'s own tokens never lose their place to hidden ones', () => {
+    // Sixty Top backs and then the ADC's death: under the cap the death is what stays; under the ADC's view the backs are gone before the cap counts.
+    const crowded: FilmTapeEvent[] = [
+      ...Array.from({ length: MAX_TOKENS }, (_, i) => ({ sec: i + 1, kind: 'back' as const, label: 'Top backed', side: 'us' as const, seat: 'Top' as const, x: 8, y: 92 })),
+      { sec: 2000, kind: 'ourDeath', label: 'Rhu (ADC) died', side: 'us', seat: 'ADC', champion: 'Jinx', x: 85, y: 84, key: 'd:33:ADC' }
+    ];
+    const fixture = mount({ events: crowded, seatFilter: 'ADC' });
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('.rift-token').length).toBe(1);
+    expect(el.querySelector('.rift-token')?.classList.contains('is-ourDeath')).toBe(true);
+    fixture.componentRef.setInput('seatFilter', 'Top');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-token').length).toBe(MAX_TOKENS);
+    expect(el.querySelectorAll('.rift-token.is-ourDeath').length).toBe(0);
   });
 
   it('falls back to the tags\' glyphs as badges when a pin carries none', () => {

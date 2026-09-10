@@ -97,7 +97,7 @@ describe('gameFacts', () => {
     expect(f.deathClusters[1].line).toBe('Minute 20, the river: a fight went we took 2 for nothing.');
     // A death 46 seconds after the last one is its own event.
     expect(f.soloDeaths).toHaveLength(1);
-    expect(f.soloDeaths[0].line).toBe('Minute 25: Ruan (Top) died alone in top lane, with no ward nearby.');
+    expect(f.soloDeaths[0].line).toBe('Minute 25: Ruan (Top) died alone in top lane, one-on-one.');
   });
 
   it('splits a cluster at the forty-five second boundary and at a zone change', () => {
@@ -134,17 +134,68 @@ describe('gameFacts', () => {
       vision: [{ seat: 'Support', placed: [3, 4, 2], killed: [0, 1, 0] }],
       deaths: [
         { sec: 300, minute: 5, seat: 'Support', zone: 'river', theirSide: false, killers: 1, executed: false, warded: false },
-        { sec: 900, minute: 15, seat: 'Support', zone: 'bot', theirSide: true, killers: 1, executed: false, warded: false },
-        { sec: 1200, minute: 20, seat: 'Support', zone: 'bot', theirSide: true, killers: 3, executed: false, warded: true }
+        { sec: 900, minute: 15, seat: 'Support', zone: 'bot', theirSide: true, killers: 2, executed: false, warded: false },
+        { sec: 1200, minute: 20, seat: 'Support', zone: 'bot', theirSide: true, killers: 3, executed: false, warded: false }
       ]
     });
     const f = gameFacts(t, game({ players: [...game().players, { name: 'Sup', position: 'Support', champion: 'Lulu', deaths: 3 }] }));
+    // The one-on-one death at 5 is not dark; the two to a pair and a trio with no ward nearby are.
     expect(f.vision[0]).toMatchObject({ seat: 'Support', name: 'Sup', darkDeaths: 2 });
     expect(f.vision[0].line).toBe('Sup (Support) placed 3, 4, 2 wards per five minutes; 2 of 3 deaths had no ward nearby.');
     expect(f.lines.length).toBeLessThanOrEqual(MAX_LINES);
     expect(f.lines[0]).toMatch(/^Won in/);
     expect(f.lines[f.lines.length - 1]).toBe(f.vision[0].line);
     expect(f.lines.some((l) => l.includes('died alone'))).toBe(true);
+  });
+
+  it('never counts a solo death or an execution against a seat\'s vision, and says one-on-one on the solo line', () => {
+    // 10 Sep 2026: a ward does not stop a one-on-one death, so it is a wave-state or trade choice and no evidence about vision.
+    const t = timeline({
+      vision: [{ seat: 'Top', placed: [1, 1, 1], killed: [0, 0, 0] }],
+      deaths: [
+        { sec: 300, minute: 5, seat: 'Top', zone: 'top', theirSide: false, killers: 1, executed: false, warded: false },
+        { sec: 600, minute: 10, seat: 'Top', zone: 'top', theirSide: false, killers: 1, executed: false, warded: false },
+        { sec: 900, minute: 15, seat: 'Top', zone: 'top', theirSide: false, killers: 0, executed: true, warded: false },
+        { sec: 1500, minute: 25, seat: 'Top', zone: 'theirJungle', theirSide: true, killers: 1, executed: false, warded: true }
+      ]
+    });
+    const f = gameFacts(t, game({ win: false }));
+    expect(f.vision[0]).toMatchObject({ seat: 'Top', darkDeaths: 0 });
+    expect(f.vision[0].line).toBe('Ruan (Top) placed 1, 1, 1 wards per five minutes; 0 of 4 deaths had no ward nearby.');
+    // The ledger agrees, as it always has: no solo death carries the ward tag.
+    expect(f.ledger!.every((d) => !d.could.includes('ward'))).toBe(true);
+    expect(f.soloDeaths.map((d) => d.line)).toEqual([
+      'Minute 5: Ruan (Top) died alone in top lane, one-on-one.',
+      'Minute 10: Ruan (Top) died alone in top lane, one-on-one.',
+      'Minute 15: Ruan (Top) died alone in top lane to a tower or a monster.',
+      'Minute 25: Ruan (Top) died alone in their jungle, one-on-one.'
+    ]);
+    expect(f.soloDeaths.map((d) => d.line).join(' ')).not.toMatch(/ward/);
+    // One death to a pair with no ward nearby is dark; the solo deaths beside it still are not.
+    const pair = gameFacts(timeline({ ...t, deaths: [...t.deaths, { sec: 1700, minute: 28, seat: 'Top', zone: 'river', theirSide: false, killers: 2, executed: false, warded: false }] }), game({ win: false }));
+    expect(pair.vision[0]).toMatchObject({ darkDeaths: 1 });
+    expect(pair.vision[0].line).toContain('1 of 5 deaths had no ward nearby');
+  });
+
+  it('says a laner killed by their jungler alone died to their jungler, never one-on-one, so the solo line agrees with the ledger\'s gank', () => {
+    // 10 Sep 2026, second fix pass: one killer who was their jungler is a gank the ledger already calls one; "one-on-one" would have
+    // read as the lane opponent and told the model to withhold the ward advice exactly where a ward was the answer.
+    const t = timeline({
+      vision: [{ seat: 'Top', placed: [1, 1, 1], killed: [0, 0, 0] }],
+      deaths: [
+        { sec: 420, minute: 7, seat: 'Top', zone: 'top', theirSide: false, killers: 1, executed: false, warded: false, theirJungleIn: true },
+        { sec: 900, minute: 15, seat: 'Top', zone: 'top', theirSide: false, killers: 1, executed: false, warded: false, theirJungleIn: false }
+      ]
+    });
+    const f = gameFacts(t, game({ win: false }));
+    expect(f.soloDeaths.map((d) => d.line)).toEqual([
+      'Minute 7: Ruan (Top) died alone in top lane to their jungler alone.',
+      'Minute 15: Ruan (Top) died alone in top lane, one-on-one.'
+    ]);
+    expect(f.ledger![0]).toMatchObject({ minute: 7, how: 'gank' });
+    expect(f.ledger![1]).toMatchObject({ minute: 15, how: 'solo' });
+    // The vision count keeps the ledger's bar (two or more killers) for the ward tag, so the gank by one is not dark either.
+    expect(f.vision[0]).toMatchObject({ darkDeaths: 0 });
   });
 });
 

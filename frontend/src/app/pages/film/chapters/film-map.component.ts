@@ -1,11 +1,11 @@
 import { afterRenderEffect, Component, computed, effect, ElementRef, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DEATH_READS, DeathReadKind, READ_LABELS } from '../../../core/death-reads';
-import { COULD_GLYPHS, FilmDeathPin, FilmModel } from '../../../core/film-model';
+import { DEATH_READS, DeathReadKind, READ_LABELS, readCounts } from '../../../core/death-reads';
+import { COULD_GLYPHS, FilmDeathPin, FilmModel, FilmSeat } from '../../../core/film-model';
 import { voiceOf } from '../../../core/film-style';
 import { initialsOf } from '../../../core/initials';
 import { COULD_LABELS, HOW_LABELS, ZONE_LABELS } from '../../../core/review-view';
-import { DeathHow, FilmNote, MapZone } from '../../../models/team.models';
+import { DeathHow, FilmNote, MapZone, Role, ROLES } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
 import { MotionService } from '../../../services/motion.service';
 import { TeamDataService } from '../../../services/team-data.service';
@@ -16,9 +16,12 @@ import { FilmGlyphComponent } from '../../../shared/film/film-glyph.component';
 import { RiftMapComponent } from '../../../shared/film/rift-map.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { FilmFrameComponent } from '../film-frame.component';
+import { FilmSeatTile } from './film-tape.component';
 
 /** A death's cost is said on the card only from this much gold either way; under it the two minutes after read as noise. */
 const COST_SAYS_GOLD = 300;
+/** The sentence the corner note carries as its tip (10 Sep 2026: it ran under the square until the Rift grew to the stage). */
+export const APPROXIMATE_TIP = 'Positions are approximate: one frame a minute, placed inside the zone the frame put them in.';
 
 /** Thousands as "1.2k", under a thousand as the number; the same shape as the facts' own lines and the tape's consequences. */
 export function k(gold: number): string {
@@ -51,6 +54,16 @@ export function costLine(cost: number | undefined): string {
  * it, Watch it takes the tape to twenty seconds before, As a table is the
  * ledger with a Read column, and an editor can leave one line on a death.
  * Nothing on the map drags, and every position is approximate by zone.
+ *
+ * Later on 10 Sep 2026, after the lead's screenshots: the long caption
+ * under the square went (the corner note carries the sentence as its tip,
+ * so the Rift can take the stage's whole height), five tiles beside the
+ * legend show one seat at a time (the Rift hides the other seats' deaths
+ * through `seatFilter`, and the legend, the strip, the table and the walk
+ * follow, so the counts and "n / m" say what is on the map), and Full
+ * screen gives the Rift the stage with the side column as a drawer (the
+ * page's Escape, through `closeTick`, closes the drawer first and the full
+ * screen next). None of it is stored; a visit opens on All, small.
  */
 @Component({
   selector: 'app-film-map',
@@ -59,7 +72,7 @@ export function costLine(cost: number | undefined): string {
     @let map = model().map;
     <app-film-frame [kicker]="kicker()" [index]="index()" [count]="count()" (next)="next.emit()" (back)="back.emit()">
       @if (map) {
-        <div class="film-map is-open">
+        <div class="film-map is-open" [class.is-full]="full()" [class.is-drawer-closed]="full() && !drawer()">
           <div class="film-map-stage">
             <app-rift-map
               [pins]="map.pins"
@@ -68,29 +81,55 @@ export function costLine(cost: number | undefined): string {
               [until]="null"
               [selected]="selectedKey()"
               [readFilter]="readFilter()"
+              [seatFilter]="seatFilter()"
               [unreadKeys]="[]"
               [dim]="false"
+              [note]="false"
               (pick)="jumpTo($event)"
-            >
-              <span caption>Positions are approximate: one frame a minute, placed inside the zone the frame put them in.</span>
-            </app-rift-map>
+            />
+            <!-- The Rift's own corner note is off and this one stands in its place (10 Sep 2026): the same words, with the sentence that used to run under the square as its tip; the sentence stays in the DOM for a screen reader. -->
+            <span class="rift-map-note film-map-note" [appTip]="approximateTip">Approximate, by zone</span>
+            <p class="visually-hidden">{{ approximateTip }}</p>
+            @if (full() && !drawer()) {
+              <button type="button" class="view-btn film-full-open" appTip="Bring the cards back" (click)="openDrawer()"><span class="material-symbols-rounded" aria-hidden="true">dock_to_right</span> Cards</button>
+            }
           </div>
 
           <div class="film-map-side">
+            @if (full()) {
+              <button type="button" class="view-btn film-full-close" appTip="Close the drawer; the Rift stays full screen" (click)="closeDrawer()"><span class="material-symbols-rounded" aria-hidden="true">close</span> Close</button>
+            }
             <p class="film-map-opening">
               @if (opening().count; as n) { <b #openingNum class="film-num" [attr.data-count]="n"></b> }
               <span>{{ opening().rest }}</span>
             </p>
 
             @if (map.pins.length) {
+              <!-- One seat at a time (10 Sep 2026): the same tiles the tape wears; the legend's counts, the strip, the table and the walk all follow the seat. All resets. -->
+              <div class="film-seat-tiles" role="group" aria-label="One seat at a time">
+                <button type="button" class="film-seat-tile is-all" [class.active]="seatFilter() === 'all'" [attr.aria-pressed]="seatFilter() === 'all'" appTip="Every seat's deaths" (click)="pickSeat('all')">
+                  <span class="film-seat-tile-all"><span class="material-symbols-rounded" aria-hidden="true">groups</span></span>
+                  <small>All</small>
+                </button>
+                @for (s of seatTiles(); track s.seat) {
+                  <button type="button" class="film-seat-tile" [style.--i]="$index + 1" [class.active]="seatFilter() === s.seat" [attr.aria-pressed]="seatFilter() === s.seat" [appTip]="tileTip(s)" (click)="pickSeat(s.seat)">
+                    <img [src]="ui.championIconUrl(s.champion)" [alt]="s.champion" loading="lazy" />
+                    <small>{{ s.seat }}</small>
+                  </button>
+                }
+              </div>
+
               <div class="film-legend" role="group" aria-label="Light the deaths by how the film reads them">
-                <button type="button" class="view-btn" [class.active]="readFilter() === 'all'" [attr.aria-pressed]="readFilter() === 'all'" (click)="readFilter.set('all')">All <small>{{ map.pins.length }}</small></button>
+                <button type="button" class="view-btn" [class.active]="readFilter() === 'all'" [attr.aria-pressed]="readFilter() === 'all'" (click)="readFilter.set('all')">All <small>{{ walk().length }}</small></button>
                 @for (r of readsPresent(); track r) {
-                  <button type="button" [class]="'view-btn film-legend-read is-read-' + r" [class.active]="readFilter() === r" [attr.aria-pressed]="readFilter() === r" [attr.aria-label]="readLabels[r].label + ', ' + map.reads[r]" [appTip]="readLabels[r].tip" (click)="toggleRead(r)">
-                    <app-film-glyph [name]="readLabels[r].icon" /><span class="film-legend-word">{{ readLabels[r].label }}</span>{{ ' ' }}<small>{{ map.reads[r] }}</small>
+                  <button type="button" [class]="'view-btn film-legend-read is-read-' + r" [class.active]="readFilter() === r" [attr.aria-pressed]="readFilter() === r" [attr.aria-label]="readLabels[r].label + ', ' + counts()[r]" [appTip]="readLabels[r].tip" (click)="toggleRead(r)">
+                    <app-film-glyph [name]="readLabels[r].icon" /><span class="film-legend-word">{{ readLabels[r].label }}</span>{{ ' ' }}<small>{{ counts()[r] }}</small>
                   </button>
                 }
                 <button type="button" class="view-btn film-map-table-btn" [class.active]="table()" [attr.aria-pressed]="table()" (click)="table.set(!table())"><span class="material-symbols-rounded" aria-hidden="true">table_rows</span> As a table</button>
+                <button type="button" class="view-btn film-full-btn" [class.active]="full()" [attr.aria-pressed]="full()" [appTip]="full() ? 'Back to the map beside its cards' : 'The Rift takes the stage; the cards move into a drawer'" (click)="toggleFull()">
+                  <span class="material-symbols-rounded" aria-hidden="true">{{ full() ? 'fullscreen_exit' : 'fullscreen' }}</span> {{ full() ? 'Exit full screen' : 'Full screen' }}
+                </button>
               </div>
 
               @if (costliest().length) {
@@ -116,7 +155,7 @@ export function costLine(cost: number | undefined): string {
                       <tr><th scope="col" class="num">Min</th><th scope="col">Who</th><th scope="col">Where</th><th scope="col">How</th><th scope="col">Read</th><th scope="col">Could have been stopped by</th></tr>
                     </thead>
                     <tbody>
-                      @for (d of map.pins; track d.key) {
+                      @for (d of walk(); track d.key) {
                         <tr [class.is-selected]="d.key === selectedKey()" [appTip]="d.readLine" (click)="jumpTo(d.key)">
                           <td class="num">{{ d.minute }}</td>
                           <td>@if (d.champion) { <img class="player-mark" [src]="ui.championIconUrl(d.champion)" alt="" loading="lazy" /> }{{ d.name || d.seat }} @if (d.name) { <small class="muted">{{ d.seat }}</small> }</td>
@@ -135,6 +174,8 @@ export function costLine(cost: number | undefined): string {
                     </tbody>
                   </table>
                 </div>
+              } @else if (!walk().length) {
+                <p class="film-wait">{{ seatFilter() }} never died. Keep doing that.</p>
               } @else {
                 <!-- Keyed on the death so a new one remounts the card: its drop and the scene's entrance play again for every death walked to. -->
                 @for (p of shownPin(); track p.key) {
@@ -150,7 +191,7 @@ export function costLine(cost: number | undefined): string {
                         <span class="film-death-how">{{ how(p.how) }}</span>
                         <span class="film-death-zone">{{ zone(p.zone) }}</span>
                       </span>
-                      <span class="film-death-n">{{ cursor() + 1 }} / {{ map.pins.length }}</span>
+                      <span class="film-death-n">{{ cursor() + 1 }} / {{ walk().length }}</span>
                     </header>
 
                     <span [class]="'film-read-badge is-read-' + p.read" [appTip]="readLabels[p.read].tip"><app-film-glyph [name]="readLabels[p.read].icon" />{{ readLabels[p.read].label }}</span>
@@ -188,7 +229,7 @@ export function costLine(cost: number | undefined): string {
 
                     <div class="film-death-actions">
                       <button type="button" class="view-btn" [disabled]="cursor() === 0" (click)="step(-1)"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span> Previous</button>
-                      <button type="button" class="view-btn active" [disabled]="cursor() >= map.pins.length - 1" (click)="step(1)">{{ voice().nextDeath }} <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button>
+                      <button type="button" class="view-btn active" [disabled]="cursor() >= walk().length - 1" (click)="step(1)">{{ voice().nextDeath }} <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button>
                       <button type="button" class="view-btn" [appTip]="'Open the tape twenty seconds before this death'" (click)="watch.emit(p.sec)"><span class="material-symbols-rounded" aria-hidden="true">play_circle</span> {{ voice().watchIt }}</button>
                     </div>
                   </article>
@@ -210,8 +251,10 @@ export class FilmMapComponent {
   readonly kicker = input<string>('The map');
   readonly index = input<number>(2);
   readonly count = input<number>(1);
-  /** Bumped by the page on Escape: the table and the note form fold. */
+  /** Bumped by the page on Escape: the table and the note form fold; in full screen the drawer closes first, the full screen next (10 Sep 2026). */
   readonly closeTick = input<number>(0);
+  /** A `closeTick` that closed something (the table, the note, the drawer, the full screen), so the page does not count that press towards leaving the film (10 Sep 2026, second fix pass). */
+  readonly escaped = output<void>();
   /** Watch it: the second of the death, for the page to hand the tape. */
   readonly watch = output<number>();
   readonly next = output<void>();
@@ -226,14 +269,20 @@ export class FilmMapComponent {
   protected readonly readLabels = READ_LABELS;
   protected readonly couldLabels = COULD_LABELS;
   protected readonly couldGlyphs = COULD_GLYPHS;
+  protected readonly approximateTip = APPROXIMATE_TIP;
   /** The chrome's strings for this film: Next death, Watch it. Never the ledger's words. */
   protected readonly voice = computed(() => voiceOf(this.model().style));
 
   protected readonly cursor = signal(0);
   protected readonly readFilter = signal<DeathReadKind | 'all'>('all');
+  /** One seat of ours at a time, or every seat: the Rift's view and the side column's walk. Per visit. */
+  protected readonly seatFilter = signal<Role | 'all'>('all');
   protected readonly table = signal(false);
   protected readonly noteOpen = signal(false);
   protected readonly noteText = signal('');
+  /** Full screen: the Rift takes the stage and the side column is a drawer; `drawer` is whether that drawer is open. Both per visit, never stored. */
+  protected readonly full = signal(false);
+  protected readonly drawer = signal(true);
   /** The game on the map; a string, so the walk below restarts only for another game and never for a rebuilt model of this one. */
   private readonly matchId = computed(() => this.model().matchId);
 
@@ -243,18 +292,34 @@ export class FilmMapComponent {
     const m = /^(\d+)([\s\S]*)$/.exec(line);
     return m ? { count: m[1], rest: m[2] } : { count: null, rest: line };
   });
-  /** The reads that have a death, in the reads' own order. */
-  protected readonly readsPresent = computed<DeathReadKind[]>(() => {
-    const reads = this.model().map?.reads;
-    return reads ? DEATH_READS.filter((r) => reads[r] > 0) : [];
+  /** Our five as tiles, in lane order, from the film's seats; a seat the review did not fill has no tile. */
+  protected readonly seatTiles = computed<FilmSeatTile[]>(() => {
+    const seats = this.model().seats;
+    return ROLES.map((r) => seats.find((s) => s.seat === r))
+      .filter((s): s is FilmSeat => !!s)
+      .map((s) => ({ seat: s.seat, champion: s.champion, name: s.name }));
   });
-  /** The pins behind `map.costliest`, in its order. */
+  /** The deaths the side column walks, in the map's order: every pin, or one seat's under its view. */
+  protected readonly walk = computed<FilmDeathPin[]>(() => {
+    const pins = this.model().map?.pins ?? [];
+    const seat = this.seatFilter();
+    return seat === 'all' ? pins : pins.filter((p) => p.seat === seat);
+  });
+  /** How many of the walked deaths fall under each read: the map's own counts under All, the seat's under a seat. */
+  protected readonly counts = computed<Record<DeathReadKind, number>>(() => readCounts(this.walk().map((p) => p.read)));
+  /** The reads that have a death in the walk, in the reads' own order. */
+  protected readonly readsPresent = computed<DeathReadKind[]>(() => {
+    const counts = this.counts();
+    return DEATH_READS.filter((r) => counts[r] > 0);
+  });
+  /** The pins behind `map.costliest`, in its order, kept to the seat in view. */
   protected readonly costliest = computed<FilmDeathPin[]>(() => {
     const map = this.model().map;
     if (!map) return [];
-    return map.costliest.map((key) => map.pins.find((p) => p.key === key)).filter((p): p is FilmDeathPin => !!p);
+    const walked = new Set(this.walk().map((p) => p.key));
+    return map.costliest.map((key) => map.pins.find((p) => p.key === key)).filter((p): p is FilmDeathPin => !!p && walked.has(p.key));
   });
-  protected readonly pin = computed<FilmDeathPin | undefined>(() => this.model().map?.pins[this.cursor()]);
+  protected readonly pin = computed<FilmDeathPin | undefined>(() => this.walk()[this.cursor()]);
   /** The pin on the card as a one-item list, so the template can key the card on it. */
   protected readonly shownPin = computed<FilmDeathPin[]>(() => {
     const p = this.pin();
@@ -267,10 +332,23 @@ export class FilmMapComponent {
   });
 
   constructor() {
+    // Escape from the page: the table and the note fold; in full screen the drawer folds first, the full screen on the next press.
+    // A press that closed any of them says so through `escaped`, so the page's second-press rule (two Escapes within two seconds
+    // go Back) only arms on a press that found nothing to close: Escape, Escape out of full screen used to drop the reader on
+    // Games and lose the seat view with it (10 Sep 2026, second fix pass).
     effect(() => {
       this.closeTick();
-      this.table.set(false);
-      this.noteOpen.set(false);
+      untracked(() => {
+        let closed = this.table() || this.noteOpen();
+        this.table.set(false);
+        this.noteOpen.set(false);
+        if (this.full()) {
+          if (this.drawer()) this.drawer.set(false);
+          else this.full.set(false);
+          closed = true;
+        }
+        if (closed) this.escaped.emit();
+      });
     });
 
     // A new death on the card starts with the note form closed.
@@ -280,13 +358,16 @@ export class FilmMapComponent {
     });
 
     // A new game in the same component (the title card links film to film and the page is reused): the walk starts
-    // over from the first death with every read lit, rather than standing on the last film's index (10 Sep 2026).
+    // over from the first death with every read and every seat lit, small, rather than standing on the last film's index (10 Sep 2026).
     effect(() => {
       this.matchId();
       untracked(() => {
         this.cursor.set(0);
         this.readFilter.set('all');
+        this.seatFilter.set('all');
         this.table.set(false);
+        this.full.set(false);
+        this.drawer.set(true);
       });
     });
 
@@ -303,6 +384,17 @@ export class FilmMapComponent {
     this.readFilter.set(this.readFilter() === r ? 'all' : r);
   }
 
+  /** One seat's view, or All: the walk starts over from that seat's first death. */
+  protected pickSeat(seat: Role | 'all'): void {
+    this.seatFilter.set(seat);
+    this.cursor.set(0);
+    this.table.set(false);
+    // A read the new seat has no death under goes back to All (10 Sep 2026, second fix pass): its pill leaves the legend with the
+    // seat, so a filter kept on it faded every pin of the seat with no lit pill, not even All, to say why.
+    const read = this.readFilter();
+    if (read !== 'all' && !this.counts()[read]) this.readFilter.set('all');
+  }
+
   protected cost(p: FilmDeathPin): string {
     return costLine(p.cost);
   }
@@ -312,16 +404,40 @@ export class FilmMapComponent {
   }
 
   protected step(dir: 1 | -1): void {
-    const n = this.model().map?.pins.length ?? 0;
+    const n = this.walk().length;
     this.cursor.set(Math.min(Math.max(this.cursor() + dir, 0), Math.max(0, n - 1)));
   }
 
-  /** A pin tapped on the map, a costliest card, or a row in the table: the card jumps to it. */
+  /** A pin tapped on the map, a costliest card, or a row in the table: the card jumps to it. A pin outside the seat in view (the selected one never hides) brings the view back to All first. */
   protected jumpTo(key: string): void {
-    const i = this.model().map?.pins.findIndex((p) => p.key === key) ?? -1;
-    if (i < 0) return;
+    let i = this.walk().findIndex((p) => p.key === key);
+    if (i < 0) {
+      i = this.model().map?.pins.findIndex((p) => p.key === key) ?? -1;
+      if (i < 0) return;
+      this.seatFilter.set('all');
+    }
     this.cursor.set(i);
     this.table.set(false);
+    // In full screen with the drawer closed the tap is a question the card answers, so the drawer comes back for it (10 Sep 2026).
+    if (this.full() && !this.drawer()) this.drawer.set(true);
+  }
+
+  /** Full screen on, with the drawer open; or off. Per visit. */
+  protected toggleFull(): void {
+    this.full.set(!this.full());
+    this.drawer.set(true);
+  }
+
+  protected closeDrawer(): void {
+    this.drawer.set(false);
+  }
+
+  protected openDrawer(): void {
+    this.drawer.set(true);
+  }
+
+  protected tileTip(s: FilmSeatTile): string {
+    return s.name ? `${s.name} · ${s.seat} · ${s.champion}` : `${s.seat} · ${s.champion}`;
   }
 
   protected openNote(): void {

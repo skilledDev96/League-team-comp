@@ -112,6 +112,19 @@ export function gainsPhrase(gains: readonly DraftGain[] | undefined): string {
   return `for ${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
 }
 
+/**
+ * The other champions a swap could name, as one phrase in the coach's order: "or Braum, or Alistar"; empty when the
+ * review named none (review version 6, 10 Sep 2026). One helper so the draft chapter, the card, the panel and the chat
+ * read the same. Blank entries are dropped, so a hand-edited document with an empty string never prints "or ".
+ */
+export function alternativesPhrase(alternatives: readonly string[] | undefined): string {
+  return (alternatives ?? [])
+    .map((a) => (typeof a === 'string' ? a.trim() : ''))
+    .filter(Boolean)
+    .map((a) => `or ${a}`)
+    .join(', ');
+}
+
 /** What a swap in the draft buys, in the team's words (10 Sep 2026); one table for the chapter, the panel and the chat. */
 export const GAIN_LABELS: Record<DraftGain, string> = {
   engage: 'Engage',
@@ -149,7 +162,7 @@ export interface ReviewTextExtras {
   notes?: string[];
   /** The film's reads of our deaths (`core/death-reads.ts`); when given, the deaths line is theirs rather than the ledger's counts. */
   reads?: Record<DeathReadKind, number>;
-  /** The draft with hindsight (review version 5): one Draft line per swap, or the verdict alone when the draft held. */
+  /** The draft with hindsight (review version 5): one Draft line per swap, or the verdict alone when the draft held; since version 6 the swap's other options in brackets and one Lacked line after the swaps. */
   draft?: ReviewDraft;
   /** The display name for a champion however it was spelt (`UiService.championName`): a swap's `out` is Riot's id and its `in` Data Dragon's name, and one sentence must not mix "Wukong for MonkeyKing". */
   championName?: (name: string) => string;
@@ -161,18 +174,33 @@ function readsSubtext(reads: Record<DeathReadKind, number>): string {
   return total ? `💀 ${readsLine(reads)}` : '';
 }
 
-/** "Nautilus for Leona (Peel, Pick): why" per swap, or the verdict alone when the coach would change nothing. */
+/**
+ * "Nautilus (or Braum, or Alistar) for Leona (Peel, Pick): why" per swap, or the verdict alone when the coach would
+ * change nothing; then, when the review says what the comp lacked (version 6, 10 Sep 2026), one line of the gaps in
+ * lower case with the fact behind each: "Lacked: frontline (Ornn was the only tank); peel (...)". The why's own full
+ * stop comes off inside the brackets, so the line reads as one sentence; a gap whose gain the table does not know is
+ * dropped rather than printed as a code.
+ */
 function draftLines(draft: ReviewDraft | undefined, championName: (name: string) => string = (name) => name): string[] {
   if (!draft) return [];
   const swaps = (draft.swaps ?? []).filter((s) => s.in && s.out);
-  if (swaps.length) {
-    return swaps.map((s) => {
-      const gains = (s.gains ?? []).map((g) => GAIN_LABELS[g]).filter(Boolean);
-      return `-# Draft: ${s.in} for ${championName(s.out)}${gains.length ? ` (${gains.join(', ')})` : ''}: ${s.why}`;
+  const lines = swaps.length
+    ? swaps.map((s) => {
+        const gains = (s.gains ?? []).map((g) => GAIN_LABELS[g]).filter(Boolean);
+        const alts = alternativesPhrase(s.alternatives);
+        return `-# Draft: ${s.in}${alts ? ` (${alts})` : ''} for ${championName(s.out)}${gains.length ? ` (${gains.join(', ')})` : ''}: ${s.why}`;
+      })
+    : draft.verdict?.trim()
+      ? [`-# Draft: ${draft.verdict.trim()}`]
+      : [];
+  const lacked = (draft.lacked ?? [])
+    .filter((g) => g && GAIN_LABELS[g.gain])
+    .map((g) => {
+      const why = (g.why ?? '').trim().replace(/\.$/, '');
+      return `${GAIN_LABELS[g.gain].toLowerCase()}${why ? ` (${why})` : ''}`;
     });
-  }
-  const verdict = draft.verdict?.trim();
-  return verdict ? [`-# Draft: ${verdict}`] : [];
+  if (lacked.length) lines.push(`-# Lacked: ${lacked.join('; ')}`);
+  return lines;
 }
 
 /**
@@ -184,7 +212,8 @@ function draftLines(draft: ReviewDraft | undefined, championName: (name: string)
  * the last lines say so, with the film room after it when there is one.
  * Since 10 Sep 2026 the deaths line is the film's reads when the caller has
  * them, and the draft with hindsight adds a Draft line per swap after the
- * asks.
+ * asks (the swap's other options in brackets) and a Lacked line when the
+ * review says what the comp was missing (version 6).
  */
 export function reviewAsText(review: GameReview, game: AnalysisGame | undefined, opponent?: string, link?: string, ledger?: LedgerSummary, extras?: ReviewTextExtras): string {
   const title = review.team.headline || firstSentence(review.team.summary) || 'Game review';

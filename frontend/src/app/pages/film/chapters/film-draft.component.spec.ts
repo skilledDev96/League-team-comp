@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { environment } from '../../../../environments/environment';
@@ -9,6 +10,7 @@ import { AuthService } from '../../../services/auth.service';
 import { CompExpectationService } from '../../../services/comp-expectation.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { ToastService } from '../../../services/toast.service';
+import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { FilmDraftComponent } from './film-draft.component';
 
 /** What the expectation service would derive for the variant; the spec pins that the chapter asks it and writes the answer. */
@@ -466,5 +468,73 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmDraftComponent', () =>
     const root = mount(modelWith(undefined)).nativeElement as HTMLElement;
     expect(text(root.querySelector('.film-wait'))).toBe('The review carries no draft verdict for this game.');
     expect(root.querySelector('.film-draft-rows')).toBeNull();
+  });
+
+  it('shows what the comp lacked as chips over the swaps, each why as the tip and as a line under, and the other options under each swap that has them (review version 6)', () => {
+    const v6: FilmDraft = {
+      ...draft,
+      swaps: [
+        { ...draft.swaps[0], alternatives: ['Braum', 'Alistar'] },
+        { seat: 'Jungle', out: 'Trundle', in: 'Sejuani', why: 'A frontline that starts the fight.', gains: ['frontline', 'engage'], glyphs: ['wall', 'fist'], alternatives: ['Zac'] },
+        { seat: 'Mid', out: 'Orianna', in: 'Syndra', why: 'Damage from range while the front holds.', gains: ['damage'], glyphs: ['bolt'] }
+      ],
+      lacked: [
+        { gain: 'frontline', glyph: 'wall', why: 'Ornn was the only tank and died first in every fight from 14.' },
+        { gain: 'peel', glyph: 'shield', why: 'Jinx had no one between her and the dive.' },
+        // A gap the build kept without a sentence: the chip stands, with no tip and no line under it.
+        { gain: 'engage', glyph: 'fist', why: '' }
+      ]
+    };
+    const fixture = mount(modelWith(v6));
+    const root = fixture.nativeElement as HTMLElement;
+    const block = root.querySelector('.film-draft-lacked-block') as HTMLElement;
+    expect(block).not.toBeNull();
+    expect(text(block.querySelector('.film-draft-lacked-label'))).toBe('What the five lacked');
+    const chips = Array.from(block.querySelectorAll('.film-draft-lacked .film-draft-gap'));
+    expect(chips.map((c) => text(c))).toEqual(['Frontline', 'Peel', 'Engage']);
+    expect(chips.map((c) => c.querySelector('svg')?.getAttribute('data-glyph'))).toEqual(['wall', 'shield', 'fist']);
+    expect(fixture.debugElement.queryAll(By.css('.film-draft-gap')).map((de) => de.injector.get(TooltipDirective).appTip())).toEqual([v6.lacked![0].why, v6.lacked![1].why, '']);
+    expect(Array.from(block.querySelectorAll('.film-draft-lacked-why')).map((li) => text(li))).toEqual([v6.lacked![0].why, v6.lacked![1].why]);
+    // Over the swaps, in the same column of the layout.
+    const swaps = root.querySelector('.film-draft-swaps') as HTMLElement;
+    expect(block.compareDocumentPosition(swaps) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(block.parentElement).toBe(swaps.parentElement);
+    expect(block.parentElement?.classList.contains('film-draft-side')).toBe(true);
+    expect(root.querySelector('.film-draft-held')).toBeNull();
+
+    // Three swaps: three cards, three seats turned, a Save pill each.
+    const cards = root.querySelectorAll('.film-draft-swap');
+    expect(cards).toHaveLength(3);
+    expect(root.querySelectorAll('.film-draft-seat.has-swap.is-swapped')).toHaveLength(3);
+    const pills = Array.from(root.querySelectorAll('.film-draft-swap .view-btn')).map((b) => text(b));
+    expect(pills).toHaveLength(3);
+    expect(pills[0]).toContain('Save with Nautilus');
+    expect(pills[1]).toContain('Save with Sejuani');
+    expect(pills[2]).toContain('Save with Syndra');
+
+    // The other options under the champion to try, a tile each; the swap that names none carries no line.
+    const alt = cards[0].querySelector('.film-draft-swap-side.is-in .film-draft-alt') as HTMLElement;
+    expect(text(alt)).toBe('or Braum, or Alistar');
+    expect(Array.from(alt.querySelectorAll('img.film-draft-alt-tile')).map((i) => i.getAttribute('src')?.split('/').pop())).toEqual(['Braum.png', 'Alistar.png']);
+    expect(text(cards[1].querySelector('.film-draft-alt'))).toBe('or Zac');
+    expect(cards[2].querySelector('.film-draft-alt')).toBeNull();
+    // The champion to try still stands on its own line, so the card's pair reads as before.
+    expect(text(cards[0].querySelector('.film-draft-swap-side.is-in .film-draft-champ'))).toBe('Nautilus');
+  });
+
+  it('shows no gaps and no other options for a version 5 review, and says the draft held only when the review names neither a swap nor a gap', () => {
+    const root = mount(modelWith(draft)).nativeElement as HTMLElement;
+    expect(root.querySelector('.film-draft-lacked-block')).toBeNull();
+    expect(root.querySelector('.film-draft-alt')).toBeNull();
+    expect(root.querySelector('.film-draft-side .film-draft-swaps')).not.toBeNull();
+    // The draft held: nothing on the right at all.
+    const held = mount(modelWith({ ...draft, swaps: [] })).nativeElement as HTMLElement;
+    expect(held.querySelector('.film-draft-side')).toBeNull();
+    expect(held.querySelector('.film-draft-held')).not.toBeNull();
+    // No swap the review could name (no champion list was offered), but the five lacked something: the chips stand and "The draft held." does not.
+    const lacking = mount(modelWith({ ...draft, swaps: [], lacked: [{ gain: 'engage', glyph: 'fist', why: 'Nobody could start the fight.' }] })).nativeElement as HTMLElement;
+    expect(lacking.querySelector('.film-draft-held')).toBeNull();
+    expect(Array.from(lacking.querySelectorAll('.film-draft-gap')).map((c) => text(c))).toEqual(['Engage']);
+    expect(lacking.querySelector('.film-draft-swaps')).toBeNull();
   });
 });

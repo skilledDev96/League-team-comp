@@ -1,9 +1,10 @@
 <section class="film-stage" #stage [class]="stageClasses()" [class.is-narrow]="narrow()" [class.is-still]="motion.reduced()"
-         [style.--film-tempo]="tempo()" [style.--film-ease]="ease()" [style.--topbar-h]="topbarH()" aria-label="The film room">
+         [style.--film-tempo]="tempo()" [style.--film-ease]="ease()" [style.--topbar-h]="topbarH()" [style.--film-under]="filmUnder()" aria-label="The film room">
+  <!-- The film's only chrome (10 Sep 2026): the shell hides its topbar on this route, so Back is the one way out; a second Escape within two seconds takes it too. -->
   <header class="film-bar">
-    <a class="view-btn film-bar-back" [routerLink]="['/games']" [queryParams]="{ match: matchId(), tab: 'games' }">
+    <button type="button" class="view-btn film-bar-back" appTip="Back to the game on Games (Escape twice)" (click)="goBack()">
       <span class="material-symbols-rounded" aria-hidden="true">arrow_back</span> Back
-    </a>
+    </button>
     <span class="film-bar-title">
       <span class="film-bar-kicker">Film room</span>
       @if (model(); as m) { <span class="film-bar-headline">{{ m.title.headline }}</span> }
@@ -21,7 +22,7 @@
       <span class="material-symbols-rounded" aria-hidden="true">movie</span>
       <p>No review for this game yet.</p>
       @if (auth.editing()) {
-        <a class="view-btn active" [routerLink]="['/games']" [queryParams]="{ match: matchId(), tab: 'games' }">Review it on Games</a>
+        <button type="button" class="view-btn active" (click)="goBack()">Review it on Games</button>
       }
     </div>
   } @else if (model(); as m) {
@@ -51,8 +52,8 @@
                 }
                 @case ('tape') {
                   <app-film-tape [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [active]="i === chapter()" [guess]="turnGuess()"
-                                 [initialSec]="initialSec()" [seekTo]="seekRequest()"
-                                 (copied)="onCopied($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                                 [initialSec]="initialSec()" [seekTo]="seekRequest()" [closeTick]="escapeTick()"
+                                 (escaped)="onEscaped()" (copied)="onCopied($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @case ('board') {
                   <app-film-board [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()" [earlier]="calls()?.['board']"
@@ -60,7 +61,7 @@
                 }
                 @case ('map') {
                   <app-film-map [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()"
-                                (watch)="onWatch($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                                (escaped)="onEscaped()" (watch)="onWatch($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @case ('one-thing') {
                   <app-film-one-thing [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()" [ownChoice]="progress()?.choice"

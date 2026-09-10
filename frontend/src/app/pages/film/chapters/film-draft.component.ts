@@ -12,9 +12,12 @@ import { TeamDataService } from '../../../services/team-data.service';
 import { ToastService } from '../../../services/toast.service';
 import { UiService } from '../../../services/ui.service';
 import { FilmGlyphComponent } from '../../../shared/film/film-glyph.component';
+import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { FilmFrameComponent } from '../film-frame.component';
 
 type Swap = FilmDraft['swaps'][number];
+/** One thing the comp lacked (review version 6): the gain as a chip, its glyph, and the fact behind it. */
+type Gap = NonNullable<FilmDraft['lacked']>[number];
 
 /** How long after the chapter comes on screen the first tile turns, before the tempo: the frame's own rise and the ten tiles' entrance have settled by then. */
 const TURN_AFTER_MS = 900;
@@ -48,10 +51,19 @@ function bySeat(seats: readonly FilmDraftSeat[]): FilmDraftSeat[] {
  * editor save the draft as played when neither holds, and falls back to the
  * Comps page for a viewer. Opening means `/comps?comp=<id>`: the Comps page
  * unfolds that card and scrolls to it.
+ *
+ * Review version 6 (10 Sep 2026, the lead asked whether it would only ever be
+ * one champion swap): what the comp lacked stands as chips over the swap
+ * cards, one per gain with the fact behind it as the tip and as one muted
+ * line under the row, so the chips read as the reason and the cards as the
+ * answer; up to three swaps, and under each swap's champion the other
+ * champions that would do the same job, "or Braum, or Alistar", each with its
+ * tile. A version 5 review carries neither and the chapter reads as before;
+ * "The draft held." shows only when the review names no swap and no gap.
  */
 @Component({
   selector: 'app-film-draft',
-  imports: [FilmFrameComponent, FilmGlyphComponent],
+  imports: [FilmFrameComponent, FilmGlyphComponent, TooltipDirective],
   template: `
     @let d = draft();
     @if (artChampion(); as champ) {
@@ -63,7 +75,7 @@ function bySeat(seats: readonly FilmDraftSeat[]): FilmDraftSeat[] {
     <app-film-frame [kicker]="kicker()" [index]="index()" [count]="count()" (next)="next.emit()" (back)="back.emit()">
       @if (d) {
         <p class="film-draft-verdict">{{ d.verdict }}</p>
-        @if (!d.swaps.length) {
+        @if (!d.swaps.length && !lacked().length) {
           <p class="film-draft-held"><span class="material-symbols-rounded" aria-hidden="true">check_circle</span> The draft held.</p>
         }
 
@@ -100,6 +112,27 @@ function bySeat(seats: readonly FilmDraftSeat[]): FilmDraftSeat[] {
           }
         </div>
 
+        @if (lacked().length || d.swaps.length) {
+        <!-- The layout's right column (10 Sep 2026): what the comp lacked over the swaps that would have filled it. One wrapper,
+             because the layout grid has two columns and a third child would fall under the rows instead of over the cards. -->
+        <div class="film-draft-side">
+        @if (lacked().length) {
+          <div class="film-draft-lacked-block">
+            <p class="film-draft-lacked-label">What the five lacked</p>
+            <ul class="list-clean film-draft-lacked" aria-label="What the comp lacked">
+              @for (g of lacked(); track g.gain) {
+                <li class="film-draft-gap" [style.--i]="$index" [appTip]="g.why"><app-film-glyph [name]="g.glyph" /><span>{{ gainLabel(g.gain) }}</span></li>
+              }
+            </ul>
+            @if (lackedWhys().length) {
+              <ul class="list-clean film-draft-lacked-whys">
+                @for (g of lackedWhys(); track g.gain) {
+                  <li class="film-draft-lacked-why"><app-film-glyph [name]="g.glyph" /><span>{{ g.why }}</span></li>
+                }
+              </ul>
+            }
+          </div>
+        }
         @if (d.swaps.length) {
           <div class="film-draft-swaps">
             @for (sw of d.swaps; track keyOf(sw)) {
@@ -115,6 +148,15 @@ function bySeat(seats: readonly FilmDraftSeat[]): FilmDraftSeat[] {
                   <span class="film-draft-swap-side is-in">
                     <img class="film-draft-tile is-in" [src]="ui.championIconUrl(sw.in)" alt="" loading="lazy" />
                     <span class="film-draft-champ">{{ sw.in }}</span>
+                    @if (altsOf(sw).length) {
+                      <!-- The swap's other options (review version 6): "or Braum, or Alistar", a small tile each, under the champion to try. -->
+                      <span class="film-draft-alt">
+                        @for (alt of altsOf(sw); track alt; let last = $last) {
+                          <!-- The separator sits inside the block with its space: the template's whitespace between two blocks is dropped, and the text must still read "or Braum, or Alistar". -->
+                          <span class="film-draft-alt-one">or <img class="film-draft-alt-tile" [src]="ui.championIconUrl(alt)" alt="" loading="lazy" /> {{ alt }}@if (!last) {, }</span>
+                        }
+                      </span>
+                    }
                   </span>
                 </div>
                 @if (sw.gains.length) {
@@ -143,6 +185,8 @@ function bySeat(seats: readonly FilmDraftSeat[]): FilmDraftSeat[] {
               </article>
             }
           </div>
+        }
+        </div>
         }
         </div>
 
@@ -207,6 +251,10 @@ export class FilmDraftComponent {
   /** The swaps as one string, so the turn re-runs only when a swap changes, not whenever the model is rebuilt around the same ones. */
   private readonly swapsKey = computed(() => this.swaps().map((s) => this.keyOf(s)).join('|'));
   protected readonly hasSwaps = computed(() => this.swaps().length > 0);
+  /** What the comp lacked (review version 6), as chips over the swaps; empty for a version 5 review, and the block stays away. */
+  protected readonly lacked = computed<Gap[]>(() => this.draft()?.lacked ?? []);
+  /** The gaps with a sentence behind them, for the lines under the chips; the build keeps a gap whose why came back blank, and that one is a chip alone. */
+  protected readonly lackedWhys = computed<Gap[]>(() => this.lacked().filter((g) => !!g.why));
   protected readonly ours = computed(() => bySeat(this.draft()?.ours ?? []));
   protected readonly theirs = computed(() => bySeat(this.draft()?.theirs ?? []));
   /** The stage's splash: the first swap's champion, the one the coach would have drafted; the protagonist, dimmed, when the draft held. */
@@ -287,6 +335,11 @@ export class FilmDraftComponent {
 
   protected keyOf(sw: Swap): string {
     return `${sw.seat}:${sw.in}`;
+  }
+
+  /** The swap's other options in the coach's order, at most two by the build; empty for a review that named none. */
+  protected altsOf(sw: Swap): string[] {
+    return sw.alternatives ?? [];
   }
 
   protected savedKey(sw: Swap): string {

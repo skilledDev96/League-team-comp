@@ -1,4 +1,4 @@
-<div class="page" [class.edit-active]="auth.canEdit() && auth.editMode()">
+<div class="page" [class.edit-active]="auth.canEdit() && auth.editMode()" [class.is-film]="filmRoute()">
   @if (routeLoading()) {
     <div class="route-progress" role="status" aria-label="Loading"></div>
   }

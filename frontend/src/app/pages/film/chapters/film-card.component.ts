@@ -1,9 +1,9 @@
 import { Location } from '@angular/common';
 import { afterRenderEffect, Component, computed, ElementRef, inject, input, output, untracked, viewChildren } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { FilmModel } from '../../../core/film-model';
 import { reminderFor } from '../../../core/film-progress';
-import { gainsPhrase, reviewAsText } from '../../../core/review-view';
+import { alternativesPhrase, gainsPhrase, reviewAsText } from '../../../core/review-view';
 import { AnalysisGame, FilmChoice, GameReview, LedgerSummary, ReviewSwap, Role } from '../../../models/team.models';
 import { MotionService } from '../../../services/motion.service';
 import { TeamDataService } from '../../../services/team-data.service';
@@ -28,7 +28,7 @@ import { FilmFrameComponent } from '../film-frame.component';
  */
 @Component({
   selector: 'app-film-card',
-  imports: [RouterLink, FilmFrameComponent],
+  imports: [FilmFrameComponent],
   template: `
     @let c = model().card;
     @if (model().title.protagonist.champion; as champ) {
@@ -76,7 +76,8 @@ import { FilmFrameComponent } from '../film-frame.component';
         }
 
         @if (draftSwaps().length) {
-          <!-- The draft with hindsight (10 Sep 2026): one line a swap, the champion we played struck beside the one to try. -->
+          <!-- The draft with hindsight (10 Sep 2026): one line a swap, the champion we played struck beside the one to try,
+               and since review version 6 the swap's other options after it: "Nautilus, or Braum, or Alistar for Leona". -->
           <div class="film-card-block film-card-draft" [style.--i]="3">
             <p class="film-card-label">Next time in the draft</p>
             @for (s of draftSwaps(); track s.seat + ':' + s.in) {
@@ -84,7 +85,7 @@ import { FilmFrameComponent } from '../film-frame.component';
                 <img class="is-out" [src]="ui.championIconUrl(s.out)" alt="" loading="lazy" />
                 <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
                 <img class="is-in" [src]="ui.championIconUrl(s.in)" alt="" loading="lazy" />
-                <span><b>{{ s.in }}</b> for {{ ui.championName(s.out) }}@if (s.gains.length) { <small>· {{ gainsOf(s) }}</small> }</span>
+                <span><b>{{ s.in }}</b>@if (altsOf(s); as alts) {<span class="film-card-draft-alt">, {{ alts }}</span>} for {{ ui.championName(s.out) }}@if (s.gains.length) { <small>· {{ gainsOf(s) }}</small> }</span>
               </p>
             }
           </div>
@@ -152,7 +153,8 @@ import { FilmFrameComponent } from '../film-frame.component';
 
         <div class="film-card-actions">
           <button type="button" class="view-btn active" (click)="copy()"><span class="material-symbols-rounded" aria-hidden="true">content_copy</span> Copy for Discord</button>
-          <a class="view-btn" [routerLink]="['/games']" [queryParams]="{ match: model().matchId, tab: 'games' }"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span> Back to the game</a>
+          <!-- A pill, never a link (10 Sep 2026, second fix pass): the same door the film bar's Back takes. -->
+          <button type="button" class="view-btn" (click)="backToGame()"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span> Back to the game</button>
           <button type="button" class="view-btn" (click)="watchAgain.emit()"><span class="material-symbols-rounded" aria-hidden="true">replay</span> Watch again</button>
         </div>
       </div>
@@ -217,6 +219,11 @@ export class FilmCardComponent {
   protected gainsOf(s: ReviewSwap): string {
     return gainsPhrase(s.gains);
   }
+
+  /** "or Braum, or Alistar": the swap's other options (review version 6), empty for a review that named none. */
+  protected altsOf(s: ReviewSwap): string {
+    return alternativesPhrase(s.alternatives);
+  }
   private readonly commitment = computed(() => this.data.commitmentFor(this.model().matchId));
   private readonly teamChoice = computed<FilmChoice | undefined>(() => {
     const c = this.commitment();
@@ -253,7 +260,12 @@ export class FilmCardComponent {
       return;
     }
     void this.prefs.saveFilmProgress(id, { nextAskAt: new Date().toISOString(), asked: progress.asked ?? 0 });
-    this.toast.show('Reminder set', { kind: 'ok', icon: 'bolt', text: 'At the top of Games and in the roster quick actions. Ask me again is on.' });
+    this.toast.show('Reminder set', { kind: 'ok', icon: 'bolt', text: 'At the top of Games. Ask me again is on.' });
+  }
+
+  /** Back to the game's row on Games: the same door as the film bar's Back, as a pill (10 Sep 2026, second fix pass; it was a routerLink styled as one). */
+  protected backToGame(): void {
+    void this.router.navigate(['/games'], { queryParams: { match: this.model().matchId, tab: 'games' } });
   }
 
   private link(path: string[], query?: Record<string, string>): string {

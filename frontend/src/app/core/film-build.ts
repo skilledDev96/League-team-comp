@@ -19,7 +19,7 @@ import {
   TimelineSide
 } from '../models/team.models';
 import { mentionedSeat } from './champion-mention';
-import { DeathRead, DeathReadKind, readCounts, readDeath, readsLine } from './death-reads';
+import { DeathRead, DeathReadKind, READ_LABELS, readCounts, readDeath, readsLine } from './death-reads';
 import {
   FilmBeat,
   FilmBeatKind,
@@ -347,12 +347,19 @@ const MAX_BACKS = 24;
 const EVEN_SWING_GOLD = 300;
 /** Eight or more deaths in the ledger puts the map before the tape. */
 const MAP_FIRST_DEATHS = 8;
-/** The map names at most this many costly deaths, and the tape stops on the same ones. */
+/** The map names at most this many costly deaths on its strip; the tape stops on every death since 10 Sep 2026, these among them. */
 const MAX_COSTLIEST = 3;
 /** A beat this close to a coach's moment is the same event: the tape stops once. */
 const BEAT_FOLD_SEC = 45;
-/** The tape stops at most this many times; a fifty-death game must not become a slideshow. */
-const MAX_BEATS = 14;
+/**
+ * The tape stops at most this many times. Fourteen until 10 Sep 2026, when
+ * the lead asked for the timeline broken down on every death; forty since,
+ * because a thirty-death game with its objectives and moments needs the
+ * room, and the rail groups the stops by minute (`railGroups`) so the chips
+ * never read "9 9 9". A fifty-death game still loses its latest deaths and
+ * firsts first, never a moment.
+ */
+const MAX_BEATS = 40;
 /** A beat carries at most this many seats or champions on its card. */
 const MAX_BEAT_SEATS = 3;
 
@@ -602,11 +609,16 @@ function buildTapeEvents(tapePlayers: TapePlayer[], timeline: MatchTimeline, our
 // Cut 4 (10 Sep 2026): the tape used to ask "whose dragon is this?" a minute
 // before each objective. Now it stops on what mattered and says so: the
 // coach's moments, the turn, the objectives, the fights, the firsts and the
-// costliest avoidable deaths, each with its glyph and the champions it was
-// about. Nothing here is a question.
+// deaths, each with its glyph and the champions it was about. Nothing here
+// is a question. Later the same day the lead asked for the timeline broken
+// down on the deaths, so every death of ours is a beat (it used to be the
+// three costliest), titled by its read; one inside a fight, at an objective
+// or in a coach's moment is that beat, which lists it under `deaths`.
 
 /** What survives the cap first: the coach's moments over the turn, the turn over the objectives, and so on. */
 const BEAT_PRIORITY: Record<FilmBeatKind, number> = { moment: 0, turn: 1, objective: 2, fight: 3, death: 4, first: 5 };
+/** Whose way a death went, by its read: one that bought an objective went ours, a trade was even, an avoidable or a clean one theirs. */
+const DEATH_SWINGS: Record<DeathReadKind, FilmBeat['swing']> = { avoidable: 'them', traded: 'even', bought: 'us', clean: 'them' };
 /** A beat's title from the moment's swing; "Minute N" is what the minute pill already says. */
 const SWING_TITLES: Record<FilmMoment['swing'], string> = { us: 'Our way', them: 'Their way', even: 'Even' };
 /** Kinds the tape folds into a coach's moment when they are the same event. */
@@ -628,9 +640,10 @@ const FOLDS_INTO_KIND: Partial<Record<FilmBeatKind, readonly FilmBeatKind[]>> = 
 const uniqueSlice = <T>(items: readonly T[], max: number): T[] => [...new Set(items)].slice(0, max);
 
 /**
- * The beats the tape stops on, in time order. `pins` are the map's costliest
- * avoidable deaths, already read, so the tape and the map name the same
- * ones; `players` are the review's five, for the champions on a card.
+ * The beats the tape stops on, in time order. `pins` are the map's deaths,
+ * every one of them already read, so the tape and the map say the same
+ * thing about each; `players` are the review's five, for the champions on
+ * a card.
  */
 function buildBeats(review: GameReview, timeline: MatchTimeline, facts: GameFacts | undefined, players: readonly TapePlayer[], turn: FilmTape['turn'], win: boolean, pins: readonly FilmDeathPin[]): FilmBeat[] {
   const goldDiff = timeline.goldDiff ?? [];
@@ -644,6 +657,20 @@ function buildBeats(review: GameReview, timeline: MatchTimeline, facts: GameFact
     return beat;
   };
   const keyOf = (kind: FilmBeatKind, sec: number) => `b:${kind}:${sec}`;
+  /**
+   * What a host takes from a beat folded into it: its seats and champions
+   * (three at most), and the deaths it stands for (10 Sep 2026): a death
+   * beat by its pin key, and whatever the folded beat had already gathered,
+   * so the tape can draw every one's tile and read under the host's card.
+   */
+  const foldInto = (host: FilmBeat, beat: FilmBeat): void => {
+    const seats = uniqueSlice([...(host.seats ?? []), ...(beat.seats ?? [])], MAX_BEAT_SEATS);
+    if (seats.length) host.seats = seats;
+    const champions = uniqueSlice([...(host.champions ?? []), ...(beat.champions ?? [])], MAX_BEAT_SEATS);
+    if (champions.length) host.champions = champions;
+    const deaths = [...new Set([...(host.deaths ?? []), ...(beat.kind === 'death' ? [beat.key] : []), ...(beat.deaths ?? [])])];
+    if (deaths.length) host.deaths = deaths;
+  };
 
   const moments: FilmBeat[] = [];
   for (const m of review.team.moments ?? []) {
@@ -694,15 +721,28 @@ function buildBeats(review: GameReview, timeline: MatchTimeline, facts: GameFact
     rest.push({ key: keyOf('first', sec), sec, kind: 'first', title: `First tower, ${tower.lane}, ${ours ? 'ours' : 'theirs'}`, text: `The first tower fell in ${ZONE_LABELS[tower.lane]} around minute ${tower.minute}, ${ours ? 'to us' : 'to them'}.`, swing: tower.side, glyph: 'tower' });
   }
 
-  for (const pin of pins) {
-    const beat: FilmBeat = { key: pin.key, sec: pin.sec, kind: 'death', title: `${pin.name ?? pin.seat} falls, avoidable`, text: pin.readLine, swing: 'them', glyph: pin.glyphs[0] ?? 'skull', seats: [pin.seat] };
+  // Every death of ours is a beat (10 Sep 2026), whatever its read: the map's
+  // pins in time order (the map may walk them worst-first), titled by the
+  // name and the read's own word ("Nia falls, bought an objective"), the
+  // read's line under it, its first glyph on the card.
+  for (const pin of pins.slice().sort((a, b) => a.sec - b.sec || seatIndex(a.seat) - seatIndex(b.seat))) {
+    const beat: FilmBeat = {
+      key: pin.key,
+      sec: pin.sec,
+      kind: 'death',
+      title: `${pin.name ?? pin.seat} falls, ${READ_LABELS[pin.read].label.toLowerCase()}`,
+      text: pin.readLine,
+      swing: DEATH_SWINGS[pin.read],
+      glyph: pin.glyphs[0] ?? 'skull',
+      seats: [pin.seat]
+    };
     if (pin.champion) beat.champions = [pin.champion];
     rest.push(beat);
   }
 
   // A first, an objective, a fight or a death within the fold of a coach's
   // moment is the same event: the moment keeps its words and takes the
-  // other's glyph (when it still wears the flag) and champions.
+  // other's glyph (when it still wears the flag), champions and deaths.
   const kept: FilmBeat[] = [];
   for (const beat of rest) {
     const host = FOLDS_INTO_MOMENT.has(beat.kind)
@@ -713,10 +753,7 @@ function buildBeats(review: GameReview, timeline: MatchTimeline, facts: GameFact
       continue;
     }
     if (host.glyph === 'flag') host.glyph = beat.glyph;
-    const seats = uniqueSlice([...(host.seats ?? []), ...(beat.seats ?? [])], MAX_BEAT_SEATS);
-    if (seats.length) host.seats = seats;
-    const champions = uniqueSlice([...(host.champions ?? []), ...(beat.champions ?? [])], MAX_BEAT_SEATS);
-    if (champions.length) host.champions = champions;
+    foldInto(host, beat);
   }
 
   // Then the rest fold among themselves, the higher kind hosting (see FOLDS_INTO_KIND): its words first, the other's after.
@@ -730,11 +767,9 @@ function buildBeats(review: GameReview, timeline: MatchTimeline, facts: GameFact
       merged.push(beat);
       continue;
     }
-    if (beat.text && !host.text.includes(beat.text)) host.text = `${host.text} ${beat.text}`;
-    const seats = uniqueSlice([...(host.seats ?? []), ...(beat.seats ?? [])], MAX_BEAT_SEATS);
-    if (seats.length) host.seats = seats;
-    const champions = uniqueSlice([...(host.champions ?? []), ...(beat.champions ?? [])], MAX_BEAT_SEATS);
-    if (champions.length) host.champions = champions;
+    // A folded death's read is not appended (10 Sep 2026): the host lists it in `deaths` and the tape draws the read under the card as a tile, so the text would only say it twice.
+    if (beat.kind !== 'death' && beat.text && !host.text.includes(beat.text)) host.text = `${host.text} ${beat.text}`;
+    foldInto(host, beat);
   }
 
   // Two beats of one kind in the same second (grubs and a dragon in one minute) would share a key; the second takes a suffix so a list can track them.
@@ -752,7 +787,25 @@ function buildBeats(review: GameReview, timeline: MatchTimeline, facts: GameFact
     .sort((a, b) => a.sec - b.sec || BEAT_PRIORITY[a.kind] - BEAT_PRIORITY[b.kind]);
 }
 
-function buildTape(review: GameReview, timeline: MatchTimeline, win: boolean, ourSpots: Map<string, Point>, costliest: readonly FilmDeathPin[]): FilmTape {
+/**
+ * The rail's chips (10 Sep 2026): the beats grouped by game minute, in time
+ * order, each group's beats in time order too. A minute with a fight and two
+ * deaths in it is one chip with a count of three, where the rail used to
+ * read "9 9 9". Pure; the tape draws one chip per group and the badge when
+ * a group holds more than one.
+ */
+export function railGroups(beats: readonly FilmBeat[]): { minute: number; beats: FilmBeat[] }[] {
+  const groups = new Map<number, FilmBeat[]>();
+  for (const b of beats.slice().sort((a, b) => a.sec - b.sec || BEAT_PRIORITY[a.kind] - BEAT_PRIORITY[b.kind])) {
+    const minute = Math.floor(b.sec / 60);
+    const list = groups.get(minute);
+    if (list) list.push(b);
+    else groups.set(minute, [b]);
+  }
+  return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([minute, list]) => ({ minute, beats: list }));
+}
+
+function buildTape(review: GameReview, timeline: MatchTimeline, win: boolean, ourSpots: Map<string, Point>, pins: readonly FilmDeathPin[]): FilmTape {
   const goldDiff = timeline.goldDiff ?? [];
   const turn = turnOf(timeline, win);
   return {
@@ -762,7 +815,7 @@ function buildTape(review: GameReview, timeline: MatchTimeline, win: boolean, ou
     turn,
     moments: (review.team.moments ?? []).map((m) => withConsequence(m, goldDiff)),
     events: buildTapeEvents(review.players, timeline, ourSpots),
-    beats: buildBeats(review, timeline, timeline.facts, review.players, turn, win, costliest)
+    beats: buildBeats(review, timeline, timeline.facts, review.players, turn, win, pins)
   };
 }
 
@@ -968,6 +1021,11 @@ function buildMap(review: GameReview, game: AnalysisGame | undefined, timeline: 
 
 // ---- The draft, again ----------------------------------------------------------------
 
+/** Review version 6 (10 Sep 2026): at most three swaps, two alternatives under each, three gaps the comp lacked; the validator caps them too, and the build holds the line on a hand-edited document. */
+const MAX_SWAPS = 3;
+const MAX_ALTERNATIVES = 2;
+const MAX_LACKED = 3;
+
 /**
  * The draft with hindsight (10 Sep 2026): our five and theirs as champions
  * in seats, the coach's verdict and the swaps to try. Built only when the
@@ -976,7 +1034,11 @@ function buildMap(review: GameReview, game: AnalysisGame | undefined, timeline: 
  * none, so the chapter shows our side alone rather than guess. The variant
  * name is what Save as a variant would call the comp: the comp's own name
  * with the first swap's champion, or the protagonist's comp when the game
- * was off the books.
+ * was off the books. Review version 6 (10 Sep 2026, the lead asked whether
+ * it would only ever be one champion swap) adds the second option under a
+ * swap (`alternatives`) and what the comp lacked as chips (`lacked`, each
+ * gap with its glyph); a version 5 review carries neither, and the chapter
+ * shows the swaps alone.
  */
 function buildDraft(review: GameReview, game: AnalysisGame | undefined, protagonistChampion: string): FilmDraft | undefined {
   const draft = review.team.draft;
@@ -987,14 +1049,31 @@ function buildDraft(review: GameReview, game: AnalysisGame | undefined, protagon
     .map((e) => ({ seat: POSITION_SEAT[e.position], champion: e.champion }))
     .filter((e): e is FilmDraftSeat => !!e.seat && !!e.champion)
     .sort(bySeat);
-  const swaps: FilmDraft['swaps'] = (draft.swaps ?? []).map((s) => {
+  const swaps: FilmDraft['swaps'] = (draft.swaps ?? []).slice(0, MAX_SWAPS).map((s) => {
     const gains = (s.gains ?? []).filter((g) => g in GAIN_GLYPHS).slice(0, 3);
     const glyphs = gains.map((g) => GAIN_GLYPHS[g]);
-    return { seat: s.seat, out: s.out, in: s.in, why: s.why, gains, glyphs: glyphs.length ? glyphs : ['swap'] };
+    const swap: FilmDraft['swaps'][number] = { seat: s.seat, out: s.out, in: s.in, why: s.why, gains, glyphs: glyphs.length ? glyphs : ['swap'] };
+    // Another champion for the same job, in the coach's order; the one we played and the swap's own are not alternatives to it.
+    const alternatives = uniqueSlice(
+      (s.alternatives ?? []).map((a) => (typeof a === 'string' ? a.trim() : '')).filter((a) => a && a !== s.in && a !== s.out),
+      MAX_ALTERNATIVES
+    );
+    if (alternatives.length) swap.alternatives = alternatives;
+    return swap;
   });
   const first = swaps[0];
   const variantName = first ? `${review.compName ?? `${protagonistChampion || 'Our'} comp`} · ${first.in}` : null;
-  return { verdict: draft.verdict.trim(), ours, theirs, swaps, compId: review.compId, compName: review.compName, variantName };
+  const out: FilmDraft = { verdict: draft.verdict.trim(), ours, theirs, swaps, compId: review.compId, compName: review.compName, variantName };
+  // What the comp lacked, one chip per gain (a gain named twice is one chip), each with the glyph a swap's gain wears, so the chips and the swaps read alike.
+  const seenGaps = new Set<string>();
+  const lacked: NonNullable<FilmDraft['lacked']> = [];
+  for (const g of draft.lacked ?? []) {
+    if (!g || !(g.gain in GAIN_GLYPHS) || seenGaps.has(g.gain) || lacked.length >= MAX_LACKED) continue;
+    seenGaps.add(g.gain);
+    lacked.push({ gain: g.gain, glyph: GAIN_GLYPHS[g.gain], why: (g.why ?? '').trim() });
+  }
+  if (lacked.length) out.lacked = lacked;
+  return out;
 }
 
 const BASE_CHAPTERS: Record<'title' | 'one-thing' | 'seat' | 'card', FilmChapter> = {
@@ -1042,13 +1121,12 @@ export function buildFilm(review: GameReview, game: AnalysisGame | undefined, ti
   if (timeline && review.tier === 'timeline') {
     const ourSpots = placeOurDeaths(timeline);
     const ledger = facts?.ledger;
-    // The map is built first: the tape stops on the deaths the map calls costliest, and each seat carries its own pins.
+    // The map is built first: the tape stops on every death the map has read (10 Sep 2026; the three costliest before), and each seat carries its own pins.
     if (ledger) {
       model.map = buildMap(review, game, timeline, ledger, style.deathOrder, ourSpots);
       for (const seat of model.seats) seat.pins = model.map.pins.filter((p) => p.seat === seat.seat).sort((a, b) => a.sec - b.sec);
     }
-    const costliest = model.map ? model.map.costliest.map((key) => model.map!.pins.find((p) => p.key === key)).filter((p): p is FilmDeathPin => !!p) : [];
-    model.tape = buildTape(review, timeline, title.win, ourSpots, costliest);
+    model.tape = buildTape(review, timeline, title.win, ourSpots, model.map?.pins ?? []);
     middle.push(TAPE_CHAPTER);
     if (model.map) {
       if (ledger!.length >= MAP_FIRST_DEATHS) middle.unshift(MAP_CHAPTER);

@@ -1,6 +1,6 @@
 import { afterRenderEffect, Component, computed, DestroyRef, effect, ElementRef, HostListener, inject, signal, untracked, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { buildFilm, FilmPrevious } from '../../core/film-build';
 import { FilmModel } from '../../core/film-model';
 import { nextAskAt, reminderFor } from '../../core/film-progress';
@@ -29,6 +29,15 @@ const WATCH_LEAD_SEC = 20;
 const NARROW_QUERY = '(max-width: 48rem)';
 
 /**
+ * A second Escape inside this window leaves the film (10 Sep 2026). The first one folds whatever a chapter has open
+ * (a table, a note, the full-screen map) through `escapeTick`, and a chapter that did close something says so
+ * through `escaped`, which disarms the window: only two presses in a row that found nothing to close go Back. Until
+ * the second fix pass (10 Sep 2026) the page could not tell, and Escape, Escape out of full screen (the drawer, then
+ * the full screen, the natural gesture) dropped the reader on Games and lost the tape's second and the seat view.
+ */
+const ESCAPE_TWICE_MS = 2000;
+
+/**
  * The film room (9 Sep 2026): one review walked as chapters the team calls
  * before they are revealed, at /film/:matchId. The page owns what changes
  * while the film plays: which chapter is up, the keyboard, the dot rail, the
@@ -38,7 +47,7 @@ const NARROW_QUERY = '(max-width: 48rem)';
  */
 @Component({
   selector: 'app-film',
-  imports: [RouterLink, TooltipDirective, FilmTitleComponent, FilmTapeComponent, FilmBoardComponent, FilmMapComponent, FilmOneThingComponent, FilmDraftComponent, FilmSeatComponent, FilmCardComponent],
+  imports: [TooltipDirective, FilmTitleComponent, FilmTapeComponent, FilmBoardComponent, FilmMapComponent, FilmOneThingComponent, FilmDraftComponent, FilmSeatComponent, FilmCardComponent],
   templateUrl: './film.component.html'
 })
 export class FilmComponent {
@@ -135,13 +144,24 @@ export class FilmComponent {
   private readonly deck = viewChild<ElementRef<HTMLElement>>('deck');
   private readonly stage = viewChild<ElementRef<HTMLElement>>('stage');
   /**
-   * The header's real height, measured, as `--topbar-h` on the stage (10 Sep 2026, second fix pass). The stylesheet's
-   * value is a constant, but the topbar wraps: below about 80rem, or whenever the activity pill shows during a refresh,
-   * the user bar drops to a second line and the header grows by a couple of rem, the fixed stage overran the viewport
-   * by as much, and a wheel over a short chapter scrolled the page again. Null until measured, so the stylesheet's
-   * fallback stands meanwhile and wherever layout cannot be read.
+   * Whatever stands above the stage, measured, as `--topbar-h` on the stage (10 Sep 2026, second fix pass). The
+   * stylesheet's value is a constant, but the topbar wrapped: below about 80rem, or whenever the activity pill showed
+   * during a refresh, the user bar dropped to a second line and the header grew by a couple of rem, the fixed stage
+   * overran the viewport by as much, and a wheel over a short chapter scrolled the page again. Since the film took the
+   * whole screen (10 Sep 2026, evening) the shell hides the topbar on this route and the measure reads 0rem, which is
+   * set as such: a zero is an answer, not a missing one. Null until measured, so the stylesheet's fallback stands
+   * meanwhile and wherever layout cannot be read.
    */
   protected readonly topbarH = signal<string | null>(null);
+  /**
+   * The Riot notice's real height, measured, as `--film-under` on the stage (10 Sep 2026, evening). On the film route
+   * the shell thins the notice to one line under the stage (it has to stay visible, policy), and the stage is the
+   * viewport less that line: measured, because the line wraps on a narrow screen and the stylesheet's figure is a
+   * guess for a wide one. Null until measured; the stylesheet's fallback stands meanwhile.
+   */
+  protected readonly filmUnder = signal<string | null>(null);
+  /** When Escape was last pressed, for the second-press rule; 0 once it has been spent. */
+  private lastEscapeAt = 0;
   private wanted: string | null = null;
   private placed = false;
   /** The card's write happens once a visit, and only on walking onto it from the chapter before. */
@@ -239,17 +259,18 @@ export class FilmComponent {
       onCleanup(() => io.disconnect());
     });
 
-    // The header is measured, not assumed: everything above the stage is the header, so the stage's own offset in the
-    // document is `--topbar-h`. Re-measured when the topbar's box changes (the activity pill coming and going mid-film,
-    // a font landing) and on a resize, which is when it wraps or unwraps.
+    // What is above and below the stage is measured, not assumed: everything above the stage is the header (nothing,
+    // since the shell hides it on this route), so the stage's own offset in the document is `--topbar-h`, and the
+    // Riot notice under it is `--film-under`. Re-measured when either box changes (the topbar going as the route's
+    // class lands, the activity pill coming and going mid-film, a font landing, the notice wrapping) and on a resize.
     afterRenderEffect((onCleanup) => {
       const el = this.stage()?.nativeElement;
       if (!el || typeof window === 'undefined') return;
-      const measure = () => untracked(() => this.measureTopbar(el));
+      const measure = () => untracked(() => this.measureAround(el));
       measure();
-      const topbar = document.querySelector('.topbar');
-      const ro = topbar && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
-      if (topbar && ro) ro.observe(topbar);
+      const watched = [document.querySelector('.topbar'), document.querySelector('.site-footer')].filter((x): x is Element => !!x);
+      const ro = watched.length && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+      if (ro) watched.forEach((x) => ro.observe(x));
       window.addEventListener('resize', measure);
       onCleanup(() => {
         ro?.disconnect();
@@ -258,11 +279,31 @@ export class FilmComponent {
     });
   }
 
-  /** The stage's top edge in document space, in rem so it scales with the root size like every other length; nothing when layout has no answer (jsdom). */
-  private measureTopbar(stage: HTMLElement): void {
-    const top = stage.getBoundingClientRect().top + window.scrollY;
+  /**
+   * The stage's top edge in document space and the notice's height, in rem so they scale with the root size like every
+   * other length. A measured zero above the stage is the film-route answer (the topbar is hidden) and is set as such;
+   * only a box that cannot be read at all (jsdom gives every element no height) leaves the stylesheet's fallback standing.
+   */
+  private measureAround(stage: HTMLElement): void {
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    this.topbarH.set(top > 0 ? `${Math.round((top / rem) * 1000) / 1000}rem` : null);
+    const asRem = (px: number) => `${Math.round((px / rem) * 1000) / 1000}rem`;
+    const top = stage.getBoundingClientRect().top + window.scrollY;
+    this.topbarH.set(Number.isFinite(top) && top >= 0 ? asRem(top) : null);
+    const under = document.querySelector('.site-footer')?.getBoundingClientRect().height ?? 0;
+    this.filmUnder.set(under > 0 ? asRem(under) : null);
+  }
+
+  /** Back to the game's row on Games (a pill, never a link, 10 Sep 2026): the page's one way out, the bar's pill and a second Escape both take it. */
+  protected goBack(): void {
+    void this.router.navigate(['/games'], { queryParams: { match: this.matchId(), tab: 'games' } });
+  }
+
+  /**
+   * A chapter closed something on the Escape just sent (the drawer, the full screen, a table, a note): that press was
+   * spent on it, so the next Escape is a first press again rather than the second that leaves (10 Sep 2026, second fix pass).
+   */
+  protected onEscaped(): void {
+    this.lastEscapeAt = 0;
   }
 
   /** What the url asks for on arrival: ?c is the chapter (?fresh=1 is the takeover's link, straight off a landing: the tape, where the guess it took reveals), ?t the tape's second. */
@@ -294,6 +335,20 @@ export class FilmComponent {
   protected onKey(event: KeyboardEvent): void {
     const target = event.target as HTMLElement | null;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+    if (event.key === 'Escape') {
+      // Escape works with or without a film on the stage (the empty page has nowhere else to go): once folds what a chapter
+      // has open, twice within the window goes Back. The chapter's `escaped`, handled in `onEscaped` during the change
+      // detection this tick wakes, clears `lastEscapeAt` again when the press closed something.
+      const now = Date.now();
+      if (this.lastEscapeAt && now - this.lastEscapeAt <= ESCAPE_TWICE_MS) {
+        this.lastEscapeAt = 0;
+        this.goBack();
+        return;
+      }
+      this.lastEscapeAt = now;
+      this.escapeTick.set(this.escapeTick() + 1);
+      return;
+    }
     if (!this.model()) return;
     switch (event.key) {
       case 'ArrowDown':
@@ -305,9 +360,6 @@ export class FilmComponent {
       case 'PageUp':
         event.preventDefault();
         void this.go(this.chapter() - 1);
-        break;
-      case 'Escape':
-        this.escapeTick.set(this.escapeTick() + 1);
         break;
     }
   }

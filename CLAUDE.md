@@ -343,7 +343,7 @@ filter rather than none, so it can never become unpickable.
    it can and the review is labelled as such. `AnalysisGame.timelineData`
    marks coverage like `laneData`; Diagnostics counts it.
    **The review itself** (`api/src/game-review.ts`, handler `gameReview`,
-   `REVIEW_VERSION` 5 since 10 Sep 2026: 3 on 9 Sep, 4 and 5 on 10 Sep) is
+   `REVIEW_VERSION` 6 since 10 Sep 2026: 3 on 9 Sep, 4, 5 and 6 on 10 Sep) is
    two calls over the facts, both to Opus at medium effort: the team —
    headline, summary, the game in `moments` (three to six, time order),
    `workOn`, `keepDoing`, the comp verdict, and since version 4 and 5 the
@@ -430,8 +430,9 @@ filter rather than none, so it can never become unpickable.
    most 60 tokens on a map. Slice 3: three film stocks, schema v4 lessons
    (Call it back on the card, keys `lesson:<i>`; the validator cuts our own
    Riot tags and drops a lesson naming anyone else) and the Before you play
-   card (`shared/before-you-play.component.ts`, on Games and compact in the
-   roster's quick actions; since 10 Sep 2026 a reminder, never a question:
+   card (`shared/before-you-play.component.ts`, at the top of Games only (the
+   roster quick actions carried a compact one until 10 Sep 2026, when the
+   lead asked for it off the main view); since 10 Sep 2026 a reminder, never a question:
    `reminderFor` returns a `FilmReminder`, the one thing (the review's, else
    the first work-on as an ask), what the team committed to, the viewer's
    own seat's ask and up to two further asks (the other work-ons, then the
@@ -458,9 +459,15 @@ filter rather than none, so it can never become unpickable.
    opening line and the three costliest avoidable keys (only deaths the
    gold fell after; a second death of one seat inside a minute is keyed
    `d:<minute>:<seat>:<sec>`). The beats (`FilmTape.beats`, at most
-   fourteen): the tape narrates the coach's moments, the objectives, the
-   fights, the firsts, the turn and the costliest deaths, folding a first,
-   an objective, a fight or a death within 45 s of a moment into it; each
+   forty since Part B on 10 Sep 2026, fourteen before): the tape narrates
+   the coach's moments, the objectives, the fights, the firsts, the turn
+   and **every death of ours** (a 'death' beat per map pin, titled
+   "<name> falls, <read>"; the lead: "break the timeline down on the
+   deaths"), folding a first, an objective, a fight or a death within 45 s
+   of a moment into it (a folded death's pin key goes into the host's
+   `FilmBeat.deaths`, and the card draws it as a tile with the read's
+   badge; over the cap the firsts go first, then the latest deaths, never a
+   moment, the turn or an objective); each
    card holds for a dwell measured off its words (3.5 to 8 s at the film's
    tempo, a bar running down through `MotionService.play`) and plays on,
    Pause holds it, a rail under the sheet jumps to any beat, and nothing
@@ -474,9 +481,17 @@ filter rather than none, so it can never become unpickable.
    jungler already close, the midline, the objective, the tower, the
    killers, the allies, the trade — with the parts rising in story order.
    Review version 5 adds `team.draft` (`ReviewDraft`: a verdict and up to
-   two swaps, each `seat`, `out`, `in`, `why`, `gains` from `DRAFT_GAINS`;
-   `in` is validated against the display names in `meta/championTraits`,
-   so it is a Data Dragon spelling while `out` is Riot's id), read by
+   two swaps, three since version 6, each `seat`, `out`, `in`, `why`,
+   `gains` from `DRAFT_GAINS`; `in` is validated against the display names
+   in `meta/championTraits`, so it is a Data Dragon spelling while `out` is
+   Riot's id; version 6 (10 Sep 2026, the lead: "any other suggestions or
+   will it only be one champ swap?") adds `alternatives` on a swap, up to
+   two other champions for the seat resolved against the same list and
+   never one of ours or the `in`, and `lacked` on the draft, up to three
+   `ReviewGap`s of a `gain` from `DRAFT_GAINS` and a `why` citing the fact
+   and the minute, independent of the champion list, both keys omitted
+   rather than stored empty, so a v6 document with nothing to add is shaped
+   like a v5 one), read by
    `buildDraft` into the chapter 'The draft, again'
    (`chapters/film-draft.component.ts`, right after The one thing): the
    seats turn from the champion played to the one to try, and every pill
@@ -494,9 +509,63 @@ filter rather than none, so it can never become unpickable.
    a second visit from offering Save again), Save as a comp and open for an
    editor when neither holds (the comp as played, no `countsUnder`; a
    variant saved after counts under it), nothing while the review names a
-   comp the list has not delivered, and Open Comps for a viewer. The film
-   page measures the header (`--topbar-h` on the stage; the stylesheet's
-   6.2rem is the fallback) because the topbar wraps.
+   comp the list has not delivered, and Open Comps for a viewer. The
+   chapter shows the gaps as chips over the swap cards ("What the five
+   lacked", in --warn, the why as the tip and one muted line each) and
+   "or X, or Y" under each swap's in tile; the card's and the panel's lines
+   read "Nautilus, or Braum, or Alistar for Leona", and Copy for Discord
+   prints "(or Braum, or Alistar)" plus a `-# Lacked:` line
+   (`alternativesPhrase` in `core/review-view.ts`). "The draft held." shows
+   only when the review names neither a swap nor a gap.
+   **Part B (10 Sep 2026, evening): the film takes the screen.** The shell
+   stamps `.page.is-film` on `/film` routes (`App.filmRoute`, NavigationEnd)
+   and hides the topbar and the local-mode note; the Riot notice
+   (`.site-footer`) stays as one thin line, because it must be visible
+   wherever the app shows. The film bar is the only chrome: Back is a pill
+   to `/games?match=<id>&tab=games`, and a second Escape within 2 s
+   (`ESCAPE_TWICE_MS`) goes Back too, unless the first closed something:
+   the tape and the map say so through `escaped` (the drawer, the full
+   screen, the table, a note), which disarms the window, so Escape, Escape
+   out of full screen stays on the film (second fix pass, 10 Sep 2026). The page measures `--topbar-h` (0rem
+   on the route) and `--film-under` (the notice's real box) onto the
+   stage, so `--film-h` is the whole screen less the notice; the Rift
+   chapters spend `--film-rift-chrome` (8.5rem) and the tape
+   `--film-scrub-h` more (13rem, measured: the scrubber's band, range and
+   verdict line 9.45rem, the tools row and the gaps; the stage's 9.5rem
+   default under-counts the scrubber and never applies to the tape), the
+   map's square is `--film-h` less 8.5rem and its caption moved into the
+   corner note's tip. The tape's speed is the viewer's
+   (`TAPE_SPEEDS` in `core/film-style.ts`: ½×, 1×, 2×, 4× as 6, 3, 1.5 and
+   0.75 s per game minute; localStorage `bom-film-speed`; the stock only
+   picks the opening step through `defaultSpeedFor`, 1× or ½× for the slow
+   stock and never faster on its own; `tapeSpeedFor` reads
+   the stored key and `FilmClock.setRate` changes pace without losing the
+   second). Six seat tiles (All and our five) stand in the side column of
+   both chapters, over the tape's sheet and beside the map's legend (the
+   plan had the tape's over the Rift; there they cost the square 3.4rem and
+   the tape overflowed its frame at 1920x1080, so the Fix pass moved them):
+   a seat filters the Rift (`seatFilter` on
+   `app-rift-map`: other seats' deaths and backs hide, plates follow the
+   seat's lane, their deaths fade, objectives stay) and the stops the tape
+   makes (`beatIsAbout`), and on the map the legend counts, the strip and
+   the cards follow it. The rail is one chip a minute (`railGroups`, a
+   count badge when the minute holds more than one, a dimmed chip for a
+   minute the seat view skips) with a Deaths only pill. Full screen on the
+   tape and the map (`.is-full` on the chapter's root): the square grows
+   to `--film-h` less 5.5rem (the tape keeps its scrubber under it), the
+   side column becomes a 24rem drawer over the right edge with a Close
+   pill (`.is-drawer-closed`; a Sheet/Cards pill over the square brings it
+   back, and so does any stop landing in it); `closeTick` (the page's
+   Escape) closes the drawer first and leaves full screen next; under 48rem
+   the drawer is a bottom sheet. The solo-death rule (review version 6, the
+   lead: "we had solo deaths so a ward would not have helped"): a death
+   with one killer, the lane opponent, is a wave-state or trade choice —
+   hold the wave and wait for the jungler — never a ward; `game-facts.ts`
+   counts a solo death or an execution as never dark (the ledger's own bar
+   for its `ward` tag), words the solo line off who the one killer was
+   ("to their jungler alone" when it was, so it agrees with the ledger's
+   gank instead of calling it one-on-one; second fix pass, 10 Sep 2026),
+   and the prompt's shared RULES say so to both calls.
    The old progress keys `map:*` and `tape:*` are ignored: `tallyLine`
    only counts that calls exist, so an old film still reads "Continue".
    **Post-game graphs** (`shared/game-graphs.component.ts`) sit behind a

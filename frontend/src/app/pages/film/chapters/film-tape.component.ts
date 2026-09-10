@@ -1,10 +1,12 @@
 import { Location } from '@angular/common';
 import { afterRenderEffect, Component, computed, DestroyRef, effect, ElementRef, HostListener, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
+import { READ_LABELS } from '../../../core/death-reads';
+import { railGroups } from '../../../core/film-build';
 import { createFilmClock, FilmClock } from '../../../core/film-clock';
-import { FilmBeat, FilmModel } from '../../../core/film-model';
-import { voiceOf } from '../../../core/film-style';
-import { Role } from '../../../models/team.models';
+import { FilmBeat, FilmDeathPin, FilmModel, FilmSeat } from '../../../core/film-model';
+import { FilmTapeSpeedKey, TAPE_SPEED_STORAGE_KEY, TAPE_SPEEDS, tapeSpeedFor, voiceOf } from '../../../core/film-style';
+import { Role, ROLES } from '../../../models/team.models';
 import { MotionService } from '../../../services/motion.service';
 import { ToastService } from '../../../services/toast.service';
 import { UiService } from '../../../services/ui.service';
@@ -14,8 +16,6 @@ import { RiftMapComponent, RiftToken } from '../../../shared/film/rift-map.compo
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { FilmFrameComponent } from '../film-frame.component';
 
-/** Real seconds per game minute before the film's own rate: a 30-minute game plays in 36 s at 1, 31 s at 0.85, 45 s at 1.25. */
-const RATE = 1.2;
 /** How long the curve takes to draw when the chapter comes up, before the tempo. */
 const DRAW_MS = 1200;
 /** A guess this close to the answer counts as called; the scrubber uses the same number. */
@@ -26,6 +26,8 @@ const DWELL_MAX_MS = 8000;
 const DWELL_PER_WORD_MS = 280;
 /** The hand within this many seconds of a beat lights its chip on the rail. */
 const BEAT_NEAR_SEC = 30;
+/** The words on the tape's speed group, said once as a tip: what a thirty-minute game takes at each step. */
+const SPEED_TIP = 'A thirty-minute game runs 3 min, 90 s, 45 s or 22 s';
 
 /** A request from the page to move the hand: `n` makes a second request to the same second distinct. */
 export interface FilmSeekRequest {
@@ -34,6 +36,16 @@ export interface FilmSeekRequest {
   /** Play on from there; the page asks for it off the map's Watch it. */
   play?: boolean;
 }
+
+/** One of our five as a tile over the map: the seat, the champion and the name, from the film's seats. */
+export interface FilmSeatTile {
+  seat: Role;
+  champion: string;
+  name?: string;
+}
+
+/** A minute on the rail: `railGroups`' shape, named so the template and the spec can say it. */
+export type RailGroup = ReturnType<typeof railGroups>[number];
 
 /** Why the hand is standing still with something in the sheet. */
 type TapeStop = { kind: 'beat'; sec: number; beat: FilmBeat } | { kind: 'token'; sec: number; label: string; line?: string };
@@ -51,6 +63,37 @@ export function dwellMsFor(text: string): number {
 }
 
 /**
+ * A beat Deaths only keeps (10 Sep 2026): a death of ours, or a fight, an
+ * objective or a coach's moment that a death of ours was folded into. The
+ * lead asked for the timeline broken down on the deaths; a death inside a
+ * fight is still a death, so the fight stands on the rail with it.
+ */
+export function isDeathBeat(b: FilmBeat): boolean {
+  return b.kind === 'death' || (b.deaths?.length ?? 0) > 0;
+}
+
+/**
+ * Whether a beat is about one seat (10 Sep 2026, the per-champion view): the
+ * beat names the seat, or one of the deaths folded into it was that seat's
+ * (`seatOf` looks a pin key up). A beat about nobody in particular, the turn
+ * or a first blood, is skipped under a seat's view: the lead asked for the
+ * clutter gone, and those two are on the curve and the map still.
+ */
+export function beatIsAbout(b: FilmBeat, seat: Role, seatOf: (pinKey: string) => Role | undefined): boolean {
+  if (b.seats?.includes(seat)) return true;
+  return (b.deaths ?? []).some((key) => seatOf(key) === seat);
+}
+
+/** The speed step the viewer last picked, from storage; null where storage is out of reach (a private window, a server). */
+export function storedSpeedKey(): string | null {
+  try {
+    return localStorage.getItem(TAPE_SPEED_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The tape (9 Sep 2026; cut 4 on 10 Sep 2026): the Rift with the game
  * dropping onto it second by second, over the scrubber whose track is the
  * gold curve. The tape narrates now instead of asking: the curve stands as
@@ -58,7 +101,7 @@ export function dwellMsFor(text: string): number {
  * chapter comes up, the sheet opens on where it turned (with the reader's
  * takeover guess under it when they made one), and the hand stops on each
  * beat the build picked out (the coach's moments, the objectives, the
- * fights, the firsts, the turn, the costliest avoidable deaths) with a card
+ * fights, the firsts, the turn and every death of ours) with a card
  * that says what it was, whose it was, who it was about and what the gold
  * did next. A beat holds for a dwell measured off its words, shown as a bar
  * running down, then the tape plays on by itself; Pause holds the card,
@@ -68,6 +111,18 @@ export function dwellMsFor(text: string): number {
  * second. Only the chapter on stage runs its clock. With motion off nothing
  * plays on its own: the curve stands whole, the scrubber is a native range
  * and Prev and Next beat pills do the walking.
+ *
+ * Later on 10 Sep 2026 the lead watched it and asked for four things, all
+ * here: the speed is the viewer's (`TAPE_SPEEDS`, remembered in storage,
+ * the film's own stock only picks where it opens); five tiles over the sheet
+ * show one seat at a time (the Rift hides the others through `seatFilter`,
+ * and the tape stops only on the beats about that seat, the rail dimming
+ * the chips it will skip); the rail is one chip a minute (`railGroups`),
+ * with a count when the minute holds more than one and a Deaths only pill
+ * that keeps the deaths' minutes alone; and Full screen gives the Rift the
+ * stage, the sheet and the rail moving into a drawer with a close pill
+ * (the page's Escape, through `closeTick`, closes the drawer first and the
+ * full screen next; neither is stored, a visit starts small).
  */
 @Component({
   selector: 'app-film-tape',
@@ -76,12 +131,34 @@ export function dwellMsFor(text: string): number {
     @let tape = model().tape;
     <app-film-frame [kicker]="kicker()" [index]="index()" [count]="count()" (next)="next.emit()" (back)="back.emit()">
       @if (tape) {
-        <div class="film-tape" [class.is-revealed]="revealed()">
+        <div class="film-tape" [class.is-revealed]="revealed()" [class.is-full]="full()" [class.is-drawer-closed]="full() && !drawer()">
           <div class="film-tape-map">
-            <app-rift-map [events]="tape.events" [until]="t()" [highlightSeats]="litSeats()" [highlightSec]="litSec()" (tap)="onTap($event)" />
+            <app-rift-map [events]="tape.events" [until]="t()" [highlightSeats]="litSeats()" [highlightSec]="litSec()" [seatFilter]="seatFilter()" (tap)="onTap($event)" />
+            @if (full() && !drawer()) {
+              <button type="button" class="view-btn film-full-open" appTip="Bring the sheet and the rail back" (click)="openDrawer()"><span class="material-symbols-rounded" aria-hidden="true">dock_to_right</span> Sheet</button>
+            }
           </div>
 
           <div class="film-tape-side">
+            @if (full()) {
+              <button type="button" class="view-btn film-full-close" appTip="Close the drawer; the Rift stays full screen" (click)="closeDrawer()"><span class="material-symbols-rounded" aria-hidden="true">close</span> Close</button>
+            }
+            <!-- One seat at a time (10 Sep 2026): the Rift keeps that seat's deaths and backs, its lane's plates and the landmarks; the tape stops on its beats alone. All resets.
+                 The tiles stand over the sheet, not over the Rift as the plan first had them (Fix pass, 10 Sep 2026): in the map column their 3.4rem came
+                 out of the square, and with the scrubber's real 9.45rem the tape overflowed its frame at 1920x1080; here they cost the square nothing and
+                 sit where the map chapter keeps its own. -->
+            <div class="film-seat-tiles" role="group" aria-label="One seat at a time">
+              <button type="button" class="film-seat-tile is-all" [class.active]="seatFilter() === 'all'" [attr.aria-pressed]="seatFilter() === 'all'" appTip="Every seat on the map, every beat on the tape" (click)="pickSeat('all')">
+                <span class="film-seat-tile-all"><span class="material-symbols-rounded" aria-hidden="true">groups</span></span>
+                <small>All</small>
+              </button>
+              @for (s of seatTiles(); track s.seat) {
+                <button type="button" class="film-seat-tile" [style.--i]="$index + 1" [class.active]="seatFilter() === s.seat" [attr.aria-pressed]="seatFilter() === s.seat" [appTip]="tileTip(s)" (click)="pickSeat(s.seat)">
+                  <img [src]="ui.championIconUrl(s.champion)" [alt]="s.champion" loading="lazy" />
+                  <small>{{ s.seat }}</small>
+                </button>
+              }
+            </div>
             <aside class="film-tape-sheet" aria-live="polite">
               @if (stop(); as s) {
                 @switch (s.kind) {
@@ -103,6 +180,18 @@ export function dwellMsFor(text: string): number {
                             </span>
                           }
                         </div>
+                      }
+                      <!-- The deaths folded into a fight, an objective or a moment (10 Sep 2026): each as a tile with its read, the read's line as the tip, so a fight still says who fell in it and how the film reads each. -->
+                      @if (deathsOf(s.beat).length) {
+                        <ul class="list-clean film-beat-deaths" aria-label="Who fell in it">
+                          @for (p of deathsOf(s.beat); track p.key) {
+                            <li class="film-beat-death" [style.--i]="$index" [appTip]="p.readLine">
+                              @if (p.champion) { <img [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" loading="lazy" /> }
+                              <span class="film-beat-death-who">{{ p.name || p.seat }} <span class="film-tape-min">{{ clockAt(p.sec) }}</span></span>
+                              <span [class]="'film-read-badge is-read-' + p.read"><app-film-glyph [name]="readLabels[p.read].icon" />{{ readLabels[p.read].label }}</span>
+                            </li>
+                          }
+                        </ul>
                       }
                       @if (s.beat.consequence) { <p class="film-tape-sheet-line film-beat-consequence">{{ s.beat.consequence }}</p> }
                       @if (dwell(); as d) {
@@ -149,17 +238,21 @@ export function dwellMsFor(text: string): number {
             </aside>
 
             @if (tape.beats.length) {
-              <!-- The beats rail: one chip per beat, the current one lit; a tap seeks to it and shows its card without playing. -->
-              <ol class="list-clean film-beats" aria-label="The beats of this game">
-                @for (b of tape.beats; track b.key) {
-                  <li>
-                    <button type="button" class="film-beat-chip" [class.is-current]="isCurrent(b)" [class.is-ok]="b.swing === 'us'" [class.is-warn]="b.swing === 'them'" [attr.aria-current]="isCurrent(b) ? 'true' : null" [attr.aria-label]="b.title + ', ' + clockAt(b.sec)" [appTip]="b.title" (click)="showBeat(b)">
-                      <app-film-glyph [name]="b.glyph" />
-                      <span>{{ minuteOf(b.sec) }}</span>
-                    </button>
-                  </li>
-                }
-              </ol>
+              <!-- The rail (10 Sep 2026): one chip a minute with the first beat's glyph and a count when the minute holds more; a tap opens the first and Continue walks the rest. A chip the tape will skip under a seat's view is dimmed. -->
+              <div class="film-rail">
+                <ol class="list-clean film-beats" aria-label="The beats of this game, by minute">
+                  @for (g of rail(); track g.minute) {
+                    <li>
+                      <button type="button" class="film-beat-chip" [class.is-current]="isCurrent(g)" [class.is-skipped]="isSkipped(g)" [class.is-ok]="g.beats[0].swing === 'us'" [class.is-warn]="g.beats[0].swing === 'them'" [attr.aria-current]="isCurrent(g) ? 'true' : null" [attr.aria-label]="groupLabel(g)" [appTip]="groupTip(g)" (click)="showGroup(g)">
+                        <app-film-glyph [name]="g.beats[0].glyph" />
+                        <span>{{ g.minute }}</span>
+                        @if (g.beats.length > 1) { <small class="film-beat-count">{{ g.beats.length }}</small> }
+                      </button>
+                    </li>
+                  }
+                </ol>
+                <button type="button" class="view-btn film-deaths-only" [class.active]="deathsOnly()" [attr.aria-pressed]="deathsOnly()" appTip="Only the deaths on the rail, and the tape stops on those alone" (click)="toggleDeathsOnly()"><app-film-glyph name="skull" /> Deaths only</button>
+              </div>
             }
           </div>
 
@@ -179,7 +272,18 @@ export function dwellMsFor(text: string): number {
               (toggle)="toggle()"
             />
             <div class="film-tape-tools">
-              <button type="button" class="view-btn" [appTip]="'Copy a link to this second of the tape'" (click)="copyLink()"><span class="material-symbols-rounded" aria-hidden="true">link</span> Copy link</button>
+              <!-- The speed (10 Sep 2026, the lead: "make the timeline slower or adjustable"): four steps, the pick takes at once and is remembered per browser; the film's stock only says where it opens. -->
+              <div class="film-speed" role="group" aria-label="Tape speed" [appTip]="speedTip">
+                @for (s of speeds; track s.key) {
+                  <button type="button" class="view-btn" [class.active]="speed().key === s.key" [attr.aria-pressed]="speed().key === s.key" (click)="pickSpeed(s.key)">{{ s.label }}</button>
+                }
+              </div>
+              <span class="film-tape-tools-end">
+                <button type="button" class="view-btn film-full-btn" [class.active]="full()" [attr.aria-pressed]="full()" [appTip]="full() ? 'Back to the tape beside its sheet' : 'The Rift takes the stage; the sheet and the rail move into a drawer'" (click)="toggleFull()">
+                  <span class="material-symbols-rounded" aria-hidden="true">{{ full() ? 'fullscreen_exit' : 'fullscreen' }}</span> {{ full() ? 'Exit full screen' : 'Full screen' }}
+                </button>
+                <button type="button" class="view-btn" [appTip]="'Copy a link to this second of the tape'" (click)="copyLink()"><span class="material-symbols-rounded" aria-hidden="true">link</span> Copy link</button>
+              </span>
             </div>
           </div>
         </div>
@@ -202,6 +306,10 @@ export class FilmTapeComponent {
   readonly initialSec = input<number | null>(null);
   /** The page asks for a second, off the map's Watch it. */
   readonly seekTo = input<FilmSeekRequest | null>(null);
+  /** Bumped by the page on Escape (10 Sep 2026): in full screen the drawer closes first, the full screen next; nothing otherwise. */
+  readonly closeTick = input<number>(0);
+  /** A `closeTick` that closed something (the drawer, the full screen), so the page does not count that press towards leaving the film (10 Sep 2026, second fix pass). */
+  readonly escaped = output<void>();
   /** Copy link was pressed: the second copied, so the page can put it in the url. */
   readonly copied = output<number>();
   readonly next = output<void>();
@@ -217,6 +325,9 @@ export class FilmTapeComponent {
   private readonly dwellBar = viewChild<ElementRef<HTMLElement>>('dwellBar');
 
   protected readonly Math = Math;
+  protected readonly readLabels = READ_LABELS;
+  protected readonly speeds = TAPE_SPEEDS;
+  protected readonly speedTip = SPEED_TIP;
   private readonly clock = signal<FilmClock | null>(null);
   protected readonly t = computed(() => this.clock()?.t() ?? 0);
   protected readonly playing = computed(() => this.clock()?.playing() ?? false);
@@ -231,6 +342,16 @@ export class FilmTapeComponent {
   protected readonly dwell = signal<{ key: string; ms: number } | null>(null);
   /** Pause was pressed during a dwell: the card holds until Play on. */
   protected readonly held = signal(false);
+  /** One seat of ours at a time, or every seat: the Rift's view and the beats the tape stops on. Per visit. */
+  protected readonly seatFilter = signal<Role | 'all'>('all');
+  /** The rail shows the deaths' minutes alone and the tape stops on those alone. Per visit. */
+  protected readonly deathsOnly = signal(false);
+  /** The step the viewer picked, as stored; anything the steps do not name falls back to the film's own (`tapeSpeedFor`). */
+  private readonly speedKey = signal<string | null>(storedSpeedKey());
+  protected readonly speed = computed(() => tapeSpeedFor(this.speedKey(), this.model().style));
+  /** Full screen: the Rift takes the stage and the side column is a drawer; `drawer` is whether that drawer is open. Both per visit, never stored. */
+  protected readonly full = signal(false);
+  protected readonly drawer = signal(true);
   private dwellTimer: ReturnType<typeof setTimeout> | undefined;
   private lastT = -1;
   private drawn = false;
@@ -246,6 +367,12 @@ export class FilmTapeComponent {
    * whenever the hand is moved elsewhere.
    */
   private shownAt: { sec: number; keys: Set<string> } | null = null;
+  /**
+   * The rest of a minute opened from the rail (10 Sep 2026): a chip with
+   * several beats opens the first, and Continue walks these before the tape
+   * plays on. Any move of the hand drops them.
+   */
+  private queue: FilmBeat[] = [];
 
   /** What the clock is keyed on: the game and its length. A rebuilt model (another review landing) keeps the clock and its second. */
   private readonly clockKey = computed(() => {
@@ -270,8 +397,36 @@ export class FilmTapeComponent {
     const s = this.stop();
     return s?.kind === 'beat' ? s.beat.sec : null;
   });
-  protected readonly prevBeat = computed(() => neighbourBeat(this.model().tape?.beats ?? [], this.t(), -1));
-  protected readonly nextBeat = computed(() => neighbourBeat(this.model().tape?.beats ?? [], this.t(), 1));
+  /** Our five as tiles, in lane order, from the film's seats; a seat the review did not fill has no tile. */
+  protected readonly seatTiles = computed<FilmSeatTile[]>(() => {
+    const seats = this.model().seats;
+    return ROLES.map((r) => seats.find((s) => s.seat === r))
+      .filter((s): s is FilmSeat => !!s)
+      .map((s) => ({ seat: s.seat, champion: s.champion, name: s.name }));
+  });
+  /** The map's pins by key, for the deaths a beat folded and the seat a folded death belongs to. */
+  private readonly pinsByKey = computed(() => new Map((this.model().map?.pins ?? []).map((p) => [p.key, p])));
+  /**
+   * The beats the hand stops on: every beat, cut to the deaths under Deaths
+   * only and to one seat's under a seat's view. Prev, Next, Shift with an
+   * arrow and the play itself all read this list; the rail reads the wider
+   * one and dims what is not in here.
+   */
+  protected readonly stopBeats = computed<FilmBeat[]>(() => {
+    const beats = this.model().tape?.beats ?? [];
+    const deathsOnly = this.deathsOnly();
+    const seat = this.seatFilter();
+    const seatOf = (key: string) => this.pinsByKey().get(key)?.seat;
+    return beats.filter((b) => (!deathsOnly || isDeathBeat(b)) && (seat === 'all' || beatIsAbout(b, seat, seatOf)));
+  });
+  private readonly stopKeys = computed(() => new Set(this.stopBeats().map((b) => b.key)));
+  /** The rail's minutes: every beat, or the deaths' alone under Deaths only; a seat's view dims rather than hides, so the reader still sees the game's shape. */
+  protected readonly rail = computed<RailGroup[]>(() => {
+    const beats = this.model().tape?.beats ?? [];
+    return railGroups(this.deathsOnly() ? beats.filter(isDeathBeat) : beats);
+  });
+  protected readonly prevBeat = computed(() => neighbourBeat(this.stopBeats(), this.t(), -1));
+  protected readonly nextBeat = computed(() => neighbourBeat(this.stopBeats(), this.t(), 1));
 
   constructor() {
     // One clock per game, keyed on the match and its length, never on the model's identity; the link's second is the first thing it shows.
@@ -279,18 +434,23 @@ export class FilmTapeComponent {
       const key = this.clockKey();
       if (!key) return;
       const durationSec = Number(key.slice(key.lastIndexOf(':') + 1));
-      // The film's own rate (0.85, 1 or 1.25 on the base) is a pure function of the match id, so it never moves under a running clock.
-      const tapeRate = untracked(() => this.model().style.tapeRate);
-      const clock = createFilmClock({ durationSec, secPerGameMinute: RATE * tapeRate });
+      // The rate is the viewer's pick, else the step the film's own stock leans to (10 Sep 2026); a pick while the clock runs goes through setRate, so this never remakes it.
+      const secPerGameMinute = untracked(() => this.speed().secPerGameMinute);
+      const clock = createFilmClock({ durationSec, secPerGameMinute });
       untracked(() => {
         // A new game in the same component (the title card links film to film and the page is reused): nothing of the
-        // last tape's card, dwell, draw or pending Watch it carries over (10 Sep 2026, second review).
+        // last tape's card, dwell, draw, pending Watch it, seat view or full screen carries over (10 Sep 2026, second review).
         this.cancelDraw();
         this.cancelDwell();
         this.stop.set(null);
         this.shownAt = null;
+        this.queue = [];
         this.drawn = false;
         this.playWhenActive = false;
+        this.seatFilter.set('all');
+        this.deathsOnly.set(false);
+        this.full.set(false);
+        this.drawer.set(true);
         const init = this.initialSec();
         if (init !== null && Number.isFinite(init)) clock.seek(init);
         this.lastT = clock.t();
@@ -339,7 +499,7 @@ export class FilmTapeComponent {
         clock.seek(beat.sec);
         this.lastT = beat.sec;
         this.markShown(beat);
-        this.stop.set({ kind: 'beat', sec: beat.sec, beat });
+        this.show({ kind: 'beat', sec: beat.sec, beat });
         this.startDwell(beat);
       });
     });
@@ -374,6 +534,19 @@ export class FilmTapeComponent {
         // The page is still fading the map out when this lands: only the chapter on stage plays.
         if (this.active()) clock.play();
         else this.playWhenActive = true;
+      });
+    });
+
+    // Escape from the page (10 Sep 2026): in full screen the drawer folds first, the full screen on the next press. Each press that
+    // closes something says so through `escaped`, so the page's second-press rule (two Escapes within two seconds go Back) only arms
+    // on a press that found nothing to close: Escape, Escape out of full screen used to drop the reader on Games (second fix pass).
+    effect(() => {
+      this.closeTick();
+      untracked(() => {
+        if (!this.full()) return;
+        if (this.drawer()) this.drawer.set(false);
+        else this.full.set(false);
+        this.escaped.emit();
       });
     });
 
@@ -417,10 +590,10 @@ export class FilmTapeComponent {
     this.drawT.set(null);
   }
 
-  /** The earliest beat the hand crossed between two seconds, or one still unsaid on the very second it set off from. */
+  /** The earliest stop the hand crossed between two seconds, or one still unsaid on the very second it set off from. */
   private nextBeatBetween(prev: number, t: number): FilmBeat | undefined {
     const here = this.shownAt;
-    return (this.model().tape?.beats ?? [])
+    return this.stopBeats()
       .filter((b) => b.sec <= t && (b.sec > prev || (here !== null && here.sec === b.sec && !here.keys.has(b.key))))
       .sort((a, b) => a.sec - b.sec)[0];
   }
@@ -429,6 +602,12 @@ export class FilmTapeComponent {
   private markShown(beat: FilmBeat): void {
     if (this.shownAt?.sec !== beat.sec) this.shownAt = { sec: beat.sec, keys: new Set() };
     this.shownAt.keys.add(beat.key);
+  }
+
+  /** Something lands in the sheet: in full screen with the drawer closed, the drawer comes back for it, since the card is what the stop is for (10 Sep 2026). */
+  private show(stop: TapeStop): void {
+    this.stop.set(stop);
+    if (this.full() && !this.drawer()) this.drawer.set(true);
   }
 
   /** The beat's card holds for its dwell, then the tape plays on; never with motion off, where nothing plays on its own. */
@@ -461,6 +640,7 @@ export class FilmTapeComponent {
     clock.seek(sec);
     this.lastT = clock.t();
     this.shownAt = null;
+    this.queue = [];
     this.stop.set(null);
   }
 
@@ -468,6 +648,7 @@ export class FilmTapeComponent {
     const clock = this.clock();
     if (!clock) return;
     this.cancelDwell();
+    this.queue = [];
     if (clock.playing()) {
       clock.pause();
       return;
@@ -484,8 +665,14 @@ export class FilmTapeComponent {
     this.held.set(true);
   }
 
-  /** Continue after a stop: the hand moves on from where it stands. */
+  /** Continue after a stop: the next beat of a minute opened from the rail when one is owed, else the hand moves on from where it stands. */
   protected resume(): void {
+    const [owed, ...rest] = this.queue;
+    if (owed) {
+      this.showBeat(owed);
+      this.queue = rest;
+      return;
+    }
     this.cancelDwell();
     this.stop.set(null);
     if (!this.motion.reduced()) this.clock()?.play();
@@ -498,7 +685,20 @@ export class FilmTapeComponent {
     clock.pause();
     this.seek(b.sec);
     this.markShown(b);
-    this.stop.set({ kind: 'beat', sec: b.sec, beat: b });
+    this.show({ kind: 'beat', sec: b.sec, beat: b });
+  }
+
+  /**
+   * A minute from the rail: its first beat opens and Continue walks the rest
+   * (10 Sep 2026). Under a seat's view the walk keeps to the beats about that
+   * seat when the minute has any, and takes the whole minute when it has
+   * none, since the reader asked for it by tapping a dimmed chip.
+   */
+  protected showGroup(g: RailGroup): void {
+    const kept = g.beats.filter((b) => this.stopKeys().has(b.key));
+    const walk = kept.length ? kept : g.beats;
+    this.showBeat(walk[0]);
+    this.queue = walk.slice(1);
   }
 
   /** Prev or Next beat with motion off. */
@@ -510,30 +710,94 @@ export class FilmTapeComponent {
   /** A token tapped: the hand pauses on its label, and a death of ours brings the film's read of it. */
   protected onTap(tok: RiftToken): void {
     this.cancelDwell();
+    this.queue = [];
     this.clock()?.pause();
-    const pin = tok.pinKey ? this.model().map?.pins.find((p) => p.key === tok.pinKey) : undefined;
+    const pin = tok.pinKey ? this.pinsByKey().get(tok.pinKey) : undefined;
     const line = pin?.readLine || pin?.line;
-    this.stop.set({ kind: 'token', sec: tok.sec, label: tok.label, line: line || undefined });
+    this.show({ kind: 'token', sec: tok.sec, label: tok.label, line: line || undefined });
   }
 
-  /** A beat's chip is lit while the card stands on it, or while the hand is within half a minute of it. */
-  protected isCurrent(b: FilmBeat): boolean {
+  /** One seat's view, or All: the Rift and the stops follow at once; the card standing stays. */
+  protected pickSeat(seat: Role | 'all'): void {
+    this.seatFilter.set(seat);
+  }
+
+  protected toggleDeathsOnly(): void {
+    this.deathsOnly.set(!this.deathsOnly());
+  }
+
+  /** The viewer's speed: the clock takes it at once, keeping its second, and the browser remembers it for the next film. */
+  protected pickSpeed(key: FilmTapeSpeedKey): void {
+    this.speedKey.set(key);
+    this.clock()?.setRate(this.speed().secPerGameMinute);
+    try {
+      localStorage.setItem(TAPE_SPEED_STORAGE_KEY, key);
+    } catch {
+      /* no storage (a private window): the pick lasts this visit */
+    }
+  }
+
+  /** Full screen on, with the drawer open; or off. Per visit. */
+  protected toggleFull(): void {
+    this.full.set(!this.full());
+    this.drawer.set(true);
+  }
+
+  protected closeDrawer(): void {
+    this.drawer.set(false);
+  }
+
+  protected openDrawer(): void {
+    this.drawer.set(true);
+  }
+
+  /** A minute's chip is lit while the card stands on one of its beats, or while the hand is within half a minute of one. */
+  protected isCurrent(g: RailGroup): boolean {
     const s = this.stop();
-    if (s?.kind === 'beat') return s.beat.key === b.key;
-    return Math.abs(this.t() - b.sec) <= BEAT_NEAR_SEC;
+    if (s?.kind === 'beat') return g.beats.some((b) => b.key === s.beat.key);
+    const t = this.t();
+    return g.beats.some((b) => Math.abs(t - b.sec) <= BEAT_NEAR_SEC);
+  }
+
+  /** A minute the tape will not stop on under the seat's view: none of its beats is about the seat. Deaths only never dims, it hides. */
+  protected isSkipped(g: RailGroup): boolean {
+    const keys = this.stopKeys();
+    return !g.beats.some((b) => keys.has(b.key));
+  }
+
+  /** "Fight in the river, Nia falls, traded, 9:12" for the screen reader; the tip says the same without the clock. */
+  protected groupLabel(g: RailGroup): string {
+    return `${this.groupTip(g)}, ${clockText(g.beats[0].sec)}`;
+  }
+
+  protected groupTip(g: RailGroup): string {
+    return g.beats.map((b) => b.title).join(', ');
+  }
+
+  protected tileTip(s: FilmSeatTile): string {
+    return s.name ? `${s.name} · ${s.seat} · ${s.champion}` : `${s.seat} · ${s.champion}`;
   }
 
   protected swingWord(b: FilmBeat): string {
     return b.swing === 'us' ? 'Our way' : b.swing === 'them' ? 'Their way' : 'Even';
   }
 
-  /** The champions a beat is about, each with the seat the film knows them in; a champion the seats do not carry stands without one. */
+  /** The deaths folded into a beat, as the map's pins, in the beat's order; a key the map does not carry is skipped. */
+  protected deathsOf(b: FilmBeat): FilmDeathPin[] {
+    const pins = this.pinsByKey();
+    return (b.deaths ?? []).map((key) => pins.get(key)).filter((p): p is FilmDeathPin => !!p);
+  }
+
+  /** The champions a beat is about, each with the seat the film knows them in; a champion the seats do not carry stands without one. One already listed among the beat's deaths is not shown twice. */
   protected tiles(b: FilmBeat): { champion: string; seat?: Role }[] {
     const seats = this.model().seats;
-    return (b.champions ?? []).map((champion) => {
-      const seat = seats.find((s) => s.champion === champion)?.seat;
-      return seat ? { champion, seat } : { champion };
-    });
+    const fallen = new Set(this.deathsOf(b).map((p) => p.champion));
+    return (b.champions ?? [])
+      .filter((champion) => !fallen.has(champion))
+      .map((champion) => {
+        const seat = seats.find((s) => s.champion === champion)?.seat;
+        return seat ? { champion, seat } : { champion };
+      });
   }
 
   @HostListener('window:keydown', ['$event'])
@@ -553,7 +817,7 @@ export class FilmTapeComponent {
         const dir: 1 | -1 = event.key === 'ArrowRight' ? 1 : -1;
         event.preventDefault();
         if (event.shiftKey) {
-          const b = neighbourBeat(this.model().tape?.beats ?? [], this.t(), dir);
+          const b = neighbourBeat(this.stopBeats(), this.t(), dir);
           if (b) this.showBeat(b);
           else this.seek(dir > 0 ? this.clock()!.durationSec : 0);
         } else {
@@ -575,10 +839,6 @@ export class FilmTapeComponent {
     } catch {
       this.toast.show('Could not copy', { kind: 'warn', text: 'The browser refused the clipboard; copy the address bar instead.' });
     }
-  }
-
-  protected minuteOf(sec: number): number {
-    return Math.round(sec / 60);
   }
 
   protected clockAt(sec: number): string {

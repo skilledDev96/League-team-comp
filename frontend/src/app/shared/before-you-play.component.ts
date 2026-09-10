@@ -17,7 +17,7 @@ interface ReminderItem {
 
 /**
  * Before you play (10 Sep 2026): one card at the top of Games and in the
- * roster's quick actions when a film's reminder is due. It reminds, it never
+ * top of Games when a film's reminder is due (the roster quick actions dropped it on 10 Sep 2026). It reminds, it never
  * asks (the lead, 10 Sep 2026: "not needed for the call-back question, just
  * a reminder on what to do"): the film's headline muted, then one short line
  * each with the film's own glyph, the one thing under a flag, what the team
@@ -70,7 +70,7 @@ export class BeforeYouPlayComponent {
   private readonly prefs = inject(UserPrefsService);
   private readonly router = inject(Router);
 
-  /** No card chrome and no headline: the host is a card already (the roster's quick actions). */
+  /** No card chrome and no headline: the host is a card already (no host uses it since 10 Sep 2026; kept for a future host). */
   readonly compact = input<boolean>(false);
 
   /** The clock the reminders are read against, a minute at a time, so one falling due while the page is open shows without a navigation. */

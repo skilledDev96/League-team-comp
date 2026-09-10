@@ -10,7 +10,8 @@ import { pick } from './seed';
  * The stylesheet reads the stock, the title treatment, the motion family
  * and the entrance as classes on `.film-stage` (`stageClasses`), with the
  * tempo and the ease as inline custom properties the page sets. The build
- * reads the death order and the tape rate straight off the style.
+ * reads the death order straight off the style; the tape reads the rate as
+ * the speed step the film opens at (`TAPE_SPEEDS`, `defaultSpeedFor`).
  */
 
 export type FilmStock = 'broadcast' | 'noir' | 'blueprint';
@@ -27,9 +28,46 @@ export interface FilmStyle {
   motion: FilmMotion;
   entrance: FilmEntrance;
   deathOrder: FilmDeathOrder;
-  /** Real seconds per game minute on the tape, as a factor on the chapter's base rate. */
+  /** The stock's own pace: since 10 Sep 2026 the speed step the tape opens at (`defaultSpeedFor`), not a fixed rate; the viewer's pick among `TAPE_SPEEDS` wins over it. */
   tapeRate: FilmTapeRate;
   voice: FilmVoiceIndex;
+}
+
+/**
+ * The speeds the tape offers (10 Sep 2026: the lead watched the tape at the
+ * old 1.2 s a game minute and said it ran too fast), as real seconds per
+ * game minute, which is what `createFilmClock` and `setRate` take. A
+ * thirty-minute game runs three minutes at ½×, ninety seconds at 1×,
+ * forty-five at 2× and twenty-two at 4×. The tape remembers the viewer's
+ * pick under `TAPE_SPEED_STORAGE_KEY`; until they pick, a film opens at 1×,
+ * or at ½× when its stock is the slow one (`defaultSpeedFor`), so two games
+ * still do not run quite alike; never faster than 1× on its own, since 2×
+ * is 1.5 s a game minute, a hair under the pace the lead called too fast
+ * (second fix pass, 10 Sep 2026).
+ */
+export const TAPE_SPEEDS = [
+  { key: 'slow', label: '½×', secPerGameMinute: 6 },
+  { key: 'normal', label: '1×', secPerGameMinute: 3 },
+  { key: 'fast', label: '2×', secPerGameMinute: 1.5 },
+  { key: 'faster', label: '4×', secPerGameMinute: 0.75 }
+] as const;
+export type FilmTapeSpeed = (typeof TAPE_SPEEDS)[number];
+export type FilmTapeSpeedKey = FilmTapeSpeed['key'];
+/** Where the tape keeps the viewer's speed, per browser; the value is a `FilmTapeSpeedKey`, and anything else falls back to the film's default. */
+export const TAPE_SPEED_STORAGE_KEY = 'bom-film-speed';
+
+/**
+ * The stock's own pace as one of the steps: a film drawn slow (1.25 on the old base) opens at ½×, the rest at 1×, so a slow
+ * film keeps its character until the viewer picks. A brisk stock (0.85) opened at 2× until the second fix pass (10 Sep 2026):
+ * that is 1.5 s a game minute against the 1.2 s the lead said ran too fast, and one film in three drew that stock.
+ */
+export function defaultSpeedFor(style: Pick<FilmStyle, 'tapeRate'>): FilmTapeSpeedKey {
+  return style.tapeRate === 1.25 ? 'slow' : 'normal';
+}
+
+/** The step a stored key names, else the film's default: an old or hand-edited value in storage never stalls the clock on a rate it cannot take. */
+export function tapeSpeedFor(key: string | null | undefined, style: Pick<FilmStyle, 'tapeRate'>): FilmTapeSpeed {
+  return TAPE_SPEEDS.find((s) => s.key === key) ?? TAPE_SPEEDS.find((s) => s.key === defaultSpeedFor(style))!;
 }
 
 /** A win leans broadcast, a loss leans noir; blueprint is the seed's alone. */
