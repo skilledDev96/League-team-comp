@@ -43,6 +43,7 @@ import {
   clipWindowFor,
   CLIP_MAX_SEC,
   renderClip,
+  transcodeClip,
   CLIP_LEAD_SEC,
   shotDocId,
   STRIP_MOMENTS,
@@ -1359,6 +1360,42 @@ describe('the pure parts', () => {
       expect(clipWindowFor(600, [])).toEqual({ from: 588, to: 603 });
       expect(clipWindowFor(0, [])).toEqual({ from: 0, to: 3 });
     });
+  });
+
+  // The client writes VP9 at 1920x1080 whatever it is asked for, which is the one combination a
+  // browser struggles with: the lead watched a thirty-second fight stutter. Re-encoding to 720p
+  // H.264 took a real 11.6 MB clip to 5.2 MB in three seconds and plays on hardware everywhere.
+  // ffmpeg is NOT a dependency of this script, so every path below has to end with a usable file.
+  it('leaves the client\'s own file alone when there is no ffmpeg to re-encode with', () => {
+    const said = [];
+    const fs = { rmSync: () => undefined, existsSync: () => true, statSync: () => ({ size: 4096 }) };
+    // A machine without ffmpeg gets a bigger, choppier clip rather than no clip at all.
+    const file = 'C:/out/' + MATCH_ID + '__265.webm';
+    const out = transcodeClip({ fs, file, log: (s) => said.push(s), spawn: () => ({ status: 127 }) });
+    expect(out).toBe(file);
+  });
+
+  it('keeps the client\'s file when the encode fails rather than uploading nothing', () => {
+    const said = [];
+    // ffmpeg is there and answers, but writes no file — the encode failed.
+    const fs = { rmSync: () => undefined, existsSync: (f) => !String(f).endsWith('.mp4'), statSync: () => ({ size: 4096 }) };
+    const file = 'C:/out/' + MATCH_ID + '__265.webm';
+    const out = transcodeClip({ fs, file, log: (s) => said.push(s), spawn: (cmd, args) => ({ status: args[0] === '-version' ? 0 : 1 }) });
+    expect(out).toBe(file);
+    expect(said.join(' ')).toContain('could not re-encode');
+  });
+
+  it('hands back the mp4 when the encode works, so the upload names it right', () => {
+    // Serving an H.264 file as video/webm makes a browser refuse it, which is why the extension has
+    // to travel with the file rather than being assumed.
+    const fs = { rmSync: () => undefined, existsSync: () => true, statSync: () => ({ size: 4096 }) };
+    const file = 'C:/out/' + MATCH_ID + '__265.webm';
+    const out = transcodeClip({ fs, file, log: () => undefined, spawn: () => ({ status: 0 }) });
+    expect(out).toBe('C:/out/' + MATCH_ID + '__265.mp4');
+  });
+
+  it('does nothing at all without a file', () => {
+    expect(transcodeClip({ fs: {}, file: '', spawn: () => ({ status: 0 }) })).toBe('');
   });
 
   it('reads a JPEG for its own size and shrugs at anything else', () => {

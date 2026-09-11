@@ -70,6 +70,7 @@
 import fsDefault from 'node:fs';
 import https from 'node:https';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -1754,9 +1755,13 @@ export async function run({
               log('  no clip landed for ' + shot.label + ' in the time allowed; its pictures are kept instead.');
             }
             if (file) {
-              clipUrl = await clips.put(file, matchId, shot.sec);
+              // Re-encoded before it goes up, never after: what the client writes is VP9 at 1080p,
+              // which is the one thing a browser struggles to play. A machine without ffmpeg gets
+              // the client's own file, which is bigger and choppier but there.
+              const playable = transcodeClip({ fs, file, log });
+              clipUrl = await clips.put(playable, matchId, shot.sec);
               try {
-                fs.rmSync(file, { force: true });
+                fs.rmSync(playable, { force: true });
               } catch {
                 // A clip we could not tidy is a local file and nothing else; the upload is what counts.
               }
@@ -2128,6 +2133,66 @@ export const CLIP_FPS = 15;
 const CLIP_STILL_POLLS = 4;
 
 /**
+ * What a clip is re-encoded to, and why it has to be (12 Sep 2026).
+ *
+ * The client writes **VP9 at 1920x1080**, whatever resolution it was asked for — and that is the
+ * worst case a browser can be handed: VP9 at 1080p is often not hardware-accelerated, so a
+ * thirty-second fight stuttered on the lead's machine, and it was four times the pixels the player
+ * actually shows. Measured on one real clip: the 11.6 MB source became **5.2 MB at 720p H.264 CRF
+ * 26** in three seconds of encoding, and H.264 at 720p is hardware-decoded essentially everywhere.
+ *
+ * CRF 30 would halve it again to 3.0 MB, but a teamfight is the busiest picture this app has and
+ * the softness shows. 26 is the quality the fight deserves at a size that plays.
+ *
+ * Only the VIDEO is re-encoded. The stills stay full-size JPEGs, so nothing a review reads loses a
+ * pixel — the transcode is for the watching, not for the reading.
+ */
+const CLIP_ENCODE = ['-vf', 'scale=-2:720', '-c:v', 'libx264', '-crf', '26', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an'];
+
+/**
+ * Is ffmpeg on this machine? A machine without it uploads the client's own file.
+ *
+ * `spawn` is injected so the branches can be tested on a machine either way round — the thing that
+ * has to be right here is what happens when ffmpeg is MISSING, and that is the case a test on a
+ * developer's machine would never otherwise reach.
+ */
+function hasFfmpeg(spawn) {
+  try {
+    return spawn('ffmpeg', ['-version'], { stdio: 'ignore' })?.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Re-encode a clip to something a browser plays smoothly, and answer where it is.
+ *
+ * Best effort by design: ffmpeg is not a dependency of this script, and a machine without it should
+ * still get its clips. When it is missing, or the encode fails, the client's own file is uploaded
+ * unchanged — bigger and choppier, but there.
+ */
+export function transcodeClip({ fs, file, log = () => undefined, spawn = spawnSync }) {
+  if (!file || !hasFfmpeg(spawn)) return file;
+  const out = file.replace(/\.webm$/i, '.mp4');
+  try {
+    fs.rmSync(out, { force: true });
+  } catch {
+    // Nothing there, which is the usual case.
+  }
+  const run = spawn('ffmpeg', ['-v', 'error', '-y', '-i', file, ...CLIP_ENCODE, out], { stdio: 'ignore' });
+  if (run?.status !== 0 || !fs.existsSync(out) || fs.statSync(out).size <= 0) {
+    log(`  could not re-encode the clip for ${path.basename(file)}; the client's own file is used instead.`);
+    return file;
+  }
+  try {
+    fs.rmSync(file, { force: true });
+  } catch {
+    // The source is a local file and nothing else; the encode is what gets uploaded.
+  }
+  return out;
+}
+
+/**
  * `enforceFrameRate` is NEVER sent true, and that is the whole reason the first clips were wrong
  * (12 Sep 2026).
  *
@@ -2439,11 +2504,14 @@ function openFirestore(raw, fs = fsDefault) {
     clips: {
       put: async (file, matchId, sec) => {
         const bucket = getStorage(app).bucket(`${account.project_id}-clips`);
-        const name = `clips/${shotDocId(matchId, sec)}.webm`;
+        // The extension follows the file, because a clip is mp4 where ffmpeg re-encoded it and webm
+        // where it could not: serving an H.264 file as video/webm makes a browser refuse to play it.
+        const mp4 = /\.mp4$/i.test(file);
+        const name = `clips/${shotDocId(matchId, sec)}.${mp4 ? 'mp4' : 'webm'}`;
         await bucket.upload(file, {
           destination: name,
           metadata: {
-            contentType: 'video/webm',
+            contentType: mp4 ? 'video/mp4' : 'video/webm',
             // A clip never changes once written — its name carries the match and the second — so it
             // is cached for a year and the browser fetches it once however often the film is opened.
             cacheControl: 'public, max-age=31536000, immutable'
@@ -2459,6 +2527,8 @@ function openFirestore(raw, fs = fsDefault) {
        */
       sweep: async (matchId, keep) => {
         const bucket = getStorage(app).bucket(`${account.project_id}-clips`);
+        // Both extensions: a re-record that gains ffmpeg writes mp4 where the last run wrote webm,
+        // and prefix-matching on the id catches either.
         const [files] = await bucket.getFiles({ prefix: `clips/${matchId}__` });
         const doomed = files.filter((f) => !keep.has(`https://storage.googleapis.com/${bucket.name}/${f.name}`));
         for (const f of doomed) await f.delete().catch(() => undefined);

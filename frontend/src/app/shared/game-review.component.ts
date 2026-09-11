@@ -2,7 +2,7 @@ import { DatePipe, Location } from '@angular/common';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
 import { AnalysisGame, FilmChoice, GameReview, ReviewPoint, ReviewSwap, ReviewTheme } from '../models/team.models';
-import { alternativesPhrase, askOf, gainsPhrase, reviewAsText, reviewSource, scoreline } from '../core/review-view';
+import { alternativesPhrase, askOf, gainsPhrase, reviewAsText, reviewSource } from '../core/review-view';
 import { initialsOf } from '../core/initials';
 import { MatchTimelineService } from '../services/match-timeline.service';
 import { ReviewTakeoverService } from '../services/review-takeover.service';
@@ -53,16 +53,6 @@ import { TooltipDirective } from './tooltip.directive';
             <span class="material-symbols-rounded" aria-hidden="true">content_copy</span> Copy for Discord
           </button>
         </div>
-
-        @if (score().length) {
-          <ul class="list-clean game-review-scoreline" aria-label="Scoreline">
-            @for (c of score(); track c.label) {
-              <li class="score-chip" [class.is-good]="c.good === true" [class.is-bad]="c.good === false">
-                @if (c.ours) { <small>{{ c.label }}</small><b>{{ c.ours }}</b>@if (c.theirs) { <em>–{{ c.theirs }}</em> } } @else { <b>{{ c.label }}</b> }
-              </li>
-            }
-          </ul>
-        }
 
         @if (moments().length) {
           <div class="game-review-moment-strip" [class.is-untimed]="!timed()">
@@ -185,12 +175,11 @@ export class GameReviewComponent {
   });
 
   constructor() {
-    effect(() => {
-      const r = this.review();
-      if (!r || r.tier !== 'timeline') return;
-      if (this.timelines.known().has(r.matchId)) return;
-      void this.timelines.load(r.matchId);
-    });
+    // The timeline is NOT loaded here (12 Sep 2026). `app-game-story` renders on this same open
+    // row and loads the same document through the same de-duplicating service, so this was a second
+    // call into a cache rather than a second read — and the one line it fed reaches Discord only.
+    // It is read synchronously from that cache in `copy()`; putting the read inside `copy()` would
+    // lose transient user activation and get the clipboard write refused.
     // A re-review rewrites the moments, so the open one would point at another sentence.
     effect(() => {
       this.moments();
@@ -234,7 +223,11 @@ export class GameReviewComponent {
     return askOf(text);
   }
 
-  protected readonly score = computed(() => scoreline(this.game()));
+  // The scoreline is NOT here any more (12 Sep 2026). The open row renders Win/Loss, kills, the
+  // length and every objective count about 150px above this panel, so the panel was printing the
+  // same eight figures a second time in the same drawer. `scoreline()` itself stays exactly where
+  // it was: `reviewAsText` computes its own for the chat, and the film's card and the review
+  // takeover each compute theirs, so nothing else notices.
   protected readonly first = computed<ReviewPoint | undefined>(() => this.review()?.team.workOn[0]);
   /** The model's own one thing (review version 4); the line falls back to the first work-on as an ask. */
   protected readonly oneThing = computed(() => this.review()?.team.oneThing?.trim() ?? '');
