@@ -60,13 +60,18 @@ function recording(over: Partial<ReplayRecording> = {}): ReplayRecording {
 }
 
 describe('recordingLines', () => {
-  it('opens by saying the game was recorded because Riot has no data for it, and that there is no team gold', () => {
-    const [provenance, limit] = recordingLines(recording());
-    expect([provenance, limit]).toEqual([...RECORDING_HEAD]);
+  it('opens by saying where the game came from, what the minutes lack, and what the frames carry instead', () => {
+    const [provenance, limit, frames] = recordingLines(recording());
+    expect([provenance, limit, frames]).toEqual([...RECORDING_HEAD]);
     expect(provenance).toContain('recorded from the replay');
     expect(provenance).toMatch(/no match and no timeline/);
     expect(limit).toMatch(/no team gold/);
     expect(limit).toMatch(/spectated player alone/);
+    // The half that was missing until 11 Sep 2026: the minutes have no team gold, but every frame's
+    // top bar does, and saying only the first half told the model to ignore it.
+    expect(frames).toMatch(/top bar shows each team’s gold/);
+    expect(frames).toMatch(/neutral timers/);
+    expect(frames).toMatch(/not legible/);
   });
 
   it('names our five with their names and theirs as a champion in a seat', () => {
@@ -168,7 +173,7 @@ describe('recordingLines', () => {
 
   it('still says where the game came from when the recorder sent nothing else, and the drawer then has nothing to show', () => {
     const bare = { ...recording(), seats: [], samples: [], events: [] };
-    expect(recordingLines(bare)).toHaveLength(2);
+    expect(recordingLines(bare)).toHaveLength(3);
     expect(recordingLines(bare)[0]).toContain('recorded from the replay');
     expect(recordingStory(bare)).toEqual([]);
   });

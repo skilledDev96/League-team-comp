@@ -142,7 +142,11 @@ describe('the prompts', () => {
       expect(prompt).toContain('RECORDED FROM THE REPLAY, MINUTE BY MINUTE');
       expect(prompt).toContain('Minute 14: their dragon (infernal).');
       expect(prompt).toContain('TIER: a custom game. Riot has no match and no timeline for it');
-      expect(prompt).toContain('There is no team gold at any minute');
+      expect(prompt).toContain('The minutes carry no team gold');
+      // …and the frames do. Saying only the first half told the model to ignore the gold printed in
+      // the top bar of every picture it was sent (11 Sep 2026, the lead: "but there is a gold on
+      // the top panel?").
+      expect(prompt).toContain('top bar carries both teams’ gold');
       expect(prompt).not.toContain('TIER: totals only, from a replay file.');
     }
     // A game with a timeline is untouched, and so is a replay with no recording.

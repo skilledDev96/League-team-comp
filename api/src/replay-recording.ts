@@ -329,7 +329,8 @@ function seatLine(seats: readonly ReplaySeat[], ours: boolean): string | null {
 export function recordingLines(recording: ReplayRecording, max = MAX_RECORDING_LINES): string[] {
   const head = [
     'This game was recorded from the replay by the team’s own recorder: Riot’s API has no match and no timeline for a custom game, so every minute below was read off the League client while the replay played.',
-    'There is no team gold in a recording — the client gives gold for the spectated player alone — and no position of anyone, except what an attached frame shows.'
+    'The minutes below carry no team gold — the client gives gold for the spectated player alone — and no position of anyone.',
+    'The attached frames carry both, and more: the top bar shows each team’s gold, kills, towers and objectives taken at that second; the panel across the bottom shows all ten players’ items, KDA and CS; the corner shows the neutral timers, which say what was up and what was coming; and the minimap shows where everyone stood. Read what you can see in them, and where a number is not legible say so rather than guess at it.'
   ];
   const seats = recording.seats ?? [];
   const ourSeats = seatLine(seats, true);

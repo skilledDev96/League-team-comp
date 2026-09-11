@@ -177,8 +177,9 @@ export interface ReviewContext {
    * replay's totals and nothing else — but a recording is read on either tier
    * since 11 Sep 2026, because the frames are the only view of the map either
    * tier has, and the recorder will happily record a game Riot can also see.
-   * It carries no team gold and no position; the frames attached to the team
-   * call are the only view of the map.
+   * Its minutes carry no team gold and no position; the frames attached to the
+   * team call do carry both, in the top bar and the minimap, and are the only
+   * view of the map either tier has.
    */
   recordedLines?: string[];
   /**
@@ -355,7 +356,7 @@ function happenedSection(ctx: ReviewContext, withLedger: boolean): string[] {
   if (ctx.tier === 'endOfGame') {
     lines.push(
       ctx.recordedLines?.length
-        ? 'TIER: a custom game. Riot has no match and no timeline for it, so the totals are the replay file’s and the minutes are the recorder’s. There is no team gold at any minute and no position of anyone except what an attached frame shows; say "around minute N" and infer nothing finer.'
+        ? 'TIER: a custom game. Riot has no match and no timeline for it, so the totals are the replay file’s and the minutes are the recorder’s. The minutes carry no team gold and no position of anyone; say "around minute N" and infer nothing finer from them. The attached frames are the exception and are worth reading closely — each one’s top bar carries both teams’ gold at that second, its corner carries the neutral timers for what was up, and its minimap carries where everyone stood.'
         : 'TIER: totals only, from a replay file. There are no minutes, no positions and no per-minute figures; say so where it matters and do not infer timing.'
     );
   }

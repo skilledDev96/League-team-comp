@@ -452,13 +452,19 @@ filter rather than none, so it can never become unpickable.
    client writes at 60fps unless told otherwise (161 PNGs of 2 MB for one
    picture), and `findShotFile` keeps the sequence's **last** frame. Moving the
    mouse flips the client to Manual Camera and beats all of it, which is why
-   `docs/replay-recorder.md` step 5 says hands off; what the selection reliably
-   buys is the **HUD** — the victim's own health, abilities, items and CS in the
-   corner of their death's frame — while the framing stays the client's. Three
-   ways to run it, trading the same thing (the lead, 11 Sep 2026: "that should
-   be an option"): no flag follows each death's victim, `--follow <seat|champion>`
-   holds one player for every picture, and `--no-follow` does not touch the
-   camera at all so the replay's own Directed Camera frames the fight instead.
+   `docs/replay-recorder.md` step 5 says hands off. **The camera is the client's
+   own director, and it has to be woken** (11 Sep 2026, measured after five
+   attempts that were not it): a render on its own snaps the camera to a fixed
+   spot, which is why every picture of a real run came back as the same rock.
+   The director wakes only while the replay is genuinely playing with nothing
+   else asked of the client, so the run parks `WARMUP_SEC` (9) before the
+   render's start, `warmDirector` plays into it at ordinary speed, and the render
+   then begins at the second playback stopped — no seek of its own, so nothing
+   resets the countdown. The proof frame: 12:13, Rell mid-ult, "Akali has slain
+   Fiddlesticks!", against the same second rendered cold, which was an empty pit.
+   Following is therefore **off by default**, because holding a selection
+   restarts that countdown: `--follow <seat|champion>` buys one player's HUD at
+   the cost of the framing, and `--no-follow` is the default said out loud.
    `pinnedChampion` takes a **seat** first (`SEAT_WORDS`: jungle/jg/top/mid/adc/
    bot/support and the rest), because the champion in the jungle changes weekly
    and the jungle does not — a seat only ever resolves to one of ours — then a

@@ -90,17 +90,34 @@ The lead does this, then runs the script.
    action, so a frame is at least a frame of the fight. **Manual Camera** is the
    one setting to avoid — every picture comes back as the same patch of map.
 
-   There are three ways to run it, and they trade the same thing:
+   There are two ways to run it, and the default changed on 11 Sep 2026:
 
    | | what each frame shows |
    | --- | --- |
-   | *(no flag)* | the victim's own HUD, a different champion each picture |
-   | `--follow jungle` | our jungler's HUD on every picture, whoever died |
-   | `--no-follow` | no HUD; the replay's own Directed Camera frames the fight |
+   | *(no flag)* | **the fight** — the replay's own Directed Camera frames it, and no HUD |
+   | `--follow jungle` | our jungler's HUD on every picture, but a camera that never leaves where it was parked |
 
-   The HUD is the part nothing else can give you — abilities, items and
-   cooldowns exist nowhere in Riot's data for a custom game. The framing is the
-   part the client does better than we can.
+   **Why the default flipped.** Holding a selection keeps the client's Directed
+   Camera from ever engaging — its countdown restarts every time the run asserts
+   the champion — so a run that follows somebody gets their HUD over the same
+   parked patch of map, twenty times over. A real run on 11 Sep proved it: all
+   twenty pictures were the same rock.
+
+   **And why a picture takes longer now.** A render on its own snaps the camera
+   to a fixed spot, which is the other half of why every frame looked alike. The
+   director only wakes when the replay is genuinely *playing* and nothing else is
+   being asked of the client, and it needs about five seconds of that. So the run
+   parks `WARMUP_SEC` (9) before the render's own start, plays into it at
+   ordinary speed, and only then renders — from exactly the second playback
+   stopped, so the render asks for no seek of its own and the countdown is not
+   knocked back. That is nine seconds a picture, about three minutes on a
+   twenty-shot run, and it is the difference between a frame of the fight that
+   killed us and a frame of an empty pit.
+
+   The HUD is no longer the thing worth paying for. The death boards carry the
+   items, the levels and the farm of all ten as text, so the only thing left in
+   a HUD that exists nowhere else is **ability cooldowns** — and the camera is
+   the one thing the client does better than we can.
 
    **How the run does it** (measured against patch 26.17 on 11 Sep 2026, after
    three attempts that did not work): `selectionName` and `cameraAttached` are
@@ -263,7 +280,17 @@ the answer back:
 | --- | --- |
 | `interfaceMinimap` | Where everyone was — the one thing the review reads a frame for. |
 | `interfaceAll` | The spectated player's own HUD: abilities, items, the shop bar. |
+| `interfaceNeutralTimers` | **On since 11 Sep 2026** (the lead: "spawn timers to see if an objective was available"). The corner timers are the one thing in a frame that says what was *up* rather than what happened, and a review cannot work it out any other way — the respawn rules are patch-dependent and nothing in the data carries them. The recorder had never set this key, so until now it depended on the lead remembering to tick it. |
 | `fogOfWar` **off** | Fog would hide the half of the minimap the review is there for. |
+
+**What a frame carries, which is more than it looks.** The prompt used to open
+by telling the model *"There is no team gold in a recording"* — true of the
+minutes, and flatly false of the pictures it was being sent. Every frame's top
+bar shows **both teams' gold**, their kills, their towers and the objectives
+taken; the panel across the bottom shows all ten players' items, KDA and CS; the
+corner shows the neutral timers; and the minimap shows where everyone stood. The
+head now says so, and tells the model to say when a number is not legible rather
+than guess at it.
 
 **A flag the client will not confirm as off stops the pictures.** The samples
 and the events are still written and the summary says so; nothing else in the

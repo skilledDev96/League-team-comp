@@ -175,8 +175,13 @@ describe('recordingLines', () => {
 
   it('still says where the game came from when the recorder sent nothing else', () => {
     const bare = recordingLines({ ...recording(), seats: [], samples: [], events: [] });
-    expect(bare).toHaveLength(2);
+    expect(bare).toHaveLength(3);
     expect(bare[0]).toContain('recorded from the replay');
+    // What the MINUTES cannot carry, and then what the FRAMES can — the two are different, and
+    // saying only the first told the model to ignore the team gold in every picture (11 Sep 2026).
+    expect(bare[1]).toContain('no team gold');
+    expect(bare[2]).toContain('top bar shows each team’s gold');
+    expect(bare[2]).toContain('neutral timers');
   });
 });
 

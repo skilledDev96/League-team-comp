@@ -34,6 +34,7 @@ import {
   run,
   SHOT_FPS,
   SHOT_LEAD_SEC,
+  WARMUP_SEC,
   sameChampion,
   seatPlan,
   splitRiotId,
@@ -245,6 +246,12 @@ function fakeClient({ fs, plan = {}, fail = '', render = {}, stuck = false, thro
     }
     if (endpoint === '/replay/playback') {
       if (method === 'POST') {
+        // A playback POST that carries no `time` is the warm-up telling the client to play or to
+        // stop, not a seek: it must not move the playhead, and it is not a seek to be counted.
+        if (!Number.isFinite(body?.time)) {
+          if (typeof body?.paused === 'boolean') state.paused = body.paused;
+          return answer({ length: GAME_LENGTH, paused: state.paused !== false, seeking: false, speed: 1, time: state.time });
+        }
         seeks.push(body.time);
         // A stuck client takes the request and stays parked at the end of the
         // game, where the run leaves it: the reading it then hands back for
@@ -530,14 +537,12 @@ describe('the replay recorder, over a whole game', () => {
   // straight to Anthropic with the review.
   it('sets the replay interface before the first picture: the naming panels off, the minimap on', async () => {
     const { renders, renderPosts, calls } = await record({});
-    // Before any render request, so no frame is ever taken with the panels up. The renders after it are
-    // the camera following the champion each picture is about (11 Sep 2026), which carry no flags.
+    // Before any render request, so no frame is ever taken with the panels up.
     expect(calls.indexOf('POST /replay/render')).toBeLessThan(calls.indexOf('POST /replay/recording'));
-    // A post naming a champion is the camera being pointed; the empty one at the end is the run
-    // giving the lead their own camera back.
-    const follows = renderPosts.filter((r) => r.selectionName);
-    expect(follows.length).toBeGreaterThan(0);
-    expect(follows.every((r) => r.cameraAttached === true && typeof r.selectionName === 'string')).toBe(true);
+    // And by default the camera is nobody's business but the replay's own (11 Sep 2026): a run that
+    // holds a selection keeps the client's Directed Camera countdown reset, so the director never
+    // engages and every picture comes back as the same parked view. `--follow` opts back in.
+    expect(renderPosts.filter((r) => r.selectionName)).toHaveLength(0);
     // What was POSTED, not what the fake happened to start as — reading the client's own seed
     // object here made this assertion true before the run had done anything at all.
     const set = renderPosts.find((r) => 'interfaceMinimap' in r);
@@ -650,7 +655,7 @@ describe('the replay recorder, over a whole game', () => {
   // the real client — re-asserting it while the render played walked the camera onto Nautilus and
   // the frame came back centred on him mid-fight.
   it('holds the camera on the victim through the render, which is the only window it moves in', async () => {
-    const { calls, renderPosts, log } = await record({ shots: 3 });
+    const { calls, renderPosts, log } = await record({ shots: 3, run: { follow: true } });
     const asking = calls.indexOf('POST /replay/recording');
     const seek = calls.lastIndexOf('POST /replay/playback', asking);
     expect(seek).toBeGreaterThan(-1);
@@ -680,7 +685,7 @@ describe('the replay recorder, over a whole game', () => {
   // whatever the replay's own camera was showing. Asked once and then left alone — twenty pictures
   // of a camera that will not move is twenty pointless round trips.
   it('stops asking for the camera once the client has shown it will not hold one', async () => {
-    const { shots, log, renderPosts } = await record({ shots: 3, render: { selectionName: '' } });
+    const { shots, log, renderPosts } = await record({ shots: 3, render: { selectionName: '' }, run: { follow: true } });
     expect(shots.length).toBeGreaterThan(0);
     const said = log.filter((line) => line.includes('would not keep the camera'));
     expect(said).toHaveLength(1);
@@ -833,7 +838,11 @@ describe('the replay recorder, over a whole game', () => {
     // The range ENDS a second after the second the seek landed on, and the frame kept is the last
     // of the sequence — so the picture is a second before the death, never the grey recap screen.
     expect(asked.map((r) => r.endTime - 1)).toEqual(wanted);
-    for (const sec of wanted) expect(seeks).toContain(sec);
+    // The playhead is parked WARMUP_SEC before the render's own start and played into it, so the
+    // client's director is awake by the time the frames are written. A render that begins with a
+    // backwards seek resets that countdown, which is why every picture used to come back as the
+    // same patch of map (11 Sep 2026, measured).
+    for (const sec of wanted) expect(seeks).toContain(Math.max(0, sec - SHOT_LEAD_SEC - WARMUP_SEC));
     // And it STARTS `SHOT_LEAD_SEC` earlier, which is the only window the replay's own director has
     // to swing onto the fight: a one-second range stored the same parked view at every death of a
     // real run (11 Sep 2026, measured against the client).
@@ -1069,7 +1078,7 @@ describe('the pure parts', () => {
   });
 
   it('parses the argument line and holds the hard cap', () => {
-    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: true, followChampion: '' });
+    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '' });
     // The camera follows whoever each picture is about unless the lead wants their own seat's HUD on every frame.
     expect(parseArgs([MATCH_ID, '--no-follow']).follow).toBe(false);
     // The bars are on by default (11 Sep 2026); a client that prints summoner names over champions turns them off again.
@@ -1087,7 +1096,7 @@ describe('the pure parts', () => {
       roster: '',
       noHealthBars: false,
       streamerMode: true,
-      follow: true,
+      follow: false,
       followChampion: ''
     });
     expect(parseArgs([MATCH_ID, '--shots=99']).shots).toBe(30);

@@ -118,6 +118,23 @@ export const SHOT_LEAD_SEC = 8;
 export const SHOT_FPS = 1;
 
 /**
+ * How many seconds of ordinary playback run into a picture before the render starts (11 Sep 2026,
+ * measured against patch 26.17 after five attempts that did not work).
+ *
+ * The client's own **Directed Camera** is the only thing that will frame a fight — the API cannot
+ * move the replay camera, and a render on its own snaps it back to a fixed spot, which is why
+ * twenty pictures of a real game all came back as the same patch of map. The director needs about
+ * five seconds of the replay actually *playing*, with nothing else asked of the client, before it
+ * wakes up and swings onto the action. So the run parks well before the moment, plays into it, and
+ * only then renders — from the second playback has reached, so the render's own seek is a no-op and
+ * the director is not knocked back to the start of its countdown.
+ *
+ * The frame that proved it: at 12:13, "Akali has slain Fiddlesticks!" with Rell channelling her
+ * ult, against the same second rendered cold, which was an empty corner of the map.
+ */
+export const WARMUP_SEC = 9;
+
+/**
  * How close two identical-looking events have to be before they are read as one crossing of the
  * same moment rather than two moments. Three seconds is far under any death timer, so a killer
  * cannot legitimately kill the same victim twice inside it — and comfortably over the second the
@@ -168,7 +185,13 @@ export const RENDER_FLAGS = {
   // first frame of every run is worth a look before the pictures are trusted.
   healthBarChampions: true,
   // Off: fog would hide the half of the minimap the review is there to read.
-  fogOfWar: false
+  fogOfWar: false,
+  // On (11 Sep 2026, the lead: "I also added objective timers — spawn timers to see if an objective
+  // was available"). The client reports this key and the recorder had never set it, so the timers in
+  // the corner depended on the lead remembering to tick them. They are the one thing in a frame that
+  // says what was UP rather than what happened, and a review cannot work it out any other way: the
+  // respawn rules are patch-dependent and nothing in the data carries them.
+  interfaceNeutralTimers: true
 };
 
 /** The flags Riot's rule hangs on: not confirmed off means no pictures this run. */
@@ -370,6 +393,17 @@ export function pinnedChampion(name, livePlayers, plan = null) {
   return { champion: String(found.championName ?? '').trim(), championId: championIdOf(found) };
 }
 
+/**
+ * Play the replay for a few seconds and stop, so the client's own Directed Camera is awake before a
+ * frame is rendered. Best effort throughout: a client that refuses to play gives the picture it
+ * would have given anyway, which is what every run did before this existed.
+ */
+export async function warmDirector({ call, sleep = realSleep, seconds = WARMUP_SEC }) {
+  await call('/replay/playback', { method: 'POST', body: { paused: false, speed: 1 } }).catch(() => undefined);
+  await sleep(seconds * 1000);
+  await call('/replay/playback', { method: 'POST', body: { paused: true } }).catch(() => undefined);
+}
+
 /** Said once when the client will not hold a selection, so the lead knows what their frames show. */
 export const CAMERA_NOT_HELD =
   'the client would not keep the camera on a champion while it rendered, so every frame carries whatever the replay\'s own camera was showing. Set the replay\'s camera to Directed Camera before a run and the frames will at least be of the fight.';
@@ -387,7 +421,7 @@ export const POSITION_ROLE = {
 export const ROLES = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
 
 const USAGE =
-  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--follow <seat|champion>] [--no-follow]';
+  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--follow <seat|champion>]';
 
 const CLIENT_HELP =
   'Is the League client open, with the replay playing? The Live Client and Replay APIs only answer while a replay is up.';
@@ -432,7 +466,7 @@ export function parseArgs(argv) {
   // back rather than the normalised form nobody typed.
   // Panels on unless the lead says otherwise: the client's streamer mode is what keeps a Riot id off the screen,
   // and a frame without the scoreboard and the team frames is missing the gold, the items and the kills.
-  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: true, followChampion: '' };
+  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '' };
   const assign = (name, value) => {
     // `--out-dir --dry-run` used to swallow the flag as the value, write the
     // frames to a directory called "--dry-run" and upload to Firestore for
@@ -445,9 +479,13 @@ export function parseArgs(argv) {
       parsed.shots = Math.min(MAX_SHOTS, Math.floor(n));
     } else if (name === '--out-dir') parsed.outDir = value;
     else if (name === '--roster') parsed.roster = value;
-    // One seat's HUD on every frame instead of each victim's own: the jungler for pathing and
-    // smite, a carry for the cooldowns in the fights they died in. A seat word or a champion.
-    else if (name === '--follow') parsed.followChampion = value;
+    // One seat's HUD on every frame, instead of leaving the camera to the replay's own director.
+    // A seat word or a champion. It has to turn following ON as well as name who, because since
+    // 11 Sep 2026 the default is to leave the camera alone entirely.
+    else if (name === '--follow') {
+      parsed.followChampion = value;
+      parsed.follow = true;
+    }
     else throw new Error(`Unknown option ${name}.\n${USAGE}`);
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -461,8 +499,8 @@ export function parseArgs(argv) {
       parsed.noHealthBars = true;
       continue;
     }
-    // For a lead who wants one seat's HUD on every frame — the jungler's, usually — rather than
-    // the victim's: the camera is left exactly where they put it and the run never touches it.
+    // The default since 11 Sep 2026, kept as a word for the command lines already written down and
+    // for anyone who wants to say out loud that the camera is the replay's own business.
     if (arg === '--no-follow') {
       parsed.follow = false;
       continue;
@@ -1113,7 +1151,7 @@ export async function run({
   dryRun = false,
   noHealthBars = false,
   streamerMode = true,
-  follow = true,
+  follow = false,
   followChampion = '',
   roster = null,
   fetchImpl,
@@ -1260,7 +1298,10 @@ export async function run({
 
   // Resolved here, before the thirty-six seeks, so `--follow Vhi` costs a sentence rather than five
   // minutes. Null means every picture follows its own victim, which is the default.
-  const pinned = follow && followChampion ? pinnedChampion(followChampion, allPlayers, plan) : null;
+  // Naming somebody IS asking to follow them: `--follow jungle` turns it on at the command line, and
+  // a caller that passes only `followChampion` plainly means the same thing. One rule, both doors.
+  const following = follow || Boolean(followChampion);
+  const pinned = following && followChampion ? pinnedChampion(followChampion, allPlayers, plan) : null;
   if (pinned) {
     log(`  every picture will follow ${pinned.seat ? `our ${pinned.seat}, ${pinned.champion}` : pinned.champion}, so each frame carries their HUD rather than the victim's.`);
   }
@@ -1375,16 +1416,22 @@ export async function run({
       // comment says to avoid). `shot.sec` stays the death: the document id,
       // the file's name and the label all name the moment, not the frame.
       const at = Math.max(0, shot.sec - 2);
+      // Where the render begins, and therefore where the warm-up has to leave the playhead.
+      const runUpFrom = Math.max(0, at - SHOT_LEAD_SEC);
       const stem = `${matchId}__${shot.sec}`;
       const file = path.join(shotsDir, stem);
       try {
-        const landed = await seek(at);
+        // Park BEFORE the run-up, not on the moment: the seconds between here and `runUpFrom` are
+        // played at ordinary speed so the client's own director wakes up, and the render then starts
+        // from where playback stopped — no backwards seek, so nothing resets it (11 Sep 2026).
+        const landed = await seek(Math.max(0, runUpFrom - WARMUP_SEC));
         if (!landed.settled) {
           dropped += 1;
           inARow += 1;
           log(`  the client never landed on ${mmss(at)}, so no picture was taken for ${shot.label}.`);
           continue;
         }
+        await warmDirector({ call, sleep });
         // Follow whoever the picture is about (11 Sep 2026): the HUD in the corner belongs to the
         // followed champion alone, so a death's frame is worth twice as much when it is the
         // victim's. The asking happens THROUGH the render, not before it — a seek clears the
@@ -1392,7 +1439,7 @@ export async function run({
         // moves is the one where it is playing. `hold.poll` is handed to the wait below.
         const who = pinned ?? { champion: shot.champion, championId: shot.championId };
         const hold =
-          follow && who.champion && renderShape && cameraHeld !== false
+          following && who.champion && renderShape && cameraHeld !== false
             ? makeCameraHold({ call, shape: renderShape, champion: who.champion, championId: who.championId, checkAt: cameraCheckAt })
             : null;
         // Every frame this run's stem could match is deleted first, so nothing
@@ -1406,8 +1453,9 @@ export async function run({
         // holds 1 MiB — this client ignores the width and height asked for and renders at its own.
         const shotBody = {
           codec: 'png',
-          // The run-up the replay's own director needs; the LAST frame of the sequence is the one kept.
-          startTime: Math.max(0, at - SHOT_LEAD_SEC),
+          // Where the warm-up left the playhead, so the render asks for no seek of its own; the LAST
+          // frame of the sequence is the one kept.
+          startTime: runUpFrom,
           endTime: at + 1,
           path: file,
           recording: true,
