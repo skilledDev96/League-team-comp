@@ -599,12 +599,40 @@ filter rather than none, so it can never become unpickable.
    player, the ledger's words (`COULD_LABELS`, `HOW_LABELS`,
    `ZONE_LABELS`), and `reviewAsText` behind the Copy for Discord pill (one
    subtext line on the deaths when the ledger is there, and the film link,
-   the commitment and the notes as extras). **The panel is short** (9 Sep
-   2026, evening): the poster strip with the Open the film room pill, the
-   scoreline, the moments as one strip of minute pills (tap for the
-   sentence), First thing next game and Keep doing as one line each
-   (`askOf`), one ask per player, the team's commitment line. Everything
-   longer lives in the film room.
+   the commitment and the notes as extras). **The panel is a dashboard and
+   the film room is the story** (12 Sep 2026, the lead: "it feels like too
+   much at once to read and obtain… use league jargon… use visuals more than
+   words… I want to look at something and instantly know what its about, not
+   wonder what am I looking at"). Measured before it was answered: the panel
+   rendered ~350-420 words while never rendering a single `evidence` string,
+   every `options` pair, `lessons`, `draft.lacked` or a player's `strength`
+   and `more[]` — it showed the least scannable third and hid the rest, and
+   printed the row's own eight objective figures a second time 150px below
+   them. It now opens with **Decided by** (`shared/review/decided-by.component.ts`
+   over `decidedByOf`: one of the film's glyphs and one word, from review
+   version 8's `decidedBy` and falling back to `workOn[0].theme`, rendering
+   **nothing at all** when there is neither), then First thing next game with
+   the two `options` the schema has carried since version 4 and nobody ever
+   drew, then a **Team | My seat** switch (`bom-review-view` in localStorage).
+   Team holds the moment strip, every work-on, every keep-doing and the draft;
+   My seat opens on the reader's own — the seat is `UserPrefs.film.seat`, the
+   one this app already knows, since `Player` carries no email and
+   `AccessEntry` no player id, so a first-run picker asks rather than guessing.
+   **Every point is `app-review-point`** (`shared/review/review-point.component.ts`):
+   the theme's glyph, `evidenceChips` on the evidence — which had existed in
+   `core/review-view.ts` since the panel was written and had no caller — and
+   the sentence behind an `app-info-tip`. Two fallbacks a stored review hits:
+   evidence that will not split shows `askOf(text, 120)` instead of one chip
+   holding a clause, and a point with no theme draws no glyph rather than a
+   blank square; the minute pill is dropped when a chip already carries a
+   clock. The moments are placed along the game by `momentTrack` (pure, with
+   a minimum gap and the tail pinned to the track rather than clamped in
+   place, which stacked two pills on one pixel) and fall back to the row for
+   one moment or a game with no length, and to dots for a totals-only review.
+   The swaps are two faces and their gains as chips with the why in the tip,
+   `draft.lacked` beside them. The result, measured on the live site: 350-420
+   words to **175 on Team and 140 on My seat**, with the prose down to about
+   45 and every figure still on screen. Anything longer is still the film's.
    **Three marks: who carried it, and who swung it** (11 Sep 2026, the lead:
    "add an MVP for a series, and a game, and then also most influential
    player"). `core/game-mvp.ts` holds the line the film's poster always
