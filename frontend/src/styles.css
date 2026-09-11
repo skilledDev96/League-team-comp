@@ -14311,6 +14311,17 @@ button .player-mark { vertical-align: -0.3rem; }
 .game-review-copy { padding: 0.25rem 0.7rem; font-size: 0.78rem; }
 .game-review-copy .material-symbols-rounded { font-size: 1rem; vertical-align: -0.2rem; }
 .game-review-headline { margin: 0.45rem 0 0.4rem; font-size: 1.5rem; line-height: 1.15; font-weight: 800; color: var(--text-0); letter-spacing: -0.012em; }
+/* What decided the game: the largest thing on the panel, and the only one meant to be read at a glance. */
+.review-decided { display: flex; align-items: center; gap: 0.55rem; margin: 0 0 0.2rem; color: var(--accent-2); cursor: help; }
+.review-decided-label { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-1); }
+.review-decided-word { font-family: "Chakra Petch", sans-serif; font-size: clamp(1.15rem, 2.4vw, 1.5rem); line-height: 1; letter-spacing: 0.02em; text-transform: uppercase; }
+/* The one thing, and the two choices it offers. The choices are not buttons: nothing is decided here — the film room is where the team commits. */
+.review-one-thing { display: grid; gap: 0.35rem; }
+.review-one-thing-said { font-size: 0.95rem; }
+.review-options { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0 0.2rem; }
+.review-options .view-btn.is-static { cursor: default; font-size: 0.74rem; color: var(--text-1); }
+.review-options .view-btn.is-static:hover { border-color: var(--card-border); }
+
 .game-review-scoreline { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; }
 .score-chip { display: inline-flex; align-items: baseline; gap: 0.3rem; padding: 0.18rem 0.6rem; border-radius: 999px; border: 1px solid var(--card-border); background: var(--surface-controls); font-size: 0.8rem; font-variant-numeric: tabular-nums; color: var(--text-0); }
 .score-chip small { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-1); }

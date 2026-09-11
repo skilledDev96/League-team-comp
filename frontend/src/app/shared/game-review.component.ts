@@ -2,7 +2,10 @@ import { DatePipe, Location } from '@angular/common';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
 import { AnalysisGame, FilmChoice, GameReview, ReviewPoint, ReviewSwap, ReviewTheme } from '../models/team.models';
-import { alternativesPhrase, askOf, gainsPhrase, reviewAsText, reviewSource } from '../core/review-view';
+import { alternativesPhrase, askOf, gainsPhrase, reviewAsText, reviewSource, THEME_GLYPHS } from '../core/review-view';
+import type { FilmGlyph } from '../core/film-model';
+import { DecidedByComponent } from './review/decided-by.component';
+import { FilmGlyphComponent } from './film/film-glyph.component';
 import { initialsOf } from '../core/initials';
 import { MatchTimelineService } from '../services/match-timeline.service';
 import { ReviewTakeoverService } from '../services/review-takeover.service';
@@ -30,7 +33,7 @@ import { TooltipDirective } from './tooltip.directive';
  */
 @Component({
   selector: 'app-game-review',
-  imports: [DatePipe, TooltipDirective, InfoTipComponent, PlayerMarkComponent, FilmPosterComponent],
+  imports: [DatePipe, TooltipDirective, InfoTipComponent, PlayerMarkComponent, FilmPosterComponent, DecidedByComponent, FilmGlyphComponent],
   template: `
     @if (review(); as r) {
       <details class="intel-collapse game-review" [open]="open() || fresh() || takeover.ready(r.matchId)" aria-label="Game review">
@@ -43,6 +46,8 @@ import { TooltipDirective } from './tooltip.directive';
         </summary>
         <div class="game-review-body">
         <app-film-poster [review]="r" [game]="game()" [opponent]="opponent()" size="row" />
+
+        <app-decided-by [review]="r" />
 
         <div class="game-review-head">
           <span class="game-review-verdict" [class.is-good]="r.team.compVerdict === 'as drafted'" [class.is-bad]="r.team.compVerdict === 'off plan'"
@@ -73,17 +78,30 @@ import { TooltipDirective } from './tooltip.directive';
         }
 
         @if (first(); as f) {
-          <p class="game-review-line-one is-warn">
-            <b>First thing next game</b>
-            @if (f.theme) { <span class="review-theme" [appTip]="f.theme"><span class="material-symbols-rounded" aria-hidden="true">{{ icon(f.theme) }}</span></span> }
-            @if (f.minute !== null && timed()) { <span class="review-minute">{{ f.minute }} min</span> }
-            <span>{{ oneThing() || ask(f.text) }}</span>
-          </p>
+          <div class="review-one-thing">
+            <p class="game-review-line-one is-warn">
+              <b>First thing next game</b>
+              @if (f.theme) { <app-film-glyph [name]="glyphOf(f.theme)" [appTip]="f.theme" /> }
+              @if (f.minute !== null && timed()) { <span class="review-minute">{{ f.minute }} min</span> }
+              <span class="review-one-thing-said">{{ oneThing() || ask(f.text) }}</span>
+            </p>
+            <!--
+              The two choices the coach offered, which the schema has carried since version 4 and
+              this panel has never shown. They are the difference between a note and a decision: the
+              film's One thing chapter has always split on them and the panel printed the sentence
+              they came from instead.
+            -->
+            @if (f.options?.length === 2) {
+              <p class="review-options">
+                @for (o of f.options; track o) { <span class="view-btn is-static">{{ o }}</span> }
+              </p>
+            }
+          </div>
         }
         @if (keep(); as k) {
           <p class="game-review-line-one is-ok">
             <b>Keep doing</b>
-            @if (k.theme) { <span class="review-theme" [appTip]="k.theme"><span class="material-symbols-rounded" aria-hidden="true">{{ icon(k.theme) }}</span></span> }
+            @if (k.theme) { <app-film-glyph [name]="glyphOf(k.theme)" [appTip]="k.theme" /> }
             <span>{{ ask(k.text) }}</span>
           </p>
         }
@@ -215,8 +233,15 @@ export class GameReviewComponent {
     macro: 'map'
   };
 
-  protected icon(theme: ReviewTheme): string {
-    return GameReviewComponent.ICONS[theme] ?? 'label';
+  /**
+   * The theme as one of the film's own glyphs.
+   *
+   * Material Symbols are this app's chrome and the thirty hand-drawn glyphs are its content
+   * imagery; a theme is content. Three of the seven had no glyph until 12 Sep 2026, which is why
+   * this used to reach for a Material icon and mix the two families on one line.
+   */
+  protected glyphOf(theme: ReviewTheme): FilmGlyph {
+    return THEME_GLYPHS[theme] ?? 'flag';
   }
 
   protected ask(text: string): string {
