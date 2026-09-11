@@ -486,24 +486,45 @@ export class ReviewTakeoverStageComponent {
     }
   }
 
-  /** Shrink back toward the Review button, then close; the call runs on. */
+  /**
+   * Shrink back toward the Review button, then close; the call runs on.
+   *
+   * The close cannot come first: `svc.minimise()` sets the phase to closed and the stage leaves the
+   * DOM in the same tick, so there would be nothing left to shrink. That leaves this waiting on an
+   * animation, and `MotionService.play` is what guarantees the wait ends (a hidden tab stalls WAAPI
+   * and `finished` never settles). The latch is the other half of what sealed the page on 11 Sep
+   * 2026 — with the stage at `opacity: 0` and the phase not closed, the backdrop, the body's
+   * `overflow: hidden` and the page's `inert` all stood, and every retry bounced off it — so it no
+   * longer refuses on its own: a second press drops the shrink instead, which settles the promise
+   * the first press is waiting on and closes now rather than on the last frame.
+   */
   protected async minimise(): Promise<void> {
-    if (this.leaving) return;
     const stage = this.stage()?.nativeElement;
+    if (this.leaving) {
+      try {
+        stage?.getAnimations().forEach((a) => a.cancel());
+      } catch {
+        /* no Web Animations: the shrink was never running, and the wait is already over */
+      }
+      return;
+    }
     const to = this.svc.fromEl?.isConnected ? this.svc.fromEl.getBoundingClientRect() : this.svc.fromRect();
     if (stage && to && !this.motion.reduced()) {
       this.leaving = true;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      await this.motion.play(
-        stage,
-        [
-          { transform: 'none', opacity: 1 },
-          { transform: `translate(${to.x}px, ${to.y}px) scale(${Math.max(0.01, to.width / vw)}, ${Math.max(0.01, to.height / vh)})`, opacity: 0 }
-        ],
-        { duration: SHRINK_MS, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
-      );
-      this.leaving = false;
+      try {
+        await this.motion.play(
+          stage,
+          [
+            { transform: 'none', opacity: 1 },
+            { transform: `translate(${to.x}px, ${to.y}px) scale(${Math.max(0.01, to.width / vw)}, ${Math.max(0.01, to.height / vh)})`, opacity: 0 }
+          ],
+          { duration: SHRINK_MS, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
+        );
+      } finally {
+        this.leaving = false;
+      }
     }
     this.svc.minimise();
   }

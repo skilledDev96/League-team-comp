@@ -4,6 +4,27 @@ import { Injectable, signal, computed } from '@angular/core';
 const MOTION_KEY = 'bom-motion';
 
 /**
+ * How much longer than its own running time `play` waits for an animation to
+ * say it has finished before it gives up on it (11 Sep 2026).
+ *
+ * The slack has to clear everything that makes a *healthy* animation late, so
+ * that the watchdog can never beat one that is merely running: the frame
+ * before it starts, the frame its finish is noticed in, the microtask that
+ * resolves `finished`, and any long task sitting on the main thread. The
+ * first three are frames — 16 ms each, 33 ms on a loaded screen — so a whole
+ * second is two orders of magnitude past them. The fourth is the only real
+ * competition, and by the time the main thread has been blocked for a solid
+ * second nothing on the page is painting anyway, so landing on the last frame
+ * early costs nothing anyone can see. Pulling the other way: this is how long
+ * someone who pressed Minimise waits before the takeover answers, which is
+ * why it is a second and not a minute.
+ */
+const WATCHDOG_SLACK_MS = 1000;
+
+/** The least patience any animation gets, so a 180 ms fade is not judged on a couple of frames' worth. */
+const WATCHDOG_FLOOR_MS = 1500;
+
+/**
  * Whether this screen wants motion, and one way to animate that respects it
  * (9 Sep 2026, the film room). `reduced` is the OS setting or the toggle in
  * the film's chrome, so a chapter can lay itself out as a second, still
@@ -87,6 +108,20 @@ export class MotionService {
    * Animate an element, or, when motion is off, put it where the animation
    * would have left it. Resolves either way, on cancel too, so a chapter's
    * flow never hangs on a frame that will not come.
+   *
+   * And not on a frame that never comes at all. `anim.finished` is the only
+   * thing the Web Animations API gives you to wait on, and it is not promised
+   * to settle: a hidden tab stalls WAAPI, so an animation started as the tab
+   * goes to the background can sit unfinished for as long as the tab is away.
+   * The callers that await this *before* they change state — `minimise()` on
+   * the review takeover, `go()` in the film room — would wait with it, and the
+   * takeover's is how a page ends up sealed behind an inert backdrop with both
+   * of its exits behind a `leaving` latch. So `finished` is raced against a
+   * watchdog set from the animation's own timing: when the watchdog wins the
+   * animation is dropped and the last keyframe written, exactly the way the
+   * reduced-motion and no-Web-Animations branches above write it, and the
+   * caller carries on. WATCHDOG_SLACK_MS says why it cannot beat an animation
+   * that is only running.
    */
   play(el: Element, keyframes: Keyframe[], opts: KeyframeAnimationOptions): Promise<void> {
     const last = keyframes[keyframes.length - 1];
@@ -98,16 +133,53 @@ export class MotionService {
     return new Promise<void>((resolve) => {
       try {
         const anim = (el as HTMLElement).animate(keyframes, opts);
-        anim.finished.then(
-          () => resolve(),
-          () => resolve()
-        );
+        let over = false;
+        const watchdog = armWatchdog(opts, () => {
+          if (over) return;
+          over = true;
+          // Drop the animation before writing the frame. A running effect sits above inline style
+          // in the cascade, and a stalled one is still running as far as the cascade is concerned,
+          // so the write would be invisible with the animation left in place. Cancelling rejects
+          // `finished`, which lands on `settle` and finds it already over.
+          try {
+            anim.cancel();
+          } catch {
+            /* nothing left to cancel */
+          }
+          if (last) applyFrame(el, last);
+          resolve();
+        });
+        const settle = () => {
+          if (over) return;
+          over = true;
+          if (watchdog !== undefined) clearTimeout(watchdog);
+          resolve();
+        };
+        anim.finished.then(settle, settle);
       } catch {
         if (last) applyFrame(el, last);
         resolve();
       }
     });
   }
+}
+
+/**
+ * The timer behind `play`'s watchdog, set to how long the animation says it
+ * will run plus the slack. Undefined when the timing says it is not meant to
+ * end — endless `iterations` — because there an unsettled `finished` is the
+ * contract rather than a stall, and cutting it short would be the bug.
+ */
+function armWatchdog(opts: KeyframeAnimationOptions, onStall: () => void): ReturnType<typeof setTimeout> | undefined {
+  const iterations = typeof opts.iterations === 'number' ? opts.iterations : 1;
+  const runs = timingMs(opts.delay) + timingMs(opts.duration) * iterations + timingMs(opts.endDelay);
+  if (!Number.isFinite(runs)) return undefined;
+  return setTimeout(onStall, Math.max(runs + WATCHDOG_SLACK_MS, WATCHDOG_FLOOR_MS));
+}
+
+/** A timing option in milliseconds; 0 for the shapes the API allows but this app never passes (a CSS numeric value, 'auto'), which leaves the floor to decide. */
+function timingMs(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 function queryMedia(): MediaQueryList | null {

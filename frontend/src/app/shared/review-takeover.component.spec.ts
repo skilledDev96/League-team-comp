@@ -6,6 +6,7 @@ import { environment } from '../../environments/environment';
 import { AnalysisGame, GameReview, MatchTimeline } from '../models/team.models';
 import { GameReviewService } from '../services/game-review.service';
 import { MatchTimelineService } from '../services/match-timeline.service';
+import { MotionService } from '../services/motion.service';
 import { ReviewTakeoverService } from '../services/review-takeover.service';
 import { TeamDataService } from '../services/team-data.service';
 import { ToastService } from '../services/toast.service';
@@ -257,6 +258,42 @@ describe.skipIf(typeof localStorage === 'undefined')('ReviewTakeoverComponent', 
     expect(svc.phase()).toBe('closed');
     expect(svc.ready(ID)).toBe(true);
     expect(toast.toasts()[0]?.title).toBe('The film is ready');
+  });
+
+  it('a shrink whose animation never finishes does not seal the page: a second Minimise drops it', async () => {
+    // The hang of 11 Sep 2026 from the inside. A hidden tab stalls WAAPI, so the `finished` that
+    // `minimise()` waits on never settles: the stage sat at `opacity: 0` while the phase stayed
+    // open, which left the backdrop, the body's `overflow: hidden` and the page's `inert` all
+    // standing. jsdom implements no Web Animations at all, so the stalled one is stood up here.
+    let abort: (reason: unknown) => void = () => undefined;
+    const anim = {
+      cancel: vi.fn(() => abort(new DOMException('aborted', 'AbortError'))),
+      finished: new Promise<void>((_, reject) => (abort = reject))
+    };
+    const proto = Element.prototype as unknown as { animate?: unknown; getAnimations?: unknown };
+    proto.animate = vi.fn(() => anim);
+    proto.getAnimations = vi.fn(() => [anim]);
+    try {
+      TestBed.inject(MotionService).setStill(false);
+      await openGate();
+      pill(root, 'Roll it')!.click();
+      await render();
+      expect(svc.phase()).toBe('reel');
+
+      pill(root, 'Minimise')!.click();
+      await render();
+      // Waiting on a frame that is never going to come.
+      expect(svc.phase()).toBe('reel');
+
+      pill(root, 'Minimise')!.click();
+      await render();
+      await render();
+      expect(anim.cancel).toHaveBeenCalled();
+      expect(svc.phase()).toBe('closed');
+    } finally {
+      delete proto.animate;
+      delete proto.getAnimations;
+    }
   });
 
   it('shows the failure as a callout with Close, and routes nowhere', async () => {

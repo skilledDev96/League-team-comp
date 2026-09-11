@@ -241,6 +241,20 @@ takeover whenever the stage is not on screen, and a **second Escape within
 `ESCAPE_TWICE_MS`** always closes it — the last one covers the other way to
 seal the page, a `MotionService.play` whose `finished` never settles (a
 hidden tab stalls WAAPI), which `minimise()` awaits before it closes.
+That second way is now shut at the source too (11 Sep 2026), because the
+Escape only rescued the person who knew to press it twice: **`play` never
+waits forever.** It races `finished` against a watchdog set from the
+animation's own timing plus `WATCHDOG_SLACK_MS` (a second, floor 1.5 s —
+enough to clear every reason a healthy animation is late, since those are
+frames), and when the watchdog wins it cancels the animation and writes the
+last keyframe itself, exactly as the reduced-motion branch does; an endless
+`iterations` arms no watchdog, an unsettled `finished` being the contract
+there. The two callers that gate state on it are `minimise()` and the film
+room's `go()`. `minimise()` cannot close first — `svc.minimise()` sets the
+phase to closed and the stage leaves the DOM in the same tick, so there
+would be nothing left to shrink — so its `leaving` latch no longer refuses
+on its own either: a second press drops the shrink, which settles the
+promise the first is waiting on. Both Escapes stay as defence in depth.
 Any new `@defer` needs an `@error` branch for the same reason.
 Both are read on Admin → Diagnostics. The point (8 Sep 2026): a teammate who
 says "something went wrong in the draft" and cannot say what can now be read
