@@ -1285,7 +1285,9 @@ describe('the pure parts', () => {
       return {};
     };
     const fs = { rmSync: () => undefined, existsSync: () => true, statSync: () => ({ size: 4096 }) };
-    const file = await renderClip({ call, sleep: async () => undefined, fs, dir: 'C:/out', matchId: MATCH_ID, sec: 265, from: 220, to: 266, tries: 3, waitMs: 1 });
+    // waitMs covers the whole window in one poll, so the stubbed sleep does not have to advance a clock:
+    // the wait is counted in polls, and a render cannot finish before the game has been played through.
+    const file = await renderClip({ call, sleep: async () => undefined, fs, dir: 'C:/out', matchId: MATCH_ID, sec: 265, from: 220, to: 266, tries: 8, waitMs: 60_000 });
     const body = asked.at(-1).body;
     expect(body.codec).toBe('webm');
     expect(body.enforceFrameRate).toBe(false);

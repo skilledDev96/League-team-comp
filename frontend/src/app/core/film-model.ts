@@ -53,6 +53,9 @@ export type FilmGlyph =
   | 'wave'
   | 'hook'
   | 'wind'
+  | 'lane'
+  | 'clock'
+  | 'map'
   | 'check';
 
 /** The glyph for each gain a draft swap buys. */

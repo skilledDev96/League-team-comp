@@ -194,6 +194,19 @@ export const FILM_GLYPHS: Record<FilmGlyph, FilmGlyphShape> = {
   wind: {
     paths: ['M3 8h11a2.5 2.5 0 1 0-2.4-3', 'M3 13h15a2.5 2.5 0 1 1-2.4 3', 'M3 18h8']
   },
+  // Three lanes running corner to corner: the map read as lanes rather than as ground.
+  lane: {
+    paths: ['M3 21L21 3', 'M3 13.5h7.5', 'M13.5 10.5H21', 'M10.5 3v7.5', 'M13.5 13.5V21']
+  },
+  // A clock: tempo, which is a question about when and not about where.
+  clock: {
+    paths: ['M12 7.5V12l3 2'],
+    circles: [{ cx: 12, cy: 12, r: 8.5 }]
+  },
+  // A folded map: the whole board, which is what macro is about.
+  map: {
+    paths: ['M3 6.5l6-2.5 6 2.5 6-2.5v15l-6 2.5-6-2.5-6 2.5z', 'M9 4v15', 'M15 6.5v15']
+  },
   check: {
     paths: ['M4 12.5l5 5L20 6.5']
   }
@@ -230,6 +243,9 @@ export const GLYPH_TIPS: Record<FilmGlyph, string> = {
   wave: 'Wave clear',
   hook: 'Pick',
   wind: 'Disengage',
+  lane: 'The lanes',
+  clock: 'Tempo',
+  map: 'The map',
   check: 'Clean'
 };
 

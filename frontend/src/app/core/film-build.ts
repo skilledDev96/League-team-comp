@@ -58,7 +58,7 @@ import {
 } from './film-model';
 import { mvpSeatOf } from './game-mvp';
 import { deathLine } from './replay-lines';
-import { askOf, playerStatLine, reviewSource, scoreline, ZONE_LABELS } from './review-view';
+import { askOf, gamePlayerFor, playerStatLine, POSITION_SEAT, reviewSource, scoreline, seatOf, ZONE_LABELS } from './review-view';
 import { clusterSpot, laneSpot, objectivePit, placeDeath, PlaceDeathArgs, Point, regionFor, RiftSide, riotToPercent, unitsToPercent } from './rift-zones';
 import { FilmDeathOrder, styleFor } from './film-style';
 import { seedOf, shuffle } from './seed';
@@ -83,20 +83,6 @@ export interface FilmPrevious {
   timeline?: MatchTimeline | null;
 }
 
-/** Riot's positions and the seat words both appear on `AnalysisPlayer.position`, depending on the source. */
-const POSITION_SEAT: Record<string, Role> = {
-  TOP: 'Top',
-  JUNGLE: 'Jungle',
-  MIDDLE: 'Mid',
-  BOTTOM: 'ADC',
-  UTILITY: 'Support',
-  Top: 'Top',
-  Jungle: 'Jungle',
-  Mid: 'Mid',
-  ADC: 'ADC',
-  Support: 'Support'
-};
-
 const BLANK_POINT: ReviewPoint = { text: '', evidence: '', minute: null };
 
 const seatIndex = (seat: Role) => ROLES.indexOf(seat);
@@ -106,10 +92,6 @@ const capitalise = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 function firstSentence(text: string): string {
   const m = text.match(/^(.+?[.!?])(\s|$)/);
   return (m ? m[1] : text).trim();
-}
-
-function seatOf(player: AnalysisPlayer): Role | undefined {
-  return POSITION_SEAT[player.position];
 }
 
 /** Their five as the game knows them: a champion in a seat, never a name, because the api sends none of theirs. Unordered. */
@@ -132,12 +114,6 @@ function headlineSeat(headline: string, review: GameReview): Role | undefined {
 // as `mvpSeatOf` (11 Sep 2026, queue items 5-7). It is the same arithmetic with
 // the same weights and the same tie to lane order, so the poster's face has not
 // moved; the shared module adds the terms behind it, which the MVP chip prints.
-
-/** The seat's player in the analysed game: by position first, then by name, then by champion. */
-function gamePlayerFor(game: AnalysisGame | undefined, seat: Role, name: string, champion: string): AnalysisPlayer | undefined {
-  if (!game) return undefined;
-  return game.players.find((p) => seatOf(p) === seat) ?? game.players.find((p) => p.name === name) ?? game.players.find((p) => p.champion === champion);
-}
 
 /**
  * The two choices a work-on offers. "the fact; either X or Y" splits on the
@@ -1276,9 +1252,15 @@ function stripMoment(source: StripSource, key: string, seats: Map<string, Replay
 function stripOpening(recording: ReplayRecording, moments: readonly FilmStripMoment[]): string {
   const deaths = recording.deaths?.length ?? 0;
   const head = deaths ? plural(deaths, 'death', 'deaths') : plural(moments.length, 'moment', 'moments');
+  // Clips first, because since 12 Sep 2026 they are what a moment that mattered actually carries —
+  // a moment with a clip keeps no run-up stills at all, so counting strips on a recording full of
+  // clips counted only the moments whose clip FAILED and announced "five frames on the one that
+  // mattered" over a chapter of seven videos.
+  const clipped = moments.filter((m) => !!m.clip).length;
   const strips = moments.filter((m) => m.frames.length > 1).length;
   const pictured = moments.filter((m) => m.frames.length > 0).length;
   const widest = moments.reduce((most, m) => Math.max(most, m.frames.length), 0);
+  if (clipped) return `${head}, and the fight itself on ${plural(clipped, 'moment', 'moments')}.`;
   if (strips) return `${head}, ${STRIP_WORDS[widest] ?? widest} frames on the ${STRIP_WORDS[strips] ?? strips} that mattered.`;
   if (pictured) return `${head}, one picture on ${plural(pictured, 'moment', 'moments')}.`;
   return `${head}, and what all ten were holding at each; this run kept no pictures.`;

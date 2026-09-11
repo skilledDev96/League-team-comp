@@ -7,7 +7,7 @@ import { FILM_GLYPHS, FilmGlyphComponent, GLYPH_TIPS } from './film-glyph.compon
 const NAMES: FilmGlyph[] = [
   'ward', 'ward-off', 'jungler', 'jungler-far', 'horn', 'footsteps', 'tower', 'dragon', 'baron', 'herald', 'grubs', 'atakhan',
   'swords', 'skull', 'shield', 'wall', 'fist', 'coin', 'swap', 'flag', 'eye', 'blood', 'bolt', 'poke', 'sustain', 'split',
-  'wave', 'hook', 'wind', 'check'
+  'wave', 'hook', 'wind', 'lane', 'clock', 'map', 'check'
 ];
 
 /** Path data only: commands, numbers, separators. Nothing that could smuggle markup in. */
@@ -15,7 +15,7 @@ const PATH_DATA = /^[MmLlHhVvCcSsQqTtAaZz0-9 ,.\-]+$/;
 
 describe('FILM_GLYPHS', () => {
   it('draws every glyph the model names, with at least one path', () => {
-    expect(NAMES.length).toBe(30);
+    expect(NAMES.length).toBe(33);
     for (const name of NAMES) {
       const g = FILM_GLYPHS[name];
       expect(g, name).toBeDefined();

@@ -1747,6 +1747,12 @@ export async function run({
               tries: Math.ceil(((window.to - clipFrom) * 1000) / shotWaitMs) + 60,
               waitMs: shotWaitMs
             });
+            if (!file) {
+              // Said out loud. A clip that quietly did not land is the silence this repo keeps being
+              // bitten by: the run said nothing, the moment fell back to stills, and the only way to
+              // notice was counting the clips in the bucket afterwards (12 Sep 2026).
+              log('  no clip landed for ' + shot.label + ' in the time allowed; its pictures are kept instead.');
+            }
             if (file) {
               clipUrl = await clips.put(file, matchId, shot.sec);
               try {
@@ -2118,6 +2124,9 @@ export function clipWindowFor(sec, deaths, { window = CLIP_FIGHT_WINDOW_SEC, lea
  */
 export const CLIP_FPS = 15;
 
+/** Polls a clip file must hold the same size before it counts as finished. One was not enough; see renderClip. */
+const CLIP_STILL_POLLS = 4;
+
 /**
  * `enforceFrameRate` is NEVER sent true, and that is the whole reason the first clips were wrong
  * (12 Sep 2026).
@@ -2150,14 +2159,28 @@ export async function renderClip({ call, sleep, fs, dir, matchId, sec, from, to,
     body: { codec: 'webm', startTime: from, endTime: to, path: file, recording: true, replaySpeed: 1, lossless: false, framesPerSecond: fps, enforceFrameRate: CLIP_ENFORCE_FRAME_RATE },
     help: 'The client refused to render a clip.'
   });
-  // A webm GROWS while the render runs, so its size has to stop moving before it is uploaded — the
-  // same rule the png sequence follows, and for the same reason.
+  // A webm GROWS while the render runs, so its size has to stop moving before it is uploaded.
+  //
+  // STILL FOR SEVERAL POLLS, not one (12 Sep 2026). A file being written plateaus between chunks,
+  // and one equal reading is all it took to call a render finished and upload a partial clip: the
+  // moment at 9:01 came back as 6.3 seconds of a fifteen-second window, and nothing anywhere said
+  // so. The picture path has always required the sequence to hold still for `sequenceStill` (8)
+  // turns for exactly this reason; this is the same rule with the same justification.
+  //
+  // And it may not finish before the render can possibly have: a clip is rendered by PLAYING the
+  // game, so a fifteen-second window takes fifteen seconds, and any stillness before that is the
+  // client not having started rather than having stopped.
+  // Counted in polls rather than in wall-clock, because `waitMs` is what the caller controls and a
+  // clock cannot be reasoned about from a test.
+  const minPolls = Math.ceil((Math.max(0, Number(to) - Number(from)) * 1000) / Math.max(Number(waitMs) || 1, 1));
   let last = -1;
+  let still = 0;
   for (let i = 0; i < tries; i += 1) {
     await sleep(waitMs);
     const size = fs.existsSync(file) ? fs.statSync(file).size : 0;
-    if (size > 0 && size === last) return file;
+    still = size > 0 && size === last ? still + 1 : 0;
     last = size;
+    if (still >= CLIP_STILL_POLLS && i + 1 >= minPolls) return file;
   }
   return '';
 }

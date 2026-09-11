@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, DRAFT_GAINS, GameReview, ReviewDraft, TeamObjectives } from '../models/team.models';
-import { alternativesPhrase, askOf, evidenceChips, GAIN_LABELS, ledgerLine, playerStatLine, reviewAsText, reviewSource, scoreline } from './review-view';
+import { FILM_GLYPHS } from '../shared/film/film-glyph.component';
+import { alternativesPhrase, askOf, decidedByOf, evidenceChips, GAIN_LABELS, gamePlayerFor, ledgerLine, playerStatLine, reviewAsText, reviewSource, scoreline, seatOf, THEME_GLYPHS, THEME_WORDS } from './review-view';
 
 const side = (o: Partial<TeamObjectives>): TeamObjectives => ({ firstBlood: false, firstTower: false, dragons: 0, barons: 0, heralds: 0, grubs: 0, towers: 0, inhibitors: 0, ...o });
 const objectives = (ours: Partial<TeamObjectives>, theirs: Partial<TeamObjectives>) => ({ ours: side(ours), theirs: side({ firstBlood: true, firstTower: true, ...theirs }) });
@@ -235,5 +236,106 @@ describe('reviewAsText', () => {
     const lines = reviewAsText(old, undefined).split('\n');
     expect(lines[0]).toBe('## The team matched on CS but gave up the fights.');
     expect(lines[1]).toBe('');
+  });
+});
+
+/**
+ * The panel's own helpers (12 Sep 2026). The review panel is being rebuilt to show figures and fold
+ * the prose, and these are the three pure pieces that rebuild rests on.
+ */
+describe('askOf with a cap', () => {
+  /** Real sentences from a stored review, including the one with neither marker. */
+  const CORPUS = [
+    'The late fights were taken while men were still on the floor — at 33:05 our Jungle, ADC and Support were all dead, so either hold and reset off the respawn clock or force the Baron fight only when all five are up.',
+    'Mordekaiser kept dying alone in the side; hold the wave and group instead.',
+    'Nautilus went 0/9/15 and sat on 20 cs from minute 12 to 27 while their Support climbed from 7 to 12',
+    ''
+  ];
+
+  it('is byte-identical to the uncapped call for every caller that does not ask for a cap', () => {
+    // Four of the five callers want it whole: the Discord message, and the Before-you-play
+    // reminder's one thing, own ask and further asks. Capping in place would have silently
+    // shortened a chat message and a reminder card, which is why the cap is a parameter.
+    for (const text of CORPUS) expect(askOf(text, 0)).toBe(askOf(text));
+  });
+
+  it('cuts on a word boundary and says it was cut', () => {
+    const long = askOf(CORPUS[0]);
+    const short = askOf(CORPUS[0], 40);
+    expect(short.length).toBeLessThanOrEqual(41);
+    expect(short.endsWith('…')).toBe(true);
+    // Never mid-word: a clause cut at "posi" reads as a bug rather than a trim.
+    expect(long.startsWith(short.slice(0, -1))).toBe(true);
+    expect(short).not.toMatch(/[ ,;:.]…$/);
+  });
+
+  it('leaves a clause already inside the cap exactly alone', () => {
+    const short = askOf(CORPUS[1]);
+    expect(askOf(CORPUS[1], 400)).toBe(short);
+    expect(askOf(CORPUS[1], 400)).not.toContain('…');
+  });
+});
+
+describe('THEME_GLYPHS', () => {
+  it('gives every theme a glyph that is actually drawn', () => {
+    // The one that catches a typo: a name the type accepts but FILM_GLYPHS has no shape for renders
+    // an empty SVG, on screen, with nothing failing anywhere else.
+    for (const theme of Object.keys(THEME_GLYPHS) as (keyof typeof THEME_GLYPHS)[]) {
+      expect(FILM_GLYPHS[THEME_GLYPHS[theme]], theme).toBeDefined();
+      expect(THEME_WORDS[theme], theme).toBeTruthy();
+    }
+  });
+
+  it('gives each theme its own glyph, so two never read alike', () => {
+    const used = Object.values(THEME_GLYPHS);
+    expect(new Set(used).size).toBe(used.length);
+  });
+});
+
+describe('decidedByOf', () => {
+  const withTeam = (team: object) => ({ team, players: [] }) as unknown as GameReview;
+
+  it("takes the model's own answer when a version 8 review carries one", () => {
+    const r = withTeam({ decidedBy: { theme: 'fights', why: 'Four late fights taken a man down' }, workOn: [{ text: 'x', evidence: '', minute: null, theme: 'lanes' }] });
+    expect(decidedByOf(r)).toEqual({ glyph: 'swords', word: 'Fights', tip: 'Four late fights taken a man down' });
+  });
+
+  it("falls back to the first work-on's theme on a version 7 review", () => {
+    // Eleven of these exist and must keep rendering.
+    const r = withTeam({ workOn: [{ text: 'x', evidence: '', minute: null, theme: 'macro' }] });
+    expect(decidedByOf(r)?.glyph).toBe('map');
+    expect(decidedByOf(r)?.word).toBe('Macro');
+    // The standing meaning, since the model wrote no sentence of its own.
+    expect(decidedByOf(r)?.tip).toContain('map');
+  });
+
+  it('answers nothing when there is no theme to read, so the panel draws no row', () => {
+    // A blank glyph over an empty word reads as a thing that failed to load.
+    expect(decidedByOf(withTeam({ workOn: [] }))).toBeUndefined();
+    expect(decidedByOf(withTeam({ workOn: [{ text: 'x', evidence: '', minute: null }] }))).toBeUndefined();
+    expect(decidedByOf(withTeam({ decidedBy: { theme: 'nonsense' } }))).toBeUndefined();
+    expect(decidedByOf(undefined)).toBeUndefined();
+  });
+});
+
+describe('the seat pairing, moved here from film-build', () => {
+  const player = (position: string, name: string, champion: string) => ({ position, name, champion, kills: 1, deaths: 2, assists: 3, cs: 100 });
+  const g = { players: [player('BOTTOM', 'Rhu', 'Jinx'), player('Support', 'Nia', 'Leona')] } as unknown as AnalysisGame;
+
+  it('reads both spellings of a position, because both reach us', () => {
+    expect(seatOf(player('BOTTOM', '', '') as never)).toBe('ADC');
+    expect(seatOf(player('ADC', '', '') as never)).toBe('ADC');
+    expect(seatOf(player('UTILITY', '', '') as never)).toBe('Support');
+    expect(seatOf(player('nonsense', '', '') as never)).toBeUndefined();
+  });
+
+  it("finds the seat's player by position, then by name, then by champion", () => {
+    expect(gamePlayerFor(g, 'ADC', 'Rhu', 'Jinx')?.name).toBe('Rhu');
+    // No Mid in the game, but the name matches.
+    expect(gamePlayerFor(g, 'Mid', 'Nia', 'Nobody')?.name).toBe('Nia');
+    // Neither position nor name, but the champion is there.
+    expect(gamePlayerFor(g, 'Mid', 'Nobody', 'Jinx')?.name).toBe('Rhu');
+    expect(gamePlayerFor(g, 'Mid', 'Nobody', 'Nobody')).toBeUndefined();
+    expect(gamePlayerFor(undefined, 'ADC', 'Rhu', 'Jinx')).toBeUndefined();
   });
 });

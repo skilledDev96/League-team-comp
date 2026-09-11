@@ -1,4 +1,5 @@
-import { AnalysisGame, AnalysisPlayer, DeathCould, DeathHow, DraftGain, GameReview, LedgerSummary, MapZone, ReviewDraft } from '../models/team.models';
+import { AnalysisGame, AnalysisPlayer, DeathCould, DeathHow, DraftGain, GameReview, LedgerSummary, MapZone, ReviewDraft, ReviewTheme, Role } from '../models/team.models';
+import type { FilmGlyph } from './film-model';
 import { DeathReadKind, readsLine } from './death-reads';
 
 /**
@@ -101,14 +102,25 @@ function firstSentence(text: string): string {
  * The actionable clause of a note. The model writes "the fact; either X or Y"
  * or "the fact, so next time X": the part after the last semicolon or the
  * last ", so" is the ask, and the team chat wants the ask.
+ *
+ * `maxChars` is OPTIONAL and off by default, and that is load-bearing (12 Sep 2026). A sentence
+ * carrying neither marker comes through whole — up to the validator's 320 characters — which is too
+ * long for the review panel and exactly right for the Discord message and the Before-you-play
+ * reminder. Four of the five callers want it uncapped, so the cap is the caller's to ask for and
+ * every existing call site is byte-identical without it.
  */
-export function askOf(text: string): string {
+export function askOf(text: string, maxChars = 0): string {
   const t = text.trim();
   const semi = t.lastIndexOf('; ');
   const so = t.lastIndexOf(', so ');
   let ask = semi >= 0 ? t.slice(semi + 2) : so >= 0 ? t.slice(so + 5) : t;
   ask = ask.replace(/^(next time|next game|going forward),?\s+/i, '').trim();
-  return ask ? ask[0].toUpperCase() + ask.slice(1) : t;
+  const said = ask ? ask[0].toUpperCase() + ask.slice(1) : t;
+  if (!maxChars || said.length <= maxChars) return said;
+  // On a word boundary, never mid-word: a clause cut at "posi" reads as a bug rather than a trim.
+  const cut = said.slice(0, maxChars);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > maxChars * 0.6 ? cut.slice(0, space) : cut).replace(/[,;:.\s]+$/, '')}…`;
 }
 
 const OBJECTIVE_EMOJI: Record<string, string> = { Towers: '🏰', Dragons: '🐉', Barons: '🟣', Grubs: '🐛', Heralds: '👁️' };
@@ -156,6 +168,68 @@ export function alternativesPhrase(alternatives: readonly string[] | undefined):
     .join(', ');
 }
 
+/**
+ * The seven themes as the film's own glyphs (12 Sep 2026).
+ *
+ * `lanes`, `tempo` and `macro` had no glyph until this: the panel reached for a Material icon for
+ * those three, which is the exact collision the film glyphs exist to prevent — Material Symbols are
+ * the app's chrome, the thirty hand-drawn glyphs are its content imagery. Three were drawn rather
+ * than borrowing `flag` twice, because a theme that shares a glyph with another is a theme a reader
+ * cannot tell apart at a glance, which is the whole point of showing one.
+ */
+export const THEME_GLYPHS: Record<ReviewTheme, FilmGlyph> = {
+  draft: 'swap',
+  lanes: 'lane',
+  fights: 'swords',
+  objectives: 'flag',
+  vision: 'eye',
+  tempo: 'clock',
+  macro: 'map'
+};
+
+/** The word under the glyph. Upper-cased by the view, so these stay ordinary nouns. */
+export const THEME_WORDS: Record<ReviewTheme, string> = {
+  draft: 'Draft',
+  lanes: 'Lanes',
+  fights: 'Fights',
+  objectives: 'Objectives',
+  vision: 'Vision',
+  tempo: 'Tempo',
+  macro: 'Macro'
+};
+
+/** What each theme means as the thing that decided a game; NOT `GLYPH_TIPS`, whose sentences are death-scene semantics. */
+const DECIDED_TIPS: Record<ReviewTheme, string> = {
+  draft: 'The five picked, more than how they were played',
+  lanes: 'The lanes — who won their matchup and who lost it',
+  fights: 'The fights, won or thrown',
+  objectives: 'Dragons, Barons and towers',
+  vision: 'What each side could see',
+  tempo: 'Who moved first, and when',
+  macro: 'The map — waves, rotations and where the pressure was'
+};
+
+/**
+ * What decided the game, as one glyph and one word — the first thing the panel shows.
+ *
+ * Review version 8 asks the model for it outright. Before that, the nearest honest answer is the
+ * theme of the first thing to work on, which is already one of the seven. When there is neither —
+ * a review with no work-ons, or one whose point carries no theme, since `ReviewPoint.theme` is
+ * optional — this answers `undefined` and the panel shows no row at all. A blank glyph over an
+ * empty word is worse than nothing: it reads as a thing that failed to load.
+ */
+export function decidedByOf(review: GameReview | undefined): { glyph: FilmGlyph; word: string; tip: string } | undefined {
+  const named = (review?.team as { decidedBy?: { theme?: string; why?: string } } | undefined)?.decidedBy;
+  const theme = (named?.theme ?? review?.team?.workOn?.[0]?.theme) as ReviewTheme | undefined;
+  if (!theme || !THEME_GLYPHS[theme]) return undefined;
+  return {
+    glyph: THEME_GLYPHS[theme],
+    word: THEME_WORDS[theme],
+    // The model's own sentence when it wrote one; the standing meaning otherwise.
+    tip: (named?.why ?? '').trim() || DECIDED_TIPS[theme]
+  };
+}
+
 /** What a swap in the draft buys, in the team's words (10 Sep 2026); one table for the chapter, the panel and the chat. */
 export const GAIN_LABELS: Record<DraftGain, string> = {
   engage: 'Engage',
@@ -169,6 +243,37 @@ export const GAIN_LABELS: Record<DraftGain, string> = {
   disengage: 'Disengage',
   damage: 'Damage'
 };
+
+
+/**
+ * Riot's positions and the seat words both appear on `AnalysisPlayer.position`, depending on the source.
+ *
+ * Moved here from `film-build.ts` on 12 Sep 2026 so the review panel and the film pair a player with
+ * a seat by the SAME rule. It was module-private there, and the panel's My-seat view needs exactly
+ * it — a second copy is how the film and the panel end up naming different players for one seat.
+ */
+export const POSITION_SEAT: Record<string, Role> = {
+  TOP: 'Top',
+  JUNGLE: 'Jungle',
+  MIDDLE: 'Mid',
+  BOTTOM: 'ADC',
+  UTILITY: 'Support',
+  Top: 'Top',
+  Jungle: 'Jungle',
+  Mid: 'Mid',
+  ADC: 'ADC',
+  Support: 'Support'
+};
+
+export function seatOf(player: AnalysisPlayer): Role | undefined {
+  return POSITION_SEAT[player.position];
+}
+
+/** The seat's player in the analysed game: by position first, then by name, then by champion. */
+export function gamePlayerFor(game: AnalysisGame | undefined, seat: Role, name: string, champion: string): AnalysisPlayer | undefined {
+  if (!game) return undefined;
+  return game.players.find((p) => seatOf(p) === seat) ?? game.players.find((p) => p.name === name) ?? game.players.find((p) => p.champion === champion);
+}
 
 /** `💀 11 deaths · 6 with no ward nearby · 3 with the jungle a screen away`, or nothing without deaths. */
 export function ledgerLine(summary: LedgerSummary | undefined): string {
