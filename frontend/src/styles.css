@@ -15082,9 +15082,9 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
    the frame's floated pills in full screen stand above the scrubber by it and are not inside the tape (second fix pass). The board
    spends 1.5rem on its rail. Change one of the figures and the sum. */
 .film-stage { --film-rift-chrome: 8.5rem; --film-scrub-h: 13rem; }
-.film-stage:not(.is-narrow) .film-frame:has(.film-tape, .film-board, .film-map) { padding-top: 0.6rem; padding-bottom: 0.5rem; }
-.film-frame:has(.film-tape, .film-board, .film-map) .film-kicker { margin-bottom: 0.5rem; }
-.film-frame:has(.film-tape, .film-board, .film-map) .film-frame-nav { margin-top: 0.4rem; padding-top: 0.25rem; }
+.film-stage:not(.is-narrow) .film-frame:has(.film-tape, .film-board, .film-map, .film-strip) { padding-top: 0.6rem; padding-bottom: 0.5rem; }
+.film-frame:has(.film-tape, .film-board, .film-map, .film-strip) .film-kicker { margin-bottom: 0.5rem; }
+.film-frame:has(.film-tape, .film-board, .film-map, .film-strip) .film-frame-nav { margin-top: 0.4rem; padding-top: 0.25rem; }
 
 /* ---- The tape ---- */
 /* Two columns, the square and the sheet: the square's column wins the width (1.4fr against a side capped at 30rem) when the window is
@@ -15173,6 +15173,65 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 .film-board-moment-text { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; opacity: 0.72; transition: opacity calc(250ms * var(--film-tempo, 1)) ease; }
 .film-board-moment.is-open { background: color-mix(in srgb, var(--film-ink) 12%, transparent); }
 .film-board-moment.is-open .film-board-moment-text { display: block; -webkit-line-clamp: none; opacity: 1; }
+
+/* ---- The frames (the recorded tier) ---- */
+/* Laid out like the map so the film reads as one film: the picture takes the wide column, the board of ten stands beside it,
+   and the rail of moments runs under both. The picture is 16:9, the shape the League client renders, and its width is capped
+   by the stage's own height rather than its height, so the frame never overruns the screen and never loses its shape. */
+/* What this chapter spends of the stage on top of a Rift chapter's chrome: the rail of moments under the two columns, 2rem, and the
+   0.9rem row gap above it, plus 0.7rem of slack measured in the running app, where the frame's own pills stand taller than the sum
+   above them assumes. The stage column spends 4.9rem more than its picture — the moment's line 1.5rem, the stepper 2.4rem and
+   the two 0.5rem gaps — and the picture is what gives way, since it is the one thing here that can be any size. */
+.film-strip { --film-strip-chrome: calc(var(--film-rift-chrome, 8.5rem) + 3.6rem); display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 28rem); grid-template-areas: "stage side" "rail rail"; gap: 0.9rem 1.2rem; align-items: start; max-width: 84rem; margin-inline: auto; }
+.film-strip-stage { grid-area: stage; display: grid; align-content: start; gap: 0.5rem; min-width: 0; }
+.film-strip-label { display: flex; align-items: baseline; gap: 0.5rem; margin: 0; font-size: 0.95rem; line-height: 1.25; }
+.film-strip-clock { font-family: "Chakra Petch", sans-serif; font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Every frame of the moment stands in this box and one is shown, so a step is a change of class and never a wait. */
+.film-strip-shots { display: grid; width: min(100%, calc((var(--film-h, 100dvh) - var(--film-strip-chrome, 12.1rem) - 4.9rem) * 16 / 9)); aspect-ratio: 16 / 9; border-radius: 14px; border: 1px solid var(--film-line); background: color-mix(in srgb, var(--film-shade) 70%, transparent); overflow: hidden; }
+.film-strip-shot { display: none; }
+.film-strip-shot.is-shown { display: grid; place-items: center; width: 100%; height: 100%; }
+/* The next moment's picture is read, not shown. */
+.film-strip-warm { display: none; }
+.replay-shot { min-width: 0; }
+.replay-shot-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.replay-shot-note { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; padding: 0.6rem 0.9rem; font-size: 0.82rem; text-align: center; }
+.film-strip-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.film-strip-steps-label, .film-strip-steps-one { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--film-ink-1); }
+.film-strip-steps .view-btn { min-width: 4rem; font-variant-numeric: tabular-nums; }
+/* The board of ten beside the frame; on a wide screen it is as tall as the picture and scrolls inside itself. */
+.film-strip-side { grid-area: side; display: grid; align-content: start; gap: 0.6rem; min-width: 0; }
+.film-stage:not(.is-narrow) .film-strip-side { max-height: max(16rem, calc(var(--film-h, 100dvh) - var(--film-strip-chrome, 12.1rem))); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: 0.3rem; }
+.film-strip-opening { margin: 0; font-size: 0.95rem; }
+.film-strip-line { margin: 0; font-size: 0.88rem; line-height: 1.35; }
+.film-strip-when, .film-strip-caveat { margin: 0; font-size: 0.74rem; color: var(--film-ink-1); }
+.film-strip-none { margin: 0; }
+.film-strip-board { display: grid; gap: 0.3rem; padding: 0; }
+.film-strip-row { display: grid; grid-template-columns: 1.7rem minmax(0, 1fr) auto; align-items: center; gap: 0.25rem 0.5rem; margin: 0; padding: 0.35rem 0.5rem; border-radius: 10px; border: 1px solid var(--film-line); border-left-width: 3px; border-left-color: var(--film-ink-1); background: var(--film-panel); }
+.film-strip-row.is-ours { border-left-color: var(--accent); }
+/* The seat that fell is ringed, and says so in words as well: a colour alone is not a sentence. */
+.film-strip-row.is-victim { border-color: var(--warn); border-left-color: var(--warn); box-shadow: 0 0 0 1px var(--warn); }
+.film-strip-row.is-down { opacity: 0.55; }
+.film-strip-face { width: 1.7rem; height: 1.7rem; border-radius: 6px; }
+.film-strip-face.is-blank { display: block; background: color-mix(in srgb, var(--film-ink) 10%, transparent); }
+.film-strip-who { display: grid; min-width: 0; line-height: 1.15; }
+.film-strip-who b { font-size: 0.84rem; }
+.film-strip-who small { overflow: hidden; font-size: 0.66rem; color: var(--film-ink-1); text-overflow: ellipsis; white-space: nowrap; }
+.film-strip-figs { display: inline-flex; align-items: baseline; gap: 0.2rem; font-variant-numeric: tabular-nums; }
+.film-strip-figs b { font-family: "Chakra Petch", sans-serif; font-size: 0.88rem; }
+.film-strip-figs small { margin-right: 0.35rem; font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--film-ink-1); }
+.film-strip-fell, .film-strip-down { grid-column: 2 / -1; font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.film-strip-fell { color: var(--warn); }
+.film-strip-down { color: var(--film-ink-1); }
+.film-strip-items { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.film-strip-item { padding: 0.1rem 0.4rem; border-radius: 999px; border: 1px solid var(--film-line); font-size: 0.66rem; color: var(--film-ink-1); }
+.film-strip-item.is-none { border-style: dashed; }
+/* One chip a moment, the way the tape's beats are one chip a minute. */
+.film-strip-rail { grid-area: rail; display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0; }
+.film-strip-rail li { margin: 0; }
+.film-strip-chip { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 2rem; padding: 0.2rem 0.6rem 0.2rem 0.45rem; border-radius: 999px; border: 1px solid var(--film-line); background: var(--film-panel); color: var(--film-ink-1); font-family: "Chakra Petch", sans-serif; font-size: 0.78rem; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer; transition: border-color calc(200ms * var(--film-tempo, 1)) ease, color calc(200ms * var(--film-tempo, 1)) ease, background calc(200ms * var(--film-tempo, 1)) ease; }
+.film-strip-chip .film-glyph { font-size: 1rem; }
+.film-strip-chip:hover, .film-strip-chip:focus-visible { border-color: var(--film-a); color: var(--film-ink); }
+.film-strip-chip.is-current { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--film-ink); }
 
 /* ---- The map ---- */
 /* The square and the cards, laid out like the tape: the square's column wins the width, the grid is only as wide as the two need and
@@ -15299,6 +15358,12 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   .film-beat-actions .view-btn, .film-tape-steps .view-btn { min-height: 2.75rem; }
   .film-beat-chip { min-height: 2.75rem; padding-inline: 0.75rem 0.6rem; }
   .film-board-rail { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }
+  /* The frames go one column: the picture, then the board, then the rail; the picture keeps its shape against the page's width. */
+  .film-strip { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "side" "rail"; }
+  .film-strip-shots { width: 100%; }
+  .film-strip-steps .view-btn, .film-strip-chip { min-height: 2.75rem; }
+  /* The three pills stand together on their own line: with the label beside them the last one wrapped alone. */
+  .film-strip-steps-label { flex-basis: 100%; }
   .film-legend .view-btn { min-height: 2.75rem; }
   /* The read pills go glyph and count only, so the legend fits two lines. */
   .film-legend-word { display: none; }
@@ -15322,6 +15387,8 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   .film-stage:not(.is-still) .film-chapter.is-current .film-board-bar-track i { animation: film-bar-grow calc(700ms * var(--film-tempo, 1)) var(--film-ease) calc(var(--i, 0) * 120ms * var(--film-tempo, 1)) both; }
   .film-stage:not(.is-still) .film-chapter.is-current .film-board-chip { animation: film-drop calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc((200ms + var(--i, 0) * 60ms) * var(--film-tempo, 1)) both; }
   .film-stage:not(.is-still) .film-chapter.is-current .film-board-rail li { animation: film-rise calc(360ms * var(--film-tempo, 1)) var(--film-ease) calc((300ms + var(--i, 0) * 50ms) * var(--film-tempo, 1)) both; }
+  /* The frames: the ten come in by seat, ours first, as the picture lands. */
+  .film-stage:not(.is-still) .film-chapter.is-current .film-strip-row { animation: film-rise calc(320ms * var(--film-tempo, 1)) var(--film-ease) calc((160ms + var(--i, 0) * 40ms) * var(--film-tempo, 1)) both; }
   .film-stage:not(.is-still) .film-chapter.is-current .film-tape-sheet > * { animation: film-word-rise calc(320ms * var(--film-tempo, 1)) var(--film-ease) both; }
   .film-stage:not(.is-still) .film-chapter.is-current .film-beat > :not(.film-beat-dwell) { animation: film-word-rise calc(320ms * var(--film-tempo, 1)) var(--film-ease) both; }
   .film-stage:not(.is-still) .film-chapter.is-current .film-beat-glyph { animation-name: film-drop; }

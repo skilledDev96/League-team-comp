@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { ReplayDeathPlayer, ReplayDeathState, ReplayEvent, ReplayRecording, ReplaySample, ReplaySampleRow, ReplaySeat, Role } from '../models/team.models';
-import { deathLines, MAX_DEATH_LINES, MAX_RECORDING_LINES, RECORDING_HEAD, recordingLines, recordingSeatLines, recordingStory } from './replay-lines';
+import {
+  ReplayDeathPlayer,
+  ReplayDeathState,
+  ReplayEvent,
+  ReplayRecording,
+  ReplaySample,
+  ReplaySampleRow,
+  ReplaySeat,
+  ReplayShot,
+  ReplayShotRef,
+  Role
+} from '../models/team.models';
+import { deathLine, deathLines, MAX_DEATH_LINES, MAX_RECORDING_LINES, RECORDING_HEAD, recordingLines, recordingSeatLines, recordingStory } from './replay-lines';
 
 /**
  * The mirror check. This is the same fixture and the same expected sentences
@@ -253,5 +264,56 @@ describe('deathLines', () => {
       'Minute 14: our Jungle',
       'Minute 23: our ADC'
     ]);
+  });
+
+  it('is the deaths it keeps, in order, each one mapped through `deathLine`', () => {
+    // The film's strip asks `deathLine` for the sentence of the death it is holding, because it
+    // walks the moments the recorder kept pictures of and not this list. If `deathLines` wrote its
+    // own sentence instead of mapping, one filter's difference would put every sentence of the strip
+    // on the wrong death — so the two are one function, asserted here as the same words.
+    const deaths = [board(1400, 'ADC'), board(300, 'Support'), board(844, 'Jungle'), board(1105, 'Top')];
+    const kept = [...deaths].sort((a, b) => a.sec - b.sec).slice(0, 3);
+    expect(deathLines(recording({ deaths }), 3)).toEqual(kept.map(deathLine));
+    expect(deathLines(recording({ deaths }))).toEqual([...deaths].sort((a, b) => a.sec - b.sec).map(deathLine));
+    expect(deathLine(board(1400, 'ADC'))).toBe('Minute 23: our ADC fell, holding Sunfire Aegis, Plated Steelcaps, Stealth Ward; level 11, 132 cs.');
+  });
+});
+
+/**
+ * The strip's stored shape, which this side reads rather than builds: `shotsFor` lives in
+ * `api/src/replay-recording.ts` alone — the review is the only caller that picks frames, and the app
+ * shows the refs the recorder wrote — so what the mirror can hold here is the shape those refs come
+ * in, and Riot's rule over the ids themselves.
+ */
+describe('the strip a recorder keeps of a moment', () => {
+  it('hangs the run-up off the ref as document ids, and the frame offset off the picture', () => {
+    const ref: ReplayShotRef = {
+      sec: 1105,
+      kind: 'death',
+      label: 'Jinx falls at 18:25',
+      seat: 'ADC',
+      docId: 'EUW1-7977592156__1105',
+      runUp: ['EUW1-7977592156__1105__2', 'EUW1-7977592156__1105__1']
+    };
+    const runUpFrame: ReplayShot = {
+      matchId: 'EUW1-7977592156',
+      sec: 1105,
+      frame: 2,
+      kind: 'death',
+      label: ref.label,
+      mediaType: 'image/jpeg',
+      bytes: 210_000,
+      data: 'BASE64'
+    };
+    // Earliest first, the moment last, and `docId` still means the picture OF the moment — which is
+    // what lets a recording written by a newer recorder read the same wherever it is opened.
+    expect([...(ref.runUp ?? []), ref.docId]).toEqual(['EUW1-7977592156__1105__2', 'EUW1-7977592156__1105__1', 'EUW1-7977592156__1105']);
+    expect(runUpFrame.frame).toBe(2);
+    // Absent or 0 is the moment itself, which keeps the id the moment has always had.
+    const moment: ReplayShot = { ...runUpFrame, frame: undefined };
+    expect(moment.frame ?? 0).toBe(0);
+    // A run-up id is the match, the second and how many seconds before it — there is no room in one
+    // for a name or a Riot id of theirs, here as everywhere.
+    for (const id of ref.runUp ?? []) expect(id).toMatch(/^EUW1-7977592156__1105__[12]$/);
   });
 });

@@ -20,7 +20,7 @@
  *     FIREBASE_SERVICE_ACCOUNT="$(cat service-account.json)" node scripts/replay-recorder.mjs EUW1-7977592156
  *   Usage (PowerShell):
  *     $env:FIREBASE_SERVICE_ACCOUNT = (Get-Content service-account.json -Raw); node scripts/replay-recorder.mjs EUW1-7977592156
- *   Options: [--shots 20] [--out-dir <dir>] [--dry-run] [--roster <file.json>]
+ *   Options: [--shots 20] [--frames 3] [--out-dir <dir>] [--dry-run] [--roster <file.json>]
  *
  * In the client first: open the replay for that game (Match History → Download
  * → Watch, or double-click the .rofl), let it start playing, and leave the
@@ -29,9 +29,16 @@
  *
  * What it writes (the shape both sides mirror; builder B owns the types):
  *   replayShots/{matchId}__{sec}   one picture a document, base64, under the 1 MiB cap
+ *   replayShots/{matchId}__{sec}__1
+ *   replayShots/{matchId}__{sec}__2
+ *                                  the two seconds leading into that moment, kept only on the
+ *                                  moments a review looks at (SHOT_FRAMES, STRIP_MOMENTS). A
+ *                                  run-up frame is keyed to the moment it leads into and never to
+ *                                  its own second, so two deaths three seconds apart cannot
+ *                                  overwrite each other.
  *   replayRecordings/{matchId}     the index — seats, samples, events, the shots — written LAST,
  *                                  so a run that dies half way leaves no index pointing at
- *                                  pictures that are not there.
+ *                                  pictures that are not there, the run-up frames included.
  * Running it twice overwrites the same documents; it is safe to re-run, and
  * every frame left on disk by the last run is deleted before the client is
  * asked for a new one, so a re-run can never upload the old pictures.
@@ -64,7 +71,7 @@ const root = path.resolve(here, '..');
 export const CLIENT_ORIGIN = 'https://127.0.0.1:2999';
 
 /** The stored shape's version. Bump it when a field changes meaning; readers check it. */
-export const RECORDER_VERSION = 2;
+export const RECORDER_VERSION = 3;
 
 /**
  * How many deaths of ours get the full board read at them. Each costs one seek and one read, and
@@ -116,6 +123,26 @@ export const SHOT_LEAD_SEC = 8;
  * run-up at one frame a second costs less disk than the old one-second range did at sixty.
  */
 export const SHOT_FPS = 1;
+
+/**
+ * How many of a moment's rendered frames are kept (12 Sep 2026, the lead: the run renders ten and
+ * throws nine away).
+ *
+ * Three of them — the moment, the second before it and the second before that — are a strip, and a
+ * strip is the difference between a picture of a fight and the fight itself: whether we walked into
+ * it, whether the ward was already gone, who turned first. The client has already rendered those
+ * frames by the time the moment's is written, so keeping them costs the run nothing at all; what
+ * they cost is Firestore, which is why only the moments a review actually looks at get one.
+ */
+export const SHOT_FRAMES = 3;
+
+/**
+ * How many moments get a strip. `shotsFor` sends a review its first `MAX_REVIEW_SHOTS` (8) frames,
+ * deaths first in time order, so the first eight deaths of the chosen list are exactly the moments
+ * the model will see — and keeping the strip to those is what makes the film and the model look at
+ * the same seconds. Every other moment keeps the single picture it has always had.
+ */
+export const STRIP_MOMENTS = 8;
 
 /**
  * How many seconds of ordinary playback run into a picture before the render starts (11 Sep 2026,
@@ -421,7 +448,7 @@ export const POSITION_ROLE = {
 export const ROLES = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
 
 const USAGE =
-  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--follow <seat|champion>]';
+  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--frames 3] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--follow <seat|champion>]';
 
 const CLIENT_HELP =
   'Is the League client open, with the replay playing? The Live Client and Replay APIs only answer while a replay is up.';
@@ -445,6 +472,19 @@ export function normaliseMatchId(id) {
   return String(id ?? '').trim().replace('_', '-').toUpperCase();
 }
 
+/**
+ * The only place a shot's document id is built (12 Sep 2026). Offset 0 keeps the id the moment has
+ * always had, `{matchId}__{sec}`, which is what `shotsFor` and every reader of an older recording
+ * already look up; a run-up frame hangs off it by how many seconds before the moment it is.
+ *
+ * A run-up frame is NEVER keyed by its own second (`{matchId}__{sec-2}`): two deaths three seconds
+ * apart would have the later one's run-up overwrite the earlier one's moment, and a 2v2 trade in
+ * the river produces exactly that.
+ */
+export function shotDocId(matchId, sec, frame = 0) {
+  return frame ? `${matchId}__${sec}__${frame}` : `${matchId}__${sec}`;
+}
+
 /** One sentence for a bad id, said the same way whether the run or the command line catches it. */
 export function badIdMessage(id) {
   return `"${id}" is not a replay id. It is the dashed id the Games page shows for a replay row, e.g. EUW1-7977592156.`;
@@ -466,7 +506,7 @@ export function parseArgs(argv) {
   // back rather than the normalised form nobody typed.
   // Panels on unless the lead says otherwise: the client's streamer mode is what keeps a Riot id off the screen,
   // and a frame without the scoreboard and the team frames is missing the gold, the items and the kills.
-  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '' };
+  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, frames: SHOT_FRAMES, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '' };
   const assign = (name, value) => {
     // `--out-dir --dry-run` used to swallow the flag as the value, write the
     // frames to a directory called "--dry-run" and upload to Firestore for
@@ -477,6 +517,14 @@ export function parseArgs(argv) {
       const n = Number(value);
       if (!Number.isFinite(n) || n < 1) throw new Error(`--shots wants a number of pictures, not "${value}".`);
       parsed.shots = Math.min(MAX_SHOTS, Math.floor(n));
+    } else if (name === '--frames') {
+      // How many of a moment's rendered frames to keep. `--frames 1` is what every run before
+      // 12 Sep 2026 did, and it writes the same documents those runs wrote, key for key — worth
+      // keeping as a way out for a game whose pictures are already near the Firestore bill the
+      // lead wants to pay.
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 1) throw new Error(`--frames wants how many frames to keep on a moment, 1 to ${SHOT_FRAMES}, not "${value}".`);
+      parsed.frames = Math.min(SHOT_FRAMES, Math.floor(n));
     } else if (name === '--out-dir') parsed.outDir = value;
     else if (name === '--roster') parsed.roster = value;
     // One seat's HUD on every frame, instead of leaving the camera to the replay's own director.
@@ -1091,7 +1139,7 @@ export function chooseShots(matchId, { ourDeaths, objectives, endSec }, cap) {
     if (kept.length >= cap) break;
     if (seen.has(shot.sec)) continue;
     seen.add(shot.sec);
-    kept.push({ ...shot, docId: `${matchId}__${shot.sec}` });
+    kept.push({ ...shot, docId: shotDocId(matchId, shot.sec) });
   }
   return kept.sort((a, b) => a.sec - b.sec);
 }
@@ -1147,6 +1195,8 @@ export function parseServiceAccount(raw, fs = fsDefault) {
 export async function run({
   matchId: rawMatchId,
   shots: shotCap = DEFAULT_SHOTS,
+  // How many of a moment's rendered frames to keep, on the moments that get a strip at all.
+  frames: frameWant = SHOT_FRAMES,
   outDir = process.cwd(),
   dryRun = false,
   noHealthBars = false,
@@ -1181,6 +1231,9 @@ export async function run({
   const matchId = normaliseMatchId(rawMatchId);
   if (!isReplayId(matchId)) throw new Error(badIdMessage(rawMatchId));
   const cap = Math.max(1, Math.min(MAX_SHOTS, Math.floor(shotCap)));
+  // Normalised here as well as in parseArgs, for the same reason the cap is: run() is called
+  // directly by the spec and by any future caller.
+  const frameCap = Math.max(1, Math.min(SHOT_FRAMES, Math.floor(number(frameWant) || SHOT_FRAMES)));
   const call = makeCall({ fetchImpl: fetchImpl ?? clientFetch(), sleep });
 
   // 1. The replay itself. The client only serves these while one is playing,
@@ -1374,8 +1427,23 @@ export async function run({
   const chosen = chooseShots(matchId, read, cap);
   const shotsDir = path.resolve(outDir);
   if (!fs.existsSync(shotsDir)) fs.mkdirSync(shotsDir, { recursive: true });
+  // Which moments get the strip: the first `STRIP_MOMENTS` deaths, which are exactly the frames
+  // `shotsFor` hands a review (deaths first, in time order), so the film and the model end up
+  // looking at the same seconds. Everything else keeps the single picture it always had.
+  const stripSeconds = new Set(
+    chosen
+      .filter((shot) => shot.kind === 'death')
+      .slice(0, STRIP_MOMENTS)
+      .map((shot) => shot.sec)
+  );
+  // The run-up document ids a moment ended up with, earliest first, so the index can point at them
+  // once the pictures are written.
+  const runUpBySec = new Map();
   const kept = [];
   let dropped = 0;
+  // Run-up frames lost on their own, counted apart from the moments: a moment dropped is a moment
+  // the film and the review never see, and a run-up frame dropped is only a shorter strip.
+  let runUpDropped = 0;
   let framesOff = '';
   let renderShape = null;
   // The client's own recording object, for the same reason the render one is read: a key it does
@@ -1418,8 +1486,12 @@ export async function run({
       const at = Math.max(0, shot.sec - 2);
       // Where the render begins, and therefore where the warm-up has to leave the playhead.
       const runUpFrom = Math.max(0, at - SHOT_LEAD_SEC);
-      const stem = `${matchId}__${shot.sec}`;
+      // The sequence folder is named after the moment's own document, so a frame on disk and the
+      // document it became are the same string to read.
+      const stem = shotDocId(matchId, shot.sec);
       const file = path.join(shotsDir, stem);
+      // A strip only where a review will look. Everywhere else one frame, as before.
+      const want = stripSeconds.has(shot.sec) ? frameCap : 1;
       try {
         // Park BEFORE the run-up, not on the moment: the seconds between here and `runUpFrom` are
         // played at ordinary speed so the client's own director wakes up, and the render then starts
@@ -1476,7 +1548,7 @@ export async function run({
         // whether it says it is recording. That one line is the difference
         // between "the client refused" and "the client is still writing".
         if (i === 0) log(`  the client answered the first render with recording=${answer?.recording ?? 'nothing'}, path ${answer?.path ?? '(none)'}.`);
-        const png = await waitForShot({
+        const pngs = await waitForShot({
           fs,
           file,
           dir: shotsDir,
@@ -1486,7 +1558,12 @@ export async function run({
           waitMs: shotWaitMs,
           sleep,
           sequenceStill,
-          onPoll: hold ? (turn) => hold.poll(turn) : null
+          onPoll: hold ? (turn) => hold.poll(turn) : null,
+          frames: want,
+          // The range the client was asked for, which is the only honest way to work out how far
+          // apart two of its frames are: a client that would not take `framesPerSecond` writes at
+          // sixty, so "the frame before" is a sixtieth of a second earlier, not a second.
+          rangeSec: shotBody.endTime - shotBody.startTime
         });
         // What the camera did, said once for the whole run rather than at every picture.
         if (hold && hold.held !== null && cameraHeld === null) {
@@ -1500,7 +1577,15 @@ export async function run({
               : `  ${CAMERA_NOT_HELD}`
           );
         }
-        const bytes = png ? await toJpeg(png, log) : null;
+        // The frames of this moment, oldest first and the moment itself last. One flat file is one
+        // frame and reads exactly as it always did.
+        const strip = pngs ?? [];
+        // THE MOMENT GATES THE STRIP. Its own frame is turned into a jpeg and measured first,
+        // because the index points a review and the film at `{matchId}__{sec}` and nothing anywhere
+        // reads a run-up frame on its own: uploading two run-up documents for a moment that is not
+        // there would be paying Firestore for pictures with no door into them.
+        const momentPng = strip.length ? strip[strip.length - 1] : null;
+        const bytes = momentPng ? await toJpeg(momentPng, log) : null;
         if (!bytes) {
           dropped += 1;
           inARow += 1;
@@ -1531,6 +1616,40 @@ export async function run({
           );
           continue;
         }
+        // The run-up, now that the moment is safe. Each frame is measured on its own, and one that
+        // will not fit shortens the strip rather than costing the moment — a strip of two, or of
+        // none, is honest about what was kept.
+        const runUp = [];
+        // Earliest first, which is the order the strip is read in and the order the documents are
+        // written in, so a Firestore listing of one moment reads left to right like the film does.
+        for (const [n, png] of strip.slice(0, -1).entries()) {
+          // How many seconds before the moment this frame is, which is also what hangs it off the
+          // moment's document id: the step was measured, so one frame back is one second back.
+          const frame = strip.length - 1 - n;
+          const runUpBytes = await toJpeg(png, log);
+          const runUpData = runUpBytes ? runUpBytes.toString('base64') : '';
+          if (!runUpData || runUpData.length > MAX_SHOT_BYTES) {
+            runUpDropped += 1;
+            // Said out loud, because a strip that quietly came back shorter than it should have is
+            // exactly the kind of silence this repo has been bitten by before.
+            log(`  the frame ${frame}s before ${shot.label} would not fit in a document, so the strip is that much shorter; the moment itself is kept.`);
+            continue;
+          }
+          const runUpSize = jpegSize(runUpBytes);
+          kept.push({
+            matchId,
+            sec: shot.sec,
+            kind: shot.kind,
+            label: shot.label,
+            frame,
+            mediaType: 'image/jpeg',
+            ...(runUpSize ? { width: runUpSize.width, height: runUpSize.height } : {}),
+            bytes: runUpBytes.length,
+            data: runUpData
+          });
+          runUp.push(shotDocId(matchId, shot.sec, frame));
+        }
+        if (runUp.length) runUpBySec.set(shot.sec, runUp);
         kept.push({
           matchId,
           sec: shot.sec,
@@ -1542,7 +1661,9 @@ export async function run({
           data
         });
         inARow = 0;
-        log(`  picture ${i + 1} of ${chosen.length}: ${shot.label} (${Math.round(bytes.length / 1024)} KB)`);
+        log(
+          `  picture ${i + 1} of ${chosen.length}: ${shot.label} (${Math.round(bytes.length / 1024)} KB${runUp.length ? `, and ${runUp.length} frame${runUp.length === 1 ? '' : 's'} leading into it` : ''})`
+        );
       } catch (err) {
         // One picture failing must not cost the run the thirty-five minutes of
         // samples that took the longest to gather — the client being closed
@@ -1563,7 +1684,16 @@ export async function run({
 
   const shotIndex = chosen
     .filter((shot) => kept.some((k) => k.sec === shot.sec))
-    .map((shot) => ({ sec: shot.sec, kind: shot.kind, label: shot.label, ...(shot.seat ? { seat: shot.seat } : {}), docId: shot.docId }));
+    .map((shot) => ({
+      sec: shot.sec,
+      kind: shot.kind,
+      label: shot.label,
+      ...(shot.seat ? { seat: shot.seat } : {}),
+      docId: shot.docId,
+      // The frames leading into the moment, earliest first — omitted rather than stored empty, so a
+      // moment with a single picture is shaped exactly as it was before the strip existed.
+      ...(runUpBySec.has(shot.sec) ? { runUp: runUpBySec.get(shot.sec) } : {})
+    }));
 
   const recording = {
     matchId,
@@ -1592,12 +1722,12 @@ export async function run({
   // on whoever died last, with no clue why (11 Sep 2026, from the review).
   try {
     if (dryRun) {
-      for (const shot of kept) fs.writeFileSync(path.join(shotsDir, `replay-shot-${shot.matchId}__${shot.sec}.json`), JSON.stringify(shot));
+      for (const shot of kept) fs.writeFileSync(path.join(shotsDir, `replay-shot-${shotDocId(shot.matchId, shot.sec, shot.frame)}.json`), JSON.stringify(shot));
       fs.writeFileSync(path.join(shotsDir, `replay-recording-${matchId}.json`), JSON.stringify(recording, null, 2));
       log(`Dry run: wrote ${kept.length + 1} JSON files to ${shotsDir}; Firestore was not touched.`);
     } else {
       if (!firestore) throw new Error('No Firestore to write to. Set FIREBASE_SERVICE_ACCOUNT, or run with --dry-run.');
-      for (const shot of kept) await firestore.set('replayShots', `${shot.matchId}__${shot.sec}`, shot);
+      for (const shot of kept) await firestore.set('replayShots', shotDocId(shot.matchId, shot.sec, shot.frame), shot);
       await firestore.set('replayRecordings', matchId, recording);
       log(`Wrote replayShots (${kept.length}), then replayRecordings/${matchId}.`);
     }
@@ -1607,12 +1737,20 @@ export async function run({
 
   // The summary says what was NOT read as well as what was: a minute the
   // client never landed on is a gap in the samples, and a run whose pictures
-  // were refused wrote none at all.
+  // were refused wrote none at all. The two ways a frame is lost are counted
+  // apart, because they are not the same loss: a moment dropped is a second
+  // nobody will ever see, and a run-up frame dropped is only a shorter strip.
+  const lost = [
+    dropped ? `${dropped} moment${dropped === 1 ? '' : 's'} dropped` : '',
+    runUpDropped ? `${runUpDropped} run-up frame${runUpDropped === 1 ? '' : 's'} dropped` : ''
+  ]
+    .filter(Boolean)
+    .join(', ');
   log(
-    `Recorded ${matchId}: ${samples.length} minutes sampled${unread ? ` (${unread} not read)` : ''}, ${read.events.length} events, the board at ${deathStates.length} of our deaths, ${kept.length} pictures kept${dropped ? ` (${dropped} dropped)` : ''}${framesOff ? ' (none taken: the client would not hide the panels that name players)' : ''}, ${Math.round(recording.bytes / 1024)} KB.`
+    `Recorded ${matchId}: ${samples.length} minutes sampled${unread ? ` (${unread} not read)` : ''}, ${read.events.length} events, the board at ${deathStates.length} of our deaths, ${kept.length} pictures kept${lost ? ` (${lost})` : ''}${framesOff ? ' (none taken: the client would not hide the panels that name players)' : ''}, ${Math.round(recording.bytes / 1024)} KB.`
   );
   log('Next: press Re-review on the game to write a review that reads the frames.');
-  return { recording, shots: kept, dropped, unread, framesOff };
+  return { recording, shots: kept, dropped, runUpDropped, unread, framesOff };
 }
 
 /**
@@ -1764,14 +1902,16 @@ function shotFilesFor({ fs, dir, stem }) {
 }
 
 /**
- * The rendered frame, off the disk. The client writes the file itself and older
- * ones number it or put it beside the path we asked for, so the exact name is
- * tried first and the directory searched second; a file is only read once its
- * size has stopped moving, or half a picture comes back. A file that vanishes
- * or is still locked by the client is a missing picture, never an exception —
- * the whole run used to die on one.
+ * The rendered frames, off the disk, oldest first and the moment last. The client writes the files
+ * itself and older ones number them or put them beside the path we asked for, so the exact name is
+ * tried first and the directory searched second; a file is only read once its size has stopped
+ * moving, or half a picture comes back. A file that vanishes or is still locked by the client is a
+ * missing picture, never an exception — the whole run used to die on one.
+ *
+ * `frames` is how many of the sequence to keep; one is what every run did before 12 Sep 2026 and
+ * is all a client writing a single flat file can ever give.
  */
-async function waitForShot({ fs, file, dir, stem, skip = [], tries, waitMs, sleep, sequenceStill = 8, onPoll = null }) {
+async function waitForShot({ fs, file, dir, stem, skip = [], tries, waitMs, sleep, sequenceStill = 8, onPoll = null, frames = 1, rangeSec = 0 }) {
   let lastSize = -1;
   let lastCount = -1;
   let still = 0;
@@ -1786,12 +1926,25 @@ async function waitForShot({ fs, file, dir, stem, skip = [], tries, waitMs, slee
     const count = countShotFrames({ fs, file });
     still = count === lastCount ? still + 1 : 0;
     lastCount = count;
-    const found = count < 0 || still >= sequenceStill ? findShotFile({ fs, file, dir, stem, skip }) : '';
-    if (found) {
-      const size = sizeOf(fs, found);
+    const found = count < 0 || still >= sequenceStill ? findShotFile({ fs, file, dir, stem, skip, frames, rangeSec }) : [];
+    if (found.length) {
+      // The moment is the last file the client writes, so its size settling is what says the whole
+      // sequence is finished — the frames before it were done seconds ago.
+      const moment = found[found.length - 1];
+      const size = sizeOf(fs, moment);
       if (size > 0 && size === lastSize) {
         try {
-          return fs.readFileSync(found);
+          const picture = fs.readFileSync(moment);
+          const runUp = [];
+          for (const earlier of found.slice(0, -1)) {
+            try {
+              runUp.push(fs.readFileSync(earlier));
+            } catch {
+              // A run-up frame the client still has a handle on is one frame off the strip, never a
+              // reason to spend the moment's own picture waiting for it.
+            }
+          }
+          return [...runUp, picture];
         } catch {
           // EBUSY/EPERM: the client still has the handle. Wait and try again.
         }
@@ -1838,30 +1991,66 @@ function mtimeOf(fs, full) {
   }
 }
 
-function findShotFile({ fs, file, dir, stem, skip = [] }) {
+/**
+ * A second's worth of the client's frames, in the frames it actually wrote (12 Sep 2026). The step
+ * is MEASURED and never assumed: the run asks for `SHOT_FPS` but only when the client reports both
+ * `framesPerSecond` and `enforceFrameRate`, and a client carrying neither writes at sixty, where
+ * "the frame before" is a sixtieth of a second earlier and a strip of three would be three frames
+ * of one heartbeat. Count over the range the render was given is what the client did, whatever it
+ * said it would do.
+ *
+ * The floor of one is for the client that writes FEWER than a frame a second: a second back is not
+ * on disk at all there, so the strip takes the frame before instead, which is the closest honest
+ * thing the run has.
+ */
+function shotFrameStep(count, rangeSec) {
+  const frames = number(count);
+  const seconds = number(rangeSec);
+  if (frames <= 0 || seconds <= 0) return 1;
+  return Math.max(1, Math.round(frames / seconds));
+}
+
+/**
+ * The frames to keep for one moment, oldest first and the moment last. `frames` is how many are
+ * wanted; a sequence too short to reach back that far gives what it has, because a two-frame or
+ * one-frame strip is honest and a moment is never worth losing over its run-up.
+ */
+function findShotFile({ fs, file, dir, stem, skip = [], frames = 1, rangeSec = 0 }) {
+  const want = Math.max(1, Math.floor(number(frames) || 1));
   // A png sequence: the client makes `file` a folder and numbers the frames inside it. The LAST is
-  // the one wanted (11 Sep 2026): the range starts `SHOT_LEAD_SEC` before the moment so the
-  // replay's own director has time to swing onto the fight, and the final frame is the moment
-  // itself. Taking the first, as this did until the run-up existed, keeps the run-up.
+  // the moment (11 Sep 2026): the range starts `SHOT_LEAD_SEC` before it so the replay's own
+  // director has time to swing onto the fight, and the final frame is the moment itself. Taking the
+  // first, as this did until the run-up existed, keeps the run-up and nothing else.
   try {
     if (fs.existsSync(file) && fs.statSync(file).isDirectory()) {
       const inside = fs
         .readdirSync(file)
         .filter((name) => /\.(png|jpe?g)$/i.test(name))
         .sort();
-      if (inside.length) return path.join(file, inside[inside.length - 1]);
-      return null;
+      if (!inside.length) return [];
+      const step = shotFrameStep(inside.length, rangeSec);
+      const picked = [];
+      for (let back = 0; back < want; back += 1) {
+        const at = inside.length - 1 - back * step;
+        if (at < 0) break;
+        // Unshifted, so the list comes back oldest first and ends on the moment.
+        picked.unshift(path.join(file, inside[at]));
+      }
+      return picked;
     }
   } catch {
     /* not a folder, or gone: fall through to the flat names below */
   }
   // Everything matching the stem was deleted before the render, so anything
   // matching now is the frame the client was just asked for — except a file
-  // the delete could not remove, which is passed in and left alone.
+  // the delete could not remove, which is passed in and left alone. One flat
+  // file is one frame: there is no run-up to be had from a client that writes
+  // the moment and nothing else.
   const left = new Set(skip);
-  if (!left.has(file) && fs.existsSync(file)) return file;
+  if (!left.has(file) && fs.existsSync(file)) return [file];
   const candidates = shotFilesFor({ fs, dir, stem }).filter((full) => !left.has(full));
-  return candidates.sort((a, b) => mtimeOf(fs, b) - mtimeOf(fs, a))[0] ?? '';
+  const newest = candidates.sort((a, b) => mtimeOf(fs, b) - mtimeOf(fs, a))[0];
+  return newest ? [newest] : [];
 }
 
 /** Firestore through firebase-admin, which lives in api/node_modules — the same account the e2e runner uses. */
@@ -1959,6 +2148,7 @@ async function main() {
     await run({
       matchId: args.matchId,
       shots: args.shots,
+      frames: args.frames,
       outDir: args.outDir || path.join(process.cwd(), 'replay-shots'),
       dryRun: args.dryRun,
       noHealthBars: args.noHealthBars,

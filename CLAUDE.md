@@ -616,7 +616,21 @@ filter rather than none, so it can never become unpickable.
    a legend that lights one read at a time, the deaths that cost most as a
    strip, and a card per death with its read, its scene and its cost;
    every pin carries its read from the start, nothing is hollow, and Watch
-   it seeks the tape to twenty seconds before). **The zone rule:** `core/rift-zones.ts` is the one table for the
+   it seeks the tape to twenty seconds before). **The frames**
+   (`chapters/film-strip`, 12 Sep 2026) is the one chapter built from the
+   local recorder rather than from Riot, and the first time the film room
+   has seen a recording at all: `buildStrip` (`core/film-build.ts`) walks
+   the moments the recorder kept pictures of — since recorder version 3 the
+   moment and the two seconds leading into it on the eight a review reads —
+   with the board of all ten beside each death of ours and `deathLine`'s own
+   sentence under it, so the prompt and the film cannot print one death two
+   ways. It stands after the board on a recorded game and after the map on a
+   Clash game that carries both, which is why `FILM_CHAPTER_COUNT` is 8. **A
+   frame in the model is a document id and never the picture**: the model is
+   rebuilt inside a computed on every visit, so
+   `shared/film/replay-shot-image.component.ts` reads one picture at a time
+   through `ReplayRecordingService` — and nothing at all while the chapter
+   is off stage. **The zone rule:** `core/rift-zones.ts` is the one table for the
    Rift image (percent space, blue base bottom-left; `MAP_SPOTS` also feeds
    the draft room and the tactical board): a death is placed by a seeded
    sample inside its zone's region, consequences are badges on the pip and

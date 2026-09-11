@@ -50,8 +50,34 @@ list as JSON, for all ten at once, at any second the run cares to ask. The
 cooldowns are the exception and they really are pixels only; see "What it cannot
 know".
 
-`RECORDER_VERSION` is **2** as of this. Both new blocks are optional, so a
-document written before them reads exactly as it did.
+`RECORDER_VERSION` was **2** as of this, and is **3** since the strip below.
+Every block either of them added is optional, so a document written before them
+reads exactly as it did.
+
+## Three frames on the moments that matter
+
+Added 12 Sep 2026. One picture of a death says where everyone ended up and
+nothing about how they got there, so the run keeps `SHOT_FRAMES` (3) frames on
+the first `STRIP_MOMENTS` (8) deaths of ours — the moment itself and the two
+seconds leading into it — and the single picture it always kept on every other
+moment. Eight is not a round number: it is `MAX_REVIEW_SHOTS`, the frames a
+review reads, so the moments a reader can watch a fight start on are the very
+moments the model was shown.
+
+A run-up frame is stored at `replayShots/{matchId}__{sec}__{frame}`, where
+`{sec}` is the moment's own second and `{frame}` is how many seconds before it
+the picture is. It is never keyed by its own second: `{matchId}__{sec-2}` would
+have the later of two deaths three seconds apart overwrite the earlier one's
+moment, and a 2v2 trade in the river produces exactly that. The moment keeps the
+id it has always had and the index points at the run-up only through that
+moment's own `runUp`, which is why a version 3 recording reads on an api that
+has not been redeployed exactly as a version 2 one does.
+
+**The moment gates the strip.** Its picture is made and measured first, and a
+run-up frame that will not fit a document shortens the strip rather than costing
+the moment — nothing anywhere reads a run-up frame on its own, so storing one
+whose moment was dropped would be paying Firestore for pictures with no door
+into them.
 
 ## In the client first
 
@@ -73,22 +99,14 @@ The lead does this, then runs the script.
    client's own resolution, and at 2560x1440 those frames blow the 700 KB a
    Firestore document can hold and are dropped rather than stored. The drop
    message prints the frame's real pixel size, so it says which case you are in.
-5. **Leave the mouse alone once it starts.** The run points the camera itself:
-   each picture is taken with the camera on the champion that picture is about,
-   so a death's frame carries the victim's own HUD — their abilities, their
-   items, their cooldowns — which is the one thing a frame says about a player
-   that the minute-by-minute figures cannot.
+5. **Set the camera to Directed Camera, then leave the mouse alone.** The run
+   does not point the camera any more and has not since 11 Sep 2026 — it wakes
+   the client's own director instead, and the director is what frames the fight.
 
    The one thing that breaks it is you: **moving the mouse over the replay flips
-   the client to Manual Camera**, and a manual camera ignores everything the run
-   asks for. Start the run and leave the machine alone for its five minutes.
-
-   If the client will not hold a selection at all, the run says so once and
-   stops asking, and every frame then carries whatever the replay's own camera
-   was showing. Set the camera dropdown to **Directed Camera** before a run and
-   that fallback is still worth having: the client's own director follows the
-   action, so a frame is at least a frame of the fight. **Manual Camera** is the
-   one setting to avoid — every picture comes back as the same patch of map.
+   the client to Manual Camera**, and a manual camera ignores the run entirely,
+   so every picture comes back as the same patch of map. Start the run and leave
+   the machine alone for its ten minutes.
 
    There are two ways to run it, and the default changed on 11 Sep 2026:
 
@@ -160,7 +178,8 @@ be run directly: `node scripts/replay-recorder.mjs EUW1-7977592156`.
 
 | Option | Default | What it does |
 | --- | --- | --- |
-| `--shots N` | 20 | How many pictures to keep. Hard cap 30. |
+| `--shots N` | 20 | How many moments to keep a picture of. Hard cap 30. |
+| `--frames N` | 3 | How many frames to keep on a moment that gets a strip: the moment itself and `N-1` seconds leading into it. `--frames=1` records the way every run before 12 Sep 2026 did. More than `SHOT_FRAMES` (3) is taken as 3, and the moments that get a strip are the first `STRIP_MOMENTS` (8) deaths of ours either way. |
 | `--out-dir <dir>` | `./replay-shots` | Where the client writes the frames. They stay on disk after the run (gitignored) so the lead can look at them. |
 | `--dry-run` | off | Writes the documents as JSON into the out dir and touches no Firestore. |
 | `--roster <file.json>` | — | Only needed for a dry run with no service account: `[{ "name": "Ruan", "role": "Top", "profile": { "riotTag": "EUW" } }, …]`. `riotTag` is the tag alone, not `Name#TAG`. |
@@ -182,8 +201,9 @@ The last line says it: **press Re-review on the game** (the Games row) so the
 review reads the frames. Nothing happens automatically — a recording sitting in
 Firestore does not re-run a review on its own.
 
-The recorder writes `replayShots/{matchId}__{sec}` first, one document a
-picture, and `replayRecordings/{matchId}` last. If it dies half way, nothing
+The recorder writes the pictures first — `replayShots/{matchId}__{sec}` for a
+moment and `{matchId}__{sec}__{frame}` for a frame leading into one, one
+document a picture — and `replayRecordings/{matchId}` last. If it dies half way, nothing
 points at pictures that are not there; running it again simply overwrites the
 same documents. Every frame the last run left on disk under the same name is
 deleted before the client is asked for a new one, so a re-run can never upload
@@ -206,7 +226,10 @@ needs no arithmetic of its own.
 
 Twenty pictures are recorded and eight are read, because the extra ones cost
 almost nothing to store and give the frames strip on the Games row something to
-show.
+show. The run-up adds at most sixteen more, two on each of eight moments, and
+not one of them is ever sent to a review: eight moments tell a coach more than
+three moments seen three times over, so the strip is for the reader in the film
+room, who can watch a fight start.
 
 The death boards cost nothing worth counting against that: a few hundred bytes
 each, thirty at most, in the recording document beside the samples, and the only
@@ -239,7 +262,9 @@ recording:
   items — so a death's board is that second and not the minute around it.
 
 A recorded game gets the recorder's own account of the game in "How the game
-went" and the frames strip, and still no tape and no map in the film room —
+went", the frames strip on its Games row, and **The frames** in the film room
+(12 Sep 2026), which walks the moments the run kept pictures of with the board
+of ten beside each death of ours. The tape and the map are still not among them:
 those are built from a Riot timeline, which a custom game does not have.
 
 ## Riot's rules, and how they are kept
@@ -347,6 +372,13 @@ the client drops a request now and then while it is seeking.
   thumbnail is in view or tapped).
 - `frontend/src/app/shared/replay-frames.component.ts` — the frames strip and
   its lightbox, inside the Games row's drawer.
+- `frontend/src/app/core/film-build.ts` — `buildStrip`, which turns a recording
+  into the film's **The frames** chapter: the moments, their frames as document
+  ids and never pictures, and `deathLine`'s own sentence for each death.
+- `frontend/src/app/pages/film/chapters/film-strip.component.ts` and
+  `frontend/src/app/shared/film/replay-shot-image.component.ts` — that chapter
+  and the one picture at a time it reads, which is nothing at all until the
+  chapter is on stage.
 
 ## What the first live run corrected (11 Sep 2026)
 

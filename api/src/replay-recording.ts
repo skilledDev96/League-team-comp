@@ -8,8 +8,9 @@
  * it plays the replay, reads the Live Client Data API each second and drives
  * the Replay API to a frame at each death. What it uploads is the shape below,
  * stored at `replayRecordings/{matchId}` with one picture per document at
- * `replayShots/{matchId}__{sec}`; `frontend/src/app/models/team.models.ts`
- * mirrors both exactly.
+ * `replayShots/{matchId}__{sec}` — and, on a moment the recorder kept a strip
+ * of, one more per second leading into it at `{matchId}__{sec}__{frame}`;
+ * `frontend/src/app/models/team.models.ts` mirrors both exactly.
  *
  * What a recording cannot carry, and what nothing here may invent:
  * - **No team gold.** The Live Client gives `currentGold` for the spectated
@@ -29,8 +30,13 @@
  */
 import { LaneRole } from './lane-read';
 
-/** The recorder's shape version. A bump means it keeps something different, so a stored recording says which recorder made it. */
-export const RECORDER_VERSION = 2;
+/**
+ * The recorder's shape version. A bump means it keeps something different, so a stored recording
+ * says which recorder made it. Version 3 keeps three pictures on the moments that matter — the
+ * moment itself and the two seconds leading into it — where version 2 kept one; both new keys are
+ * optional, so a document written by an older recorder is read exactly as it always was.
+ */
+export const RECORDER_VERSION = 3;
 
 /** Pictures a review is sent, at most. Eight frames are roughly ten thousand input tokens. */
 export const MAX_REVIEW_SHOTS = 8;
@@ -112,6 +118,13 @@ export interface ReplayShotRef {
   seat?: LaneRole;
   /** The `replayShots` document id, `{matchId}__{sec}`. */
   docId: string;
+  /**
+   * The frames leading into the moment, earliest first: two seconds before it, then one.
+   * Document ids only — a picture is read one at a time. Absent on a recording that kept a
+   * single picture a moment, which is every recording written before 12 Sep 2026 and every
+   * moment this run did not think worth a strip.
+   */
+  runUp?: string[];
 }
 
 /** What one player was holding at a death of ours. Their side is a seat, never a name. */
@@ -159,6 +172,8 @@ export interface ReplayRecording {
 export interface ReplayShot {
   matchId: string;
   sec: number;
+  /** How many seconds before the moment this frame is; absent or 0 is the moment itself. */
+  frame?: number;
   kind: string;
   label: string;
   mediaType: 'image/jpeg';
@@ -355,7 +370,7 @@ export function recordingLines(recording: ReplayRecording, max = MAX_RECORDING_L
 }
 
 /**
- * One line per death of ours: what the player who died was holding when they fell, and who was
+ * One death of ours as a sentence: what the player who fell was holding when they fell, and who was
  * already on the floor at that moment.
  *
  * Why this exists (11 Sep 2026): the lead asked whether to run the recorder once per seat to get
@@ -364,26 +379,42 @@ export function recordingLines(recording: ReplayRecording, max = MAX_RECORDING_L
  * levels, the farm and the respawn timers are in the per-player list for all ten at once. One run
  * therefore reads the board at every death, where a frame per seat would have cost five more runs
  * and could still only reach the eight frames a review reads.
+ *
+ * It takes one death and nothing else so that a caller with its own reason to pick and order the
+ * deaths — the film's strip walks the moments the recorder kept pictures of — asks for the sentence
+ * of the death it is holding. Zipping `deathLines` against a caller's own sorted copy by index
+ * would land every sentence on the wrong death the moment one filter differed between them.
+ */
+export function deathLine(death: ReplayDeathState): string {
+  // `deathLines` drops a board the recorder never filled before it maps, but a caller walking its
+  // own moments has done no such filtering, and a board with no players must read as a bare
+  // sentence rather than throw in the middle of building a film.
+  const players = death.players ?? [];
+  const victim = players.find((p) => p.ours && p.seat === death.seat);
+  const parts: string[] = [];
+  if (victim) {
+    parts.push(`holding ${victim.items?.length ? victim.items.join(', ') : 'nothing'}`);
+    parts.push(`level ${victim.level}, ${victim.cs} cs`);
+  }
+  const down = players
+    .filter((p) => p.dead)
+    .map((p) => `${p.ours ? 'our' : 'their'} ${p.seat}${p.respawn ? ` (${Math.round(p.respawn)}s left)` : ''}`);
+  if (down.length) parts.push(`already down: ${down.join(', ')}`);
+  return `Minute ${minuteOf(death.sec)}: our ${death.seat} fell${parts.length ? `, ${parts.join('; ')}` : ''}.`;
+}
+
+/**
+ * The deaths a prompt reads, earliest first and at most `max` of them; the rest are stored and
+ * simply not printed. Every sentence is `deathLine`'s, so the prompt and the film's strip cannot
+ * print the same death two different ways.
  */
 export function deathLines(recording: ReplayRecording, max = MAX_DEATH_LINES): string[] {
-  const deaths = (recording.deaths ?? [])
+  return (recording.deaths ?? [])
     .filter((d) => !!d && Number.isFinite(d.sec) && Array.isArray(d.players))
     .slice()
     .sort((a, b) => a.sec - b.sec)
-    .slice(0, Math.max(0, max));
-  return deaths.map((death) => {
-    const victim = death.players.find((p) => p.ours && p.seat === death.seat);
-    const parts: string[] = [];
-    if (victim) {
-      parts.push(`holding ${victim.items?.length ? victim.items.join(', ') : 'nothing'}`);
-      parts.push(`level ${victim.level}, ${victim.cs} cs`);
-    }
-    const down = death.players
-      .filter((p) => p.dead)
-      .map((p) => `${p.ours ? 'our' : 'their'} ${p.seat}${p.respawn ? ` (${Math.round(p.respawn)}s left)` : ''}`);
-    if (down.length) parts.push(`already down: ${down.join(', ')}`);
-    return `Minute ${minuteOf(death.sec)}: our ${death.seat} fell${parts.length ? `, ${parts.join('; ')}` : ''}.`;
-  });
+    .slice(0, Math.max(0, max))
+    .map(deathLine);
 }
 
 // ---- The pictures a review gets ------------------------------------------------
@@ -398,6 +429,17 @@ const SAFE_DOC_ID = /^[A-Za-z0-9_-]{1,200}$/;
  * is decided and the frame is the only view of where everyone stood; then the
  * objectives; then the end. A shot without a document id it could have written
  * is dropped, and the same document is never sent twice.
+ *
+ * One ref a moment is the shape of `shots` and not a filter written here:
+ * `docId` is the picture OF the moment however many frames the recorder kept
+ * of it, and the frames leading into it hang off the ref as `runUp`. So this
+ * returns what it always returned, and a recording written by a newer recorder
+ * reads the same on an api that has not been redeployed.
+ *
+ * The run-up frames never reach a review, deliberately. A review gets eight
+ * pictures, and eight moments tell a coach more than three moments seen three
+ * times over; the strip is for the reader in the film room, who can watch a
+ * fight start.
  */
 export function shotsFor(recording: ReplayRecording, max = MAX_REVIEW_SHOTS): ReplayShotRef[] {
   if (!Number.isFinite(max) || max <= 0) return [];

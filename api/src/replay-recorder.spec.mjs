@@ -11,7 +11,10 @@
  * that the other team is a champion in a seat and never a name, the shot cap,
  * the over-size drop, that the index is written last, that a silent client
  * fails with a sentence the lead can act on, and that no log line can carry the
- * service account.
+ * service account. Since 12 Sep 2026 it also guards the strip: which moments
+ * get one, that the moment gates it, that the step between two frames is
+ * measured rather than assumed, and that `--frames 1` still writes the
+ * documents a version-2 run wrote.
  */
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
@@ -33,7 +36,10 @@ import {
   RENDER_FLAGS,
   run,
   SHOT_FPS,
+  SHOT_FRAMES,
   SHOT_LEAD_SEC,
+  shotDocId,
+  STRIP_MOMENTS,
   WARMUP_SEC,
   sameChampion,
   seatPlan,
@@ -303,11 +309,18 @@ function fakeClient({ fs, plan = {}, fail = '', render = {}, stuck = false, thro
       if (how === 'wide') fs.writeFileSync(body.path, fakeJpeg(600 * 1024));
       if (how === 'numbered') fs.writeFileSync(body.path.replace(/\.jpg$/, '.000001.jpg'), fakeJpeg(4096));
       // What the real client does with a png range: a folder of numbered frames, one a second. Each
-      // is a different size here, so which one the run kept is visible in the stored bytes.
-      if (how === 'sequence') {
-        fs.mkdirSync(body.path);
-        for (const [i, size] of SEQUENCE_SIZES.entries()) fs.writeFileSync(path.join(body.path, `${String(i).padStart(6, '0')}.png`), fakeJpeg(size));
-      }
+      // is a different size here, so which ones the run kept are visible in the stored bytes.
+      if (how === 'sequence') writeSequence(fs, body.path, SEQUENCE_SIZES.map((bytes) => fakeJpeg(bytes)));
+      // The same nine seconds from a client that would not take `framesPerSecond`: sixty frames a
+      // second, where the frame before is a sixtieth of a second earlier and a strip of three taken
+      // off the end would be three frames of one heartbeat.
+      if (how === 'sixty') writeSequence(fs, body.path, SIXTY_SIZES.map((bytes) => fakeJpeg(bytes)));
+      // The MOMENT's own frame over the ceiling, with a perfectly good run-up behind it: the whole
+      // moment goes, run-up and all, because nothing would ever read a run-up frame on its own.
+      if (how === 'huge moment') writeSequence(fs, body.path, [...SEQUENCE_SIZES.slice(0, -1).map((bytes) => fakeJpeg(bytes)), fakeJpeg(800 * 1024, 2560, 1440)]);
+      // One run-up frame over it — under the ceiling as a JPEG, over it once encoded — and the
+      // moment fine. That costs the strip one frame and nothing else.
+      if (how === 'huge run-up') writeSequence(fs, body.path, SEQUENCE_SIZES.map((bytes, i) => (i === SEQUENCE_SIZES.length - 3 ? fakeJpeg(600 * 1024) : fakeJpeg(bytes))));
       // 'missing' writes nothing at all: the client swallowed the request.
       return answer({ ...body, recording: false });
     }
@@ -332,8 +345,23 @@ function fakeFirestore(players = ROSTER, game = { matchId: MATCH_ID, durationSec
 
 const OUT_DIR = path.join('C:', 'tmp', 'replay-shots');
 
-/** A rendered sequence, run-up first and the moment last; the sizes differ so the kept frame is identifiable. */
+/** A rendered sequence, run-up first and the moment last; the sizes differ so the kept frames are identifiable. */
 const SEQUENCE_SIZES = [2048, 2560, 3072, 3584, 4096, 4608, 5120, 5632, 6144, 6656];
+
+/**
+ * The same range from a client that ignored `framesPerSecond`: nine seconds at sixty frames a
+ * second. Every size is different, so which three the run kept is read straight off the documents.
+ */
+const SIXTY_SIZES = Array.from({ length: 540 }, (_, i) => 1024 + i);
+
+/** The folder of numbered frames the client fills for a png range, oldest first. */
+function writeSequence(fs, dir, frames) {
+  fs.mkdirSync(dir);
+  for (const [i, frame] of frames.entries()) fs.writeFileSync(path.join(dir, `${String(i).padStart(6, '0')}.png`), frame);
+}
+
+/** The whole game rendered as sequences, which is what a real client writes for every moment. */
+const ALL_SEQUENCES = Object.fromEntries([...OUR_DEATH_SECONDS, 1900, ...Object.values(OBJECTIVE_SECONDS), GAME_LENGTH].map((sec) => [sec, 'sequence']));
 
 async function record(options = {}) {
   const fs = options.fs ?? fakeFs();
@@ -396,7 +424,7 @@ describe('the replay recorder, over a whole game', () => {
 
     expect(Object.keys(recording).sort()).toEqual([...RECORDING_KEYS].sort());
     expect(recording.matchId).toBe(MATCH_ID);
-    expect(recording.recorderVersion).toBe(2);
+    expect(recording.recorderVersion).toBe(3);
     expect(recording.recordedAt).toBe('2026-09-10T21:00:00.000Z');
     expect(recording.durationSec).toBe(GAME_LENGTH);
     expect(recording.ourSide).toBe('blue');
@@ -475,17 +503,24 @@ describe('the replay recorder, over a whole game', () => {
     expect(shots.filter((s) => s.kind === 'end')).toHaveLength(1);
   });
 
+  // Both documents and, since 12 Sep 2026, every frame of a strip: a run-up frame is a new row in
+  // `replayShots` and the rule holds of it exactly as it holds of the moment.
   it('keeps every name, Riot id and puuid of theirs out of both documents', async () => {
-    const { recording, shots } = await record({});
-    const json = JSON.stringify({ recording, shots });
-    for (const name of THEIR_NAMES) {
-      expect(json.includes(name)).toBe(false);
-      expect(json.toLowerCase().includes(name.split('#')[0].toLowerCase())).toBe(false);
+    for (const plan of [{}, ALL_SEQUENCES]) {
+      const { recording, shots } = await record({ plan });
+      const json = JSON.stringify({ recording, shots });
+      for (const name of THEIR_NAMES) {
+        expect(json.includes(name)).toBe(false);
+        expect(json.toLowerCase().includes(name.split('#')[0].toLowerCase())).toBe(false);
+      }
+      expect(json.includes('#')).toBe(false);
+      expect(json.toLowerCase().includes('puuid')).toBe(false);
+      // Ours are named, which is the whole point of matching the roster.
+      expect(json.includes('Ruan')).toBe(true);
+      // And the strip is really there in the second pass, so this is not a leak test over one
+      // picture a moment wearing a plan's clothes.
+      expect(shots.some((shot) => shot.frame)).toBe(plan === ALL_SEQUENCES);
     }
-    expect(json.includes('#')).toBe(false);
-    expect(json.toLowerCase().includes('puuid')).toBe(false);
-    // Ours are named, which is the whole point of matching the roster.
-    expect(json.includes('Ruan')).toBe(true);
   });
 
   it('reports a roster player who is not in the replay and carries on', async () => {
@@ -807,13 +842,121 @@ describe('the replay recorder, over a whole game', () => {
   // The range starts eight seconds before the moment so the replay's own director has time to swing
   // onto the fight, which means the FIRST frame of the sequence is the run-up and the last is the
   // picture. Taking the first — which is what the code did when every range was one second long —
-  // would now keep a frame of whatever the camera was parked on before the fight started.
-  it('keeps the last frame of a rendered sequence, not the first', async () => {
+  // would now keep a frame of whatever the camera was parked on before the fight started. Since
+  // 12 Sep 2026 the two frames before it are kept as well, because whether we walked into the fight
+  // or were caught out of it is the thing a single frame can never say.
+  it('keeps the last three frames of a rendered sequence, the moment last', async () => {
     const first = OUR_DEATH_SECONDS[0];
-    const { shots } = await record({ shots: 1, plan: { [first]: 'sequence' } });
+    const { recording, shots, firestore } = await record({ shots: 1, plan: { [first]: 'sequence' } });
+
+    // Three documents: the moment under the id it has always had, and the run-up hanging off it.
+    expect(firestore.writes.slice(0, -1).map((w) => w.id)).toEqual([`${MATCH_ID}__${first}__2`, `${MATCH_ID}__${first}__1`, `${MATCH_ID}__${first}`]);
+    // The moment is the last frame of the sequence; the run-up is the two before it, and each says
+    // how many seconds before the moment it is. The moment itself carries no `frame` key at all.
+    expect(shots.map((s) => s.bytes)).toEqual([SEQUENCE_SIZES.at(-3), SEQUENCE_SIZES.at(-2), SEQUENCE_SIZES.at(-1)]);
+    expect(shots.map((s) => s.frame)).toEqual([2, 1, undefined]);
+    // Every frame of the strip is filed under the moment's own second and carries its words.
+    for (const shot of shots) {
+      expect(shot.sec).toBe(first);
+      expect(shot.kind).toBe('death');
+      expect(shot.label).toBe(recording.shots[0].label);
+    }
+
+    // And the index points at them, earliest first, with the moment still its `docId`.
+    expect(recording.shots).toHaveLength(1);
+    expect(recording.shots[0].docId).toBe(`${MATCH_ID}__${first}`);
+    expect(recording.shots[0].runUp).toEqual([`${MATCH_ID}__${first}__2`, `${MATCH_ID}__${first}__1`]);
+    // The bill counts the run-up as it is stored, which is base64.
+    expect(recording.bytes).toBe(JSON.stringify({ ...recording, bytes: 0 }).length + shots.reduce((sum, shot) => sum + shot.data.length, 0));
+  });
+
+  // A client that writes one flat file has no run-up to give: there is nothing behind the moment on
+  // disk, and inventing a key for it would put `runUp: []` on a document the film then reads as a
+  // strip with nothing in it.
+  it('writes one document and no runUp at all when the client renders a single flat file', async () => {
+    const first = OUR_DEATH_SECONDS[0];
+    const { recording, shots, firestore } = await record({ shots: 1, plan: { [first]: 'normal' } });
     expect(shots).toHaveLength(1);
-    expect(shots[0].bytes).toBe(SEQUENCE_SIZES[SEQUENCE_SIZES.length - 1]);
-    expect(shots[0].bytes).not.toBe(SEQUENCE_SIZES[0]);
+    expect(firestore.writes.slice(0, -1).map((w) => w.id)).toEqual([`${MATCH_ID}__${first}`]);
+    expect('frame' in shots[0]).toBe(false);
+    expect('runUp' in recording.shots[0]).toBe(false);
+    expect(JSON.stringify(recording.shots).includes('runUp')).toBe(false);
+  });
+
+  // The step between two frames is MEASURED, never assumed (12 Sep 2026). The run asks for one
+  // frame a second, but only when the client reports both `framesPerSecond` and `enforceFrameRate`
+  // — a client carrying neither writes the same nine seconds as 540 frames, where "the frame
+  // before" is a sixtieth of a second earlier and a strip of three would be three frames of one
+  // heartbeat: the same fight, three times, telling the reader nothing.
+  it('measures the step from the frames the client actually wrote', async () => {
+    const first = OUR_DEATH_SECONDS[0];
+    const { recording, shots } = await record({ shots: 1, plan: { [first]: 'sixty' } });
+    const last = SIXTY_SIZES.length - 1;
+    // Nine seconds of range over 540 frames is sixty a second, so a second back is sixty frames back.
+    expect(shots.map((s) => s.bytes)).toEqual([SIXTY_SIZES[last - 120], SIXTY_SIZES[last - 60], SIXTY_SIZES[last]]);
+    expect(shots.map((s) => s.frame)).toEqual([2, 1, undefined]);
+    expect(recording.shots[0].runUp).toEqual([`${MATCH_ID}__${first}__2`, `${MATCH_ID}__${first}__1`]);
+  });
+
+  // THE MOMENT GATES THE STRIP. The index points a review and the film at `{matchId}__{sec}` and
+  // nothing anywhere reads a run-up frame on its own, so a moment whose own frame will not fit in a
+  // document goes whole — otherwise the run pays Firestore for two pictures with no door into them.
+  it('drops a whole moment whose own frame is over the size a document can hold', async () => {
+    const over = OUR_DEATH_SECONDS[2];
+    const { recording, shots, firestore, dropped, log } = await record({ plan: { ...ALL_SEQUENCES, [over]: 'huge moment' } });
+
+    expect(shots.some((s) => s.sec === over)).toBe(false);
+    expect(recording.shots.some((s) => s.sec === over)).toBe(false);
+    // Not even the run-up frames, which were perfectly good pictures and are now unreachable.
+    expect(firestore.writes.some((w) => String(w.id).startsWith(`${MATCH_ID}__${over}`))).toBe(false);
+    expect(dropped).toBe(1);
+    expect(log.some((line) => line.includes('2560x1440'))).toBe(true);
+  });
+
+  // A run-up frame is only ever a shorter strip. It is the one loss that costs the reader nothing
+  // they were promised, so it is counted apart from a moment dropped and never taken out on one.
+  it('shortens the strip, and no more, when a run-up frame will not fit', async () => {
+    const first = OUR_DEATH_SECONDS[0];
+    const { recording, shots, runUpDropped, log } = await record({ shots: 1, plan: { [first]: 'huge run-up' } });
+
+    expect(shots.map((s) => s.frame)).toEqual([1, undefined]);
+    expect(recording.shots[0].runUp).toEqual([`${MATCH_ID}__${first}__1`]);
+    expect(runUpDropped).toBe(1);
+    // The two losses are counted apart in the one line the lead reads at the end.
+    expect(log.some((line) => line.includes('1 run-up frame dropped') && !line.includes('moment dropped'))).toBe(true);
+  });
+
+  // A review is sent `MAX_REVIEW_SHOTS` frames, deaths first in time order, so a strip on a ninth
+  // death is bytes nobody will ever look at — and the film and the model would be looking at
+  // different seconds.
+  it('keeps a strip on the first eight deaths only', async () => {
+    const { recording, shots } = await record({ plan: ALL_SEQUENCES });
+    const deaths = recording.shots.filter((s) => s.kind === 'death');
+    expect(deaths.length).toBeGreaterThan(STRIP_MOMENTS);
+    expect(deaths.slice(0, STRIP_MOMENTS).every((s) => s.runUp?.length === 2)).toBe(true);
+    expect(deaths.slice(STRIP_MOMENTS).every((s) => s.runUp === undefined)).toBe(true);
+    // An objective and the end keep the single picture they have always had.
+    expect(recording.shots.filter((s) => s.kind !== 'death').every((s) => s.runUp === undefined)).toBe(true);
+    // Which is three documents on eight moments and one on the rest.
+    expect(shots.filter((s) => s.frame)).toHaveLength(STRIP_MOMENTS * (SHOT_FRAMES - 1));
+    expect(shots.filter((s) => !s.frame)).toHaveLength(recording.shots.length);
+  });
+
+  // The way back to what a version-2 run wrote, for a game whose pictures are already more
+  // Firestore than the lead wants to pay for.
+  it('writes the documents a run wrote before the strip existed when --frames is 1', async () => {
+    const { recording, shots, firestore } = await record({ plan: ALL_SEQUENCES, run: { frames: 1 } });
+
+    // One picture a moment, under the id the moment has always had, and not a key more than a
+    // version-2 document carried — in the order it carried them, which is what makes the JSON
+    // byte-for-byte the JSON it was.
+    expect(shots).toHaveLength(recording.shots.length);
+    for (const shot of shots) expect(Object.keys(shot).join(',')).toBe('matchId,sec,kind,label,mediaType,width,height,bytes,data');
+    expect(firestore.writes.slice(0, -1).map((w) => w.id)).toEqual(recording.shots.map((s) => s.docId));
+    expect(JSON.stringify(shots).includes('"frame"')).toBe(false);
+    expect(JSON.stringify(recording.shots).includes('runUp')).toBe(false);
+    // Still the last frame of the sequence, which is the moment itself.
+    expect(shots[0].bytes).toBe(SEQUENCE_SIZES.at(-1));
   });
 
   it('takes no picture at all when the client will not hide a panel that names players', async () => {
@@ -916,16 +1059,21 @@ describe('the replay recorder, over a whole game', () => {
     expect(log.some((line) => line.includes('no picture landed'))).toBe(true);
   });
 
-  it('writes the pictures first and the index last', async () => {
-    const { firestore, shots } = await record({});
+  it('writes the pictures first and the index last, the run-up frames included', async () => {
+    const { firestore, shots } = await record({ plan: ALL_SEQUENCES });
     expect(firestore.writes).toHaveLength(shots.length + 1);
     expect(firestore.writes.slice(0, -1).every((w) => w.collection === 'replayShots')).toBe(true);
     const last = firestore.writes.at(-1);
     expect(last.collection).toBe('replayRecordings');
     expect(last.id).toBe(MATCH_ID);
-    // Every id the index points at was written before it.
+    // Every id the index points at was written before it — the moment's, and each frame leading
+    // into it, which is the whole reason the pictures go first.
     const written = new Set(firestore.writes.slice(0, -1).map((w) => w.id));
-    for (const shot of last.data.shots) expect(written.has(shot.docId)).toBe(true);
+    for (const shot of last.data.shots) {
+      expect(written.has(shot.docId)).toBe(true);
+      for (const frame of shot.runUp ?? []) expect(written.has(frame)).toBe(true);
+    }
+    expect(last.data.shots.some((shot) => shot.runUp)).toBe(true);
   });
 
   it('touches no Firestore on a dry run and writes the JSON instead', async () => {
@@ -1071,6 +1219,18 @@ describe('the pure parts', () => {
     expect(shots.at(-1).kind).toBe('end');
   });
 
+  // The one place a shot's document id is built, on both sides of the strip. A run-up frame keyed
+  // by its own second (`{matchId}__{sec-2}`) would have the later of two deaths three seconds apart
+  // overwrite the earlier one's moment, which is what a 2v2 trade in the river looks like.
+  it('builds a shot id the one way, the moment keeping the id it has always had', () => {
+    expect(shotDocId(MATCH_ID, 180)).toBe(`${MATCH_ID}__180`);
+    expect(shotDocId(MATCH_ID, 180, 0)).toBe(`${MATCH_ID}__180`);
+    expect(shotDocId(MATCH_ID, 180, 1)).toBe(`${MATCH_ID}__180__1`);
+    expect(shotDocId(MATCH_ID, 180, 2)).toBe(`${MATCH_ID}__180__2`);
+    // Two seconds before 180 is not 178's moment, whoever died there.
+    expect(shotDocId(MATCH_ID, 180, 2)).not.toBe(shotDocId(MATCH_ID, 178));
+  });
+
   it('reads a JPEG for its own size and shrugs at anything else', () => {
     expect(jpegSize(fakeJpeg(64, 1920, 1080))).toEqual({ width: 1920, height: 1080 });
     expect(jpegSize(Buffer.from('not a picture'))).toBe(null);
@@ -1078,7 +1238,13 @@ describe('the pure parts', () => {
   });
 
   it('parses the argument line and holds the hard cap', () => {
-    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '' });
+    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, frames: SHOT_FRAMES, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '' });
+    // Three frames on the moments a review looks at, unless the lead asks for the old single picture.
+    expect(parseArgs([MATCH_ID, '--frames', '1']).frames).toBe(1);
+    expect(parseArgs([MATCH_ID, '--frames=2']).frames).toBe(2);
+    expect(parseArgs([MATCH_ID, '--frames=9']).frames).toBe(SHOT_FRAMES);
+    expect(() => parseArgs([MATCH_ID, '--frames', 'lots'])).toThrow(/--frames wants/);
+    expect(() => parseArgs([MATCH_ID, '--frames', '0'])).toThrow(/--frames wants/);
     // The camera follows whoever each picture is about unless the lead wants their own seat's HUD on every frame.
     expect(parseArgs([MATCH_ID, '--no-follow']).follow).toBe(false);
     // The bars are on by default (11 Sep 2026); a client that prints summoner names over champions turns them off again.
@@ -1091,6 +1257,7 @@ describe('the pure parts', () => {
       matchId: MATCH_ID,
       typed: MATCH_ID,
       shots: 8,
+      frames: SHOT_FRAMES,
       outDir: 'C:/shots',
       dryRun: true,
       roster: '',

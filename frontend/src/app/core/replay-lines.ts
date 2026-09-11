@@ -1,4 +1,4 @@
-import { ReplayEvent, ReplayEventKind, ReplayRecording, ReplaySample, ReplaySampleRow, ReplaySeat } from '../models/team.models';
+import { ReplayDeathState, ReplayEvent, ReplayEventKind, ReplayRecording, ReplaySample, ReplaySampleRow, ReplaySeat } from '../models/team.models';
 
 /**
  * A recorded game in sentences (10 Sep 2026).
@@ -231,7 +231,7 @@ export function recordingLines(recording: ReplayRecording | null | undefined, ma
 }
 
 /**
- * One line per death of ours: what the player who died was holding when they fell, and who was
+ * One death of ours as a sentence: what the player who fell was holding when they fell, and who was
  * already on the floor at that moment.
  *
  * Why this exists (11 Sep 2026): the lead asked whether to run the recorder once per seat to get
@@ -240,24 +240,40 @@ export function recordingLines(recording: ReplayRecording | null | undefined, ma
  * levels, the farm and the respawn timers are in the per-player list for all ten at once. One run
  * therefore reads the board at every death, where a frame per seat would have cost five more runs
  * and could still only reach the eight frames a review reads.
+ *
+ * It takes one death and nothing else so that a caller with its own reason to pick and order the
+ * deaths — the film's strip walks the moments the recorder kept pictures of — asks for the sentence
+ * of the death it is holding. Zipping `deathLines` against a caller's own sorted copy by index
+ * would land every sentence on the wrong death the moment one filter differed between them.
+ */
+export function deathLine(death: ReplayDeathState): string {
+  // `deathLines` drops a board the recorder never filled before it maps, but a caller walking its
+  // own moments has done no such filtering, and a board with no players must read as a bare
+  // sentence rather than throw in the middle of building a film.
+  const players = death.players ?? [];
+  const victim = players.find((p) => p.ours && p.seat === death.seat);
+  const parts: string[] = [];
+  if (victim) {
+    parts.push(`holding ${victim.items?.length ? victim.items.join(', ') : 'nothing'}`);
+    parts.push(`level ${victim.level}, ${victim.cs} cs`);
+  }
+  const down = players
+    .filter((p) => p.dead)
+    .map((p) => `${p.ours ? 'our' : 'their'} ${p.seat}${p.respawn ? ` (${Math.round(p.respawn)}s left)` : ''}`);
+  if (down.length) parts.push(`already down: ${down.join(', ')}`);
+  return `Minute ${minuteOf(death.sec)}: our ${death.seat} fell${parts.length ? `, ${parts.join('; ')}` : ''}.`;
+}
+
+/**
+ * The deaths a prompt reads, earliest first and at most `max` of them; the rest are stored and
+ * simply not printed. Every sentence is `deathLine`'s, so the prompt and the film's strip cannot
+ * print the same death two different ways.
  */
 export function deathLines(recording: ReplayRecording, max = MAX_DEATH_LINES): string[] {
-  const deaths = (recording.deaths ?? [])
+  return (recording.deaths ?? [])
     .filter((d) => !!d && Number.isFinite(d.sec) && Array.isArray(d.players))
     .slice()
     .sort((a, b) => a.sec - b.sec)
-    .slice(0, Math.max(0, max));
-  return deaths.map((death) => {
-    const victim = death.players.find((p) => p.ours && p.seat === death.seat);
-    const parts: string[] = [];
-    if (victim) {
-      parts.push(`holding ${victim.items?.length ? victim.items.join(', ') : 'nothing'}`);
-      parts.push(`level ${victim.level}, ${victim.cs} cs`);
-    }
-    const down = death.players
-      .filter((p) => p.dead)
-      .map((p) => `${p.ours ? 'our' : 'their'} ${p.seat}${p.respawn ? ` (${Math.round(p.respawn)}s left)` : ''}`);
-    if (down.length) parts.push(`already down: ${down.join(', ')}`);
-    return `Minute ${minuteOf(death.sec)}: our ${death.seat} fell${parts.length ? `, ${parts.join('; ')}` : ''}.`;
-  });
+    .slice(0, Math.max(0, max))
+    .map(deathLine);
 }

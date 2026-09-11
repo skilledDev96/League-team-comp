@@ -15,7 +15,7 @@ import { ScoreChip } from './review-view';
  * in the order shown, the index of the right one, and the line shown after.
  */
 
-export type FilmChapterKind = 'title' | 'one-thing' | 'seat' | 'card' | 'tape' | 'board' | 'map' | 'draft';
+export type FilmChapterKind = 'title' | 'one-thing' | 'seat' | 'card' | 'tape' | 'board' | 'map' | 'draft' | 'strip';
 
 /**
  * The film's own glyphs (cut 4, 10 Sep 2026): hand-drawn 24×24 SVG paths in
@@ -126,6 +126,15 @@ export interface FilmTitle {
     compVerdict: GameReview['team']['compVerdict'];
     compWhy: string;
     tier: GameReview['tier'];
+    /**
+     * Which road this review came down, in the words the review panel uses:
+     * `reviewSource` in `core/review-view.ts` is asked once in `buildTitle`
+     * and its answer travels here. It exists because the film card printed a
+     * tier ternary of its own, so a game the recorder had walked minute by
+     * minute was labelled "Totals only" on the film while the panel beside it
+     * said "From the recorder". One function, one answer, no drift.
+     */
+    source: { tag: string; tip: string };
   };
   /** The previous review's one thing, and whether it came back this game. */
   lastTime?: { matchId: string; text: string; recurrence?: string };
@@ -322,6 +331,75 @@ export interface FilmBoard {
   moments: FilmMoment[];
 }
 
+// ---- The recorded tier: the strip -----------------------------------------------
+//
+// A custom game has no match and no timeline, so the local recorder walks the
+// replay in the League client and writes what it saw (`replayRecordings` and
+// `replayShots`). Until now the film room had never seen a recording at all:
+// the strip is where it does. It carries the moments the recorder kept
+// pictures of — since recorder version 3 up to three frames on the ones worth
+// it, the two seconds leading in and then the moment itself — and, at every
+// death of ours, what all ten were holding when we fell.
+//
+// Two rules hold over everything below. The other team is a champion in a
+// seat: no name of theirs is on a row, because none is stored. And a frame
+// here is a **document id** and never the picture: `FilmModel` is rebuilt
+// inside a computed on every visit, and a 700 KB base64 string sitting in
+// that signal graph is a memory problem rather than a matter of taste. The
+// picture is read one at a time through `ReplayRecordingService`.
+
+/** One of the ten at a death of ours, off the recorder's board. Theirs is a champion in a seat; only ours carries a name. */
+export interface FilmStripRow {
+  seat: Role;
+  ours: boolean;
+  champion: string;
+  /** OURS ONLY, off `ReplaySeat.name`. Never set for a seat of theirs. */
+  name?: string;
+  level: number;
+  cs: number;
+  items: string[];
+  /** Absent means alive, never false. */
+  dead?: boolean;
+  respawn?: number;
+  /** The seat that fell at this moment. */
+  victim?: boolean;
+}
+
+/** A moment the recorder kept pictures of: the frames into it, and the board at it. */
+export interface FilmStripMoment {
+  /** Stable key, `s:<sec>`, reserved now so a later cut can hang a note on it with no migration. */
+  key: string;
+  sec: number;
+  minute: number;
+  /** "18:24". */
+  clock: string;
+  /** 'death' | 'objective' | 'end', off the shot ref. */
+  kind: string;
+  seat?: Role;
+  /** The recorder's own words, e.g. "Jinx falls at 18:24". */
+  label: string;
+  /** Document ids, earliest first, the moment LAST. NEVER base64. Empty when no picture was kept. */
+  frames: string[];
+  /** The ten at that second; absent on an objective and on a recording written before boards. */
+  board?: FilmStripRow[];
+  /** `deathLine`'s sentence for this death, not re-derived here. */
+  line?: string;
+}
+
+export interface FilmStrip {
+  moments: FilmStripMoment[];
+  /** ISO, off `recording.recordedAt`; the component formats it. */
+  recordedOn: string;
+  /** "Twenty deaths, three frames on the eight that mattered." */
+  opening: string;
+  /** Why it is approximate, said once: the board is read two seconds before the death. */
+  caveat: string;
+  /** False on a recorder-version-1 recording: frames and labels only, no boards. */
+  boards: boolean;
+  /** False when the client would not hide the naming panels: boards and lines, no pictures. */
+  pictures: boolean;
+}
+
 export interface FilmDeathPin {
   key: string;
   sec: number;
@@ -438,6 +516,8 @@ export interface FilmModel {
   tape?: FilmTape;
   /** Replay tier only. */
   board?: FilmBoard;
+  /** A recorded game only: the moments the local recorder kept pictures of, and the board at each death of ours. Either tier can carry one, since a Clash game can be recorded as well as timed. */
+  strip?: FilmStrip;
   /** Timeline tier with a ledger only. */
   map?: FilmMap;
   /** Review version 5 and later, when the coach wrote a draft verdict. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LaneRole } from './lane-read';
 import {
+  deathLine,
   deathLines,
   MAX_DEATH_LINES,
   MAX_RECORDING_LINES,
@@ -252,10 +253,28 @@ describe('deathLines', () => {
       'Minute 23: our ADC'
     ]);
   });
+
+  it('is the deaths it keeps, in order, each one mapped through `deathLine`', () => {
+    // The film's strip asks `deathLine` for the sentence of the death it is holding, because it
+    // walks the moments the recorder kept pictures of and not this list. If `deathLines` wrote its
+    // own sentence instead of mapping, one filter's difference would put every sentence of the strip
+    // on the wrong death — so the two are one function, asserted here as the same words.
+    const deaths = [board(1400, 'ADC'), board(300, 'Support'), board(844, 'Jungle'), board(1105, 'Top')];
+    const kept = [...deaths].sort((a, b) => a.sec - b.sec).slice(0, 3);
+    expect(deathLines(recording({ deaths }), 3)).toEqual(kept.map(deathLine));
+    expect(deathLines(recording({ deaths }))).toEqual([...deaths].sort((a, b) => a.sec - b.sec).map(deathLine));
+    expect(deathLine(board(1400, 'ADC'))).toBe('Minute 23: our ADC fell, holding Sunfire Aegis, Plated Steelcaps, Stealth Ward; level 11, 132 cs.');
+  });
 });
 
 describe('shotsFor', () => {
   const shot = (sec: number, kind: ReplayShotRef['kind'], docId = `EUW1-7977592156__${sec}`): ReplayShotRef => ({ sec, kind, label: `${kind} at ${sec}`, docId });
+
+  /** A moment the recorder kept a strip of: the picture OF it, and the two seconds leading into it. */
+  const strip = (sec: number, kind: ReplayShotRef['kind']): ReplayShotRef => ({
+    ...shot(sec, kind),
+    runUp: [`EUW1-7977592156__${sec}__2`, `EUW1-7977592156__${sec}__1`]
+  });
 
   it('takes every death first in time order, then the objectives, then the end', () => {
     const shots = [shot(1855, 'end'), shot(900, 'objective'), shot(1105, 'death'), shot(400, 'objective'), shot(300, 'death')];
@@ -283,5 +302,50 @@ describe('shotsFor', () => {
 
   it('has nothing to send for a recording with no frames', () => {
     expect(shotsFor(recording())).toEqual([]);
+  });
+
+  it('sends one frame a moment when the recorder kept a strip of it, and never a run-up frame', () => {
+    const shots = [strip(1105, 'death'), strip(300, 'death'), strip(900, 'objective'), shot(1855, 'end')];
+    const picked = shotsFor(recording({ shots }), MAX_REVIEW_SHOTS);
+    // One ref a moment is the shape of `shots` and not a filter written in `shotsFor`: the picture OF
+    // the moment stays on `docId` and the frames leading into it hang off `runUp`, so a review still
+    // reads four moments here rather than one moment three times over.
+    expect(picked).toHaveLength(4);
+    expect(picked.map((s) => s.docId)).toEqual([
+      'EUW1-7977592156__300',
+      'EUW1-7977592156__1105',
+      'EUW1-7977592156__900',
+      'EUW1-7977592156__1855'
+    ]);
+    const runUps = shots.flatMap((s) => s.runUp ?? []);
+    expect(runUps).toHaveLength(6);
+    const sent = picked.map((s) => s.docId);
+    for (const id of runUps) {
+      expect(sent).not.toContain(id);
+      // A run-up id is the match, the second and how many seconds before it — there is no room in
+      // one for a name or a Riot id of theirs, and the film reads a picture one document at a time.
+      expect(id).toMatch(/^EUW1-7977592156__\d+__[12]$/);
+    }
+  });
+
+  it('reads a recording written before the strip byte for byte as it always did', () => {
+    // Every recording written before 12 Sep 2026 carries no `runUp` anywhere, and the review it gets
+    // from a redeployed api has to be the review it would have got from the old one: the same refs,
+    // in the same order, with no key added to them.
+    const shots = [shot(1855, 'end'), shot(900, 'objective'), shot(1105, 'death'), shot(400, 'objective'), shot(300, 'death')];
+    const picked = shotsFor(recording({ shots }), 8);
+    expect(JSON.stringify(picked)).toBe(
+      JSON.stringify([shot(300, 'death'), shot(1105, 'death'), shot(400, 'objective'), shot(900, 'objective'), shot(1855, 'end')])
+    );
+    expect(JSON.stringify(picked)).not.toContain('runUp');
+  });
+
+  it('takes the id a run-up frame is filed under, and still refuses one it could not have written', () => {
+    // `{matchId}__{sec}__{frame}` is a strip frame's own id, and the guard has to pass it: the film
+    // reads those documents by the same rule. A run-up is never keyed by its own second
+    // (`{matchId}__{sec-2}`) — two deaths three seconds apart, which a river trade produces, would
+    // have the later one's run-up overwrite the earlier one's moment.
+    const shots = [shot(1105, 'death', 'EUW1-7977592156__1105__2'), shot(300, 'death', '../secrets/one'), shot(400, 'death', 'shots/EUW1__400')];
+    expect(shotsFor(recording({ shots }), 8).map((s) => s.docId)).toEqual(['EUW1-7977592156__1105__2']);
   });
 });

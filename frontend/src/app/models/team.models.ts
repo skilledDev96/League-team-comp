@@ -1145,6 +1145,13 @@ export interface ReplayShotRef {
   seat?: Role;
   /** The `replayShots` document id, `{matchId}__{sec}`. */
   docId: string;
+  /**
+   * The frames leading into the moment, earliest first: two seconds before it, then one.
+   * Document ids only — a picture is read one at a time. Absent on a recording that kept a
+   * single picture a moment, which is every recording written before 12 Sep 2026 and every
+   * moment this run did not think worth a strip.
+   */
+  runUp?: string[];
 }
 
 /** What one player was holding at a death of ours. Their side is a seat, never a name. */
@@ -1193,6 +1200,8 @@ export interface ReplayRecording {
 export interface ReplayShot {
   matchId: string;
   sec: number;
+  /** How many seconds before the moment this frame is; absent or 0 is the moment itself. */
+  frame?: number;
   kind: string;
   label: string;
   mediaType: 'image/jpeg';

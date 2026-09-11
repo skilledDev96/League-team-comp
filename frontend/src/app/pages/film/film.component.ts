@@ -9,6 +9,7 @@ import { FilmChoice, FilmProgress, GameReview } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { MatchTimelineService } from '../../services/match-timeline.service';
 import { MotionService } from '../../services/motion.service';
+import { ReplayRecordingService } from '../../services/replay-recording.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { TourService } from '../../services/tour.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
@@ -20,6 +21,7 @@ import { FilmDraftComponent } from './chapters/film-draft.component';
 import { FilmMapComponent } from './chapters/film-map.component';
 import { FilmOneThingComponent } from './chapters/film-one-thing.component';
 import { FilmSeatComponent } from './chapters/film-seat.component';
+import { FilmStripComponent } from './chapters/film-strip.component';
 import { FilmSeekRequest, FilmTapeComponent } from './chapters/film-tape.component';
 import { FilmTitleComponent } from './chapters/film-title.component';
 
@@ -48,7 +50,7 @@ const ESCAPE_TWICE_MS = 2000;
  */
 @Component({
   selector: 'app-film',
-  imports: [TooltipDirective, FilmTitleComponent, FilmTapeComponent, FilmBoardComponent, FilmMapComponent, FilmOneThingComponent, FilmDraftComponent, FilmSeatComponent, FilmCardComponent],
+  imports: [TooltipDirective, FilmTitleComponent, FilmTapeComponent, FilmBoardComponent, FilmMapComponent, FilmStripComponent, FilmOneThingComponent, FilmDraftComponent, FilmSeatComponent, FilmCardComponent],
   templateUrl: './film.component.html'
 })
 export class FilmComponent {
@@ -59,6 +61,8 @@ export class FilmComponent {
   protected readonly tours = inject(TourService);
   private readonly prefs = inject(UserPrefsService);
   private readonly timelines = inject(MatchTimelineService);
+  /** The local recorder's own document for this game, read on demand the way the timeline is. */
+  private readonly recordings = inject(ReplayRecordingService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -86,6 +90,25 @@ export class FilmComponent {
   private readonly timeline = computed(() => (this.review()?.tier === 'timeline' ? (this.timelines.known().get(this.matchId()) ?? null) : null));
   protected readonly ledgerSummary = computed(() => this.timeline()?.facts?.ledgerSummary);
 
+  /** The recording, once the read has come back; `null` on the games — nearly all of them — that were never recorded. */
+  private readonly recording = computed(() => this.recordings.recordingFor(this.matchId()) ?? null);
+  /** True until that read has answered, either way. A game with no id to read is not waiting for anything. */
+  protected readonly recordingPending = computed(() => !!this.matchId() && !this.recordings.known().has(this.matchId()));
+  /**
+   * What the chapters after the title card wait for. Both reads are folded
+   * into one wait because both change the chapter list when they land — the
+   * timeline turns the board into the tape and the map, a recording adds the
+   * frames — and a `?c=` link is only resolved against a list that is final.
+   * Without the recording in here, a `?c=strip` link landed on the title card
+   * the way `?c=draft` used to before the timeline was folded in.
+   */
+  protected readonly pending = computed(() => this.timelinePending() || this.recordingPending());
+  /** What the wait says it is waiting for, since two reads can be outstanding and a reader deserves the truth about which. */
+  protected readonly pendingLine = computed(() => {
+    if (this.timelinePending() && this.recordingPending()) return 'Reading the timeline and the recording…';
+    return this.timelinePending() ? 'Reading the timeline…' : 'Reading the recording…';
+  });
+
   /**
    * The newest other review from before this game, compared on the games'
    * dates: a review whose game the analysis no longer carries is not a
@@ -108,7 +131,7 @@ export class FilmComponent {
 
   protected readonly model = computed<FilmModel | undefined>(() => {
     const r = this.review();
-    return r ? buildFilm(r, this.game(), this.timeline(), this.previous(), this.opponent()) : undefined;
+    return r ? buildFilm(r, this.game(), this.timeline(), this.previous(), this.opponent(), this.recording()) : undefined;
   });
 
   /**
@@ -177,7 +200,16 @@ export class FilmComponent {
   /** When Escape was last pressed, for the second-press rule; 0 once it has been spent. */
   private lastEscapeAt = 0;
   private wanted: string | null = null;
-  private placed = false;
+  /**
+   * Whether the url's ?c has been resolved onto a chapter yet. A signal, not a
+   * plain field (12 Sep 2026): the chapter also goes back *into* the url, and
+   * that write has to wait for this one to happen — with two reads outstanding
+   * a deep link's placement lands a beat later, and the url writer, running
+   * meanwhile on chapter 0, replaced ?c=map with ?c=title and then skipped its
+   * own correction, because the snapshot it compares against still read "map"
+   * while that navigation was in flight.
+   */
+  private readonly placed = signal(false);
   /** The card's write happens once a visit, and only on walking onto it from the chapter before. */
   private cardReached = false;
   /** True while the chapter on stage is fading out; a move during it lands without a second fade. */
@@ -199,17 +231,31 @@ export class FilmComponent {
       void this.timelines.load(r.matchId);
     });
 
+    // And the recording, on the same road but for every game, whatever tier
+    // the review came down. It is deliberately not gated on `review.recorded`:
+    // that field arrived with review version 7, so a version 6 review of a
+    // recorded game carries nothing to gate on, and gating would have dropped
+    // the frames chapter in silence on exactly the games the recorder exists
+    // for. A game with no recording costs one read that answers null and is
+    // remembered for the session.
+    effect(() => {
+      const id = this.matchId();
+      if (!id || this.recordings.known().has(id)) return;
+      void this.recordings.load(id);
+    });
+
     // ?c picks the chapter on arrival: an index, or a kind such as "seat".
     effect(() => {
       const m = this.model();
-      if (!m || this.placed) return;
-      // The chapter list shifts when the timeline lands (the board gives way to the tape and the map), so a kind
-      // is only resolved once the list is final: any ?c=<kind> waits for the timeline, not only the tape and the
-      // map (10 Sep 2026, second review: ?c=draft used to land on the draft and then find The one thing on stage).
-      // The title card, chapter 0, is what shows meanwhile and needs no timeline.
+      if (!m || this.placed()) return;
+      // The chapter list shifts when the timeline lands (the board gives way to the tape and the map) and again when
+      // the recording does (the frames appear), so a kind is only resolved once the list is final: any ?c=<kind>
+      // waits for both reads, not only the tape and the map (10 Sep 2026, second review: ?c=draft used to land on
+      // the draft and then find The one thing on stage). The title card, chapter 0, is what shows meanwhile and
+      // waits for nothing.
       const kind = this.wanted;
-      if (kind && !/^\d+$/.test(kind) && this.timelinePending()) return;
-      this.placed = true;
+      if (kind && !/^\d+$/.test(kind) && this.pending()) return;
+      this.placed.set(true);
       const i = this.resolveChapter(m, kind);
       untracked(() => void this.go(i));
     });
@@ -225,17 +271,19 @@ export class FilmComponent {
         if (first) return;
         this.readQuery();
         this.seekRequest.set(null);
-        this.placed = false;
+        this.placed.set(false);
         this.cardReached = false;
         this.chapter.set(0);
       });
     });
 
-    // The chapter goes back into the url and this browser, so a link and the poster both know where the film is.
+    // The chapter goes back into the url and this browser, so a link and the poster both know where the film is. It
+    // waits for the url's own ?c to be resolved first: until then the chapter on the signal is the title card, and
+    // writing that would overwrite the link the reader arrived on before it has been read.
     effect(() => {
       const m = this.model();
       const i = this.chapter();
-      if (!m) return;
+      if (!m || !this.placed()) return;
       const kind = m.chapters[i]?.kind;
       untracked(() => {
         if (kind && this.route.snapshot.queryParamMap.get('c') !== kind) {

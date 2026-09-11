@@ -88,7 +88,10 @@ const LOWER_THIRD_DELAY_MS = 560;
               <span class="film-verdict" [class.is-good]="t.lowerThird.compVerdict === 'as drafted'" [class.is-bad]="t.lowerThird.compVerdict === 'off plan'" [appTip]="t.lowerThird.compWhy || 'Whether the comp did what its game plan expected'">
                 {{ t.lowerThird.compName ? t.lowerThird.compName + ': ' : 'Comp: ' }}{{ t.lowerThird.compVerdict }}
               </span>
-              <span class="tag film-tier">{{ t.lowerThird.tier === 'timeline' ? 'From the timeline' : 'Totals only' }}</span>
+              <!-- Which road the review came down, in the words reviewSource gives it (12 Sep 2026). The card used to print a tier
+                   ternary of its own, so a game the recorder had walked minute by minute was labelled "Totals only" here while
+                   the panel beside it said "From the recorder". One function, one answer. -->
+              <span class="tag film-tier" [appTip]="t.lowerThird.source.tip">{{ t.lowerThird.source.tag }}</span>
             </div>
           </div>
         }

@@ -51,10 +51,10 @@
       @for (ch of m.chapters; track ch.kind; let i = $index) {
         <section class="film-chapter" [class.is-current]="i === chapter()" [attr.data-index]="i" [attr.aria-label]="ch.title">
           @if (narrow() || i === chapter()) {
-            @if (i > 0 && timelinePending()) {
+            @if (i > 0 && pending()) {
               <div class="film-frame">
                 <p class="film-kicker"><span class="film-kicker-n">{{ i + 1 }} / {{ m.chapters.length }}</span>{{ ch.title }}</p>
-                <p class="film-wait"><span class="btn-spinner" aria-hidden="true"></span> Reading the timeline…</p>
+                <p class="film-wait"><span class="btn-spinner" aria-hidden="true"></span> {{ pendingLine() }}</p>
               </div>
             } @else {
               @switch (ch.kind) {
@@ -70,6 +70,10 @@
                 @case ('board') {
                   <app-film-board [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()" [earlier]="calls()?.['board']"
                                   (answered)="onAnswered($event)" (next)="go(i + 1)" (back)="go(i - 1)" />
+                }
+                @case ('strip') {
+                  <app-film-strip [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [active]="i === chapter()" [closeTick]="escapeTick()"
+                                  (escaped)="onEscaped()" (next)="go(i + 1)" (back)="go(i - 1)" />
                 }
                 @case ('map') {
                   <app-film-map [model]="m" [kicker]="ch.title" [index]="i" [count]="m.chapters.length" [closeTick]="escapeTick()"

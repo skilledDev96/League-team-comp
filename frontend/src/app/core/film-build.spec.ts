@@ -1,8 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { AnalysisGame, GameReview, MatchTimeline, TeamObjectives, TimelineDeath } from '../models/team.models';
-import { buildFilm, FILM_CHAPTER_COUNT, framesOf, lessonCalls, optionsOf, placeAt, placementNote, placeOurDeath, railGroups, reelTallyOf, splitOptions, tapeEventsOf, wardsAt, wardsOf } from './film-build';
+import { AnalysisGame, GameReview, MatchTimeline, ReplayDeathState, ReplayRecording, TeamObjectives, TimelineDeath } from '../models/team.models';
+import {
+  buildFilm,
+  buildStrip,
+  FILM_CHAPTER_COUNT,
+  framesOf,
+  lessonCalls,
+  optionsOf,
+  placeAt,
+  placementNote,
+  placeOurDeath,
+  railGroups,
+  reelTallyOf,
+  splitOptions,
+  tapeEventsOf,
+  wardsAt,
+  wardsOf
+} from './film-build';
 import { styleFor } from './film-style';
 import { mvpSeatOf } from './game-mvp';
+import { deathLine } from './replay-lines';
+import { reviewSource } from './review-view';
 import { objectivePit, regionFor, riotToPercent, unitsToPercent } from './rift-zones';
 import { seedOf } from './seed';
 
@@ -158,9 +176,11 @@ describe('buildFilm on the timeline tier', () => {
     expect(film.seed).toBe(360062704);
     expect(film.tier).toBe('timeline');
     expect(film.board).toBeUndefined();
-    // A version 3 review wrote no draft, so there is no draft chapter; the fullest film has one more.
+    // A version 3 review wrote no draft, so there is no draft chapter, and no
+    // recorder walked this game, so there are no frames: the fullest film has two more.
     expect(film.draft).toBeUndefined();
-    expect(FILM_CHAPTER_COUNT).toBe(7);
+    expect(film.strip).toBeUndefined();
+    expect(FILM_CHAPTER_COUNT).toBe(8);
   });
 
   it('carries the style drawn from the seed and the result, and another id draws another look', () => {
@@ -209,8 +229,12 @@ describe('buildFilm on the timeline tier', () => {
       compName: 'Front to back',
       compVerdict: 'off plan',
       compWhy: 'The comp wanted a slow game and the fights came early.',
-      tier: 'timeline'
+      tier: 'timeline',
+      // The tag is `reviewSource`'s, never a ternary of the film's own, so the
+      // card and the review panel beside it cannot label one game two ways.
+      source: { tag: reviewSource(review).tag, tip: reviewSource(review).tip }
     });
+    expect(film.title.lowerThird.source.tag).toBe('From the timeline');
   });
 
   it('asks what decided the game with the right theme among four, never another work-on theme', () => {
@@ -1132,6 +1156,210 @@ describe('buildFilm on the replay tier', () => {
   });
 });
 
+// ---- The recorded tier: the strip ----------------------------------------------
+//
+// A custom game the local recorder walked (12 Sep 2026). A recording is keyed
+// by the replay's own dashed id, which is why these fixtures are not the
+// underscored match id the rest of this file uses.
+
+const RECORDED_ID = 'EUW1-7977592156';
+
+/** A frame the recorder took: document ids only, which is the whole point of the strip's shape. */
+const shot = (sec: number, kind: string, label: string, extra: Record<string, unknown> = {}) => ({ sec, kind, label, docId: `${RECORDED_ID}__${sec}`, ...extra });
+
+/** The two seconds leading into a moment, earliest first, as the recorder files them. */
+const runUp = (sec: number) => [`${RECORDED_ID}__${sec}__2`, `${RECORDED_ID}__${sec}__1`];
+
+/** One of the ten on a board. Ours and theirs differ by one flag and nothing else; the champion comes off the seats. */
+const held = (seat: string, ours: boolean, extra: Record<string, unknown> = {}) => ({ seat, ours, level: 9, cs: 120, items: ['Kraken Slayer', 'Berserker’s Greaves'], ...extra });
+
+const held10 = (sec: number, seat: string): ReplayDeathState =>
+  ({
+    sec,
+    seat,
+    // Their five first and out of lane order, the way a recording made from the red side lists them.
+    players: [held('Support', false), held('ADC', false), held('Mid', false), held('Jungle', false, { dead: true, respawn: 12 }), held('Top', false), held('Support', true), held('ADC', true), held('Mid', true), held('Jungle', true), held('Top', true)]
+  }) as unknown as ReplayDeathState;
+
+/** The one thing the strip must never carry: a 700 KB picture in a computed rebuilt on every visit is a memory problem, not a matter of taste. */
+const BASE64 = `iVBORw0KGgoAAAANSUhEUgAA${'QUJDREVG'.repeat(20)}`;
+
+const recording = {
+  matchId: RECORDED_ID,
+  recordedAt: '2026-09-11T19:04:00.000Z',
+  recorderVersion: 3,
+  durationSec: 2053,
+  ourSide: 'blue',
+  seats: [
+    { seat: 'Top', champion: 'Ornn', ours: true, name: 'Ruan' },
+    { seat: 'Jungle', champion: 'Trundle', ours: true, name: 'Go10x' },
+    // The roster matched no Riot id to this seat, so the film has a champion and no person.
+    { seat: 'Mid', champion: 'Ahri', ours: true },
+    { seat: 'ADC', champion: 'Jinx', ours: true, name: 'Rhu' },
+    { seat: 'Support', champion: 'Leona', ours: true, name: 'Nia' },
+    { seat: 'Top', champion: 'Aatrox', ours: false },
+    // The recorder writes no name on a seat of theirs; this one is here to prove
+    // the strip would still not carry one if a document ever turned up with it.
+    { seat: 'Jungle', champion: 'LeeSin', ours: false, name: 'Enemy#EUW' },
+    { seat: 'Mid', champion: 'Syndra', ours: false },
+    { seat: 'ADC', champion: 'Caitlyn', ours: false },
+    { seat: 'Support', champion: 'Lulu', ours: false }
+  ],
+  samples: [],
+  events: [],
+  shots: [
+    // The picture itself rides in its own document; a `data` field on the ref would be a mistake, and one is here so the strip can be held to never copying it.
+    { ...shot(252, 'death', 'Rhu (Jinx) falls at 4:12', { seat: 'ADC', runUp: runUp(252) }), data: BASE64 },
+    shot(545, 'death', 'Nia (Leona) falls at 9:05', { seat: 'Support' }),
+    shot(760, 'death', 'Ruan (Ornn) falls at 12:40', { seat: 'Top', runUp: runUp(760) }),
+    shot(1200, 'objective', 'their dragon (infernal) at 20:00'),
+    shot(2053, 'end', 'Game end at 34:13')
+  ],
+  // The death at 12:42 is the frame filed at 12:40: the clocks drift a second between the read and the render.
+  deaths: [held10(252, 'ADC'), held10(545, 'Support'), held10(762, 'Top'), held10(1104, 'Mid')],
+  bytes: 1
+} as unknown as ReplayRecording;
+
+const recordedReview = { ...review, matchId: RECORDED_ID, tier: 'endOfGame', recorded: true } as unknown as GameReview;
+const recordedGame = { ...game, matchId: RECORDED_ID } as AnalysisGame;
+
+describe('the strip: what the recorder saw', () => {
+  const film = buildFilm(recordedReview, recordedGame, null, null, 'MOSS 2', recording);
+  const strip = film.strip!;
+
+  it('puts the frames after the board on a recorded game, and after the map when a game carries a timeline as well', () => {
+    expect(film.chapters.map((c) => c.kind)).toEqual(['title', 'board', 'strip', 'one-thing', 'seat', 'card']);
+    expect(film.chapters[2].title).toBe('The frames');
+    const draft = { verdict: 'The comp wanted a slow game and the fights came early.', swaps: [] };
+    const withDraft = buildFilm({ ...recordedReview, reviewVersion: 5, team: { ...review.team, draft } } as unknown as GameReview, recordedGame, null, null, 'MOSS 2', recording);
+    expect(withDraft.chapters.map((c) => c.kind)).toEqual(['title', 'board', 'strip', 'one-thing', 'draft', 'seat', 'card']);
+    // A Clash game can be recorded as well as timed, and the frames are pictures
+    // neither the tape nor the map has: that film is the fullest one there is.
+    const fullest = buildFilm({ ...review, reviewVersion: 5, team: { ...review.team, draft } } as unknown as GameReview, game, timeline, previous, 'MOSS 2', recording);
+    expect(fullest.chapters.map((c) => c.kind)).toEqual(['title', 'tape', 'map', 'strip', 'one-thing', 'draft', 'seat', 'card']);
+    expect(fullest.chapters).toHaveLength(FILM_CHAPTER_COUNT);
+  });
+
+  it('shows no chapter at all without a recording, and none for a run that came back with nothing', () => {
+    const none = buildFilm(recordedReview, recordedGame, null, null, 'MOSS 2');
+    expect(none.strip).toBeUndefined();
+    expect(none.chapters.map((c) => c.kind)).toEqual(['title', 'board', 'one-thing', 'seat', 'card']);
+    expect(buildFilm(recordedReview, recordedGame, null, null, 'MOSS 2', null).strip).toBeUndefined();
+    // No deaths and no frames is nothing honest to show, and an empty chapter on every film is worse than none.
+    const nothing = { ...recording, shots: [], deaths: [] } as unknown as ReplayRecording;
+    expect(buildStrip(nothing)).toBeUndefined();
+    expect(buildFilm(recordedReview, recordedGame, null, null, 'MOSS 2', nothing).chapters.map((c) => c.kind)).not.toContain('strip');
+  });
+
+  it('walks the moments in time order, each one’s frames earliest first and the moment last', () => {
+    expect(strip.moments.map((m) => m.key)).toEqual(['s:252', 's:545', 's:760', 's:1104', 's:1200', 's:2053']);
+    expect(strip.moments.map((m) => m.clock)).toEqual(['4:12', '9:05', '12:40', '18:24', '20:00', '34:13']);
+    expect(strip.moments.map((m) => m.minute)).toEqual([4, 9, 12, 18, 20, 34]);
+    expect(strip.moments.map((m) => m.kind)).toEqual(['death', 'death', 'death', 'death', 'objective', 'end']);
+    expect(strip.moments[0].frames).toEqual([`${RECORDED_ID}__252__2`, `${RECORDED_ID}__252__1`, `${RECORDED_ID}__252`]);
+    expect(strip.moments[1].frames).toEqual([`${RECORDED_ID}__545`]);
+    // A death the run kept no picture of is a moment all the same: the board and the sentence are what it has.
+    expect(strip.moments[3].frames).toEqual([]);
+    expect(strip.moments[3].label).toBe('Ahri falls at 18:24');
+    expect(strip.moments[3].board).toHaveLength(10);
+    expect(strip.recordedOn).toBe('2026-09-11T19:04:00.000Z');
+    expect(strip.opening).toBe('4 deaths, three frames on the two that mattered.');
+    expect(strip.caveat).toContain('two seconds before the death');
+    expect(strip.boards).toBe(true);
+    expect(strip.pictures).toBe(true);
+  });
+
+  it('reads the board ours first and in lane order, with the seat that fell marked and anyone already down carrying their timer', () => {
+    const rows = strip.moments[0].board!;
+    expect(rows.map((r) => `${r.ours ? 'us' : 'them'} ${r.seat}`)).toEqual(['us Top', 'us Jungle', 'us Mid', 'us ADC', 'us Support', 'them Top', 'them Jungle', 'them Mid', 'them ADC', 'them Support']);
+    expect(rows.filter((r) => r.victim).map((r) => r.seat)).toEqual(['ADC']);
+    expect(rows[3]).toEqual({ seat: 'ADC', ours: true, champion: 'Jinx', name: 'Rhu', level: 9, cs: 120, items: ['Kraken Slayer', 'Berserker’s Greaves'], victim: true });
+    const down = rows.filter((r) => r.dead);
+    expect(down.map((r) => [r.seat, r.ours, r.respawn])).toEqual([['Jungle', false, 12]]);
+    // Alive is the absence of the key, never a false, exactly as it is stored.
+    expect(rows.filter((r) => 'dead' in r)).toHaveLength(1);
+    // Our Mid is a champion with no person against it, because the roster matched none.
+    expect(rows[2]).toEqual({ seat: 'Mid', ours: true, champion: 'Ahri', level: 9, cs: 120, items: ['Kraken Slayer', 'Berserker’s Greaves'] });
+  });
+
+  it('keeps their five champions in seats: no name on a row of theirs, and no Riot id anywhere', () => {
+    const rows = strip.moments.flatMap((m) => m.board ?? []);
+    expect(rows).toHaveLength(40);
+    const theirs = rows.filter((r) => !r.ours);
+    expect(theirs).toHaveLength(20);
+    for (const row of theirs) expect('name' in row).toBe(false);
+    expect(theirs.map((r) => r.champion)).toContain('LeeSin');
+    const json = JSON.stringify(strip);
+    expect(json).not.toContain('Enemy');
+    expect(json).not.toMatch(RIOT_TAG);
+  });
+
+  it('carries document ids and never a picture', () => {
+    const json = JSON.stringify(film.strip);
+    expect(json).not.toContain('iVBORw0KGgo');
+    // Nothing in a strip is a long unbroken run of base64 characters; every sentence in it has spaces.
+    expect(json).not.toMatch(/[A-Za-z0-9+/]{60,}={0,2}/);
+    for (const id of strip.moments.flatMap((m) => m.frames)) expect(id).toMatch(/^EUW1-7977592156__\d+(__\d+)?$/);
+  });
+
+  it('gives each death the sentence `deathLine` writes for that very death', () => {
+    expect(strip.moments.filter((m) => m.line).map((m) => m.line)).toEqual(recording.deaths!.map(deathLine));
+    // The frame filed at 12:40 is the death at 12:42, and it is that death's
+    // sentence and that death's board: zipping two separately sorted lists by
+    // index is what would land each sentence on the wrong death.
+    expect(strip.moments[2].line).toBe(deathLine(recording.deaths![2]));
+    expect(strip.moments[2].seat).toBe('Top');
+    expect(strip.moments[2].board!.find((r) => r.victim)!.seat).toBe('Top');
+    expect(strip.moments[0].line).toBe(deathLine(recording.deaths![0]));
+    expect(strip.moments[0].line).not.toBe(strip.moments[1].line);
+  });
+
+  it('leaves an objective and the end with their frame alone', () => {
+    expect(strip.moments[4]).toEqual({ key: 's:1200', sec: 1200, minute: 20, clock: '20:00', kind: 'objective', label: 'their dragon (infernal) at 20:00', frames: [`${RECORDED_ID}__1200`] });
+    expect(strip.moments[5].kind).toBe('end');
+    expect(strip.moments[5].board).toBeUndefined();
+    expect(strip.moments[5].line).toBeUndefined();
+  });
+
+  it('labels a recorded game in the review panel’s own words, never off the tier', () => {
+    expect(film.title.lowerThird.source).toEqual({ tag: 'From the recorder', tip: reviewSource(recordedReview).tip });
+    expect(film.title.lowerThird.tier).toBe('endOfGame');
+    // The same review without the flag is the replay tier's own answer, and the panel's too.
+    const totals = buildFilm({ ...recordedReview, recorded: false } as GameReview, recordedGame, null, null);
+    expect(totals.title.lowerThird.source.tag).toBe('Totals only');
+  });
+
+  it('is the same strip every time it is built', () => {
+    expect(JSON.stringify(buildFilm(recordedReview, recordedGame, null, null, 'MOSS 2', recording))).toBe(JSON.stringify(film));
+    expect(JSON.stringify(buildStrip(recording))).toBe(JSON.stringify(strip));
+  });
+
+  it('shows the frames alone on a recording made before the boards were kept', () => {
+    const { deaths: _deaths, ...v1 } = recording as unknown as Record<string, unknown>;
+    const strip1 = buildStrip({ ...v1, recorderVersion: 1 } as unknown as ReplayRecording)!;
+    expect(strip1.boards).toBe(false);
+    expect(strip1.pictures).toBe(true);
+    expect(strip1.moments).toHaveLength(5);
+    expect(strip1.moments.every((m) => m.board === undefined && m.line === undefined)).toBe(true);
+    expect(strip1.moments.map((m) => m.frames.length)).toEqual([3, 1, 3, 1, 1]);
+    expect(strip1.opening).toBe('5 moments, three frames on the two that mattered.');
+    expect(strip1.caveat).toContain('recorded before the boards were kept');
+  });
+
+  it('shows the boards alone when the client would not hide the naming panels', () => {
+    const dark = { ...recording, shots: [] } as unknown as ReplayRecording;
+    const film2 = buildFilm(recordedReview, recordedGame, null, null, 'MOSS 2', dark);
+    expect(film2.chapters.map((c) => c.kind)).toEqual(['title', 'board', 'strip', 'one-thing', 'seat', 'card']);
+    const strip2 = film2.strip!;
+    expect(strip2.pictures).toBe(false);
+    expect(strip2.boards).toBe(true);
+    expect(strip2.moments.every((m) => m.frames.length === 0)).toBe(true);
+    // Every death is there in the recorder's own words, written the way it writes the label of a frame it did keep.
+    expect(strip2.moments.map((m) => m.label)).toEqual(['Rhu (Jinx) falls at 4:12', 'Nia (Leona) falls at 9:05', 'Ruan (Ornn) falls at 12:42', 'Ahri falls at 18:24']);
+    expect(strip2.opening).toBe('4 deaths, and what all ten were holding at each; this run kept no pictures.');
+  });
+});
+
 describe('the draft, again', () => {
   const enemies = [
     { position: 'UTILITY', champion: 'Lulu' },
@@ -1153,7 +1381,8 @@ describe('the draft, again', () => {
   it('adds the draft chapter right after the one thing, on the timeline tier and on a replay', () => {
     expect(film.chapters.map((c) => c.kind)).toEqual(['title', 'tape', 'map', 'one-thing', 'draft', 'seat', 'card']);
     expect(film.chapters[4].title).toBe('The draft, again');
-    expect(film.chapters).toHaveLength(FILM_CHAPTER_COUNT);
+    // No recorder walked this game, so it is one short of the fullest film.
+    expect(film.chapters).toHaveLength(FILM_CHAPTER_COUNT - 1);
     const replay = buildFilm({ ...v5, tier: 'endOfGame' } as GameReview, game, null, null);
     expect(replay.chapters.map((c) => c.kind)).toEqual(['title', 'board', 'one-thing', 'draft', 'seat', 'card']);
     expect(replay.draft).toBeDefined();

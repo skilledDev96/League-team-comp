@@ -9,6 +9,10 @@ import {
   MapZone,
   MatchTimeline,
   NO_POSITION,
+  ReplayDeathState,
+  ReplayRecording,
+  ReplaySeat,
+  ReplayShotRef,
   REVIEW_THEMES,
   ReviewLesson,
   ReviewMoment,
@@ -42,6 +46,9 @@ import {
   FilmOneThing,
   FilmPlacement,
   FilmSeat,
+  FilmStrip,
+  FilmStripMoment,
+  FilmStripRow,
   FilmTape,
   FilmTapeEvent,
   FilmTitle,
@@ -50,7 +57,8 @@ import {
   OBJECTIVE_GLYPHS
 } from './film-model';
 import { mvpSeatOf } from './game-mvp';
-import { askOf, playerStatLine, scoreline, ZONE_LABELS } from './review-view';
+import { deathLine } from './replay-lines';
+import { askOf, playerStatLine, reviewSource, scoreline, ZONE_LABELS } from './review-view';
 import { clusterSpot, laneSpot, objectivePit, placeDeath, PlaceDeathArgs, Point, regionFor, RiftSide, riotToPercent, unitsToPercent } from './rift-zones';
 import { FilmDeathOrder, styleFor } from './film-style';
 import { seedOf, shuffle } from './seed';
@@ -199,12 +207,19 @@ function buildTitle(review: GameReview, game: AnalysisGame | undefined, facts: G
   }
 
   const durationMin = game?.durationSec ? Math.round(game.durationSec / 60) : facts?.durationMin;
+  // Which road the review came down is asked once, of the same function the
+  // review panel asks (`reviewSource`), and the answer is carried rather than
+  // re-derived: the card's own tier ternary called a recorded game "Totals
+  // only" while the panel beside it said "From the recorder", and a second
+  // ternary here would drift again the next time a road is added.
+  const source = reviewSource(review);
   const lowerThird: FilmTitle['lowerThird'] = {
     date: game?.date ?? (Date.parse(review.reviewedAt) || 0),
     compName: review.compName,
     compVerdict: team.compVerdict,
     compWhy: team.compWhy,
-    tier: review.tier
+    tier: review.tier,
+    source: { tag: source.tag, tip: source.tip }
   };
   if (opponent) lowerThird.opponent = opponent;
   if (durationMin) lowerThird.durationMin = durationMin;
@@ -1132,6 +1147,208 @@ function buildBoard(review: GameReview, game: AnalysisGame | undefined): FilmBoa
   return { ...boardCountsOf(game, review.matchId), moments: (review.team.moments ?? []).map(momentOf) };
 }
 
+// ---- The recorded tier: the strip ----------------------------------------------
+//
+// What the local recorder saw, made into a chapter (12 Sep 2026). Riot has no
+// match and no timeline for a custom game, so a scrim or a tournament game
+// reaches the film room down this road or not at all — and a Clash game can
+// come down both, which is why the strip stands beside the tape and the map
+// rather than instead of them.
+//
+// Everything here carries **document ids and never a picture**. The model is
+// built inside a computed and rebuilt on every visit to the room, so a base64
+// frame parked in it would sit in the signal graph at up to 700 KB apiece;
+// the pictures are read one at a time, by id, as their thumbnails come into
+// view. Their side is a champion in a seat throughout, because that is all
+// the recording holds.
+
+/**
+ * How far a frame's second may sit from a death's and still be the same
+ * moment. Both are filed under the second the death happened at, so an exact
+ * match is the ordinary case; this is the allowance for a client clock that
+ * drifted between the read and the render, the board and the frame both being
+ * taken two seconds before the death and filed under it.
+ */
+const STRIP_MATCH_SEC = 2;
+
+/** Small counts that read as words in the strip's opening line; anything larger prints as a figure. */
+const STRIP_WORDS: Record<number, string> = { 1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five' };
+
+/** Said once over the whole strip: why a board is a beat behind the death it belongs to. */
+const STRIP_BOARD_CAVEAT =
+  'Every board is what the client showed two seconds before the death it belongs to — the same second that death’s frame is rendered from — so an item bought in the fight itself is not on it yet.';
+
+/** The same sentence for a recording made before the boards were kept: the frames are all there is of it. */
+const STRIP_FRAMES_CAVEAT = 'This game was recorded before the boards were kept, so the frames are all there is of it: what the ten were holding is only what a picture shows.';
+
+/** "18:24", the replay clock as the recorder prints it in its own labels. */
+function clockOf(sec: number): string {
+  const whole = Math.max(0, Math.round(Number.isFinite(sec) ? sec : 0));
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+}
+
+/** A seat by side and seat: the one place a row's champion, and our own player's name, come from. */
+const seatKey = (ours: boolean, seat: Role) => `${ours ? 'us' : 'them'}:${seat}`;
+
+function seatsBySide(seats: readonly ReplaySeat[] | undefined): Map<string, ReplaySeat> {
+  const by = new Map<string, ReplaySeat>();
+  for (const seat of seats ?? []) if (seat?.seat) by.set(seatKey(!!seat.ours, seat.seat), seat);
+  return by;
+}
+
+const figure = (value: unknown): number => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
+
+/**
+ * The ten at a death, ours first and then in lane order whatever order the
+ * client listed them in — a recording made from the red side lists their five
+ * first, and the board must read the same way on both sides. Their rows carry
+ * a champion in a seat and nothing else: there is no name of theirs in the
+ * recording to carry even if the rule allowed one.
+ */
+function stripRows(death: ReplayDeathState, seats: Map<string, ReplaySeat>): FilmStripRow[] {
+  return (death.players ?? [])
+    .filter((p) => !!p?.seat)
+    .map((p) => {
+      const ours = !!p.ours;
+      const seat = seats.get(seatKey(ours, p.seat));
+      const row: FilmStripRow = { seat: p.seat, ours, champion: seat?.champion ?? '', level: figure(p.level), cs: figure(p.cs), items: (p.items ?? []).filter((i) => !!i) };
+      if (ours && seat?.name) row.name = seat.name;
+      // `dead` and `respawn` are copied as they are stored: an absent key is someone alive, never a false.
+      if (p.dead) row.dead = true;
+      if (typeof p.respawn === 'number' && Number.isFinite(p.respawn)) row.respawn = p.respawn;
+      if (ours && p.seat === death.seat) row.victim = true;
+      return row;
+    })
+    .sort((a, b) => Number(b.ours) - Number(a.ours) || seatIndex(a.seat) - seatIndex(b.seat));
+}
+
+/** The recorder's own words for a death it kept no frame of, written the way `chooseShots` writes the label of one it did. */
+function deathLabel(death: ReplayDeathState, seats: Map<string, ReplaySeat>): string {
+  const seat = seats.get(seatKey(true, death.seat));
+  const who = seat?.champion ? (seat.name ? `${seat.name} (${seat.champion})` : seat.champion) : `our ${death.seat}`;
+  return capitalise(`${who} falls at ${clockOf(death.sec)}`);
+}
+
+/** A moment as the strip walks it: the frame the recorder took, the death it belongs to, or one without the other. */
+interface StripSource {
+  sec: number;
+  shot?: ReplayShotRef;
+  death?: ReplayDeathState;
+}
+
+function stripMoment(source: StripSource, key: string, seats: Map<string, ReplaySeat>): FilmStripMoment {
+  const { sec, shot, death } = source;
+  const moment: FilmStripMoment = {
+    key,
+    sec,
+    minute: Math.max(0, Math.floor(sec / 60)),
+    clock: clockOf(sec),
+    kind: shot?.kind ?? 'death',
+    label: (shot?.label ?? '').trim() || (death ? deathLabel(death, seats) : `A moment at ${clockOf(sec)}`),
+    // Earliest first and the moment last, which is the order it is read in:
+    // the two seconds leading in, then what it looked like as it happened. Ids
+    // only, and an empty one is left out rather than handed on as a document
+    // that will never be found — a frame the run dropped for size leaves none.
+    frames: shot ? [...(shot.runUp ?? []), shot.docId].filter((id) => typeof id === 'string' && !!id.trim()) : []
+  };
+  const seat = shot?.seat ?? death?.seat;
+  if (seat) moment.seat = seat;
+  if (death) {
+    moment.board = stripRows(death, seats);
+    // The sentence is `deathLine`'s, asked of the very death this moment holds:
+    // zipping the prompt's own list against these moments by index would land
+    // every sentence on the wrong death the moment one filter differed.
+    moment.line = deathLine(death);
+  }
+  return moment;
+}
+
+/**
+ * The line over the strip, every figure with its terms beside it: how many
+ * deaths the recorder read a board at, and how many moments it thought worth
+ * more than the one picture.
+ */
+function stripOpening(recording: ReplayRecording, moments: readonly FilmStripMoment[]): string {
+  const deaths = recording.deaths?.length ?? 0;
+  const head = deaths ? plural(deaths, 'death', 'deaths') : plural(moments.length, 'moment', 'moments');
+  const strips = moments.filter((m) => m.frames.length > 1).length;
+  const pictured = moments.filter((m) => m.frames.length > 0).length;
+  const widest = moments.reduce((most, m) => Math.max(most, m.frames.length), 0);
+  if (strips) return `${head}, ${STRIP_WORDS[widest] ?? widest} frames on the ${STRIP_WORDS[strips] ?? strips} that mattered.`;
+  if (pictured) return `${head}, one picture on ${plural(pictured, 'moment', 'moments')}.`;
+  return `${head}, and what all ten were holding at each; this run kept no pictures.`;
+}
+
+/**
+ * A recording as the film reads it: the moments the recorder kept pictures of,
+ * the board at each death of ours, and that death's own sentence.
+ *
+ * Undefined when there is nothing honest to show — no deaths and no shots — so
+ * a run that came back empty-handed simply has no chapter, rather than an empty
+ * one on every film of that game.
+ */
+export function buildStrip(recording: ReplayRecording): FilmStrip | undefined {
+  const shots = (recording.shots ?? []).filter((s) => !!s && Number.isFinite(s.sec));
+  const deaths = (recording.deaths ?? []).filter((d) => !!d && Number.isFinite(d.sec));
+  if (!shots.length && !deaths.length) return undefined;
+
+  const seats = seatsBySide(recording.seats);
+  const taken = new Set<ReplayDeathState>();
+  /**
+   * The death a frame of a death is of: the same second first, then the
+   * nearest within two. Each death is claimed once, because two of ours
+   * falling three seconds apart would otherwise both read as the first one's
+   * board — which is a real pairing, a 2v2 trade in the river makes it.
+   */
+  const claim = (sec: number): ReplayDeathState | undefined => {
+    const free = deaths.filter((d) => !taken.has(d));
+    const match =
+      free.find((d) => d.sec === sec) ??
+      free.filter((d) => Math.abs(d.sec - sec) <= STRIP_MATCH_SEC).sort((a, b) => Math.abs(a.sec - sec) - Math.abs(b.sec - sec) || a.sec - b.sec)[0];
+    if (match) taken.add(match);
+    return match;
+  };
+
+  const sources: StripSource[] = shots
+    .slice()
+    .sort((a, b) => a.sec - b.sec)
+    .map((shot) => {
+      const death = shot.kind === 'death' ? claim(shot.sec) : undefined;
+      return death ? { sec: shot.sec, shot, death } : { sec: shot.sec, shot };
+    });
+  // A death the recorder kept no frame of is a moment all the same: the client
+  // may have refused the pictures for the whole run, or this death may have
+  // fallen past the cap on them. The board and the sentence are what the
+  // chapter has then, and they are worth more than nothing.
+  for (const death of deaths.filter((d) => !taken.has(d))) sources.push({ sec: death.sec, death });
+
+  const perSecond = new Map<number, number>();
+  const moments = sources
+    .sort((a, b) => a.sec - b.sec || (a.shot ? 0 : 1) - (b.shot ? 0 : 1))
+    .map((source) => {
+      // `s:<sec>` is the key a later cut hangs a note on. The recorder keeps
+      // one picture a second, so the only way to two moments at one second is
+      // two of ours falling in it; those are numbered rather than left to
+      // collide, since a note on one would otherwise land on both.
+      const n = (perSecond.get(source.sec) ?? 0) + 1;
+      perSecond.set(source.sec, n);
+      return stripMoment(source, n === 1 ? `s:${source.sec}` : `s:${source.sec}:${n}`, seats);
+    });
+
+  return {
+    moments,
+    recordedOn: recording.recordedAt ?? '',
+    opening: stripOpening(recording, moments),
+    caveat: recording.deaths?.length ? STRIP_BOARD_CAVEAT : STRIP_FRAMES_CAVEAT,
+    boards: !!recording.deaths?.length,
+    // Whether the run wrote a picture at all. A client that will not confirm a
+    // naming panel off stops the pictures and keeps everything else, so the
+    // chapter shows the boards and the sentences rather than a row of
+    // thumbnails that would never load.
+    pictures: (recording.shots ?? []).some((s) => !!s?.docId)
+  };
+}
+
 /** The ledger's counts when the facts carry the rows but not the summary (a document written between versions). */
 function summarise(ledger: DeathVerdict[]): LedgerSummary {
   return {
@@ -1364,11 +1581,25 @@ const TAPE_CHAPTER: FilmChapter = { kind: 'tape', title: 'The tape' };
 const BOARD_CHAPTER: FilmChapter = { kind: 'board', title: 'The board' };
 const MAP_CHAPTER: FilmChapter = { kind: 'map', title: 'The map' };
 const DRAFT_CHAPTER: FilmChapter = { kind: 'draft', title: 'The draft, again' };
+const STRIP_CHAPTER: FilmChapter = { kind: 'strip', title: 'The frames' };
 
 /** How many chapters the fullest film has, for a line written before the model is built (the games row). */
-export const FILM_CHAPTER_COUNT = 7;
+export const FILM_CHAPTER_COUNT = 8;
 
-export function buildFilm(review: GameReview, game: AnalysisGame | undefined, timeline: MatchTimeline | null, previous: FilmPrevious | null, opponent?: string): FilmModel {
+/**
+ * `recording` is last on purpose (12 Sep 2026): a recorded game is the newest
+ * of the three roads and the rarest, so appending it leaves every existing
+ * caller — the page, the poster on the review panel, and the specs — reading
+ * exactly as it did.
+ */
+export function buildFilm(
+  review: GameReview,
+  game: AnalysisGame | undefined,
+  timeline: MatchTimeline | null,
+  previous: FilmPrevious | null,
+  opponent?: string,
+  recording?: ReplayRecording | null
+): FilmModel {
   const seed = seedOf(review.matchId);
   const facts = timeline?.facts;
   const title = buildTitle(review, game, facts, previous, opponent, seed);
@@ -1413,6 +1644,15 @@ export function buildFilm(review: GameReview, game: AnalysisGame | undefined, ti
   } else {
     model.board = buildBoard(review, game);
     if (model.board.tallies.length || model.board.moments.length) middle.push(BOARD_CHAPTER);
+  }
+  // The frames come after whatever the game's own data gave us — the board on a
+  // recorded custom game, the tape and the map on a Clash game that carries a
+  // timeline as well — because they are pictures of the same minutes told a
+  // second way, and neither tier has any of its own.
+  const strip = recording ? buildStrip(recording) : undefined;
+  if (strip) {
+    model.strip = strip;
+    middle.push(STRIP_CHAPTER);
   }
   // The draft sits right after the one thing (10 Sep 2026): what to try next time, before whose seat it lands on.
   const after: FilmChapter[] = model.draft ? [DRAFT_CHAPTER] : [];
