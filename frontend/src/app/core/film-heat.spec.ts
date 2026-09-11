@@ -5,8 +5,8 @@ import { buildHeat, HEAT_DEATH_R, HEAT_FULL_LIFE_SEC } from './film-heat';
 const scene = { could: [], killers: 2, executed: false, traded: 0, warded: false } as FilmDeathPin['scene'];
 
 const pins: FilmDeathPin[] = [
-  { key: 'd:4:ADC', sec: 252, minute: 4, seat: 'ADC', zone: 'bot', x: 85, y: 84, how: 'gank', could: ['ward'], line: '', read: 'avoidable', readLine: '', glyphs: [], scene },
-  { key: 'd:20:Support', sec: 1210, minute: 20, seat: 'Support', zone: 'river', x: 50, y: 50, how: 'fight', could: [], line: '', read: 'traded', readLine: '', glyphs: [], scene }
+  { key: 'd:4:ADC', sec: 252, minute: 4, seat: 'ADC', zone: 'bot', x: 85, y: 84, placed: 'zone', how: 'gank', could: ['ward'], line: '', read: 'avoidable', readLine: '', glyphs: [], scene },
+  { key: 'd:20:Support', sec: 1210, minute: 20, seat: 'Support', zone: 'river', x: 50, y: 50, placed: 'zone', how: 'fight', could: [], line: '', read: 'traded', readLine: '', glyphs: [], scene }
 ];
 
 const wards: FilmWard[] = [

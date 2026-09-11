@@ -11,8 +11,10 @@ import { AuthService } from '../../../services/auth.service';
 import { MotionService } from '../../../services/motion.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { ToastService } from '../../../services/toast.service';
+import { TourService } from '../../../services/tour.service';
 import { UiService } from '../../../services/ui.service';
 import { FilmGlyphComponent } from '../../../shared/film/film-glyph.component';
+import { MarkLegendComponent } from '../../../shared/film/mark-legend.component';
 import { clockText, FilmScrubberComponent } from '../../../shared/film/film-scrubber.component';
 import { PositionLabComponent } from '../../../shared/film/position-lab.component';
 import { RiftMapComponent, RiftToken } from '../../../shared/film/rift-map.component';
@@ -182,7 +184,7 @@ export function storedSpeedKey(): string | null {
  */
 @Component({
   selector: 'app-film-tape',
-  imports: [TooltipDirective, FilmFrameComponent, RiftMapComponent, FilmScrubberComponent, FilmGlyphComponent, PositionLabComponent],
+  imports: [TooltipDirective, FilmFrameComponent, RiftMapComponent, FilmScrubberComponent, FilmGlyphComponent, MarkLegendComponent, PositionLabComponent],
   template: `
     @let tape = model().tape;
     <app-film-frame [kicker]="kicker()" [index]="index()" [count]="count()" (next)="next.emit()" (back)="back.emit()">
@@ -215,7 +217,7 @@ export function storedSpeedKey(): string | null {
                 </button>
               }
             </div>
-            <aside class="film-tape-sheet" aria-live="polite">
+            <aside class="film-tape-sheet" data-tour="film-tape-sheet" aria-live="polite">
               @if (stop(); as s) {
                 @switch (s.kind) {
                   @case ('beat') {
@@ -299,7 +301,7 @@ export function storedSpeedKey(): string | null {
 
             @if (tape.beats.length) {
               <!-- The rail (10 Sep 2026): one chip a minute with the first beat's glyph and a count when the minute holds more; a tap opens the first and Continue walks the rest. A chip the tape will skip under a seat's view is dimmed. -->
-              <div class="film-rail">
+              <div class="film-rail" data-tour="film-tape-rail">
                 <ol class="list-clean film-beats" aria-label="The beats of this game, by minute">
                   @for (g of rail(); track g.minute) {
                     <li>
@@ -333,21 +335,25 @@ export function storedSpeedKey(): string | null {
             />
             <div class="film-tape-tools">
               <!-- The speed (10 Sep 2026, the lead: "make the timeline slower or adjustable"): four steps, the pick takes at once and is remembered per browser; the film's stock only says where it opens. -->
-              <div class="film-speed" role="group" aria-label="Tape speed" [appTip]="speedTip">
+              <div class="film-speed" data-tour="film-tape-speed" role="group" aria-label="Tape speed" [appTip]="speedTip">
                 @for (s of speeds; track s.key) {
                   <button type="button" class="view-btn" [class.active]="speed().key === s.key" [attr.aria-pressed]="speed().key === s.key" (click)="pickSpeed(s.key)">{{ s.label }}</button>
                 }
               </div>
               @if (hasFrames()) {
                 <!-- The layers (Part C, 10 Sep 2026): Everyone on by default, Vision off, both per visit. A timeline before version 3 carries neither, so the pills stay away rather than promise a layer the document cannot draw. -->
-                <span class="film-layers" role="group" aria-label="Layers on the Rift">
+                <span class="film-layers" data-tour="film-tape-layers" role="group" aria-label="Layers on the Rift">
                   <button type="button" class="view-btn film-layer-btn" [class.active]="showEveryone()" [attr.aria-pressed]="showEveryone()" appTip="Everyone on the Rift, moving between the minutes; approximate, positions once a minute" (click)="toggleEveryone()"><span class="material-symbols-rounded" aria-hidden="true">groups</span> Everyone</button>
                   <button type="button" class="view-btn film-layer-btn" [class.active]="showVision()" [attr.aria-pressed]="showVision()" appTip="Our wards and their sight, each where the placer stood at the nearest minute; approximate" (click)="toggleVision()"><app-film-glyph name="ward" /> Vision</button>
                 </span>
               }
               <span class="film-tape-tools-end">
+                <!-- Every mark on this square, with its sentence (11 Sep 2026, second fix pass): the objectives and the wards
+                     are drawn here and nowhere else, so this is where they have to be named. The is-up class opens the panel
+                     above the pill, since the tools row is the bottom of the column. -->
+                <app-mark-legend class="is-up" [surface]="marks()" data-tour="film-tape-marks" [(open)]="legendOpen" />
                 @if (hasFrames()) {
-                  <button type="button" class="view-btn film-lab-btn" [appTip]="labPillTip(t())" (click)="openLab()"><span class="material-symbols-rounded" aria-hidden="true">draw</span> {{ labPillWord(t()) }}</button>
+                  <button type="button" class="view-btn film-lab-btn" data-tour="film-tape-lab" [appTip]="labPillTip(t())" (click)="openLab()"><span class="material-symbols-rounded" aria-hidden="true">draw</span> {{ labPillWord(t()) }}</button>
                 }
                 <button type="button" class="view-btn film-full-btn" [class.active]="full()" [attr.aria-pressed]="full()" [appTip]="full() ? 'Back to the tape beside its sheet' : 'The Rift takes the stage; the sheet and the rail move into a drawer'" (click)="toggleFull()">
                   <span class="material-symbols-rounded" aria-hidden="true">{{ full() ? 'fullscreen_exit' : 'fullscreen' }}</span> {{ full() ? 'Exit full screen' : 'Full screen' }}
@@ -408,6 +414,8 @@ export class FilmTapeComponent {
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
   private readonly data = inject(TeamDataService);
+  /** Only read, never started here: the lab opens plainly while a tour walks, so the walk's ring is not stranded under the top layer. */
+  private readonly tours = inject(TourService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
@@ -457,6 +465,16 @@ export class FilmTapeComponent {
   /** The layers on the Rift (Part C, 10 Sep 2026): everyone on the map, on by default; our vision, off by default. Per visit. */
   protected readonly showEveryone = signal(true);
   protected readonly showVision = signal(false);
+  /** The marks panel, held here so the page's Escape can fold it before the drawer or the full screen. Per visit. */
+  protected readonly legendOpen = signal(false);
+  /**
+   * What the tape's Rift draws, for the marks panel (11 Sep 2026, second fix
+   * pass): the deaths of ours and the reads they carry on the beat cards, the
+   * dots of theirs and the fights, the objective glyphs — which live here and
+   * nowhere else — and our wards with their sight when the timeline kept them.
+   * No heat: that layer is the map chapter's.
+   */
+  protected readonly marks = computed(() => ({ reads: true, theirs: true, objectives: true, vision: this.hasFrames() }));
   /** The second the position lab is open on; null while it is closed. Per visit. */
   protected readonly lab = signal<number | null>(null);
   private dwellTimer: ReturnType<typeof setTimeout> | undefined;
@@ -642,11 +660,21 @@ export class FilmTapeComponent {
 
     // The lab's dialog goes into the top layer as soon as it is on the page, and comes out with it. A browser without
     // `showModal` (jsdom in the specs) leaves the element where it stands, which the specs read the same way.
+    //
+    // The one exception (11 Sep 2026): while a tour is walking the page it opens
+    // with `show()` instead. The tour's ring and card are a fixed layer at the app
+    // root, and nothing painted at any z-index reaches over the browser's top
+    // layer — the four lab steps would run behind the dialog, invisible. Opened
+    // plainly the overlay still covers the screen (it is `position: fixed` with
+    // its own ground) and the tour is on top of it, which is what the walk needs.
     afterRenderEffect((onCleanup) => {
       const dialog = this.labDialog()?.nativeElement;
       if (!dialog) return;
+      const walking = !!this.tours.active();
       untracked(() => {
-        if (!dialog.open && typeof dialog.showModal === 'function') dialog.showModal();
+        if (dialog.open) return;
+        if (walking && typeof dialog.show === 'function') dialog.show();
+        else if (typeof dialog.showModal === 'function') dialog.showModal();
       });
       onCleanup(() => {
         if (dialog.open && typeof dialog.close === 'function') dialog.close();
@@ -705,6 +733,12 @@ export class FilmTapeComponent {
         // The lab first (Part C, 10 Sep 2026): it stands over everything else, so it is what an Escape means while it is open.
         if (this.lab() !== null) {
           this.closeLab();
+          this.escaped.emit();
+          return;
+        }
+        // Then the marks panel, the way the map chapter folds its own: one press, one thing (11 Sep 2026, second fix pass).
+        if (this.legendOpen()) {
+          this.legendOpen.set(false);
           this.escaped.emit();
           return;
         }
@@ -908,6 +942,8 @@ export class FilmTapeComponent {
     this.drawer.set(true);
   }
 
+  // The marks panel is not folded here, unlike the map's: the tape keeps its pill in the tools row under the scrubber,
+  // which the drawer never hides, so a panel open over it is still on the screen when the drawer goes (11 Sep 2026).
   protected closeDrawer(): void {
     this.drawer.set(false);
   }

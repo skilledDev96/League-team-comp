@@ -15,6 +15,17 @@
       <span class="material-symbols-rounded" aria-hidden="true">{{ motion.reduced() ? 'motion_photos_off' : 'motion_photos_on' }}</span>
       {{ motion.reduced() ? 'Still' : 'Motion' }}
     </button>
+    <!--
+      The film's own "Show me around" (11 Sep 2026, the lead: "add a small tutorial for the map and lab
+      to see what can be done"). Not `<app-tour-pill>`: that one also carries the Edit mode reminder,
+      which has no business on a film. It shows only when this film has a map or a tape — with no
+      timeline the walk's anchors are not on the page at all — and stands down while a tour is running.
+    -->
+    @if (hasWalk() && !tours.active()) {
+      <button type="button" class="view-btn film-bar-tour" data-tour="film-tour-pill" appTip="A walk through the map, the tape and the lab" (click)="tours.start('film-room')">
+        <span class="material-symbols-rounded" aria-hidden="true">tour</span> <span class="film-bar-tour-word">Show me around</span>
+      </button>
+    }
   </header>
 
   @if (!review()) {
@@ -26,10 +37,11 @@
       }
     </div>
   } @else if (model(); as m) {
-    <ol class="list-clean film-dots" aria-label="Chapters">
+    <ol class="list-clean film-dots" data-tour="film-dots" aria-label="Chapters">
       @for (ch of m.chapters; track ch.kind; let i = $index) {
         <li>
-          <button type="button" class="film-dot" [class.active]="i === chapter()" [attr.aria-current]="i === chapter() ? 'step' : null"
+          <!-- Each dot names itself for the tour engine (`film-dot-map`, `film-dot-tape`…): the deck renders one chapter at a time, so a step about the map has to walk the deck there before its anchor exists. -->
+          <button type="button" class="film-dot" [attr.data-tour]="'film-dot-' + ch.kind" [class.active]="i === chapter()" [attr.aria-current]="i === chapter() ? 'step' : null"
                   [attr.aria-label]="ch.title" [appTip]="ch.title" (click)="go(i)"></button>
         </li>
       }

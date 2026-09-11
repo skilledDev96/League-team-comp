@@ -5,10 +5,12 @@ import { environment } from '../../../../environments/environment';
 import { FilmBeat, FilmDeathPin, FilmFrame, FilmModel, FilmTape, FilmWard } from '../../../core/film-model';
 import { FilmStyle, styleFor, TAPE_SPEED_STORAGE_KEY } from '../../../core/film-style';
 import { FilmClock } from '../../../core/film-clock';
+import { tourById } from '../../../core/tours';
 import { Role, ROLES } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { ToastService } from '../../../services/toast.service';
+import { TourService } from '../../../services/tour.service';
 import { beatIsAbout, dwellMsFor, FilmTapeComponent, isDeathBeat, LAB_DEATH_WINDOW_SEC, labSceneAt, neighbourBeat } from './film-tape.component';
 
 // Local mode, the way the film page's spec does it: no listeners, no backend.
@@ -36,19 +38,19 @@ const tape: FilmTape = {
 };
 
 const pin = {
-  key: 'd:24:Jungle', sec: 1473, minute: 24, seat: 'Jungle', name: 'Go10x', champion: 'Trundle', zone: 'theirJungle', x: 70, y: 30, how: 'solo', could: ['position'],
+  key: 'd:24:Jungle', sec: 1473, minute: 24, seat: 'Jungle', name: 'Go10x', champion: 'Trundle', zone: 'theirJungle', x: 70, y: 30, placed: 'zone', how: 'solo', could: ['position'],
   line: 'Minute 24: Trundle alone on their side.', read: 'avoidable', readLine: 'Avoidable: alone on their side of the map.', glyphs: ['footsteps'],
   scene: { could: ['position'], killers: 1, executed: false, traded: 0, warded: false }
 } as FilmDeathPin;
 
 /** A second death, Rhu's at 9:00, folded into a fight; and Go10x's at 9:15, which the hand-built tape keeps as a beat of its own (the build would fold it; the rail's grouping is what is under test). */
 const rhuPin = {
-  key: 'd:9:ADC', sec: 540, minute: 9, seat: 'ADC', name: 'Rhu', champion: 'Jinx', zone: 'river', x: 50, y: 50, how: 'fight', could: ['ward'],
+  key: 'd:9:ADC', sec: 540, minute: 9, seat: 'ADC', name: 'Rhu', champion: 'Jinx', zone: 'river', x: 50, y: 50, placed: 'zone', how: 'fight', could: ['ward'],
   line: 'Minute 9: Jinx in a fight in the river with no ward nearby.', read: 'avoidable', readLine: 'Avoidable: no ward had gone down nearby and three came in.', glyphs: ['ward-off'],
   scene: { could: ['ward'], killers: 3, executed: false, traded: 0, warded: false }
 } as FilmDeathPin;
 const goPin = {
-  key: 'd:9:Jungle', sec: 555, minute: 9, seat: 'Jungle', name: 'Go10x', champion: 'Trundle', zone: 'river', x: 52, y: 48, how: 'fight', could: [],
+  key: 'd:9:Jungle', sec: 555, minute: 9, seat: 'Jungle', name: 'Go10x', champion: 'Trundle', zone: 'river', x: 52, y: 48, placed: 'zone', how: 'fight', could: [],
   line: 'Minute 9: Trundle in a fight in the river.', read: 'traded', readLine: 'Traded: one of theirs fell in the same fight.', glyphs: ['swords'],
   scene: { could: [], killers: 3, executed: false, traded: 1, warded: false }
 } as FilmDeathPin;
@@ -577,6 +579,29 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmTapeComponent', () => 
     expect(escaped).toBe(3);
   });
 
+  it('names its own marks, the objectives and the wards among them, and folds the panel on the first Escape', () => {
+    // 11 Sep 2026, second fix pass: the objective glyphs and the ward marks are drawn here and nowhere else, so the
+    // legend that describes them has to hang here; the map chapter's panel no longer claims marks its square lacks.
+    const { fixture, root } = mount(tape);
+    let escaped = 0;
+    fixture.componentInstance.escaped.subscribe(() => escaped++);
+    const pill = root.querySelector<HTMLButtonElement>('.film-tape-tools .mark-legend-btn')!;
+    expect(pill.tagName).toBe('BUTTON');
+    expect(root.querySelector('.mark-legend.is-up')).not.toBeNull();
+    pill.click();
+    fixture.detectChanges();
+    const rows = Array.from(root.querySelectorAll('.mark-legend-row')).map((r) => text(r));
+    expect(rows.some((r) => r.startsWith('An objective'))).toBe(true);
+    expect(rows.some((r) => r.startsWith('A death of theirs'))).toBe(true);
+    // No heat wash: that layer is the map chapter's.
+    expect(rows.some((r) => r.startsWith('Where our wards stood'))).toBe(false);
+    // One press, one thing: the panel goes first and the tape stays where it is.
+    fixture.componentRef.setInput('closeTick', 1);
+    fixture.detectChanges();
+    expect(root.querySelector('.mark-legend-panel')).toBeNull();
+    expect(escaped).toBe(1);
+  });
+
   it('says so without a timeline', () => {
     const { root } = mount(undefined);
     expect(text(root.querySelector('.film-wait'))).toBe('No timeline read for this game, so there is no tape.');
@@ -746,6 +771,41 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmTapeComponent', () => 
     fixture.detectChanges();
     expect(root.querySelector('.film-tape.is-full.is-drawer-closed')).not.toBeNull();
     expect(escaped).toBe(2);
+  });
+
+  it('names the anchors the walk points at, and opens the lab plainly while a tour is running so the ring is not stranded under the top layer (11 Sep 2026)', () => {
+    const { fixture, root } = mount(v3Tape);
+    for (const a of ['film-tape-sheet', 'film-tape-rail', 'film-tape-speed', 'film-tape-layers', 'film-tape-lab']) {
+      expect(root.querySelector(`[data-tour="${a}"]`), a).not.toBeNull();
+    }
+    // A dialog opened with showModal goes into the browser's top layer, which nothing
+    // painted at any z-index reaches over; the tour's ring and card would run behind it.
+    // jsdom carries neither method, so the two are stood up here and taken down after.
+    const proto = HTMLDialogElement.prototype as unknown as Record<string, unknown>;
+    const had = { show: proto['show'], showModal: proto['showModal'], close: proto['close'] };
+    const show = vi.fn(function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    });
+    const showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    });
+    Object.assign(proto, { show, showModal, close: vi.fn() });
+    try {
+      const tours = TestBed.inject(TourService);
+      tours.active.set(tourById('film-room')!);
+      fixture.componentRef.setInput('seekTo', { sec: 1473, n: 1, lab: true });
+      fixture.detectChanges();
+      expect(root.querySelector('.film-lab-overlay')).not.toBeNull();
+      expect(showModal).not.toHaveBeenCalled();
+      expect(show).toHaveBeenCalledTimes(1);
+      // And the lab carries the anchors the walk's last steps name.
+      for (const a of ['film-lab-tools', 'film-lab-marks', 'film-lab-legend', 'film-lab-reading', 'film-lab-close']) {
+        expect(root.querySelector(`[data-tour="${a}"]`), a).not.toBeNull();
+      }
+      tours.active.set(null);
+    } finally {
+      Object.assign(proto, had);
+    }
   });
 
   it('opens the lab where the map\'s Work on this second asks, on the death\'s own second, standing', () => {

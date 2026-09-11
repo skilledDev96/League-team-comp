@@ -204,7 +204,7 @@ describe('buildMatchTimeline', () => {
     const frames = plainFrames(12);
     put(frames, 6, [kill(1, 6, 2000, 9000, [2])]);
     const t = build(frames)!;
-    expect(t.theirDeaths).toEqual([{ sec: 360, minute: 6, zone: 'top', ourInvolved: ['Top', 'Jungle'] }]);
+    expect(t.theirDeaths).toEqual([{ sec: 360, minute: 6, zone: 'top', ourInvolved: ['Top', 'Jungle'], x: 2000, y: 9000 }]);
     expect(t.firsts.blood).toEqual({ minute: 6, side: 'us' });
     expect(JSON.stringify(t)).not.toContain('Top2');
     expect(JSON.stringify(t)).not.toContain('p6');
@@ -371,9 +371,10 @@ describe('buildMatchTimeline', () => {
 
   it('stamps the version and knows a stale document', () => {
     const t = build(plainFrames())!;
-    expect(TIMELINE_VERSION).toBe(3);
+    expect(TIMELINE_VERSION).toBe(4);
     expect(t.timelineVersion).toBe(TIMELINE_VERSION);
     expect(isTimelineCurrent(t)).toBe(true);
+    expect(isTimelineCurrent({ timelineVersion: 3 })).toBe(false);
     expect(isTimelineCurrent({ timelineVersion: 2 })).toBe(false);
     expect(isTimelineCurrent({ timelineVersion: 0 })).toBe(false);
     expect(isTimelineCurrent(undefined)).toBe(false);
@@ -537,6 +538,60 @@ describe('wards', () => {
       [600, 'Jungle', 720]
     ]);
     expect(t.wards![0]).not.toHaveProperty('killedSec');
+  });
+});
+
+// ---- Version 4: the events' own positions (11 Sep 2026) ------------------------
+//
+// A kill and an elite monster kill carry the spot they happened on. It is the
+// one thing here that is not approximate by a minute, so the film draws the
+// pin there instead of sampling inside the zone.
+
+describe('event positions', () => {
+  it('keeps the kill position on every death, ours and theirs, rounded to the grid', () => {
+    const frames = plainFrames(12);
+    put(frames, 8, [kill(6, 1, 11049, 8060, [7]), kill(1, 6, 2960, 9020, [2])]);
+    const t = build(frames)!;
+    expect(t.deaths[0]).toMatchObject({ seat: 'Top', x: 11000, y: 8100 });
+    expect(t.theirDeaths[0]).toMatchObject({ x: 3000, y: 9000 });
+    for (const d of [...t.deaths, ...t.theirDeaths]) {
+      expect(d.x! % POSITION_GRID).toBe(0);
+      expect(d.y! % POSITION_GRID).toBe(0);
+    }
+  });
+
+  it('keeps the monster position on an objective, and keeps neither figure when Riot sent none', () => {
+    const frames = plainFrames(25);
+    put(frames, 8, [{ type: 'ELITE_MONSTER_KILL', timestamp: 8 * 60_000, killerId: 2, killerTeamId: 100, monsterType: 'DRAGON', position: { x: 9866, y: 4414 } }]);
+    put(frames, 20, [{ type: 'ELITE_MONSTER_KILL', timestamp: 20 * 60_000, killerId: 7, killerTeamId: 200, monsterType: 'BARON_NASHOR' }]);
+    const t = build(frames)!;
+    expect(t.objectives[0]).toMatchObject({ minute: 8, type: 'dragon', x: 9900, y: 4400 });
+    expect(t.objectives[1]).toMatchObject({ minute: 20, type: 'baron' });
+    expect(t.objectives[1]).not.toHaveProperty('x');
+    expect(t.objectives[1]).not.toHaveProperty('y');
+  });
+
+  it('builds a document at all when no event carries a position', () => {
+    const frames = plainFrames(12);
+    // A kill with no position was never a death here (the reducer needs the zone); the game still reduces.
+    put(frames, 6, [{ type: 'CHAMPION_KILL', timestamp: 6 * 60_000, killerId: 6, victimId: 1 }]);
+    const t = build(frames)!;
+    expect(t.deaths).toEqual([]);
+    expect(t.theirDeaths).toEqual([]);
+    expect(t.firsts.blood).toEqual({ minute: 6, side: 'them' });
+    expect(t.timelineVersion).toBe(TIMELINE_VERSION);
+  });
+
+  it('costs a bloody game only a few hundred bytes', () => {
+    const frames = plainFrames(30);
+    for (let m = 2; m <= 30; m += 1) put(frames, m, [kill(6, (m % 5) + 1, 7000 + m * 10, 7000, [7]), kill(1, 6 + (m % 5), 7000, 7000 + m * 10, [2])]);
+    const withPositions = build(frames)!;
+    const stripped = {
+      ...withPositions,
+      deaths: withPositions.deaths.map(({ x: _x, y: _y, ...rest }) => rest),
+      theirDeaths: withPositions.theirDeaths.map(({ x: _x, y: _y, ...rest }) => rest)
+    };
+    expect(withPositions.bytes - JSON.stringify(stripped).length).toBeLessThan(1500);
   });
 });
 

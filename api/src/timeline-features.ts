@@ -35,6 +35,14 @@
  * Rift, never read by the facts, and both are approximate by a minute; the
  * ward's spot doubly so, because a ward event carries no position at all.
  *
+ * Version 4 (11 Sep 2026, the lead: "the approximate meters are a bit off,
+ * can we tighten that") keeps the position a kill or an elite monster kill
+ * carries on the event itself, on each death of ours, each of theirs and
+ * each objective. These are not approximate at all — Riot logs the spot the
+ * kill happened on — so the film stops sampling a point inside the zone
+ * bucket for a death it has an event for, and says which of the two it drew.
+ * A few hundred bytes on a document; the trim order below is untouched.
+ *
  * Pure. The fetch and the write live in index.ts.
  */
 import { LaneRole, POSITION_ROLE } from './lane-read';
@@ -42,9 +50,12 @@ import { LaneRole, POSITION_ROLE } from './lane-read';
 /**
  * Bump when the derived shape changes; entries below this are rebuilt inside
  * the budget: the morning refresh rebuilds twenty a run, so a bump refills
- * the prep games over a few mornings, newest first. 3 since 10 Sep 2026.
+ * the prep games over a few mornings, newest first. 4 since 11 Sep 2026, for
+ * the event positions on the deaths and the objectives — twenty documents a
+ * morning are rebuilt until the prep games have caught up, and until a game
+ * has, its film places the deaths by zone as it did before.
  */
-export const TIMELINE_VERSION = 3;
+export const TIMELINE_VERSION = 4;
 export const FRAME_SEC = 60;
 /** Summoner's Rift, both axes; blue base at the origin. */
 export const MAP_MAX = 14870;
@@ -175,6 +186,14 @@ export interface TimelineObjective {
   ourInvolved: LaneRole[];
   /** Our seats within OBJECTIVE_RADIUS at the nearest frame: approximate. */
   ourNear: LaneRole[];
+  /**
+   * Where the monster fell, in Riot units to POSITION_GRID (version 4,
+   * 11 Sep 2026): the ELITE_MONSTER_KILL event's own position, not a pit the
+   * film assumed and not a sample inside a zone. Absent below version 4, and
+   * on an event Riot sent without one.
+   */
+  x?: number;
+  y?: number;
 }
 
 export interface TimelineDeath {
@@ -201,6 +220,15 @@ export interface TimelineDeath {
   alliesNear?: number;
   /** An elite monster fell within OBJECTIVE_WINDOW_SEC of the death. Absent below version 2. */
   objectiveNear?: boolean;
+  /**
+   * Where the kill happened, in Riot units to POSITION_GRID (version 4,
+   * 11 Sep 2026): the CHAMPION_KILL event's own position. The one figure on
+   * this row that is not approximate by a minute — the log carries the spot —
+   * so the film draws the pin here instead of sampling inside `zone`. Absent
+   * below version 4, and on a kill Riot sent without a position.
+   */
+  x?: number;
+  y?: number;
 }
 
 /**
@@ -300,8 +328,8 @@ export interface MatchTimeline {
   objectives: TimelineObjective[];
   plates: { ours: Record<LaneName, number>; theirs: Record<LaneName, number> };
   deaths: TimelineDeath[];
-  /** Only enough for fight clusters, and which of our seats were on the kill (absent below version 2). */
-  theirDeaths: { sec: number; minute: number; zone: MapZone; ourInvolved?: LaneRole[] }[];
+  /** Only enough for fight clusters, which of our seats were on the kill (absent below version 2), and where it happened off the event (absent below version 4). */
+  theirDeaths: { sec: number; minute: number; zone: MapZone; ourInvolved?: LaneRole[]; x?: number; y?: number }[];
   /** Per five-minute bucket. */
   vision: { seat: LaneRole; placed: number[]; killed: number[] }[];
   spend: { seat: LaneRole; firstItemMinute?: number; secondItemMinute?: number; backs: number[] }[];
@@ -611,6 +639,11 @@ export function buildMatchTimeline(
               minute,
               seat,
               zone,
+              // The event's own spot (version 4, 11 Sep 2026). A kill without a
+              // position never reaches here — the break above drops it — so both
+              // figures are always written together or not at all.
+              x: toGrid(at.x),
+              y: toGrid(at.y),
               theirSide: onTheirHalf(at.x, at.y, ids.ourSide),
               killers: (e.killerId ? 1 : 0) + (e.assistingParticipantIds?.length ?? 0),
               executed: !e.killerId,
@@ -624,7 +657,7 @@ export function buildMatchTimeline(
           }
         } else if (victimSide === 'them') {
           const ourInvolved = credited.filter((pid) => ids.ours.has(pid)).map((pid) => ids.seatOf.get(pid)).filter((x): x is LaneRole => !!x);
-          theirDeaths.push({ sec: Math.round(e.timestamp / 1000), minute, zone, ourInvolved });
+          theirDeaths.push({ sec: Math.round(e.timestamp / 1000), minute, zone, ourInvolved, x: toGrid(at.x), y: toGrid(at.y) });
         }
         break;
       }
@@ -644,7 +677,9 @@ export function buildMatchTimeline(
           ...(type === 'dragon' && e.monsterSubType && { subType: e.monsterSubType.replace(/_DRAGON$/, '').toLowerCase() }),
           side,
           ourInvolved,
-          ourNear
+          ourNear,
+          // Where the monster fell (version 4, 11 Sep 2026); an event without a position keeps neither figure.
+          ...(e.position && { x: toGrid(e.position.x), y: toGrid(e.position.y) })
         });
         break;
       }

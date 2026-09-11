@@ -4,6 +4,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { effectiveComp } from '../../core/comp-alias';
+import { GameMvp, mvpGameFromRow, mvpOf } from '../../core/game-mvp';
+import { MvpChipComponent } from '../../shared/mvp-chip.component';
 import { AuthService } from '../../services/auth.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { ChampionFilterService } from '../../services/champion-filter.service';
@@ -67,7 +69,7 @@ import { PlayerMarkComponent } from '../../shared/player-mark.component';
     NgModelNameDirective,
     TooltipDirective,
     ReviewComponent,
-    GameCheckComponent, GameStoryComponent, GameReviewComponent, TourPillComponent, BeforeYouPlayComponent, ReplayFramesComponent],
+    GameCheckComponent, GameStoryComponent, GameReviewComponent, TourPillComponent, BeforeYouPlayComponent, ReplayFramesComponent, MvpChipComponent],
   templateUrl: './games.component.html'
 })
 export class GamesComponent {
@@ -393,6 +395,19 @@ export class GamesComponent {
 
   protected analysisOf(row: GameRow) {
     return row.matchId ? this.analysisById().get(row.matchId) : undefined;
+  }
+
+  /**
+   * Who carried each game, off the row's own figures (11 Sep 2026), so a
+   * scrim's replay numbers and a Riot game's are read the same way and a
+   * tournament game typed in by hand gets no chip at all. Computed for the
+   * whole list at once: the summary calls this once a row on every change
+   * detection, and the arithmetic should not run there.
+   */
+  private readonly mvpByRow = computed(() => new Map(this.rows().map((r) => [r.id, mvpOf(mvpGameFromRow(r))])));
+
+  protected mvp(row: GameRow): GameMvp | null {
+    return this.mvpByRow().get(row.id) ?? null;
   }
 
   /** True once this person reached the film's card for the game: the collapsed row's chip reads Watched instead of Reviewed (10 Sep 2026). */

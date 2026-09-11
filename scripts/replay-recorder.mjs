@@ -89,6 +89,16 @@ const MATCH_ID_RE = /^[A-Z0-9]+-\d+$/i;
 export const DURATION_TOLERANCE_SEC = 30;
 
 /**
+ * How fast the replay is played through to fill the client's event list (11 Sep 2026). Seeking does
+ * not fire the events between two seconds — the first live run seeked to the end and read a single
+ * event for a whole game — so the run plays it once at speed first: a thirty-six minute game takes
+ * about two and a half minutes at sixteen. The client clamps what it will not do.
+ */
+export const PLAY_THROUGH_SPEED = 16;
+/** How long the play-through may take before the run carries on with whatever the list holds. */
+export const PLAY_THROUGH_MAX_MS = 6 * 60 * 1000;
+
+/**
  * What the frame must and must not show (11 Sep 2026). `/replay/render` is
  * POSTed once before the first picture, because a frame is whatever the replay
  * UI happened to be showing otherwise — and the replay UI normally includes the
@@ -110,24 +120,29 @@ export const RENDER_FLAGS = {
   interfaceAnnounce: false,
   interfaceChat: false,
   interfaceScore: false,
-  // Off: the name over a selected champion, and the spectator health bars,
-  // which carry a summoner name above every champion on both sides.
-  selectionName: false,
-  healthBarChampions: false,
+  // Off: the kill callouts, which print a Riot id at every kill (this client's own key, read off
+  // /replay/render on 11 Sep 2026; older clients fold it into interfaceAnnounce).
+  interfaceKillCallouts: false,
+  // On (11 Sep 2026, the lead: "we can allow healthbar of champions, I have no
+  // summoner names on the champs"): a bar over each champion says who is who and
+  // how the fight was going, which is most of what a frame is read for. The bar
+  // carries a name only when the client's own "Show Summoner Names" is on, so
+  // `--no-health-bars` turns it off again for a client set the other way, and the
+  // first frame of every run is worth a look before the pictures are trusted.
+  healthBarChampions: true,
   // Off: fog would hide the half of the minimap the review is there to read.
   fogOfWar: false
 };
 
 /** The flags Riot's rule hangs on: not confirmed off means no pictures this run. */
 export const NAMING_FLAGS = [
+  'interfaceKillCallouts',
   'interfaceScoreboard',
   'interfaceFrames',
   'interfaceTimeline',
   'interfaceAnnounce',
   'interfaceChat',
-  'interfaceScore',
-  'selectionName',
-  'healthBarChampions'
+  'interfaceScore'
 ];
 
 /** The Live Client's positions, in our own seat words. Mirrors POSITION_ROLE in api/src/lane-read.ts. */
@@ -143,7 +158,7 @@ export const POSITION_ROLE = {
 export const ROLES = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
 
 const USAGE =
-  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--out-dir <dir>] [--dry-run] [--roster <file.json>]';
+  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars]';
 
 const CLIENT_HELP =
   'Is the League client open, with the replay playing? The Live Client and Replay APIs only answer while a replay is up.';
@@ -186,7 +201,9 @@ export function mmss(sec) {
 export function parseArgs(argv) {
   // `typed` is what the lead actually wrote, kept only so a refusal quotes it
   // back rather than the normalised form nobody typed.
-  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, outDir: '', dryRun: false, roster: '' };
+  // Panels on unless the lead says otherwise: the client's streamer mode is what keeps a Riot id off the screen,
+  // and a frame without the scoreboard and the team frames is missing the gold, the items and the kills.
+  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true };
   const assign = (name, value) => {
     // `--out-dir --dry-run` used to swallow the flag as the value, write the
     // frames to a directory called "--dry-run" and upload to Firestore for
@@ -205,6 +222,23 @@ export function parseArgs(argv) {
     const arg = argv[i];
     if (arg === '--dry-run') {
       parsed.dryRun = true;
+      continue;
+    }
+    // A client with "Show Summoner Names" on prints a Riot id over every champion, and the bars have to go with it.
+    if (arg === '--no-health-bars') {
+      parsed.noHealthBars = true;
+      continue;
+    }
+    // Kept for the command lines already written down; the panels stay up either way now.
+    if (arg === '--streamer-mode') {
+      parsed.streamerMode = true;
+      continue;
+    }
+    // For a client NOT in streamer mode, where the panels print Riot ids: the frames lose the gold,
+    // the items and the event bar, and keep the map and the champions (11 Sep 2026, the lead: "we
+    // don't need the panels off like discussed" — this team's client hides the names itself).
+    if (arg === '--hide-panels') {
+      parsed.streamerMode = false;
       continue;
     }
     if (arg.startsWith('--')) {
@@ -440,13 +474,29 @@ export function seatPlan(livePlayers, rosterPlayers) {
       const champion = String(live?.championName ?? '').trim().toLowerCase();
       return seatByChampion.get(`${team}|${champion}`) || seatByPosition.get(index) || null;
     },
-    /** A live name back to its seat — used to read the event list, never stored. */
+    /**
+     * A live name back to its seat — used to read the event list, never stored.
+     *
+     * The event list names whoever the client is willing to name, and with the
+     * team's streamer mode on (11 Sep 2026, the first live run) that is the
+     * CHAMPION: "KillerName": "Yasuo", "VictimName": "Aphelios". Every kill of a
+     * thirty-six minute game was dropped for want of this, because the lookup only
+     * knew Riot ids. A champion is unique in a game, and the ten seats already
+     * carry theirs off the player list, so the champion is the surer key of the
+     * two and is tried first; a Riot id still resolves for a client that gives one.
+     */
     seatOfName: (name) => {
-      const id = splitRiotId(name);
-      if (!id.name) return null;
-      const ids = players.map((p) => splitRiotId(liveName(p)));
-      let index = id.tag ? ids.findIndex((p) => p.name === id.name && p.tag === id.tag) : -1;
-      if (index < 0) index = ids.findIndex((p) => p.name === id.name);
+      const said = String(name ?? '').trim();
+      if (!said) return null;
+      const byChampionName = players.findIndex((p) => String(p?.championName ?? '').trim().toLowerCase() === said.toLowerCase());
+      let index = byChampionName;
+      if (index < 0) {
+        const id = splitRiotId(said);
+        if (!id.name) return null;
+        const ids = players.map((p) => splitRiotId(liveName(p)));
+        index = id.tag ? ids.findIndex((p) => p.name === id.name && p.tag === id.tag) : -1;
+        if (index < 0) index = ids.findIndex((p) => p.name === id.name);
+      }
       if (index < 0) return null;
       const spot = seatByPosition.get(index);
       return spot ? { ...spot, champion: String(players[index]?.championName ?? '').trim() } : null;
@@ -493,7 +543,7 @@ function killerLabel(name) {
  * nothing here can carry one of their names: an event whose actor is not one
  * of the ten becomes "a turret" or "the map".
  */
-export function readEvents(rawEvents, plan, watcherName = '') {
+export function readEvents(rawEvents, plan, watcherName = '', fallbackWin = null, fallbackEndSec = 0) {
   const events = [];
   const ourDeaths = [];
   const objectives = [];
@@ -616,6 +666,13 @@ export function readEvents(rawEvents, plan, watcherName = '') {
 
   // The end is one event, written from the winner. When the client will not say
   // who won, no event is written at all rather than one that reads as a result.
+  // The run parks ten seconds short of the end (a client that reaches it closes the replay), so the GameEnd event
+  // is often never played; the result the analysis already holds for this game stands in rather than no end at all.
+  if (!winner && typeof fallbackWin === 'boolean') winner = fallbackWin ? 'us' : 'them';
+  // The game ended even when the GameEnd never played (the run parks ten seconds short of it, since a client that
+  // reaches the end closes the replay): the end is filed at the length, and the seek clamps the picture to the last
+  // second the run may stand on.
+  if (endSec <= 0 && fallbackEndSec > 0) endSec = fallbackEndSec;
   if (winner) events.push({ sec: endSec, kind: 'end', side: winner, text: winner === 'us' ? 'We won' : 'They won' });
 
   events.sort((a, b) => a.sec - b.sec);
@@ -634,7 +691,8 @@ export function chooseShots(matchId, { ourDeaths, objectives, endSec }, cap) {
     // Our own player is named where the roster gave us one; the champion is
     // what makes a thumbnail recognisable at a glance, so the label carries both.
     const who = death.name ? `${death.name} (${death.champion})` : death.champion;
-    wanted.push({ sec: death.sec, kind: 'death', label: `${who} falls at ${mmss(death.sec)}`, seat: death.seat });
+    // The champion rides along so the camera can follow the victim before the frame is taken (11 Sep 2026).
+    wanted.push({ sec: death.sec, kind: 'death', label: `${who} falls at ${mmss(death.sec)}`, seat: death.seat, champion: death.champion });
   }
   for (const objective of objectives) {
     wanted.push({ sec: objective.sec, kind: 'objective', label: `${objective.text} at ${mmss(objective.sec)}` });
@@ -705,6 +763,8 @@ export async function run({
   shots: shotCap = DEFAULT_SHOTS,
   outDir = process.cwd(),
   dryRun = false,
+  noHealthBars = false,
+  streamerMode = true,
   roster = null,
   fetchImpl,
   fs = fsDefault,
@@ -733,9 +793,16 @@ export async function run({
   const game = await call('/replay/game', {
     help: `${CLIENT_HELP} Open the replay for ${matchId} and let it start playing, then run this again.`
   });
-  const gameLength = Math.round(number(game?.gameLength));
+  // The client on this machine (patch 26.17, 11 Sep 2026) answers /replay/game
+  // with the process id alone and keeps the length on /replay/playback, so the
+  // second endpoint stands in rather than the run stopping on a client version.
+  let gameLength = Math.round(number(game?.gameLength));
   if (gameLength <= 0) {
-    throw new Error(`The client answered /replay/game with no gameLength. ${CLIENT_HELP}`);
+    const playback = await call('/replay/playback', { help: `${CLIENT_HELP} Open the replay for ${matchId} and let it start playing, then run this again.` });
+    gameLength = Math.round(number(playback?.length));
+  }
+  if (gameLength <= 0) {
+    throw new Error(`Neither /replay/game nor /replay/playback gave the replay's length. ${CLIENT_HELP}`);
   }
   log(`Replay is up: ${mmss(gameLength)} long.`);
 
@@ -778,18 +845,42 @@ export async function run({
     log(`  the client did not settle on ${mmss(target)} in time; nothing is read there.`);
     return false;
   };
+  // Never the last second itself (11 Sep 2026, the first live run): this client ends the replay when the
+  // playhead reaches the end, closes the window and takes the API with it, which killed a run mid-seek.
+  const END_MARGIN_SEC = 10;
+  const lastSafeSec = Math.max(0, gameLength - END_MARGIN_SEC);
+
   /** `{ target, settled }`: the second asked for, and whether the client is actually showing it. */
   const seek = async (sec) => {
-    const target = Math.max(0, Math.min(gameLength, Math.round(sec)));
+    const target = Math.max(0, Math.min(lastSafeSec, Math.round(sec)));
     const post = () => call('/replay/playback', { method: 'POST', body: { time: target, paused: true } });
     await post();
     return { target, settled: await settle(target, post) };
   };
 
-  // 2. The end of the game: the event list holds what has played so far, so it
-  //    is only whole once the replay has been there. A client that never gets
-  //    there is said out loud, because the events would then stop early.
-  const atEnd = await seek(gameLength);
+  // 2. Play it through once: the client fires its events as the playhead passes them, and a seek
+  //    passes nothing. Then park at the end for the final scoreboard.
+  log(`  playing the game through at ${PLAY_THROUGH_SPEED}x to collect the events (about ${Math.ceil(gameLength / PLAY_THROUGH_SPEED / 60)} min)...`);
+  try {
+    await call('/replay/playback', { method: 'POST', body: { time: 0, paused: false, speed: PLAY_THROUGH_SPEED } });
+    const until = Date.now() + PLAY_THROUGH_MAX_MS;
+    let last = -1;
+    while (Date.now() < until) {
+      await sleep(2000);
+      const where = await call('/replay/playback').catch(() => null);
+      const at = Math.round(number(where?.time));
+      if (at >= lastSafeSec - 5) break;
+      // A playhead that has not moved in two polls is a replay that stopped; the events it has are what there is.
+      if (at === last) break;
+      if (Math.floor(at / 300) !== Math.floor(last / 300)) log(`    played to ${mmss(at)}`);
+      last = at;
+    }
+  } catch (err) {
+    log(`  the play-through stopped early (${messageOf(err)}); the events may be short.`);
+  }
+  await call('/replay/playback', { method: 'POST', body: { speed: 1, paused: true } }).catch(() => null);
+
+  const atEnd = await seek(lastSafeSec);
   if (!atEnd.settled) log('  the client never reached the end of the replay, so the event list may stop short of it.');
   const finalData = await call('/liveclientdata/allgamedata');
   const allPlayers = Array.isArray(finalData?.allPlayers) ? finalData.allPlayers : [];
@@ -812,7 +903,7 @@ export async function run({
 
   const eventData = await call('/liveclientdata/eventdata');
   const rawEvents = Array.isArray(eventData?.Events) ? eventData.Events : [];
-  const read = readEvents(rawEvents, plan, liveName(finalData?.activePlayer));
+  const read = readEvents(rawEvents, plan, liveName(finalData?.activePlayer), typeof known?.win === 'boolean' ? known.win : null, gameLength);
   if (!read.winner) log('  the client did not say who won, so the recording carries no end event.');
 
   // 4. A minute at a time. The client has to seek for each one, which is why
@@ -847,7 +938,7 @@ export async function run({
   let dropped = 0;
   let framesOff = '';
   if (chosen.length) {
-    const set = await setRenderFlags({ call, log });
+    const set = await setRenderFlags({ call, log, noHealthBars, streamerMode });
     framesOff = set.refused;
     if (set.warn) log(`  ${set.warn}`);
   }
@@ -871,8 +962,18 @@ export async function run({
       // comment says to avoid). `shot.sec` stays the death: the document id,
       // the file's name and the label all name the moment, not the frame.
       const at = Math.max(0, shot.sec - 2);
+      // Follow whoever the picture is about (11 Sep 2026): the HUD in the corner belongs to the
+      // followed champion alone, so a death's frame is worth twice as much when it is the victim's.
+      // A client that will not take it keeps whatever the lead selected, which is the old behaviour.
+      if (shot.champion) {
+        try {
+          await call('/replay/render', { method: 'POST', body: { selectionName: shot.champion, cameraAttached: true } });
+        } catch {
+          /* the camera stays where the lead put it */
+        }
+      }
       const stem = `${matchId}__${shot.sec}`;
-      const file = path.join(shotsDir, `${stem}.jpg`);
+      const file = path.join(shotsDir, stem);
       try {
         const landed = await seek(at);
         if (!landed.settled) {
@@ -891,9 +992,13 @@ export async function run({
         const answer = await call('/replay/recording', {
           method: 'POST',
           body: {
-            codec: 'jpg',
+            // png or webm are the only codecs this client's AVContainer takes, and a png "path" is a
+            // FOLDER it fills with a numbered sequence (11 Sep 2026, measured). The frame is picked out
+            // of it below and turned into a jpeg, because a 1280x720 png is about 2 MB and a document
+            // holds 1 MiB.
+            codec: 'png',
             startTime: at,
-            endTime: at,
+            endTime: at + 1,
             path: file,
             recording: true,
             replaySpeed: 1,
@@ -906,7 +1011,8 @@ export async function run({
         // whether it says it is recording. That one line is the difference
         // between "the client refused" and "the client is still writing".
         if (i === 0) log(`  the client answered the first render with recording=${answer?.recording ?? 'nothing'}, path ${answer?.path ?? '(none)'}.`);
-        const bytes = await waitForShot({ fs, file, dir: shotsDir, stem, skip: stale, tries: shotTries, waitMs: shotWaitMs, sleep });
+        const png = await waitForShot({ fs, file, dir: shotsDir, stem, skip: stale, tries: shotTries, waitMs: shotWaitMs, sleep });
+        const bytes = png ? await toJpeg(png, log) : null;
         if (!bytes) {
           dropped += 1;
           inARow += 1;
@@ -1001,6 +1107,8 @@ export async function run({
     log(`Wrote replayShots (${kept.length}), then replayRecordings/${matchId}.`);
   }
 
+  await restoreRender({ call });
+
   // The summary says what was NOT read as well as what was: a minute the
   // client never landed on is a gap in the samples, and a run whose pictures
   // were refused wrote none at all.
@@ -1024,10 +1132,49 @@ export async function run({
  * Riot ids must not be stored, and this pass cannot grant an exception to
  * that — CLAUDE.md is where such a decision would have to sit.
  */
-export async function setRenderFlags({ call, log }) {
+/** What the client's interface was before a run touched it, so `restoreRender` can put it back. */
+let beforeRender = null;
+
+/**
+ * Give the client back the interface the lead was watching with (11 Sep 2026). A run turns panels
+ * off, the fog off and the camera onto whoever died; without this the replay is left that way,
+ * which is exactly what the lead saw on the first live run. Best effort: a client that has closed
+ * is not an error worth a line.
+ */
+export async function restoreRender({ call }) {
+  if (!beforeRender) return;
+  const flags = {};
+  for (const key of [...NAMING_FLAGS, 'interfaceAll', 'interfaceMinimap', 'healthBarChampions', 'fogOfWar', 'cameraAttached']) {
+    if (typeof beforeRender[key] === 'boolean') flags[key] = beforeRender[key];
+  }
+  beforeRender = null;
+  try {
+    await call('/replay/render', { method: 'POST', body: flags });
+  } catch {
+    /* the client closed, or will not take them back: the lead can toggle the panels themselves */
+  }
+}
+
+export async function setRenderFlags({ call, log, noHealthBars = false, streamerMode = true }) {
   let answer = null;
   try {
-    answer = await call('/replay/render', { method: 'POST', body: RENDER_FLAGS, help: 'The client would not take the replay interface settings.' });
+    let wanted = noHealthBars ? { ...RENDER_FLAGS, healthBarChampions: false } : RENDER_FLAGS;
+    // In streamer mode the panels print champions, not people, so they stay: a frame with the
+    // scoreboard, the team frames and the event bar carries the gold, the items and the kills, which
+    // is the whole reason a picture goes to the review at all.
+    if (streamerMode) {
+      wanted = { ...wanted, interfaceScoreboard: true, interfaceFrames: true, interfaceTimeline: true, interfaceScore: true, interfaceAnnounce: true, interfaceKillCallouts: true };
+    }
+    // The client's own object first: its keys differ by version, and one it does not know answers
+    // 400 for the whole POST — on 11 Sep 2026 `selectionName: false` (a string on this client, the
+    // followed champion's name) cost a whole run its pictures.
+    const current = await call('/replay/render');
+    if (current && typeof current === 'object') beforeRender = current;
+    const flags = {};
+    for (const [key, value] of Object.entries(wanted)) {
+      if (current && typeof current === 'object' && typeof current[key] === typeof value) flags[key] = value;
+    }
+    answer = await call('/replay/render', { method: 'POST', body: flags, help: 'The client would not take the replay interface settings.' });
     // Read it back rather than trusting the POST's echo: some versions answer
     // the request rather than the state.
     answer = (await call('/replay/render')) ?? answer;
@@ -1035,10 +1182,16 @@ export async function setRenderFlags({ call, log }) {
     return { refused: `the client would not answer /replay/render (${messageOf(err)}), so a frame could still be showing the panels that print their Riot ids.`, warn: '' };
   }
   const said = (key) => (answer && typeof answer === 'object' && key in answer ? answer[key] : undefined);
-  const notOff = NAMING_FLAGS.filter((key) => said(key) !== false);
+  // A panel this client does not carry at all cannot print a name either, so only the ones it knows are judged.
+  // Streamer mode is the lead saying the client itself hides the ids; the panels are then judged by nothing.
+  const notOff = streamerMode ? [] : NAMING_FLAGS.filter((key) => said(key) !== undefined && said(key) !== false);
   const missed = ['interfaceAll', 'interfaceMinimap'].filter((key) => said(key) !== true);
   const fog = said('fogOfWar') !== false;
-  log(`  the replay interface is set: ${NAMING_FLAGS.length - notOff.length} of ${NAMING_FLAGS.length} naming panels off, minimap ${said('interfaceMinimap') === true ? 'on' : 'not confirmed'}, fog ${fog ? 'not confirmed off' : 'off'}.`);
+  log(
+    streamerMode
+      ? `  the replay interface is set: the panels stay up (streamer mode prints champions, not Riot ids), minimap ${said('interfaceMinimap') === true ? 'on' : 'not confirmed'}, fog ${fog ? 'not confirmed off' : 'off'}.`
+      : `  the replay interface is set: ${NAMING_FLAGS.length - notOff.length} of ${NAMING_FLAGS.length} naming panels off, minimap ${said('interfaceMinimap') === true ? 'on' : 'not confirmed'}, fog ${fog ? 'not confirmed off' : 'off'}.`
+  );
   if (notOff.length) {
     return {
       refused: `the client did not confirm ${notOff.join(', ')} off, and those panels print the other team's Riot ids. The samples and the events are still written; the pictures are not.`,
@@ -1108,6 +1261,23 @@ async function waitForShot({ fs, file, dir, stem, skip = [], tries, waitMs, slee
   return null;
 }
 
+/**
+ * The client renders png (its only still codec), and a 1280x720 png is about 2 MB — a Firestore
+ * document holds 1 MiB, and base64 adds a third on top. `sharp` (a dev dependency of the repo root,
+ * installed 11 Sep 2026 for exactly this) turns it into a jpeg of a couple of hundred KB with the
+ * minimap still readable. Without sharp the png is returned as it is, and the size ceiling drops it
+ * with the message that says so.
+ */
+async function toJpeg(png, log) {
+  try {
+    const { default: sharp } = await import('sharp');
+    return await sharp(png).resize({ width: 1280, withoutEnlargement: true }).jpeg({ quality: 72, mozjpeg: true }).toBuffer();
+  } catch (err) {
+    log(`  could not turn the frame into a jpeg (${messageOf(err)}); run npm install at the repo root. Storing the png as it is.`);
+    return png;
+  }
+}
+
 /** A file's size, or -1 for one that is gone or unreadable. */
 function sizeOf(fs, full) {
   try {
@@ -1127,6 +1297,20 @@ function mtimeOf(fs, full) {
 }
 
 function findShotFile({ fs, file, dir, stem, skip = [] }) {
+  // A png sequence: the client makes `file` a folder and numbers the frames inside it. The first is
+  // the second we asked for (11 Sep 2026).
+  try {
+    if (fs.existsSync(file) && fs.statSync(file).isDirectory()) {
+      const inside = fs
+        .readdirSync(file)
+        .filter((name) => /\.(png|jpe?g)$/i.test(name))
+        .sort();
+      if (inside.length) return path.join(file, inside[0]);
+      return null;
+    }
+  } catch {
+    /* not a folder, or gone: fall through to the flat names below */
+  }
   // Everything matching the stem was deleted before the render, so anything
   // matching now is the frame the client was just asked for — except a file
   // the delete could not remove, which is passed in and left alone.
@@ -1218,6 +1402,8 @@ async function main() {
       shots: args.shots,
       outDir: args.outDir || path.join(process.cwd(), 'replay-shots'),
       dryRun: args.dryRun,
+      noHealthBars: args.noHealthBars,
+      streamerMode: args.streamerMode,
       roster,
       firestore,
       fetchImpl: clientFetch()

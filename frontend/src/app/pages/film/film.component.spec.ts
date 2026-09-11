@@ -4,10 +4,12 @@ import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { environment } from '../../../environments/environment';
+import { tourById } from '../../core/tours';
 import { AnalysisGame, GameReview, MatchTimeline } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { MatchTimelineService } from '../../services/match-timeline.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { TourService } from '../../services/tour.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { FilmComponent } from './film.component';
 
@@ -191,6 +193,60 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
     expect(root.querySelector('.film-bar a')).toBeNull();
     back.click();
     expect(await landed(harness)).toBe(`/games?match=${ID}&tab=games`);
+  });
+
+  it('offers the walk in the film bar only when there is a map or a tape to walk, and stands it down while one is running (11 Sep 2026)', async () => {
+    // A film with no timeline has neither chapter, so the walk has nothing to point at and the pill stays away.
+    const bare = await open(`/film/${ID}`);
+    expect(bare.root.querySelector('.film-bar-tour')).toBeNull();
+
+    const known = signal<ReadonlyMap<string, MatchTimeline | null>>(new Map([[ID, timeline]]));
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideRouter(ROUTES), { provide: MatchTimelineService, useValue: { known, load: async () => null } }] });
+    data = TestBed.inject(TeamDataService);
+    data.gameReviews.set([review]);
+    data.compAnalysis.set({ games: [game] } as never);
+    const { harness, root } = await open(`/film/${ID}`);
+    const pill = root.querySelector<HTMLButtonElement>('.film-bar-tour')!;
+    expect(pill.tagName).toBe('BUTTON');
+    expect(pill.getAttribute('type')).toBe('button');
+    // The words are their own element so a phone can take them off the screen without taking them out of the tree; the icon is decorative.
+    expect(text(root, '.film-bar-tour .film-bar-tour-word')).toBe('Show me around');
+    expect(root.querySelector('.film-bar-tour .material-symbols-rounded')?.getAttribute('aria-hidden')).toBe('true');
+    expect(root.querySelector('.film-bar a')).toBeNull();
+
+    const tours = TestBed.inject(TourService);
+    const start = vi.spyOn(tours, 'start').mockResolvedValue(true);
+    pill.click();
+    expect(start).toHaveBeenCalledWith('film-room');
+
+    // While the walk runs it is the walk's keyboard and the walk's screen: the pill goes,
+    // and Escape belongs to the overlay rather than arming the film's leave-in-two rule.
+    tours.active.set(tourById('film-room')!);
+    harness.detectChanges();
+    expect(root.querySelector('.film-bar-tour')).toBeNull();
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(2_000_000);
+    key('Escape');
+    now.mockReturnValue(2_000_500);
+    key('Escape');
+    expect(await landed(harness)).toBe(`/film/${ID}?c=title`);
+    expect(root.querySelector('.film-stage')).not.toBeNull();
+    tours.active.set(null);
+    harness.detectChanges();
+
+    // The deck renders one chapter at a time, so the walk's `before` actions press the
+    // deck's own dots to reach the map and the tape. Those two have to be on the page
+    // and named, or every step past the first is skipped for want of an anchor.
+    expect(root.querySelector('[data-tour="film-dots"]')).not.toBeNull();
+    expect(root.querySelector('[data-tour="film-dot-map"]')).not.toBeNull();
+    expect(root.querySelector('[data-tour="film-dot-tape"]')).not.toBeNull();
+    // And the chapter the first `before` opens carries the anchors its steps name.
+    root.querySelector<HTMLElement>('[data-tour="film-dot-map"]')!.click();
+    harness.detectChanges();
+    for (const a of ['film-map-legend', 'film-map-marks', 'film-map-seats', 'film-costliest', 'film-death-card', 'film-death-scene', 'film-map-full']) {
+      expect(root.querySelector(`[data-tour="${a}"]`), a).not.toBeNull();
+    }
   });
 
   it('Escape once folds what is open and stays; a second within two seconds goes Back', async () => {

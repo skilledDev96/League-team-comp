@@ -10,6 +10,7 @@ import { AuthService } from '../../services/auth.service';
 import { MatchTimelineService } from '../../services/match-timeline.service';
 import { MotionService } from '../../services/motion.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { TourService } from '../../services/tour.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { FILM_CHAPTER_KEY } from '../../shared/film/film-poster.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
@@ -54,6 +55,8 @@ export class FilmComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly auth = inject(AuthService);
   protected readonly motion = inject(MotionService);
+  /** The film's own "Show me around" starts the film-room tour from the bar; the walk is `core/tours.ts`. */
+  protected readonly tours = inject(TourService);
   private readonly prefs = inject(UserPrefsService);
   private readonly timelines = inject(MatchTimelineService);
   private readonly route = inject(ActivatedRoute);
@@ -106,6 +109,17 @@ export class FilmComponent {
   protected readonly model = computed<FilmModel | undefined>(() => {
     const r = this.review();
     return r ? buildFilm(r, this.game(), this.timeline(), this.previous(), this.opponent()) : undefined;
+  });
+
+  /**
+   * Whether the walk has anything to show (11 Sep 2026): the tour is about the
+   * map, the tape and the lab, and a film with no timeline has none of them.
+   * Offering it there would cost the reader three seconds of "Finding it…" per
+   * absent anchor before the engine gave up, so the pill simply stays away.
+   */
+  protected readonly hasWalk = computed(() => {
+    const m = this.model();
+    return !!m && !!(m.map || m.tape);
   });
 
   /** The film's look on the stage: `stock-*`, `title-*`, `motion-*`, `enter-*`, with the tempo and the ease as inline custom properties. */
@@ -335,6 +349,12 @@ export class FilmComponent {
   protected onKey(event: KeyboardEvent): void {
     const target = event.target as HTMLElement | null;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+    // A tour owns the keyboard while it walks (11 Sep 2026): the overlay reads
+    // Escape as "skip" and the arrows as "step", and it only calls
+    // `preventDefault`, so without this the same Escape would also arm the
+    // film's leave-in-two rule and an arrow would change the chapter under the
+    // ring. One press, one meaning.
+    if (this.tours.active()) return;
     if (event.key === 'Escape') {
       // Escape works with or without a film on the stage (the empty page has nowhere else to go): once folds what a chapter
       // has open, twice within the window goes Back. The chapter's `escaped`, handled in `onEscaped` during the change

@@ -167,11 +167,24 @@ export interface FilmCard {
 // ---- Slice 2: the tape, the board, the map ------------------------------------
 //
 // Positions are percent-space on the Rift image (0-100 both axes, blue base
-// bottom-left, red base top-right), placed inside the zone bucket the timeline
-// put them in by `core/rift-zones.ts`. Approximate by construction, and every
-// surface that shows them says so.
+// bottom-left, red base top-right). Since 11 Sep 2026 a death or an objective
+// the timeline carries an event position for is drawn where it happened
+// (`riotToPercent`); anything else is still a seeded sample inside its zone
+// bucket by `core/rift-zones.ts`, approximate by construction. Each mark says
+// which through `placed`, and the corner note says it in words.
 
 export type FilmTapeEventKind = 'ourDeath' | 'theirDeath' | 'objective' | 'first' | 'plate' | 'back';
+
+/**
+ * How a mark on the Rift got its spot (11 Sep 2026, the lead: "the
+ * approximate meters are a bit off, can we tighten that"): `event` is the
+ * position the timeline's own kill or monster-kill event carried, which is
+ * where it happened; `zone` is the seeded sample inside the zone bucket the
+ * film used before, and still uses for a row no event backs. `placementNote`
+ * in `core/film-build.ts` turns a screenful of these into the one sentence
+ * the map and the tape both print.
+ */
+export type FilmPlacement = 'event' | 'zone';
 
 export interface FilmTapeEvent {
   sec: number;
@@ -180,12 +193,23 @@ export interface FilmTapeEvent {
   label: string;
   side?: 'us' | 'them';
   seat?: Role;
+  /**
+   * For a death of theirs: our seats that were in on the kill, straight off
+   * the timeline's `theirDeaths[].ourInvolved` (11 Sep 2026, second fix pass).
+   * The tape's Rift filters its dots by this the way the map chapter filters
+   * `FilmMap.theirs[].seats`; without it a seat filter on the tape dropped
+   * every dot, so a traded death read as a solo one. Absent on a timeline
+   * that kept nobody, and then the dot leaves with the filter, as on the map.
+   */
+  seats?: Role[];
   champion?: string;
   zone?: MapZone;
   x: number;
   y: number;
   /** The ledger key "d:<minute>:<seat>" for a death of ours, so the map and the notes can find it. */
   key?: string;
+  /** Where the spot came from, on the kinds an event can place: the deaths and the objectives. Absent on a first, a plate or a back, which have no position of their own at all and are drawn on the lane or the base. */
+  placed?: FilmPlacement;
 }
 
 export interface FilmMoment {
@@ -308,6 +332,8 @@ export interface FilmDeathPin {
   zone: MapZone;
   x: number;
   y: number;
+  /** Where the pin got its spot: 'event' is the kill's own position (timeline version 4), 'zone' the seeded sample inside `zone` the film drew before it. The card and the caption say which. */
+  placed: FilmPlacement;
   how: DeathHow;
   could: DeathCould[];
   /** The ledger's line. */
@@ -347,7 +373,14 @@ export interface FilmDeathScene {
 export interface FilmMap {
   /** In the order the chapter walks them. */
   pins: FilmDeathPin[];
-  theirs: { x: number; y: number; minute: number }[];
+  /**
+   * Their dots, placed from the kill's own position where the timeline has one
+   * (version 4), else by zone; `placed` says which. `seats` are ours the
+   * timeline records on the kill, so a seat's view keeps the kills that seat
+   * was in on (11 Sep 2026); a kill with none of ours on it leaves under any
+   * seat, the way a blob with no seats already did.
+   */
+  theirs: { x: number; y: number; minute: number; placed: FilmPlacement; seats?: Role[] }[];
   /** The fight blobs; `seats` are ours who fell in it, so the per-champion filter can hide the fights that seat was not in (10 Sep 2026). */
   clusters: { x: number; y: number; r: number; ours: number; theirs: number; line: string; seats?: Role[] }[];
   summary: LedgerSummary;

@@ -46,7 +46,17 @@ The lead does this, then runs the script.
    client's own resolution, and at 2560x1440 those frames blow the 700 KB a
    Firestore document can hold and are dropped rather than stored. The drop
    message prints the frame's real pixel size, so it says which case you are in.
-5. **Have the match id.** It is the dashed replay id the Games page shows on the
+5. **Pick who the client follows, once.** Press that player's number key (1-5 for
+   the blue side, 6-0 for red) and leave it there. Nothing in the data depends on
+   it: the per-minute figures and the whole event list cover all ten players
+   whoever the camera is on, and every frame's minimap shows the whole map. What
+   it decides is the HUD in the corner of each frame — the abilities, the items
+   and the cooldowns belong to the followed player alone, and that is the one
+   player the review can say anything about on that score. Follow one of ours,
+   and follow the seat you most want read: the jungler for pathing and smite, the
+   carry for cooldowns in the fights they died in. With nobody selected the
+   replay's camera roams and the frames carry no HUD at all.
+6. **Have the match id.** It is the dashed replay id the Games page shows on the
    row, e.g. `EUW1-7977592156` — the same string the `.rofl` filename carries.
    Case and the underscore spelling do not matter; the script folds both.
 
@@ -173,7 +183,7 @@ the answer back:
 | `interfaceScoreboard`, `interfaceFrames`, `interfaceTimeline` | The three panels that list players by Riot id. |
 | `interfaceAnnounce`, `interfaceChat` | The kill callouts and the chat, which name a killer and a victim. |
 | `interfaceScore`, `selectionName` | The top-right scoreline and the name over a selected champion. |
-| `healthBarChampions` | In a replay a champion's health bar carries the summoner name above it, on both sides. |
+| `healthBarChampions` | **On since 11 Sep 2026.** A bar over each champion says who is who and how the fight was going, which is most of what a frame is read for. It carries a Riot id only when the client's own "Show Summoner Names" is on; this team's is off. Run with `--no-health-bars` on a client set the other way, and look at the first frame of a run before the pictures are trusted. |
 
 | On | Why |
 | --- | --- |
@@ -235,3 +245,43 @@ the client drops a request now and then while it is seeking.
   thumbnail is in view or tapped).
 - `frontend/src/app/shared/replay-frames.component.ts` — the frames strip and
   its lightbox, inside the Games row's drawer.
+
+## What the first live run corrected (11 Sep 2026)
+
+The client is the authority, and it disagreed with the plan five times. Each is
+handled now, and each is worth knowing if a patch ever changes it back.
+
+- **`EnableReplayApi=1`** must be in `C:\Riot Games\League of Legends\Config\game.cfg`
+  under `[General]`, and the game rewrites that file when it exits, so add the
+  line with the replay closed. Without it every `/replay/*` call answers 404
+  while the Live Client API answers fine.
+- **`/replay/game`** gives the process id alone here; the length is on
+  `/replay/playback`, which the script now falls back to.
+- **Seeking fires no events.** The client builds its event list as the playhead
+  passes them, so the run plays the game through once at 16x before reading it.
+  Seeking straight to the end read one event for a 36-minute game; playing
+  through read 242.
+- **Reaching the very end closes the replay** and takes the API with it, so
+  every seek now stops ten seconds short and the result comes off the analysis.
+- **The events name champions, not summoners**, because the team plays with the
+  client's streamer mode on. Our five are matched by champion first — before
+  that, every death of a 36-minute game was dropped.
+- **A still is `png` only** (jpg is a 400 from the AVContainer enum), the `path`
+  is a **folder** the client fills with a numbered sequence, and an empty time
+  range writes nothing, so the range is one second. A 1280x720 png is about 2 MB
+  against a 1 MiB document, so `sharp` (a devDependency of the repo root) turns
+  it into a ~100 KB jpeg: run `npm install` at the root once.
+- **`/replay/render` answers 400 for a key it does not know**, and `selectionName`
+  is a string (the champion being followed), not a toggle. The run reads the
+  client's own render object first and sends back only the keys it reported, in
+  the type it reported them.
+
+**The panels stay up.** With streamer mode on they print champions, never a Riot
+id, and they carry the team gold, the items, the KDA and the event bar. That
+matters more than it sounds: the recording itself has **no team gold** (the
+client gives gold for the spectated player alone), so the frame is the only
+place it exists. `--hide-panels` turns them off for a client that is not in
+streamer mode, at the cost of everything in that list.
+
+A run also hands the client back the interface it had, so the replay you carry
+on watching is the one you started with.

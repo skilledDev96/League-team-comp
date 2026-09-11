@@ -132,7 +132,15 @@ test('no console errors while moving around signed in', async ({ page }) => {
 
   for (const path of ['./', './comps', './games', './review', './tournaments', './film/none']) {
     await page.goto(path);
-    await expect(page.getByRole('link', { name: 'Comps' })).toBeVisible({ timeout: 30_000 });
+    // What proves the app booted at a deep link is a nav link — except on the
+    // film, which takes the whole screen and hides the topbar (10 Sep 2026, the
+    // `.page.is-film` rules). Waiting for Comps there fails on a page that is
+    // working perfectly; its own bar, which carries the way back out, says the
+    // same thing (11 Sep 2026).
+    const booted = path.includes('/film/')
+      ? page.locator('.film-bar')
+      : page.getByRole('link', { name: 'Comps' });
+    await expect(booted).toBeVisible({ timeout: 30_000 });
   }
 
   expect(errors, `console errors:\n${errors.join('\n')}`).toEqual([]);

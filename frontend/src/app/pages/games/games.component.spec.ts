@@ -1,0 +1,145 @@
+import { By } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { TestBed } from '@angular/core/testing';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { environment } from '../../../environments/environment';
+import { AnalysisGame, CompAnalysis, Scrim, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
+import { TeamDataService } from '../../services/team-data.service';
+import { TooltipDirective } from '../../shared/tooltip.directive';
+import { GamesComponent } from './games.component';
+
+// Local mode, the way the comps page's spec does it: no listeners, no backend,
+// and whatever the test sets on the signals is what the page reads.
+const realApiKey = environment.firebase.apiKey;
+environment.firebase.apiKey = '';
+afterAll(() => {
+  environment.firebase.apiKey = realApiKey;
+});
+
+/** Inside the page's thirty-day window, so the default filter keeps the row. */
+const TODAY = Date.now();
+
+/** The lead's own example line: Jinx on 52.5k damage, 38 percent of ours, on 14 of 20 kills, dead twice. */
+const riotGame = {
+  matchId: 'EUW1_7000000001',
+  compId: null,
+  compName: null,
+  win: true,
+  queue: 'Flex',
+  date: TODAY,
+  durationSec: 1800,
+  kills: { ours: 20, theirs: 35 },
+  players: [
+    { name: 'Bom', position: 'TOP', champion: 'Aatrox', kills: 4, deaths: 5, assists: 3, cs: 200, damage: 24000, killParticipation: 0.5 },
+    { name: 'Go10x', position: 'JUNGLE', champion: 'MonkeyKing', kills: 5, deaths: 4, assists: 9, cs: 150, damage: 22000, killParticipation: 0.7 },
+    { name: 'Kez', position: 'MIDDLE', champion: 'Ahri', kills: 6, deaths: 3, assists: 6, cs: 250, damage: 32000, killParticipation: 0.6 },
+    { name: 'Rhu', position: 'BOTTOM', champion: 'Jinx', kills: 9, deaths: 2, assists: 5, cs: 312, damage: 52500, killParticipation: 0.7 },
+    { name: 'Sen', position: 'UTILITY', champion: 'Leona', kills: 0, deaths: 6, assists: 11, cs: 40, damage: 8000, killParticipation: 0.55 }
+  ]
+} as unknown as AnalysisGame;
+
+const scrimPlayer = (team: number, position: string, champion: string, name: string, kills: number, deaths: number, assists: number, damage: number) =>
+  ({ team, position, champion, name, tag: 'EUW', win: team === 100, kills, deaths, assists, damage, gold: 0, damageToBuildings: 0, damageTaken: 0, visionScore: 0, cs: 0 }) as Scrim['players'][number];
+
+/** A replay: every figure but kill participation, which no `.rofl` carries. */
+const scrim = {
+  id: 'EUW1_9000000002',
+  playedOn: new Date(TODAY).toISOString(),
+  durationSec: 1600,
+  blueWon: true,
+  ourSide: 'blue',
+  opponent: 'MOSS',
+  players: [
+    scrimPlayer(100, 'TOP', 'Ornn', 'Bom', 1, 4, 3, 12000),
+    scrimPlayer(100, 'JUNGLE', 'Vi', 'Go10x', 7, 2, 5, 30000),
+    scrimPlayer(100, 'MIDDLE', 'Ahri', 'Kez', 3, 3, 6, 25000),
+    scrimPlayer(100, 'BOTTOM', 'Jinx', 'Rhu', 4, 2, 5, 28000),
+    scrimPlayer(100, 'UTILITY', 'Leona', 'Sen', 0, 5, 9, 8000),
+    scrimPlayer(200, 'TOP', 'Gnar', 'Them1', 2, 3, 2, 14000),
+    scrimPlayer(200, 'JUNGLE', 'Sejuani', 'Them2', 3, 5, 4, 20000),
+    scrimPlayer(200, 'MIDDLE', 'Syndra', 'Them3', 5, 4, 3, 26000),
+    scrimPlayer(200, 'BOTTOM', 'Caitlyn', 'Them4', 4, 3, 4, 24000),
+    scrimPlayer(200, 'UTILITY', 'Nautilus', 'Them5', 0, 4, 8, 6000)
+  ],
+  order: 0
+} as unknown as Scrim;
+
+/** The roster, so a replay's teammate is named rather than left as "not on the roster". */
+const roster = [{ id: 'p1', name: 'Go10x', role: 'Jungle', order: 0, profile: { riotTag: '#EUW' } }] as unknown as Parameters<TeamDataService['players']['set']>[0];
+
+/** A tournament game typed into the draft room: ten champions and a result, no figures at all. */
+const series = { id: 's1', tournamentId: 't1', opponent: 'MOSS', bestOf: 3, scheduledAt: new Date(TODAY).toISOString(), order: 0 } as unknown as TournamentSeries;
+const seriesGame = {
+  id: 'g1',
+  seriesId: 's1',
+  gameNumber: 1,
+  ourChampions: ['Ornn', 'Vi', 'Ahri', 'Jinx', 'Leona'],
+  theirChampions: ['Gnar', 'Sejuani', 'Syndra', 'Caitlyn', 'Nautilus'],
+  win: true,
+  order: 0
+} as unknown as SeriesGame;
+
+function text(el: Element | null): string {
+  return (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
+// The page renders under TestBed, which needs the DOM only the Angular runner (ng test, jsdom) provides; bare vitest steps aside.
+describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, the row\'s MVP chip', () => {
+  let data: TeamDataService;
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'games', component: GamesComponent }])] });
+    data = TestBed.inject(TeamDataService);
+  });
+
+  /** The game list starts folded on purpose; the chip lives on a row's summary line inside it. */
+  async function open(): Promise<{ harness: RouterTestingHarness; root: HTMLElement }> {
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/games', GamesComponent);
+    harness.detectChanges();
+    const root = harness.routeNativeElement as HTMLElement;
+    // Two folds on the page: the player table's and the game list's. The list's is the one the tour anchors.
+    root.querySelector<HTMLButtonElement>('[data-tour="games-list-fold"]')!.click();
+    harness.detectChanges();
+    return { harness, root };
+  }
+
+  function tipOf(harness: RouterTestingHarness, selector: string): string {
+    return harness.fixture.debugElement.query(By.css(selector)).injector.get(TooltipDirective).appTip();
+  }
+
+  it('marks who carried the game on the row, compact, with the terms behind it in the tip', async () => {
+    data.compAnalysis.set({ games: [riotGame], comps: [], totalTeamGames: 1, scannedMatches: 1, generatedAt: new Date(TODAY).toISOString() } as CompAnalysis);
+    const { harness, root } = await open();
+    const chip = root.querySelector(`[data-row="riot-${riotGame.matchId}"] summary .mvp-chip`)!;
+    expect(text(chip.querySelector('.mvp-chip-word'))).toBe('MVP');
+    // Compact on a row: the tile and the word, and the name in the tip where there is room for it.
+    expect(chip.classList.contains('is-compact')).toBe(true);
+    expect(chip.querySelector('.mvp-chip-name')).toBeNull();
+    expect(tipOf(harness, '.mvp-chip')).toBe('MVP: Rhu on Jinx. 52.5k damage, 38% of ours · on 14 of 20 kills · died twice.');
+  });
+
+  it('reads a replay the same way, off the kills the file does carry rather than a participation it does not', async () => {
+    data.players.set(roster);
+    data.scrims.set([scrim]);
+    const { harness, root } = await open();
+    const chip = root.querySelector('[data-row="scrim-EUW1_9000000002"] summary .mvp-chip')!;
+    expect(text(chip.querySelector('.mvp-chip-word'))).toBe('MVP');
+    // Fifteen kills between our five on the file, and Vi was in on seven of her own and five of theirs.
+    expect(tipOf(harness, '.mvp-chip')).toBe('MVP: Go10x on Vi. 30.0k damage, 29% of ours · on 12 of 15 kills · died twice.');
+  });
+
+  it('draws no chip on a tournament game typed in by hand, because it carries no figures to read', async () => {
+    data.tournaments.set([{ id: 't1', name: 'Oryx', order: 0 } as unknown as Tournament]);
+    data.tournamentSeries.set([series]);
+    data.seriesGames.set([seriesGame]);
+    const { root } = await open();
+    const row = root.querySelector('[data-row="series-g1"]')!;
+    expect(row).not.toBeNull();
+    expect(row.querySelector('.mvp-chip')).toBeNull();
+  });
+});

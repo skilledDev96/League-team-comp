@@ -14828,6 +14828,12 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   .film-stage { min-height: 0; grid-template-rows: auto auto; }
   .film-bar { padding: 0.55rem 0.75rem; }
   .film-bar-headline { display: none; }
+  /* Four things do not fit a phone's bar: with the tour pill's words in it the kicker was
+     squeezed to twelve pixels and ran under Motion (measured at 375px, 11 Sep 2026). The
+     icon stays and the word goes off-screen rather than out of the tree, the same recipe
+     the Reviewed chip uses, because a bare icon says nothing to a screen reader. */
+  .film-bar-tour { position: relative; padding-inline: 0.55rem; }
+  .film-bar-tour-word { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
   /* The dot rail stands in the stage's own right padding, never over a chapter. */
   .film-dots { left: auto; right: 0.4rem; }
   /* One viewport tall less the Riot notice under it (10 Sep 2026, evening: the topbar is gone on this route, so the notice is the only
@@ -15558,8 +15564,9 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 .film-seat-tile:hover, .film-seat-tile:focus-visible { border-color: var(--film-a); color: var(--film-ink); }
 .film-seat-tile.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--film-ink); }
 .film-seat-tile.active img, .film-seat-tile.active .film-seat-tile-all { border-color: var(--accent); }
-/* Their deaths under a seat's view step back a touch less than a read filter fades a pin (0.3), so the seat's own story reads against a map that still has the other side on it. */
-.rift-map.has-seat-filter .rift-token.is-theirDeath.is-faded { opacity: 0.35; }
+/* A seat's view used to fade their deaths; since 11 Sep 2026 a filter means focus, so the dots
+   that seat was in on stay at full strength and the rest leave the map. The fade rule that stood
+   here has gone with them: nothing surviving a filter is dimmed any more. */
 
 /* ---- The tape ---- */
 /* What the tape spends under the square is --film-scrub-h, 13rem, measured in the running app and set on the stage with the sum
@@ -15907,6 +15914,327 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   .film-layers { justify-content: center; }
   .film-layer-btn, .film-lab-btn { min-height: 2.75rem; }
 }
+
+/* ---- The marks legend (`app-mark-legend`), 11 Sep 2026 --------------------------
+   The panel behind "What the marks mean", beside the map chapter's own legend and in
+   the position lab's tools row. Every mark is drawn out of the same tokens the Rift
+   paints with — the read colours, --ok for a trinket and the win side, --warn for
+   theirs, --accent-2 for a control ward — so a theme change moves the legend and the
+   map together and nothing here can drift into a colour the map does not use. Sizes
+   in rem, borders and radii in px, colours only from tokens.
+
+   The panel is a panel and not a modal: no backdrop, no trap, and it hangs off the
+   pill rather than the column, so it lands the same way in the map's side column and
+   in the lab's tools row. It grows leftwards (right: 0) so it can never push the page
+   sideways off the pill's own right edge. */
+
+.mark-legend { position: relative; display: inline-block; }
+.mark-legend-panel {
+  position: absolute;
+  z-index: 6;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  width: max(100%, 21rem);
+  max-width: min(26rem, 88vw);
+  max-height: min(28rem, 60dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 0.7rem 0.85rem 0.8rem;
+  border: 1px solid var(--film-line, var(--card-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--film-shade, var(--bg-0)) 96%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--bg-0) 55%, transparent);
+}
+.mark-legend-panel:focus { outline: none; }
+
+/* The tape's pill sits in the tools row at the bottom of its column, so its panel opens
+   upward instead (11 Sep 2026, second fix pass); hanging downward would put it under the
+   stage. The host asks for it with `class="is-up"`; everything else about it is the same. */
+.mark-legend.is-up .mark-legend-panel {
+  top: auto;
+  bottom: calc(100% + 0.4rem);
+}
+.mark-legend-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.mark-legend-head b { font-family: "Chakra Petch", sans-serif; letter-spacing: 0.04em; color: var(--film-ink, var(--text-0)); }
+.mark-legend-section { margin-top: 0.6rem; }
+.mark-legend-title {
+  margin: 0 0 0.3rem;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--film-ink-1, var(--text-1));
+}
+.mark-legend-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--film-ink-1, var(--text-1));
+}
+.mark-legend-words b { color: var(--film-ink, var(--text-0)); }
+.mark-legend-words b::after { content: " — "; color: var(--film-ink-1, var(--text-1)); font-weight: 400; }
+.mark-legend-foot { margin: 0.7rem 0 0; padding-top: 0.5rem; border-top: 1px solid var(--film-line, var(--card-border)); font-size: 0.72rem; line-height: 1.4; color: var(--film-ink-1, var(--text-1)); }
+
+/* The mark cell: a fixed column so every sentence starts at the same place, whatever
+   is drawn in it. Each mark below is the map's own, at legend size. */
+.mark-legend-mark { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.9rem; height: 1.6rem; }
+
+/* A death of ours: the pip, ringed the way the Rift rings it, in the read's colour. */
+.mark-legend-mark.is-pip {
+  width: 1.9rem;
+}
+.mark-legend-mark.is-pip::before {
+  content: "";
+  position: absolute;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  border: 2px solid var(--warn);
+  background: var(--surface-btn);
+  box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--warn) 35%, transparent);
+}
+.mark-legend-mark.is-pip { position: relative; color: var(--warn); }
+.mark-legend-mark.is-pip .film-glyph { position: relative; font-size: 0.8rem; }
+.mark-legend-mark.is-read-avoidable { color: var(--read-avoidable, var(--warn)); }
+.mark-legend-mark.is-read-traded { color: var(--read-traded, var(--accent-2)); }
+.mark-legend-mark.is-read-bought { color: var(--read-bought, var(--ok)); }
+.mark-legend-mark.is-read-clean { color: var(--read-clean, var(--text-1)); }
+.mark-legend-mark.is-read-avoidable::before { border-color: var(--read-avoidable, var(--warn)); box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--read-avoidable, var(--warn)) 35%, transparent); }
+.mark-legend-mark.is-read-traded::before { border-color: var(--read-traded, var(--accent-2)); box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--read-traded, var(--accent-2)) 35%, transparent); }
+.mark-legend-mark.is-read-bought::before { border-color: var(--read-bought, var(--ok)); box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--read-bought, var(--ok)) 35%, transparent); }
+.mark-legend-mark.is-read-clean::before { border-color: var(--read-clean, var(--text-1)); box-shadow: 0 0 0 0.15rem color-mix(in srgb, var(--read-clean, var(--text-1)) 30%, transparent); }
+
+/* A death of theirs, a fight, the objectives. */
+.mark-legend-mark.is-dot::before { content: ""; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--text-1); box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg-0) 70%, transparent); }
+.mark-legend-mark.is-blob::before { content: ""; width: 1.45rem; height: 1.45rem; border-radius: 50%; background: color-mix(in srgb, var(--warn) 10%, transparent); border: 1px solid color-mix(in srgb, var(--warn) 32%, transparent); }
+.mark-legend-mark.is-obj { width: auto; gap: 0.2rem; color: var(--film-ink-1, var(--text-1)); }
+.mark-legend-mark.is-obj .film-glyph { font-size: 0.95rem; }
+
+/* Vision: the ward, its sight, and the heat's two washes. */
+.mark-legend-mark.is-ward { color: var(--ok); }
+.mark-legend-mark.is-ward::before { content: ""; position: absolute; width: 1.2rem; height: 1.2rem; border-radius: 50%; border: 1px solid currentColor; background: color-mix(in srgb, var(--bg-0) 78%, transparent); }
+.mark-legend-mark.is-ward { position: relative; }
+.mark-legend-mark.is-ward .film-glyph { position: relative; font-size: 0.75rem; }
+.mark-legend-mark.is-sight::before { content: ""; width: 1.45rem; height: 1.45rem; border-radius: 50%; border: 1px dashed color-mix(in srgb, var(--ok) 55%, transparent); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.mark-legend-mark.is-heat::before { content: ""; width: 1.45rem; height: 1.45rem; border-radius: 50%; }
+.mark-legend-mark.is-heat.is-ward-cell::before { background: color-mix(in srgb, var(--ok) 35%, transparent); }
+.mark-legend-mark.is-heat.is-death-cell::before { background: color-mix(in srgb, var(--warn) 35%, transparent); }
+
+/* The lab's own: the ghost, the reach, the three shades, the tokens' rings. The shade
+   colours are the lab's own cells (.lab-cell.is-safe / .is-sight / .is-danger). */
+.mark-legend-mark.is-ghost::before { content: ""; width: 1.3rem; height: 1.3rem; border-radius: 50%; border: 2px dotted color-mix(in srgb, var(--accent) 70%, transparent); background: color-mix(in srgb, var(--bg-0) 45%, transparent); opacity: 0.75; }
+.mark-legend-mark.is-reach::before { content: ""; width: 1.45rem; height: 1.45rem; border-radius: 50%; border: 1px dashed color-mix(in srgb, var(--warn) 75%, transparent); background: color-mix(in srgb, var(--warn) 5%, transparent); }
+.mark-legend-mark.is-shade::before { content: ""; width: 0.9rem; height: 0.9rem; border-radius: 3px; opacity: 0.7; }
+.mark-legend-mark.is-shade-safe::before { background: var(--ok); }
+.mark-legend-mark.is-shade-seen::before { background: var(--accent-2); }
+.mark-legend-mark.is-shade-dark::before { background: var(--warn); }
+.mark-legend-mark.is-rings::before, .mark-legend-mark.is-rings::after { content: ""; width: 0.95rem; height: 0.95rem; border-radius: 50%; border: 2px solid var(--accent); background: color-mix(in srgb, var(--bg-0) 85%, transparent); }
+.mark-legend-mark.is-rings::after { margin-left: -0.3rem; border-color: color-mix(in srgb, var(--warn) 70%, transparent); opacity: 0.85; }
+
+/* In the lab the tools row sits under the map with the reading line beneath it, so the
+   panel opens upwards over the map rather than off the bottom of the stage. */
+.lab-tools .mark-legend-panel { top: auto; bottom: calc(100% + 0.4rem); }
+
+/* On a phone the panel is the width of the column it hangs in, and shorter, so the
+   pill and the map below it stay reachable. */
+@media (max-width: 48rem) {
+  /* Both rows it hangs in (the map's legend, the lab's tools) are wrapping flex rows, so
+     `display: block` alone left it a 181px item and the panel took the pill's width with it
+     — measured at 375px in the running app, Wire pass, 11 Sep 2026. It takes a row of its own. */
+  .mark-legend { display: block; flex: 1 0 100%; }
+  .mark-legend-panel { right: auto; left: 0; width: 100%; max-width: none; max-height: 50dvh; }
+  .mark-legend-btn { width: 100%; min-height: 2.75rem; }
+}
+
+/* ---- The MVP marks, 11 Sep 2026 (queue items 5-7) ----
+
+   Three marks off one chip: who carried a game (the game row and the film's
+   card), who carried a series (the series head in Prep & Draft), and who
+   swung the gold most (beside the MVP on the card, so the two can disagree).
+
+   Built to sit in a line of other chips — Reviewed, Recorded, the comp name,
+   the burned count — so it borrows their height and their pill, and takes its
+   colour from the accent for an MVP and the ok token for a swing. Never a
+   button: it does nothing. Focusable, because the terms behind it live in the
+   tooltip and a tooltip that only hover can reach is a tooltip half the team
+   never sees. ---- */
+
+.mvp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.05rem 0.55rem 0.05rem 0.2rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--card-border));
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-0);
+  white-space: nowrap;
+  max-width: 100%;
+  cursor: default;
+}
+
+.mvp-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mvp-chip-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  flex: none;
+  object-fit: cover;
+}
+
+/* The word is the mark; the name is who it is about, and it gives way first when the row runs out of room. */
+.mvp-chip-word {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+  color: color-mix(in srgb, var(--accent) 72%, var(--text-0));
+}
+
+.mvp-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-0);
+}
+
+/* The series mark carries more behind it, so it reads a shade stronger on a head full of chips. */
+.mvp-chip.is-series {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--card-border));
+}
+
+/* Who swung it is a different question from who played best: the ok token, so the eye does not read the two as one mark. */
+.mvp-chip.is-swing {
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--card-border));
+  background: color-mix(in srgb, var(--ok) 8%, transparent);
+}
+
+.mvp-chip.is-swing .mvp-chip-word {
+  color: color-mix(in srgb, var(--ok) 72%, var(--text-0));
+}
+
+/* The game row's size: a mark in a summary line, no name, the word alone. */
+.mvp-chip.is-compact {
+  gap: 0.25rem;
+  padding: 0.05rem 0.5rem 0.05rem 0.15rem;
+}
+
+.mvp-chip.is-compact .mvp-chip-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+@media (max-width: 40rem) {
+  /* Off the screen, not out of the tree, the same recipe the Reviewed chip uses (10 Sep 2026): a coloured
+     mark with no word is nothing at all to a screen reader, and the tile alone is what the row has room for. */
+  .mvp-chip.is-compact .mvp-chip-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
+  .mvp-chip.is-compact {
+    position: relative;
+    gap: 0;
+    padding: 0.05rem 0.2rem;
+  }
+}
+
+/* ---- The two marks on the film's card ----
+
+   Above the asks, side by side while there is room and stacked on a phone.
+   The card's own columns are set by `.film-card-col`; this is one block
+   inside the asks column, so the asks keep their stagger under it. ---- */
+
+.film-card-marks {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 60%, transparent);
+}
+
+/* The terms on the card, not only in a tip (11 Sep 2026, second fix pass): the mark and the line that
+   earned it stack, so when the MVP and the swing name different seats the reason is on the screen. A
+   touch tap on the chip dismisses its own tooltip, which left a phone with no way to read them at all. */
+.film-card-mark {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.4rem;
+}
+
+.film-card-mark-terms {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--text-1);
+}
+
+/* What a minute's resolution cannot see, under the swing's own terms: quieter than them, never hidden. */
+.film-card-mark-tip {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.64rem;
+  color: color-mix(in srgb, var(--text-1) 75%, transparent);
+}
+
+.film-card-marks .mvp-chip {
+  font-size: 0.78rem;
+}
+
+/* Said, not left blank: a game with no timeline cannot be read for a swing, and a silent gap looks like nobody swung it. */
+.film-card-marks-none {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-1);
+  white-space: normal;
+}
+
+@media (max-width: 40rem) {
+  .film-card-marks {
+    gap: 0.35rem;
+  }
+}
+
+/* ---- What the Wire pass added, 11 Sep 2026 ----
+
+   Two small things the wiring needs: the film bar's own "Show me around" pill, and
+   the line on a death card that says how well that one spot is known. Both sit in
+   the film, so both take their colour from the film's own ink tokens. */
+
+/* The bar is a flex row whose only greedy child is the title, so the pill only has to
+   refuse to stretch. It stands beside Motion and leaves while a tour is walking. */
+.film-bar-tour { flex: none; }
+
+/* Where a death was placed (timeline version 4): the game's own answer reads in the
+   accent, the film's guess inside a zone stays quiet beside the zone's own word. */
+.film-death-placed { font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--film-ink-1); cursor: help; }
+.film-death-placed.is-event { color: color-mix(in srgb, var(--ok) 70%, var(--film-ink)); }
+
+/* In the lab the pill sits between Save and Close, and the panel is the tallest thing
+   in the row; it must not stretch the toolbar, which is sized against the square. */
+.lab-tools .mark-legend { flex: none; }
 
 /* ---- The stocks, the title treatments and the entrances, 10 Sep 2026 ---- */
 /* Three looks the seed hands a film (`core/film-style.ts`), as classes on `.film-stage`. What changes

@@ -25,3 +25,9 @@ dev-timeline-*.json
 replay-shots/
 replay-recording-*.json
 replay-shot-*.json
+
+# The root package gained its first dependency on 11 Sep 2026 (`sharp`, for the recorder's
+# frames), and with it a node_modules of its own. `frontend/` and `api/` each ignored theirs;
+# the root never had to, so an `npm install` here left several thousand untracked files in
+# front of the next `git add .`.
+/node_modules/

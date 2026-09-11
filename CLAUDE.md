@@ -337,7 +337,17 @@ filter rather than none, so it can never become unpickable.
    guards it) and our wards at the placer's frame position with the
    type and the earliest matching kill; `scripts/dev-timeline.mjs` makes
    one locally from `api/lib` for the dev override (the film room's Part C
-   paragraph). The facts read off it
+   paragraph). Version 4 (11 Sep 2026, the lead: "the approximate meters
+   are a bit off, can we tighten that") keeps the **events' own positions**:
+   `x`/`y` on every death of ours and of theirs off the `CHAMPION_KILL`, and
+   on every objective off the `ELITE_MONSTER_KILL`, in Riot units rounded to
+   `POSITION_GRID` (100) and spread conditionally, so an event Riot sent
+   without a position keeps neither key. The film then places a death where
+   it happened rather than sampling inside its zone; the pit stays the
+   fallback for an objective and counts as a guess. All six fields are
+   optional, so an older document reads exactly as it did — and until the
+   morning rebuild reaches a game (twenty a run) its film keeps the zone
+   pins and says so. The facts read off it
    (`api/src/game-facts.ts`: curve shape, lanes with the minute, fights,
    solo deaths, objectives given up, vision, and the **death ledger** — a
    verdict per death, `how` and what `could` have stopped it: `jungle`
@@ -436,6 +446,45 @@ filter rather than none, so it can never become unpickable.
    sentence), First thing next game and Keep doing as one line each
    (`askOf`), one ask per player, the team's commitment line. Everything
    longer lives in the film room.
+   **Three marks: who carried it, and who swung it** (11 Sep 2026, the lead:
+   "add an MVP for a series, and a game, and then also most influential
+   player"). `core/game-mvp.ts` holds the line the film's poster always
+   picked by — three a kill, one and a half an assist, two off a death,
+   twelve times the share of our damage, six times kill participation, ties
+   to lane order — as `mvpSeatOf` (which `film-build.ts` now imports, so the
+   film's face and the chip can never name two seats), plus `mvpOf` with the
+   two or three terms that carried it, `seriesMvpOf` (the best average per
+   game **that seat played**, so a sub is judged on the game they played;
+   ties to the better average damage share, one line a game) and the two
+   adapters `mvpGameFromScrim` / `mvpGameFromRow`. `core/influence.ts`
+   answers the other question — not who played best but who swung the game
+   most: for every kill a seat was in on and every death of theirs, the gold
+   swing over the two minutes after (`goldDiff[m+2] - goldDiff[m]`, the same
+   window the map's `cost` uses), with **each minute priced once** however
+   many of that seat's events fell in it (the curve moves once; summing per
+   event multiplied one ace by five and printed it as gold), ranked by the
+   **size** of the swing either way (on a game we lost the signed sort
+   crowned whoever lost the least), the biggest single swing named with its
+   own figure and sign, and the events the curve does not reach counted as
+   `unpriced` rather than folded in as zero; no timeline, no answer, and the
+   card says so — `INFLUENCE_NO_TIMELINE` for a game with none and
+   `INFLUENCE_NOTHING` for a timeline that carried no fight to price, since
+   the two are not the same thing. The card reads the timeline through the
+   review's own tier, as the film page does, so the answer never depends on
+   whether the Games row was opened first.
+   `shared/mvp-chip.component.ts` is the one chip in three kinds — MVP,
+   Series MVP, Swung it most — a focusable span and never a button or a
+   link, the terms in its tip, no figure on its face and the word "score"
+   nowhere on screen. It shows on the game row's summary beside Reviewed
+   (compact), on the film's card above the asks — where the terms are
+   **printed** under each chip, because a tooltip is unreadable on a phone
+   and the disagreement between the two marks is the point — and on the
+   series head in Prep & Draft, which names a person only while one of them
+   held the seat (a sub's games are never credited to whoever played last).
+   A game with no figures (a tournament game typed into the
+   draft room) gets no chip rather than an MVP invented from five champion
+   names. The honest caveat travels with the swing: Riot keeps the curve a
+   minute at a time, so it is approximate, and the tooltip says so.
    **The film room** (`/film/:matchId`, `pages/film/`, 9 Sep 2026) walks a
    review as chapters the reader calls before they are revealed: the title
    card asks what decided the game before the headline lands (only when
@@ -585,7 +634,11 @@ filter rather than none, so it can never become unpickable.
    stamps `.page.is-film` on `/film` routes (`App.filmRoute`, NavigationEnd)
    and hides the topbar and the local-mode note; the Riot notice
    (`.site-footer`) stays as one thin line, because it must be visible
-   wherever the app shows. The film bar is the only chrome: Back is a pill
+   wherever the app shows. **A hidden topbar means no nav link to wait for**,
+   which the signed-in e2e loop over the deep links did on every path
+   including `./film/none`; since 11 Sep 2026 it waits for `.film-bar` there
+   instead, so the one page with no nav is not read as a page that failed to
+   boot. The film bar is the only chrome: Back is a pill
    to `/games?match=<id>&tab=games`, and a second Escape within 2 s
    (`ESCAPE_TWICE_MS`) goes Back too, unless the first closed something:
    the tape and the map say so through `escaped` (the drawer, the full
@@ -686,6 +739,66 @@ filter rather than none, so it can never become unpickable.
    the dev override `bom-dev-timeline:<matchId>`, which
    `MatchTimelineService.load` reads in dev builds only (after its cache,
    before Firestore; a bad paste warns once and falls through).
+   **The queue batch (11 Sep 2026), from the lead with screenshots.**
+   *A filter on the map means focus*, not a dimming: a read leaves only the
+   deaths of ours the film reads that way — no dots of theirs, no fight
+   blobs, and the vision heat keeps its ward cells alone — and a seat leaves
+   that seat's deaths, backs and lane plates, the dots it was in on
+   (`FilmMap.theirs[].seats`, straight off `theirDeaths[].ourInvolved`, and
+   `FilmTapeEvent.seats` from the same place so the tape obeys the rule it
+   was written for — without them a champion's view cleared every dot on the
+   tape and a traded death read as a solo one) and
+   the fights it fell in. `staysForRead` and `staysForSeat` in
+   `shared/film/rift-map.component.ts` are the one rule for both; nothing
+   that survives a filter is faded any more. **Vision heat is a filter too**
+   (second fix pass): while it is lit the dots of theirs and the fight blobs
+   come off, so the square is our wards against our deaths and nothing else.
+   The strip, the table and the
+   card walk the filtered set (`walk()`), while the legend's counts stay the
+   seat's (`seatPins()`), because a count is what picking that pill would
+   show. The corner note reads the marks actually on the square, not the
+   whole game, so a filtered view never describes pins that are not there. *Exact positions*: with timeline version 4 a death is placed from
+   the kill event (`placeOurDeath`, `placeTheirDeaths`, `placeObjective` in
+   `core/film-build.ts`), and `FilmDeathPin.placed` / `FilmMap.theirs[].placed`
+   / `FilmTapeEvent.placed` say `'event'` or `'zone'` per mark;
+   `placementNote`/`placementOf` turn a screenful of them into one of three
+   sentences — "Where the game says they fell", "Mostly where they fell; a
+   few by zone", "Approximate, by zone" — which the Rift's corner note and
+   the map chapter's own note (with its matching tip, `PLACED_TIP`,
+   `MIXED_TIP`, `APPROXIMATE_TIP`) print, and the death card says which for
+   the one death it is showing. An event-placed pin may sit outside the
+   coarse region `rift-zones.ts` draws for its zone: the regions are the
+   film's buckets and the event is the game's own answer. *The legend*:
+   `shared/film/mark-legend.component.ts` (`app-mark-legend`) behind a "What
+   the marks mean" pill on the map, on the tape and in the lab draws every
+   mark with its sentence — the four reads off `READ_LABELS` so the words
+   cannot drift, the pin, the dot, the blob, the objective glyphs, the ward
+   and its sight, the heat's two washes, and the lab's ghost, reach, three
+   shades, rings and plain death marks. **A host declares what its own
+   square draws** (`MarkSurface`: reads, theirs, objectives, vision, heat,
+   lab) and gets those rows and no others, because a legend naming a mark
+   the reader cannot find beside it is worse than none: the map has the
+   reads, the dots and the blobs (and the washes where the timeline kept the
+   wards), the tape has the objectives and our vision, which are drawn
+   nowhere else, and the lab has its own. A panel, not a modal: nothing
+   behind it is blocked, and the Escape it handles stops there so the film's
+   two-Escapes rule is not armed by it; the map and the tape both fold it
+   with their drawer, since it lives in the column full screen hides.
+   *The tour*: `film-room` in
+   `core/tours.ts`, nineteen steps over the rail, the map, the tape and the
+   lab, `autoStart: false` and `onlyHere: true` (a `/film/` prefix path
+   cannot be walked to — `TourService.start` would append a player id — so
+   Help and tours lists it with the reason and the door is the "Show me
+   around" pill in the film bar, shown only when the film has a map or a
+   tape). Every step past the first carries a `before` — `openFilmMap`,
+   `openFilmTape`, `openFilmLab` — because the deck renders one chapter at a
+   time; they press the deck's own `film-dot-<kind>` buttons, and each one
+   **reports whether that door exists**, so a film with no map, or a
+   timeline that kept no positions, skips those steps at once instead of
+   spending `waitFor`'s three seconds of "Finding it…" on each. While a tour
+   walks, the film's key handler stands down and the lab opens with
+   `dialog.show()` rather than `showModal()`, since nothing painted at any
+   z-index reaches over the browser's top layer.
    **Post-game graphs** (`shared/game-graphs.component.ts`) sit behind a
    Table | Graphs segment on every Games row's scoreboard, drawn from the
    row's `RowStats` so replays and Riot games get the same view; a figure a
@@ -727,6 +840,10 @@ card; the last button is "Got it" and the escape is "Skip tour", the two names
 `e2e/tests/auth.setup.ts` and the `authenticated.spec.ts` beforeEach click,
 scoped to `.tour-card` since 10 Sep 2026 because the Before you play reminder
 and the Games banner carry a "Got it" of their own.
+A tour whose `match.path` is a prefix (ending in `/`) is opened from elsewhere by
+appending the first player's id — right for `/player/`, wrong for anything else —
+so such a tour carries `onlyHere: true` (the film room's does, 11 Sep 2026) and
+`blocker` then tells the help list to say where it starts instead of walking there.
 Never name a tour button with "edit mode": a viewer test asserts none exists.
 Nothing a tour adds to the draft room may change its height. Seen state is
 `userPrefs/{email}.toursSeen` (`services/user-prefs.service.ts`, localStorage

@@ -50,6 +50,8 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { OpponentScoutService } from '../../../services/opponent-scout.service';
 import { playedElsewhere } from '../../../core/opponent-roles';
 import { TournamentContextService } from '../tournament-context.service';
+import { mvpGameFromScrim, SeriesMvp, SeriesMvpGame, seriesMvpOf } from '../../../core/game-mvp';
+import { MvpChipComponent } from '../../../shared/mvp-chip.component';
 
 /**
  * Planning a tournament: the schedule, each series, and the prep around it.
@@ -66,7 +68,8 @@ import { TournamentContextService } from '../tournament-context.service';
     MatchNoteComponent,
     MatchNoteButtonComponent,
     TooltipDirective,
-    NgModelNameDirective
+    NgModelNameDirective,
+    MvpChipComponent
   ],
   templateUrl: './plan.component.html'
 })
@@ -113,6 +116,44 @@ export class TournamentPlanComponent {
   /** Notes, bans or a roster saved: the mark on the row. */
   protected hasPrep(series: TournamentSeries): boolean {
     return !!(series.notes?.trim() || series.bans?.length || series.opponentPlayers?.length);
+  }
+
+  // ---- Who carried the series (11 Sep 2026) --------------------------------
+  //
+  // The same line the game row and the film's card read, averaged over the
+  // games of the series that carry figures. A custom never reaches Riot, so
+  // most of these come off the replay dropped on the series; a game with no
+  // replay and no Riot match behind it has nothing to read and is left out
+  // rather than counted as a quiet game.
+
+  private readonly analysisById = computed(() => new Map((this.data.compAnalysis()?.games ?? []).map((g) => [g.matchId, g])));
+  private readonly scrimById = computed(() => new Map(this.data.scrims().map((s) => [s.id, s])));
+
+  private readonly seriesMvps = computed(() => {
+    const analysis = this.analysisById();
+    const scrims = this.scrimById();
+    const map = new Map<string, SeriesMvp | null>();
+    for (const series of this.seriesList()) {
+      const games: SeriesMvpGame[] = [];
+      for (const g of this.gamesFor(series.id)) {
+        const label = `Game ${g.gameNumber}`;
+        const riot = g.matchId ? analysis.get(g.matchId) : undefined;
+        if (riot) {
+          games.push({ label, game: riot });
+          continue;
+        }
+        const scrim = g.matchId ? scrims.get(g.matchId) : undefined;
+        const replay = scrim ? mvpGameFromScrim(scrim, g.ourSide) : null;
+        if (replay) games.push({ label, game: replay });
+      }
+      map.set(series.id, seriesMvpOf(games));
+    }
+    return map;
+  });
+
+  /** Who carried this series, or nothing when no game of it carries figures yet. */
+  protected seriesMvp(id: string): SeriesMvp | null {
+    return this.seriesMvps().get(id) ?? null;
   }
 
   // ---- Replays dropped on the page or on a series (9 Sep 2026) --------------------

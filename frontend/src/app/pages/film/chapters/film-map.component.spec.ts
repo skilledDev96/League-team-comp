@@ -8,7 +8,7 @@ import { styleFor } from '../../../core/film-style';
 import { ROLES } from '../../../models/team.models';
 import { heatOpacity } from '../../../shared/film/rift-map.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
-import { APPROXIMATE_TIP, costLine, FilmMapComponent, HEAT_NOTE, HEAT_TIP, k, signedK } from './film-map.component';
+import { APPROXIMATE_TIP, costLine, FilmMapComponent, HEAT_NOTE, HEAT_TIP, k, MIXED_TIP, signedK } from './film-map.component';
 
 // Local mode, the way the film page's spec does it: no listeners, no backend.
 const realApiKey = environment.firebase.apiKey;
@@ -21,18 +21,18 @@ const scene: FilmDeathScene = { could: [], killers: 2, executed: false, traded: 
 
 const pins: FilmDeathPin[] = [
   {
-    key: 'd:4:ADC', sec: 252, minute: 4, seat: 'ADC', name: 'Rhu', champion: 'Jinx', zone: 'bot', x: 85, y: 84, how: 'gank', could: ['ward', 'call'],
+    key: 'd:4:ADC', sec: 252, minute: 4, seat: 'ADC', name: 'Rhu', champion: 'Jinx', zone: 'bot', x: 85, y: 84, placed: 'event', how: 'gank', could: ['ward', 'call'],
     line: 'Minute 4: Jinx to a gank in bot lane with no ward nearby.',
     read: 'avoidable', readLine: 'Avoidable: two came in and no ward had gone down nearby, and their jungler had been on this side a minute earlier.',
     glyphs: ['ward-off', 'horn'], cost: -1200, scene: { ...scene, could: ['ward', 'call'], alliesNear: 1, ourJungler: { champion: 'Trundle', zone: 'top', far: false }, theirJungler: { champion: 'LeeSin', close: true } }
   },
   {
-    key: 'd:20:Support', sec: 1210, minute: 20, seat: 'Support', name: 'Nia', champion: 'Leona', zone: 'river', x: 50, y: 50, how: 'fight', could: [],
+    key: 'd:20:Support', sec: 1210, minute: 20, seat: 'Support', name: 'Nia', champion: 'Leona', zone: 'river', x: 50, y: 50, placed: 'event', how: 'fight', could: [],
     line: 'Minute 20: Leona in a fight.',
     read: 'traded', readLine: 'Traded: one of theirs fell in the same fight.', glyphs: ['swords'], cost: 300, scene: { ...scene, killers: 4, traded: 1 }
   },
   {
-    key: 'd:8:Jungle', sec: 470, minute: 8, seat: 'Jungle', name: 'Go10x', champion: 'Trundle', zone: 'river', x: 60, y: 55, how: 'fight', could: [],
+    key: 'd:8:Jungle', sec: 470, minute: 8, seat: 'Jungle', name: 'Go10x', champion: 'Trundle', zone: 'river', x: 60, y: 55, placed: 'zone', how: 'fight', could: [],
     line: 'Minute 8: Trundle in a fight at the dragon.',
     read: 'bought', readLine: 'Bought the dragon: it fell to us within a minute.', glyphs: ['dragon'], scene: { ...scene, killers: 3, objective: { type: 'dragon', ours: true } }
   }
@@ -40,7 +40,7 @@ const pins: FilmDeathPin[] = [
 
 const map: FilmMap = {
   pins,
-  theirs: [{ x: 40, y: 60, minute: 6 }],
+  theirs: [{ x: 40, y: 60, minute: 6, placed: 'event' }],
   clusters: [],
   summary: { deaths: 3, ganks: 1, dark: 1, inReach: 0, alone: 0 },
   reads: { avoidable: 1, traded: 1, bought: 1, clean: 0 },
@@ -160,7 +160,7 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmMapComponent', () => {
     expect(root.querySelector('.film-map-opening .film-num')?.getAttribute('data-count')).toBe('3');
     expect(text(root.querySelector('.film-map-opening'))).toBe('3 deaths: 1 avoidable, 1 traded, 1 bought an objective.');
     // All, the three reads with a death, As a table, Full screen; clean has none and gets no pill.
-    expect(legend(root)).toEqual(['All 3', 'Avoidable 1', 'Traded 1', 'Bought an objective 1', 'table_rows As a table', 'fullscreen Full screen']);
+    expect(legend(root)).toEqual(['All 3', 'Avoidable 1', 'Traded 1', 'Bought an objective 1', 'table_rows As a table', 'fullscreen Full screen', 'help What the marks mean']);
     expect(root.querySelector('.film-legend .is-read-avoidable .film-glyph')?.getAttribute('data-glyph')).toBe('skull');
     // Nothing asks any more: no call, no chips to pick, no range to lock.
     expect(root.querySelector('.film-call')).toBeNull();
@@ -202,13 +202,14 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmMapComponent', () => {
     expect(root.querySelectorAll('.rift-map-note')).toHaveLength(1);
     const note = root.querySelector('.film-map-note')!;
     expect(note.classList.contains('rift-map-note')).toBe(true);
-    expect(text(note)).toBe('Approximate, by zone');
-    expect(fixture.debugElement.query(By.css('.film-map-note')).injector.get(TooltipDirective).appTip()).toBe(APPROXIMATE_TIP);
+    // This fixture is a version 4 film with two deaths off their own kill events and one placed by zone, so the note says exactly that (11 Sep 2026).
+    expect(text(note)).toBe('Mostly where they fell; a few by zone');
+    expect(fixture.debugElement.query(By.css('.film-map-note')).injector.get(TooltipDirective).appTip()).toBe(MIXED_TIP);
     expect(APPROXIMATE_TIP).toBe('Positions are approximate: one frame a minute, placed inside the zone the frame put them in.');
-    expect(text(root.querySelector('.film-map-stage .visually-hidden'))).toBe(APPROXIMATE_TIP);
+    expect(text(root.querySelector('.film-map-stage .visually-hidden'))).toBe(MIXED_TIP);
     // Nothing runs under the square any more.
     expect(text(root.querySelector('.rift-map-caption'))).toBe('');
-    expect(root.textContent?.match(/Positions are approximate/g)).toHaveLength(1);
+    expect(root.textContent?.match(/Most deaths here stand where the game says/g)).toHaveLength(1);
   });
 
   it('names the deaths that cost most and jumps to one on a tap', () => {
@@ -236,13 +237,69 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmMapComponent', () => {
     const { fixture, root } = mount(map);
     legendPill(root, 'Bought').click();
     fixture.detectChanges();
-    expect(root.querySelectorAll('.rift-token.is-ourDeath.is-faded')).toHaveLength(2);
-    expect(root.querySelector('.rift-token.is-read-bought')?.classList.contains('is-faded')).toBe(false);
+    // 11 Sep 2026: a read leaves its own deaths on the map and takes the rest off, dots and all, instead of dimming them.
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(1);
+    expect(root.querySelector('.rift-token.is-ourDeath')?.classList.contains('is-read-bought')).toBe(true);
+    expect(root.querySelectorAll('.rift-token.is-faded')).toHaveLength(0);
+    expect(root.querySelectorAll('.rift-token.is-theirDeath')).toHaveLength(0);
+    expect(root.querySelector('.rift-map.has-read-filter')).not.toBeNull();
     expect(legendPill(root, 'Bought').getAttribute('aria-pressed')).toBe('true');
+    // The counts stay the seat's, so the other pills still say what picking them would show.
+    expect(legend(root)).toEqual(['All 3', 'Avoidable 1', 'Traded 1', 'Bought an objective 1', 'table_rows As a table', 'fullscreen Full screen', 'help What the marks mean']);
+    // The strip, the card and its "n / N" hold the filtered set: Go10x bought the dragon, and nothing avoidable is left to be costliest.
+    expect(root.querySelector('.film-costliest')).toBeNull();
+    expect(text(root.querySelector('.film-death-who b'))).toBe('Go10x');
+    expect(text(root.querySelector('.film-death-n'))).toBe('1 / 1');
+    expect((root.querySelector('.film-death-actions .view-btn.active') as HTMLButtonElement).disabled).toBe(true);
+    // The table walks the same set.
+    legendPill(root, 'As a table').click();
+    fixture.detectChanges();
+    expect(root.querySelectorAll('.film-map-table tbody tr')).toHaveLength(1);
+    legendPill(root, 'As a table').click();
+    fixture.detectChanges();
+
     legendPill(root, 'Bought').click();
     fixture.detectChanges();
-    expect(root.querySelectorAll('.rift-token.is-faded')).toHaveLength(0);
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(3);
+    expect(root.querySelectorAll('.rift-token.is-theirDeath')).toHaveLength(1);
+    expect(root.querySelector('.rift-map.has-read-filter')).toBeNull();
     expect(legendPill(root, 'All').getAttribute('aria-pressed')).toBe('true');
+    // The card stayed on the death it was reading when the filter went; the walk is the whole game again, so it is the third of three.
+    expect(text(root.querySelector('.film-death-who b'))).toBe('Go10x');
+    expect(text(root.querySelector('.film-death-n'))).toBe('3 / 3');
+  });
+
+  it('combines the read with the seat, and All resets both', () => {
+    const { fixture, root } = mount(map);
+    tile(root, 'Jungle').click();
+    fixture.detectChanges();
+    legendPill(root, 'Bought').click();
+    fixture.detectChanges();
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(1);
+    expect(text(root.querySelector('.film-death-who b'))).toBe('Go10x');
+    expect(text(root.querySelector('.film-death-n'))).toBe('1 / 1');
+    // The seat's tiles keep working under a read: the ADC has no bought death, so picking her drops the read rather than
+    // leaving a lit pill over an empty map (10 Sep 2026's rule, still true now that the read hides instead of fading).
+    tile(root, 'ADC').click();
+    fixture.detectChanges();
+    expect(legendPill(root, 'All').getAttribute('aria-pressed')).toBe('true');
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(1);
+    expect(text(root.querySelector('.film-death-who b'))).toBe('Rhu');
+    // A read the seat does have narrows to it and back.
+    legendPill(root, 'Avoidable').click();
+    fixture.detectChanges();
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(1);
+    expect(text(root.querySelector('.film-death-n'))).toBe('1 / 1');
+    tile(root, 'All').click();
+    fixture.detectChanges();
+    expect(root.querySelector('.rift-map.has-seat-filter')).toBeNull();
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(1);
+    expect(legendPill(root, 'Avoidable').getAttribute('aria-pressed')).toBe('true');
+    legendPill(root, 'All').click();
+    fixture.detectChanges();
+    expect(root.querySelector('.rift-map.has-read-filter')).toBeNull();
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(3);
+    expect(root.querySelectorAll('.rift-token.is-theirDeath')).toHaveLength(1);
   });
 
   it('shows one seat at a time from the tiles: the map, the legend, the strip, the table and the walk all follow', () => {
@@ -256,12 +313,14 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmMapComponent', () => {
     fixture.detectChanges();
     expect(tile(root, 'ADC').classList.contains('active')).toBe(true);
     expect(tile(root, 'All').classList.contains('active')).toBe(false);
-    // Rhu's death alone stands on the map, theirs steps back, and the legend counts what is on it.
+    // Rhu's death alone stands on the map, the dot of theirs goes with the other seats (this film says nothing about
+    // which of our seats were in on it, so a seat's view cannot claim it), and the legend counts what is on the map.
     expect(root.querySelector('.rift-map.has-seat-filter')).not.toBeNull();
     expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(1);
     expect(root.querySelector('.rift-token.is-ourDeath')?.classList.contains('is-read-avoidable')).toBe(true);
-    expect(root.querySelectorAll('.rift-token.is-theirDeath.is-faded')).toHaveLength(1);
-    expect(legend(root)).toEqual(['All 1', 'Avoidable 1', 'table_rows As a table', 'fullscreen Full screen']);
+    expect(root.querySelectorAll('.rift-token.is-theirDeath')).toHaveLength(0);
+    expect(root.querySelectorAll('.rift-token.is-faded')).toHaveLength(0);
+    expect(legend(root)).toEqual(['All 1', 'Avoidable 1', 'table_rows As a table', 'fullscreen Full screen', 'help What the marks mean']);
     // The strip keeps her death; the card is hers, one of one.
     expect(root.querySelectorAll('.film-costliest-card')).toHaveLength(1);
     expect(text(root.querySelector('.film-death-who b'))).toBe('Rhu');
@@ -277,7 +336,7 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmMapComponent', () => {
     fixture.detectChanges();
     expect(root.querySelector('.film-map-table')).toBeNull();
     expect(root.querySelector('.film-costliest')).toBeNull();
-    expect(legend(root)).toEqual(['All 1', 'Bought an objective 1', 'table_rows As a table', 'fullscreen Full screen']);
+    expect(legend(root)).toEqual(['All 1', 'Bought an objective 1', 'table_rows As a table', 'fullscreen Full screen', 'help What the marks mean']);
     expect(text(root.querySelector('.film-death-who b'))).toBe('Go10x');
     expect(text(root.querySelector('.film-death-n'))).toBe('1 / 1');
 
@@ -287,14 +346,14 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmMapComponent', () => {
     expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(0);
     expect(root.querySelector('.film-death-card')).toBeNull();
     expect(text(root.querySelector('.film-map-side .film-wait'))).toBe('Top never died. Keep doing that.');
-    expect(legend(root)).toEqual(['All 0', 'table_rows As a table', 'fullscreen Full screen']);
+    expect(legend(root)).toEqual(['All 0', 'table_rows As a table', 'fullscreen Full screen', 'help What the marks mean']);
 
     tile(root, 'All').click();
     fixture.detectChanges();
     expect(root.querySelector('.rift-map.has-seat-filter')).toBeNull();
     expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(3);
     expect(text(root.querySelector('.film-death-n'))).toBe('1 / 3');
-    expect(legend(root)).toEqual(['All 3', 'Avoidable 1', 'Traded 1', 'Bought an objective 1', 'table_rows As a table', 'fullscreen Full screen']);
+    expect(legend(root)).toEqual(['All 3', 'Avoidable 1', 'Traded 1', 'Bought an objective 1', 'table_rows As a table', 'fullscreen Full screen', 'help What the marks mean']);
   });
 
   it('takes the full screen, the side column becoming a drawer that Escape closes before the full screen', () => {
@@ -359,26 +418,83 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmMapComponent', () => {
     expect(escaped).toBe(4);
   });
 
-  it('drops a read the new seat has no death under when a seat is picked, so All is lit and nothing on the Rift is faded for no reason', () => {
+  it('keeps the marks legend beside the reads, folds it on the page\'s Escape before anything else, and gets it out of the card\'s way', () => {
+    const { fixture, root } = mount(map);
+    let escaped = 0;
+    fixture.componentInstance.escaped.subscribe(() => escaped++);
+    const marks = () => legendPill(root, 'What the marks mean');
+    expect(root.querySelector('.mark-legend-panel')).toBeNull();
+    marks().click();
+    fixture.detectChanges();
+    // A panel over the side column, listing every mark; the reads' pills are still there behind it.
+    expect(root.querySelectorAll('.mark-legend-row').length).toBeGreaterThan(0);
+    expect(root.querySelector('.film-map-side .mark-legend-panel')).not.toBeNull();
+    expect(root.querySelector('.film-death-card')).not.toBeNull();
+
+    // One press, one thing (11 Sep 2026): the panel goes first and the table it was opened over stays open.
+    legendPill(root, 'As a table').click();
+    fixture.detectChanges();
+    fixture.componentRef.setInput('closeTick', 1);
+    fixture.detectChanges();
+    expect(root.querySelector('.mark-legend-panel')).toBeNull();
+    expect(root.querySelector('.film-map-table')).not.toBeNull();
+    expect(escaped).toBe(1);
+    fixture.componentRef.setInput('closeTick', 2);
+    fixture.detectChanges();
+    expect(root.querySelector('.film-map-table')).toBeNull();
+    expect(escaped).toBe(2);
+
+    // A pin tapped while the panel stands over the card: the panel gets out of the way, the way the drawer does.
+    marks().click();
+    fixture.detectChanges();
+    expect(root.querySelector('.mark-legend-panel')).not.toBeNull();
+    // The Rift draws the pins in time order, so its third is Nia's at 20, the walk's second.
+    root.querySelectorAll<HTMLButtonElement>('.rift-token.is-ourDeath')[2].click();
+    fixture.detectChanges();
+    expect(root.querySelector('.mark-legend-panel')).toBeNull();
+    expect(text(root.querySelector('.film-death-n'))).toBe('2 / 3');
+
+    // Closing the full screen's drawer folds the panel with it (11 Sep 2026, second fix pass): the panel lives in the
+    // column the drawer hides, so one left open behind it swallowed the next Escape and nothing on the screen moved.
+    legendPill(root, 'Full screen').click();
+    fixture.detectChanges();
+    marks().click();
+    fixture.detectChanges();
+    expect(root.querySelector('.mark-legend-panel')).not.toBeNull();
+    root.querySelector<HTMLButtonElement>('.film-full-close')!.click();
+    fixture.detectChanges();
+    expect(root.querySelector('.film-map.is-full.is-drawer-closed')).not.toBeNull();
+    expect(root.querySelector('.mark-legend-panel')).toBeNull();
+    // So the next Escape is the full screen's, and it leaves.
+    const before = escaped;
+    fixture.componentRef.setInput('closeTick', 3);
+    fixture.detectChanges();
+    expect(root.querySelector('.film-map.is-full')).toBeNull();
+    expect(escaped).toBe(before + 1);
+  });
+
+  it('drops a read the new seat has no death under when a seat is picked, so All is lit and the seat\'s deaths all stand on the map', () => {
     // 10 Sep 2026, second fix pass: the read's pill leaves the legend with the seat, so a filter kept on it faded every pin with no pill lit to say why.
     const { fixture, root } = mount(map);
     legendPill(root, 'Traded').click();
     fixture.detectChanges();
     expect(legendPill(root, 'Traded').getAttribute('aria-pressed')).toBe('true');
-    expect(root.querySelectorAll('.rift-token.is-ourDeath.is-faded')).toHaveLength(2);
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(1);
     // Rhu's one death is avoidable: the traded read has nothing of hers, so the walk opens on All.
     tile(root, 'ADC').click();
     fixture.detectChanges();
-    expect(legend(root)).toEqual(['All 1', 'Avoidable 1', 'table_rows As a table', 'fullscreen Full screen']);
+    expect(legend(root)).toEqual(['All 1', 'Avoidable 1', 'table_rows As a table', 'fullscreen Full screen', 'help What the marks mean']);
     expect(legendPill(root, 'All').getAttribute('aria-pressed')).toBe('true');
-    expect(root.querySelectorAll('.rift-token.is-ourDeath.is-faded')).toHaveLength(0);
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(1);
+    expect(text(root.querySelector('.film-death-who b'))).toBe('Rhu');
     // A read the seat does have stays lit across the pick.
     legendPill(root, 'Avoidable').click();
     fixture.detectChanges();
     tile(root, 'All').click();
     fixture.detectChanges();
     expect(legendPill(root, 'Avoidable').getAttribute('aria-pressed')).toBe('true');
-    expect(root.querySelectorAll('.rift-token.is-ourDeath.is-faded')).toHaveLength(2);
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(1);
+    expect(root.querySelector('.rift-token.is-ourDeath')?.classList.contains('is-read-avoidable')).toBe(true);
   });
 
   it('shows the bought read in the win colour and hands Watch it the second', () => {
@@ -418,7 +534,7 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmMapComponent', () => {
 
   it('offers Vision heat when the timeline kept our wards: a wash of every ward and every death under the pins, whole under any seat, and the corner note saying where the wards stood', () => {
     const { fixture, root } = mount(map, v3Tape);
-    expect(legend(root)).toEqual(['All 3', 'Avoidable 1', 'Traded 1', 'Bought an objective 1', 'Vision heat', 'table_rows As a table', 'fullscreen Full screen']);
+    expect(legend(root)).toEqual(['All 3', 'Avoidable 1', 'Traded 1', 'Bought an objective 1', 'Vision heat', 'table_rows As a table', 'fullscreen Full screen', 'help What the marks mean']);
     const heat = () => legendPill(root, 'Vision heat');
     expect(heat().getAttribute('aria-pressed')).toBe('false');
     expect(heat().querySelector('.film-glyph')?.getAttribute('data-glyph')).toBe('ward');
@@ -442,25 +558,69 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmMapComponent', () => {
     expect(root.querySelector('.rift-map-overlay')?.firstElementChild?.classList.contains('rift-heat')).toBe(true);
     expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(3);
     // The corner note says the wards are placed another way, and its tip says how.
-    expect(text(root.querySelector('.film-map-note'))).toBe(`Approximate, by zone · ${HEAT_NOTE}`);
+    expect(text(root.querySelector('.film-map-note'))).toBe(`Mostly where they fell; a few by zone · ${HEAT_NOTE}`);
     expect(HEAT_NOTE).toBe('where our wards stood, approximate');
-    expect(fixture.debugElement.query(By.css('.film-map-note')).injector.get(TooltipDirective).appTip()).toBe(`${APPROXIMATE_TIP} ${HEAT_TIP}`);
+    expect(fixture.debugElement.query(By.css('.film-map-note')).injector.get(TooltipDirective).appTip()).toBe(`${MIXED_TIP} ${HEAT_TIP}`);
     expect(text(root.querySelector('.film-map-stage .visually-hidden'))).toContain('where our wards stood against where we died');
-    // The cells are the whole game's: a seat's view leaves the wash whole while the pins follow the seat.
+    // The wards are the whole game's whatever is filtered — where our vision stood is a team question — while the death
+    // patches follow the pins the map is showing, so the wash never says "we died all over" under one seat (11 Sep 2026).
     tile(root, 'ADC').click();
     fixture.detectChanges();
-    expect(root.querySelectorAll('.rift-heat')).toHaveLength(5);
+    expect(root.querySelectorAll('.rift-heat.is-ward')).toHaveLength(2);
+    expect(root.querySelectorAll('.rift-heat.is-death')).toHaveLength(1);
     expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(1);
-    // Off again.
+    // A read leaves the wards alone and takes the patches off: the deaths of that read are already on the map as pins.
+    legendPill(root, 'Avoidable').click();
+    fixture.detectChanges();
+    expect(root.querySelectorAll('.rift-heat.is-ward')).toHaveLength(2);
+    expect(root.querySelectorAll('.rift-heat.is-death')).toHaveLength(0);
+    legendPill(root, 'All').click();
+    fixture.detectChanges();
+    // Off again. The ADC's view is still on, and the note reads the marks on the square rather than the whole game
+    // (11 Sep 2026, second fix pass): her one death carries the kill event's own position, so it says exactly that.
     heat().click();
     fixture.detectChanges();
     expect(root.querySelector('.rift-heat')).toBeNull();
-    expect(text(root.querySelector('.film-map-note'))).toBe('Approximate, by zone');
+    expect(text(root.querySelector('.film-map-note'))).toBe('Where the game says they fell');
+    tile(root, 'All').click();
+    fixture.detectChanges();
+    expect(text(root.querySelector('.film-map-note'))).toBe('Mostly where they fell; a few by zone');
     // A timeline that kept no wards has no pill and no wash; every action stayed a pill.
     const older = mount(map);
     expect(older.root.querySelector('.film-heat-btn')).toBeNull();
     expect(older.root.querySelector('.rift-heat')).toBeNull();
     expect(root.querySelectorAll('.film-legend a')).toHaveLength(0);
+  });
+
+  it('the vision heat is a filter of its own: the wash stands on the deaths alone, without the dots and the blobs under it', () => {
+    // 11 Sep 2026, second fix pass. The lead's sentence named this pill: lighting it used to change nothing on the square
+    // except adding cells, which is the "too much info" the ask was about. The layer's question is wards against deaths.
+    const busy: FilmMap = {
+      ...map,
+      theirs: [
+        { x: 40, y: 60, minute: 6, placed: 'event', seats: ['ADC'] },
+        { x: 20, y: 20, minute: 9, placed: 'zone' }
+      ],
+      clusters: [{ x: 30, y: 30, r: 6, ours: 1, theirs: 2, line: 'A fight at the dragon', seats: ['Jungle'] }]
+    };
+    const { fixture, root } = mount(busy, v3Tape);
+    expect(root.querySelectorAll('.rift-token.is-theirDeath')).toHaveLength(2);
+    expect(root.querySelectorAll('.rift-cluster')).toHaveLength(1);
+    legendPill(root, 'Vision heat').click();
+    fixture.detectChanges();
+    expect(root.querySelectorAll('.rift-token.is-theirDeath')).toHaveLength(0);
+    expect(root.querySelectorAll('.rift-cluster')).toHaveLength(0);
+    // Our deaths and the wash stay: those are the two things the layer is about.
+    expect(root.querySelectorAll('.rift-token.is-ourDeath')).toHaveLength(3);
+    expect(root.querySelectorAll('.rift-heat.is-ward')).toHaveLength(2);
+    legendPill(root, 'Vision heat').click();
+    fixture.detectChanges();
+    expect(root.querySelectorAll('.rift-token.is-theirDeath')).toHaveLength(2);
+    // And a seat keeps the dots that seat was in on, the same rule the tape now follows.
+    tile(root, 'ADC').click();
+    fixture.detectChanges();
+    expect(root.querySelectorAll('.rift-token.is-theirDeath')).toHaveLength(1);
+    expect(root.querySelectorAll('.rift-cluster')).toHaveLength(0);
   });
 
   it('hands Work on this second the death\'s own second when the tape has frames, and keeps the pill away otherwise', () => {

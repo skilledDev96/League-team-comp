@@ -8,5 +8,8 @@
     "record": "node scripts/replay-recorder.mjs",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:rules": "firebase deploy --only firestore:rules"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.4"
   }
 }

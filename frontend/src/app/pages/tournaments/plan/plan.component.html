@@ -183,6 +183,11 @@
             @if (hasPrep(series)) {
               <span class="scrim-group-scouted material-symbols-rounded" aria-hidden="true" appTip="Notes, bans or a roster are saved for this team">description</span>
             }
+            <!-- Who carried the series (11 Sep 2026): the same line the game row reads, averaged over the games of the series
+                 that carry figures, with the per-game lines in the tooltip. A series nobody has dropped a replay on has none. -->
+            @if (seriesMvp(series.id); as m) {
+              <app-mvp-chip kind="series" [champion]="m.champion" [name]="m.name ?? ''" [seat]="m.seat" [terms]="m.why" [note]="m.line" />
+            }
             @if (usedCount(series.id); as used) {
               <span class="series-burned" [appTip]="used + ' champions burned this series'">
                 {{ used }} burned

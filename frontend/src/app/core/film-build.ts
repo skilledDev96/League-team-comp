@@ -40,6 +40,7 @@ import {
   FilmModel,
   FilmMoment,
   FilmOneThing,
+  FilmPlacement,
   FilmSeat,
   FilmTape,
   FilmTapeEvent,
@@ -48,6 +49,7 @@ import {
   GAIN_GLYPHS,
   OBJECTIVE_GLYPHS
 } from './film-model';
+import { mvpSeatOf } from './game-mvp';
 import { askOf, playerStatLine, scoreline, ZONE_LABELS } from './review-view';
 import { clusterSpot, laneSpot, objectivePit, placeDeath, PlaceDeathArgs, Point, regionFor, RiftSide, riotToPercent, unitsToPercent } from './rift-zones';
 import { FilmDeathOrder, styleFor } from './film-style';
@@ -117,24 +119,11 @@ function headlineSeat(headline: string, review: GameReview): Role | undefined {
   );
 }
 
-/**
- * Our MVP by the line: kills and assists over deaths, the share of the team's
- * damage, kill participation. A plain score, the same on every game, so the
- * poster fronts the one who carried rather than the one who died most.
- */
-function mvpSeat(game: AnalysisGame): Role | undefined {
-  const teamDamage = game.players.reduce((sum, p) => sum + (p.damage ?? 0), 0);
-  const scored = game.players
-    .map((p) => {
-      const seat = seatOf(p);
-      const share = teamDamage ? (p.damage ?? 0) / teamDamage : 0;
-      const score = p.kills * 3 + p.assists * 1.5 - p.deaths * 2 + share * 12 + (p.killParticipation ?? 0) * 6;
-      return { seat, score };
-    })
-    .filter((p): p is { seat: Role; score: number } => !!p.seat)
-    .sort((a, b) => b.score - a.score || seatIndex(a.seat) - seatIndex(b.seat));
-  return scored[0]?.seat;
-}
+// Our MVP by the line — kills and assists over deaths, the share of the team's
+// damage, kill participation — now lives in `core/game-mvp.ts` and is imported
+// as `mvpSeatOf` (11 Sep 2026, queue items 5-7). It is the same arithmetic with
+// the same weights and the same tie to lane order, so the poster's face has not
+// moved; the shared module adds the terms behind it, which the MVP chip prints.
 
 /** The seat's player in the analysed game: by position first, then by name, then by champion. */
 function gamePlayerFor(game: AnalysisGame | undefined, seat: Role, name: string, champion: string): AnalysisPlayer | undefined {
@@ -189,7 +178,7 @@ function buildTitle(review: GameReview, game: AnalysisGame | undefined, facts: G
   // names one of ours, else the best line of the five (9 Sep 2026: it used to
   // be the seat that died most, which put Vi on a game Aphelios carried).
   let seat: Role | undefined = headlineSeat(headline, review);
-  if (!seat && game?.players.length) seat = mvpSeat(game);
+  if (!seat && game?.players.length) seat = mvpSeatOf(game);
   seat ??= review.players[0]?.seat ?? 'Mid';
   const reviewed = review.players.find((p) => p.seat === seat);
   const gamePlayer = game?.players.find((p) => seatOf(p) === seat);
@@ -330,10 +319,19 @@ function buildCard(review: GameReview, game: AnalysisGame | undefined, headline:
 
 // ---- The tape, the board, the map ------------------------------------------------
 //
-// Positions are percent-space on the Rift image, placed inside the zone bucket
-// the timeline put them in by `rift-zones.ts`. Every one is approximate by
-// zone, and the tape and the map read the same table so a death sits in one
-// spot in both.
+// Positions are percent-space on the Rift image. Since 11 Sep 2026 (the lead:
+// "the approximate meters are a bit off, can we tighten that") a mark the
+// timeline carries an event position for — every death of ours, every death
+// of theirs, every objective on a version 4 document — is drawn where the
+// game says it happened, through the one calibrated conversion in
+// `rift-zones.ts`. Anything else is still the seeded sample inside its zone
+// bucket, which lands a pin in a wall as often as not; each mark says which
+// of the two it is (`placed`) so the words on screen can tell the truth.
+// The tape and the map read the same functions, so a death sits in one spot
+// in both. A pin placed from its event can sit outside the coarse region
+// `rift-zones.ts` draws for its `zone` — the boxes are the film's buckets,
+// the event is the game's own answer, and where they disagree the event
+// wins; `zone` stays what the reads, the fights and the filters group by.
 
 const other = (side: RiftSide): RiftSide => (side === 'blue' ? 'red' : 'blue');
 
@@ -399,27 +397,65 @@ function ourDeathKeys(timeline: MatchTimeline): Map<TimelineDeath, string> {
   return keys;
 }
 
-/** Where one death of ours sits: the zone's seeded spot, stepped out by how many of ours already fell in that zone. Approximate by zone. */
-export function placeOurDeath(matchId: string, ourSide: RiftSide, death: Pick<TimelineDeath, 'sec' | 'seat' | 'zone'> & Partial<Pick<TimelineDeath, 'theirSide' | 'objectiveNear' | 'executed'>>, ordinal: number): Point {
+/** A point on the Rift and where it came from: the event's own position, or the seeded sample inside its zone. */
+export interface PlacedPoint extends Point {
+  placed: FilmPlacement;
+}
+
+/** Riot units on a row that may not carry them: a timeline written before version 4, or an event Riot sent without a position. */
+interface MaybePlaced {
+  x?: number;
+  y?: number;
+}
+
+/** The event's own spot as a point of the image, or null when the row carries none. */
+function eventSpot(row: MaybePlaced): PlacedPoint | null {
+  if (!Number.isFinite(row.x) || !Number.isFinite(row.y)) return null;
+  return { ...riotToPercent(row.x as number, row.y as number), placed: 'event' };
+}
+
+/**
+ * Where one death of ours sits: the kill event's own position when the
+ * timeline kept one (version 4, 11 Sep 2026 — that is where it happened, and
+ * `ordinal` is not needed, since two deaths in one spot really were in one
+ * spot), else the zone's seeded spot stepped out by how many of ours already
+ * fell in that zone, which is approximate by zone and says so through
+ * `placed`.
+ */
+export function placeOurDeath(
+  matchId: string,
+  ourSide: RiftSide,
+  death: Pick<TimelineDeath, 'sec' | 'seat' | 'zone'> & Partial<Pick<TimelineDeath, 'theirSide' | 'objectiveNear' | 'executed' | 'x' | 'y'>>,
+  ordinal: number
+): PlacedPoint {
+  const own = eventSpot(death);
+  if (own) return own;
   const args: PlaceDeathArgs = { matchId, sec: death.sec, seat: death.seat, zone: death.zone, ourSide, ordinal };
   if (death.theirSide) args.theirSide = true;
   if (death.objectiveNear) args.objectiveNear = true;
   if (death.executed) args.executed = true;
-  return placeDeath(args);
+  return { ...placeDeath(args), placed: 'zone' };
 }
 
 /**
  * Every death of ours placed once, in time order, with the ordinal counting
  * the deaths already placed in the same zone. Keyed by the ledger key so the
- * tape's tokens and the map's pins agree.
+ * tape's tokens and the map's pins agree. A death placed from its own event
+ * takes no ordinal and leaves none behind, so on a half-and-half document the
+ * zone-placed ones still step out among themselves.
  */
-function placeOurDeaths(timeline: MatchTimeline): Map<string, Point> {
-  const out = new Map<string, Point>();
+function placeOurDeaths(timeline: MatchTimeline): Map<string, PlacedPoint> {
+  const out = new Map<string, PlacedPoint>();
   const perZone = new Map<MapZone, number>();
   const keys = ourDeathKeys(timeline);
   for (const d of (timeline.deaths ?? []).slice().sort((a, b) => a.sec - b.sec)) {
     const key = keys.get(d)!;
     if (out.has(key)) continue;
+    const own = eventSpot(d);
+    if (own) {
+      out.set(key, own);
+      continue;
+    }
     const n = perZone.get(d.zone) ?? 0;
     perZone.set(d.zone, n + 1);
     out.set(key, placeOurDeath(timeline.matchId, timeline.ourSide, d, n));
@@ -428,21 +464,72 @@ function placeOurDeaths(timeline: MatchTimeline): Map<string, Point> {
 }
 
 /**
- * Their deaths placed likewise. The timeline writes their zones in our terms
- * too (their death in "ourJungle" fell in our jungle), so the same side
- * resolves them; only the seed differs, salted by the side so a death of
- * theirs never lands on one of ours at the same second.
+ * Their deaths placed likewise: the event's own position on a version 4
+ * document, else the zone. The timeline writes their zones in our terms too
+ * (their death in "ourJungle" fell in our jungle), so the same side resolves
+ * them; only the seed differs, salted by the side so a death of theirs never
+ * lands on one of ours at the same second.
  */
-function placeTheirDeaths(timeline: MatchTimeline): Point[] {
+function placeTheirDeaths(timeline: MatchTimeline): PlacedPoint[] {
   const perZone = new Map<MapZone, number>();
   return (timeline.theirDeaths ?? [])
     .slice()
     .sort((a, b) => a.sec - b.sec)
     .map((d) => {
+      const own = eventSpot(d);
+      if (own) return own;
       const n = perZone.get(d.zone) ?? 0;
       perZone.set(d.zone, n + 1);
-      return placeDeath({ matchId: timeline.matchId + ':them', sec: d.sec, seat: 'Mid', zone: d.zone, ourSide: timeline.ourSide, ordinal: n });
+      return { ...placeDeath({ matchId: timeline.matchId + ':them', sec: d.sec, seat: 'Mid', zone: d.zone, ourSide: timeline.ourSide, ordinal: n }), placed: 'zone' as const };
     });
+}
+
+/**
+ * Where an objective's token sits: the monster kill's own position on a
+ * version 4 timeline, else the pit the film has always drawn it in. The pit
+ * is a good guess — a dragon is taken in the dragon pit — but it is still the
+ * film's guess and not the game's, so it counts as placed by zone in the
+ * sentence below.
+ */
+function placeObjective(o: TimelineObjective): PlacedPoint {
+  return eventSpot(o) ?? { ...objectivePit(o.type), placed: 'zone' };
+}
+
+/**
+ * The sentence a surface prints about the spots it drew (11 Sep 2026). Every
+ * mark it draws goes in — the pins, their dots, the objective tokens — and
+ * whatever has no position of its own (a first blood on mid, a plate on a
+ * tower, a back at the fountain) carries no `placed` and is not counted, so
+ * it neither claims accuracy nor spoils it. Exported so the map and the tape
+ * read the same one; a chapter adds its own clauses after it.
+ */
+export function placementNote(marks: readonly { placed?: FilmPlacement }[]): string {
+  return PLACEMENT_NOTES[placementOf(marks)];
+}
+
+/**
+ * How a screenful of marks was placed, as one word: every one off its own
+ * event, none of them, or a mix. The note above is this word in a sentence;
+ * a surface that also carries a tooltip (the map chapter's corner note) reads
+ * the word so its sentence and its tip can never say different things.
+ */
+export type PlacementRead = 'event' | 'mixed' | 'zone';
+
+export const PLACEMENT_NOTES: Record<PlacementRead, string> = {
+  event: 'Where the game says they fell',
+  mixed: 'Mostly where they fell; a few by zone',
+  zone: 'Approximate, by zone'
+};
+
+export function placementOf(marks: readonly { placed?: FilmPlacement }[]): PlacementRead {
+  let fromEvent = 0;
+  let byZone = 0;
+  for (const m of marks) {
+    if (m?.placed === 'event') fromEvent += 1;
+    else if (m?.placed === 'zone') byZone += 1;
+  }
+  if (!fromEvent) return 'zone';
+  return byZone ? 'mixed' : 'event';
 }
 
 function objectiveLabel(o: Pick<TimelineObjective, 'type' | 'subType' | 'side'>): string {
@@ -543,7 +630,7 @@ export function reelTallyOf(timeline: MatchTimeline, untilSec: number): { deaths
   return out;
 }
 
-function buildTapeEvents(tapePlayers: TapePlayer[], timeline: MatchTimeline, ourSpots: Map<string, Point>): FilmTapeEvent[] {
+function buildTapeEvents(tapePlayers: TapePlayer[], timeline: MatchTimeline, ourSpots: Map<string, PlacedPoint>): FilmTapeEvent[] {
   const ourSide = timeline.ourSide;
   const theirSide = other(ourSide);
   const sideOf = (s: TimelineSide): RiftSide => (s === 'us' ? ourSide : theirSide);
@@ -556,7 +643,7 @@ function buildTapeEvents(tapePlayers: TapePlayer[], timeline: MatchTimeline, our
     const spot = ourSpots.get(key) ?? placeOurDeath(timeline.matchId, ourSide, d, 0);
     const p = players.get(d.seat);
     const champion = p?.champion ?? (timeline.lanes ?? []).find((l) => l.seat === d.seat)?.champion;
-    const ev: FilmTapeEvent = { sec: d.sec, kind: 'ourDeath', label: `${p?.name || d.seat} died`, side: 'us', seat: d.seat, zone: d.zone, x: spot.x, y: spot.y, key };
+    const ev: FilmTapeEvent = { sec: d.sec, kind: 'ourDeath', label: `${p?.name || d.seat} died`, side: 'us', seat: d.seat, zone: d.zone, x: spot.x, y: spot.y, key, placed: spot.placed };
     if (champion) ev.champion = champion;
     events.push(ev);
   }
@@ -567,15 +654,27 @@ function buildTapeEvents(tapePlayers: TapePlayer[], timeline: MatchTimeline, our
     .sort((a, b) => a.sec - b.sec)
     .forEach((d, i) => {
       const spot = theirSpots[i];
-      events.push({ sec: d.sec, kind: 'theirDeath', label: 'One of theirs died', side: 'them', zone: d.zone, x: spot.x, y: spot.y });
+      // Our seats on the kill travel with the dot (11 Sep 2026, second fix pass): the tape's Rift filters by them, the
+      // same value `buildMap` already puts on `FilmMap.theirs`, so picking a champion keeps the kills that seat was in on.
+      events.push({
+        sec: d.sec,
+        kind: 'theirDeath',
+        label: 'One of theirs died',
+        side: 'them',
+        zone: d.zone,
+        x: spot.x,
+        y: spot.y,
+        placed: spot.placed,
+        ...(d.ourInvolved?.length && { seats: d.ourInvolved.slice() })
+      });
     });
 
   for (const o of timeline.objectives ?? []) {
-    const pit = objectivePit(o.type);
+    const spot = placeObjective(o);
     // How many of ours were near rides on the label: "Their dragon (infernal), 2 of ours near".
     const near = o.ourNear?.length ?? 0;
     const label = near > 0 ? `${objectiveLabel(o)}, ${near} of ours near` : objectiveLabel(o);
-    events.push({ sec: o.minute * 60, kind: 'objective', label, side: o.side, x: pit.x, y: pit.y });
+    events.push({ sec: o.minute * 60, kind: 'objective', label, side: o.side, x: spot.x, y: spot.y, placed: spot.placed });
   }
 
   const { blood, tower } = timeline.firsts ?? {};
@@ -976,7 +1075,7 @@ export function wardsAt(wards: readonly FilmWard[] | undefined, sec: number): Fi
   return (wards ?? []).filter((w) => w.sec <= sec && sec <= w.untilSec);
 }
 
-function buildTape(review: GameReview, game: AnalysisGame | undefined, timeline: MatchTimeline, win: boolean, ourSpots: Map<string, Point>, pins: readonly FilmDeathPin[]): FilmTape {
+function buildTape(review: GameReview, game: AnalysisGame | undefined, timeline: MatchTimeline, win: boolean, ourSpots: Map<string, PlacedPoint>, pins: readonly FilmDeathPin[]): FilmTape {
   const goldDiff = timeline.goldDiff ?? [];
   const turn = turnOf(timeline, win);
   const tape: FilmTape = {
@@ -1111,7 +1210,7 @@ function costliestOf(pins: readonly FilmDeathPin[]): string[] {
     .map((p) => p.key);
 }
 
-function buildMap(review: GameReview, game: AnalysisGame | undefined, timeline: MatchTimeline, ledger: DeathVerdict[], order: FilmDeathOrder, ourSpots: Map<string, Point>): FilmMap {
+function buildMap(review: GameReview, game: AnalysisGame | undefined, timeline: MatchTimeline, ledger: DeathVerdict[], order: FilmDeathOrder, ourSpots: Map<string, PlacedPoint>): FilmMap {
   const ourSide = timeline.ourSide;
   const facts = timeline.facts!;
   const players = new Map(review.players.map((p) => [p.seat, p]));
@@ -1142,7 +1241,7 @@ function buildMap(review: GameReview, game: AnalysisGame | undefined, timeline: 
       const sec = match?.sec ?? d.minute * 60;
       let spot = ourSpots.get(key);
       if (!spot) {
-        // A ledger row the timeline has no death for: placed on its own, stepped out among the unmatched rows in the zone.
+        // A ledger row the timeline has no death for: no event to place it from, so it keeps the zone sample, stepped out among the other unmatched rows in the zone.
         const n = perZone.get(d.zone) ?? 0;
         perZone.set(d.zone, n + 1);
         spot = placeOurDeath(timeline.matchId, ourSide, { sec, seat: d.seat, zone: d.zone }, n);
@@ -1157,6 +1256,7 @@ function buildMap(review: GameReview, game: AnalysisGame | undefined, timeline: 
         zone: d.zone,
         x: spot.x,
         y: spot.y,
+        placed: spot.placed,
         how: d.how,
         could: d.could.slice(),
         line: d.line,
@@ -1183,7 +1283,11 @@ function buildMap(review: GameReview, game: AnalysisGame | undefined, timeline: 
   const theirs = (timeline.theirDeaths ?? [])
     .slice()
     .sort((a, b) => a.sec - b.sec)
-    .map((d, i) => ({ x: theirSpots[i].x, y: theirSpots[i].y, minute: d.minute }));
+    // The seats of ours the timeline says were in on the kill travel with the dot
+    // (11 Sep 2026): under a seat filter the map keeps the kills that seat took
+    // part in and drops the rest, the way a fight blob already followed its seats.
+    // A kill nobody of ours is recorded on carries none and leaves under any seat.
+    .map((d, i) => ({ x: theirSpots[i].x, y: theirSpots[i].y, minute: d.minute, placed: theirSpots[i].placed, seats: (d.ourInvolved ?? []).slice() }));
 
   const clusters = (facts.deathClusters ?? []).map((c) => {
     const spot = clusterSpot(c.zone, ourSide, timeline.matchId);

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, GameReview, MatchTimeline, TeamObjectives, TimelineDeath } from '../models/team.models';
-import { buildFilm, FILM_CHAPTER_COUNT, framesOf, lessonCalls, optionsOf, placeAt, placeOurDeath, railGroups, reelTallyOf, splitOptions, tapeEventsOf, wardsAt, wardsOf } from './film-build';
+import { buildFilm, FILM_CHAPTER_COUNT, framesOf, lessonCalls, optionsOf, placeAt, placementNote, placeOurDeath, railGroups, reelTallyOf, splitOptions, tapeEventsOf, wardsAt, wardsOf } from './film-build';
 import { styleFor } from './film-style';
+import { mvpSeatOf } from './game-mvp';
 import { objectivePit, regionFor, riotToPercent, unitsToPercent } from './rift-zones';
 import { seedOf } from './seed';
 
@@ -189,6 +190,11 @@ describe('buildFilm on the timeline tier', () => {
     expect(named.title.protagonist).toEqual({ seat: 'Support', champion: 'Leona', name: 'Nia' });
     const kaisa = buildFilm({ ...review, team: { ...review.team, headline: 'KaiSa carried' }, players: [...review.players, { name: 'Max', seat: 'Mid', champion: "Kai'Sa", strength: point('x'), workOn: point('y') }] } as unknown as GameReview, game, timeline, previous);
     expect(kaisa.title.protagonist.seat).toBe('Mid');
+    // The line the poster picks by is the shared one since the Wire pass, 11 Sep 2026:
+    // `core/game-mvp.ts` holds the arithmetic and the film imports it, so the face of a
+    // film and the MVP chip on the same game can never name two different seats.
+    const unnamed = buildFilm({ ...review, team: { ...review.team, headline: 'Bled out in the fights' } } as GameReview, game, timeline, previous);
+    expect(unnamed.title.protagonist.seat).toBe(mvpSeatOf(game));
   });
 
   it('titles the film with the headline, the loss, and the MVP by the line', () => {
@@ -429,6 +435,9 @@ describe('the tape', () => {
       expect(e.key).toBeUndefined();
       expect(regionFor(e.zone!, 'blue').inside(e.x, e.y)).toBe(true);
     }
+    // Our seats on the kill travel with the dot (11 Sep 2026, second fix pass), the same value the map's dots carry, so
+    // the tape's Rift can keep the kills a seat was in on instead of clearing every dot under a champion.
+    expect(theirs.map((e) => e.seats)).toEqual([['Jungle'], ['Jungle', 'ADC'], ['Jungle']]);
   });
 
   it('drops objectives on their pit, firsts and plates on the lane that lost them, backs at our base', () => {
@@ -1002,6 +1011,8 @@ describe('the map', () => {
   it('draws their deaths, the clusters and the summary, and asks nothing', () => {
     expect(map.theirs.map((t) => t.minute)).toEqual([6, 20, 25]);
     expect(map.theirs[0]).toMatchObject({ x: tape.events.find((e) => e.kind === 'theirDeath')!.x });
+    // Ours on each kill travel with the dot (11 Sep 2026), so a seat's view keeps the kills that seat was in on instead of clearing their side off the map.
+    expect(map.theirs.map((t) => t.seats)).toEqual([['Jungle'], ['Jungle', 'ADC'], ['Jungle']]);
     expect(map.clusters).toHaveLength(1);
     expect(map.clusters[0]).toMatchObject({ ours: 3, theirs: 1, r: 6.2, line: 'Minutes 19 to 21: three of ours fell in the river for one of theirs.', seats: ['Support', 'ADC', 'Jungle'] });
     expect(regionFor('river', 'blue').inside(map.clusters[0].x, map.clusters[0].y)).toBe(true);
@@ -1018,6 +1029,83 @@ describe('the map', () => {
     const again = buildFilm(review, game, timeline, previous, 'MOSS 2');
     expect(JSON.stringify(again.map)).toBe(JSON.stringify(map));
     expect(JSON.stringify(again.tape)).toBe(JSON.stringify(tape));
+  });
+
+  it('says every mark on a timeline older than version 4 was placed by zone', () => {
+    expect(map.pins.every((p) => p.placed === 'zone')).toBe(true);
+    expect(map.theirs.every((t) => t.placed === 'zone')).toBe(true);
+    expect(tape.events.filter((e) => e.placed).every((e) => e.placed === 'zone')).toBe(true);
+    expect(placementNote([...map.pins, ...map.theirs, ...tape.events])).toBe('Approximate, by zone');
+  });
+});
+
+// ---- Tighter positions (timeline version 4, 11 Sep 2026) -----------------------
+
+describe('a death placed from its own event', () => {
+  /** The same game with the kill positions the reducer now keeps, on every death of ours but the first, on all of theirs, and on the dragon at 8 alone. */
+  const v4 = {
+    ...timeline,
+    timelineVersion: 4,
+    deaths: timeline.deaths.map((d, i) => (i === 0 ? d : { ...d, x: 4000 + i * 1000, y: 3000 + i * 500 })),
+    theirDeaths: timeline.theirDeaths.map((d, i) => ({ ...d, x: 6000 + i * 500, y: 7000 - i * 500 })),
+    objectives: timeline.objectives.map((o) => (o.minute === 8 ? { ...o, x: 9900, y: 4400 } : o))
+  } as MatchTimeline;
+  const film = buildFilm(review, game, v4, previous, 'MOSS 2');
+  const map = film.map!;
+  const tape = film.tape!;
+
+  it('puts the pin where the game says the kill happened, and keeps the zone sample only for a death with no position', () => {
+    const pins = new Map(map.pins.map((p) => [p.key, p]));
+    const fromEvent = pins.get('d:7:ADC')!;
+    expect(fromEvent.placed).toBe('event');
+    expect({ x: fromEvent.x, y: fromEvent.y }).toEqual(riotToPercent(5000, 3500));
+    const byZone = pins.get('d:4:ADC')!;
+    expect(byZone.placed).toBe('zone');
+    expect(byZone).toMatchObject(placeOurDeath('EUW1_7000000001', 'blue', { sec: 252, seat: 'ADC', zone: 'bot' }, 0));
+  });
+
+  it('gives the tape the same spot as the map, so a death sits in one place in both', () => {
+    for (const pin of map.pins) {
+      const event = tape.events.find((e) => e.key === pin.key)!;
+      expect([event.x, event.y, event.placed]).toEqual([pin.x, pin.y, pin.placed]);
+    }
+  });
+
+  it('places their dots and the objective tokens off the event too, and falls back to the pit without one', () => {
+    expect(map.theirs.map((t) => [t.x, t.y])).toEqual([riotToPercent(6000, 7000), riotToPercent(6500, 6500), riotToPercent(7000, 6000)].map((p) => [p.x, p.y]));
+    expect(map.theirs.every((t) => t.placed === 'event')).toBe(true);
+    const objectives = tape.events.filter((e) => e.kind === 'objective');
+    const dragon = objectives.find((e) => e.label.startsWith('Our dragon'))!;
+    expect(dragon).toMatchObject({ placed: 'event', ...riotToPercent(9900, 4400) });
+    const grubs = objectives.find((e) => e.label.startsWith('Our grubs'))!;
+    expect(grubs).toMatchObject({ placed: 'zone', ...objectivePit('grubs') });
+  });
+
+  it('leaves the fight blobs alone: a cluster has no one position', () => {
+    expect(JSON.stringify(map.clusters)).toBe(JSON.stringify(buildFilm(review, game, timeline, previous, 'MOSS 2').map!.clusters));
+  });
+
+  it('is the same film every time', () => {
+    expect(JSON.stringify(buildFilm(review, game, v4, previous, 'MOSS 2').map)).toBe(JSON.stringify(map));
+  });
+
+  it('reads the sentence off what it drew', () => {
+    expect(placementNote([...map.pins, ...map.theirs, ...tape.events])).toBe('Mostly where they fell; a few by zone');
+    const all = { ...v4, deaths: timeline.deaths.map((d, i) => ({ ...d, x: 4000 + i * 1000, y: 3000 + i * 500 })) } as MatchTimeline;
+    const whole = buildFilm(review, game, all, previous, 'MOSS 2');
+    expect(whole.map!.pins.every((p) => p.placed === 'event')).toBe(true);
+    expect(placementNote([...whole.map!.pins, ...whole.map!.theirs])).toBe('Where the game says they fell');
+  });
+});
+
+describe('placementNote', () => {
+  it('says which of the three is true, and counts only the marks that were placed at all', () => {
+    expect(placementNote([{ placed: 'event' }, { placed: 'event' }])).toBe('Where the game says they fell');
+    expect(placementNote([{ placed: 'event' }, { placed: 'zone' }])).toBe('Mostly where they fell; a few by zone');
+    expect(placementNote([{ placed: 'zone' }, { placed: 'zone' }])).toBe('Approximate, by zone');
+    // A first blood on mid, a plate on a tower, a back at the fountain: no position of their own, so they neither claim accuracy nor spoil it.
+    expect(placementNote([{ placed: 'event' }, {}, {}])).toBe('Where the game says they fell');
+    expect(placementNote([])).toBe('Approximate, by zone');
   });
 });
 

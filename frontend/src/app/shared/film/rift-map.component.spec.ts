@@ -17,6 +17,7 @@ import {
   plateLane,
   RiftMapComponent,
   RiftToken,
+  staysForRead,
   staysForSeat,
   wardTip
 } from './rift-map.component';
@@ -34,12 +35,12 @@ const scene: FilmDeathScene = { could: [], killers: 1, executed: false, traded: 
 
 const pins: FilmDeathPin[] = [
   {
-    key: 'd:3:ADC', sec: 210, minute: 3, seat: 'ADC', name: 'Rhu', champion: 'Jinx', zone: 'bot', x: 85, y: 84, how: 'solo', could: ['ward', 'position'],
+    key: 'd:3:ADC', sec: 210, minute: 3, seat: 'ADC', name: 'Rhu', champion: 'Jinx', zone: 'bot', x: 85, y: 84, placed: 'zone', how: 'solo', could: ['ward', 'position'],
     line: 'Rhu (ADC) died at 3 min, alone, in the dark',
     read: 'avoidable', readLine: 'Avoidable: no ward had gone down nearby.', glyphs: ['ward-off', 'footsteps'], scene: { ...scene, could: ['ward', 'position'] }
   },
   {
-    key: 'd:14:Top', sec: 840, minute: 14, seat: 'Top', champion: 'Ornn', zone: 'river', x: 30, y: 30, how: 'fight', could: ['jungle'],
+    key: 'd:14:Top', sec: 840, minute: 14, seat: 'Top', champion: 'Ornn', zone: 'river', x: 30, y: 30, placed: 'event', how: 'fight', could: ['jungle'],
     line: 'Ornn died at 14 min in a fight at Baron',
     read: 'bought', readLine: 'Bought the baron at minute 14.', glyphs: ['coin', 'baron'], scene: { ...scene, could: ['jungle'], objective: { type: 'baron', ours: true } }
   }
@@ -47,7 +48,7 @@ const pins: FilmDeathPin[] = [
 
 /** A pin from before the reads existed: no glyphs, so the badges fall back to its tags'. */
 const bareTagPin: FilmDeathPin = {
-  key: 'd:20:Mid', sec: 1200, minute: 20, seat: 'Mid', champion: 'Ahri', zone: 'mid', x: 50, y: 50, how: 'gank', could: ['call'],
+  key: 'd:20:Mid', sec: 1200, minute: 20, seat: 'Mid', champion: 'Ahri', zone: 'mid', x: 50, y: 50, placed: 'zone', how: 'gank', could: ['call'],
   line: 'Ahri died at 20 min to a gank', read: 'avoidable', readLine: 'Avoidable: a call would have pulled her out.', glyphs: [], scene: { ...scene, could: ['call'] }
 };
 
@@ -63,7 +64,7 @@ describe('objectiveGlyph', () => {
   });
 });
 
-describe('plateLane and staysForSeat', () => {
+describe('plateLane, staysForSeat and staysForRead', () => {
   const tok = (kind: RiftToken['kind'], label: string, extra: Partial<RiftToken> = {}): RiftToken => ({ key: `${kind}:${label}`, kind, sec: 0, x: 0, y: 0, label, ...extra });
 
   it('reads the lane off a plate\'s label, and nothing off a label without one', () => {
@@ -73,7 +74,7 @@ describe('plateLane and staysForSeat', () => {
     expect(plateLane('A plate')).toBeNull();
   });
 
-  it('keeps the seat\'s deaths and backs, its lane\'s plates, every objective and first, their deaths, and always the selected pin', () => {
+  it('keeps the seat\'s deaths and backs, its lane\'s plates, every objective and first, the dots that seat was in on, and always the selected pin', () => {
     expect(staysForSeat(tok('ourDeath', 'Rhu died', { seat: 'ADC', pinKey: 'd:3:ADC' }), 'ADC', null)).toBe(true);
     expect(staysForSeat(tok('ourDeath', 'Rhu died', { seat: 'ADC', pinKey: 'd:3:ADC' }), 'Top', null)).toBe(false);
     expect(staysForSeat(tok('ourDeath', 'Rhu died', { seat: 'ADC', pinKey: 'd:3:ADC' }), 'Top', 'd:3:ADC')).toBe(true);
@@ -87,7 +88,25 @@ describe('plateLane and staysForSeat', () => {
     for (const seat of ['Top', 'Jungle', 'Mid', 'ADC', 'Support'] as const) {
       expect(staysForSeat(tok('objective', 'Their dragon (infernal)', { side: 'them' }), seat, null)).toBe(true);
       expect(staysForSeat(tok('first', 'First blood, theirs', { side: 'them' }), seat, null)).toBe(true);
-      expect(staysForSeat(tok('theirDeath', 'One of theirs died', { side: 'them' }), seat, null)).toBe(true);
+      // 11 Sep 2026: a dot the film cannot tie to the seat goes, the way a blob without seats does.
+      expect(staysForSeat(tok('theirDeath', 'One of theirs died', { side: 'them' }), seat, null)).toBe(false);
+    }
+    const dot = tok('theirDeath', 'One of theirs died', { side: 'them', seats: ['Jungle', 'Mid'] });
+    expect(staysForSeat(dot, 'Jungle', null)).toBe(true);
+    expect(staysForSeat(dot, 'Mid', null)).toBe(true);
+    expect(staysForSeat(dot, 'Top', null)).toBe(false);
+  });
+
+  it('keeps only the deaths of ours the read is about, no dot of theirs, and always the selected pin', () => {
+    // 11 Sep 2026: a read is our verdict on our own death, so it says nothing about who of theirs fell.
+    expect(staysForRead(tok('ourDeath', 'Rhu died', { read: 'avoidable', pinKey: 'd:3:ADC' }), 'avoidable', null)).toBe(true);
+    expect(staysForRead(tok('ourDeath', 'Rhu died', { read: 'avoidable', pinKey: 'd:3:ADC' }), 'traded', null)).toBe(false);
+    expect(staysForRead(tok('ourDeath', 'Rhu died', { read: 'avoidable', pinKey: 'd:3:ADC' }), 'traded', 'd:3:ADC')).toBe(true);
+    // A death of ours off the tape carries no read at all, so it has nothing to keep it.
+    expect(staysForRead(tok('ourDeath', 'Rhu died', { seat: 'ADC' }), 'clean', null)).toBe(false);
+    expect(staysForRead(tok('theirDeath', 'One of theirs died', { side: 'them', seats: ['ADC'] }), 'avoidable', null)).toBe(false);
+    for (const kind of ['objective', 'first', 'plate', 'back'] as const) {
+      expect(staysForRead(tok(kind, 'A landmark'), 'avoidable', null)).toBe(true);
     }
   });
 });
@@ -165,7 +184,7 @@ describe('RiftMapComponent', () => {
     expect(picked).toEqual(['d:14:Top']);
   });
 
-  it('hides the fights the filtered seat was not in, and every blob without seats', () => {
+  it('hides the fights the filtered seat was not in, every blob without seats, and every blob under a read', () => {
     const clusters = [
       { x: 30, y: 30, r: 6, ours: 2, theirs: 1, line: 'A fight at Baron', seats: ['Jungle', 'Top'] as Role[] },
       { x: 60, y: 60, r: 5, ours: 1, theirs: 1, line: 'A fight at dragon', seats: ['ADC'] as Role[] },
@@ -176,6 +195,11 @@ describe('RiftMapComponent', () => {
     fixture.componentRef.setInput('seatFilter', 'all');
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelectorAll('.rift-cluster')).toHaveLength(3);
+    // A blob is a fight and not a read, so a read filter takes every one of them off (11 Sep 2026).
+    fixture.componentRef.setInput('readFilter', 'avoidable');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.rift-cluster')).toHaveLength(0);
+    expect((fixture.nativeElement as HTMLElement).classList.contains('has-read-filter')).toBe(true);
   });
 
   it('dims a pin the filter does not match and draws the clusters', () => {
@@ -188,28 +212,41 @@ describe('RiftMapComponent', () => {
     expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(1);
   });
 
-  it('marks each pin with its read, and the read filter fades the pins of the other reads', () => {
-    const fixture = mount({ pins, readFilter: 'bought' });
+  it('marks each pin with its read, and the read filter leaves that read alone on the map', () => {
+    // 11 Sep 2026, the lead: "I want it to filter out and only show what is relevant". A read used to fade
+    // everything else and leave it standing; now the map holds the pins of that read and nothing else of the deaths.
+    const fixture = mount({ pins, theirs: [{ x: 50, y: 50, minute: 9 }], readFilter: 'all' });
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.rift-token.is-read-bought')?.getAttribute('aria-label')).toContain('Ornn');
     expect(el.querySelector('.rift-token.is-read-avoidable')?.getAttribute('aria-label')).toContain('Rhu');
-    let faded = el.querySelectorAll('.rift-token.is-faded');
-    expect(faded.length).toBe(1);
-    expect(faded[0].classList.contains('is-read-avoidable')).toBe(true);
-    // Both filters stack: a bought death with the jungle tag passes both, an avoidable one with it fails the read.
-    fixture.componentRef.setInput('filter', 'jungle');
-    fixture.detectChanges();
-    expect(el.querySelectorAll('.rift-token.is-faded').length).toBe(1);
-    fixture.componentRef.setInput('readFilter', 'all');
-    fixture.componentRef.setInput('filter', 'all');
-    fixture.detectChanges();
-    expect(el.querySelectorAll('.rift-token.is-faded').length).toBe(0);
-    // An unread pin never fades, whatever the read filter says.
+    expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(1);
+    expect(el.classList.contains('has-read-filter')).toBe(false);
+
     fixture.componentRef.setInput('readFilter', 'bought');
-    fixture.componentRef.setInput('unreadKeys', ['d:3:ADC']);
     fixture.detectChanges();
-    faded = el.querySelectorAll('.rift-token.is-faded');
-    expect(faded.length).toBe(0);
+    const deaths = el.querySelectorAll('.rift-token.is-ourDeath');
+    expect(deaths.length).toBe(1);
+    expect(deaths[0].getAttribute('aria-label')).toContain('Ornn');
+    expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(0);
+    expect(el.querySelectorAll('.rift-token.is-faded').length).toBe(0);
+    expect(el.classList.contains('has-read-filter')).toBe(true);
+    // The selected pin is never hidden, whatever read is lit, and keeps its ring.
+    fixture.componentRef.setInput('selected', 'd:3:ADC');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-token.is-ourDeath').length).toBe(2);
+    expect(el.querySelector('.rift-token.is-selected')?.getAttribute('aria-label')).toContain('Rhu');
+    fixture.componentRef.setInput('selected', null);
+    fixture.detectChanges();
+    // The tag filter is the one that still only fades: a bought death without the jungle tag dims where it stands.
+    fixture.componentRef.setInput('filter', 'ward');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-token.is-ourDeath').length).toBe(1);
+    expect(el.querySelectorAll('.rift-token.is-faded').length).toBe(1);
+    fixture.componentRef.setInput('filter', 'all');
+    fixture.componentRef.setInput('readFilter', 'all');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-token.is-ourDeath').length).toBe(2);
+    expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(1);
     // A tape event for a death of ours carries no read, so it gets no read class.
     fixture.componentRef.setInput('pins', []);
     fixture.componentRef.setInput('events', events);
@@ -217,19 +254,59 @@ describe('RiftMapComponent', () => {
     expect(el.querySelector('.rift-token.is-ourDeath')?.className).not.toContain('is-read-');
   });
 
-  it('shows one seat at a time: its deaths and backs, its lane\'s plates, every objective, their dots faded, and never hides the selected pin', () => {
+  it('combines the two filters: one seat\'s deaths under one read, and the dots and blobs go with either', () => {
+    const clusters = [{ x: 30, y: 30, r: 6, ours: 2, theirs: 1, line: 'A fight at Baron', seats: ['Top'] as Role[] }];
+    const both: FilmDeathPin[] = [
+      ...pins,
+      { ...pins[0], key: 'd:9:ADC', sec: 540, minute: 9, read: 'traded', readLine: 'Traded one for one.', glyphs: ['swords'], could: [] }
+    ];
+    const theirs = [
+      { x: 20, y: 20, minute: 4, seats: ['ADC'] as Role[] },
+      { x: 60, y: 60, minute: 12, seats: ['Top'] as Role[] }
+    ];
+    const fixture = mount({ pins: both, theirs, clusters, seatFilter: 'ADC', readFilter: 'avoidable' });
+    const el = fixture.nativeElement as HTMLElement;
+    const labels = () => Array.from(el.querySelectorAll('.rift-token.is-ourDeath')).map((t) => t.getAttribute('aria-label'));
+    // The ADC died twice, once avoidable and once traded; the read keeps the avoidable one, and no blob survives a read.
+    expect(labels()).toHaveLength(1);
+    expect(labels()[0]).toContain('Rhu');
+    expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(0);
+    expect(el.querySelectorAll('.rift-cluster').length).toBe(0);
+    // The read alone: the ADC's avoidable death and Ornn's is bought, so one stays; the dot the ADC was in on stays too.
+    fixture.componentRef.setInput('readFilter', 'all');
+    fixture.detectChanges();
+    expect(labels()).toHaveLength(2);
+    expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(1);
+    expect(el.querySelectorAll('.rift-cluster').length).toBe(0);
+    // Top: its own blob and its own dot come back.
+    fixture.componentRef.setInput('seatFilter', 'Top');
+    fixture.detectChanges();
+    expect(labels()).toHaveLength(1);
+    expect(labels()[0]).toContain('Ornn');
+    expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(1);
+    expect(el.querySelectorAll('.rift-cluster').length).toBe(1);
+    // All resets both.
+    fixture.componentRef.setInput('seatFilter', 'all');
+    fixture.detectChanges();
+    expect(labels()).toHaveLength(3);
+    expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(2);
+    expect(el.querySelectorAll('.rift-cluster').length).toBe(1);
+  });
+
+  it('shows one seat at a time: its deaths and backs, its lane\'s plates, every objective, only the dots it was in on, and never hides the selected pin', () => {
     const fixture = mount({ events, pins, theirs: [{ x: 50, y: 50, minute: 9 }], seatFilter: 'ADC' });
     const el = fixture.nativeElement as HTMLElement;
     const count = (sel: string) => el.querySelectorAll(sel).length;
-    // ADC: Rhu's pin stays and Ornn's (Top) goes; the Top back goes; the bot plate stays; both pits and the first stay; their dot steps back.
+    // ADC: Rhu's pin stays and Ornn's (Top) goes; the Top back goes; the bot plate stays; both pits and the first stay;
+    // their dot goes, because this film carries no seats on that death and so cannot say the ADC was in on it (11 Sep 2026).
     expect(count('.rift-token.is-ourDeath')).toBe(1);
     expect(el.querySelector('.rift-token.is-ourDeath')?.getAttribute('aria-label')).toContain('Rhu');
     expect(count('.rift-token.is-back')).toBe(0);
     expect(count('.rift-token.is-plate')).toBe(1);
     expect(count('.rift-token.is-objective')).toBe(2);
     expect(count('.rift-token.is-first')).toBe(1);
-    expect(el.querySelector('.rift-token.is-theirDeath')?.classList.contains('is-faded')).toBe(true);
-    expect(count('.rift-token.is-faded')).toBe(1);
+    expect(count('.rift-token.is-theirDeath')).toBe(0);
+    expect(count('.rift-token.is-faded')).toBe(0);
     expect(el.classList.contains('has-seat-filter')).toBe(true);
     // Top: Ornn's pin and the Top back stay, the bot plate goes.
     fixture.componentRef.setInput('seatFilter', 'Top');
@@ -258,6 +335,33 @@ describe('RiftMapComponent', () => {
     expect(count('.rift-token')).toBe(8);
     expect(count('.rift-token.is-faded')).toBe(0);
     expect(el.classList.contains('has-seat-filter')).toBe(false);
+  });
+
+  it('keeps the tape\'s own dots for the seat that was in on them, so a traded death never reads as a solo one', () => {
+    // 11 Sep 2026, second fix pass: the tape feeds the Rift events, not `theirs`, and its events carried no seats at
+    // all — so under a champion the square lost every death of theirs, including the kills that champion took part in.
+    const traded: FilmTapeEvent[] = [
+      { sec: 300, kind: 'ourDeath', label: 'Rhu (ADC) died', side: 'us', seat: 'ADC', x: 60, y: 60, key: 'd:5:ADC' },
+      { sec: 302, kind: 'theirDeath', label: 'One of theirs died', side: 'them', x: 61, y: 61, seats: ['ADC', 'Support'] },
+      { sec: 304, kind: 'theirDeath', label: 'One of theirs died', side: 'them', x: 62, y: 62, seats: ['Top'] },
+      { sec: 306, kind: 'theirDeath', label: 'One of theirs died', side: 'them', x: 63, y: 63 }
+    ];
+    const fixture = mount({ events: traded, seatFilter: 'ADC' });
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('.rift-token.is-ourDeath').length).toBe(1);
+    expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(1);
+    // The Support was on the same kill, so the same dot stands in that view too.
+    fixture.componentRef.setInput('seatFilter', 'Support');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-token.is-ourDeath').length).toBe(0);
+    expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(1);
+    // The jungler was on neither; a seatless dot leaves with every filter, as it does on the map.
+    fixture.componentRef.setInput('seatFilter', 'Jungle');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(0);
+    fixture.componentRef.setInput('seatFilter', 'all');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.rift-token.is-theirDeath').length).toBe(3);
   });
 
   it('shrinks the list before the cap, so a seat\'s own tokens never lose their place to hidden ones', () => {
@@ -436,7 +540,8 @@ describe('RiftMapComponent layers', () => {
     fixture.detectChanges();
     expect(el.querySelector('.rift-live')).toBeNull();
     expect(el.classList.contains('has-live')).toBe(false);
-    expect(el.querySelector('.rift-map-note')?.textContent).toBe('Approximate, by zone');
+    // The layer's clause goes with the layer, and the note falls back to how the deaths on the square were placed — here the one pin left is the event-placed Top death.
+    expect(el.querySelector('.rift-map-note')?.textContent).toBe('Where the game says they fell');
     fixture.componentRef.setInput('showEveryone', true);
     fixture.componentRef.setInput('until', null);
     fixture.detectChanges();

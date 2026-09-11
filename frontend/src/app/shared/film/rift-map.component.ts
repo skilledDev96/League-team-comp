@@ -1,7 +1,7 @@
 import { Component, computed, inject, input, output } from '@angular/core';
 import { DeathReadKind } from '../../core/death-reads';
-import { placeAt, wardsAt } from '../../core/film-build';
-import { COULD_GLYPHS, FilmDeathPin, FilmFrame, FilmFramePlace, FilmGlyph, FilmMap, FilmTapeEvent, FilmWard } from '../../core/film-model';
+import { placeAt, placementNote, wardsAt } from '../../core/film-build';
+import { COULD_GLYPHS, FilmDeathPin, FilmFrame, FilmFramePlace, FilmGlyph, FilmMap, FilmPlacement, FilmTapeEvent, FilmWard } from '../../core/film-model';
 import { DeathCould, Role, TimelineWardType } from '../../models/team.models';
 import { MotionService } from '../../services/motion.service';
 import { UiService } from '../../services/ui.service';
@@ -62,6 +62,24 @@ export interface RiftWardMark {
   tip: string;
 }
 
+/**
+ * A death of theirs as the map draws it (11 Sep 2026): the spot, the minute,
+ * and — when the film carries it — which of our seats were in on the kill.
+ * The seats are what a seat filter keeps a dot for; without them a dot is a
+ * death the map cannot tie to the seat in view, so focusing on a seat drops
+ * it. `FilmMap.theirs` carries them through from the timeline's own
+ * `theirDeaths[].ourInvolved` (the Wire pass, 11 Sep 2026), so a seat's view
+ * keeps every dot that seat was in on.
+ */
+export interface RiftTheirDeath {
+  x: number;
+  y: number;
+  minute: number;
+  seats?: Role[];
+  /** Whether the spot is the kill event's own or the film's guess inside the zone; the corner note counts it (11 Sep 2026). */
+  placed?: FilmPlacement;
+}
+
 /** Maps a heat cell's weight (0 to 1, clamped) onto the opacity band. */
 export function heatOpacity(weight: number): number {
   const w = Math.min(1, Math.max(0, Number.isFinite(weight) ? weight : 0));
@@ -102,6 +120,8 @@ export interface RiftToken {
   champion?: string;
   /** The film's glyph for an objective (10 Sep 2026: the same dragon the tape's card and the death scene draw, never a Material paw); absent otherwise. */
   glyph?: FilmGlyph;
+  /** For a death of theirs: our seats that were in on the kill, when the film carries them; a seat filter keeps the dots that seat was in on. */
+  seats?: Role[];
   /** For a death of ours: the ledger key the chapter selects by, and the tags a filter reads. */
   pinKey?: string;
   could?: DeathCould[];
@@ -147,12 +167,16 @@ export function plateLane(label: string): PlateLane | null {
 
 /**
  * What one seat's view of the map keeps (10 Sep 2026, the lead asked for
- * the map filterable per champion to lose the clutter): that seat's deaths
- * and backs, the plates of its lane, every objective and first (the game's
- * landmarks, not clutter), and their deaths, which `faded` steps back. The
- * selected pin stays whichever seat it belongs to, so a filter never hides
- * what the reader is looking at. Pure; the tokens list shrinks by it before
- * the cap, so the seat's own tokens never lose their place to hidden ones.
+ * the map filterable per champion to lose the clutter; 11 Sep 2026, the
+ * lead again: "I want it to filter out and only show what is relevant"):
+ * that seat's deaths and backs, the plates of its lane, every objective and
+ * first (the game's landmarks, not clutter), and the deaths of theirs that
+ * seat was in on. A dot the film cannot tie to the seat goes, the way a
+ * fight blob without seats does; until 11 Sep 2026 every dot stayed, merely
+ * faded, which is the clutter that was complained about. The selected pin
+ * stays whichever seat it belongs to, so a filter never hides what the
+ * reader is looking at. Pure; the tokens list shrinks by it before the cap,
+ * so the seat's own tokens never lose their place to hidden ones.
  */
 export function staysForSeat(tok: RiftToken, seat: Role, selected: string | null): boolean {
   if (tok.pinKey !== undefined && tok.pinKey === selected) return true;
@@ -162,6 +186,32 @@ export function staysForSeat(tok: RiftToken, seat: Role, selected: string | null
       return tok.seat === seat;
     case 'plate':
       return plateLane(tok.label) === SEAT_LANE[seat];
+    case 'theirDeath':
+      return !!tok.seats?.includes(seat);
+    default:
+      return true;
+  }
+}
+
+/**
+ * What one read's view of the map keeps (11 Sep 2026): the deaths of ours
+ * that the film reads that way, and the landmarks. A death of ours under
+ * another read goes, and so does every dot of theirs — a read is our
+ * verdict on our own death and says nothing about who of theirs fell — so
+ * "Avoidable" leaves the avoidable deaths alone on the Rift rather than
+ * dimming everything else behind them. The fight blobs go too, but that is
+ * `shownClusters`, since a blob is not a token. The selected pin is kept
+ * whatever the filter says, so the card and the map can never disagree.
+ * A death of ours with no read at all (a tape event rather than a pin)
+ * carries nothing to filter on, so it goes with the rest.
+ */
+export function staysForRead(tok: RiftToken, read: DeathReadKind, selected: string | null): boolean {
+  if (tok.pinKey !== undefined && tok.pinKey === selected) return true;
+  switch (tok.kind) {
+    case 'ourDeath':
+      return tok.read === read;
+    case 'theirDeath':
+      return false;
     default:
       return true;
   }
@@ -184,17 +234,30 @@ export function staysForSeat(tok: RiftToken, seat: Role, selected: string | null
  *
  * Cut 4 (10 Sep 2026): a pin carries the film's read of the death, so the
  * pip wears the read's colour (`is-read-avoidable` and the rest, tokens in
- * the film room block) and `readFilter` fades the pins of the other reads
- * the way `filter` fades the other tags. The badges beside a selected pin
+ * the film room block). The badges beside a selected pin
  * are the film's own glyphs (`app-film-glyph`), the pin's `glyphs` first and
  * its tags' glyphs when it carries none.
  *
- * `seatFilter` (10 Sep 2026, later the same day) is the per-champion view
- * the tape's and the map's tiles set: one seat of ours at a time. Unlike
- * the two filters above it hides rather than fades — our other seats'
- * deaths, backs and plates leave the list (`staysForSeat`) — while their
- * deaths fade and the objectives stay, so the seat's own story stands on a
- * quiet map. The host carries `has-seat-filter` while a seat is set.
+ * **A filter means focus** (11 Sep 2026, the lead: "when clicking on the
+ * filters there is still too much info, I want it to filter out and only
+ * show what is relevant"). One rule for both filters: what the filter is
+ * not about leaves the map rather than dimming behind it.
+ * - `seatFilter` is the per-champion view the tape's and the map's tiles
+ *   set: that seat's deaths and backs, its lane's plates, the dots of
+ *   theirs it was in on (`staysForSeat`), and the fight blobs it fell in
+ *   (`shownClusters`); the objectives and firsts stay, being the game's
+ *   landmarks. The host carries `has-seat-filter` while a seat is set.
+ * - `readFilter` is the map chapter's legend: only the deaths of ours the
+ *   film reads that way (`staysForRead`), no dots of theirs and no blobs,
+ *   since neither carries a read. The live and the vision layers stand
+ *   through it: where the ten walked and where a ward stood is not a
+ *   verdict on a death. The host carries `has-read-filter`.
+ * - The two combine, and the selected pin is never hidden by either.
+ * - The heat is the host's to cut: the chapter builds the cells, so it
+ *   decides which deaths are washed and leaves the wards alone.
+ * `filter` (the ledger's tags) is the one filter that still only fades; no
+ * chapter sets it since the reads replaced the tag legend, and the tape
+ * would rather step a tag back than take a death off its own timeline.
  *
  * The layers (Part C, 10 Sep 2026; the lead: "we want to see where our
  * vision was placed" and "where do we have vision, safe zones and danger
@@ -236,6 +299,7 @@ export function staysForSeat(tok: RiftToken, seat: Role, selected: string | null
     '[class.is-still]': 'motion.reduced()',
     '[class.has-selection]': '!!selected()',
     '[class.has-seat-filter]': "seatFilter() !== 'all'",
+    '[class.has-read-filter]': "readFilter() !== 'all'",
     '[class.has-live]': 'live().length > 0',
     '[class.has-vision]': 'vision().length > 0',
     '[class.has-heat]': 'heatCells().length > 0'
@@ -356,20 +420,26 @@ export class RiftMapComponent {
   readonly events = input<FilmTapeEvent[]>([]);
   /** The map chapter's death pins; a pin outranks the tape event with the same key. */
   readonly pins = input<FilmDeathPin[]>([]);
-  readonly theirs = input<{ x: number; y: number; minute: number }[]>([]);
+  readonly theirs = input<RiftTheirDeath[]>([]);
   readonly clusters = input<FilmMap['clusters']>([]);
   /** Only what happened by this second shows; null shows everything. */
   readonly until = input<number | null>(null);
   /** The selected pin's ledger key. */
   readonly selected = input<string | null>(null);
-  /** A pin whose `could` lacks this tag dims. */
+  /** A pin whose `could` lacks this tag dims; the one filter that fades rather than focuses, and nothing sets it today. */
   readonly filter = input<DeathCould | 'all'>('all');
-  /** A pin whose read is not this one dims; the two filters stack. */
+  /** Only the deaths of ours the film reads this way stay on the map; their dots and the fight blobs go with them. The two filters stack. */
   readonly readFilter = input<DeathReadKind | 'all'>('all');
-  /** One seat of ours at a time: the other seats' deaths, backs and plates hide, their deaths fade, objectives stay; the selected pin is never hidden. */
+  /** One seat of ours at a time: the other seats' deaths, backs and plates go, so do the dots and blobs that seat was not in, objectives stay; the selected pin is never hidden. */
   readonly seatFilter = input<Role | 'all'>('all');
-  /** The fight blobs under the seat filter: only the fights that seat fell in; a blob that carries no seats hides with any filter (the lead saw the river fight stay red under Top, 10 Sep 2026). */
+  /**
+   * The fight blobs a filter leaves: under a seat, the fights that seat fell
+   * in; under a read, none at all, because a blob is a fight and not a read
+   * (11 Sep 2026). A blob that carries no seats hides with any seat filter
+   * (the lead saw the river fight stay red under Top, 10 Sep 2026).
+   */
   protected readonly shownClusters = computed(() => {
+    if (this.readFilter() !== 'all') return [];
     const seat = this.seatFilter();
     const all = this.clusters();
     return seat === 'all' ? all : all.filter((c) => c.seats?.includes(seat));
@@ -467,18 +537,25 @@ export class RiftMapComponent {
   /** The heat cells while the layer is on; never cut by the clock or the seat, since the cells are the whole game's. */
   protected readonly heatCells = computed<FilmHeatCell[]>(() => (this.showHeat() ? (this.heat() ?? []) : []));
 
-  /** The corner note: "Approximate, by zone" for the deaths, and a clause per layer that places something another way. */
+  /**
+   * The corner note: how the marks on the square were placed, and a clause per
+   * layer that places something another way. Since timeline version 4 (11 Sep
+   * 2026) the first clause is the truth of what is drawn rather than a fixed
+   * sentence — `placementNote` reads every mark the map has, so a square of
+   * deaths off their own kill events says so instead of apologising by zone.
+   */
   protected readonly noteText = computed(() => {
-    const parts = ['Approximate, by zone'];
+    const parts = [placementNote([...this.pins(), ...this.events(), ...this.theirs()])];
     if (this.live().length) parts.push('positions once a minute');
     if (this.vision().length) parts.push('wards where the placer stood');
     return parts.join(' · ');
   });
 
-  /** Every token in time order, cut to `until`, to the seat in view, and capped at MAX_TOKENS. */
+  /** Every token in time order, cut to `until`, to the seat in view, to the read in view, and capped at MAX_TOKENS. */
   protected readonly tokens = computed<RiftToken[]>(() => {
     const until = this.until();
     const seat = this.seatFilter();
+    const read = this.readFilter();
     const selected = this.selected();
     const pinKeys = new Set(this.pins().map((p) => p.key));
     const all: RiftToken[] = [];
@@ -489,8 +566,9 @@ export class RiftMapComponent {
     });
     this.theirs().forEach((d, i) => all.push(theirToken(d, i)));
     const byNow = until === null ? all : all.filter((t) => t.sec <= until);
-    // The seat's view hides rather than fades (10 Sep 2026): the list shrinks before the cap, so the seat's own tokens never lose their place to hidden ones.
-    const shown = seat === 'all' ? byNow : byNow.filter((t) => staysForSeat(t, seat, selected));
+    // Both filters hide rather than fade (the seat's view since 10 Sep 2026, the read's since 11 Sep): the list shrinks before the cap, so what a filter keeps never loses its place to what it hid.
+    const bySeat = seat === 'all' ? byNow : byNow.filter((t) => staysForSeat(t, seat, selected));
+    const shown = read === 'all' ? bySeat : bySeat.filter((t) => staysForRead(t, read, selected));
     shown.sort((a, b) => a.sec - b.sec || a.key.localeCompare(b.key));
     return capTokens(shown, MAX_TOKENS);
   });
@@ -514,15 +592,17 @@ export class RiftMapComponent {
     return at === null || Math.abs(tok.sec - at) <= LIT_WINDOW_SEC;
   }
 
-  /** Faded by either filter, or their deaths under a seat's view; an unread pin never fades, since what it carries is not on the map yet. */
+  /**
+   * Faded by the tag filter alone (11 Sep 2026). The seat's and the read's
+   * views take a token off the map instead, so nothing that stays needs
+   * dimming: a dot of theirs at full weight is one the seat was in on, and
+   * every pin left is the read that was asked for. An unread pin never
+   * fades, since what it carries is not on the map yet.
+   */
   protected faded(tok: RiftToken): boolean {
-    // Under one seat's view their deaths step back so the seat's own stand out (10 Sep 2026); the objectives keep their weight, being the game's landmarks.
-    if (tok.kind === 'theirDeath') return this.seatFilter() !== 'all';
     if (tok.kind !== 'ourDeath' || this.unread(tok)) return false;
     const f = this.filter();
-    if (f !== 'all' && !(tok.could ?? []).includes(f)) return true;
-    const r = this.readFilter();
-    return r !== 'all' && tok.read !== r;
+    return f !== 'all' && !(tok.could ?? []).includes(f);
   }
 
   protected onTap(tok: RiftToken): void {
@@ -572,13 +652,16 @@ function eventToken(e: FilmTapeEvent, i: number): RiftToken {
     side: e.side,
     seat: e.seat,
     champion: e.champion,
+    // Our seats on a death of theirs, when the tape carries them: the same rule `theirToken` gives the map's dots, so a
+    // seat filter on the tape keeps the kills that seat was in on instead of clearing the square (11 Sep 2026, second fix pass).
+    ...(e.seats?.length && { seats: e.seats.slice() }),
     ...(e.kind === 'objective' && { glyph: objectiveGlyph(e.label) }),
     pinKey: e.kind === 'ourDeath' ? e.key : undefined,
     order: i
   };
 }
 
-function theirToken(d: { x: number; y: number; minute: number }, i: number): RiftToken {
+function theirToken(d: RiftTheirDeath, i: number): RiftToken {
   return {
     key: `their:${d.minute}:${i}`,
     kind: 'theirDeath',
@@ -587,6 +670,8 @@ function theirToken(d: { x: number; y: number; minute: number }, i: number): Rif
     y: d.y,
     label: `One of theirs died at ${d.minute} min`,
     side: 'them',
+    // Our seats on the kill, when the film carries them: what a seat filter keeps the dot for (11 Sep 2026).
+    ...(d.seats?.length && { seats: d.seats.slice() }),
     order: i
   };
 }

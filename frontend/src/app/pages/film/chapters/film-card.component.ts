@@ -3,6 +3,10 @@ import { afterRenderEffect, Component, computed, ElementRef, inject, input, outp
 import { Router } from '@angular/router';
 import { FilmModel } from '../../../core/film-model';
 import { reminderFor } from '../../../core/film-progress';
+import { mvpOf } from '../../../core/game-mvp';
+import { influenceOf, INFLUENCE_NO_TIMELINE, INFLUENCE_NOTHING, INFLUENCE_TIP } from '../../../core/influence';
+import { MatchTimelineService } from '../../../services/match-timeline.service';
+import { MvpChipComponent } from '../../../shared/mvp-chip.component';
 import { alternativesPhrase, gainsPhrase, reviewAsText } from '../../../core/review-view';
 import { AnalysisGame, FilmChoice, GameReview, LedgerSummary, ReviewSwap, Role } from '../../../models/team.models';
 import { MotionService } from '../../../services/motion.service';
@@ -29,7 +33,7 @@ import { FilmFrameComponent } from '../film-frame.component';
  */
 @Component({
   selector: 'app-film-card',
-  imports: [FilmFrameComponent],
+  imports: [FilmFrameComponent, MvpChipComponent],
   template: `
     @let c = model().card;
     @if (model().title.protagonist.champion; as champ) {
@@ -133,17 +137,39 @@ import { FilmFrameComponent } from '../film-frame.component';
 
           </div>
         }
-        @if (asks().length) {
+        @if (asks().length || mvp()) {
           <!-- The asks take a third column on a wide screen (10 Sep 2026): the card used a third of the stage and scrolled. -->
           <div class="film-card-col is-asks">
-            <ul class="list-clean film-card-asks" aria-label="One ask each">
-              @for (a of asks(); track a.seat) {
-                <li class="film-card-ask" [class.is-me]="a.seat === mySeat()" [style.--i]="askBase() + $index">
-                  <img [src]="ui.championIconUrl(a.champion)" alt="" loading="lazy" />
-                  <span><b>{{ a.name }}</b><small>{{ a.seat }}</small>{{ a.ask }}</span>
-                </li>
-              }
-            </ul>
+            @if (mvp(); as m) {
+              <!-- Who carried it and who swung it, one above the other over the asks (11 Sep 2026), because the two are allowed
+                   to disagree: the MVP is the best line, the swing is the gold that moved around them. The terms are printed
+                   here, not only in the tips (second fix pass): the card has the room, and when the two marks name different
+                   seats the reason has to be readable without a mouse — on a phone a tap on the chip dismisses its own tip. -->
+              <div class="film-card-marks">
+                <div class="film-card-mark">
+                  <app-mvp-chip kind="mvp" [champion]="m.champion" [name]="m.name ?? ''" [seat]="m.seat" [terms]="m.why" />
+                  <p class="film-card-mark-terms">{{ termsLine(m.why) }}</p>
+                </div>
+                @if (swung(); as s) {
+                  <div class="film-card-mark">
+                    <app-mvp-chip kind="swing" [champion]="s.champion ?? ''" [name]="s.name ?? ''" [seat]="s.seat" [terms]="s.terms" [note]="influenceTip" />
+                    <p class="film-card-mark-terms">{{ termsLine(s.terms) }}<small class="film-card-mark-tip">{{ influenceTip }}</small></p>
+                  </div>
+                } @else {
+                  <p class="film-card-marks-none">{{ marksNone() }}</p>
+                }
+              </div>
+            }
+            @if (asks().length) {
+              <ul class="list-clean film-card-asks" aria-label="One ask each">
+                @for (a of asks(); track a.seat) {
+                  <li class="film-card-ask" [class.is-me]="a.seat === mySeat()" [style.--i]="askBase() + $index">
+                    <img [src]="ui.championIconUrl(a.champion)" alt="" loading="lazy" />
+                    <span><b>{{ a.name }}</b><small>{{ a.seat }}</small>{{ a.ask }}</span>
+                  </li>
+                }
+              </ul>
+            }
           </div>
         }
 
@@ -191,6 +217,7 @@ export class FilmCardComponent {
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
+  private readonly timelines = inject(MatchTimelineService);
   private readonly nums = viewChildren<ElementRef<HTMLElement>>('num');
 
   constructor() {
@@ -203,6 +230,41 @@ export class FilmCardComponent {
   }
 
   protected readonly mySeat = computed<Role | undefined>(() => this.prefs.filmSeat());
+
+  // ---- Who carried it, and who swung it (11 Sep 2026) ----------------------
+  //
+  // The MVP is the best line of the five; the swing is the gold that moved
+  // around each seat. They are allowed to disagree, and when they do, that
+  // disagreement is the point: the one who farmed a scoreline is not always
+  // the one the game turned on. The timeline comes off the service the page
+  // has already read it into, so the card asks nobody for anything.
+
+  /** Who carried the game, with the terms behind it; nothing for a review with no analysed game beside it. */
+  protected readonly mvp = computed(() => mvpOf(this.game() ?? null));
+
+  /**
+   * The timeline behind the swing, gated the way the page itself gates it
+   * (11 Sep 2026, second fix pass). `MatchTimelineService.known` is a session
+   * map that the Games row fills for any game it opens, whatever its review's
+   * tier; reading it raw made this card say "Swung it most" on an end-of-game
+   * review whose row happened to have been opened first, and the no-timeline
+   * sentence on the same film after a reload. The review's tier is the one
+   * answer, so the card gives the same one every time.
+   */
+  private readonly timeline = computed(() => (this.review().tier === 'timeline' ? (this.timelines.known().get(this.model().matchId) ?? null) : null));
+
+  /** Who swung it most; absent on a game with no timeline, and then the card says so rather than guessing. */
+  protected readonly swung = computed(() => influenceOf(this.game() ?? null, this.timeline())[0] ?? null);
+
+  /** Why there is no swing: no timeline at all, or a timeline that carried no fight to price (a trimmed document, or a game nobody died in). */
+  protected readonly marksNone = computed(() => (this.timeline() ? INFLUENCE_NOTHING : INFLUENCE_NO_TIMELINE));
+
+  protected readonly influenceTip = INFLUENCE_TIP;
+
+  /** The terms as one line, the way the tip joins them; printed under the chip so nobody has to hover to see what earned it. */
+  protected termsLine(terms: readonly string[]): string {
+    return terms.filter((t) => t.trim()).join(' · ');
+  }
   /** The option called on one lesson, or null while it is still open. */
   protected pickOf(key: string): number | null {
     const v = this.calls()?.[key];

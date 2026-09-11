@@ -40,7 +40,7 @@ const wards: FilmWard[] = [
 ];
 
 const pin: FilmDeathPin = {
-  key: 'd:14:ADC', sec: 850, minute: 14, seat: 'ADC', name: 'Rhu', champion: 'Jinx', zone: 'bot', x: 85, y: 84, how: 'gank', could: ['ward'],
+  key: 'd:14:ADC', sec: 850, minute: 14, seat: 'ADC', name: 'Rhu', champion: 'Jinx', zone: 'bot', x: 85, y: 84, placed: 'zone', how: 'gank', could: ['ward'],
   line: 'Rhu (ADC) died at 14 min, in the dark', read: 'avoidable', readLine: 'Avoidable: no ward had gone down nearby.', glyphs: ['ward-off'],
   scene: { could: ['ward'], killers: 2, executed: false, traded: 0, warded: false }
 };
@@ -107,7 +107,8 @@ describe('PositionLabComponent', () => {
     expect(el.querySelectorAll('.lab-death').length).toBe(1);
     expect(el.querySelector('.lab-death')?.getAttribute('aria-label')).toBe(pin.line);
     expect(el.querySelector('.lab-death svg')?.getAttribute('data-glyph')).toBe('skull');
-    expect(el.querySelector('.material-symbols-rounded')).toBeNull();
+    // Nothing on the square is a Material icon: every mark is one of the film's own glyphs. (The tools row is chrome and may carry one — the marks legend's pill does.)
+    expect(el.querySelector('.lab-square .material-symbols-rounded')).toBeNull();
     expect(el.querySelector('.lab-note')?.textContent).toBe('Approximate, by the minute');
     expect(LAB_NOTE_TIP).toContain('once a minute');
     expect(el.querySelector('.lab-square')?.getAttribute('aria-label')).toBe('Position lab at 14:00');
@@ -322,8 +323,11 @@ describe('PositionLabComponent', () => {
     const editor = mount();
     expect(pill(editor.el, 'Save')).toBeTruthy();
     const viewer = mount({ canSave: false });
-    expect(Array.from(viewer.el.querySelectorAll('.lab-tools .view-btn')).map((b) => b.textContent?.trim())).toEqual(['Move', 'Ward', 'Control ward', 'Path', 'Undo', 'Reset', 'Close']);
+    // The toolbar's own pills; the marks legend hangs its pill in its own element, so it is asserted separately below.
+    expect(Array.from(viewer.el.querySelectorAll('.lab-tools > .view-btn')).map((b) => b.textContent?.trim())).toEqual(['Move', 'Ward', 'Control ward', 'Path', 'Undo', 'Reset', 'Close']);
     expect(viewer.el.querySelector('.lab-reading')).not.toBeNull();
+    // What the marks mean is a reader's pill, not an editor's: a viewer gets it too (11 Sep 2026).
+    expect(viewer.el.querySelector('.lab-tools app-mark-legend .mark-legend-btn')).not.toBeNull();
   });
 
   it('stands on the first frame without a previous one: every reach at the floor', () => {

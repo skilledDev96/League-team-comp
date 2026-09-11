@@ -317,6 +317,11 @@
                   <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span><span class="games-row-reviewed-word">{{ watched(g.matchId) ? 'Watched' : 'Reviewed' }}</span>
                 </span>
               }
+              <!-- Who carried it (11 Sep 2026): the row's own figures, whichever source they came from, with the terms behind it in the
+                   tooltip so nobody has to trust a mark. A tournament game typed in by hand carries no figures and so carries no chip. -->
+              @if (mvp(g); as m) {
+                <app-mvp-chip kind="mvp" [champion]="m.champion" [name]="m.name ?? ''" [seat]="m.seat" [terms]="m.why" [compact]="true" />
+              }
               <!-- The recorder walked this game's replay in the League client and kept frames of it (10 Sep 2026). The service only
                    knows about a game whose row has been opened, so this is a mark the row keeps once looked at: asking for every row
                    in the list would be a Firestore read a row, and the list starts folded on purpose. -->

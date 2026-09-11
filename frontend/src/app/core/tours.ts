@@ -43,6 +43,14 @@ export interface Tour {
   needs?: TourNeed;
   /** Default true. */
   autoStart?: boolean;
+  /**
+   * The tour can only be taken from its own page, never walked to (11 Sep 2026).
+   * A `match.path` ending in `/` is a prefix, and the engine opens such a page by
+   * appending the first player's id — right for `/player/`, nonsense for
+   * `/film/`, where it would land on a game with no review. Help and tours lists
+   * one of these with the reason instead of a Start.
+   */
+  onlyHere?: boolean;
   steps: TourStep[];
 }
 
@@ -295,6 +303,143 @@ export const TOURS: readonly Tour[] = [
       { anchor: 'admin-setting-advisor', title: 'Settings save as you go', text: 'The advisor’s auto-ask applies in the draft room; the morning review applies to the next run. Each line says where.', query: { tab: 'settings' } },
       { anchor: 'admin-access-role', title: 'Roles', text: 'Viewer reads everything but Admin. Contributor gets edit mode. Admin adds Settings, Access, Diagnostics and deletes.', query: { tab: 'access' } },
       { anchor: 'admin-diag-health', title: 'Diagnostics', text: 'What the morning run did and spent, data health per game, the draft log, browser errors, and your tours.', query: { tab: 'diagnostics' } }
+    ]
+  },
+  {
+    id: 'film-room',
+    title: 'The map and the lab',
+    blurb: 'What the reads mean, the seats, the deaths that cost most, the tape, and the position lab.',
+    version: 1,
+    // Only on a film (11 Sep 2026, the lead: "add a small tutorial for the map
+    // and lab to see what can be done"). It never starts by itself: a film opens
+    // on its title card, and the deck renders one chapter at a time, so at that
+    // moment not one of the map's, the tape's or the lab's anchors is on the
+    // page. The reader takes it on purpose from the film bar, and each step's
+    // `before` walks the deck to the chapter it is about.
+    match: { path: '/film/' },
+    autoStart: false,
+    // A film is a game's own page: there is no sensible film to walk to from
+    // elsewhere, so the door is the "Show me around" pill in the film bar.
+    onlyHere: true,
+    // No `needs` and no `role`: a viewer opening a film can take the whole walk
+    // but the Save step, and the film route itself is the only gate. A film
+    // with no timeline has no map, no tape and no lab; those anchors are then
+    // simply not on the page and the engine steps over them.
+    steps: [
+      {
+        anchor: 'film-dots',
+        title: 'The chapters',
+        text: 'A film is a run of chapters, and these dots are where you are in it. This walk moves between them for you, so let it do the walking.'
+      },
+      {
+        anchor: 'film-map-legend',
+        before: 'openFilmMap',
+        title: 'How the film reads a death',
+        text: 'Every death of ours is read as one of four kinds: Avoidable, Traded, Bought an objective, or Clean. A button here lights that kind alone on the Rift, and the number beside it is how many the map is showing.'
+      },
+      {
+        anchor: 'film-map-marks',
+        before: 'openFilmMap',
+        title: 'What every mark means',
+        text: 'Every mark on this square is named here: a pin and its read, a death of theirs, a fight, and the vision heat. The tape and the lab carry the same pill for the marks they draw.'
+      },
+      {
+        anchor: 'film-map-seats',
+        before: 'openFilmMap',
+        title: 'One seat at a time',
+        text: 'Six tiles: All, then our five. Pick one and the Rift, the counts, the strip and the cards keep that seat alone. The tape wears the same six.'
+      },
+      {
+        anchor: 'film-costliest',
+        before: 'openFilmMap',
+        title: 'The ones that cost most',
+        text: 'The deaths the gold moved most after, each with the swing over the two minutes that followed. Press one and the card below walks to it.'
+      },
+      {
+        anchor: 'film-death-card',
+        before: 'openFilmMap',
+        title: 'One death at a time',
+        text: 'The card walks the deaths in order: who fell, the minute, the read in a sentence, what it cost, and what could have stopped it. Watch it opens the tape twenty seconds before, and Work on this second opens the lab there.'
+      },
+      {
+        anchor: 'film-death-scene',
+        before: 'openFilmMap',
+        title: 'What was around them',
+        text: 'The drawing is that moment: the ward that was down or slashed, our jungler a screen away, theirs already close, the objective, and who was on the kill. Positions come once a minute, so all of it is approximate.'
+      },
+      {
+        anchor: 'film-map-full',
+        before: 'openFilmMap',
+        title: 'Full screen',
+        text: 'The Rift takes the whole stage and the cards move into a drawer you can close and bring back. Escape closes the drawer first and leaves full screen next. The tape carries the same pill.'
+      },
+      {
+        anchor: 'film-tape-sheet',
+        before: 'openFilmTape',
+        title: 'The tape',
+        text: 'The tape plays the game on the Rift and stops on every beat: the moments, the objectives, the fights and every death of ours. The sheet is what it is telling you, and Pause holds a card as long as you want it.'
+      },
+      {
+        anchor: 'film-tape-speed',
+        before: 'openFilmTape',
+        title: 'Your own pace',
+        text: 'Half, one, two or four times. The film opens at the pace it was cut for, and whichever you pick here is remembered on this screen for every film after.'
+      },
+      {
+        anchor: 'film-tape-layers',
+        before: 'openFilmTape',
+        title: 'Everyone, and our vision',
+        text: 'Everyone slides all ten around the Rift between the minutes, ours ringed and theirs faded. Vision puts our wards down with the sight around each. Both are approximate: one position a minute, and a ward stands where its placer stood.'
+      },
+      {
+        anchor: 'film-tape-marks',
+        before: 'openFilmTape',
+        title: 'What every mark means, here too',
+        text: 'The tape draws the objectives, the wards and their sight, so the same panel hangs here and names them. It opens upward off its pill and nothing behind it is blocked.'
+      },
+      {
+        anchor: 'film-tape-rail',
+        before: 'openFilmTape',
+        title: 'Every minute on the rail',
+        text: 'One chip a minute, with a count on a minute that holds more than one; press any of them to jump there. Deaths only keeps the deaths and stops the tape on nothing else.'
+      },
+      {
+        anchor: 'film-tape-lab',
+        before: 'openFilmTape',
+        title: 'Work on this second',
+        text: 'This is the door into the lab: the tape holds where it stands and hands that second over to be worked on. Every death card on the map carries the same pill.'
+      },
+      {
+        anchor: 'film-lab-tools',
+        before: 'openFilmLab',
+        title: 'Move, Ward and Path',
+        text: 'Move drags one of ours to where they should have been, and a ghost stays where the minute put them. Ward and Control ward put vision down. Path draws the arrows, the way you would on a board.'
+      },
+      {
+        anchor: 'film-lab-legend',
+        before: 'openFilmLab',
+        title: 'Safe, seen and dark',
+        text: 'The ground is shaded three ways: in our sight and out of their reach, in our sight but inside it, and in their reach with nothing watching. Their reach is what each of theirs could cover in the next thirty seconds.'
+      },
+      {
+        anchor: 'film-lab-reading',
+        before: 'openFilmLab',
+        title: 'What the ground says',
+        text: 'One line under the map reads the difference: what came into sight, what left their reach, and what is still dark. It rewrites itself as you drag.'
+      },
+      {
+        anchor: 'film-lab-save',
+        before: 'openFilmLab',
+        role: 'editor',
+        title: 'Keep it for the team',
+        text: 'Save keeps the drawing and its line on this second of the film, so the next person to open it finds the board you marked up.'
+      },
+      {
+        anchor: 'film-lab-close',
+        before: 'openFilmLab',
+        title: 'Back to the tape',
+        text: 'Close, or Escape, puts the lab away and leaves the tape where it stood. Escape twice over from anywhere on the film goes back to the game on Games.'
+      }
     ]
   },
   {

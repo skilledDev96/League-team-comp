@@ -248,7 +248,7 @@ function fakeClient({ fs, plan = {}, fail = '', render = {}, stuck = false, thro
   return { fetchImpl, calls, renders, seeks, asked, state };
 }
 
-function fakeFirestore(players = ROSTER, game = { matchId: MATCH_ID, durationSec: GAME_LENGTH }) {
+function fakeFirestore(players = ROSTER, game = { matchId: MATCH_ID, durationSec: GAME_LENGTH, win: true }) {
   const writes = [];
   return {
     writes,
@@ -274,6 +274,7 @@ async function record(options = {}) {
     shots: options.shots ?? 20,
     outDir: OUT_DIR,
     dryRun: options.dryRun ?? false,
+    ...(options.run ?? {}),
     fetchImpl: client.fetchImpl,
     fs,
     firestore,
@@ -447,10 +448,12 @@ describe('the replay recorder, over a whole game', () => {
   // straight to Anthropic with the review.
   it('sets the replay interface before the first picture: the naming panels off, the minimap on', async () => {
     const { renders, calls } = await record({});
-    expect(calls.filter((c) => c === 'POST /replay/render')).toHaveLength(1);
-    // Before any render request, so no frame is ever taken with the panels up.
+    // Before any render request, so no frame is ever taken with the panels up. The renders after it are
+    // the camera following the champion each picture is about (11 Sep 2026), which carry no flags.
     expect(calls.indexOf('POST /replay/render')).toBeLessThan(calls.indexOf('POST /replay/recording'));
-    const set = renders.at(-1);
+    const follows = renders.filter((r) => 'selectionName' in r);
+    expect(follows.every((r) => r.cameraAttached === true && typeof r.selectionName === 'string')).toBe(true);
+    const set = renders.find((r) => 'interfaceMinimap' in r);
     for (const flag of NAMING_FLAGS) expect(set[flag]).toBe(false);
     expect(set.interfaceMinimap).toBe(true);
     expect(set.interfaceAll).toBe(true);
@@ -458,7 +461,8 @@ describe('the replay recorder, over a whole game', () => {
   });
 
   it('takes no picture at all when the client will not hide a panel that names players', async () => {
-    const { recording, shots, log, calls } = await record({ render: { interfaceScoreboard: true } });
+    // --hide-panels is the client that is NOT in streamer mode: there a panel that stays up prints Riot ids.
+    const { recording, shots, log, calls } = await record({ render: { interfaceScoreboard: true }, run: { streamerMode: false } });
     expect(shots).toHaveLength(0);
     expect(recording.shots).toHaveLength(0);
     expect(calls.some((c) => c === 'POST /replay/recording')).toBe(false);
@@ -477,7 +481,8 @@ describe('the replay recorder, over a whole game', () => {
     const wanted = OUR_DEATH_SECONDS.slice(0, 2).map((s) => s - 2);
     // Asked for and sought to the same second, two before the moment.
     expect(asked.map((r) => r.startTime)).toEqual(wanted);
-    expect(asked.every((r) => r.endTime === r.startTime)).toBe(true);
+    // A one-second range, because this client writes a png SEQUENCE and an empty range writes nothing (11 Sep 2026).
+    expect(asked.every((r) => r.endTime === r.startTime + 1)).toBe(true);
     for (const sec of wanted) expect(seeks).toContain(sec);
     // The moment itself is never sought and never rendered.
     for (const sec of OUR_DEATH_SECONDS.slice(0, 2)) expect(asked.some((r) => r.startTime === sec)).toBe(false);
@@ -707,14 +712,22 @@ describe('the pure parts', () => {
   });
 
   it('parses the argument line and holds the hard cap', () => {
-    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, outDir: '', dryRun: false, roster: '' });
+    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true });
+    // The bars are on by default (11 Sep 2026); a client that prints summoner names over champions turns them off again.
+    expect(parseArgs([MATCH_ID, '--no-health-bars']).noHealthBars).toBe(true);
+    // Streamer mode keeps the panels: the client itself prints champions where the Riot ids would be (11 Sep 2026).
+    expect(parseArgs([MATCH_ID, '--streamer-mode']).streamerMode).toBe(true);
+    // A client that is not in streamer mode: the panels go, and with them the gold and the items.
+    expect(parseArgs([MATCH_ID, '--hide-panels']).streamerMode).toBe(false);
     expect(parseArgs([MATCH_ID, '--shots', '8', '--out-dir', 'C:/shots', '--dry-run'])).toEqual({
       matchId: MATCH_ID,
       typed: MATCH_ID,
       shots: 8,
       outDir: 'C:/shots',
       dryRun: true,
-      roster: ''
+      roster: '',
+      noHealthBars: false,
+      streamerMode: true
     });
     expect(parseArgs([MATCH_ID, '--shots=99']).shots).toBe(30);
     expect(() => parseArgs([MATCH_ID, '--shts', '4'])).toThrow(/Unknown option/);

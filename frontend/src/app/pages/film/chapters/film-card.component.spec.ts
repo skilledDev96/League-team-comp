@@ -1,11 +1,15 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { environment } from '../../../../environments/environment';
 import { FilmModel } from '../../../core/film-model';
 import { styleFor } from '../../../core/film-style';
-import { GameReview } from '../../../models/team.models';
+import { INFLUENCE_NO_TIMELINE, INFLUENCE_NOTHING, INFLUENCE_TIP } from '../../../core/influence';
+import { AnalysisGame, GameReview, MatchTimeline } from '../../../models/team.models';
+import { devTimelineKey, MatchTimelineService } from '../../../services/match-timeline.service';
 import { ToastService } from '../../../services/toast.service';
+import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { FilmCardComponent } from './film-card.component';
 
 // Local mode, the way the film page's spec does it: no listeners, no backend.
@@ -85,6 +89,47 @@ const model = {
   map: { pins: [], theirs: [], clusters: [], summary: { deaths: 3, ganks: 1, dark: 2, inReach: 0, alone: 0 }, reads: { avoidable: 1, traded: 1, bought: 1, clean: 0 }, opening: '3 deaths: 1 avoidable, 1 traded, 1 bought an objective.', costliest: [], order: 'chronological' }
 } as unknown as FilmModel;
 
+/** The analysed game behind the review: Jinx carried the line, Wukong was on the herald fight that swung it. */
+const game = {
+  matchId: ID,
+  compId: null,
+  compName: null,
+  win: false,
+  queue: 'Flex',
+  date: 0,
+  kills: { ours: 20, theirs: 35 },
+  players: [
+    { name: 'Bom', position: 'TOP', champion: 'Aatrox', kills: 4, deaths: 5, assists: 3, cs: 200, damage: 24000, killParticipation: 0.5 },
+    { name: 'Go10x', position: 'JUNGLE', champion: 'MonkeyKing', kills: 5, deaths: 4, assists: 9, cs: 150, damage: 22000, killParticipation: 0.7 },
+    { name: 'Kez', position: 'MIDDLE', champion: 'Ahri', kills: 6, deaths: 3, assists: 6, cs: 250, damage: 32000, killParticipation: 0.6 },
+    { name: 'Rhu', position: 'BOTTOM', champion: 'Jinx', kills: 9, deaths: 2, assists: 5, cs: 312, damage: 52500, killParticipation: 0.7 },
+    { name: 'Sen', position: 'UTILITY', champion: 'Leona', kills: 0, deaths: 6, assists: 11, cs: 40, damage: 8000, killParticipation: 0.55 }
+  ]
+} as unknown as AnalysisGame;
+
+/** Level to eleven, a thousand up by twelve, four thousand more the minute after the herald at twenty. */
+const GOLD = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 500, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 5100, 5100, 5100, 5100];
+
+const timeline = {
+  matchId: ID,
+  timelineVersion: 4,
+  builtAt: '2026-09-10T20:00:00.000Z',
+  ourSide: 'blue',
+  durationSec: 1470,
+  frameSec: 60,
+  goldDiff: GOLD,
+  theirDeaths: [{ sec: 1200, minute: 20, zone: 'river', ourInvolved: ['Jungle'] }],
+  deaths: [{ sec: 780, minute: 13, seat: 'Jungle', zone: 'mid', theirSide: false, killers: 2, executed: false, warded: false }],
+  objectives: [{ minute: 20, type: 'herald', side: 'us', ourInvolved: [], ourNear: [] }],
+  lanes: [],
+  firsts: {},
+  plates: {},
+  vision: [],
+  spend: [],
+  curve: { leadAt: {}, biggestLead: { gold: 0, minute: 0 }, biggestDeficit: { gold: 0, minute: 0 } },
+  bytes: 0
+} as unknown as MatchTimeline;
+
 function text(el: Element | null): string {
   return (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 }
@@ -110,13 +155,25 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmCardComponent', () => 
     else delete (navigator as unknown as { clipboard?: unknown }).clipboard;
   });
 
-  function mount(m: FilmModel = model, r: GameReview = review) {
+  function mount(m: FilmModel = model, r: GameReview = review, analysed?: AnalysisGame) {
     const fixture = TestBed.createComponent(FilmCardComponent);
     fixture.componentRef.setInput('model', m);
     fixture.componentRef.setInput('review', r);
     fixture.componentRef.setInput('ledger', { deaths: 3, ganks: 1, dark: 2, inReach: 0, alone: 0 });
+    if (analysed) fixture.componentRef.setInput('game', analysed);
     fixture.detectChanges();
     return { fixture, root: fixture.nativeElement as HTMLElement };
+  }
+
+  /** The tip on one of the card's marks, read off the directive: the popover itself needs a browser. */
+  function tipOf(fixture: ReturnType<typeof mount>['fixture'], selector: string): string {
+    return fixture.debugElement.query(By.css(selector)).injector.get(TooltipDirective).appTip();
+  }
+
+  /** The page reads the timeline into the service before the card comes up; the dev override stands in for the document. */
+  async function withTimeline(): Promise<void> {
+    localStorage.setItem(devTimelineKey(ID), JSON.stringify(timeline));
+    await TestBed.inject(MatchTimelineService).load(ID);
   }
 
   it('shows the swaps to try with the champion we played said the display way', () => {
@@ -197,5 +254,70 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmCardComponent', () => 
     expect(lines).toContain('-# Draft: Nautilus (or Braum, or Alistar) for Leona (Peel, Engage): Nautilus peels Jinx through the dive.');
     expect(lines).toContain('-# Draft: Sejuani for Wukong: A frontline that starts the fight.');
     expect(lines).toContain('-# Lacked: peel (Jinx had no one between her and the dive)');
+  });
+
+  // ---- Who carried it, and who swung it (11 Sep 2026) ----------------------
+
+  it('shows who carried the game above the asks, with the terms behind it in the tip and on the card', async () => {
+    await withTimeline();
+    const { fixture, root } = mount(model, review, game);
+    const marks = root.querySelector('.film-card-marks')!;
+    expect(marks.parentElement?.classList.contains('is-asks')).toBe(true);
+    const chips = Array.from(marks.querySelectorAll('.mvp-chip'));
+    expect(chips.map((c) => text(c.querySelector('.mvp-chip-word')))).toEqual(['MVP', 'Swung it most']);
+    expect(text(chips[0].querySelector('.mvp-chip-name'))).toBe('Rhu');
+    expect(tipOf(fixture, '.mvp-chip.is-mvp')).toBe('MVP: Rhu on Jinx. 52.5k damage, 38% of ours · on 14 of 20 kills · died twice.');
+    // The terms are printed, not only hovered (11 Sep 2026, second fix pass): on a phone a tap on the chip closes its own tip.
+    const terms = Array.from(root.querySelectorAll('.film-card-mark-terms')).map((t) => text(t));
+    expect(terms[0]).toBe('52.5k damage, 38% of ours · on 14 of 20 kills · died twice');
+  });
+
+  it('shows who swung it beside the MVP, so the two can disagree', async () => {
+    await withTimeline();
+    const { fixture, root } = mount(model, review, game);
+    // The ADC carried the line; the jungler was on the herald fight the gold turned on, and the champion is said the display way.
+    expect(text(root.querySelector('.mvp-chip.is-swing .mvp-chip-name'))).toBe('Go10x');
+    expect(tipOf(fixture, '.mvp-chip.is-swing')).toBe(
+      `Swung it most: Go10x on Wukong. +4.1k across the fights they were in · the biggest was +4.1k on the herald at 20 min. ${INFLUENCE_TIP}`
+    );
+    // And the same terms on the card, with what a minute's resolution cannot see under them.
+    const swung = root.querySelectorAll('.film-card-mark-terms')[1];
+    expect(text(swung)).toContain('+4.1k across the fights they were in · the biggest was +4.1k on the herald at 20 min');
+    expect(text(swung.querySelector('.film-card-mark-tip'))).toBe(INFLUENCE_TIP);
+    expect(root.querySelector('.film-card-marks-none')).toBeNull();
+  });
+
+  it('says the swing needs a timeline rather than showing a game with none at nothing', () => {
+    const { root } = mount(model, review, game);
+    expect(root.querySelector('.mvp-chip.is-mvp')).not.toBeNull();
+    expect(root.querySelector('.mvp-chip.is-swing')).toBeNull();
+    expect(text(root.querySelector('.film-card-marks-none'))).toBe(INFLUENCE_NO_TIMELINE);
+  });
+
+  it('reads the timeline only for a timeline-tier review, so the answer does not depend on which row was opened first', async () => {
+    // The session cache is filled by any game the Games page opens, whatever its review's tier (11 Sep 2026, second fix
+    // pass): without the gate the same film said "Swung it most" or "needs the timeline" depending on the way in.
+    await withTimeline();
+    const endOfGame = { ...review, tier: 'end' } as unknown as GameReview;
+    const { root } = mount(model, endOfGame, game);
+    expect(root.querySelector('.mvp-chip.is-swing')).toBeNull();
+    expect(text(root.querySelector('.film-card-marks-none'))).toBe(INFLUENCE_NO_TIMELINE);
+  });
+
+  it('says a timeline that carried no fight is not the same as no timeline at all', async () => {
+    // A document trimmed under MAX_BYTES loses their deaths; saying "this game has none" of a timeline the film is
+    // reading from would simply be false.
+    localStorage.setItem(devTimelineKey(ID), JSON.stringify({ ...timeline, deaths: [], theirDeaths: [] }));
+    await TestBed.inject(MatchTimelineService).load(ID);
+    const { root } = mount(model, review, game);
+    expect(root.querySelector('.mvp-chip.is-swing')).toBeNull();
+    expect(text(root.querySelector('.film-card-marks-none'))).toBe(INFLUENCE_NOTHING);
+  });
+
+  it('draws no marks at all for a review with no analysed game beside it', () => {
+    const { root } = mount();
+    expect(root.querySelector('.film-card-marks')).toBeNull();
+    // The asks are still there: the marks are a block inside their column, not a condition on it.
+    expect(root.querySelectorAll('.film-card-ask')).toHaveLength(2);
   });
 });

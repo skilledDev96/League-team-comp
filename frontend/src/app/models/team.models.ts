@@ -873,6 +873,14 @@ export interface TimelineObjective {
   side: TimelineSide;
   ourInvolved: Role[];
   ourNear: Role[];
+  /**
+   * Where the monster fell, in Riot units (timeline version 4, 11 Sep 2026):
+   * the kill event's own position, not the pit the film assumed and not a
+   * sample inside a zone. Absent before version 4 and on an event Riot sent
+   * without one, and then the film falls back to the pit.
+   */
+  x?: number;
+  y?: number;
 }
 
 export interface TimelineDeath {
@@ -891,6 +899,15 @@ export interface TimelineDeath {
   theirJungleDistBefore?: number;
   alliesNear?: number;
   objectiveNear?: boolean;
+  /**
+   * Where the kill happened, in Riot units (timeline version 4, 11 Sep 2026):
+   * the event's own position, not a spot sampled inside `zone`. The one figure
+   * on this row that is not approximate by a minute. Absent before version 4
+   * and on a kill Riot sent without a position, and then the film places the
+   * pin by zone as it always did.
+   */
+  x?: number;
+  y?: number;
 }
 
 /**
@@ -947,7 +964,8 @@ export interface MatchTimeline {
   objectives: TimelineObjective[];
   plates: { ours: Record<LaneName, number>; theirs: Record<LaneName, number> };
   deaths: TimelineDeath[];
-  theirDeaths: { sec: number; minute: number; zone: MapZone; ourInvolved?: Role[] }[];
+  /** `x` and `y` are the kill event's own position in Riot units (timeline version 4, 11 Sep 2026), not a zone sample; absent before it. */
+  theirDeaths: { sec: number; minute: number; zone: MapZone; ourInvolved?: Role[]; x?: number; y?: number }[];
   vision: { seat: Role; placed: number[]; killed: number[] }[];
   spend: { seat: Role; firstItemMinute?: number; secondItemMinute?: number; backs: number[] }[];
   /** Damage to champions dealt and taken per five minutes, our five only; absent before version 2. */

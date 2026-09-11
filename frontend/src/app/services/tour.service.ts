@@ -52,10 +52,18 @@ export class TourService {
       // Leaving the page mid-tour ends it: an overlay that follows you to
       // another page, hunting for an anchor that is not there, is worse than
       // no tour. The tour's own navigation sets `walking` first.
-      if (this.active() && !this.walking) {
+      //
+      // Leaving means the url no longer answers the tour's own `match` (11 Sep
+      // 2026). It used to mean any navigation at all, and the film ends every
+      // chapter change by writing `?c=<kind>` back to the address bar — so the
+      // walk's second chapter killed the walk. A page moving inside itself is
+      // not the reader walking away from it.
+      const tour = this.active();
+      if (tour && !this.walking && !routeMatches(tour.match, e.urlAfterRedirects)) {
         this.finish();
         return;
       }
+      // A tour still running keeps the page it is on; `maybeAutoStart` refuses while one is active anyway.
       this.maybeAutoStart();
     });
     effect(() => {
@@ -84,6 +92,10 @@ export class TourService {
 
   /** Why a tour cannot run right now, in words for the pill's tip; null when it can. */
   blocker(tour: Tour): string | null {
+    // A tour that only runs on its own page, asked for from another one: it is
+    // not walked to, because the page is one game's and the engine has no way to
+    // pick which (11 Sep 2026).
+    if (tour.onlyHere && !routeMatches(tour.match, this.url())) return 'Open a game in the film room first; the walk starts from there.';
     if (!tour.needs) return null;
     if (this.have()[tour.needs]) return null;
     switch (tour.needs) {
@@ -200,8 +212,11 @@ export class TourService {
     this.index.set(i);
     this.anchorRect.set(null);
     try {
-      await this.settle(tour, step);
-      const el = await this.waitFor(step);
+      // A `before` that could not open what the step is about means the anchor is never coming (11 Sep 2026, second fix
+      // pass): `waitFor` would spend its full three seconds of "Finding it…" on each such step, and the film's walk has
+      // five lab steps and six map ones, so a film with no positions cost about seventeen seconds of nothing.
+      const ready = await this.settle(tour, step);
+      const el = ready ? await this.waitFor(step) : null;
       if (!el) {
         this.missing.add(i);
         const nextI = stepAfterSkip(this.steps().length, i, dir, this.missing);
@@ -223,8 +238,8 @@ export class TourService {
     }
   }
 
-  /** Put the page in the state the step needs: route, query, edit mode, a named action. */
-  private async settle(tour: Tour, step: TourStep): Promise<void> {
+  /** Put the page in the state the step needs: route, query, edit mode, a named action. False when the action found nothing to open, so the step is missing rather than slow. */
+  private async settle(tour: Tour, step: TourStep): Promise<boolean> {
     const route = step.route ?? tour.match.path;
     const query = step.query ?? (step.route ? {} : (tour.match.query ?? {}));
     const target = route.endsWith('/') ? null : route;
@@ -247,16 +262,17 @@ export class TourService {
       this.auth.editMode.set(true);
       await this.pause(60);
     }
-    if (step.before) await this.action(step.before);
+    return step.before ? this.action(step.before) : true;
   }
 
-  private async action(name: string): Promise<void> {
+  /** Runs a step's named action; false only when it can say the thing the step is about will not appear. */
+  private async action(name: string): Promise<boolean> {
     switch (name) {
       case 'openUserMenu': {
         const trigger = document.querySelector<HTMLElement>('[data-tour="user-menu-trigger"]');
         if (trigger && !document.querySelector('.user-menu-panel')) trigger.click();
         await this.pause(60);
-        return;
+        return true;
       }
       case 'openGameList': {
         // The game list is folded by default; the row steps need it open.
@@ -265,12 +281,12 @@ export class TourService {
           fold.click();
           await this.pause(150);
         }
-        return;
+        return true;
       }
       case 'openCompMore': {
         document.querySelector<HTMLElement>('details.comp-more')?.setAttribute('open', '');
         await this.pause(40);
-        return;
+        return true;
       }
       case 'openPlayerEditor': {
         // The profile's player, from the URL; the drawer is the editor.
@@ -279,7 +295,7 @@ export class TourService {
           this.editor.open(id);
           await this.pause(250);
         }
-        return;
+        return true;
       }
       case 'clickScout': {
         // The scouting panel is behind the series' Scout button.
@@ -287,11 +303,50 @@ export class TourService {
           document.querySelector<HTMLElement>('[data-tour="plan-scout-btn"]')?.click();
           await this.pause(450);
         }
-        return;
+        return true;
+      }
+      // The film's deck renders one chapter at a time, so a step about the map,
+      // the tape or the lab has to walk the deck there before its anchor is on
+      // the page at all (11 Sep 2026). Each says whether the chapter or the lab
+      // is actually there: a film with no map, or a timeline that kept no
+      // positions, has no such door, and the steps about it are then skipped at
+      // once rather than after three seconds of hunting each (second fix pass).
+      case 'openFilmMap':
+        return this.openFilmChapter('map');
+      case 'openFilmTape':
+        return this.openFilmChapter('tape');
+      case 'openFilmLab': {
+        if (document.querySelector('.film-lab-overlay')) return true;
+        const door = document.querySelector<HTMLElement>('[data-tour="film-tape-lab"]');
+        if (!door) return false;
+        door.click();
+        await this.pause(300);
+        return !!document.querySelector('.film-lab-overlay');
       }
       default:
-        return;
+        return true;
     }
+  }
+
+  /**
+   * Put the film's deck on one chapter, and say whether this film has it. The
+   * lab is a dialog over the tape, so it is closed first — it would otherwise
+   * cover whatever the next step is about — and the deck only moves when it is
+   * not already there, so walking three steps about the map does not re-enter
+   * the chapter three times.
+   */
+  private async openFilmChapter(kind: 'map' | 'tape'): Promise<boolean> {
+    const lab = document.querySelector('.film-lab-overlay');
+    if (lab) {
+      document.querySelector<HTMLElement>('[data-tour="film-lab-close"]')?.click();
+      await this.pause(150);
+    }
+    const dot = document.querySelector<HTMLElement>(`[data-tour="film-dot-${kind}"]`);
+    if (!dot) return false;
+    if (dot.classList.contains('active')) return true;
+    dot.click();
+    await this.pause(250);
+    return true;
   }
 
   private async waitFor(step: TourStep): Promise<HTMLElement | null> {

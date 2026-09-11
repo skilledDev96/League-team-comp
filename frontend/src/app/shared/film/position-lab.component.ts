@@ -7,6 +7,7 @@ import { UiService } from '../../services/ui.service';
 import { TooltipDirective } from '../tooltip.directive';
 import { FilmGlyphComponent } from './film-glyph.component';
 import { clockText } from './film-scrubber.component';
+import { MarkLegendComponent } from './mark-legend.component';
 
 /** What the pointer does on the square: drag ours, put a trinket down, put a control ward down, or draw an arrow. */
 export type LabMode = 'move' | 'ward' | 'control' | 'path';
@@ -115,7 +116,7 @@ function capture(el: Element | null, pointerId: number): void {
  */
 @Component({
   selector: 'app-position-lab',
-  imports: [TooltipDirective, FilmGlyphComponent],
+  imports: [TooltipDirective, FilmGlyphComponent, MarkLegendComponent],
   host: { class: 'lab', '[class.is-still]': 'motion.reduced()', '(keydown)': 'onKey($event)' },
   template: `
     <div
@@ -237,7 +238,7 @@ function capture(el: Element | null, pointerId: number): void {
       <span class="lab-hint" aria-live="polite">{{ hint() }}</span>
       <span class="lab-note" [appTip]="noteTip" tabindex="0">Approximate, by the minute</span>
     </div>
-    <div class="lab-tools" role="toolbar" aria-label="Position lab tools">
+    <div class="lab-tools" data-tour="film-lab-tools" role="toolbar" aria-label="Position lab tools">
       <button type="button" class="view-btn" [class.active]="mode() === 'move'" [attr.aria-pressed]="mode() === 'move'" (click)="setMode('move')">Move</button>
       <button type="button" class="view-btn" [class.active]="mode() === 'ward'" [attr.aria-pressed]="mode() === 'ward'" (click)="setMode('ward')">Ward</button>
       <button type="button" class="view-btn" [class.active]="mode() === 'control'" [attr.aria-pressed]="mode() === 'control'" (click)="setMode('control')">Control ward</button>
@@ -253,12 +254,15 @@ function capture(el: Element | null, pointerId: number): void {
       <button type="button" class="view-btn" [disabled]="!history().length" (click)="undo()">Undo</button>
       <button type="button" class="view-btn" [disabled]="!hasMarks()" (click)="reset()">Reset</button>
       @if (canSave()) {
-        <button type="button" class="view-btn" [disabled]="!dirty()" (click)="onSave()">Save</button>
+        <button type="button" class="view-btn" data-tour="film-lab-save" [disabled]="!dirty()" (click)="onSave()">Save</button>
       }
-      <button type="button" class="view-btn" (click)="close.emit()">Close</button>
+      <!-- Every mark the lab draws, with its sentence (11 Sep 2026). It owns its own state and swallows the Escape that closes it, so the lab's own Escape only ever sees a press this panel did not spend.
+           The surface is the lab's own (second fix pass): our wards and their sight, and the lab's ghost, reach, shades, rings and death marks — no read pip, no dot of theirs, no blob, no pit glyph and no heat, none of which this square draws. -->
+      <app-mark-legend [surface]="{ vision: true, lab: true }" data-tour="film-lab-marks" />
+      <button type="button" class="view-btn" data-tour="film-lab-close" (click)="close.emit()">Close</button>
     </div>
-    <p class="lab-reading" aria-live="polite">{{ reading() }}</p>
-    <div class="lab-legend">
+    <p class="lab-reading" data-tour="film-lab-reading" aria-live="polite">{{ reading() }}</p>
+    <div class="lab-legend" data-tour="film-lab-legend">
       <span><i class="lab-legend-swatch is-safe" aria-hidden="true"></i>Safe: in sight, out of their reach</span>
       <span><i class="lab-legend-swatch is-sight" aria-hidden="true"></i>Seen: in sight, inside their reach</span>
       <span><i class="lab-legend-swatch is-danger" aria-hidden="true"></i>Dark: in their reach, unseen</span>

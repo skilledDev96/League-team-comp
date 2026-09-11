@@ -7,9 +7,13 @@ import { MatchTimeline } from '../models/team.models';
  * The dev override's key prefix: a timeline pasted into localStorage under
  * `bom-dev-timeline:<matchId>` stands in for the Firestore document on a dev
  * build (10 Sep 2026). Part C was built while the team drafted on the live
- * site, so the function that writes version 3 documents could not be
+ * site, so the function that writes the newest documents could not be
  * deployed; a document reduced locally and pasted here lets the tape's
- * frames and wards be built and looked at on `ng serve` first. Only a dev
+ * frames and wards be built and looked at on `ng serve` first. The same road
+ * serves version 4 (11 Sep 2026), which adds the kill and monster events'
+ * own positions: until the functions go out, a film reads whatever version
+ * its stored document was written at and says on the square how its deaths
+ * were placed. Only a dev
  * build reads it: a production bundle never takes a document off a
  * browser's storage, whatever is in there.
  */
