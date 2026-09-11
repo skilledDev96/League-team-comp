@@ -16686,9 +16686,12 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
    the picture large, inside the drawer, with pills to step and to close. The chip on the row's face is the mark a row keeps once it has
    been opened: asking for every row would be a read a row on a list that starts folded. */
 .replay-frames-host { display: contents; }
-.replay-frames { display: grid; gap: 0.5rem; margin: 0.6rem 0 0.2rem; }
+/* The strip scrolls inside itself, but a grid child defaults to min-width: auto, so it sized to its
+   nine-rem thumbnails and pushed the whole games row to 609px inside a 390px phone — the page then
+   scrolled sideways. The track has to be allowed to shrink for the child's own overflow to work. */
+.replay-frames { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; margin: 0.6rem 0 0.2rem; min-width: 0; }
 .rf-note { margin: 0; font-size: 0.8rem; }
-.rf-strip { display: flex; gap: 0.6rem; overflow-x: auto; padding-bottom: 0.35rem; scroll-snap-type: x proximity; }
+.rf-strip { display: flex; min-width: 0; gap: 0.6rem; overflow-x: auto; padding-bottom: 0.35rem; scroll-snap-type: x proximity; }
 .rf-shot { flex: none; width: 9rem; display: grid; gap: 0.2rem; padding: 0.3rem; border: 1px solid var(--card-border); border-radius: 10px; background: var(--surface-controls); color: var(--text-1); text-align: left; cursor: pointer; scroll-snap-align: start; }
 .rf-shot:hover, .rf-shot:focus-visible { border-color: var(--accent); color: var(--text-0); }
 .rf-shot.is-open { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
