@@ -403,7 +403,17 @@ filter rather than none, so it can never become unpickable.
    the client will not confirm as off **stops the pictures** — the samples
    and the events are still written, and the summary says why. An exception
    to that would have to be written here beside the rule; a review pass
-   cannot grant one. Two more things the recorder promises: a frame is taken
+   cannot grant one. **The camera is the run's to point** (11 Sep 2026, the
+   lead: "the recorder is not following anyone"): before each frame — after the
+   seek, never before it, since a seek across half an hour of replay drops the
+   selection — it POSTs `selectionName` and `cameraAttached` built out of the
+   keys the client reported, tries the printed name and then the champion id
+   (`MissFortune`, not `Miss Fortune`), and reads the answer back, so a death's
+   frame carries the victim's own HUD. A replay in manual camera keeps its own
+   view whatever it is told: that is one sentence in the log, said once, and the
+   pictures are taken anyway. `--no-follow` leaves the camera alone, and
+   `restoreRender` puts the selection back with the panels. Two more things the
+   recorder promises: a frame is taken
    two seconds before the moment it is filed under (the death second is the
    grey recap screen, and the client renders the range it is *given*, not
    wherever playback is parked), and a minute the client never landed on is

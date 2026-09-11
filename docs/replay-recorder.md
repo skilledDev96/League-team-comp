@@ -46,16 +46,22 @@ The lead does this, then runs the script.
    client's own resolution, and at 2560x1440 those frames blow the 700 KB a
    Firestore document can hold and are dropped rather than stored. The drop
    message prints the frame's real pixel size, so it says which case you are in.
-5. **Pick who the client follows, once.** Press that player's number key (1-5 for
-   the blue side, 6-0 for red) and leave it there. Nothing in the data depends on
-   it: the per-minute figures and the whole event list cover all ten players
-   whoever the camera is on, and every frame's minimap shows the whole map. What
-   it decides is the HUD in the corner of each frame — the abilities, the items
-   and the cooldowns belong to the followed player alone, and that is the one
-   player the review can say anything about on that score. Follow one of ours,
-   and follow the seat you most want read: the jungler for pathing and smite, the
-   carry for cooldowns in the fights they died in. With nobody selected the
-   replay's camera roams and the frames carry no HUD at all.
+5. **Leave the camera attached to a champion.** Since 11 Sep 2026 the run points
+   it itself: before each picture it puts the camera on whoever that picture is
+   about, so a death's frame carries the victim's own HUD. That matters because
+   the abilities, the items and the cooldowns in the corner belong to the
+   followed champion alone, and they are the one thing a frame says about a
+   player that the minute-by-minute figures do not.
+   The one thing it cannot do for you is get the replay **out of manual
+   camera**. A replay whose camera you have detached — dragged the map, or
+   pressed the key that frees it — takes the request and goes on showing what it
+   was showing, and the run says so on the first picture and carries on. Click a
+   champion in the replay's own player bar once before you start, and it will
+   follow from there. Nothing else in the data depends on it: the per-minute
+   figures and the whole event list cover all ten players whoever the camera is
+   on, and every frame's minimap shows the whole map. `--no-follow` leaves the
+   camera exactly where you put it, for a run where you want one seat's HUD —
+   the jungler's, usually — on every frame instead.
 6. **Have the match id.** It is the dashed replay id the Games page shows on the
    row, e.g. `EUW1-7977592156` — the same string the `.rofl` filename carries.
    Case and the underscore spelling do not matter; the script folds both.
@@ -92,6 +98,7 @@ be run directly: `node scripts/replay-recorder.mjs EUW1-7977592156`.
 | `--out-dir <dir>` | `./replay-shots` | Where the client writes the frames. They stay on disk after the run (gitignored) so the lead can look at them. |
 | `--dry-run` | off | Writes the documents as JSON into the out dir and touches no Firestore. |
 | `--roster <file.json>` | — | Only needed for a dry run with no service account: `[{ "name": "Ruan", "role": "Top", "profile": { "riotTag": "EUW" } }, …]`. `riotTag` is the tag alone, not `Name#TAG`. |
+| `--no-follow` | off | Leaves the camera where you put it instead of moving it onto whoever each picture is about. For a run where one seat's HUD on every frame is what you want. |
 
 A 35-minute game is roughly 35 seeks for the samples plus one per picture, so
 expect a few minutes. It prints `minute 12 of 34` as it goes, then a summary:
@@ -275,6 +282,17 @@ handled now, and each is worth knowing if a patch ever changes it back.
   is a string (the champion being followed), not a toggle. The run reads the
   client's own render object first and sends back only the keys it reported, in
   the type it reported them.
+- **The camera followed nobody**, and for three reasons at once. It was pointed
+  *before* the seek, and a seek across half an hour of replay drops the
+  selection; the request went out blind inside an empty `catch`, so a client
+  that refused it said nothing at all; and a champion the client knows only by
+  its id (`MissFortune`, not `Miss Fortune`) was never going to be found. All
+  three are handled now: the camera is pointed after the seek and before the
+  render, out of the keys the client reported, with both spellings tried and the
+  answer read back. A replay in **manual camera** still keeps its own view
+  whatever it is told — the run says so once, on the first picture, and takes
+  the frames anyway. The selection is put back at the end with the panels, so
+  the replay you carry on watching is the one you started with.
 
 **The panels stay up.** With streamer mode on they print champions, never a Riot
 id, and they carry the team gold, the items, the KDA and the event bar. That

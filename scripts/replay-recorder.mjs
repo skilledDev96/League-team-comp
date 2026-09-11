@@ -145,6 +145,101 @@ export const NAMING_FLAGS = [
   'interfaceScore'
 ];
 
+/**
+ * Pointing the camera (11 Sep 2026, the lead: "the recorder is not following
+ * anyone"). The HUD in the corner of a frame — the abilities, the items, the
+ * cooldowns — belongs to the followed champion alone, so a death's frame is
+ * worth twice as much when the camera is on the victim. `/replay/render` is
+ * the only way to ask for it: `selectionName` is the champion being followed
+ * and `cameraAttached` is whether the camera rides them.
+ *
+ * Three things the first live run taught, all of them handled here:
+ * - **The request is built from the client's own object**, the way the flags
+ *   are. A key this client does not carry answers 400 for the WHOLE request,
+ *   and the first version sent both keys blind inside an empty `catch` — so a
+ *   client that refused them said nothing at all and the camera never moved.
+ * - **It comes after the seek, not before.** A seek across half an hour of
+ *   replay is the likeliest thing to drop a selection, and the first version
+ *   set the camera and then jumped.
+ * - **The answer is read back.** A replay left in manual camera keeps its own
+ *   view whatever it is told; that is worth one sentence in the log, once,
+ *   rather than twenty frames of the wrong champion and no explanation.
+ */
+export const CAMERA_KEYS = ['selectionName', 'cameraAttached'];
+
+/**
+ * The champion's own id, which is not always the name the client prints: the
+ * Live Client answers `championName: "Miss Fortune"` beside
+ * `rawChampionName: "game_character_displayname_MissFortune"`, and the engine
+ * knows the unit by the second spelling. The camera is pointed by name, so a
+ * champion with a space or an apostrophe in it has two spellings and the run
+ * tries both. Falls back to the printed name with the punctuation taken out.
+ */
+export function championIdOf(player) {
+  const raw = String(player?.rawChampionName ?? '').trim();
+  const tail = raw.includes('_') ? raw.slice(raw.lastIndexOf('_') + 1).trim() : '';
+  if (tail) return tail;
+  return String(player?.championName ?? '').replace(/[^A-Za-z0-9]/g, '');
+}
+
+/** Two spellings of one champion: "Miss Fortune", "MissFortune" and "missfortune" are one. */
+export function sameChampion(a, b) {
+  const flat = (value) => String(value ?? '').replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+  const left = flat(a);
+  return Boolean(left) && left === flat(b);
+}
+
+/**
+ * What to POST to put the camera on one champion, built out of the keys THIS
+ * client reported and their types — the same rule `setRenderFlags` follows,
+ * for the same reason. Null when the client carries no `selectionName` at all,
+ * which means the camera cannot be pointed from here and the run should say so
+ * once rather than try it at every picture.
+ */
+export function followBody(shape, name) {
+  const said = shape && typeof shape === 'object' ? shape : {};
+  if (typeof said.selectionName !== 'string') return null;
+  const body = { selectionName: String(name ?? '') };
+  if (typeof said.cameraAttached === 'boolean') body.cameraAttached = true;
+  return body;
+}
+
+/**
+ * Put the camera on a champion and say whether it actually went: both
+ * spellings are tried, the answer is read back rather than trusted, and the
+ * sentence that comes back on a refusal is one the lead can act on.
+ */
+export async function followChampion({ call, shape, champion, championId, sleep = realSleep, settleMs = 200 }) {
+  const names = [champion, championId]
+    .map((name) => String(name ?? '').trim())
+    .filter((name, i, all) => name && all.indexOf(name) === i);
+  if (!names.length) return { followed: false, note: '' };
+  if (!followBody(shape, names[0])) {
+    return { followed: false, note: 'this client reports no selectionName, so the camera cannot be pointed from here; the frames carry whichever champion you left it on.' };
+  }
+  let said = {};
+  for (const name of names) {
+    try {
+      await call('/replay/render', { method: 'POST', body: followBody(shape, name) });
+      await sleep(settleMs);
+      const answer = await call('/replay/render');
+      said = answer && typeof answer === 'object' ? answer : {};
+    } catch (err) {
+      return { followed: false, note: `the client refused the camera (${messageOf(err)}); the frames carry whichever champion you left it on.` };
+    }
+    // A client with no cameraAttached key at all is judged on the selection alone; one that reports
+    // false after being asked for true is a replay holding its own camera, which is the manual mode.
+    const attached = typeof said.cameraAttached === 'boolean' ? said.cameraAttached : true;
+    if (attached && sameChampion(said.selectionName, name)) return { followed: true, note: '', name };
+  }
+  const selection = String(said.selectionName ?? '').trim();
+  const mode = typeof said.cameraMode === 'string' && said.cameraMode ? `, camera mode "${said.cameraMode}"` : '';
+  return {
+    followed: false,
+    note: `the client kept its own camera (it says the selection is "${selection || 'nobody'}", attached ${said.cameraAttached === true ? 'yes' : 'no'}${mode}). That is a replay in manual camera: click a champion in the replay's own player bar once, or turn the manual camera off in its control bar, and run it again. The pictures are taken either way — they just carry whichever HUD the client is showing.`
+  };
+}
+
 /** The Live Client's positions, in our own seat words. Mirrors POSITION_ROLE in api/src/lane-read.ts. */
 export const POSITION_ROLE = {
   TOP: 'Top',
@@ -158,7 +253,7 @@ export const POSITION_ROLE = {
 export const ROLES = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
 
 const USAGE =
-  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars]';
+  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--no-follow]';
 
 const CLIENT_HELP =
   'Is the League client open, with the replay playing? The Live Client and Replay APIs only answer while a replay is up.';
@@ -203,7 +298,7 @@ export function parseArgs(argv) {
   // back rather than the normalised form nobody typed.
   // Panels on unless the lead says otherwise: the client's streamer mode is what keeps a Riot id off the screen,
   // and a frame without the scoreboard and the team frames is missing the gold, the items and the kills.
-  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true };
+  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: true };
   const assign = (name, value) => {
     // `--out-dir --dry-run` used to swallow the flag as the value, write the
     // frames to a directory called "--dry-run" and upload to Firestore for
@@ -227,6 +322,12 @@ export function parseArgs(argv) {
     // A client with "Show Summoner Names" on prints a Riot id over every champion, and the bars have to go with it.
     if (arg === '--no-health-bars') {
       parsed.noHealthBars = true;
+      continue;
+    }
+    // For a lead who wants one seat's HUD on every frame — the jungler's, usually — rather than
+    // the victim's: the camera is left exactly where they put it and the run never touches it.
+    if (arg === '--no-follow') {
+      parsed.follow = false;
       continue;
     }
     // Kept for the command lines already written down; the panels stay up either way now.
@@ -499,7 +600,7 @@ export function seatPlan(livePlayers, rosterPlayers) {
       }
       if (index < 0) return null;
       const spot = seatByPosition.get(index);
-      return spot ? { ...spot, champion: String(players[index]?.championName ?? '').trim() } : null;
+      return spot ? { ...spot, champion: String(players[index]?.championName ?? '').trim(), championId: championIdOf(players[index]) } : null;
     }
   };
 }
@@ -590,7 +691,7 @@ export function readEvents(rawEvents, plan, watcherName = '', fallbackWin = null
         ...(killer ? { seat: killer.seat } : {}),
         victimSeat: victim.seat
       });
-      if (victim.ours) ourDeaths.push({ sec, seat: victim.seat, champion: victim.champion, name: victim.name ?? '' });
+      if (victim.ours) ourDeaths.push({ sec, seat: victim.seat, champion: victim.champion, championId: victim.championId ?? '', name: victim.name ?? '' });
       continue;
     }
     if (name === 'DragonKill' || name === 'BaronKill' || name === 'HeraldKill' || name === 'HordeKill') {
@@ -691,8 +792,16 @@ export function chooseShots(matchId, { ourDeaths, objectives, endSec }, cap) {
     // Our own player is named where the roster gave us one; the champion is
     // what makes a thumbnail recognisable at a glance, so the label carries both.
     const who = death.name ? `${death.name} (${death.champion})` : death.champion;
-    // The champion rides along so the camera can follow the victim before the frame is taken (11 Sep 2026).
-    wanted.push({ sec: death.sec, kind: 'death', label: `${who} falls at ${mmss(death.sec)}`, seat: death.seat, champion: death.champion });
+    // Both spellings of the champion ride along, because the camera is pointed by name and the
+    // client knows some champions only by their id ("MissFortune", not "Miss Fortune").
+    wanted.push({
+      sec: death.sec,
+      kind: 'death',
+      label: `${who} falls at ${mmss(death.sec)}`,
+      seat: death.seat,
+      champion: death.champion,
+      ...(death.championId ? { championId: death.championId } : {})
+    });
   }
   for (const objective of objectives) {
     wanted.push({ sec: objective.sec, kind: 'objective', label: `${objective.text} at ${mmss(objective.sec)}` });
@@ -765,6 +874,7 @@ export async function run({
   dryRun = false,
   noHealthBars = false,
   streamerMode = true,
+  follow = true,
   roster = null,
   fetchImpl,
   fs = fsDefault,
@@ -937,11 +1047,16 @@ export async function run({
   const kept = [];
   let dropped = 0;
   let framesOff = '';
+  let renderShape = null;
   if (chosen.length) {
     const set = await setRenderFlags({ call, log, noHealthBars, streamerMode });
     framesOff = set.refused;
+    renderShape = set.shape;
     if (set.warn) log(`  ${set.warn}`);
   }
+  // Said once, however many pictures the camera will not take: a line a picture is twenty copies of
+  // one sentence, and the lead leaves the run alone for five minutes anyway.
+  let cameraSaid = false;
   if (framesOff) {
     log(`  no pictures this run: ${framesOff}`);
   } else {
@@ -962,16 +1077,6 @@ export async function run({
       // comment says to avoid). `shot.sec` stays the death: the document id,
       // the file's name and the label all name the moment, not the frame.
       const at = Math.max(0, shot.sec - 2);
-      // Follow whoever the picture is about (11 Sep 2026): the HUD in the corner belongs to the
-      // followed champion alone, so a death's frame is worth twice as much when it is the victim's.
-      // A client that will not take it keeps whatever the lead selected, which is the old behaviour.
-      if (shot.champion) {
-        try {
-          await call('/replay/render', { method: 'POST', body: { selectionName: shot.champion, cameraAttached: true } });
-        } catch {
-          /* the camera stays where the lead put it */
-        }
-      }
       const stem = `${matchId}__${shot.sec}`;
       const file = path.join(shotsDir, stem);
       try {
@@ -981,6 +1086,18 @@ export async function run({
           inARow += 1;
           log(`  the client never landed on ${mmss(at)}, so no picture was taken for ${shot.label}.`);
           continue;
+        }
+        // Follow whoever the picture is about, now that the playhead is there (11 Sep 2026): the
+        // HUD in the corner belongs to the followed champion alone, so a death's frame is worth
+        // twice as much when it is the victim's. After the seek, because a seek across half an hour
+        // of replay is the likeliest thing to drop a selection — which is how the first live run
+        // came back following nobody.
+        if (follow && shot.champion) {
+          const went = await followChampion({ call, shape: renderShape, champion: shot.champion, championId: shot.championId, sleep });
+          if (!cameraSaid && (went.followed || went.note)) {
+            cameraSaid = true;
+            log(went.followed ? `  the camera is following whoever each picture is about (${went.name}).` : `  ${went.note}`);
+          }
         }
         // Every frame this run's stem could match is deleted first, so nothing
         // an earlier run left behind can be picked up and uploaded as if it
@@ -1147,6 +1264,11 @@ export async function restoreRender({ call }) {
   for (const key of [...NAMING_FLAGS, 'interfaceAll', 'interfaceMinimap', 'healthBarChampions', 'fogOfWar', 'cameraAttached']) {
     if (typeof beforeRender[key] === 'boolean') flags[key] = beforeRender[key];
   }
+  // The camera as well as the panels: the run moves the selection at every picture, and a string
+  // left behind is the lead coming back to a replay following whoever died last (11 Sep 2026).
+  for (const key of ['selectionName', 'cameraMode']) {
+    if (typeof beforeRender[key] === 'string') flags[key] = beforeRender[key];
+  }
   beforeRender = null;
   try {
     await call('/replay/render', { method: 'POST', body: flags });
@@ -1179,7 +1301,7 @@ export async function setRenderFlags({ call, log, noHealthBars = false, streamer
     // the request rather than the state.
     answer = (await call('/replay/render')) ?? answer;
   } catch (err) {
-    return { refused: `the client would not answer /replay/render (${messageOf(err)}), so a frame could still be showing the panels that print their Riot ids.`, warn: '' };
+    return { refused: `the client would not answer /replay/render (${messageOf(err)}), so a frame could still be showing the panels that print their Riot ids.`, warn: '', shape: null };
   }
   const said = (key) => (answer && typeof answer === 'object' && key in answer ? answer[key] : undefined);
   // A panel this client does not carry at all cannot print a name either, so only the ones it knows are judged.
@@ -1195,11 +1317,13 @@ export async function setRenderFlags({ call, log, noHealthBars = false, streamer
   if (notOff.length) {
     return {
       refused: `the client did not confirm ${notOff.join(', ')} off, and those panels print the other team's Riot ids. The samples and the events are still written; the pictures are not.`,
-      warn: ''
+      warn: '',
+      shape: beforeRender
     };
   }
   const soft = [...missed, ...(fog ? ['fogOfWar'] : [])];
-  return { refused: '', warn: soft.length ? `the client did not take ${soft.join(', ')}; the frames may be missing the minimap or half the map, which is most of what the review reads them for.` : '' };
+  // The object the client reported travels back, so the camera is built out of the keys it carries.
+  return { refused: '', warn: soft.length ? `the client did not take ${soft.join(', ')}; the frames may be missing the minimap or half the map, which is most of what the review reads them for.` : '', shape: beforeRender };
 }
 
 /**
@@ -1404,6 +1528,7 @@ async function main() {
       dryRun: args.dryRun,
       noHealthBars: args.noHealthBars,
       streamerMode: args.streamerMode,
+      follow: args.follow,
       roster,
       firestore,
       fetchImpl: clientFetch()

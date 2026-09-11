@@ -17,7 +17,10 @@ import { describe, expect, it } from 'vitest';
 import path from 'node:path';
 import {
   bodyAndHeaders,
+  championIdOf,
   chooseShots,
+  followBody,
+  followChampion,
   jpegSize,
   mmss,
   NAMING_FLAGS,
@@ -27,6 +30,7 @@ import {
   readEvents,
   RENDER_FLAGS,
   run,
+  sameChampion,
   seatPlan,
   splitRiotId
 } from '../../scripts/replay-recorder.mjs';
@@ -183,9 +187,16 @@ function fakeFs() {
  */
 function fakeClient({ fs, plan = {}, fail = '', render = {}, stuck = false, throwOn = null }) {
   const state = { time: 0, seeking: false };
-  const rendered = { ...RENDER_FLAGS };
+  // The camera keys a real client carries (11 Sep 2026): `selectionName` is the champion being
+  // followed — a string, which is what the first live run got a 400 for sending as a boolean — and
+  // `cameraAttached` says whether the camera rides them. A test pins `render` to play the client
+  // that will not take them: `{ cameraAttached: false }` is a replay in manual camera.
+  const rendered = { ...RENDER_FLAGS, selectionName: '', cameraAttached: false, cameraMode: 'top' };
   const calls = [];
   const renders = [];
+  // What was actually POSTed to /replay/render, as opposed to what the client reports afterwards:
+  // the camera is judged on the request, since the state carries the last selection for ever.
+  const renderPosts = [];
   const seeks = [];
   const asked = [];
   const fetchImpl = async (url, init = {}) => {
@@ -197,7 +208,10 @@ function fakeClient({ fs, plan = {}, fail = '', render = {}, stuck = false, thro
     const answer = (value) => ({ ok: true, status: 200, json: async () => value, text: async () => JSON.stringify(value) });
     if (endpoint === '/replay/game') return answer({ gameLength: GAME_LENGTH, processID: 4242 });
     if (endpoint === '/replay/render') {
-      if (method === 'POST') Object.assign(rendered, body, render);
+      if (method === 'POST') {
+        renderPosts.push({ ...body });
+        Object.assign(rendered, body, render);
+      }
       renders.push({ ...rendered });
       return answer({ ...rendered, ...render });
     }
@@ -245,7 +259,7 @@ function fakeClient({ fs, plan = {}, fail = '', render = {}, stuck = false, thro
     }
     return answer({});
   };
-  return { fetchImpl, calls, renders, seeks, asked, state };
+  return { fetchImpl, calls, renders, renderPosts, seeks, asked, state };
 }
 
 function fakeFirestore(players = ROSTER, game = { matchId: MATCH_ID, durationSec: GAME_LENGTH, win: true }) {
@@ -287,7 +301,7 @@ async function record(options = {}) {
     shotWaitMs: 0,
     ...(options.roster ? { roster: options.roster } : {})
   });
-  return { ...result, fs, firestore, log, calls: client.calls, renders: client.renders, seeks: client.seeks, asked: client.asked };
+  return { ...result, fs, firestore, log, calls: client.calls, renders: client.renders, renderPosts: client.renderPosts, seeks: client.seeks, asked: client.asked };
 }
 
 const RECORDING_KEYS = [
@@ -447,17 +461,104 @@ describe('the replay recorder, over a whole game', () => {
   // which print the other team's Riot ids, and those pixels used to go
   // straight to Anthropic with the review.
   it('sets the replay interface before the first picture: the naming panels off, the minimap on', async () => {
-    const { renders, calls } = await record({});
+    const { renders, renderPosts, calls } = await record({});
     // Before any render request, so no frame is ever taken with the panels up. The renders after it are
     // the camera following the champion each picture is about (11 Sep 2026), which carry no flags.
     expect(calls.indexOf('POST /replay/render')).toBeLessThan(calls.indexOf('POST /replay/recording'));
-    const follows = renders.filter((r) => 'selectionName' in r);
+    // A post naming a champion is the camera being pointed; the empty one at the end is the run
+    // giving the lead their own camera back.
+    const follows = renderPosts.filter((r) => r.selectionName);
+    expect(follows.length).toBeGreaterThan(0);
     expect(follows.every((r) => r.cameraAttached === true && typeof r.selectionName === 'string')).toBe(true);
     const set = renders.find((r) => 'interfaceMinimap' in r);
     for (const flag of NAMING_FLAGS) expect(set[flag]).toBe(false);
     expect(set.interfaceMinimap).toBe(true);
     expect(set.interfaceAll).toBe(true);
     expect(set.fogOfWar).toBe(false);
+  });
+
+  // The lead after the first live run: "the recorder is not following anyone". Two reasons, both
+  // fixed here — the camera was pointed BEFORE the seek, and a seek across half an hour of replay
+  // is the likeliest thing to drop a selection; and the request went out blind inside an empty
+  // catch, so a client that refused it said nothing at all.
+  it('points the camera at the victim after the seek and before the frame is asked for', async () => {
+    const { calls, renderPosts, log } = await record({ shots: 2 });
+    const asking = calls.indexOf('POST /replay/recording');
+    const seek = calls.lastIndexOf('POST /replay/playback', asking);
+    const camera = calls.lastIndexOf('POST /replay/render', asking);
+    expect(seek).toBeGreaterThan(-1);
+    expect(camera).toBeGreaterThan(seek);
+    expect(camera).toBeLessThan(asking);
+    // Ornn falls first and Vi second, so those are who the client is told to follow, in that order.
+    const follows = renderPosts.filter((r) => r.selectionName);
+    expect(follows[0]).toEqual({ selectionName: 'Ornn', cameraAttached: true });
+    expect(follows[1].selectionName).toBe('Vi');
+    // And the lead gets their own camera back at the end: a selection is a string, and the first
+    // version of the restore put only the booleans back, so the replay was left on whoever died last.
+    const last = renderPosts.at(-1);
+    expect(last.selectionName).toBe('');
+    expect(last.cameraAttached).toBe(false);
+    // Once, on the first picture, not a line per frame.
+    expect(log.filter((line) => line.includes('the camera is following'))).toHaveLength(1);
+  });
+
+  // A replay left in manual camera takes the request and goes on showing whatever it was showing.
+  // That is worth one sentence the lead can act on, and nothing else: the frames are still worth
+  // taking, they just carry the HUD of whoever the client is on.
+  it('says once when the client keeps its own camera, and takes the pictures anyway', async () => {
+    const { shots, log } = await record({ shots: 3, render: { cameraAttached: false } });
+    expect(shots.length).toBeGreaterThan(0);
+    const said = log.filter((line) => line.includes('manual camera'));
+    expect(said).toHaveLength(1);
+    expect(said[0]).toContain('The pictures are taken either way');
+  });
+
+  // For the lead who wants one seat's HUD on every frame — the jungler's, usually.
+  it('never touches the camera with --no-follow', async () => {
+    const { renderPosts, shots } = await record({ shots: 2, run: { follow: false } });
+    expect(renderPosts.filter((r) => r.selectionName)).toHaveLength(0);
+    expect(shots.length).toBeGreaterThan(0);
+  });
+
+  it('knows a champion by both of its spellings, and asks only for keys the client carries', () => {
+    // The engine knows the unit by its id; the client prints the display name beside it.
+    expect(championIdOf({ championName: 'Miss Fortune', rawChampionName: 'game_character_displayname_MissFortune' })).toBe('MissFortune');
+    expect(championIdOf({ championName: "Kai'Sa" })).toBe('KaiSa');
+    expect(championIdOf({})).toBe('');
+    expect(sameChampion('Miss Fortune', 'MissFortune')).toBe(true);
+    expect(sameChampion('missfortune', 'Miss Fortune')).toBe(true);
+    expect(sameChampion('Vi', 'Vex')).toBe(false);
+    // Nobody is not a match for nobody: an empty selection is what a client that ignored us reports.
+    expect(sameChampion('', '')).toBe(false);
+    // A key the client does not carry answers 400 for the whole request, so it is never sent; a
+    // client with no selectionName at all cannot be pointed and the run says so once.
+    expect(followBody({ selectionName: '', cameraAttached: false }, 'Vi')).toEqual({ selectionName: 'Vi', cameraAttached: true });
+    expect(followBody({ selectionName: '' }, 'Vi')).toEqual({ selectionName: 'Vi' });
+    expect(followBody({ cameraAttached: false }, 'Vi')).toBe(null);
+    expect(followBody({}, 'Vi')).toBe(null);
+  });
+
+  it('tries the champion id when the client will not take the printed name', async () => {
+    const sent = [];
+    const call = async (endpoint, init = {}) => {
+      if (init.method === 'POST') {
+        sent.push(init.body.selectionName);
+        return {};
+      }
+      // This client knows the unit by its id alone, which is how Riot names it internally.
+      const took = sent.at(-1) === 'MissFortune';
+      return { selectionName: took ? 'MissFortune' : '', cameraAttached: took, cameraMode: 'top' };
+    };
+    const went = await followChampion({
+      call,
+      shape: { selectionName: '', cameraAttached: false },
+      champion: 'Miss Fortune',
+      championId: 'MissFortune',
+      sleep: async () => {}
+    });
+    expect(went.followed).toBe(true);
+    expect(went.name).toBe('MissFortune');
+    expect(sent).toEqual(['Miss Fortune', 'MissFortune']);
   });
 
   it('takes no picture at all when the client will not hide a panel that names players', async () => {
@@ -712,7 +813,9 @@ describe('the pure parts', () => {
   });
 
   it('parses the argument line and holds the hard cap', () => {
-    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true });
+    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: true });
+    // The camera follows whoever each picture is about unless the lead wants their own seat's HUD on every frame.
+    expect(parseArgs([MATCH_ID, '--no-follow']).follow).toBe(false);
     // The bars are on by default (11 Sep 2026); a client that prints summoner names over champions turns them off again.
     expect(parseArgs([MATCH_ID, '--no-health-bars']).noHealthBars).toBe(true);
     // Streamer mode keeps the panels: the client itself prints champions where the Riot ids would be (11 Sep 2026).
@@ -727,7 +830,8 @@ describe('the pure parts', () => {
       dryRun: true,
       roster: '',
       noHealthBars: false,
-      streamerMode: true
+      streamerMode: true,
+      follow: true
     });
     expect(parseArgs([MATCH_ID, '--shots=99']).shots).toBe(30);
     expect(() => parseArgs([MATCH_ID, '--shts', '4'])).toThrow(/Unknown option/);
