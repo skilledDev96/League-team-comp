@@ -99,6 +99,22 @@ in us-central1, us-west1 and us-east1. A season of recordings is under a gigabyt
 feature is free there and about thirty cents a season anywhere else. The clips are frames of our own
 games with streamer mode on, so there is no personal data and no reason to keep them in Europe.
 
+**A clip is as long as the fight.** It was forty-five seconds flat for about an hour, and the lead
+said what was wrong with that: *"not all fights are 45 seconds long"*. A fixed window is wrong in
+both directions — forty-five seconds of walking around before a solo death, and still short of the
+fight where five fell over forty-one. So the window is grouped from the deaths themselves by the
+same rule `fightLines` uses (`CLIP_FIGHT_WINDOW_SEC`, 30), running from `CLIP_LEAD_SEC` (12) before
+the first death to `CLIP_TAIL_SEC` (3) after the last, capped at `CLIP_MAX_SEC` (90) and trimmed
+from the front when it runs long — the end is where the fight was decided. On the recorded game
+that gives 15s for the solo death at 4:25, 19s for the three that fell at 24:07, and 50s for 35:03.
+A clip and the review sentence about the same fight therefore cover the same seconds.
+
+**`enforceFrameRate` is never sent true**, and that was the other half of the first clips being
+wrong: the client drops frames to hit the rate asked for and then tags the container at that rate
+anyway, so nine seconds of game came back as a 3.5-second video playing three times too fast. The
+trap is that the broken setting was also the SMALLEST file — 2.28 MB against 5.25 MB — so size
+alone never proves a clip is right. Check the duration with it.
+
 **Two settings are measured, not guessed.** The same nine seconds came back at **9.8 MB** at the
 client's lossless default and **2.3 MB** at `framesPerSecond: 30` with `lossless: false`. Asking for
 a smaller picture does nothing — 854x480 measured 2.3 MB too, because this client renders at its own

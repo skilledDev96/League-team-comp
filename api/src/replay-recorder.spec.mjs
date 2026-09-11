@@ -40,6 +40,8 @@ import {
   SHOT_LEAD_SEC,
   referencedShotIds,
   CLIP_FPS,
+  clipWindowFor,
+  CLIP_MAX_SEC,
   renderClip,
   CLIP_LEAD_SEC,
   shotDocId,
@@ -1294,14 +1296,67 @@ describe('the pure parts', () => {
     expect(file).toContain(MATCH_ID + '__265.webm');
   });
 
-  // Forty-five seconds by default, because the lead watched the first clips and said a fight is
-  // longer than that.
-  it('reaches back far enough for a fight by default, and takes a wider window on the line', () => {
-    expect(CLIP_LEAD_SEC).toBe(45);
+  // The lead-in is twelve seconds; the rest of the window comes from the fight itself, which is
+  // what makes a solo death a short clip and a wipe a long one.
+  it('opens twelve seconds before the fight, and takes a wider lead-in on the line', () => {
+    expect(CLIP_LEAD_SEC).toBe(12);
     expect(parseArgs([MATCH_ID, '--clip-seconds', '60']).clipSeconds).toBe(60);
     expect(parseArgs([MATCH_ID, '--clip-fps', '30']).clipFps).toBe(30);
     expect(() => parseArgs([MATCH_ID, '--clip-seconds', '999'])).toThrow(/--clip-seconds wants/);
     expect(() => parseArgs([MATCH_ID, '--clip-fps', '1'])).toThrow(/--clip-fps wants/);
+  });
+
+  // A clip is as long as the fight, not a number somebody picked. It was forty-five seconds flat
+  // for about an hour and the lead said what was wrong with that: "not all fights are 45 seconds
+  // long" — too long before a solo death, still short of a five-man wipe. The window is grouped by
+  // the same rule the review's fight lines use, so a clip and the sentence about it cover the same
+  // seconds.
+  describe('the window a clip covers', () => {
+    /** The real deaths of the recorded game, so these are the windows a run actually produces. */
+    const DEATHS = [265, 541, 733, 740, 826, 913, 941, 1014, 1115, 1222, 1254, 1364, 1447, 1450, 1451, 1540, 1541, 1542, 1628, 1635, 1714, 1985, 1988, 1989, 1990, 2103, 2104, 2131, 2138];
+
+    it('gives a lone death a short clip and a wipe a long one', () => {
+      // 4:25 stood alone: fifteen seconds, twelve of approach and the death.
+      expect(clipWindowFor(265, DEATHS)).toEqual({ from: 253, to: 268 });
+      // 35:03 runs on to 35:38, so the clip carries the whole fight rather than the first second of it.
+      const wipe = clipWindowFor(2103, DEATHS);
+      expect(wipe.to - wipe.from).toBe(50);
+      expect(wipe.from).toBe(2091);
+      // And 33:05, four deaths inside five seconds, is a twenty-second clip: proportional, not flat.
+      const quick = clipWindowFor(1985, DEATHS);
+      expect(quick.to - quick.from).toBe(20);
+    });
+
+    it('chains through the gaps, so a fight is not cut in half by the death in the middle', () => {
+      // Three deaths twenty-five seconds apart are ONE fight: walking out from the middle has to
+      // reach both ends, which a single pass outward does not do.
+      const chained = [1000, 1025, 1050];
+      expect(clipWindowFor(1025, chained)).toEqual({ from: 988, to: 1053 });
+      expect(clipWindowFor(1000, chained)).toEqual({ from: 988, to: 1053 });
+      expect(clipWindowFor(1050, chained)).toEqual({ from: 988, to: 1053 });
+    });
+
+    it('leaves a death outside the window in its own clip', () => {
+      // Thirty-one seconds apart is two fights, the same split the review's lines make.
+      const apart = [1000, 1031 + 30];
+      expect(clipWindowFor(1000, apart).to).toBeLessThan(1061);
+    });
+
+    it('caps a long chain, and trims the front rather than the end', () => {
+      // A clip is rendered by PLAYING the game through, so an uncapped window is both an
+      // unwatchable video and an unbounded addition to the run. The end is what is kept: that is
+      // where the fight was decided and where the moment itself is.
+      const chain = Array.from({ length: 12 }, (_, i) => 1000 + i * 25);
+      const w = clipWindowFor(1000, chain);
+      expect(w.to - w.from).toBe(CLIP_MAX_SEC);
+      expect(w.to).toBe(1275 + 3);
+    });
+
+    it('answers for a second with no deaths at all rather than throwing', () => {
+      // An objective or the end: there is no fight to size it by, so it gets the lead-in and a beat.
+      expect(clipWindowFor(600, [])).toEqual({ from: 588, to: 603 });
+      expect(clipWindowFor(0, [])).toEqual({ from: 0, to: 3 });
+    });
   });
 
   it('reads a JPEG for its own size and shrugs at anything else', () => {

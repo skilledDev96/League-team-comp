@@ -1251,6 +1251,7 @@ export async function run({
   // How many of a moment's rendered frames to keep, on the moments that get a strip at all.
   frames: frameWant = SHOT_FRAMES,
   clipSeconds: clipWant = CLIP_LEAD_SEC,
+  clipMax: clipMaxWant = CLIP_MAX_SEC,
   clipFps: clipFpsWant = CLIP_FPS,
   outDir = process.cwd(),
   dryRun = false,
@@ -1289,7 +1290,8 @@ export async function run({
   // Normalised here as well as in parseArgs, for the same reason the cap is: run() is called
   // directly by the spec and by any future caller.
   const frameCap = Math.max(1, Math.min(SHOT_FRAMES, Math.floor(number(frameWant) || SHOT_FRAMES)));
-  const clipLead = Math.max(1, Math.min(180, Math.floor(number(clipWant) || CLIP_LEAD_SEC)));
+  const clipLead = Math.max(1, Math.min(120, Math.floor(number(clipWant) || CLIP_LEAD_SEC)));
+  const clipMax = Math.max(5, Math.min(300, Math.floor(number(clipMaxWant) || CLIP_MAX_SEC)));
   const clipFps = Math.max(5, Math.min(60, Math.floor(number(clipFpsWant) || CLIP_FPS)));
   const call = makeCall({ fetchImpl: fetchImpl ?? clientFetch(), sleep });
 
@@ -1500,6 +1502,8 @@ export async function run({
   const clipBySec = new Map();
   // No bucket on a dry run: a dry run touches nothing outside the out-dir, and that includes Storage.
   const clips = dryRun ? null : firestore?.clips ?? null;
+  /** Every second one of ours fell, which is what a clip's window is grouped from. */
+  const ourDeathSeconds = (read.ourDeaths ?? []).map((d) => d.sec);
   const kept = [];
   let dropped = 0;
   // Run-up frames lost on their own, counted apart from the moments: a moment dropped is a moment
@@ -1721,7 +1725,8 @@ export async function run({
             // far earlier than the picture's eight — so playback has to be taken there and the
             // director woken again; the picture's warm-up left the playhead at the picture's start,
             // which is already inside the fight this clip wants to open before.
-            const clipFrom = Math.max(0, at - clipLead);
+            const window = clipWindowFor(at, ourDeathSeconds, { lead: clipLead, max: clipMax });
+            const clipFrom = window.from;
             const landedClip = await seek(Math.max(0, clipFrom - WARMUP_SEC));
             if (landedClip.settled) {
               await warmDirector({ call, sleep });
@@ -1734,12 +1739,12 @@ export async function run({
               matchId,
               sec: shot.sec,
               from: clipFrom,
-              to: at + 1,
+              to: window.to,
               fps: clipFps,
               // A clip is rendered by PLAYING the game through, so a forty-five second one takes
               // forty-five seconds; the wait has to cover that and then some, or the run gives up on
               // a render that was going to land.
-              tries: Math.ceil(((at + 1 - clipFrom) * 1000) / shotWaitMs) + 60,
+              tries: Math.ceil(((window.to - clipFrom) * 1000) / shotWaitMs) + 60,
               waitMs: shotWaitMs
             });
             if (file) {
@@ -2037,13 +2042,75 @@ export async function setRenderFlags({ call, log, noHealthBars = false, streamer
  * a file the client still holds open is not mistaken for the new frame either.
  */
 /**
- * How many seconds of the game a clip covers before the moment it is of.
+ * A clip is as long as the FIGHT, not a number somebody picked (12 Sep 2026).
  *
- * Forty-five, not the eight the strip used, because a fight is not eight seconds long — the lead
- * watched the first clips and said so: "some fights are 45+ longer". The window is the whole
- * approach and the fight, not the instant before the death.
+ * It was forty-five seconds flat for about an hour, and the lead put his finger on why that was
+ * wrong: "not all fights are 45 seconds long". A fixed window is wrong in both directions —
+ * forty-five seconds of walking around before a solo death at four minutes, and still short of the
+ * 35:03 fight where five fell over forty-one seconds.
+ *
+ * So the window is built from the deaths themselves, by the same rule `fightLines` groups them
+ * with: deaths of ours within `CLIP_FIGHT_WINDOW_SEC` of one another are one fight, and the clip
+ * runs from a lead-in before the first to a moment after the last. A solo death gets about fifteen
+ * seconds; a wipe gets a minute. Both are the length of the thing they are of.
  */
-export const CLIP_LEAD_SEC = 45;
+export const CLIP_FIGHT_WINDOW_SEC = 30;
+
+/** How long before the fight's first death a clip opens: enough to see the approach that caused it. */
+export const CLIP_LEAD_SEC = 12;
+
+/** And how long it holds after the last, so the trade finishes on screen rather than cutting out. */
+export const CLIP_TAIL_SEC = 3;
+
+/**
+ * The longest a clip may be, whatever the deaths say. A chain of deaths thirty seconds apart can
+ * run for minutes, and a clip is rendered by PLAYING the game through — so an uncapped window is
+ * both an unwatchable video and an unbounded addition to the run.
+ */
+export const CLIP_MAX_SEC = 90;
+
+/**
+ * The window a clip of this moment should cover: the whole fight it belongs to, with a lead-in.
+ *
+ * Pure, so the rule can be read without a client. `deaths` is every second one of ours fell, in any
+ * order. The fight is the chain containing `sec` — walk out from it while the next death either way
+ * is within the window — and the clip is that chain's span plus the lead and the tail, capped.
+ */
+export function clipWindowFor(sec, deaths, { window = CLIP_FIGHT_WINDOW_SEC, lead = CLIP_LEAD_SEC, tail = CLIP_TAIL_SEC, max = CLIP_MAX_SEC } = {}) {
+  const at = Math.max(0, Math.floor(number(sec)));
+  const all = [...new Set((deaths ?? []).map((d) => Math.floor(number(d))).filter((d) => Number.isFinite(d) && d >= 0))].sort((a, b) => a - b);
+  let first = at;
+  let last = at;
+  // Out from the moment in both directions, one death at a time: a gap wider than the window ends
+  // the fight, which is exactly how the review's own fight lines are grouped.
+  for (const d of all) {
+    if (d < first && first - d <= window) first = d;
+  }
+  for (const d of [...all].reverse()) {
+    if (d > last && d - last <= window) last = d;
+  }
+  // Walking once is not enough when three deaths chain: the second pass picks up what the first
+  // brought into range.
+  let moved = true;
+  while (moved) {
+    moved = false;
+    for (const d of all) {
+      if (d < first && first - d <= window) {
+        first = d;
+        moved = true;
+      }
+      if (d > last && d - last <= window) {
+        last = d;
+        moved = true;
+      }
+    }
+  }
+  const from = Math.max(0, first - lead);
+  const to = Math.max(from + 1, last + tail);
+  // Trimmed from the FRONT when it runs long: the end is the part worth keeping, since that is
+  // where the fight was decided and where the moment itself is.
+  return to - from > max ? { from: to - max, to } : { from, to };
+}
 
 /**
  * Frames a second in a clip. Fifteen halves the bytes against thirty and a replay is not a
