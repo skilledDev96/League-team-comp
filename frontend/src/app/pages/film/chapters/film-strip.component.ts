@@ -90,6 +90,27 @@ export function downLine(row: FilmStripRow): string {
               @if (!strip.pictures) {
                 <!-- The run kept everything but the pixels: a panel that prints a Riot id would not confirm itself off, so the recorder stopped the pictures and wrote the rest. -->
                 <p class="film-wait film-strip-none">The recorder kept no frames of this game, so there is nothing to look at — only the boards and the lines beside them.</p>
+              } @else if (m.clip) {
+                <!--
+                  The fight, as nine seconds of video (12 Sep 2026).
+                  Nothing is fetched until it is asked for: a clip is about 2.3 MB, and a reader
+                  walking twenty moments should pay for the one they stopped on and not for all of
+                  them. So the moment's own picture stands where it always did — already read, so
+                  there is no wait and no black box — and the video replaces it on the press.
+                -->
+                @if (playing()) {
+                  <video class="film-strip-clip" [src]="m.clip" autoplay controls muted loop playsinline [attr.aria-label]="m.label"></video>
+                  <p class="film-strip-steps-one muted">Nine seconds into the moment. The board beside it is what the client showed two seconds before it.</p>
+                } @else {
+                  <div class="film-strip-shots">
+                    <app-replay-shot class="film-strip-shot is-shown" [docId]="m.frames[m.frames.length - 1]" [alt]="m.label" [wanted]="active()" />
+                    <button type="button" class="film-strip-play" (click)="playing.set(true)" [appTip]="'Nine seconds of the fight, about 2 MB'">
+                      <span class="material-symbols-rounded" aria-hidden="true">play_arrow</span>
+                      <span>Watch the fight</span>
+                    </button>
+                  </div>
+                  <p class="film-strip-steps-one muted">A video of this moment was kept; the picture is what it opens on.</p>
+                }
               } @else if (!frames().length) {
                 <p class="film-wait film-strip-none">No picture was kept of this moment; the board beside it is what the recorder read at it.</p>
               } @else {
@@ -260,6 +281,12 @@ export class FilmStripComponent {
   protected readonly seat = signal<Role | null>(null);
 
   /**
+   * Is the clip playing rather than the picture showing? Per moment: walking to the next one puts
+   * the picture back, because a video left running under a different moment is the wrong fight.
+   */
+  protected readonly playing = signal(false);
+
+  /**
    * Did this run keep a run-up anywhere? It keeps one on the first `STRIP_MOMENTS` deaths and a
    * single picture everywhere else, so "one picture a moment" is only true of a recording that has
    * no strips at all — a version 2 one, or a run made with `--frames 1`.
@@ -365,6 +392,8 @@ export class FilmStripComponent {
   protected pick(i: number): void {
     if (i < 0 || i >= this.moments().length) return;
     this.cursor.set(i);
+    this.frame.set(0);
+    this.playing.set(false);
   }
 
   protected glyph(moment: FilmStripMoment): FilmGlyph {
@@ -395,6 +424,7 @@ export class FilmStripComponent {
     if (first) {
       this.cursor.set(first.index);
       this.frame.set(0);
+      this.playing.set(false);
     }
   }
 

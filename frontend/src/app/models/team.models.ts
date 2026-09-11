@@ -1152,6 +1152,20 @@ export interface ReplayShotRef {
    * moment this run did not think worth a strip.
    */
   runUp?: string[];
+  /**
+   * A nine-second video of the moment, as a URL you can put straight in a <video src>.
+   *
+   * Why a URL and not a document (12 Sep 2026). The client renders webm natively and a nine-second
+   * clip is about 2.3 MB — ten times what a Firestore document holds — so a clip lives in Cloud
+   * Storage and only its address lives here. That is also the cheaper half of the trade: Firestore
+   * charges 8x what Cloud Storage does per byte at rest, so moving the run-up out of the database
+   * makes a recorded game SMALLER in Firestore than it was with stills.
+   *
+   * Absent on every recording written before this, and on any moment the run did not think worth a
+   * clip — the reader falls back to the stills, which are still written for every moment because a
+   * review reads images and cannot watch a video.
+   */
+  clip?: string;
 }
 
 /** What one player was holding at a death of ours. Their side is a seat, never a name. */

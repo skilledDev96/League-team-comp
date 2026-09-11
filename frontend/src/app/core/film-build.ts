@@ -1252,6 +1252,10 @@ function stripMoment(source: StripSource, key: string, seats: Map<string, Replay
     // leaves none.
     frames: shot ? [...(shot.runUp ?? []), shot.docId].filter((id) => typeof id === 'string' && !!id.trim()) : []
   };
+  // The clip, where the run made one. It replaces the run-up rather than joining it: a moment with
+  // a clip has no run-up frames stored, which is the whole point of moving the video out of
+  // Firestore.
+  if (typeof shot?.clip === 'string' && shot.clip.trim()) moment.clip = shot.clip.trim();
   const seat = shot?.seat ?? death?.seat;
   if (seat) moment.seat = seat;
   if (death) {

@@ -1478,6 +1478,10 @@ export async function run({
   // The run-up document ids a moment ended up with, earliest first, so the index can point at them
   // once the pictures are written.
   const runUpBySec = new Map();
+  /** The clip URL per moment, for the moments a review looks at. */
+  const clipBySec = new Map();
+  // No bucket on a dry run: a dry run touches nothing outside the out-dir, and that includes Storage.
+  const clips = dryRun ? null : firestore?.clips ?? null;
   const kept = [];
   let dropped = 0;
   // Run-up frames lost on their own, counted apart from the moments: a moment dropped is a moment
@@ -1531,6 +1535,9 @@ export async function run({
       const file = path.join(shotsDir, stem);
       // A strip only where a review will look. Everywhere else one frame, as before.
       const want = stripSeconds.has(shot.sec) ? frameCap : 1;
+      // The moments a review looks at are the moments worth a video, which is the same eight the
+      // strip covered — so the reader can watch the fight the model was shown a picture of.
+      const wantsClip = stripSeconds.has(shot.sec);
       try {
         // Park BEFORE the run-up, not on the moment: the seconds between here and `runUpFrom` are
         // played at ordinary speed so the client's own director wakes up, and the render then starts
@@ -1677,9 +1684,41 @@ export async function run({
           );
           continue;
         }
-        // The run-up, now that the moment is safe. Each frame is measured on its own, and one that
-        // will not fit shortens the strip rather than costing the moment — a strip of two, or of
-        // none, is honest about what was kept.
+        // THE CLIP, where this moment is one a review looks at (12 Sep 2026).
+        //
+        // The client renders webm natively, so the fight can be watched rather than stepped
+        // through. It goes to Cloud Storage and not to Firestore: a nine-second clip is about
+        // 2.3 MB against the megabyte a document holds, and Cloud Storage is an eighth the price
+        // per byte at rest anyway. Only its URL is stored.
+        //
+        // It is rendered BEFORE the run-up stills so that a moment which got a clip can skip them
+        // entirely — that is the whole saving, and it is why a recorded game is smaller in
+        // Firestore with video than it was with pictures. The moment's own still is always kept
+        // whatever happens here: a review reads images and cannot watch a video, and the still is
+        // the clip's poster frame.
+        let clipUrl = '';
+        if (wantsClip && clips) {
+          try {
+            const file = await renderClip({ call, sleep, fs, dir: shotsDir, matchId, sec: shot.sec, from: shotBody.startTime, to: shotBody.endTime, tries: shotTries, waitMs: shotWaitMs });
+            if (file) {
+              clipUrl = await clips.put(file, matchId, shot.sec);
+              try {
+                fs.rmSync(file, { force: true });
+              } catch {
+                // A clip we could not tidy is a local file and nothing else; the upload is what counts.
+              }
+            }
+          } catch (err) {
+            // A clip is the luxury and the stills are the floor: losing one costs the reader a
+            // video and nothing else, so it must never cost the picture or the run.
+            log(`  no clip for ${shot.label} (${messageOf(err)}); its pictures are kept instead.`);
+          }
+          if (clipUrl) clipBySec.set(shot.sec, clipUrl);
+        }
+
+        // The run-up, now that the moment is safe — and only where no clip landed, because the clip
+        // is what replaces it. Each frame is measured on its own, and one that will not fit
+        // shortens the strip rather than costing the moment.
         const runUp = [];
         // Earliest first, which is the order the strip is read in and the order the documents are
         // written in, so a Firestore listing of one moment reads left to right like the film does.
@@ -1687,7 +1726,7 @@ export async function run({
         // moment it is: with five frames over an eight-second run-up that is 8s, 6s, 4s, 2s, then
         // the moment itself.
         const spread = shotFrameSpread(shotBody.endTime - shotBody.startTime, frameCap);
-        for (const [n, png] of strip.slice(0, -1).entries()) {
+        for (const [n, png] of (clipUrl ? [] : strip.slice(0, -1)).entries()) {
           // How many seconds before the moment this frame is, which is also what hangs it off the
           // moment's document id.
           const frame = (strip.length - 1 - n) * spread;
@@ -1727,7 +1766,7 @@ export async function run({
         });
         inARow = 0;
         log(
-          `  picture ${i + 1} of ${chosen.length}: ${shot.label} (${Math.round(bytes.length / 1024)} KB${runUp.length ? `, and ${runUp.length} frame${runUp.length === 1 ? '' : 's'} leading into it` : ''})`
+          `  picture ${i + 1} of ${chosen.length}: ${shot.label} (${Math.round(bytes.length / 1024)} KB${clipUrl ? ', and a clip of the fight' : runUp.length ? `, and ${runUp.length} frame${runUp.length === 1 ? '' : 's'} leading into it` : ''})`
         );
       } catch (err) {
         // One picture failing must not cost the run the thirty-five minutes of
@@ -1757,7 +1796,8 @@ export async function run({
       docId: shot.docId,
       // The frames leading into the moment, earliest first — omitted rather than stored empty, so a
       // moment with a single picture is shaped exactly as it was before the strip existed.
-      ...(runUpBySec.has(shot.sec) ? { runUp: runUpBySec.get(shot.sec) } : {})
+      ...(runUpBySec.has(shot.sec) ? { runUp: runUpBySec.get(shot.sec) } : {}),
+      ...(clipBySec.has(shot.sec) ? { clip: clipBySec.get(shot.sec) } : {})
     }));
 
   const recording = {
@@ -1819,6 +1859,18 @@ export async function run({
           if (swept) log(`Swept ${swept} picture${swept === 1 ? '' : 's'} an earlier recording of this game left behind.`);
         } catch (err) {
           log(`Could not sweep the pictures of an earlier recording (${messageOf(err)}). The recording itself is written and correct.`);
+        }
+        // And the clips, under the same rule and for the same reason: a re-record picks its own
+        // seconds, so yesterday's clips are named after moments this index does not have and
+        // nothing can reach them again. Guarded the same way — a run that rendered no clip at all
+        // leaves the old ones alone, because they are then the only video of this game there is.
+        if (clipBySec.size && firestore.clips) {
+          try {
+            const swept = await firestore.clips.sweep(matchId, new Set(clipBySec.values()));
+            if (swept) log(`Swept ${swept} clip${swept === 1 ? '' : 's'} an earlier recording of this game left behind.`);
+          } catch (err) {
+            log(`Could not sweep the clips of an earlier recording (${messageOf(err)}). The recording itself is written and correct.`);
+          }
         }
       }
     }
@@ -1942,6 +1994,48 @@ export async function setRenderFlags({ call, log, noHealthBars = false, streamer
  * and so nothing was newer than it. Returns the paths it could NOT remove, so
  * a file the client still holds open is not mistaken for the new frame either.
  */
+/**
+ * Frames a second in a clip, and whether it is lossless.
+ *
+ * Both measured against the real client on 12 Sep 2026, because the defaults are wildly expensive:
+ * the same nine seconds came back at **9.8 MB** lossless at the client's own frame rate and
+ * **2.3 MB** at thirty frames with `lossless: false`. Asking for a smaller picture does nothing —
+ * 854x480 measured 2.3 MB as well, because this client renders at its own resolution whatever it
+ * is asked for, exactly as it does for a png.
+ */
+export const CLIP_FPS = 30;
+
+/**
+ * Render one moment as a video and answer where it landed, or '' if nothing did.
+ *
+ * The same window the strip covered — the run-up and the moment — so a clip and the picture beside
+ * it are the same seconds. The director is already warm when this is called: the png render just
+ * before it left playback where it wanted, so this asks for no seek of its own.
+ */
+export async function renderClip({ call, sleep, fs, dir, matchId, sec, from, to, tries = 40, waitMs = 1500 }) {
+  const file = path.join(dir, `${shotDocId(matchId, sec)}.webm`);
+  try {
+    fs.rmSync(file, { force: true });
+  } catch {
+    // Nothing there, which is the usual case.
+  }
+  await call('/replay/recording', {
+    method: 'POST',
+    body: { codec: 'webm', startTime: from, endTime: to, path: file, recording: true, replaySpeed: 1, lossless: false, framesPerSecond: CLIP_FPS, enforceFrameRate: true },
+    help: 'The client refused to render a clip.'
+  });
+  // A webm GROWS while the render runs, so its size has to stop moving before it is uploaded — the
+  // same rule the png sequence follows, and for the same reason.
+  let last = -1;
+  for (let i = 0; i < tries; i += 1) {
+    await sleep(waitMs);
+    const size = fs.existsSync(file) ? fs.statSync(file).size : 0;
+    if (size > 0 && size === last) return file;
+    last = size;
+  }
+  return '';
+}
+
 function clearShotFiles({ fs, dir, stem }) {
   const stuck = [];
   for (const full of shotFilesFor({ fs, dir, stem })) {
@@ -2168,6 +2262,7 @@ function openFirestore(raw, fs = fsDefault) {
   const requireApi = createRequire(path.join(root, 'api', 'package.json'));
   const { cert, deleteApp, getApps, initializeApp } = requireApi('firebase-admin/app');
   const { getFirestore } = requireApi('firebase-admin/firestore');
+  const { getStorage } = requireApi('firebase-admin/storage');
   const account = parseServiceAccount(raw, fs);
   const app = getApps().find((a) => a.name === 'replay-recorder') ?? initializeApp({ credential: cert(account) }, 'replay-recorder');
   const db = getFirestore(app);
@@ -2181,6 +2276,45 @@ function openFirestore(raw, fs = fsDefault) {
     },
     set: async (collection, id, data) => {
       await db.collection(collection).doc(id).set(data);
+    },
+    /**
+     * The clips bucket, `{project}-clips` (12 Sep 2026).
+     *
+     * A bucket of its own rather than the project's default, and in **us-central1** rather than
+     * beside the functions: Google's free allowance for Cloud Storage — 5 GB stored and 100 GB a
+     * month downloaded — exists ONLY in us-central1, us-west1 and us-east1, and a season of
+     * recordings is under a gigabyte, so the whole feature is free there and about thirty cents a
+     * season anywhere else. The clips are frames of our own games with streamer mode on, so there
+     * is no personal data and no reason to keep them in Europe.
+     */
+    clips: {
+      put: async (file, matchId, sec) => {
+        const bucket = getStorage(app).bucket(`${account.project_id}-clips`);
+        const name = `clips/${shotDocId(matchId, sec)}.webm`;
+        await bucket.upload(file, {
+          destination: name,
+          metadata: {
+            contentType: 'video/webm',
+            // A clip never changes once written — its name carries the match and the second — so it
+            // is cached for a year and the browser fetches it once however often the film is opened.
+            cacheControl: 'public, max-age=31536000, immutable'
+          }
+        });
+        await bucket.file(name).makePublic();
+        return `https://storage.googleapis.com/${bucket.name}/${name}`;
+      },
+      /**
+       * Delete every clip of this game the new recording does not name — the sweep that
+       * `replayShots` gets, for the bucket. Without it a re-record leaves the old clips paid for
+       * forever, which is the same leak the pictures had.
+       */
+      sweep: async (matchId, keep) => {
+        const bucket = getStorage(app).bucket(`${account.project_id}-clips`);
+        const [files] = await bucket.getFiles({ prefix: `clips/${matchId}__` });
+        const doomed = files.filter((f) => !keep.has(`https://storage.googleapis.com/${bucket.name}/${f.name}`));
+        for (const f of doomed) await f.delete().catch(() => undefined);
+        return doomed.length;
+      }
     },
     /**
      * Delete every picture of this game the new recording does not name, and answer how many went.

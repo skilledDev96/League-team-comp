@@ -79,6 +79,41 @@ the moment — nothing anywhere reads a run-up frame on its own, so storing one
 whose moment was dropped would be paying Firestore for pictures with no door
 into them.
 
+## The clip
+
+Added 12 Sep 2026, because the lead asked the obvious question: *"we don't get to see a short video
+of the fight?"* We do now. The client renders **webm** natively, so each of the eight moments a
+review looks at also gets nine seconds of video — the run-up and the moment, the same window the
+strip covered.
+
+**It lives in Cloud Storage, not Firestore.** A clip is about 2.3 MB against the megabyte a document
+holds, so only its URL is stored on the shot ref as `clip`. That is the cheaper half of the trade as
+well: Firestore charges roughly eight times what Cloud Storage does per byte at rest, and a moment
+that got a clip keeps **no run-up stills at all** — so a recorded game is now *smaller* in Firestore
+than it was with pictures alone (about 7.0 MB down to 2.7 MB), with the video sitting in the cheap
+tier beside it.
+
+**The bucket is `{project}-clips`, in us-central1.** Not beside the functions, and deliberately:
+Google's free allowance for Cloud Storage — 5 GB stored and 100 GB a month downloaded — exists only
+in us-central1, us-west1 and us-east1. A season of recordings is under a gigabyte, so the whole
+feature is free there and about thirty cents a season anywhere else. The clips are frames of our own
+games with streamer mode on, so there is no personal data and no reason to keep them in Europe.
+
+**Two settings are measured, not guessed.** The same nine seconds came back at **9.8 MB** at the
+client's lossless default and **2.3 MB** at `framesPerSecond: 30` with `lossless: false`. Asking for
+a smaller picture does nothing — 854x480 measured 2.3 MB too, because this client renders at its own
+resolution whatever it is told, exactly as it does for a png.
+
+**What it does not fix:** the framing. The director points the camera and we cannot, so a death it
+chose not to frame is off screen in the video as much as it was in the stills. What a clip buys is
+all nine seconds of wherever the camera did go, instead of five samples of it.
+
+The moment's own still is always kept whatever the clip does — a review reads images and cannot
+watch a video, and the still is what the film shows until the reader presses play. A clip that fails
+costs the reader a video and nothing else: the stills are written in its place. Clips are swept on a
+re-record under the same rule as the pictures, and with the same guard: a run that made none leaves
+the old ones alone.
+
 ## Recording the same game twice
 
 The run overwrites what it writes, so re-recording is safe — but it does not

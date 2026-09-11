@@ -261,6 +261,37 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmStripComponent', () =>
     expect(text(root.querySelector('.film-strip-steps-one'))).toBe('This recording kept one picture a moment.');
   });
 
+  it('shows the picture with a press rather than fetching two megabytes nobody asked for', () => {
+    // A clip is ~2.3 MB and a reader walks twenty moments. The still is already read, so it stands
+    // where it always did and the video is fetched only when the fight is actually wanted.
+    const withClip = { ...moments[0], clip: 'https://storage.googleapis.com/lol-bom-squad-clips/clips/x__320.webm' };
+    const { fixture, root } = mount(true, { ...strip, moments: [withClip, moments[2]] });
+    expect(root.querySelector('video')).toBeNull();
+    expect(root.querySelector('.film-strip-shot.is-shown')).not.toBeNull();
+    // And no stepper: the run-up frames are not stored for a moment that got a clip.
+    expect(root.querySelector('.film-strip-steps')).toBeNull();
+
+    root.querySelector<HTMLButtonElement>('.film-strip-play')!.click();
+    fixture.detectChanges();
+    const video = root.querySelector<HTMLVideoElement>('video.film-strip-clip');
+    expect(video?.getAttribute('src')).toBe(withClip.clip);
+    expect(video?.hasAttribute('controls')).toBe(true);
+    expect(video?.hasAttribute('muted')).toBe(true);
+  });
+
+  it('puts the picture back when the reader walks to another moment, so a clip never plays under the wrong fight', () => {
+    const withClip = { ...moments[0], clip: 'https://storage.googleapis.com/lol-bom-squad-clips/clips/x__320.webm' };
+    const { fixture, root } = mount(true, { ...strip, moments: [withClip, moments[2]] });
+    root.querySelector<HTMLButtonElement>('.film-strip-play')!.click();
+    fixture.detectChanges();
+    expect(root.querySelector('video')).not.toBeNull();
+    chips(root)[1].click();
+    fixture.detectChanges();
+    chips(root)[0].click();
+    fixture.detectChanges();
+    expect(root.querySelector('video')).toBeNull();
+  });
+
   it('names each step by the seconds in its own document id, not by where it sits in the strip', () => {
     // The recorder spreads the run-up across `SHOT_LEAD_SEC` (8) seconds, one frame every two, and
     // writes the true figure into the id as `{matchId}__{sec}__{frame}`. Counting the step off the
