@@ -14,6 +14,7 @@ import { MatchTimelineService } from '../services/match-timeline.service';
 import { ReviewTakeoverService } from '../services/review-takeover.service';
 import { TeamDataService } from '../services/team-data.service';
 import { ToastService } from '../services/toast.service';
+import { AuthService } from '../services/auth.service';
 import { UiService } from '../services/ui.service';
 import { UserPrefsService } from '../services/user-prefs.service';
 import { FilmPosterComponent } from './film/film-poster.component';
@@ -66,7 +67,7 @@ import { TooltipDirective } from './tooltip.directive';
                name first; five equal rows made them hunt for it, and made the panel five rows longer. -->
           <div class="view-segment game-review-views" role="group" aria-label="Review view">
             <button type="button" [class.active]="view() === 'team'" (click)="setView('team')">Team</button>
-            <button type="button" [class.active]="view() === 'seat'" (click)="setView('seat')">My seat</button>
+            <button type="button" [class.active]="view() === 'seat'" (click)="setView('seat')">{{ isAdmin() ? 'Seats' : 'My seat' }}</button>
           </div>
           <span class="game-review-verdict" [class.is-good]="r.team.compVerdict === 'as drafted'" [class.is-bad]="r.team.compVerdict === 'off plan'"
                 [appTip]="r.team.compWhy || 'Whether the comp did what its four axes and game plan expected'">
@@ -127,8 +128,20 @@ import { TooltipDirective } from './tooltip.directive';
         }
 
         @if (view() === 'seat') {
-          <!-- The reader's own seat: the one the film room remembers, asked for here the first time. -->
-          @if (!seat() || picking()) {
+          <!-- An admin coaches the whole side, so the depth is theirs to choose and every seat can stand in full. -->
+          @if (isAdmin()) {
+            <div class="view-segment review-seat-depth" role="group" aria-label="How much of each seat">
+              <button type="button" [class.active]="allSeats()" (click)="setAllSeats(true)">All seats</button>
+              <button type="button" [class.active]="!allSeats()" (click)="setAllSeats(false)">Just mine</button>
+            </div>
+          }
+          @if (allSeats() && asks().length) {
+            <div class="review-points" role="group" aria-label="Every seat">
+              @for (p of asks(); track p.name) {
+                <app-review-seat [player]="p" [game]="game()" [mine]="true" [own]="p.seat === seat()" [timed]="timed()" />
+              }
+            </div>
+          } @else if (!seat() || picking()) {
             <div class="review-seat-pick">
               <p class="muted">Which seat is yours? The film room remembers it.</p>
               <div class="review-seat-pick-row">
@@ -138,7 +151,7 @@ import { TooltipDirective } from './tooltip.directive';
               </div>
             </div>
           } @else if (mine(); as m) {
-            <app-review-seat [player]="m" [game]="game()" [mine]="true" [timed]="timed()" />
+            <app-review-seat [player]="m" [game]="game()" [mine]="true" [own]="true" [timed]="timed()" />
             @if (others().length) {
               <div class="review-points" role="group" aria-label="The other four">
                 <h4 class="review-group-label">The other four</h4>
@@ -219,6 +232,8 @@ export class GameReviewComponent {
   protected readonly ui = inject(UiService);
   /** The one seat this app stores about a person: what they picked in the film room's Your seat chapter. */
   private readonly prefs = inject(UserPrefsService);
+  /** The role decides whether the seat view can show all five; a player's panel puts their own seat first. */
+  private readonly auth = inject(AuthService);
   /** The takeover's landing mark (10 Sep 2026): the poster it rings lives in this drawer, so a review that landed while the takeover was minimised opens the drawer rather than lighting a pill behind a closed one. */
   protected readonly takeover = inject(ReviewTakeoverService);
 
@@ -278,6 +293,37 @@ export class GameReviewComponent {
 
   /** Open on the picker again, for the person whose stored seat is not one this game had. */
   protected readonly picking = signal(false);
+
+  /**
+   * An admin coaches all five, so the seat view opens on all five (12 Sep 2026, the lead: "as admin
+   * I'd like to see the other seats on the panel as well"). It is a choice rather than a rule —
+   * five blocks is a long panel when you only want your own — and the choice is remembered per
+   * browser beside the view itself. Nobody else can turn it on: for a player the panel's job is to
+   * put their own seat first, and the other four are the one-line rows below it.
+   */
+  private static readonly SEATS_KEY = 'bom-review-seats';
+  protected readonly isAdmin = computed(() => this.auth.canManageUsers());
+  /** The stored preference on its own; `allSeats` is that AND the role, so nobody else can reach it. */
+  private readonly seatsAll = signal(GameReviewComponent.storedSeats());
+  protected readonly allSeats = computed(() => this.isAdmin() && this.seatsAll());
+
+  private static storedSeats(): boolean {
+    try {
+      // Unset means "on for an admin", which is what the ask was; the stored value wins once set.
+      return localStorage.getItem(GameReviewComponent.SEATS_KEY) !== 'mine';
+    } catch {
+      return true;
+    }
+  }
+
+  protected setAllSeats(all: boolean): void {
+    this.seatsAll.set(all);
+    try {
+      localStorage.setItem(GameReviewComponent.SEATS_KEY, all ? 'all' : 'mine');
+    } catch {
+      /* a browser refusing storage still gets the depth it clicked */
+    }
+  }
 
   protected pickSeat(seat: Role): void {
     this.picking.set(false);

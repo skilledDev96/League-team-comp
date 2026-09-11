@@ -14374,7 +14374,12 @@ button .player-mark { vertical-align: -0.3rem; }
    fold — the two the panel has never shown, which the film room was the only way to reach. */
 .game-review-views { flex: none; }
 .game-review-views button { padding: 0.3rem 0.85rem; font-size: 0.76rem; }
-.review-seat { display: grid; gap: 0.3rem; padding: 0.5rem 0.6rem; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--card-border)); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+/* Every seat can be a block for an admin, so only the reader's own wears the accent: five equally
+   ringed blocks ring nothing, and the one that matters has to be findable at a glance. */
+.review-seat { display: grid; gap: 0.3rem; padding: 0.5rem 0.6rem; border-radius: 12px; border: 1px solid var(--card-border); background: color-mix(in srgb, var(--surface-controls) 45%, transparent); }
+.review-seat.is-own { border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border)); background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.review-seat-depth { flex: none; margin-bottom: 0.1rem; }
+.review-seat-depth button { padding: 0.26rem 0.7rem; font-size: 0.72rem; }
 .review-seat-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0.2rem 0.45rem; }
 .review-seat-head .player-mark { margin: 0; }
 .review-seat-name { font-size: 0.95rem; font-weight: 600; color: color-mix(in srgb, var(--text-0) 80%, var(--text-1)); }

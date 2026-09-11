@@ -111,12 +111,20 @@ export function momentTrack(minutes: number[], durationSec: number | undefined):
  * The evidence as figures. The prompt asks for "Leona 1/9/7 · kills 14-35";
  * older reviews wrote sentences with commas, so a split that gives one piece
  * or more than six leaves the line whole rather than chip a sentence.
+ *
+ * The comma is a separator ONLY when the string carries no real one (12 Sep 2026). From review
+ * version 8 the middle dot is the one separator the prompt allows, which frees a comma to live
+ * INSIDE a figure — "IE, Stormrazor and Runaan's" is one item, not three — and splitting on both
+ * cut exactly those in half. Banning the comma from the prompt instead is what produced "IE and
+ * Stormrazor and Runaan's", which is worse English for no gain. Every review before version 8
+ * wrote its evidence as a comma list and carries no dot, so those chip exactly as they always did.
  */
 export function evidenceChips(evidence: string): string[] {
   const text = evidence.trim();
   if (!text) return [];
+  const marked = /[·;]/.test(text);
   const parts = text
-    .split(/\s*[·;]\s*|,\s+(?=[A-Za-z0-9])/)
+    .split(marked ? /\s*[·;]\s*/ : /,\s+(?=[A-Za-z0-9])/)
     .map((p) => p.trim().replace(/\.$/, ''))
     .filter(Boolean);
   return parts.length >= 2 && parts.length <= 6 ? parts : [text];

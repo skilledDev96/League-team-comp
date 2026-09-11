@@ -26,7 +26,7 @@ type ReviewPlayer = GameReview['players'][number];
   imports: [PlayerMarkComponent, ReviewPointComponent, TooltipDirective],
   template: `
     @if (mine()) {
-      <div class="review-seat">
+      <div class="review-seat" [class.is-own]="own()">
         <div class="review-seat-head">
           <img class="player-mark is-champ" [src]="ui.championIconUrl(player().champion)" alt="" loading="lazy" />
           <app-player-mark [name]="player().name" />
@@ -56,8 +56,14 @@ export class ReviewSeatComponent {
   readonly player = input.required<ReviewPlayer>();
   /** The analysed game, for the figures. A game the analysis no longer carries simply has no stat line. */
   readonly game = input<AnalysisGame | undefined>(undefined);
-  /** Whether this is the reader's own seat: the block rather than the one-line row. */
+  /** Whether to draw the block rather than the one-line row. */
   readonly mine = input<boolean>(false);
+  /**
+   * Whether this seat is the reader's. Separate from `mine` since 12 Sep 2026, when an admin gained
+   * the option of every seat as a block: `mine` is now "how much of it to draw" and `own` is "whose
+   * it is", and only `own` gets the accent ring. Five equally ringed blocks ring nothing.
+   */
+  readonly own = input<boolean>(false);
   readonly timed = input<boolean>(false);
 
   protected readonly ui = inject(UiService);

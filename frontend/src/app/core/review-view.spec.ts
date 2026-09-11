@@ -61,6 +61,20 @@ describe('evidenceChips', () => {
     expect(evidenceChips('a · b · c · d · e · f · g')).toEqual(['a · b · c · d · e · f · g']);
     expect(evidenceChips('  ')).toEqual([]);
   });
+
+  /**
+   * The dot wins when there is one (12 Sep 2026). Review version 8 makes the middle dot the only
+   * separator the prompt allows, which frees a comma to live inside a figure — an item build is
+   * the common case. Splitting on both cut those in half, and banning the comma from the prompt
+   * instead is what produced "IE and Stormrazor and Runaan's".
+   */
+  it('keeps a comma inside a figure when the dot is doing the separating', () => {
+    expect(evidenceChips("25:40 · IE, Stormrazor and Runaan's · 220 cs")).toEqual(['25:40', "IE, Stormrazor and Runaan's", '220 cs']);
+    // The minute list a review writes as one figure survives too.
+    expect(evidenceChips('18:35, 22:44 and 28:34 · no kill in return · 50.5k taken')).toEqual(['18:35, 22:44 and 28:34', 'no kill in return', '50.5k taken']);
+    // A review from before version 8 has no dot at all, so the comma is still what separates it.
+    expect(evidenceChips('Jinx 232, Trundle 223, Heimerdinger 218 CS')).toEqual(['Jinx 232', 'Trundle 223', 'Heimerdinger 218 CS']);
+  });
 });
 
 describe('playerStatLine', () => {
