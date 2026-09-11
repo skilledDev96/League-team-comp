@@ -106,6 +106,15 @@ export function downLine(row: FilmStripRow): string {
                       <button type="button" class="view-btn" [class.active]="$index === frame()" [attr.aria-pressed]="$index === frame()" [appTip]="f.tip" (click)="frame.set($index)">{{ f.step }}</button>
                     }
                   </div>
+                } @else if (anyStrips()) {
+                  <!--
+                    The run DID keep strips, just not on this moment — the run-up is kept on the
+                    first STRIP_MOMENTS deaths only. Saying "this recording kept one picture a
+                    moment" here is simply false, and it reads as a broken feature rather than as
+                    the design (12 Sep 2026, the lead hit it filtering to a seat whose first death
+                    is the fifteenth moment).
+                  -->
+                  <p class="film-strip-steps-one muted">The run-up frames are kept on the first few moments only; this one has its picture alone.</p>
                 } @else {
                   <p class="film-strip-steps-one muted">This recording kept one picture a moment.</p>
                 }
@@ -249,6 +258,13 @@ export class FilmStripComponent {
    * the cursor: a film is walked, not resumed.
    */
   protected readonly seat = signal<Role | null>(null);
+
+  /**
+   * Did this run keep a run-up anywhere? It keeps one on the first `STRIP_MOMENTS` deaths and a
+   * single picture everywhere else, so "one picture a moment" is only true of a recording that has
+   * no strips at all — a version 2 one, or a run made with `--frames 1`.
+   */
+  protected readonly anyStrips = computed(() => this.moments().some((m) => (m.frames?.length ?? 0) > 1));
 
   /** Which of our seats the run actually kept a moment for; the rest are not worth offering. */
   private readonly seatsKept = computed(() => new Set(this.moments().map((m) => m.seat).filter((s): s is Role => !!s)));

@@ -253,6 +253,14 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmStripComponent', () =>
     expect(chips(root)).toHaveLength(3);
   });
 
+  it('still says a recording kept one picture a moment when not one of them carries a strip', () => {
+    // A version 2 recording, or a run made with --frames 1: here the sentence is true and is the
+    // honest explanation of why there is no stepper anywhere.
+    const flat = { ...strip, moments: moments.map((m) => ({ ...m, frames: m.frames.slice(-1) })) };
+    const { root } = mount(true, flat);
+    expect(text(root.querySelector('.film-strip-steps-one'))).toBe('This recording kept one picture a moment.');
+  });
+
   it('names each step by the seconds in its own document id, not by where it sits in the strip', () => {
     // The recorder spreads the run-up across `SHOT_LEAD_SEC` (8) seconds, one frame every two, and
     // writes the true figure into the id as `{matchId}__{sec}__{frame}`. Counting the step off the
@@ -342,7 +350,8 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmStripComponent', () =>
     chips(root)[2].click();
     fixture.detectChanges();
     expect(root.querySelector('.film-strip-steps')).toBeNull();
-    expect(text(root.querySelector('.film-strip-steps-one'))).toBe('This recording kept one picture a moment.');
+    // The OTHER moments of this recording carry strips, so the honest sentence is about this moment.
+    expect(text(root.querySelector('.film-strip-steps-one'))).toBe('The run-up frames are kept on the first few moments only; this one has its picture alone.');
     expect(root.querySelectorAll('.film-strip-shot')).toHaveLength(1);
     // An objective has no board of ours to read, and the column says which rather than standing empty.
     expect(root.querySelector('.film-strip-board')).toBeNull();
