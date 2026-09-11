@@ -425,11 +425,19 @@ export class ReviewTakeoverStageComponent {
         const vw = window.innerWidth;
         const vh = window.innerHeight;
         if (from && vw > 0 && vh > 0) {
+          // Transform ONLY, deliberately (12 Sep 2026). This used to carry a borderRadius of 14px
+          // to 0 alongside it, and border-radius is not a property the compositor can animate, so
+          // one decorative keyframe put the whole grow on the main thread — the one thread that is
+          // busiest at exactly this moment, with the deferred stage chunk just landed, the review
+          // request going out, the scoreline counting up and the splash art decoding. The grow then
+          // sat on its first frame, a card-sized box in the middle of the screen, until `play`'s
+          // watchdog snapped it to full a second and a half later. A rounded corner for a fifth of
+          // a second is not worth a flourish that can look broken for seven times as long.
           void this.motion.play(
             stage,
             [
-              { transform: `translate(${from.left}px, ${from.top}px) scale(${from.width / vw}, ${from.height / vh})`, borderRadius: '14px' },
-              { transform: 'none', borderRadius: '0px' }
+              { transform: `translate(${from.left}px, ${from.top}px) scale(${from.width / vw}, ${from.height / vh})` },
+              { transform: 'none' }
             ],
             { duration: FLIP_MS, easing: FLIP_EASE }
           );

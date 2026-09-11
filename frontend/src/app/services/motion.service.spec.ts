@@ -182,6 +182,36 @@ describe('MotionService', () => {
       expect(el.style.opacity).toBe('0');
     });
 
+    /**
+     * The stall this service was written around, seen coming instead of waited out (12 Sep 2026).
+     *
+     * A tab in the background does not advance WAAPI, so an animation started there holds keyframe
+     * ONE — and keyframe one is the deliberately-wrong-looking end: a grow's card-sized box, a
+     * fade's nothing. The watchdog did rescue it, but only after its floor, and the review
+     * takeover's stage sat as a small box in the middle of the screen for that second and a half.
+     */
+    it('lands at once in a hidden tab rather than holding the first frame', async () => {
+      const visibility = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      try {
+        let animated = false;
+        el.animate = ((): Animation => {
+          animated = true;
+          return { finished: new Promise(() => {}), cancel: () => {} } as unknown as Animation;
+        }) as unknown as HTMLElement['animate'];
+
+        const state = watch(motion.play(el, [{ transform: 'scale(0.3)' }, { transform: 'none' }], { duration: 420 }));
+        await vi.advanceTimersByTimeAsync(0);
+
+        // Resolved on the spot, the element where the animation would have left it, and nothing started.
+        expect(state.done).toBe(true);
+        expect(el.style.transform).toBe('none');
+        expect(animated).toBe(false);
+      } finally {
+        if (visibility) Object.defineProperty(document, 'visibilityState', visibility);
+      }
+    });
+
     it('writes the last frame as CSS: camelCase becomes kebab, bookkeeping is skipped', async () => {
       motion.setStill(true);
 

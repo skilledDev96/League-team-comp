@@ -126,7 +126,12 @@ export class MotionService {
   play(el: Element, keyframes: Keyframe[], opts: KeyframeAnimationOptions): Promise<void> {
     const last = keyframes[keyframes.length - 1];
     const canAnimate = typeof (el as HTMLElement).animate === 'function';
-    if (this.reduced() || !canAnimate) {
+    // A hidden document is the stall this watchdog was written for, and it can be seen coming
+    // rather than waited out: WAAPI does not advance there, so the element would hold keyframe ONE
+    // for the whole floor — and keyframe one is the deliberately-wrong-looking end of a grow or a
+    // fade. Writing the last frame at once is what the reduced-motion branch already does, and it
+    // is the right answer for the same reason: no motion is available, so land where it would have.
+    if (this.reduced() || !canAnimate || hiddenDocument()) {
       if (last) applyFrame(el, last);
       return Promise.resolve();
     }
@@ -170,6 +175,11 @@ export class MotionService {
  * end — endless `iterations` — because there an unsettled `finished` is the
  * contract rather than a stall, and cutting it short would be the bug.
  */
+/** True while the tab is in the background, where WAAPI does not advance and rAF is throttled. */
+function hiddenDocument(): boolean {
+  return typeof document !== 'undefined' && document.visibilityState === 'hidden';
+}
+
 function armWatchdog(opts: KeyframeAnimationOptions, onStall: () => void): ReturnType<typeof setTimeout> | undefined {
   const iterations = typeof opts.iterations === 'number' ? opts.iterations : 1;
   const runs = timingMs(opts.delay) + timingMs(opts.duration) * iterations + timingMs(opts.endDelay);
