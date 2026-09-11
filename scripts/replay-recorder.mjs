@@ -20,7 +20,7 @@
  *     FIREBASE_SERVICE_ACCOUNT="$(cat service-account.json)" node scripts/replay-recorder.mjs EUW1-7977592156
  *   Usage (PowerShell):
  *     $env:FIREBASE_SERVICE_ACCOUNT = (Get-Content service-account.json -Raw); node scripts/replay-recorder.mjs EUW1-7977592156
- *   Options: [--shots 20] [--frames 5] [--out-dir <dir>] [--dry-run] [--roster <file.json>]
+ *   Options: [--shots 20] [--frames 5] [--clip-seconds 45] [--clip-fps 15] [--out-dir <dir>] [--dry-run] [--roster <file.json>]
  *
  * In the client first: open the replay for that game (Match History → Download
  * → Watch, or double-click the .rofl), let it start playing, and leave the
@@ -545,7 +545,7 @@ export function parseArgs(argv) {
   // back rather than the normalised form nobody typed.
   // Panels on unless the lead says otherwise: the client's streamer mode is what keeps a Riot id off the screen,
   // and a frame without the scoreboard and the team frames is missing the gold, the items and the kills.
-  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, frames: SHOT_FRAMES, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '' };
+  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, frames: SHOT_FRAMES, clipSeconds: CLIP_LEAD_SEC, clipFps: CLIP_FPS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '' };
   const assign = (name, value) => {
     // `--out-dir --dry-run` used to swallow the flag as the value, write the
     // frames to a directory called "--dry-run" and upload to Firestore for
@@ -556,6 +556,20 @@ export function parseArgs(argv) {
       const n = Number(value);
       if (!Number.isFinite(n) || n < 1) throw new Error(`--shots wants a number of pictures, not "${value}".`);
       parsed.shots = Math.min(MAX_SHOTS, Math.floor(n));
+    } else if (name === '--clip-seconds') {
+      // How much of the game a clip reaches back over. The default covers a whole fight; the lead
+      // asked for it after the first clips, which were the picture's own eight seconds and much too
+      // short to see one. A clip is rendered by playing the game through, so this is also seconds
+      // added to the run: eight clips at forty-five is six minutes of rendering.
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 1 || n > 180) throw new Error(`--clip-seconds wants how many seconds of the fight to keep, 1 to 180, not "${value}".`);
+      parsed.clipSeconds = Math.floor(n);
+    } else if (name === '--clip-fps') {
+      // Frames a second in a clip. Fifteen is the default and halves the bytes against thirty;
+      // raise it if a fight reads as choppy, and expect the file to grow in step.
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 5 || n > 60) throw new Error(`--clip-fps wants frames a second, 5 to 60, not "${value}".`);
+      parsed.clipFps = Math.floor(n);
     } else if (name === '--frames') {
       // How many of a moment's rendered frames to keep. `--frames 1` is what every run before
       // 12 Sep 2026 did, and it writes the same documents those runs wrote, key for key — worth
@@ -1236,6 +1250,8 @@ export async function run({
   shots: shotCap = DEFAULT_SHOTS,
   // How many of a moment's rendered frames to keep, on the moments that get a strip at all.
   frames: frameWant = SHOT_FRAMES,
+  clipSeconds: clipWant = CLIP_LEAD_SEC,
+  clipFps: clipFpsWant = CLIP_FPS,
   outDir = process.cwd(),
   dryRun = false,
   noHealthBars = false,
@@ -1273,6 +1289,8 @@ export async function run({
   // Normalised here as well as in parseArgs, for the same reason the cap is: run() is called
   // directly by the spec and by any future caller.
   const frameCap = Math.max(1, Math.min(SHOT_FRAMES, Math.floor(number(frameWant) || SHOT_FRAMES)));
+  const clipLead = Math.max(1, Math.min(180, Math.floor(number(clipWant) || CLIP_LEAD_SEC)));
+  const clipFps = Math.max(5, Math.min(60, Math.floor(number(clipFpsWant) || CLIP_FPS)));
   const call = makeCall({ fetchImpl: fetchImpl ?? clientFetch(), sleep });
 
   // 1. The replay itself. The client only serves these while one is playing,
@@ -1699,7 +1717,31 @@ export async function run({
         let clipUrl = '';
         if (wantsClip && clips) {
           try {
-            const file = await renderClip({ call, sleep, fs, dir: shotsDir, matchId, sec: shot.sec, from: shotBody.startTime, to: shotBody.endTime, tries: shotTries, waitMs: shotWaitMs });
+            // The clip has its OWN window and its own warm-up. It reaches `clipLead` seconds back —
+            // far earlier than the picture's eight — so playback has to be taken there and the
+            // director woken again; the picture's warm-up left the playhead at the picture's start,
+            // which is already inside the fight this clip wants to open before.
+            const clipFrom = Math.max(0, at - clipLead);
+            const landedClip = await seek(Math.max(0, clipFrom - WARMUP_SEC));
+            if (landedClip.settled) {
+              await warmDirector({ call, sleep });
+            }
+            const file = await renderClip({
+              call,
+              sleep,
+              fs,
+              dir: shotsDir,
+              matchId,
+              sec: shot.sec,
+              from: clipFrom,
+              to: at + 1,
+              fps: clipFps,
+              // A clip is rendered by PLAYING the game through, so a forty-five second one takes
+              // forty-five seconds; the wait has to cover that and then some, or the run gives up on
+              // a render that was going to land.
+              tries: Math.ceil(((at + 1 - clipFrom) * 1000) / shotWaitMs) + 60,
+              waitMs: shotWaitMs
+            });
             if (file) {
               clipUrl = await clips.put(file, matchId, shot.sec);
               try {
@@ -1995,15 +2037,32 @@ export async function setRenderFlags({ call, log, noHealthBars = false, streamer
  * a file the client still holds open is not mistaken for the new frame either.
  */
 /**
- * Frames a second in a clip, and whether it is lossless.
+ * How many seconds of the game a clip covers before the moment it is of.
  *
- * Both measured against the real client on 12 Sep 2026, because the defaults are wildly expensive:
- * the same nine seconds came back at **9.8 MB** lossless at the client's own frame rate and
- * **2.3 MB** at thirty frames with `lossless: false`. Asking for a smaller picture does nothing —
- * 854x480 measured 2.3 MB as well, because this client renders at its own resolution whatever it
- * is asked for, exactly as it does for a png.
+ * Forty-five, not the eight the strip used, because a fight is not eight seconds long — the lead
+ * watched the first clips and said so: "some fights are 45+ longer". The window is the whole
+ * approach and the fight, not the instant before the death.
  */
-export const CLIP_FPS = 30;
+export const CLIP_LEAD_SEC = 45;
+
+/**
+ * Frames a second in a clip. Fifteen halves the bytes against thirty and a replay is not a
+ * broadcast; `--clip-fps` raises it if a fight reads as choppy.
+ */
+export const CLIP_FPS = 15;
+
+/**
+ * `enforceFrameRate` is NEVER sent true, and that is the whole reason the first clips were wrong
+ * (12 Sep 2026).
+ *
+ * With it true the client drops frames to hit the rate asked for and then tags the container at
+ * that rate anyway, so nine seconds of game came back as a 3.5-second video playing three times too
+ * fast. Measured, on the same moment: `fps 30 + enforce` gave 2.28 MB and 3.48s; `fps 30, no
+ * enforce` gave 5.25 MB and 9.14s; `fps 15, no enforce` gave 3.07 MB and 9.00s. Small AND honest is
+ * the last of those, so that is what the run asks for — and it is why the size and the duration
+ * have to be checked together, since the cheapest setting was the broken one.
+ */
+const CLIP_ENFORCE_FRAME_RATE = false;
 
 /**
  * Render one moment as a video and answer where it landed, or '' if nothing did.
@@ -2012,7 +2071,7 @@ export const CLIP_FPS = 30;
  * it are the same seconds. The director is already warm when this is called: the png render just
  * before it left playback where it wanted, so this asks for no seek of its own.
  */
-export async function renderClip({ call, sleep, fs, dir, matchId, sec, from, to, tries = 40, waitMs = 1500 }) {
+export async function renderClip({ call, sleep, fs, dir, matchId, sec, from, to, fps = CLIP_FPS, tries = 240, waitMs = 1500 }) {
   const file = path.join(dir, `${shotDocId(matchId, sec)}.webm`);
   try {
     fs.rmSync(file, { force: true });
@@ -2021,7 +2080,7 @@ export async function renderClip({ call, sleep, fs, dir, matchId, sec, from, to,
   }
   await call('/replay/recording', {
     method: 'POST',
-    body: { codec: 'webm', startTime: from, endTime: to, path: file, recording: true, replaySpeed: 1, lossless: false, framesPerSecond: CLIP_FPS, enforceFrameRate: true },
+    body: { codec: 'webm', startTime: from, endTime: to, path: file, recording: true, replaySpeed: 1, lossless: false, framesPerSecond: fps, enforceFrameRate: CLIP_ENFORCE_FRAME_RATE },
     help: 'The client refused to render a clip.'
   });
   // A webm GROWS while the render runs, so its size has to stop moving before it is uploaded — the
@@ -2412,6 +2471,8 @@ async function main() {
       matchId: args.matchId,
       shots: args.shots,
       frames: args.frames,
+      clipSeconds: args.clipSeconds,
+      clipFps: args.clipFps,
       outDir: args.outDir || path.join(process.cwd(), 'replay-shots'),
       dryRun: args.dryRun,
       noHealthBars: args.noHealthBars,

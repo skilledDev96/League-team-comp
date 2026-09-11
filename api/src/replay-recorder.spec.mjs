@@ -39,6 +39,9 @@ import {
   SHOT_FRAMES,
   SHOT_LEAD_SEC,
   referencedShotIds,
+  CLIP_FPS,
+  renderClip,
+  CLIP_LEAD_SEC,
   shotDocId,
   STRIP_MOMENTS,
   WARMUP_SEC,
@@ -1267,6 +1270,40 @@ describe('the pure parts', () => {
     expect([...ids].sort()).toEqual([`${MATCH_ID}__3`, `${MATCH_ID}__3__2`]);
   });
 
+  // The setting that made the first clips wrong. With `enforceFrameRate` true the client drops
+  // frames to hit the rate asked for and then tags the container at that rate anyway, so nine
+  // seconds of game came back as a 3.5-second video playing three times too fast. Measured on one
+  // moment: fps30 + enforce = 2.28 MB / 3.48s; fps30 no enforce = 5.25 MB / 9.14s; fps15 no enforce
+  // = 3.07 MB / 9.00s. The cheapest setting was the broken one, which is why a clip's size alone
+  // never proves it is right — the duration has to be checked with it.
+  it('asks for a clip the client will not speed up, over a window long enough to hold a fight', async () => {
+    const asked = [];
+    const call = async (path, opts) => {
+      if (opts?.body) asked.push({ path, body: opts.body });
+      return {};
+    };
+    const fs = { rmSync: () => undefined, existsSync: () => true, statSync: () => ({ size: 4096 }) };
+    const file = await renderClip({ call, sleep: async () => undefined, fs, dir: 'C:/out', matchId: MATCH_ID, sec: 265, from: 220, to: 266, tries: 3, waitMs: 1 });
+    const body = asked.at(-1).body;
+    expect(body.codec).toBe('webm');
+    expect(body.enforceFrameRate).toBe(false);
+    expect(body.lossless).toBe(false);
+    expect(body.framesPerSecond).toBe(CLIP_FPS);
+    // The window is the fight, not the picture's own eight seconds.
+    expect(body.endTime - body.startTime).toBe(46);
+    expect(file).toContain(MATCH_ID + '__265.webm');
+  });
+
+  // Forty-five seconds by default, because the lead watched the first clips and said a fight is
+  // longer than that.
+  it('reaches back far enough for a fight by default, and takes a wider window on the line', () => {
+    expect(CLIP_LEAD_SEC).toBe(45);
+    expect(parseArgs([MATCH_ID, '--clip-seconds', '60']).clipSeconds).toBe(60);
+    expect(parseArgs([MATCH_ID, '--clip-fps', '30']).clipFps).toBe(30);
+    expect(() => parseArgs([MATCH_ID, '--clip-seconds', '999'])).toThrow(/--clip-seconds wants/);
+    expect(() => parseArgs([MATCH_ID, '--clip-fps', '1'])).toThrow(/--clip-fps wants/);
+  });
+
   it('reads a JPEG for its own size and shrugs at anything else', () => {
     expect(jpegSize(fakeJpeg(64, 1920, 1080))).toEqual({ width: 1920, height: 1080 });
     expect(jpegSize(Buffer.from('not a picture'))).toBe(null);
@@ -1274,7 +1311,7 @@ describe('the pure parts', () => {
   });
 
   it('parses the argument line and holds the hard cap', () => {
-    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, frames: SHOT_FRAMES, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '' });
+    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, frames: SHOT_FRAMES, clipSeconds: CLIP_LEAD_SEC, clipFps: CLIP_FPS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '' });
     // Three frames on the moments a review looks at, unless the lead asks for the old single picture.
     expect(parseArgs([MATCH_ID, '--frames', '1']).frames).toBe(1);
     expect(parseArgs([MATCH_ID, '--frames=2']).frames).toBe(2);
@@ -1294,6 +1331,8 @@ describe('the pure parts', () => {
       typed: MATCH_ID,
       shots: 8,
       frames: SHOT_FRAMES,
+      clipSeconds: CLIP_LEAD_SEC,
+      clipFps: CLIP_FPS,
       outDir: 'C:/shots',
       dryRun: true,
       roster: '',
