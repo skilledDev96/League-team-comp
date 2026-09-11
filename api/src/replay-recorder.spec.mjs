@@ -1251,9 +1251,12 @@ describe('the pure parts', () => {
     );
   });
 
-  it('names nothing at all for a recording with no pictures, so a sweep on it deletes the lot', () => {
-    // A run whose frames were all refused writes no shots; every stored picture of that game is
-    // then genuinely unreachable and going is the right answer.
+  it('names nothing at all for a recording with no pictures — which is why the run refuses to sweep on one', () => {
+    // A run whose frames were all refused writes no shots. It is tempting to call every stored
+    // picture of that game unreachable and delete it — this spec said exactly that, and on 12 Sep
+    // 2026 the run did exactly that to fifty-two good pictures. They are unreachable only because
+    // the empty index replaced the one that named them, so the caller never sweeps when nothing was
+    // kept; this function still names nothing, and that is the signal it reads.
     expect(referencedShotIds({ shots: [] }).size).toBe(0);
     expect(referencedShotIds({}).size).toBe(0);
     expect(referencedShotIds(null).size).toBe(0);

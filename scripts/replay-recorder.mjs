@@ -1557,6 +1557,18 @@ export async function run({
         // an earlier run left behind can be picked up and uploaded as if it
         // were fresh — the usual reason to re-run is that the first run's
         // frames were bad, and those were exactly the ones being re-stored.
+        // The FOLDER has to go, not just the frames in it (12 Sep 2026). The client treats `path`
+        // as a folder and fills it with a numbered sequence — but only when it can make that folder
+        // itself. Hand it one that already exists, even an empty one, and it writes a nested
+        // `{patch}_{matchId}_NN` inside instead, which is two levels down and nothing was looking
+        // there. `clearShotFiles` emptied the folder and left it standing, so the first run of a
+        // game rendered fine and every RE-record rendered into a folder no one read: three in a row
+        // came back empty, the run gave up, and the index it wrote named no pictures at all.
+        try {
+          fs.rmSync(file, { recursive: true, force: true });
+        } catch {
+          // Not fatal: the answer's own path is read below, which covers a folder we could not move.
+        }
         const stale = clearShotFiles({ fs, dir: shotsDir, stem });
         // png or webm are the only codecs this client's AVContainer takes, and a png "path" is a
         // FOLDER it fills with a numbered sequence (11 Sep 2026, measured). The frame is picked out
@@ -1587,11 +1599,21 @@ export async function run({
         // whether it says it is recording. That one line is the difference
         // between "the client refused" and "the client is still writing".
         if (i === 0) log(`  the client answered the first render with recording=${answer?.recording ?? 'nothing'}, path ${answer?.path ?? '(none)'}.`);
+        // Where the client SAYS it wrote beats where it was asked to (12 Sep 2026). It answers with
+        // the path it chose, and that is not always the one requested — the nested-folder case
+        // above is exactly this. Reading its answer means a client that invents a path of its own
+        // is followed rather than waited on in an empty folder until the run gives up.
+        const said = typeof answer?.path === 'string' ? answer.path.trim() : '';
+        const wrote = said ? path.resolve(said) : file;
+        const nested = wrote !== file;
+        if (nested && i === 0) log(`  the client chose its own path; following it there instead of ${stem}.`);
         const pngs = await waitForShot({
           fs,
-          file,
-          dir: shotsDir,
-          stem,
+          file: wrote,
+          // A path of the client's own is a folder of frames in its own right, so it is read as the
+          // directory; otherwise the layout is the usual one, a folder named for the moment.
+          dir: nested ? wrote : shotsDir,
+          stem: nested ? '' : stem,
           skip: stale,
           tries: shotTries,
           waitMs: shotWaitMs,
@@ -1780,11 +1802,24 @@ export async function run({
       // A failure here never fails the run. The recording is written and correct by this point, and
       // the cost of leaving an orphan is a fraction of a cent a month — where throwing would lose a
       // ten-minute run over housekeeping.
-      try {
-        const swept = await firestore.sweepShots(matchId, referencedShotIds(recording));
-        if (swept) log(`Swept ${swept} picture${swept === 1 ? '' : 's'} an earlier recording of this game left behind.`);
-      } catch (err) {
-        log(`Could not sweep the pictures of an earlier recording (${messageOf(err)}). The recording itself is written and correct.`);
+      // NEVER when this run kept nothing (12 Sep 2026, after it destroyed a good recording).
+      //
+      // A run whose renders all failed writes an index naming no pictures, and sweeping against
+      // that index deletes every picture the LAST run wrote — fifty-two of them, in the case that
+      // taught this. The reasoning behind the sweep was that a picture the current index does not
+      // name is unreachable; that is true, but it is unreachable BECAUSE this index replaced the
+      // one that named it, which is an argument for keeping it until a run actually replaces it.
+      // A recording with no pictures is the one case where the old ones are strictly better than
+      // what we have, so it is the one case that must not sweep.
+      if (!kept.length) {
+        log('No pictures were kept, so nothing was swept: whatever an earlier recording left is now the only picture of this game there is.');
+      } else {
+        try {
+          const swept = await firestore.sweepShots(matchId, referencedShotIds(recording));
+          if (swept) log(`Swept ${swept} picture${swept === 1 ? '' : 's'} an earlier recording of this game left behind.`);
+        } catch (err) {
+          log(`Could not sweep the pictures of an earlier recording (${messageOf(err)}). The recording itself is written and correct.`);
+        }
       }
     }
   } finally {
