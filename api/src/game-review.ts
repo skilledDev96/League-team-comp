@@ -63,6 +63,7 @@ import { displayChampionName } from './champion-names';
 import { CompExpectation } from './daily-refresh';
 import { compareCurve, GameFacts, k } from './game-facts';
 import { LaneRead, LaneRole, PlayerFacts } from './lane-read';
+import { LaneMatchup, matchupLines } from './lane-matchups';
 import { deathLines, fightLines, FIGHT_WINDOW_SEC, MAX_DEATH_LINES, MAX_FIGHT_LINES, ReplayRecording } from './replay-recording';
 
 export const REVIEW_VERSION = 7;
@@ -160,6 +161,13 @@ export interface ReviewContext {
     gamePlan?: { early?: string; mid?: string; late?: string };
     notes?: string;
   } | null;
+  /**
+   * What solo queue at large did with the five pairings we drafted (12 Sep 2026), read from
+   * `matchupIndex` — the crawler's own published rates, which until now only the draft room ever
+   * opened. Absent when the crawler has not reached this patch, and empty when no lane cleared
+   * `MIN_MATCHUP_GAMES`; both are ordinary, and the block simply does not print.
+   */
+  laneMatchups?: LaneMatchup[];
   /** The team's own match note, trimmed. */
   note: string;
   players: ReviewPlayer[];
@@ -313,6 +321,19 @@ function draftSection(ctx: ReviewContext): string[] {
   return lines;
 }
 
+/**
+ * What the wider game says about the five lanes we drafted (12 Sep 2026).
+ *
+ * The one question the review has never been able to answer — was this lane worth taking? — and the
+ * answer was already in Firestore, published daily and read by nothing but the draft room. It goes
+ * beside the draft rather than beside the game on purpose: it is a fact about a pairing, not about
+ * anybody's play, and the block says so twice because a model handed "41%" will otherwise report it
+ * as something one of ours did.
+ */
+function matchupSection(ctx: ReviewContext): string[] {
+  return matchupLines(ctx.laneMatchups ?? [], displayChampionName);
+}
+
 function happenedSection(ctx: ReviewContext, withLedger: boolean): string[] {
   const f = ctx.facts;
   const lines = ['WHAT HAPPENED', ...f.lines];
@@ -388,7 +409,7 @@ function noteSection(ctx: ReviewContext): string[] {
 
 /** The team question, as text the model reads once. The draft block is the team's alone; the player prompt has no draft field. */
 export function buildTeamPrompt(ctx: ReviewContext): string {
-  return [`TEAM: ${ctx.teamName}`, '', ...gameSection(ctx), '', ...compSection(ctx), '', ...draftSection(ctx), '', ...happenedSection(ctx, true), '', ...noteSection(ctx)].join('\n').trim();
+  return [`TEAM: ${ctx.teamName}`, '', ...gameSection(ctx), '', ...compSection(ctx), '', ...draftSection(ctx), '', ...matchupSection(ctx), '', ...happenedSection(ctx, true), '', ...noteSection(ctx)].join('\n').trim();
 }
 
 function fmt(n: number | undefined, unit = ''): string | null {
@@ -453,7 +474,7 @@ export function buildPlayerPrompt(ctx: ReviewContext): string {
     const spend = ctx.facts.spend.find((x) => x.seat === p.seat);
     if (spend?.firstItemMinute !== undefined) per.push(`  First item’s worth of gold spent by minute ${spend.firstItemMinute}, ${spend.backs} backs.`);
   }
-  return [`TEAM: ${ctx.teamName}`, '', ...gameSection(ctx), '', ...compSection(ctx), '', ...happenedSection(ctx, false), '', ...per, '', ...noteSection(ctx)].join('\n').trim();
+  return [`TEAM: ${ctx.teamName}`, '', ...gameSection(ctx), '', ...compSection(ctx), '', ...matchupSection(ctx), '', ...happenedSection(ctx, false), '', ...per, '', ...noteSection(ctx)].join('\n').trim();
 }
 
 // ---- The schemas ---------------------------------------------------------------

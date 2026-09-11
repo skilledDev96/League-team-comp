@@ -50,8 +50,9 @@ import {
   summariseTogether
 } from './team-history';
 import { buildIndex, indexDocPath, splitIndexId, RawMatchupDoc } from './matchup-index';
+import { LANE_OF, LaneMatchup, matchupFor, MatchupIndexDoc } from './lane-matchups';
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
-import { displayChampionName } from './champion-names';
+import { displayChampionName, riotChampionId } from './champion-names';
 import { ChampionTraits, toTraits } from './champion-traits';
 import { API_SHA, BUILD_SHA } from './build-info';
 import { LaneRead, PlayerFacts, playerFacts, readLanes } from './lane-read';
@@ -2463,6 +2464,79 @@ function teamContentOf(prompt: string, frames: readonly ReviewFrame[]): Anthropi
  * Review one game and store it. Throws on a model or data error; returns
  * null when the model declined, in which case nothing is written.
  */
+/** Newest patch last. "16.9" is older than "16.18", which a string sort gets backwards. */
+function comparePatch(a: string, b: string): number {
+  const parts = (p: string) => p.split('.').map((n) => Number(n) || 0);
+  const [x, y] = [parts(a), parts(b)];
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const diff = (x[i] ?? 0) - (y[i] ?? 0);
+    if (diff) return diff;
+  }
+  return 0;
+}
+
+/**
+ * What solo queue at large did with the five pairings we drafted (12 Sep 2026).
+ *
+ * The rates are published daily to `matchupIndex/{patch}_{LANE}` by `buildMatchupIndex` and, until
+ * now, only the draft room ever read them — so the review could say how a lane went and never
+ * whether it was a lane worth taking. Both patches are fetched per lane because a thin pairing on
+ * the current one is combined with the previous, which is the rule `MatchupStatsService` follows;
+ * the two must quote the same number for the same lane or the draft room and the review contradict
+ * each other in front of the same coach.
+ *
+ * The champions have to be resolved to Riot ids first: an analysis game stores DISPLAY names, and
+ * the crawler keyed on the id. "Wukong" finds nothing under "MonkeyKing".
+ *
+ * Optional to the review, like the champion list: a read that fails costs the block and never the
+ * game.
+ */
+async function laneMatchupsFor(ours: ReviewContext["players"], enemies: { position: string; champion: string }[] | undefined, matchId: string): Promise<LaneMatchup[]> {
+  if (!enemies?.length || !ours.length) return [];
+  const db = getFirestore();
+  const wanted = ours
+    .map((p) => {
+      const foe = enemies.find((e) => e.position === p.seat);
+      if (!foe?.champion || !p.champion) return null;
+      return { seat: p.seat, lane: LANE_OF[p.seat], ours: riotChampionId(p.champion), theirs: riotChampionId(foe.champion) };
+    })
+    .filter((x): x is { seat: ReviewContext["players"][number]["seat"]; lane: string; ours: string; theirs: string } => !!x);
+  if (!wanted.length) return [];
+
+  try {
+    // Ids only: a lane document is ~21 KB of pairings and none of it is needed to learn which
+    // patches exist.
+    const ids = (await db.collection('matchupIndex').select().get()).docs.map((d: { id: string }) => d.id);
+    const patchesByLane = new Map<string, string[]>();
+    for (const id of ids) {
+      const split = splitIndexId(id);
+      if (!split) continue;
+      patchesByLane.set(split.lane, [...(patchesByLane.get(split.lane) ?? []), split.patch]);
+    }
+    const paths = new Map<string, { lane: string; patch: string }>();
+    for (const w of wanted) {
+      for (const patch of (patchesByLane.get(w.lane) ?? []).sort(comparePatch).reverse().slice(0, 2)) {
+        paths.set(indexDocPath(patch, w.lane), { lane: w.lane, patch });
+      }
+    }
+    if (!paths.size) return [];
+    const snaps = await db.getAll(...[...paths.keys()].map((p) => db.doc(p)));
+    const docsByLane = new Map<string, MatchupIndexDoc[]>();
+    for (const [i, path] of [...paths.keys()].entries()) {
+      const where = paths.get(path);
+      const data = snaps[i]?.data() as { pairs?: Record<string, { games?: number; winsA?: number }> } | undefined;
+      if (!where || !data?.pairs) continue;
+      docsByLane.set(where.lane, [...(docsByLane.get(where.lane) ?? []), { patch: where.patch, lane: where.lane, pairs: data.pairs }]);
+    }
+    // Newest first, which is the order `matchupFor` reads them in.
+    for (const list of docsByLane.values()) list.sort((a, b) => comparePatch(b.patch, a.patch));
+    return wanted.map((w) => matchupFor(w.seat, w.ours, w.theirs, docsByLane.get(w.lane) ?? [])).filter((m): m is LaneMatchup => !!m);
+  } catch (err) {
+    console.warn(`[gameReview] matchupIndex could not be read for ${matchId}; the review carries no lane rates: ${(err as Error)?.message ?? err}`);
+    return [];
+  }
+}
+
 async function reviewGame(
   matchId: string,
   opts: { anthropicKey: string; riotKey: string; trigger: GameReview['trigger']; expect?: CompExpectation | null; games?: AnalysisGameResponse[] }
@@ -2537,6 +2611,9 @@ async function reviewGame(
       : null;
   const note = String((noteSnap.data() as { text?: string } | undefined)?.text ?? '').trim().slice(0, 1500);
 
+  const ourFive = reviewPlayers(game);
+  const laneMatchups = await laneMatchupsFor(ourFive, game.enemies, matchId);
+
   const ctx: ReviewContext = {
     teamName: settings.teamName || 'the team',
     tier,
@@ -2544,8 +2621,9 @@ async function reviewGame(
     facts,
     comp,
     note,
-    players: reviewPlayers(game),
+    players: ourFive,
     championNames,
+    ...(laneMatchups.length > 0 && { laneMatchups }),
     ...(recordedLines.length > 0 && { recordedLines }),
     // The recording goes over whole beside its sentences (11 Sep 2026): the
     // prompt is the only place that knows how many death boards it can afford

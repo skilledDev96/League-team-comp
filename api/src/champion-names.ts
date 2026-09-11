@@ -30,3 +30,20 @@ export const DDRAGON_TO_DISPLAY: Record<string, string> = {
 export function displayChampionName(riotChampionName: string): string {
   return DDRAGON_TO_DISPLAY[riotChampionName] ?? riotChampionName;
 }
+
+const DISPLAY_TO_DDRAGON: Record<string, string> = Object.fromEntries(Object.entries(DDRAGON_TO_DISPLAY).map(([id, display]) => [display, id]));
+
+/**
+ * The other direction: Riot's championName for a display name (12 Sep 2026).
+ *
+ * Needed because an analysis game stores champions as DISPLAY names — `enemies[].champion` and
+ * `players[].champion` both come through `displayChampionName` — while everything the crawler
+ * collects is keyed on the id. Reading a lane matchup off "Wukong" finds nothing, because the
+ * counters are under "MonkeyKing"; and stripping punctuation does not rescue it either, since
+ * "Kai'Sa" strips to "KaiSa" where the id is "Kaisa". The app has been bitten by exactly this once
+ * already — three champions had no solo queue rate for weeks — and a missing rate looks identical
+ * to a rate below the sample floor, which is what hid it.
+ */
+export function riotChampionId(displayName: string): string {
+  return DISPLAY_TO_DDRAGON[displayName] ?? displayName;
+}
