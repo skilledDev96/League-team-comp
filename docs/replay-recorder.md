@@ -26,6 +26,33 @@ the app shows them beside the game on the Games row.
 
 A full video is neither needed nor readable. A frame at each death is.
 
+**A picture is no longer all that is taken at a death** (11 Sep 2026). The run
+seeks to two seconds before each death of ours — the same second that death's
+picture is rendered from, so the board and the frame agree — and reads the whole
+board off the Live Client's player list: all ten by seat, the level each was,
+the cs each had, the items each was holding in slot order with the trinket among
+them, and, for anyone already on the floor, that they were down and the seconds
+left on them. The first `MAX_DEATH_STATES` (30) deaths of ours get one, which
+covers a bloodbath and still leaves the document far under Firestore's megabyte.
+
+The summoner spells and the keystone are kept on the **seat** instead. Neither
+changes during a game, so they belong once beside the champion rather than
+repeated at every death of that seat.
+
+**Why a board and not a frame per champion.** The lead asked whether to run the
+recorder once with `--no-follow` and then once per seat, and merge the runs. It
+would not have worked: a picture is stored at `replayShots/{matchId}__{sec}` and
+that id has no room for *whose* HUD it is, so the second run overwrites the
+first; a review reads at most eight frames (`MAX_REVIEW_SHOTS`) however many are
+stored; and each run costs about six minutes. It was also the expensive way
+round — everything except live ability cooldowns is already in the per-player
+list as JSON, for all ten at once, at any second the run cares to ask. The
+cooldowns are the exception and they really are pixels only; see "What it cannot
+know".
+
+`RECORDER_VERSION` is **2** as of this. Both new blocks are optional, so a
+document written before them reads exactly as it did.
+
 ## In the client first
 
 The lead does this, then runs the script.
@@ -123,10 +150,11 @@ be run directly: `node scripts/replay-recorder.mjs EUW1-7977592156`.
 | `--follow <seat\|champion>` | — | Holds one player for every picture instead of following each death's victim, so every frame carries that seat's HUD — the jungler for pathing and smite, a carry for the cooldowns in the fights they died in. **Say the seat** (`jungle`, `jg`, `top`, `mid`, `adc`, `bot`, `support`, `sup`) and the same command line keeps working next week, whoever is playing what; a champion by either spelling (`Vi`, `Miss Fortune`, `MissFortune`) works too. A seat always resolves to one of ours. Anything that matches neither is refused before the run starts rather than after it. |
 | `--no-follow` | off | Touches the camera not at all, so the replay's own **Directed Camera** decides every shot. Use it when you want frames of the fight rather than of one player. |
 
-A 35-minute game is roughly 35 seeks for the samples plus one per picture, so
-expect a few minutes. It prints `minute 12 of 34` as it goes, then a summary:
-minutes sampled (and how many were **not** read), events, pictures kept and
-dropped, and the KB it wrote. A minute the client never landed on is left out
+A 35-minute game is roughly 35 seeks for the samples, one more per death board
+and one per picture, so expect a few minutes. It prints `minute 12 of 34` as it
+goes and `reading the board at 9 deaths of ours...` when it reaches them, then a
+summary: minutes sampled (and how many were **not** read), events, the boards
+read, pictures kept and dropped, and the KB it wrote. A minute the client never landed on is left out
 of the recording entirely rather than stored with whatever the client happened
 to be showing — the run parks the client at the end of the game first, so a
 stuck seek would otherwise file the final scoreboard under minute 1.
@@ -163,6 +191,14 @@ Twenty pictures are recorded and eight are read, because the extra ones cost
 almost nothing to store and give the frames strip on the Games row something to
 show.
 
+The death boards cost nothing worth counting against that: a few hundred bytes
+each, thirty at most, in the recording document beside the samples, and the only
+tokens they spend are the lines they print. What they cost is time — one seek
+and one read each, which is the same order as a picture, and what
+`MAX_DEATH_STATES` (30) is there to bound. Fewer reach the review than are
+stored, as with the frames: `MAX_DEATH_LINES` (20) boards are printed into the
+prompt, earliest first, and the rest are kept and simply not read.
+
 ## What it cannot know
 
 The review must not claim any of this, and neither may anything built on a
@@ -174,8 +210,16 @@ recording:
 - **No positions between frames.** Nothing in the client's data says where
   anyone stood. The only view of the map is the minimap inside a frame, which is
   one moment and approximate.
-- **No cooldowns** beyond what the spectated player's HUD happens to show in a
-  picture.
+- **No ability cooldowns**, at a death or anywhere else, beyond what the
+  spectated player's HUD happens to show in a picture.
+  `/liveclientdata/activeplayer` is where the client keeps them and it answers
+  **400** in a replay — there is no active player when nobody is playing. It is
+  the one part of "champion-specific data with cooldowns" the run cannot give,
+  and the reason everything else is read off the per-player list instead.
+- **No board except at a death of ours**, and only the first thirty of those.
+  What anyone was holding at any other second is not stored — the minute samples
+  carry levels, cs, kills, deaths, assists and the ward score by seat, and no
+  items — so a death's board is that second and not the minute around it.
 
 A recorded game gets the recorder's own account of the game in "How the game
 went" and the frames strip, and still no tape and no map in the film room —
@@ -265,8 +309,9 @@ the client drops a request now and then while it is seeking.
   It lives in `api/` because that is the only place in the repo a node spec
   actually runs; the `.mjs` is invisible to `npm run build`.
 - `api/src/replay-recording.ts` — the stored shape and `recordingLines` /
-  `shotsFor`, which turn a recording into the review's prompt lines and pick the
-  frames it attaches.
+  `deathLines` / `shotsFor`, which turn a recording into the review's prompt
+  lines (the minutes, then the board at each death) and pick the frames it
+  attaches.
 - `frontend/src/app/core/replay-lines.ts` — a true mirror of that file, like
   `compareCurve`. The two produce the same lines for the same recording, and
   each has the other's spec; if either drifts, a suite goes red.
@@ -365,4 +410,14 @@ place it exists. `--hide-panels` turns them off for a client that is not in
 streamer mode, at the cost of everything in that list.
 
 A run also hands the client back the interface it had, so the replay you carry
-on watching is the one you started with.
+on watching is the one you started with — and since 11 Sep 2026 it does that on
+the way out of a **Ctrl-C** too, after the lead found the scoreboard missing and
+had to tick it back on. That mattered more than it sounds: a run that died
+without restoring left the panels where it had put them, and the *next* run then
+read that as "what the lead had" and faithfully restored it, so one interrupted
+run quietly degraded every run after it.
+
+The one case nothing can fix is the **client itself** going down mid-run: the
+API goes with it, so there is nobody left to restore anything. Tick the panels
+back on in the replay's own controls, and the next run will take that as the
+baseline.

@@ -28,7 +28,14 @@
  * A recorded game (10 Sep 2026): a custom game that the local recorder
  * watched arrives as `recordedLines` — the sentences `replay-recording.ts`
  * reads off `replayRecordings/{matchId}` — inside WHAT HAPPENED, and as
- * frames of our own game attached to the team call.
+ * frames of our own game attached to the team call. Since 11 Sep 2026 a
+ * recording from recorder version 2 also carries the board at each death of
+ * ours — what all ten were holding two seconds before it — which `deathLines`
+ * prints under its own heading beside the minutes, so a point can be as
+ * concrete as "you fell at twelve with no control ward and their jungler
+ * already down for fifteen seconds". It is prompt input and nothing else:
+ * there is no field for it in either schema, so `REVIEW_VERSION` does not
+ * move for it.
  *
  * Version 7 (11 Sep 2026) stores `recorded` beside `tier`, because nothing in
  * a version 6 document said a review had been written off a recording: the
@@ -56,6 +63,7 @@ import { displayChampionName } from './champion-names';
 import { CompExpectation } from './daily-refresh';
 import { compareCurve, GameFacts, k } from './game-facts';
 import { LaneRead, LaneRole, PlayerFacts } from './lane-read';
+import { deathLines, MAX_DEATH_LINES, ReplayRecording } from './replay-recording';
 
 export const REVIEW_VERSION = 7;
 
@@ -173,6 +181,20 @@ export interface ReviewContext {
    * call are the only view of the map.
    */
   recordedLines?: string[];
+  /**
+   * The recording itself, when the recorder that watched the game was new
+   * enough to keep it (11 Sep 2026). `recordedLines` above is the game minute
+   * by minute; this is the board at each death of ours — what all ten were
+   * holding two seconds before it — and `deathLines` is what prints it.
+   *
+   * It is handed over whole rather than pre-printed, unlike `recordedLines`,
+   * for two reasons: the prompt is the only place that knows how many boards
+   * it can afford beside the frames, and it has to be able to say how many
+   * deaths it left out, which a list of finished sentences can no longer tell
+   * it. A recording from before the boards existed carries no `deaths` and the
+   * block simply does not appear.
+   */
+  recording?: ReplayRecording;
 }
 
 /** Our five as the review names them, from the game's players. */
@@ -307,6 +329,29 @@ function happenedSection(ctx: ReviewContext, withLedger: boolean): string[] {
   // replay file, the minutes below from the recorder that watched it. Both
   // prompts get the sentences; only the team call gets the frames.
   if (ctx.recordedLines?.length) lines.push('RECORDED FROM THE REPLAY, MINUTE BY MINUTE', ...ctx.recordedLines);
+  // The board at each death of ours (11 Sep 2026), beside the minutes above.
+  // The recorder reads it two seconds before the death, the way it renders a
+  // frame, so this is the one part of the prompt that is exact rather than
+  // sampled a minute at a time — and it is also the one place a model would
+  // cheerfully invent a cooldown off an item, which is why the block says
+  // outright that there are none.
+  //
+  // Twenty boards is `MAX_DEATH_LINES`, the recorder's own cap, and it stands
+  // here: at roughly forty tokens a line that is a thousand against the ten
+  // thousand the frames already cost, so it crowds nothing out. A bloodbath
+  // past twenty is stored and simply not printed, and the line below says so —
+  // a review that read nine deaths in the totals and found six boards under
+  // them would otherwise take the gap for the game.
+  const boards = ctx.recording ? deathLines(ctx.recording, MAX_DEATH_LINES) : [];
+  if (boards.length) {
+    const recorded = ctx.recording?.deaths?.length ?? boards.length;
+    lines.push(
+      'AT EACH DEATH OF OURS, WHAT ALL TEN WERE HOLDING (read off the League client two seconds before the death, as a frame is)',
+      'This is items, levels, farm, and who was already on the floor with whatever respawn the client gave — and that is the whole of it. There are no ability cooldowns anywhere in it, for anyone, because a replay does not give them: never say an ability was up or down, and never read one out of an item. A seat holding nothing was holding nothing, and every side here is a seat, never a person.',
+      ...(recorded > boards.length ? [`These are the first ${boards.length} of ${recorded} deaths, in time order; the rest were recorded and are not printed here, so do not count our deaths off this block.`] : []),
+      ...boards
+    );
+  }
   if (ctx.tier === 'endOfGame') {
     lines.push(
       ctx.recordedLines?.length

@@ -18,6 +18,7 @@ import {
   TEAM_SCHEMA,
   TEAM_SYSTEM
 } from './game-review';
+import { MAX_DEATH_LINES, ReplayDeathState } from './replay-recording';
 
 const game: ReviewContext['game'] = {
   queue: 'Flex',
@@ -147,6 +148,61 @@ describe('the prompts', () => {
     // A game with a timeline is untouched, and so is a replay with no recording.
     expect(buildTeamPrompt(ctx)).not.toContain('RECORDED FROM THE REPLAY');
     expect(buildTeamPrompt({ ...recorded, recordedLines: [] })).toContain('TIER: totals only, from a replay file.');
+  });
+
+  it('print the board at each death of ours, and nothing at all for a recording made before the recorder kept them', () => {
+    // 11 Sep 2026: recorder version 2 reads what all ten were holding two
+    // seconds before each death of ours. The recording is handed over whole
+    // rather than pre-printed, so the prompt can say how many boards it left
+    // out; a version 1 document carries no `deaths` and must read exactly as
+    // it did, with no empty heading over nothing.
+    const board = (sec: number): ReplayDeathState => ({
+      sec,
+      seat: 'Top',
+      players: [
+        { seat: 'Top', ours: true, level: 11, cs: 132, items: ['Sunfire Aegis', 'Stealth Ward'] },
+        { seat: 'Jungle', ours: false, level: 12, cs: 96, items: ['Sundered Sky'], dead: true, respawn: 14.6 }
+      ]
+    });
+    const recorded = (deaths?: ReplayDeathState[]): ReviewContext => ({
+      ...ctx,
+      recording: {
+        matchId: 'EUW1-7977592156',
+        recordedAt: '2026-09-11T19:04:00.000Z',
+        recorderVersion: 2,
+        durationSec: 1860,
+        ourSide: 'blue',
+        seats: [],
+        samples: [],
+        events: [],
+        shots: [],
+        ...(deaths && { deaths }),
+        bytes: 4096
+      }
+    });
+
+    const one = recorded([board(1105)]);
+    // Both coaches read the boards: they are sentences, not frames.
+    for (const prompt of [buildTeamPrompt(one), buildPlayerPrompt(one)]) {
+      expect(prompt).toContain('AT EACH DEATH OF OURS, WHAT ALL TEN WERE HOLDING');
+      expect(prompt).toContain('Minute 18: our Top fell, holding Sunfire Aegis, Stealth Ward; level 11, 132 cs; already down: their Jungle (15s left).');
+      expect(prompt).toContain('There are no ability cooldowns anywhere in it');
+      // Nothing was left out, so nothing says anything was.
+      expect(prompt).not.toContain('These are the first');
+    }
+
+    // Riot's rule holds in the prompt too: the other team is a seat on a side.
+    const printed = buildTeamPrompt(one).split('AT EACH DEATH OF OURS')[1];
+    expect(printed).not.toMatch(/#|puuid|summoner/i);
+
+    // Past the cap the boards are stored and not printed, and the prompt says
+    // so — a review that counted our deaths off this block would be wrong.
+    const many = buildTeamPrompt(recorded(Array.from({ length: 25 }, (_, i) => board(300 + i * 60))));
+    expect(many).toContain(`These are the first ${MAX_DEATH_LINES} of 25 deaths, in time order`);
+
+    // A version 1 recording, and a game with no recording at all.
+    expect(buildTeamPrompt(recorded())).not.toContain('AT EACH DEATH OF OURS');
+    expect(buildTeamPrompt(ctx)).not.toContain('AT EACH DEATH OF OURS');
   });
 
   it('tell the team coach that an attached frame is a picture of our own game, read for the minimap and the HUD', () => {

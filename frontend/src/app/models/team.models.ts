@@ -1092,6 +1092,10 @@ export interface ReplaySeat {
   ours: boolean;
   /** OURS ONLY. Absent on every seat of theirs. */
   name?: string;
+  /** The two summoner spells, fixed for a whole game and so kept on the seat. */
+  spells?: string[];
+  /** The keystone rune, likewise fixed. */
+  keystone?: string;
 }
 
 /** A player's line at one checkpoint. No gold: the client gives it for the spectated player alone. */
@@ -1143,6 +1147,29 @@ export interface ReplayShotRef {
   docId: string;
 }
 
+/** What one player was holding at a death of ours. Their side is a seat, never a name. */
+export interface ReplayDeathPlayer {
+  seat: Role;
+  ours: boolean;
+  level: number;
+  cs: number;
+  /** In slot order, the trinket and control wards included. */
+  items: string[];
+  /** Only when they were already down; absent means alive, never false. */
+  dead?: boolean;
+  /** Seconds left on them, when the client said. */
+  respawn?: number;
+}
+
+/** The board at one death of ours: all ten, by seat. */
+export interface ReplayDeathState {
+  /** The second the death happened; the board is read two seconds before it, as a frame is. */
+  sec: number;
+  /** Whose death it was. Always one of ours. */
+  seat: Role;
+  players: ReplayDeathPlayer[];
+}
+
 /** One game as the local recorder saw it (`replayRecordings/{matchId}`). */
 export interface ReplayRecording {
   matchId: string;
@@ -1157,6 +1184,8 @@ export interface ReplayRecording {
   samples: ReplaySample[];
   events: ReplayEvent[];
   shots: ReplayShotRef[];
+  /** What all ten held at each death of ours, newest recorders only. */
+  deaths?: ReplayDeathState[];
   bytes: number;
 }
 

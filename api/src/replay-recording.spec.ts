@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { LaneRole } from './lane-read';
 import {
+  deathLines,
+  MAX_DEATH_LINES,
   MAX_RECORDING_LINES,
   MAX_REVIEW_SHOTS,
   recordingLines,
+  ReplayDeathPlayer,
+  ReplayDeathState,
   ReplayEvent,
   ReplayRecording,
   ReplaySample,
@@ -173,6 +177,75 @@ describe('recordingLines', () => {
     const bare = recordingLines({ ...recording(), seats: [], samples: [], events: [] });
     expect(bare).toHaveLength(2);
     expect(bare[0]).toContain('recorded from the replay');
+  });
+});
+
+describe('deathLines', () => {
+  const ITEMS = ['Sunfire Aegis', 'Plated Steelcaps', 'Stealth Ward'];
+
+  function held(seat: LaneRole, ours: boolean, over: Partial<ReplayDeathPlayer> = {}): ReplayDeathPlayer {
+    return { seat, ours, level: 11, cs: 132, items: [...ITEMS], ...over };
+  }
+
+  /** All ten on their feet, so a test only has to say who was not. */
+  function ten(over: (seat: LaneRole, ours: boolean) => Partial<ReplayDeathPlayer> = () => ({})): ReplayDeathPlayer[] {
+    return [...SEATS.map((seat) => held(seat, true, over(seat, true))), ...SEATS.map((seat) => held(seat, false, over(seat, false)))];
+  }
+
+  function board(sec: number, seat: LaneRole, players = ten()): ReplayDeathState {
+    return { sec, seat, players };
+  }
+
+  it('has nothing to say about a recording from before the recorder kept the boards', () => {
+    // A document written by version 1 must read exactly as it did: no death
+    // lines of its own, and the minute-by-minute lines untouched by the new key.
+    expect(deathLines(recording())).toEqual([]);
+    expect(recordingLines(recording({ deaths: [board(1105, 'Top')] }))).toEqual(recordingLines(recording()));
+  });
+
+  it('names what the player who fell was holding, and their level and farm', () => {
+    expect(deathLines(recording({ deaths: [board(1105, 'Top')] }))).toEqual([
+      'Minute 18: our Top fell, holding Sunfire Aegis, Plated Steelcaps, Stealth Ward; level 11, 132 cs.'
+    ]);
+  });
+
+  it('says so plainly when the player who fell had bought nothing yet', () => {
+    const empty = board(180, 'Mid', ten((seat, ours) => (ours && seat === 'Mid' ? { items: [], level: 4, cs: 21 } : {})));
+    expect(deathLines(recording({ deaths: [empty] }))).toEqual(['Minute 3: our Mid fell, holding nothing; level 4, 21 cs.']);
+  });
+
+  it('lists who was already on the floor with the seconds left on them, as a seat on a side and never a name', () => {
+    const players = ten((seat, ours) => (ours && seat === 'Jungle' ? { dead: true, respawn: 21.4 } : !ours && seat === 'Mid' ? { dead: true } : {}));
+    const [line] = deathLines(recording({ deaths: [board(1105, 'Top', players)] }));
+    expect(line).toContain('already down: our Jungle (21s left), their Mid');
+    // Riot's rule holds here as everywhere: a death board carries a seat and a
+    // side and nothing else, so no name of ours and no Riot id of theirs can
+    // reach a line even when the board is read out in full.
+    for (const name of NAMES) expect(line).not.toContain(name);
+    expect(line).not.toMatch(/#|puuid/i);
+  });
+
+  it('reads a player with no `dead` key as alive, which is how the recorder writes it', () => {
+    expect(deathLines(recording({ deaths: [board(1105, 'Top')] }))[0]).not.toContain('already down');
+    const standing = board(1105, 'Top', ten(() => ({ dead: false })));
+    expect(deathLines(recording({ deaths: [standing] }))[0]).not.toContain('already down');
+  });
+
+  it('prints at most twenty boards, the earliest of them: the rest are stored and simply not read', () => {
+    const many = Array.from({ length: 30 }, (_, i) => board(300 + i * 60, 'Top'));
+    const lines = deathLines(recording({ deaths: many }));
+    expect(lines).toHaveLength(MAX_DEATH_LINES);
+    expect(lines[0]).toContain('Minute 5:');
+    expect(lines[lines.length - 1]).toContain('Minute 24:');
+  });
+
+  it('puts the deaths in time order however they were stored', () => {
+    const deaths = [board(1400, 'ADC'), board(300, 'Support'), board(844, 'Jungle')];
+    expect(deathLines(recording({ deaths })).map((l) => l.slice(0, l.indexOf(' fell')))).toEqual([
+      'Minute 5: our Support',
+      'Minute 14: our Jungle',
+      'Minute 23: our ADC'
+    ]);
   });
 });
 

@@ -375,7 +375,34 @@ filter rather than none, so it can never become unpickable.
    the end); `reviewGame` attaches those frames to the team call as image
    blocks, about five cents a review on top. `core/replay-lines.ts` mirrors
    the api file exactly, like `compareCurve` — each carries the other's
-   spec, so drift turns a suite red. The app reads both collections on
+   spec, so drift turns a suite red.
+   **What all ten were holding when we died** (11 Sep 2026,
+   `RECORDER_VERSION` 2, the lead: "follow the jungler, then the adc, to get
+   champion-specific data with cooldowns"). At each death of ours the run
+   seeks to two seconds before it — the same second that death's picture is
+   rendered from, so the board and the frame agree — and reads the Live
+   Client's whole player list as a `ReplayDeathState`: the second, the seat
+   that fell, and a `ReplayDeathPlayer` for each of the ten with `seat`,
+   `ours`, `level`, `cs`, the `items` in slot order (trinket and control
+   wards included) and, only for someone already down, `dead` with the
+   `respawn` seconds left on them — an absent key is alive, never `false`.
+   `MAX_DEATH_STATES` (30) deaths get a board; `deathLines` prints
+   `MAX_DEATH_LINES` (20) of them into the prompt, earliest first, and the
+   rest are stored and simply not read. It is a mirrored function like
+   `recordingLines`, so it lives in both files word for word. The summoner
+   spells and the keystone ride on `ReplaySeat` instead (`spells`,
+   `keystone`), because neither changes during a game. **Not a frame per
+   champion**, which is what was asked for and was the expensive way round:
+   a picture is `replayShots/{matchId}__{sec}` with nowhere in the id to say
+   whose HUD it is, so a second run overwrites the first; a review reads
+   eight frames however many are stored; each run costs about six minutes;
+   and everything except live ability cooldowns is already in the
+   per-player list as JSON for all ten at once. The cooldowns really are
+   pixels only — `/liveclientdata/activeplayer` answers 400 in a replay,
+   there being no active player to ask. `deaths` and both seat keys are
+   optional, so a document written before this reads exactly as it did, and
+   a row carries a seat and an `ours` flag and nothing else: no name of
+   theirs here either. The app reads both collections on
    demand through `services/replay-recording.service.ts` (`getDoc`, never a
    listener; a picture when its thumbnail is in view or tapped, and at most
    `EAGER_SHOTS` (4) of them before the reader has touched the strip, since a

@@ -23,6 +23,7 @@ import {
   jpegSize,
   mmss,
   makeCameraHold,
+  MAX_DEATH_STATES,
   NAMING_FLAGS,
   normaliseMatchId,
   parseArgs,
@@ -80,9 +81,18 @@ function livePlayers(minute) {
   const all = [...OUR_LIVE, ...THEIR_LIVE];
   return all.map((player, i) => ({
     ...player,
-    isDead: false,
+    // Their jungler is dead through the middle of the game, which is the thing a death of ours most
+    // wants to say: who was already down, and for how long.
+    isDead: i === 6 && minute > 5 && minute < 20,
+    respawnTimer: i === 6 && minute > 5 && minute < 20 ? 14.8125 : 0,
     level: Math.min(18, 1 + Math.floor(minute / 2)),
-    items: [],
+    // Out of slot order on purpose: the recorder sorts them, and a trinket in slot 6 is a ward.
+    items: [
+      { displayName: 'Boots', slot: 1, itemID: 1001 },
+      { displayName: 'Stealth Ward', slot: 6, itemID: 3340 },
+      { displayName: i % 2 ? "Doran's Shield" : "Doran's Blade", slot: 0, itemID: 1054 }
+    ],
+    runes: { keystone: { displayName: i === 1 ? 'Conqueror' : 'Electrocute' } },
     scores: {
       kills: Math.floor(minute / 7) + (i % 3),
       deaths: Math.floor(minute / 9) + (i % 2),
@@ -90,7 +100,10 @@ function livePlayers(minute) {
       creepScore: minute * 7 + i,
       wardScore: Math.round(minute * 1.25 * 10) / 10
     },
-    summonerSpells: {},
+    summonerSpells: {
+      summonerSpellOne: { displayName: 'Flash' },
+      summonerSpellTwo: { displayName: i === 1 || i === 6 ? 'Smite' : 'Teleport' }
+    },
     team: player.team
   }));
 }
@@ -364,6 +377,8 @@ const RECORDING_KEYS = [
   'seats',
   'samples',
   'events',
+  // What all ten were holding at each death of ours; absent rather than empty when none was read.
+  'deaths',
   'shots',
   'bytes'
 ];
@@ -374,7 +389,7 @@ describe('the replay recorder, over a whole game', () => {
 
     expect(Object.keys(recording).sort()).toEqual([...RECORDING_KEYS].sort());
     expect(recording.matchId).toBe(MATCH_ID);
-    expect(recording.recorderVersion).toBe(1);
+    expect(recording.recorderVersion).toBe(2);
     expect(recording.recordedAt).toBe('2026-09-10T21:00:00.000Z');
     expect(recording.durationSec).toBe(GAME_LENGTH);
     expect(recording.ourSide).toBe('blue');
@@ -390,7 +405,9 @@ describe('the replay recorder, over a whole game', () => {
     expect(theirs.map((s) => s.seat)).toEqual(['Top', 'Jungle', 'Mid', 'ADC', 'Support']);
     expect(theirs.every((s) => s.name === undefined)).toBe(true);
     for (const seat of recording.seats) {
-      expect(Object.keys(seat).every((k) => ['seat', 'champion', 'ours', 'name'].includes(k))).toBe(true);
+      // `spells` and `keystone` are fixed for a whole game, so they live here rather than on every
+      // death of that seat. Neither is a name.
+      expect(Object.keys(seat).every((k) => ['seat', 'champion', 'ours', 'name', 'spells', 'keystone'].includes(k))).toBe(true);
     }
 
     // One sample a minute, five a side, no name anywhere on them.
@@ -553,6 +570,56 @@ describe('the replay recorder, over a whole game', () => {
     const { recording } = await record({ shots: 1, repeatEvents: 3 });
     const seen = new Set(recording.events.map((e) => `${e.sec}|${e.kind}|${e.text}|${e.side}`));
     expect(seen.size).toBe(recording.events.length);
+  });
+
+  // The lead asked whether to run the recorder once per seat to get each champion's HUD. Ability
+  // cooldowns are pixels only — /liveclientdata/activeplayer answers 400 in a replay, there being
+  // no active player to ask — but the items, the levels, the farm and who was already down are in
+  // the per-player list for all ten at once. So one run reads the board at every death instead.
+  it('reads what all ten were holding at each death of ours', async () => {
+    const { recording } = await record({ shots: 1 });
+    // Every death of ours, not just the ones a picture was taken of.
+    expect(recording.deaths.length).toBe(Math.min(MAX_DEATH_STATES, OUR_DEATH_SECONDS.length + 1));
+    expect(recording.deaths.map((d) => d.sec)).toEqual([...OUR_DEATH_SECONDS, 1900]);
+
+    const first = recording.deaths[0];
+    expect(first.seat).toBe('Top');
+    expect(first.players).toHaveLength(10);
+    // Ours first, then theirs, each in lane order, so the prompt reads like a scoreboard.
+    expect(first.players.slice(0, 5).every((p) => p.ours)).toBe(true);
+    expect(first.players.slice(5).every((p) => !p.ours)).toBe(true);
+    expect(first.players.slice(0, 5).map((p) => p.seat)).toEqual(['Top', 'Jungle', 'Mid', 'ADC', 'Support']);
+    // Items in slot order, by their readable names, the trinket included.
+    expect(first.players[0].items).toEqual(["Doran's Blade", 'Boots', 'Stealth Ward']);
+    expect(first.players[0].level).toBeGreaterThan(0);
+
+    // Who was already down when we fell, and for how long: their jungler, through the middle game.
+    const middle = recording.deaths.find((d) => d.sec > 400 && d.sec < 1100);
+    const down = middle.players.filter((p) => p.dead);
+    expect(down).toHaveLength(1);
+    expect(down[0].ours).toBe(false);
+    expect(down[0].respawn).toBeCloseTo(14.8, 1);
+    // Absent, never false: an alive player is not a measurement of deadness.
+    expect('dead' in middle.players.find((p) => p.ours && p.seat === 'Top')).toBe(false);
+
+    // Riot's rule holds here as everywhere: a seat and a champion, never a name.
+    const blob = JSON.stringify(recording.deaths);
+    for (const name of THEIR_NAMES) expect(blob).not.toContain(name);
+    expect(blob).not.toContain('#');
+    expect(blob).not.toContain('Ruan');
+  });
+
+  it('keeps the summoners and the keystone on the seat, since neither changes in a game', async () => {
+    const { recording } = await record({ shots: 1 });
+    const jungle = recording.seats.find((s) => s.ours && s.seat === 'Jungle');
+    expect(jungle.spells).toEqual(['Flash', 'Smite']);
+    expect(jungle.keystone).toBe('Conqueror');
+    const top = recording.seats.find((s) => s.ours && s.seat === 'Top');
+    expect(top.spells).toEqual(['Flash', 'Teleport']);
+    // Theirs carry them too — a keystone is not a name — and still no name.
+    const theirs = recording.seats.filter((s) => !s.ours);
+    expect(theirs.every((s) => Array.isArray(s.spells) && s.spells.length === 2)).toBe(true);
+    expect(theirs.some((s) => 'name' in s)).toBe(false);
   });
 
   it('reads streamer mode off the event list, and turns the panels off when it is not on', async () => {

@@ -30,7 +30,7 @@
 import { LaneRole } from './lane-read';
 
 /** The recorder's shape version. A bump means it keeps something different, so a stored recording says which recorder made it. */
-export const RECORDER_VERSION = 1;
+export const RECORDER_VERSION = 2;
 
 /** Pictures a review is sent, at most. Eight frames are roughly ten thousand input tokens. */
 export const MAX_REVIEW_SHOTS = 8;
@@ -44,6 +44,9 @@ export const MAX_RECORDING_LINES = 40;
 /** Checkpoint lines, at most: one every five minutes thins to this many. */
 export const MAX_SAMPLE_LINES = 5;
 
+/** How many death boards reach a prompt. The rest are stored and simply not printed. */
+export const MAX_DEATH_LINES = 20;
+
 export type ReplayEventKind = 'kill' | 'objective' | 'tower' | 'inhibitor' | 'first' | 'ace' | 'end';
 export type ReplayShotKind = 'death' | 'objective' | 'end';
 export type ReplaySide = 'us' | 'them';
@@ -55,6 +58,10 @@ export interface ReplaySeat {
   ours: boolean;
   /** OURS ONLY. Absent on every seat of theirs. */
   name?: string;
+  /** The two summoner spells, fixed for a whole game and so kept on the seat. */
+  spells?: string[];
+  /** The keystone rune, likewise fixed. */
+  keystone?: string;
 }
 
 /** A player's line at one checkpoint. No gold: the client gives it for the spectated player alone. */
@@ -107,6 +114,29 @@ export interface ReplayShotRef {
   docId: string;
 }
 
+/** What one player was holding at a death of ours. Their side is a seat, never a name. */
+export interface ReplayDeathPlayer {
+  seat: LaneRole;
+  ours: boolean;
+  level: number;
+  cs: number;
+  /** In slot order, the trinket and control wards included. */
+  items: string[];
+  /** Only when they were already down; absent means alive, never false. */
+  dead?: boolean;
+  /** Seconds left on them, when the client said. */
+  respawn?: number;
+}
+
+/** The board at one death of ours: all ten, by seat. */
+export interface ReplayDeathState {
+  /** The second the death happened; the board is read two seconds before it, as a frame is. */
+  sec: number;
+  /** Whose death it was. Always one of ours. */
+  seat: LaneRole;
+  players: ReplayDeathPlayer[];
+}
+
 /** One game as the local recorder saw it (`replayRecordings/{matchId}`; matchId is the replay's own dashed id, e.g. EUW1-7977592156). */
 export interface ReplayRecording {
   matchId: string;
@@ -120,6 +150,8 @@ export interface ReplayRecording {
   samples: ReplaySample[];
   events: ReplayEvent[];
   shots: ReplayShotRef[];
+  /** What all ten held at each death of ours, newest recorders only. */
+  deaths?: ReplayDeathState[];
   bytes: number;
 }
 
@@ -319,6 +351,38 @@ export function recordingLines(recording: ReplayRecording, max = MAX_RECORDING_L
 
   const inOrder = [...events, ...checkpoints].sort((a, b) => a.sec - b.sec || a.order - b.order).map((row) => row.line);
   return [...head, ...inOrder].slice(0, max);
+}
+
+/**
+ * One line per death of ours: what the player who died was holding when they fell, and who was
+ * already on the floor at that moment.
+ *
+ * Why this exists (11 Sep 2026): the lead asked whether to run the recorder once per seat to get
+ * each champion's HUD in a frame. Ability cooldowns are pixels only — the Live Client's
+ * `activeplayer` answers 400 in a replay, there being no active player to ask — but the items, the
+ * levels, the farm and the respawn timers are in the per-player list for all ten at once. One run
+ * therefore reads the board at every death, where a frame per seat would have cost five more runs
+ * and could still only reach the eight frames a review reads.
+ */
+export function deathLines(recording: ReplayRecording, max = MAX_DEATH_LINES): string[] {
+  const deaths = (recording.deaths ?? [])
+    .filter((d) => !!d && Number.isFinite(d.sec) && Array.isArray(d.players))
+    .slice()
+    .sort((a, b) => a.sec - b.sec)
+    .slice(0, Math.max(0, max));
+  return deaths.map((death) => {
+    const victim = death.players.find((p) => p.ours && p.seat === death.seat);
+    const parts: string[] = [];
+    if (victim) {
+      parts.push(`holding ${victim.items?.length ? victim.items.join(', ') : 'nothing'}`);
+      parts.push(`level ${victim.level}, ${victim.cs} cs`);
+    }
+    const down = death.players
+      .filter((p) => p.dead)
+      .map((p) => `${p.ours ? 'our' : 'their'} ${p.seat}${p.respawn ? ` (${Math.round(p.respawn)}s left)` : ''}`);
+    if (down.length) parts.push(`already down: ${down.join(', ')}`);
+    return `Minute ${minuteOf(death.sec)}: our ${death.seat} fell${parts.length ? `, ${parts.join('; ')}` : ''}.`;
+  });
 }
 
 // ---- The pictures a review gets ------------------------------------------------

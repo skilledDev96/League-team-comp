@@ -2546,7 +2546,13 @@ async function reviewGame(
     note,
     players: reviewPlayers(game),
     championNames,
-    ...(recordedLines.length > 0 && { recordedLines })
+    ...(recordedLines.length > 0 && { recordedLines }),
+    // The recording goes over whole beside its sentences (11 Sep 2026): the
+    // prompt is the only place that knows how many death boards it can afford
+    // next to the frames, and it has to be able to say how many deaths it left
+    // out. One written before the boards existed carries no `deaths`, and then
+    // the block simply does not appear.
+    ...(recording && { recording })
   };
 
   const client = new Anthropic({ apiKey: opts.anthropicKey });

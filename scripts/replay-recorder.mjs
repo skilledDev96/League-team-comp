@@ -64,7 +64,14 @@ const root = path.resolve(here, '..');
 export const CLIENT_ORIGIN = 'https://127.0.0.1:2999';
 
 /** The stored shape's version. Bump it when a field changes meaning; readers check it. */
-export const RECORDER_VERSION = 1;
+export const RECORDER_VERSION = 2;
+
+/**
+ * How many deaths of ours get the full board read at them. Each costs one seek and one read, and
+ * carries what all ten were holding — a few hundred bytes. Thirty covers a bloodbath and still
+ * leaves the index far under Firestore's megabyte.
+ */
+export const MAX_DEATH_STATES = 30;
 
 export const DEFAULT_SHOTS = 20;
 /** Twenty pictures is about a dime of input tokens; thirty is the ceiling the lead agreed to. */
@@ -683,7 +690,12 @@ export function seatPlan(livePlayers, rosterPlayers) {
       const champion = String(entry.live?.championName ?? '').trim();
       const ours = team === ourTeam;
       const name = ours && entry.roster?.name ? String(entry.roster.name) : '';
-      seats.push({ seat, champion, ours, ...(name ? { name } : {}) });
+      // The two things that are fixed for a whole game and so belong on the seat rather than on
+      // every death of it: which summoners they took, and what they keystoned into.
+      const spellsOf = entry.live?.summonerSpells ?? {};
+      const spells = [spellsOf.summonerSpellOne?.displayName, spellsOf.summonerSpellTwo?.displayName].map((one) => String(one ?? '').trim()).filter(Boolean);
+      const keystone = String(entry.live?.runes?.keystone?.displayName ?? '').trim();
+      seats.push({ seat, champion, ours, ...(name ? { name } : {}), ...(spells.length ? { spells } : {}), ...(keystone ? { keystone } : {}) });
       // A blind-pick custom can put the same champion twice on one side; when
       // it does, the champion stops being an answer and the array position is
       // the only key left.
@@ -736,6 +748,50 @@ export function seatPlan(livePlayers, rosterPlayers) {
 }
 
 const number = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
+
+/**
+ * What all ten were holding at one death of ours (11 Sep 2026, the lead: "follow the jungler, then
+ * the adc, to get champion-specific data with cooldowns").
+ *
+ * The cheap half of that wish, and by far the larger half. Ability cooldowns live only in the
+ * pixels — `/liveclientdata/activeplayer` answers 400 in a replay, so there is no active player to
+ * ask — but the items, the levels, the farm and who was already dead are all in the per-player list
+ * at any second, for all ten at once. Reading them at each death costs one seek and no pictures,
+ * where a frame per seat would have cost five more runs and could only have reached eight frames.
+ *
+ * Their side stays a champion in a seat: no name, no Riot id, and the seat is the only key.
+ */
+export function deathStateFrom(sec, seat, allPlayers, plan) {
+  const players = [];
+  for (const [index, live] of (allPlayers ?? []).entries()) {
+    const spot = plan.seatOf(live, index);
+    if (!spot) continue;
+    const scores = live?.scores ?? {};
+    const row = {
+      seat: spot.seat,
+      ours: Boolean(spot.ours),
+      level: Math.round(number(live?.level)),
+      cs: Math.round(number(scores.creepScore)),
+      // In slot order, trinket and control wards included: what somebody was holding when we died
+      // is half the story of why, and a ward in the bag is not a ward on the map.
+      items: (live?.items ?? [])
+        .slice()
+        .sort((a, b) => number(a?.slot) - number(b?.slot))
+        .map((item) => String(item?.displayName ?? '').trim())
+        .filter(Boolean)
+        .slice(0, 7)
+    };
+    // Only when they are: an absent key is "alive", and a false one would read as a measurement.
+    if (live?.isDead === true) {
+      row.dead = true;
+      const left = number(live?.respawnTimer);
+      if (left > 0) row.respawn = Math.round(left * 10) / 10;
+    }
+    players.push(row);
+  }
+  const bySeat = (a, b) => (a.ours === b.ours ? ROLES.indexOf(a.seat) - ROLES.indexOf(b.seat) : a.ours ? -1 : 1);
+  return { sec, seat, players: players.sort(bySeat) };
+}
 
 /** One minute of the game: what each of the ten had, by seat, and never a name. */
 export function sampleFrom(minute, allPlayers, plan) {
@@ -1250,6 +1306,25 @@ export async function run({
     if (minute === 1 || minute === minutes || minute % 5 === 0) log(`  minute ${minute} of ${minutes}`);
   }
 
+  // 4b. The board at each death of ours. A seek and a read each, no pictures: what all ten were
+  //     holding, who was already down and for how long. The frames can only show one player's HUD
+  //     and only eight of them ever reach a review; this reaches every death and every seat.
+  const deathStates = [];
+  const wanted = read.ourDeaths.slice(0, MAX_DEATH_STATES);
+  if (wanted.length) {
+    log(`  reading the board at ${wanted.length} death${wanted.length === 1 ? '' : 's'} of ours...`);
+    for (const death of wanted) {
+      // Two seconds before, the same second a picture of it is taken from, so the two agree: at the
+      // death itself the victim is already a corpse and the fight is over.
+      const at = await seek(Math.max(0, death.sec - 2));
+      if (!at.settled) continue;
+      const data = await call('/liveclientdata/allgamedata').catch(() => null);
+      const ten = Array.isArray(data?.allPlayers) ? data.allPlayers : [];
+      if (ten.length) deathStates.push(deathStateFrom(death.sec, death.seat, ten, plan));
+    }
+    log(`  the board was read at ${deathStates.length} of them.`);
+  }
+
   // 5. The pictures. What a frame shows first (11 Sep 2026): the replay's own
   //    interface is whatever the lead left it as, and normally that includes
   //    the scoreboard and the kill callouts, which print the other team's Riot
@@ -1451,6 +1526,9 @@ export async function run({
     seats: plan.seats,
     samples,
     events: read.events,
+    // Omitted rather than stored empty, so a document from a run that read none is shaped like one
+    // from before this existed.
+    ...(deathStates.length ? { deaths: deathStates } : {}),
     shots: shotIndex,
     bytes: 0
   };
@@ -1483,7 +1561,7 @@ export async function run({
   // client never landed on is a gap in the samples, and a run whose pictures
   // were refused wrote none at all.
   log(
-    `Recorded ${matchId}: ${samples.length} minutes sampled${unread ? ` (${unread} not read)` : ''}, ${read.events.length} events, ${kept.length} pictures kept${dropped ? ` (${dropped} dropped)` : ''}${framesOff ? ' (none taken: the client would not hide the panels that name players)' : ''}, ${Math.round(recording.bytes / 1024)} KB.`
+    `Recorded ${matchId}: ${samples.length} minutes sampled${unread ? ` (${unread} not read)` : ''}, ${read.events.length} events, the board at ${deathStates.length} of our deaths, ${kept.length} pictures kept${dropped ? ` (${dropped} dropped)` : ''}${framesOff ? ' (none taken: the client would not hide the panels that name players)' : ''}, ${Math.round(recording.bytes / 1024)} KB.`
   );
   log('Next: press Re-review on the game to write a review that reads the frames.');
   return { recording, shots: kept, dropped, unread, framesOff };
@@ -1813,6 +1891,21 @@ async function main() {
     process.exitCode = 1;
     return;
   }
+  // Ctrl-C, or a shell closing under it (11 Sep 2026, the lead: "the board is not showing any more,
+  // I had to tick the scoreboard check box"). A run that dies half way used to leave the replay with
+  // the fog off and the panels wherever it had put them — and the NEXT run then reads that as "what
+  // the lead had" and faithfully restores it, so one interrupted run degrades every run after it.
+  // `beforeRender` is module state, so this reaches the very object the run captured.
+  const signalCall = makeCall({ fetchImpl: clientFetch() });
+  const onSignal = () => {
+    console.log('\nInterrupted. Giving the client its interface back before going.');
+    restoreRender({ call: signalCall })
+      .catch(() => undefined)
+      .finally(() => process.exit(130));
+  };
+  process.once('SIGINT', onSignal);
+  process.once('SIGTERM', onSignal);
+
   const firestore = raw ? openFirestore(raw) : null;
   try {
     await run({
@@ -1829,6 +1922,8 @@ async function main() {
       fetchImpl: clientFetch()
     });
   } finally {
+    process.off('SIGINT', onSignal);
+    process.off('SIGTERM', onSignal);
     // Closed whichever way the run ended, so the shell comes back.
     await firestore?.close?.();
   }
