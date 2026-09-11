@@ -478,8 +478,31 @@ function boardAt(boards: readonly ReplayDeathState[], death: ReplayEvent): Repla
 }
 
 /** Someone on the floor, as the fight line says them: "Mid (25s left)", with the side put on outside. */
-function downSaid(player: ReplayDeathPlayer): string {
-  return `${player.seat}${player.respawn ? ` (${Math.round(player.respawn)}s left)` : ''}`;
+function downSaid(player: ReplayDeathPlayer, said: SeatName): string {
+  return `${said(player.seat, player.ours)}${player.respawn ? ` (${Math.round(player.respawn)}s left)` : ''}`;
+}
+
+/**
+ * How a seat is said: OURS BY CHAMPION, THEIRS BY SEAT (12 Sep 2026).
+ *
+ * The model copies the words it is given, and so does the coach reading the drawer — these
+ * sentences are where a review learned to write "our Jungle, ADC and Support were all dead".
+ * Naming our own by champion is what a player actually says, and leaving the other side as a bare
+ * seat is the Riot rule doing its job rather than fighting it: they have no names here, so a seat
+ * word standing alone comes to mean them. A recording written before seats carried champions falls
+ * back to "our Top", which is what it always said.
+ */
+type SeatName = (seat: ReplayEvent['victimSeat'], ours: boolean) => string;
+
+function seatNamer(recording: ReplayRecording): SeatName {
+  const mine = new Map<string, string>();
+  for (const s of recording.seats ?? []) {
+    if (s?.ours && s.seat && s.champion) mine.set(s.seat, s.champion);
+  }
+  return (seat, ours) => {
+    if (!seat) return ours ? 'one of ours' : 'one of theirs';
+    return ours ? mine.get(seat) ?? `our ${seat}` : `their ${seat}`;
+  };
 }
 
 /**
@@ -496,10 +519,27 @@ function downSaid(player: ReplayDeathPlayer): string {
  * two seconds before them, so counting them would report the fight's own death as the reason for
  * it. Ties go to the earliest moment, and a board the recorder never took (`MAX_DEATH_STATES`, or a
  * recording made before boards existed) is simply skipped rather than read as nobody down.
+ *
+ * TWO READINGS, NEVER ONE (12 Sep 2026, found by an audit of a real review). Excluding only the
+ * player falling on each board was not enough: at 33:05 our five were all alive, and by 33:11 three
+ * of them were down — all three killed in that very fight. The deepest hole is true and the review
+ * read it as "we took a fight three men down on respawn timers", which is the exact reverse of what
+ * happened, and it reached a work-on, a moment, a lesson answer and the one thing. So the line now
+ * says both, and each carries its own clock: **how it opened**, counting nobody who falls in this
+ * fight however their board reads, and **how deep it got, by what second**. Engaging short and
+ * being collapsed on are opposite mistakes and a coach has to be told which one this was.
  */
-function holeLine(deaths: readonly ReplayEvent[], boards: readonly ReplayDeathState[]): string[] {
+function holeLine(deaths: readonly ReplayEvent[], boards: readonly ReplayDeathState[], said: SeatName): string[] {
+  // Whoever falls in THIS fight is its casualty, never its cause. Their board two seconds before
+  // the next death shows them dead, and without this set that is read back as the state we engaged
+  // in — which is how a 5v5 that collapsed came out as a fight taken three men down.
+  const fell = new Set(deaths.map((d) => d.victimSeat));
+  const opening = deaths[0] ? boardAt(boards, deaths[0])?.players ?? [] : [];
+  const before = opening.filter((p) => p.dead && p.ours && !fell.has(p.seat));
+
   let ours: ReplayDeathPlayer[] = [];
   let theirs: ReplayDeathPlayer[] = [];
+  let at = 0;
   let found = false;
   for (const death of deaths) {
     const players = boardAt(boards, death)?.players ?? [];
@@ -509,10 +549,15 @@ function holeLine(deaths: readonly ReplayEvent[], boards: readonly ReplayDeathSt
     found = true;
     ours = down;
     theirs = players.filter((p) => p.dead && !p.ours);
+    at = death.sec;
   }
   return [
-    ...(ours.length ? [`we were ${count(ours.length)} down at the worst of it: our ${ours.map(downSaid).join(', our ')}`] : []),
-    ...(theirs.length ? [`they were ${count(theirs.length)} down: their ${theirs.map(downSaid).join(', their ')}`] : [])
+    // How it opened, which is the question a coach actually asks. Silent when no board was taken
+    // for the first death, because "five up" would then be a guess and not a reading.
+    ...(opening.length ? [before.length ? `we opened it ${count(before.length)} down: ${before.map((p) => downSaid(p, said)).join(', ')}` : 'we opened it five up'] : []),
+    // How deep it got, WITH THE SECOND IT WAS READ AT, so it can never be re-anchored to the start.
+    ...(ours.length ? [`by ${clock(at)} we were ${count(ours.length)} down: ${ours.map((p) => downSaid(p, said)).join(', ')}`] : []),
+    ...(theirs.length ? [`by ${clock(at)} they were ${count(theirs.length)} down: ${theirs.map((p) => downSaid(p, said)).join(', ')}`] : [])
   ];
 }
 
@@ -542,27 +587,30 @@ function holeLine(deaths: readonly ReplayEvent[], boards: readonly ReplayDeathSt
  * frames' own top bar carries those counts, and the review's rules say to bracket an objective
  * between two frames rather than state a minute it cannot support.
  */
-function fightLine(deaths: readonly ReplayEvent[], kills: readonly ReplayEvent[], boards: readonly ReplayDeathState[]): string {
+function fightLine(deaths: readonly ReplayEvent[], kills: readonly ReplayEvent[], boards: readonly ReplayDeathState[], said: SeatName): string {
   const start = deaths[0].sec;
   const end = deaths[deaths.length - 1].sec;
   const theirs = kills.filter((e) => e.side === 'us' && e.sec >= start - FIGHT_EDGE_SEC && e.sec <= end + FIGHT_EDGE_SEC).length;
-  const back = theirs ? `${count(theirs)} of theirs with them` : 'nothing back';
-  const who = deaths.map((d) => `our ${d.victimSeat}`).join(', then ');
+  // "nothing back" reads as a recall in League, and the model copies the words it is given: this
+  // sentence is where the last review learned to write "20:22 nothing back" (12 Sep 2026).
+  const back = theirs ? `${count(theirs)} of theirs with them` : 'and killed nobody in return';
+  const who = deaths.map((d) => said(d.victimSeat, true)).join(', then ');
   const span = Math.max(0, Math.round(end - start));
   const head =
     deaths.length === 1
       ? `${clock(start)} — ${who} fell, ${back}`
-      : `${clock(start)} — ${count(deaths.length)} of ours fell ${span ? `inside ${span} seconds` : 'in the same second'}, ${back}: ${who}`;
+      // The list of who fell comes before the trade, so the sentence does not run "…in return: our Top".
+      : `${clock(start)} — ${count(deaths.length)} of ours fell ${span ? `inside ${span} seconds` : 'in the same second'}: ${who}, ${back}`;
 
   const parts: string[] = [];
-  parts.push(...holeLine(deaths, boards));
+  parts.push(...holeLine(deaths, boards, said));
   const first = deaths[0].victimSeat;
   const players = boardAt(boards, deaths[0])?.players ?? [];
   const victim = players.find((p) => p.ours && p.seat === first);
   const rival = players.find((p) => !p.ours && p.seat === first);
   // Printed whether or not there is a gap: "level 14 against their 14" tells a coach the fight was
   // not lost on levels, which is as much of an answer as a four-level hole is.
-  if (victim && rival) parts.push(`our ${first} was level ${victim.level} on ${victim.cs} cs against their ${first}’s ${rival.level} and ${rival.cs}`);
+  if (victim && rival) parts.push(`${said(first, true)} was level ${victim.level} on ${victim.cs} cs against their ${first}’s ${rival.level} and ${rival.cs}`);
   return `${head}${parts.length ? `; ${parts.join('; ')}` : ''}.`;
 }
 
@@ -590,12 +638,13 @@ export function fightLines(recording: ReplayRecording, max = MAX_FIGHT_LINES): s
     else fights.push([death]);
   }
   const boards = (recording.deaths ?? []).filter((b) => !!b && Number.isFinite(b.sec) && Array.isArray(b.players));
+  const said = seatNamer(recording);
   return fights
     .map((deaths, i) => ({ deaths, i }))
     .sort((a, b) => b.deaths.length - a.deaths.length || b.deaths[0].sec - a.deaths[0].sec)
     .slice(0, Math.max(0, max))
     .sort((a, b) => a.i - b.i)
-    .map(({ deaths }) => fightLine(deaths, kills, boards));
+    .map(({ deaths }) => fightLine(deaths, kills, boards, said));
 }
 
 // ---- The pictures a review gets ------------------------------------------------

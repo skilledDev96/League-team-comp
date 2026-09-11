@@ -2132,14 +2132,18 @@ a.profiles-row:focus-visible {
   margin-top: 0.4rem;
 }
 
+/* Through the tokens, like everything else (12 Sep 2026). These were three hardcoded values from
+   before the themes existed, with no light-theme override anywhere, so the review's own source tag
+   rendered pale cyan on near-white: 1.02:1, which is invisible. Every theme now gets it right by
+   construction rather than by a per-theme patch. */
 .tag {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
   padding: 0.15rem 0.55rem;
-  background: rgba(79, 208, 232, 0.15);
-  border: 1px solid rgba(79, 208, 232, 0.35);
-  color: #c5ecf3;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+  color: var(--text-0);
   font-size: 0.75rem;
 }
 
@@ -14417,6 +14421,15 @@ button .player-mark { vertical-align: -0.3rem; }
 .moment-track .moment-minute { position: absolute; top: 50%; transform: translate(-50%, -50%); }
 .moment-track .moment-minute.active { z-index: 2; }
 .game-review-moment-strip.is-track { padding-top: 0.1rem; }
+/* The gap that keeps two pills apart is a PERCENTAGE of the track and the pills are fixed rem, so
+   below about this width the arithmetic stops holding and they overlap and run off the panel. The
+   track is the nicety and the row is the honest fallback, so under 56rem it simply becomes the row
+   again — same pills, same order, no false positions. */
+@media (max-width: 56rem) {
+  .moment-track { height: auto; display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .moment-track .moment-minute { position: static; transform: none; }
+  .moment-track-line { display: none; }
+}
 .game-review-line-one.is-person { align-items: center; border-left-color: var(--accent); }
 .game-review-line-one.is-person .player-mark { flex: none; width: 1.5rem; height: 1.5rem; margin: 0; }
 .game-review-line-one.is-person > b { font-size: 0.88rem; letter-spacing: 0; text-transform: none; font-weight: 600; color: color-mix(in srgb, var(--text-0) 75%, var(--text-1)); }
@@ -14939,7 +14952,10 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   .film-rest-cards { grid-template-columns: minmax(0, 1fr); }
   .film-card { width: 100%; }
   .film-poster.is-row, .film-poster.is-card { aspect-ratio: auto; min-height: 6rem; flex-wrap: wrap; align-items: flex-end; }
-  .film-poster-open { width: 100%; text-align: center; }
+  /* Scoped to the two sizes it was written for (12 Sep 2026). Unscoped, it caught the review
+     panel's new slim bar, where the pill stretched the full width, covered the "Watched" kicker
+     and clipped. The bar does not wrap, so it never needed this. */
+  .film-poster.is-row .film-poster-open, .film-poster.is-card .film-poster-open { width: 100%; text-align: center; }
 }
 
 /* ---- Motion: entrances, the stamp, the sheen, the pans, the slides, the ring, the flip, the clips.

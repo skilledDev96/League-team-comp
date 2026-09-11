@@ -244,7 +244,11 @@ describe('the prompts', () => {
     // Both coaches get them: they are sentences, not frames.
     for (const prompt of [buildTeamPrompt(fight), buildPlayerPrompt(fight)]) {
       expect(prompt).toContain('THE FIGHTS (deaths of ours within 30 seconds of one another are one fight');
-      expect(prompt).toContain('24:07 — two of ours fell inside 4 seconds, one of theirs with them: our Support, then our Top; we were one down at the worst of it: our Support (30s left).');
+      // This fixture carries no seats, so the block falls back to the seat words it always used;
+      // the champion naming is exercised where the seats are real, in replay-recording.spec.ts.
+      // No board was taken for the FIRST death here, so the line says nothing about how the fight
+      // opened rather than guessing 'five up' — and the hole carries the second it was read at.
+      expect(prompt).toContain('24:07 — two of ours fell inside 4 seconds: our Support, then our Top, one of theirs with them; by 24:11 we were one down: our Support (30s left).');
       // The one thing the events cannot say, said outright so nothing invents it.
       expect(prompt).toContain('the League client reports no dragon, no Baron, no herald and no grubs for a custom game');
       // And the other half of the same rule: the counts are not the frames' to give.

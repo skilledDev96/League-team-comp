@@ -442,10 +442,23 @@ filter rather than none, so it can never become unpickable.
    version 1 recording still gets its fights; the board is looked up per
    fight and adds the levels, farm and respawns when it is there. Over
    `MAX_FIGHT_LINES` (12) the costliest are kept and put back in time order.
-   The hole is read across the **whole** fight and not off its opening board
-   — a fight opens five on five and says nothing — and the player who is
-   falling is never counted as already down, the board being read two
-   seconds before them. `happenedSection` prints it above the
+   **A fight says two things about who was down, never one** (12 Sep 2026,
+   found by an audit of a real review): **how it opened**, and **how deep the
+   hole got, by what second**. Reading only the deepest hole is how "at 33:05
+   three of ours were on the floor" reached a work-on, a moment, a lesson
+   answer and the one thing at once, when in truth all five were alive at
+   33:05 and the three on the floor by 33:11 were that fight's own casualties.
+   So `holeLine` excludes every seat that falls in the fight from the opening
+   count, whatever its board says, and stamps the deepest hole with the second
+   it was read at so it can never be re-anchored to the start; the prompt says
+   outright that engaging short and being collapsed on are opposite mistakes
+   and that turning the second reading into the first is the worst thing it
+   can do with the block. A fight with no board for its first death says
+   nothing about how it opened rather than guessing "five up".
+   **Ours are named by champion and theirs by seat** in every one of these
+   sentences, which is the Riot rule made useful rather than merely obeyed: a
+   seat word standing alone means the other side, who have no names here. A
+   recording whose seats carry no champion falls back to "our Top". `happenedSection` prints it above the
    minute-by-minute lines, deliberately: those spend their forty on the kill
    list (sixty-three "Fiddlesticks kills Mordekaiser" sentences in the game
    this was measured on) and the fights are the same deaths as a game.

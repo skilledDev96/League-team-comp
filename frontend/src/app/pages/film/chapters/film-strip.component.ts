@@ -100,11 +100,11 @@ export function downLine(row: FilmStripRow): string {
                 -->
                 @if (playing()) {
                   <video class="film-strip-clip" [src]="m.clip" autoplay controls muted loop playsinline [attr.aria-label]="m.label"></video>
-                  <p class="film-strip-steps-one muted">Nine seconds into the moment. The board beside it is what the client showed two seconds before it.</p>
+                  <p class="film-strip-steps-one muted">The fight itself, from twelve seconds before the first death to three after the last. The board beside it is what the client showed two seconds before the moment.</p>
                 } @else {
                   <div class="film-strip-shots">
                     <app-replay-shot class="film-strip-shot is-shown" [docId]="m.frames[m.frames.length - 1]" [alt]="m.label" [wanted]="active()" />
-                    <button type="button" class="film-strip-play" (click)="playing.set(true)" [appTip]="'Nine seconds of the fight, about 2 MB'">
+                    <button type="button" class="film-strip-play" (click)="playing.set(true)" [appTip]="'The whole fight as a video: from twelve seconds before the first death to three after the last, so a long fight makes a long clip'">
                       <span class="material-symbols-rounded" aria-hidden="true">play_arrow</span>
                       <span>Watch the fight</span>
                     </button>
