@@ -438,6 +438,16 @@ export class FilmComponent {
    * skipped) and the next one rises in through its own entrance; a second
    * move during that fade lands at once and the fade's own target is let go.
    * On a phone it means scrolling the deck to it.
+   *
+   * That second move also **drops** the fade (11 Sep 2026). `play` is
+   * guaranteed to resolve now, watchdog and all, but the fill it leaves on the
+   * chapter is only undone once the wait is over — and a fade whose `finished`
+   * stalls (a hidden tab stalls WAAPI) holds `opacity: 0` on a chapter that is
+   * still in the deck, so walking back to it would find it invisible, with
+   * `leaving` stuck true and no chapter fading again for the life of the page.
+   * Dropping the animation settles the promise the fade is waiting on, so its
+   * own cleanup runs now instead of at the end of a frame that may never come;
+   * the cleanup sits in a `finally` so nothing else can skip it either.
    */
   protected async go(i: number): Promise<void> {
     const m = this.model();
@@ -445,19 +455,28 @@ export class FilmComponent {
     const next = Math.min(Math.max(i, 0), m.chapters.length - 1);
     if (!this.narrow()) {
       const el = this.deck()?.nativeElement.querySelector<HTMLElement>('.film-chapter.is-current');
-      if (el && next !== this.chapter() && !this.leaving && !this.motion.reduced()) {
-        const move = ++this.moves;
-        this.leaving = true;
-        await this.motion.play(el, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-0.6rem)' }], { duration: 180 * this.motion.tempo(el), easing: 'ease-in', fill: 'forwards' });
-        this.leaving = false;
-        // The chapter is off stage now; drop the fill so it comes back whole when walked to again.
+      if (el && this.leaving) {
         try {
           el.getAnimations().forEach((a) => a.cancel());
         } catch {
-          /* no Web Animations: nothing to drop */
+          /* no Web Animations: there was no fade to drop */
         }
-        el.style.removeProperty('opacity');
-        el.style.removeProperty('transform');
+      } else if (el && next !== this.chapter() && !this.motion.reduced()) {
+        const move = ++this.moves;
+        this.leaving = true;
+        try {
+          await this.motion.play(el, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-0.6rem)' }], { duration: 180 * this.motion.tempo(el), easing: 'ease-in', fill: 'forwards' });
+        } finally {
+          this.leaving = false;
+          // The chapter is off stage now; drop the fill so it comes back whole when walked to again.
+          try {
+            el.getAnimations().forEach((a) => a.cancel());
+          } catch {
+            /* no Web Animations: nothing to drop */
+          }
+          el.style.removeProperty('opacity');
+          el.style.removeProperty('transform');
+        }
         // A later move landed during the fade: its chapter is the one on stage, not this stale target.
         if (move === this.moves) this.arrive(next);
         return;

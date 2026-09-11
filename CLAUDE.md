@@ -254,7 +254,12 @@ room's `go()`. `minimise()` cannot close first — `svc.minimise()` sets the
 phase to closed and the stage leaves the DOM in the same tick, so there
 would be nothing left to shrink — so its `leaving` latch no longer refuses
 on its own either: a second press drops the shrink, which settles the
-promise the first is waiting on. Both Escapes stay as defence in depth.
+promise the first is waiting on. `go()` is hardened the same way: a move
+arriving during a fade drops it rather than merely stepping around the
+latch, and the cleanup that undoes the fill — the cancel and the two
+`removeProperty` calls — moved into a `finally`, so a stalled fade can
+neither strand a chapter at `opacity: 0` in the deck nor leave `leaving`
+standing for the life of the page. Both Escapes stay as defence in depth.
 Any new `@defer` needs an `@error` branch for the same reason.
 Both are read on Admin → Diagnostics. The point (8 Sep 2026): a teammate who
 says "something went wrong in the draft" and cannot say what can now be read

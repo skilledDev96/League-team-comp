@@ -8,6 +8,7 @@ import { tourById } from '../../core/tours';
 import { AnalysisGame, GameReview, MatchTimeline } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { MatchTimelineService } from '../../services/match-timeline.service';
+import { MotionService } from '../../services/motion.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { TourService } from '../../services/tour.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
@@ -246,6 +247,49 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmComponent', () => {
     harness.detectChanges();
     for (const a of ['film-map-legend', 'film-map-marks', 'film-map-seats', 'film-costliest', 'film-death-card', 'film-death-scene', 'film-map-full']) {
       expect(root.querySelector(`[data-tour="${a}"]`), a).not.toBeNull();
+    }
+  });
+
+  it('a fade that never finishes does not strand the chapter it faded: a second move drops it', async () => {
+    // The 11 Sep 2026 hazard on the film room's own awaiting caller. A hidden tab stalls WAAPI, so
+    // the fade's `finished` never settles: `leaving` would stand for the life of the page — no
+    // chapter fading again — and the one it faded would keep the `opacity: 0` its fill left,
+    // invisible when walked back to. jsdom implements no Web Animations at all, so the stalled one
+    // is stood up here.
+    let abort: (reason: unknown) => void = () => undefined;
+    const anim = {
+      cancel: vi.fn(() => abort(new DOMException('aborted', 'AbortError'))),
+      finished: new Promise<void>((_, reject) => (abort = reject))
+    };
+    const proto = Element.prototype as unknown as { animate?: unknown; getAnimations?: unknown };
+    proto.animate = vi.fn(() => anim);
+    proto.getAnimations = vi.fn(() => [anim]);
+    try {
+      const { harness, root } = await open(`/film/${ID}`);
+      TestBed.inject(MotionService).setStill(false);
+      const current = () => root.querySelector('.film-chapter.is-current')?.getAttribute('data-index');
+      const faded = root.querySelector<HTMLElement>('.film-chapter.is-current')!;
+      expect(current()).toBe('0');
+
+      key('ArrowDown');
+      await settle(harness);
+      // Waiting on a frame that is never going to come: the chapter has not moved.
+      expect(current()).toBe('0');
+      // What the stalled fill is holding, and what `play`'s own watchdog writes when it gives up.
+      faded.style.opacity = '0';
+
+      key('ArrowDown');
+      await settle(harness);
+      await settle(harness);
+      expect(anim.cancel).toHaveBeenCalled();
+      expect(current()).toBe('1');
+      // The fade's cleanup ran on the way out, so the chapter comes back whole.
+      expect(faded.style.opacity).toBe('');
+      expect(faded.style.transform).toBe('');
+    } finally {
+      delete proto.animate;
+      delete proto.getAnimations;
+      localStorage.setItem('bom-motion', 'off');
     }
   });
 
