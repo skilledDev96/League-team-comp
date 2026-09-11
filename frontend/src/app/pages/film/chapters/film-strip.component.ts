@@ -92,19 +92,20 @@ export function downLine(row: FilmStripRow): string {
                 <p class="film-wait film-strip-none">The recorder kept no frames of this game, so there is nothing to look at — only the boards and the lines beside them.</p>
               } @else if (m.clip) {
                 <!--
-                  The fight, as nine seconds of video (12 Sep 2026).
+                  The fight, as a video as long as the fight was (12 Sep 2026).
                   Nothing is fetched until it is asked for: a clip is about 2.3 MB, and a reader
                   walking twenty moments should pay for the one they stopped on and not for all of
                   them. So the moment's own picture stands where it always did — already read, so
                   there is no wait and no black box — and the video replaces it on the press.
                 -->
                 @if (playing()) {
-                  <video class="film-strip-clip" [src]="m.clip" autoplay controls muted loop playsinline [attr.aria-label]="m.label"></video>
-                  <p class="film-strip-steps-one muted">The fight itself, from twelve seconds before the first death to three after the last. The board beside it is what the client showed two seconds before the moment.</p>
+                  <video class="film-strip-clip" [src]="m.clip" autoplay controls muted loop playsinline [attr.aria-label]="m.label"
+                         (loadedmetadata)="clipLoaded($event.target)"></video>
+                  <p class="film-strip-steps-one muted">@if (clipSecs()) { {{ clipSecs() }} seconds of the fight. } @else { The fight, from the approach in. } The board beside it is what the client showed two seconds before the moment.</p>
                 } @else {
                   <div class="film-strip-shots">
                     <app-replay-shot class="film-strip-shot is-shown" [docId]="m.frames[m.frames.length - 1]" [alt]="m.label" [wanted]="active()" />
-                    <button type="button" class="film-strip-play" (click)="playing.set(true)" [appTip]="'The whole fight as a video: from twelve seconds before the first death to three after the last, so a long fight makes a long clip'">
+                    <button type="button" class="film-strip-play" (click)="playing.set(true); clipSecs.set(0)" [appTip]="'The whole fight as a video, the approach in included. A long fight makes a long clip: these run from about fifteen seconds to about forty-five.'">
                       <span class="material-symbols-rounded" aria-hidden="true">play_arrow</span>
                       <span>Watch the fight</span>
                     </button>
@@ -287,6 +288,24 @@ export class FilmStripComponent {
   protected readonly playing = signal(false);
 
   /**
+   * The clip's real length, off the element itself once its metadata lands (12 Sep 2026).
+   *
+   * Every earlier wording here named a number — "Nine seconds of the fight, about 2 MB" — and every
+   * one of them went stale the moment a clip became as long as its fight: the eight on the game
+   * this was measured on run 16.6 to 44.6 seconds and 2.0 to 6.8 MB. Prose cannot restate a
+   * constant that moves, and the window is not even fixed in the recorder: a fight over
+   * CLIP_MAX_SEC is trimmed from the FRONT, so "twelve seconds before the first death" is false
+   * there too. The video is the only source that is always right, so it is the one asked.
+   */
+  protected readonly clipSecs = signal(0);
+
+  /** The length off the element, once its metadata lands; zero for a clip that reports none. */
+  protected clipLoaded(target: EventTarget | null): void {
+    const secs = (target as HTMLVideoElement | null)?.duration;
+    this.clipSecs.set(Number.isFinite(secs) ? Math.round(secs as number) : 0);
+  }
+
+  /**
    * Did this run keep a run-up anywhere? It keeps one on the first `STRIP_MOMENTS` deaths and a
    * single picture everywhere else, so "one picture a moment" is only true of a recording that has
    * no strips at all — a version 2 one, or a run made with `--frames 1`.
@@ -394,6 +413,7 @@ export class FilmStripComponent {
     this.cursor.set(i);
     this.frame.set(0);
     this.playing.set(false);
+    this.clipSecs.set(0);
   }
 
   protected glyph(moment: FilmStripMoment): FilmGlyph {
@@ -425,6 +445,7 @@ export class FilmStripComponent {
       this.cursor.set(first.index);
       this.frame.set(0);
       this.playing.set(false);
+    this.clipSecs.set(0);
     }
   }
 

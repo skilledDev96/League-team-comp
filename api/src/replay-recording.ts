@@ -142,10 +142,12 @@ export interface ReplayShotRef {
    */
   runUp?: string[];
   /**
-   * A nine-second video of the moment, as a URL you can put straight in a <video src>.
+   * A video of the moment, as a URL you can put straight in a <video src>. It is as long as the
+   * FIGHT — about fifteen seconds for a solo death and forty-five for a long teamfight — so nothing
+   * anywhere may restate a fixed length for it.
    *
-   * Why a URL and not a document (12 Sep 2026). The client renders webm natively and a nine-second
-   * clip is about 2.3 MB — ten times what a Firestore document holds — so a clip lives in Cloud
+   * Why a URL and not a document (12 Sep 2026). The client renders it natively and a clip runs from
+   * about 2 MB to about 7 MB — far more than what a Firestore document holds — so a clip lives in Cloud
    * Storage and only its address lives here. That is also the cheaper half of the trade: Firestore
    * charges 8x what Cloud Storage does per byte at rest, so moving the run-up out of the database
    * makes a recorded game SMALLER in Firestore than it was with stills.

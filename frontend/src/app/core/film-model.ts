@@ -384,7 +384,7 @@ export interface FilmStripMoment {
   /** Document ids, earliest first, the moment LAST. NEVER base64. Empty when no picture was kept. */
   frames: string[];
   /**
-   * A nine-second video of the fight, straight off the recording. When it is here the reader
+   * A video of the fight, as long as the fight was, straight off the recording. When it is here the reader
    * watches instead of stepping, and the moment picture is its poster; when it is not, the frames
    * above are all there is. A URL and never bytes, like every other picture in this model.
    */

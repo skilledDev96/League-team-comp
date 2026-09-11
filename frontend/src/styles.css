@@ -14416,7 +14416,11 @@ button .player-mark { vertical-align: -0.3rem; }
 /* The moments along the game rather than evenly spaced (12 Sep 2026): three pills inside the last
    eight minutes reads as a game that was fine until it was not, which is the shape a coach wants
    and the one a flex row threw away. `momentTrack` places them and guarantees the gap. */
-.moment-track { position: relative; height: 2.1rem; margin: 0.15rem 0 0.1rem; }
+/* Inset by half a pill each side. A pill is centred on its percentage, so the one at TRACK_HI (97%)
+   hangs half its width past the end at every width — measured at 7.6px on a tablet track and 17px on
+   a phone. The percentages cannot know a pill's pixel width; the track can simply not use the last
+   half-pill of room. */
+.moment-track { position: relative; height: 2.1rem; margin: 0.15rem 1.75rem 0.1rem; }
 .moment-track-line { position: absolute; left: 0; right: 0; top: 50%; height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--text-1) 22%, transparent); }
 .moment-track .moment-minute { position: absolute; top: 50%; transform: translate(-50%, -50%); }
 .moment-track .moment-minute.active { z-index: 2; }
@@ -14426,7 +14430,7 @@ button .player-mark { vertical-align: -0.3rem; }
    track is the nicety and the row is the honest fallback, so under 56rem it simply becomes the row
    again — same pills, same order, no false positions. */
 @media (max-width: 56rem) {
-  .moment-track { height: auto; display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .moment-track { height: auto; margin-inline: 0; display: flex; flex-wrap: wrap; gap: 0.3rem; }
   .moment-track .moment-minute { position: static; transform: none; }
   .moment-track-line { display: none; }
 }
