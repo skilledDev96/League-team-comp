@@ -14367,6 +14367,30 @@ button .player-mark { vertical-align: -0.3rem; }
 .review-point-chips .evidence-chip { font-size: 0.74rem; }
 .review-point-said { flex: 1 1 14rem; min-width: 0; }
 .review-point .info-tip { flex: none; align-self: center; margin-left: auto; }
+
+/* Team | My seat (12 Sep 2026), and the reader's own seat as a block: the champion, the figures the
+   analysed game actually holds, their ask, and what went well plus the further points behind one
+   fold — the two the panel has never shown, which the film room was the only way to reach. */
+.game-review-views { flex: none; }
+.game-review-views button { padding: 0.3rem 0.85rem; font-size: 0.76rem; }
+.review-seat { display: grid; gap: 0.3rem; padding: 0.5rem 0.6rem; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--card-border)); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.review-seat-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0.2rem 0.45rem; }
+.review-seat-head .player-mark { margin: 0; }
+.review-seat-name { font-size: 0.95rem; }
+.review-seat-role { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-1); }
+.review-seat-stats { margin-left: auto; font-size: 0.76rem; font-variant-numeric: tabular-nums; color: var(--text-1); }
+.review-seat-more { margin: 0; }
+.review-seat-more > summary { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-1); cursor: pointer; padding: 0.1rem 0; }
+.review-seat-more > summary:hover { color: var(--accent); }
+.review-seat-more[open] > summary { margin-bottom: 0.3rem; }
+.review-seat-more > app-review-point { display: block; margin-top: 0.3rem; }
+/* The first run: nobody has told this app which seat is theirs, so it asks rather than guessing. */
+.review-seat-pick { display: grid; gap: 0.35rem; padding: 0.55rem 0.7rem; border-radius: 12px; border: 1px dashed var(--card-border); }
+.review-seat-pick p { margin: 0; font-size: 0.82rem; }
+.review-seat-pick-row { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.review-seat-none { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin: 0; font-size: 0.82rem; }
+/* A champion is a square portrait; a person is round. Two kinds of face on one line otherwise read as one. */
+.player-mark.is-champ { border-radius: 6px; }
 .game-review-line-one.is-person { align-items: center; border-left-color: var(--accent); }
 .game-review-line-one.is-person .player-mark { flex: none; width: 1.5rem; height: 1.5rem; margin: 0; }
 .game-review-line-one.is-person > b { font-size: 0.88rem; letter-spacing: 0; text-transform: none; font-weight: 700; }

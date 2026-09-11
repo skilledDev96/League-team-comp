@@ -1,11 +1,12 @@
 import { DatePipe, Location } from '@angular/common';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
-import { AnalysisGame, FilmChoice, GameReview, ReviewPoint, ReviewSwap, ReviewTheme } from '../models/team.models';
+import { AnalysisGame, FilmChoice, GameReview, ReviewPoint, ReviewSwap, ReviewTheme, Role } from '../models/team.models';
 import { alternativesPhrase, askOf, gainsPhrase, reviewAsText, reviewSource, THEME_GLYPHS } from '../core/review-view';
 import type { FilmGlyph } from '../core/film-model';
 import { DecidedByComponent } from './review/decided-by.component';
 import { ReviewPointComponent } from './review/review-point.component';
+import { ReviewSeatComponent } from './review/review-seat.component';
 import { FilmGlyphComponent } from './film/film-glyph.component';
 import { initialsOf } from '../core/initials';
 import { MatchTimelineService } from '../services/match-timeline.service';
@@ -13,9 +14,9 @@ import { ReviewTakeoverService } from '../services/review-takeover.service';
 import { TeamDataService } from '../services/team-data.service';
 import { ToastService } from '../services/toast.service';
 import { UiService } from '../services/ui.service';
+import { UserPrefsService } from '../services/user-prefs.service';
 import { FilmPosterComponent } from './film/film-poster.component';
 import { InfoTipComponent } from './info-tip.component';
-import { PlayerMarkComponent } from './player-mark.component';
 import { TooltipDirective } from './tooltip.directive';
 
 /**
@@ -27,6 +28,13 @@ import { TooltipDirective } from './tooltip.directive';
  * info tip. Read-only, apart from copying itself as text for the team chat;
  * the button that writes a review lives on the row.
  *
+ * Team or My seat is a switch over the same review (12 Sep 2026). The seat is
+ * `UserPrefs.film.seat`, which the person picked in the film room's Your seat
+ * chapter: there is no email-to-player link in this app — `Player` carries no
+ * email and `AccessEntry` no player id — so a first-run picker asks rather
+ * than guessing from who is signed in, and the choice of view is remembered
+ * per browser under `bom-review-view`.
+ *
  * The panel is a dashboard and the film room is the story (12 Sep 2026). It
  * used to print two of the five team points as paragraphs and never render an
  * `evidence` string at all, which is how it managed to be both long and
@@ -36,7 +44,7 @@ import { TooltipDirective } from './tooltip.directive';
  */
 @Component({
   selector: 'app-game-review',
-  imports: [DatePipe, TooltipDirective, InfoTipComponent, PlayerMarkComponent, FilmPosterComponent, DecidedByComponent, FilmGlyphComponent, ReviewPointComponent],
+  imports: [DatePipe, TooltipDirective, InfoTipComponent, FilmPosterComponent, DecidedByComponent, FilmGlyphComponent, ReviewPointComponent, ReviewSeatComponent],
   template: `
     @if (review(); as r) {
       <details class="intel-collapse game-review" [open]="open() || fresh() || takeover.ready(r.matchId)" aria-label="Game review">
@@ -53,6 +61,12 @@ import { TooltipDirective } from './tooltip.directive';
         <app-decided-by [review]="r" />
 
         <div class="game-review-head">
+          <!-- Team or the reader's own seat (12 Sep 2026). A person opening a review looks for their own
+               name first; five equal rows made them hunt for it, and made the panel five rows longer. -->
+          <div class="view-segment game-review-views" role="group" aria-label="Review view">
+            <button type="button" [class.active]="view() === 'team'" (click)="setView('team')">Team</button>
+            <button type="button" [class.active]="view() === 'seat'" (click)="setView('seat')">My seat</button>
+          </div>
           <span class="game-review-verdict" [class.is-good]="r.team.compVerdict === 'as drafted'" [class.is-bad]="r.team.compVerdict === 'off plan'"
                 [appTip]="r.team.compWhy || 'Whether the comp did what its four axes and game plan expected'">
             {{ r.compName ? r.compName + ': ' : 'Comp: ' }}{{ r.team.compVerdict }}
@@ -62,7 +76,7 @@ import { TooltipDirective } from './tooltip.directive';
           </button>
         </div>
 
-        @if (moments().length) {
+        @if (view() === 'team' && moments().length) {
           <div class="game-review-moment-strip" [class.is-untimed]="!timed()">
             <div class="moment-strip-row" role="group" aria-label="The game in moments">
               @for (m of moments(); track $index) {
@@ -107,7 +121,7 @@ import { TooltipDirective } from './tooltip.directive';
           rendered at all. Now all five stand, each as a glyph and its figures, and the sentences
           they came from are one hover away. Fewer words on screen and more of the review reachable.
         -->
-        @if (workOns().length) {
+        @if (view() === 'team' && workOns().length) {
           <div class="review-points" role="group" aria-label="Work on">
             <h4 class="review-group-label is-warn">Work on</h4>
             @for (w of workOns(); track $index) {
@@ -116,7 +130,7 @@ import { TooltipDirective } from './tooltip.directive';
           </div>
         }
 
-        @if (keeps().length) {
+        @if (view() === 'team' && keeps().length) {
           <div class="review-points" role="group" aria-label="Keep doing">
             <h4 class="review-group-label is-ok">Keep doing</h4>
             @for (k of keeps(); track $index) {
@@ -125,16 +139,37 @@ import { TooltipDirective } from './tooltip.directive';
           </div>
         }
 
-        @if (asks().length) {
-          <div class="review-points" role="group" aria-label="One ask each">
-            <h4 class="review-group-label">One ask each</h4>
-            @for (p of asks(); track p.name) {
-              <app-review-point [point]="p.workOn" tone="person" [timed]="timed()">
-                <app-player-mark [name]="p.name" />
-                <b [appTip]="p.seat + ' · ' + p.champion">{{ p.name }}</b>
-              </app-review-point>
+        @if (view() === 'seat') {
+          <!-- The reader's own seat: the one the film room remembers, asked for here the first time. -->
+          @if (!seat() || picking()) {
+            <div class="review-seat-pick">
+              <p class="muted">Which seat is yours? The film room remembers it.</p>
+              <div class="review-seat-pick-row">
+                @for (s of SEATS; track s) {
+                  <button type="button" class="view-btn" (click)="pickSeat(s)">{{ s }}</button>
+                }
+              </div>
+            </div>
+          } @else if (mine(); as m) {
+            <app-review-seat [player]="m" [game]="game()" [mine]="true" [timed]="timed()" />
+            @if (others().length) {
+              <div class="review-points" role="group" aria-label="The other four">
+                <h4 class="review-group-label">The other four</h4>
+                @for (o of others(); track o.name) {
+                  <app-review-seat [player]="o" [game]="game()" [timed]="timed()" />
+                }
+              </div>
             }
-          </div>
+          } @else {
+            <p class="muted review-seat-none">No {{ seat() }} in this review — it is not a game you played. <button type="button" class="view-btn" (click)="clearSeat()">Pick another seat</button></p>
+            @if (asks().length) {
+              <div class="review-points" role="group" aria-label="One ask each">
+                @for (o of asks(); track o.name) {
+                  <app-review-seat [player]="o" [game]="game()" [timed]="timed()" />
+                }
+              </div>
+            }
+          }
         }
 
         @if (commitLine(); as c) {
@@ -145,6 +180,7 @@ import { TooltipDirective } from './tooltip.directive';
           </p>
         }
 
+        @if (view() === 'team') {
         @for (s of draftSwaps(); track s.seat + ':' + s.in) {
           <!-- The draft with hindsight, one line a swap (10 Sep 2026): the why is cut to the line here; the film's draft chapter has the whole of it.
                Since review version 6 the swap's other options follow the champion, "Nautilus, or Braum for Leona"; the gaps the comp lacked stay in the film. -->
@@ -154,6 +190,7 @@ import { TooltipDirective } from './tooltip.directive';
             <img class="player-mark is-in" [src]="ui.championIconUrl(s.in)" alt="" loading="lazy" />
             <span><b>{{ s.in }}</b>@if (altsOf(s); as alts) {<span class="game-review-draft-alt">, {{ alts }}</span>} for {{ ui.championName(s.out) }}{{ gainsOf(s) }}&#8195;<span class="game-review-draft-why">{{ s.why }}</span></span>
           </p>
+        }
         }
 
         <p class="muted game-review-foot">
@@ -179,6 +216,8 @@ export class GameReviewComponent {
   private readonly router = inject(Router);
   private readonly location = inject(Location);
   protected readonly ui = inject(UiService);
+  /** The one seat this app stores about a person: what they picked in the film room's Your seat chapter. */
+  private readonly prefs = inject(UserPrefsService);
   /** The takeover's landing mark (10 Sep 2026): the poster it rings lives in this drawer, so a review that landed while the takeover was minimised opens the drawer rather than lighting a pill behind a closed one. */
   protected readonly takeover = inject(ReviewTakeoverService);
 
@@ -203,6 +242,50 @@ export class GameReviewComponent {
     const at = Date.parse(this.review()?.reviewedAt ?? '');
     return Number.isFinite(at) && Date.now() - at < 5 * 60_000;
   });
+
+  /**
+   * Team or My seat, remembered across every review on the page (12 Sep 2026). A person who has
+   * said which seat is theirs almost always wants the same view next time, and localStorage is the
+   * right home for it: it is a per-browser convenience, not a team fact, and a panel that opened on
+   * the wrong view would cost a click on every row.
+   */
+  private static readonly VIEW_KEY = 'bom-review-view';
+  protected readonly view = signal<'team' | 'seat'>(GameReviewComponent.storedView());
+  protected readonly SEATS: Role[] = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
+
+  private static storedView(): 'team' | 'seat' {
+    try {
+      return localStorage.getItem(GameReviewComponent.VIEW_KEY) === 'seat' ? 'seat' : 'team';
+    } catch {
+      return 'team';
+    }
+  }
+
+  protected setView(view: 'team' | 'seat'): void {
+    this.view.set(view);
+    try {
+      localStorage.setItem(GameReviewComponent.VIEW_KEY, view);
+    } catch {
+      /* a browser refusing storage still gets the view it clicked */
+    }
+  }
+
+  /** The seat this person said is theirs in the film room; undefined until they have. */
+  protected readonly seat = computed(() => this.prefs.filmSeat());
+  protected readonly mine = computed(() => this.asks().find((p) => p.seat === this.seat()));
+  protected readonly others = computed(() => this.asks().filter((p) => p.seat !== this.seat()));
+
+  /** Open on the picker again, for the person whose stored seat is not one this game had. */
+  protected readonly picking = signal(false);
+
+  protected pickSeat(seat: Role): void {
+    this.picking.set(false);
+    void this.prefs.setFilmSeat(seat);
+  }
+
+  protected clearSeat(): void {
+    this.picking.set(true);
+  }
 
   /** The moment whose sentence is open; one at a time, none to start. */
   protected readonly picked = signal<number | null>(null);
