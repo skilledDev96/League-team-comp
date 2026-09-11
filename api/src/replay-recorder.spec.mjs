@@ -38,6 +38,7 @@ import {
   SHOT_FPS,
   SHOT_FRAMES,
   SHOT_LEAD_SEC,
+  referencedShotIds,
   shotDocId,
   STRIP_MOMENTS,
   WARMUP_SEC,
@@ -1232,6 +1233,35 @@ describe('the pure parts', () => {
     expect(shotDocId(MATCH_ID, 180, 2)).toBe(`${MATCH_ID}__180__2`);
     // Two seconds before 180 is not 178's moment, whoever died there.
     expect(shotDocId(MATCH_ID, 180, 2)).not.toBe(shotDocId(MATCH_ID, 178));
+  });
+
+  // What the sweep keeps when a game is recorded twice. A moment's id carries the second it is of,
+  // and a second run picks its moments from its own event list, so the seconds rarely match: one
+  // real re-record left four pictures nothing referenced again, each up to 700 KB paid for forever.
+  it('names every picture a recording points at, the moments and their run-ups alike', () => {
+    const recording = {
+      shots: [
+        { sec: 320, docId: `${MATCH_ID}__320`, runUp: [`${MATCH_ID}__320__8`, `${MATCH_ID}__320__6`] },
+        { sec: 540, docId: `${MATCH_ID}__540` },
+        { sec: 940, docId: `${MATCH_ID}__940`, runUp: [] }
+      ]
+    };
+    expect([...referencedShotIds(recording)].sort()).toEqual(
+      [`${MATCH_ID}__320`, `${MATCH_ID}__320__6`, `${MATCH_ID}__320__8`, `${MATCH_ID}__540`, `${MATCH_ID}__940`].sort()
+    );
+  });
+
+  it('names nothing at all for a recording with no pictures, so a sweep on it deletes the lot', () => {
+    // A run whose frames were all refused writes no shots; every stored picture of that game is
+    // then genuinely unreachable and going is the right answer.
+    expect(referencedShotIds({ shots: [] }).size).toBe(0);
+    expect(referencedShotIds({}).size).toBe(0);
+    expect(referencedShotIds(null).size).toBe(0);
+  });
+
+  it('ignores a malformed ref rather than keeping a picture nothing can reach', () => {
+    const ids = referencedShotIds({ shots: [{ sec: 1, docId: '' }, { sec: 2 }, { sec: 3, docId: `${MATCH_ID}__3`, runUp: ['', null, `${MATCH_ID}__3__2`] }] });
+    expect([...ids].sort()).toEqual([`${MATCH_ID}__3`, `${MATCH_ID}__3__2`]);
   });
 
   it('reads a JPEG for its own size and shrugs at anything else', () => {

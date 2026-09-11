@@ -45,6 +45,14 @@
  * every frame left on disk by the last run is deleted before the client is
  * asked for a new one, so a re-run can never upload the old pictures.
  *
+ * It does NOT overwrite them all, which is why the run sweeps (12 Sep 2026). A moment's id carries
+ * the second it is of, and a second run picks its moments from its own event list, so the seconds
+ * rarely match: a real re-record left four pictures at 825, 1223, 1450 and 1627 that the new index
+ * never named again. Nothing in the app could reach them — `shotsFor` walks the recording's own
+ * `shots` and the film's strip walks a moment's `runUp` — and each was up to 700 KB paid for every
+ * month. So after the index is written, and only after, every picture of this game the new index
+ * does not name is deleted.
+ *
  * Riot's rules, enforced here and not negotiable: the other team is a champion
  * in a seat and nothing else. No name, Riot id or puuid of theirs is stored or
  * printed anywhere — our own five are matched by the roster's Riot ids and are
@@ -491,6 +499,29 @@ export function normaliseMatchId(id) {
  */
 export function shotDocId(matchId, sec, frame = 0) {
   return frame ? `${matchId}__${sec}__${frame}` : `${matchId}__${sec}`;
+}
+
+/**
+ * Every `replayShots` document a recording points at: each moment's own picture, and every run-up
+ * frame hanging off it.
+ *
+ * Read off the recording rather than off what the run uploaded, because the recording is what a
+ * reader follows — `shotsFor` walks `shots`, and the film's strip walks a moment's `runUp`. A
+ * picture the recording does not name is unreachable by anything in the app however it got there,
+ * which is exactly what makes it an orphan (12 Sep 2026).
+ *
+ * Why orphans happen at all: a moment's id carries the second it is of, and a second run of the
+ * same game picks its moments from its own event list. The deaths it keeps are rarely the same
+ * seconds — a re-record of one real game left four pictures at 825, 1223, 1450 and 1627 that
+ * nothing has referenced since — and each is up to 700 KB that is paid for forever.
+ */
+export function referencedShotIds(recording) {
+  const ids = new Set();
+  for (const shot of recording?.shots ?? []) {
+    if (typeof shot?.docId === 'string' && shot.docId) ids.add(shot.docId);
+    for (const id of shot?.runUp ?? []) if (typeof id === 'string' && id) ids.add(id);
+  }
+  return ids;
 }
 
 /** One sentence for a bad id, said the same way whether the run or the command line catches it. */
@@ -1742,6 +1773,19 @@ export async function run({
       for (const shot of kept) await firestore.set('replayShots', shotDocId(shot.matchId, shot.sec, shot.frame), shot);
       await firestore.set('replayRecordings', matchId, recording);
       log(`Wrote replayShots (${kept.length}), then replayRecordings/${matchId}.`);
+      // Only now, and never before: until the line above ran, the old recording was still the one
+      // being read, and sweeping first would have deleted the pictures it was pointing at. After
+      // it, nothing in the app can reach a picture this recording does not name.
+      //
+      // A failure here never fails the run. The recording is written and correct by this point, and
+      // the cost of leaving an orphan is a fraction of a cent a month — where throwing would lose a
+      // ten-minute run over housekeeping.
+      try {
+        const swept = await firestore.sweepShots(matchId, referencedShotIds(recording));
+        if (swept) log(`Swept ${swept} picture${swept === 1 ? '' : 's'} an earlier recording of this game left behind.`);
+      } catch (err) {
+        log(`Could not sweep the pictures of an earlier recording (${messageOf(err)}). The recording itself is written and correct.`);
+      }
     }
   } finally {
     await restoreRender({ call });
@@ -2102,6 +2146,25 @@ function openFirestore(raw, fs = fsDefault) {
     },
     set: async (collection, id, data) => {
       await db.collection(collection).doc(id).set(data);
+    },
+    /**
+     * Delete every picture of this game the new recording does not name, and answer how many went.
+     *
+     * Found by the `matchId` field, which every shot document carries, and then guarded by the id's
+     * own `{matchId}__` prefix so a field that ever disagreed with its id could not reach another
+     * game's pictures. `.select()` asks for no fields at all: a picture is up to 700 KB of base64
+     * and none of it needs to cross the wire to learn its id.
+     */
+    sweepShots: async (matchId, keep) => {
+      const snap = await db.collection('replayShots').where('matchId', '==', matchId).select().get();
+      const doomed = snap.docs.filter((d) => !keep.has(d.id) && d.id.startsWith(`${matchId}__`));
+      // Firestore takes 500 writes to a batch; 400 leaves room and the loop costs nothing.
+      for (let i = 0; i < doomed.length; i += 400) {
+        const batch = db.batch();
+        for (const doc of doomed.slice(i, i + 400)) batch.delete(doc.ref);
+        await batch.commit();
+      }
+      return doomed.length;
     },
     // Firestore holds an open gRPC channel, so without this the shell never
     // comes back after the last line and a hang looks exactly like a success.

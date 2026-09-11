@@ -79,6 +79,26 @@ the moment — nothing anywhere reads a run-up frame on its own, so storing one
 whose moment was dropped would be paying Firestore for pictures with no door
 into them.
 
+## Recording the same game twice
+
+The run overwrites what it writes, so re-recording is safe — but it does not
+overwrite *everything*, which is why it now sweeps (12 Sep 2026).
+
+A picture's document id carries the second it is of (`{matchId}__{sec}`), and a
+second run picks its moments from its own reading of the event list. Those
+seconds rarely match the first run's, so the old pictures are not replaced —
+they are simply left, and the new index never names them again. Nothing in the
+app can reach one: a review walks the recording's own `shots`, and the film's
+strip walks a moment's `runUp`. A real re-record of one game left four, at 825,
+1223, 1450 and 1627 — each up to 700 KB, paid for every month, unreachable.
+
+So after the index is written, and only after — until that moment the old index
+is still the one being read, and sweeping first would delete the pictures it
+points at — every picture of that game the new index does not name is deleted.
+A sweep that fails never fails the run: the recording is already written and
+correct, and the cost of an orphan is a fraction of a cent against a ten-minute
+run.
+
 ## In the client first
 
 The lead does this, then runs the script.
