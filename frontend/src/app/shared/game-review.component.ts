@@ -5,6 +5,7 @@ import { AnalysisGame, FilmChoice, GameReview, ReviewPoint, ReviewSwap, ReviewTh
 import { alternativesPhrase, askOf, gainsPhrase, reviewAsText, reviewSource, THEME_GLYPHS } from '../core/review-view';
 import type { FilmGlyph } from '../core/film-model';
 import { DecidedByComponent } from './review/decided-by.component';
+import { ReviewPointComponent } from './review/review-point.component';
 import { FilmGlyphComponent } from './film/film-glyph.component';
 import { initialsOf } from '../core/initials';
 import { MatchTimelineService } from '../services/match-timeline.service';
@@ -19,21 +20,23 @@ import { TooltipDirective } from './tooltip.directive';
 
 /**
  * The short review of one game (9 Sep 2026): the poster that opens the film
- * room, the headline over the scoreline, the game as a strip of minute pills
- * (tap one for its sentence), the first thing next game as one line, one
- * Keep doing, one ask per player, and what the team committed to. Read-only,
- * apart from copying itself as text for the team chat; the button that
- * writes a review lives on the row.
+ * room, what decided the game, the game as a strip of minute pills (tap one
+ * for its sentence), the first thing next game with the two choices it
+ * offers, then every work-on, every keep-doing and every player's ask as
+ * `app-review-point` — a glyph and the figures, with the sentence behind the
+ * info tip. Read-only, apart from copying itself as text for the team chat;
+ * the button that writes a review lives on the row.
  *
- * Everything with depth lives in the film room now: the summary and the comp
- * reasoning, the other work-ons and keep-doings, the strengths, each
- * player's further points, and the death ledger, which the film's map
- * chapter takes over in the next cut. The timeline is still read here for
- * the ledger's one line in the chat copy.
+ * The panel is a dashboard and the film room is the story (12 Sep 2026). It
+ * used to print two of the five team points as paragraphs and never render an
+ * `evidence` string at all, which is how it managed to be both long and
+ * incomplete. The summary, the comp reasoning, the strengths, each player's
+ * further points and the death ledger are still the film's. The timeline is
+ * read here for the ledger's one line in the chat copy.
  */
 @Component({
   selector: 'app-game-review',
-  imports: [DatePipe, TooltipDirective, InfoTipComponent, PlayerMarkComponent, FilmPosterComponent, DecidedByComponent, FilmGlyphComponent],
+  imports: [DatePipe, TooltipDirective, InfoTipComponent, PlayerMarkComponent, FilmPosterComponent, DecidedByComponent, FilmGlyphComponent, ReviewPointComponent],
   template: `
     @if (review(); as r) {
       <details class="intel-collapse game-review" [open]="open() || fresh() || takeover.ready(r.matchId)" aria-label="Game review">
@@ -81,8 +84,7 @@ import { TooltipDirective } from './tooltip.directive';
           <div class="review-one-thing">
             <p class="game-review-line-one is-warn">
               <b>First thing next game</b>
-              @if (f.theme) { <app-film-glyph [name]="glyphOf(f.theme)" [appTip]="f.theme" /> }
-              @if (f.minute !== null && timed()) { <span class="review-minute">{{ f.minute }} min</span> }
+              @if (f.theme) { <app-film-glyph class="review-point-glyph" [name]="glyphOf(f.theme)" [appTip]="f.theme" /> }
               <span class="review-one-thing-said">{{ oneThing() || ask(f.text) }}</span>
             </p>
             <!--
@@ -98,24 +100,41 @@ import { TooltipDirective } from './tooltip.directive';
             }
           </div>
         }
-        @if (keep(); as k) {
-          <p class="game-review-line-one is-ok">
-            <b>Keep doing</b>
-            @if (k.theme) { <app-film-glyph [name]="glyphOf(k.theme)" [appTip]="k.theme" /> }
-            <span>{{ ask(k.text) }}</span>
-          </p>
+        <!--
+          Every point of the review, as its own figures (12 Sep 2026). The panel used to print the
+          first work-on and the first keep-doing as sentences and drop the other three on the floor;
+          the evidence strings, which are the part written in the team's own jargon, it never
+          rendered at all. Now all five stand, each as a glyph and its figures, and the sentences
+          they came from are one hover away. Fewer words on screen and more of the review reachable.
+        -->
+        @if (workOns().length) {
+          <div class="review-points" role="group" aria-label="Work on">
+            <h4 class="review-group-label is-warn">Work on</h4>
+            @for (w of workOns(); track $index) {
+              <app-review-point [point]="w" tone="warn" [timed]="timed()" />
+            }
+          </div>
+        }
+
+        @if (keeps().length) {
+          <div class="review-points" role="group" aria-label="Keep doing">
+            <h4 class="review-group-label is-ok">Keep doing</h4>
+            @for (k of keeps(); track $index) {
+              <app-review-point [point]="k" tone="ok" [timed]="timed()" />
+            }
+          </div>
         }
 
         @if (asks().length) {
-          <ul class="list-clean game-review-asks" aria-label="One ask each">
+          <div class="review-points" role="group" aria-label="One ask each">
+            <h4 class="review-group-label">One ask each</h4>
             @for (p of asks(); track p.name) {
-              <li class="game-review-line-one is-person">
+              <app-review-point [point]="p.workOn" tone="person" [timed]="timed()">
                 <app-player-mark [name]="p.name" />
                 <b [appTip]="p.seat + ' · ' + p.champion">{{ p.name }}</b>
-                <span>{{ ask(p.workOn.text) }}</span>
-              </li>
+              </app-review-point>
             }
-          </ul>
+          </div>
         }
 
         @if (commitLine(); as c) {
@@ -256,7 +275,13 @@ export class GameReviewComponent {
   protected readonly first = computed<ReviewPoint | undefined>(() => this.review()?.team.workOn[0]);
   /** The model's own one thing (review version 4); the line falls back to the first work-on as an ask. */
   protected readonly oneThing = computed(() => this.review()?.team.oneThing?.trim() ?? '');
-  protected readonly keep = computed<ReviewPoint | undefined>(() => this.review()?.team.keepDoing[0]);
+  /**
+   * All of them, not the first of each (12 Sep 2026). The panel showed `workOn[0]` and
+   * `keepDoing[0]` and dropped the other three; as chips, five lines cost less height than the two
+   * paragraphs did, which is the whole trade this cut makes.
+   */
+  protected readonly workOns = computed<ReviewPoint[]>(() => this.review()?.team.workOn ?? []);
+  protected readonly keeps = computed<ReviewPoint[]>(() => this.review()?.team.keepDoing ?? []);
   protected readonly asks = computed(() => (this.review()?.players ?? []).filter((p) => p.workOn.text));
   /** The draft with hindsight (review version 5): the swaps to try, none when the draft held, so the panel stays short. */
   protected readonly draftSwaps = computed<ReviewSwap[]>(() => this.review()?.team.draft?.swaps ?? []);

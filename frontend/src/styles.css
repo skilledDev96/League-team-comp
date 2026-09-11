@@ -14349,6 +14349,24 @@ button .player-mark { vertical-align: -0.3rem; }
 .game-review-line-one.is-ok { border-left-color: var(--ok); background: color-mix(in srgb, var(--ok) 5%, var(--surface-controls)); }
 .game-review-line-one.is-ok > b { color: var(--ok); }
 .game-review-asks { display: grid; gap: 0.3rem; margin: 0; }
+
+/* A point as figures rather than a paragraph (12 Sep 2026): the theme's glyph, the evidence chipped,
+   and the coach's whole sentence behind the info tip. Built on .game-review-line-one so the border,
+   the tones and the box are the ones the panel already wears — only the inside of the line is new. */
+.review-points { display: grid; gap: 0.3rem; }
+.review-group-label { margin: 0.45rem 0 0; font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-1); }
+.review-group-label.is-warn { color: var(--warn); }
+.review-group-label.is-ok { color: var(--ok); }
+.review-point { align-items: center; }
+.review-point-glyph { flex: none; color: var(--text-1); }
+.review-point.is-warn .review-point-glyph { color: var(--warn); }
+.review-point.is-ok .review-point-glyph { color: var(--ok); }
+.review-point.is-person .review-point-glyph { color: var(--accent); }
+/* The chips carry the figures, so they are the line: they take the width and the tip sits at its end. */
+.review-point-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; flex: 1 1 14rem; min-width: 0; }
+.review-point-chips .evidence-chip { font-size: 0.74rem; }
+.review-point-said { flex: 1 1 14rem; min-width: 0; }
+.review-point .info-tip { flex: none; align-self: center; margin-left: auto; }
 .game-review-line-one.is-person { align-items: center; border-left-color: var(--accent); }
 .game-review-line-one.is-person .player-mark { flex: none; width: 1.5rem; height: 1.5rem; margin: 0; }
 .game-review-line-one.is-person > b { font-size: 0.88rem; letter-spacing: 0; text-transform: none; font-weight: 700; }
