@@ -115,6 +115,19 @@ anyway, so nine seconds of game came back as a 3.5-second video playing three ti
 trap is that the broken setting was also the SMALLEST file — 2.28 MB against 5.25 MB — so size
 alone never proves a clip is right. Check the duration with it.
 
+**The clip is re-encoded before it is uploaded, and captured at the game's own frame rate.** What
+the client writes is VP9 at 1920x1080 whatever it is asked for, which is the one combination a
+browser struggles to play: a thirty-second fight stuttered. ffmpeg takes it to 720p H.264 CRF 26 —
+measured, 11.6 MB became 5.2 MB — and H.264 at 720p is hardware-decoded essentially everywhere.
+ffmpeg is not a dependency: a machine without it uploads the client's own file, bigger and
+choppier but there.
+
+Once that was true, capturing at fifteen frames stopped being worth it. On one twenty-two-second
+fight, after the re-encode: **15fps 4.1 MB, 30fps 5.0 MB, 60fps 5.4 MB**. Sixty costs eight per
+cent more than thirty because H.264 codes the difference between frames and consecutive frames at
+60fps are nearly identical — so  is 60, the game's own rate, and the choppiness goes for
+a third more bytes.
+
 **Two settings are measured, not guessed.** The same nine seconds came back at **9.8 MB** at the
 client's lossless default and **2.3 MB** at `framesPerSecond: 30` with `lossless: false`. Asking for
 a smaller picture does nothing — 854x480 measured 2.3 MB too, because this client renders at its own

@@ -20,7 +20,7 @@
  *     FIREBASE_SERVICE_ACCOUNT="$(cat service-account.json)" node scripts/replay-recorder.mjs EUW1-7977592156
  *   Usage (PowerShell):
  *     $env:FIREBASE_SERVICE_ACCOUNT = (Get-Content service-account.json -Raw); node scripts/replay-recorder.mjs EUW1-7977592156
- *   Options: [--shots 20] [--frames 5] [--clip-seconds 45] [--clip-fps 15] [--out-dir <dir>] [--dry-run] [--roster <file.json>]
+ *   Options: [--shots 20] [--frames 5] [--clip-seconds 45] [--clip-fps 60] [--out-dir <dir>] [--dry-run] [--roster <file.json>]
  *
  * In the client first: open the replay for that game (Match History → Download
  * → Watch, or double-click the .rofl), let it start playing, and leave the
@@ -566,8 +566,8 @@ export function parseArgs(argv) {
       if (!Number.isFinite(n) || n < 1 || n > 180) throw new Error(`--clip-seconds wants how many seconds of the fight to keep, 1 to 180, not "${value}".`);
       parsed.clipSeconds = Math.floor(n);
     } else if (name === '--clip-fps') {
-      // Frames a second in a clip. Fifteen is the default and halves the bytes against thirty;
-      // raise it if a fight reads as choppy, and expect the file to grow in step.
+      // Frames a second in a clip. Sixty is the default and the game's own rate; lower it only to
+      // save bytes, and expect the fight to read as choppy when you do.
       const n = Number(value);
       if (!Number.isFinite(n) || n < 5 || n > 60) throw new Error(`--clip-fps wants frames a second, 5 to 60, not "${value}".`);
       parsed.clipFps = Math.floor(n);
@@ -2124,10 +2124,22 @@ export function clipWindowFor(sec, deaths, { window = CLIP_FIGHT_WINDOW_SEC, lea
 }
 
 /**
- * Frames a second in a clip. Fifteen halves the bytes against thirty and a replay is not a
- * broadcast; `--clip-fps` raises it if a fight reads as choppy.
+ * Frames a second in a clip: the game's own rate, because anything less is visibly choppy and the
+ * saving turned out to be imaginary (12 Sep 2026).
+ *
+ * Fifteen was chosen to halve the bytes back when a clip was VP9 at 1080p and the file was the
+ * problem. Once clips are re-encoded to 720p H.264 that trade stops making sense, and the lead said
+ * so after watching one: *"not smooth, im guessing its because of the fps?"* — right on both counts.
+ *
+ * Measured on the same twenty-two-second fight, after the re-encode: **15fps 4.1 MB, 30fps 5.0 MB,
+ * 60fps 5.4 MB**. Sixty costs eight per cent more than thirty and a third more than fifteen, because
+ * H.264 codes the difference between frames and consecutive frames at 60fps are nearly identical.
+ * A third more bytes for the game's real frame rate is not a trade worth making the other way.
+ *
+ * It costs no extra time either: a clip is rendered by playing the game through at 1x whatever rate
+ * is captured.
  */
-export const CLIP_FPS = 15;
+export const CLIP_FPS = 60;
 
 /** Polls a clip file must hold the same size before it counts as finished. One was not enough; see renderClip. */
 const CLIP_STILL_POLLS = 4;
