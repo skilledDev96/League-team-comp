@@ -1,5 +1,5 @@
 import { DatePipe, Location } from '@angular/common';
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
 import { AnalysisGame, DraftGain, FilmChoice, GameReview, ReviewGap, ReviewPoint, ReviewSwap, ReviewTheme, Role } from '../models/team.models';
 import { alternativesPhrase, askOf, GAIN_LABELS, reviewAsText, reviewSource, THEME_GLYPHS } from '../core/review-view';
@@ -7,6 +7,7 @@ import type { FilmGlyph } from '../core/film-model';
 import { DecidedByComponent } from './review/decided-by.component';
 import { ReviewPointComponent } from './review/review-point.component';
 import { ReviewSeatComponent } from './review/review-seat.component';
+import { MomentStripComponent } from './review/moment-strip.component';
 import { FilmGlyphComponent } from './film/film-glyph.component';
 import { initialsOf } from '../core/initials';
 import { MatchTimelineService } from '../services/match-timeline.service';
@@ -44,7 +45,7 @@ import { TooltipDirective } from './tooltip.directive';
  */
 @Component({
   selector: 'app-game-review',
-  imports: [DatePipe, TooltipDirective, InfoTipComponent, FilmPosterComponent, DecidedByComponent, FilmGlyphComponent, ReviewPointComponent, ReviewSeatComponent],
+  imports: [DatePipe, TooltipDirective, InfoTipComponent, FilmPosterComponent, DecidedByComponent, FilmGlyphComponent, ReviewPointComponent, ReviewSeatComponent, MomentStripComponent],
   template: `
     @if (review(); as r) {
       <details class="intel-collapse game-review" [open]="open() || fresh() || takeover.ready(r.matchId)" aria-label="Game review">
@@ -77,21 +78,7 @@ import { TooltipDirective } from './tooltip.directive';
         </div>
 
         @if (view() === 'team' && moments().length) {
-          <div class="game-review-moment-strip" [class.is-untimed]="!timed()">
-            <div class="moment-strip-row" role="group" aria-label="The game in moments">
-              @for (m of moments(); track $index) {
-                <button type="button" class="moment-minute" [class.is-us]="m.swing === 'us'" [class.is-them]="m.swing === 'them'" [class.active]="picked() === $index"
-                        [attr.aria-pressed]="picked() === $index" [attr.aria-label]="timed() ? 'Minute ' + m.minute : 'Moment ' + ($index + 1)" (click)="pick($index)">
-                  @if (timed()) { {{ m.minute }}<small>min</small> } @else { <span class="moment-dot" aria-hidden="true"></span> }
-                </button>
-              }
-            </div>
-            @if (pickedMoment(); as m) {
-              <p class="moment-picked" [class.is-us]="m.swing === 'us'" [class.is-them]="m.swing === 'them'">{{ m.text }}</p>
-            } @else {
-              <p class="moment-picked muted">Tap a minute for what happened there.</p>
-            }
-          </div>
+          <app-moment-strip [moments]="moments()" [timed]="timed()" [durationSec]="game()?.durationSec" />
         }
 
         @if (first(); as f) {
@@ -301,29 +288,11 @@ export class GameReviewComponent {
     this.picking.set(true);
   }
 
-  /** The moment whose sentence is open; one at a time, none to start. */
-  protected readonly picked = signal<number | null>(null);
-  protected readonly pickedMoment = computed(() => {
-    const i = this.picked();
-    return i === null ? undefined : this.moments()[i];
-  });
-
-  constructor() {
-    // The timeline is NOT loaded here (12 Sep 2026). `app-game-story` renders on this same open
-    // row and loads the same document through the same de-duplicating service, so this was a second
-    // call into a cache rather than a second read — and the one line it fed reaches Discord only.
-    // It is read synchronously from that cache in `copy()`; putting the read inside `copy()` would
-    // lose transient user activation and get the clipboard write refused.
-    // A re-review rewrites the moments, so the open one would point at another sentence.
-    effect(() => {
-      this.moments();
-      this.picked.set(null);
-    });
-  }
-
-  protected pick(index: number): void {
-    this.picked.set(this.picked() === index ? null : index);
-  }
+  // The timeline is NOT loaded here (12 Sep 2026). `app-game-story` renders on this same open row
+  // and loads the same document through the same de-duplicating service, so this was a second call
+  // into a cache rather than a second read — and the one line it fed reaches Discord only. It is
+  // read synchronously from that cache in `copy()`; putting the read inside `copy()` would lose
+  // transient user activation and get the clipboard write refused.
 
   /** The game on the Games page, as a link a teammate can open from the chat. */
   private gameLink(matchId: string): string {

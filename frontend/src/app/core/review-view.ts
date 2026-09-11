@@ -38,11 +38,6 @@ export function scoreline(game: AnalysisGame | undefined): ScoreChip[] {
   return out;
 }
 
-/**
- * The evidence as figures. The prompt asks for "Leona 1/9/7 · kills 14-35";
- * older reviews wrote sentences with commas, so a split that gives one piece
- * or more than six leaves the line whole rather than chip a sentence.
- */
 /** Where a review read the game, and whether it has minutes behind it. */
 export interface ReviewSource {
   tag: string;
@@ -74,6 +69,49 @@ export function reviewSource(review: GameReview | undefined): ReviewSource {
   return { tag: 'Totals only', tip: 'A replay carries end-of-game totals only; nothing here is timed', timed: false };
 }
 
+/** Half a pill's width plus a hair, as a percentage of the track. Two moments closer than this collide. */
+export const MOMENT_MIN_GAP = 9;
+/** The track's first and last usable centre, so a pill never hangs off either end. */
+const TRACK_LO = 3;
+const TRACK_HI = 97;
+
+/**
+ * Where each moment sits along the game, as a percentage (12 Sep 2026).
+ *
+ * A row of evenly spaced pills says a game had six moments. A track says *when* — three of them in
+ * the last eight minutes reads as a game that was fine until it was not, which is the shape a coach
+ * is looking for and the one the flex row threw away.
+ *
+ * Exact placement collides, so the two passes push neighbours apart and then pull the tail back
+ * inside the track, which keeps the order and the rough shape while guaranteeing a readable gap.
+ * Returns nothing for a game with no length and nothing for a single moment — a lone pill on a
+ * track is a dot on a line, and the row says the same thing more honestly.
+ */
+export function momentTrack(minutes: number[], durationSec: number | undefined): number[] {
+  const n = minutes.length;
+  if (n < 2 || !durationSec || durationSec < 60) return [];
+  // More pills than the track can hold at a readable gap: spacing them evenly is the honest answer.
+  if ((n - 1) * MOMENT_MIN_GAP > TRACK_HI - TRACK_LO) {
+    return minutes.map((_, i) => TRACK_LO + ((TRACK_HI - TRACK_LO) * i) / (n - 1));
+  }
+  const gameMinutes = durationSec / 60;
+  const pos = minutes.map((m) => Math.min(TRACK_HI, Math.max(TRACK_LO, (m / gameMinutes) * 100)));
+  for (let i = 1; i < n; i += 1) pos[i] = Math.max(pos[i], pos[i - 1] + MOMENT_MIN_GAP);
+  // The push can run the tail off the end. Pin the last to the track and pull the rest back from
+  // it, rather than clamping each in place — clamping stacked the last two on the same pixel, which
+  // is exactly the collision the gap exists to prevent. The guard above is what makes this fit.
+  if (pos[n - 1] > TRACK_HI) {
+    pos[n - 1] = TRACK_HI;
+    for (let i = n - 2; i >= 0; i -= 1) pos[i] = Math.min(pos[i], pos[i + 1] - MOMENT_MIN_GAP);
+  }
+  return pos;
+}
+
+/**
+ * The evidence as figures. The prompt asks for "Leona 1/9/7 · kills 14-35";
+ * older reviews wrote sentences with commas, so a split that gives one piece
+ * or more than six leaves the line whole rather than chip a sentence.
+ */
 export function evidenceChips(evidence: string): string[] {
   const text = evidence.trim();
   if (!text) return [];

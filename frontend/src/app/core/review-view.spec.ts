@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MOMENT_MIN_GAP, momentTrack } from './review-view';
 import { AnalysisGame, DRAFT_GAINS, GameReview, ReviewDraft, TeamObjectives } from '../models/team.models';
 import { FILM_GLYPHS } from '../shared/film/film-glyph.component';
 import { alternativesPhrase, askOf, decidedByOf, evidenceChips, GAIN_LABELS, gamePlayerFor, ledgerLine, playerStatLine, reviewAsText, reviewSource, scoreline, seatOf, THEME_GLYPHS, THEME_WORDS } from './review-view';
@@ -337,5 +338,51 @@ describe('the seat pairing, moved here from film-build', () => {
     expect(gamePlayerFor(g, 'Mid', 'Nobody', 'Jinx')?.name).toBe('Rhu');
     expect(gamePlayerFor(g, 'Mid', 'Nobody', 'Nobody')).toBeUndefined();
     expect(gamePlayerFor(undefined, 'ADC', 'Rhu', 'Jinx')).toBeUndefined();
+  });
+});
+
+/**
+ * Where the moments sit along the game. The row this replaced said a game had six moments; the
+ * track says when they were, which only works if the placement is the game's own and the pills do
+ * not land on top of one another.
+ */
+describe('momentTrack', () => {
+  const gaps = (xs: number[]) => xs.slice(1).map((x, i) => x - xs[i]);
+
+  it('places each moment at its own share of the game', () => {
+    // A 40-minute game: minute 10 is a quarter in, minute 30 three quarters.
+    expect(momentTrack([10, 30], 2400)).toEqual([25, 75]);
+  });
+
+  it('keeps a readable gap between moments that fell together', () => {
+    // 33:05 and 35:03 in a 38-minute game are four percent apart, which is one pill on another.
+    const track = momentTrack([12, 33, 35], 38 * 60);
+    for (const gap of gaps(track)) expect(gap).toBeGreaterThanOrEqual(MOMENT_MIN_GAP - 0.001);
+    // Still in time order, and still recognisably late in the game.
+    expect(track).toEqual([...track].sort((a, b) => a - b));
+    expect(track[2]).toBeGreaterThan(85);
+  });
+
+  it('keeps every pill on the track, both ends', () => {
+    // Two at the death, one at the very start: the spread would push the last past the end.
+    const track = momentTrack([0, 36, 37, 38], 38 * 60);
+    expect(Math.min(...track)).toBeGreaterThanOrEqual(3);
+    expect(Math.max(...track)).toBeLessThanOrEqual(97);
+    for (const gap of gaps(track)) expect(gap).toBeGreaterThanOrEqual(MOMENT_MIN_GAP - 0.001);
+  });
+
+  it('gives nothing back rather than a track that would lie', () => {
+    // No length, one moment, and no moments at all: the strip draws its row instead.
+    expect(momentTrack([10, 20], undefined)).toEqual([]);
+    expect(momentTrack([10, 20], 30)).toEqual([]);
+    expect(momentTrack([10], 2400)).toEqual([]);
+    expect(momentTrack([], 2400)).toEqual([]);
+  });
+
+  it('spaces evenly when there are more moments than the track can hold', () => {
+    const many = Array.from({ length: 12 }, (_, i) => i * 3);
+    const track = momentTrack(many, 2400);
+    expect(track.length).toBe(12);
+    for (const gap of gaps(track)) expect(gap).toBeCloseTo(gaps(track)[0], 6);
   });
 });

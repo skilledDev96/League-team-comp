@@ -14397,6 +14397,15 @@ button .player-mark { vertical-align: -0.3rem; }
 .review-draft-lacked-label { font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--warn); }
 .review-draft-lacked .film-gain-chip { border-color: color-mix(in srgb, var(--warn) 55%, transparent); background: color-mix(in srgb, var(--warn) 14%, transparent); }
 .review-draft-in { font-size: 0.9rem; }
+
+/* The moments along the game rather than evenly spaced (12 Sep 2026): three pills inside the last
+   eight minutes reads as a game that was fine until it was not, which is the shape a coach wants
+   and the one a flex row threw away. `momentTrack` places them and guarantees the gap. */
+.moment-track { position: relative; height: 2.1rem; margin: 0.15rem 0 0.1rem; }
+.moment-track-line { position: absolute; left: 0; right: 0; top: 50%; height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--text-1) 22%, transparent); }
+.moment-track .moment-minute { position: absolute; top: 50%; transform: translate(-50%, -50%); }
+.moment-track .moment-minute.active { z-index: 2; }
+.game-review-moment-strip.is-track { padding-top: 0.1rem; }
 .game-review-line-one.is-person { align-items: center; border-left-color: var(--accent); }
 .game-review-line-one.is-person .player-mark { flex: none; width: 1.5rem; height: 1.5rem; margin: 0; }
 .game-review-line-one.is-person > b { font-size: 0.88rem; letter-spacing: 0; text-transform: none; font-weight: 700; }
