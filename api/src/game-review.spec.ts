@@ -209,6 +209,53 @@ describe('the prompts', () => {
     expect(buildTeamPrompt(ctx)).not.toContain('AT EACH DEATH OF OURS');
   });
 
+  it('print the fights above the minute-by-minute lines, and nothing at all when there were no deaths of ours', () => {
+    // 12 Sep 2026. The minute-by-minute lines spend their forty on the kill
+    // list — sixty-three "Fiddlesticks kills Mordekaiser" sentences in the game
+    // this was measured on — so the fights go above them: a coach and a model
+    // both read the shape of the game before the roll call of who killed whom.
+    const withEvents = (over: Partial<NonNullable<ReviewContext['recording']>>): ReviewContext => ({
+      ...ctx,
+      recordedLines: ['This game was recorded from the replay.', 'Minute 24: Ornn kills Darius.'],
+      recording: {
+        matchId: 'EUW1-7977592156',
+        recordedAt: '2026-09-12T19:04:00.000Z',
+        recorderVersion: 3,
+        durationSec: 1860,
+        ourSide: 'blue',
+        seats: [],
+        samples: [],
+        events: [],
+        shots: [],
+        bytes: 4096,
+        ...over
+      }
+    });
+
+    const fight = withEvents({
+      events: [
+        { sec: 1447, kind: 'kill', side: 'them', text: 'someone kills someone', victimSeat: 'Support' },
+        { sec: 1451, kind: 'kill', side: 'them', text: 'someone kills someone', victimSeat: 'Top' },
+        { sec: 1449, kind: 'kill', side: 'us', text: 'someone kills someone', victimSeat: 'Mid' }
+      ],
+      deaths: [{ sec: 1451, seat: 'Top', players: [{ seat: 'Support', ours: true, level: 9, cs: 20, items: [], dead: true, respawn: 30 }] }]
+    });
+
+    // Both coaches get them: they are sentences, not frames.
+    for (const prompt of [buildTeamPrompt(fight), buildPlayerPrompt(fight)]) {
+      expect(prompt).toContain('THE FIGHTS (deaths of ours within 30 seconds of one another are one fight');
+      expect(prompt).toContain('24:07 — two of ours fell inside 4 seconds, one of theirs with them: our Support, then our Top; we were one down at the worst of it: our Support (30s left).');
+      // The one thing the events cannot say, said outright so nothing invents it.
+      expect(prompt).toContain('the League client reports no dragon, no Baron, no herald and no grubs for a custom game');
+      expect(prompt.indexOf('THE FIGHTS')).toBeLessThan(prompt.indexOf('RECORDED FROM THE REPLAY, MINUTE BY MINUTE'));
+      expect(prompt).not.toMatch(/#|puuid|summoner/i);
+    }
+
+    // No deaths of ours, no heading over nothing — and the same for a game with no recording at all.
+    expect(buildTeamPrompt(withEvents({ events: [{ sec: 900, kind: 'objective', side: 'them', text: 'their dragon' }] }))).not.toContain('THE FIGHTS');
+    expect(buildTeamPrompt(ctx)).not.toContain('THE FIGHTS');
+  });
+
   it('tell the team coach that an attached frame is a picture of our own game, read for the minimap and the HUD', () => {
     expect(TEAM_SYSTEM).toContain('When frames of the game are attached they are pictures of OUR own game');
     expect(TEAM_SYSTEM).toContain('read the minimap for where everyone was and the HUD for the spectated player');

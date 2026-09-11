@@ -54,15 +54,15 @@ know".
 Every block either of them added is optional, so a document written before them
 reads exactly as it did.
 
-## Three frames on the moments that matter
+## Five frames on the moments that matter
 
 Added 12 Sep 2026. One picture of a death says where everyone ended up and
-nothing about how they got there, so the run keeps `SHOT_FRAMES` (3) frames on
-the first `STRIP_MOMENTS` (8) deaths of ours — the moment itself and the two
-seconds leading into it — and the single picture it always kept on every other
-moment. Eight is not a round number: it is `MAX_REVIEW_SHOTS`, the frames a
-review reads, so the moments a reader can watch a fight start on are the very
-moments the model was shown.
+nothing about how they got there, so the run keeps `SHOT_FRAMES` (5) frames on
+the first `STRIP_MOMENTS` (8) deaths of ours — the moment itself and the eight
+seconds leading into it, one frame every two — and the single picture it always
+kept on every other moment. Eight is not a round number: it is
+`MAX_REVIEW_SHOTS`, the frames a review reads, so the moments a reader can watch
+a fight start on are the very moments the model was shown.
 
 A run-up frame is stored at `replayShots/{matchId}__{sec}__{frame}`, where
 `{sec}` is the moment's own second and `{frame}` is how many seconds before it
@@ -179,7 +179,7 @@ be run directly: `node scripts/replay-recorder.mjs EUW1-7977592156`.
 | Option | Default | What it does |
 | --- | --- | --- |
 | `--shots N` | 20 | How many moments to keep a picture of. Hard cap 30. |
-| `--frames N` | 3 | How many frames to keep on a moment that gets a strip: the moment itself and `N-1` seconds leading into it. `--frames=1` records the way every run before 12 Sep 2026 did. More than `SHOT_FRAMES` (3) is taken as 3, and the moments that get a strip are the first `STRIP_MOMENTS` (8) deaths of ours either way. |
+| `--frames N` | 5 | How many frames to keep on a moment that gets a strip: the moment itself and `N-1` more spread across the `SHOT_LEAD_SEC` (8) seconds leading into it, so five of them is one every two seconds. `--frames=1` records the way every run before 12 Sep 2026 did. More than `SHOT_FRAMES` (5) is taken as 5, and the moments that get a strip are the first `STRIP_MOMENTS` (8) deaths of ours either way. |
 | `--out-dir <dir>` | `./replay-shots` | Where the client writes the frames. They stay on disk after the run (gitignored) so the lead can look at them. |
 | `--dry-run` | off | Writes the documents as JSON into the out dir and touches no Firestore. |
 | `--roster <file.json>` | — | Only needed for a dry run with no service account: `[{ "name": "Ruan", "role": "Top", "profile": { "riotTag": "EUW" } }, …]`. `riotTag` is the tag alone, not `Name#TAG`. |
@@ -226,9 +226,9 @@ needs no arithmetic of its own.
 
 Twenty pictures are recorded and eight are read, because the extra ones cost
 almost nothing to store and give the frames strip on the Games row something to
-show. The run-up adds at most sixteen more, two on each of eight moments, and
-not one of them is ever sent to a review: eight moments tell a coach more than
-three moments seen three times over, so the strip is for the reader in the film
+show. The run-up adds at most thirty-two more, four on each of eight moments,
+and not one of them is ever sent to a review: eight moments tell a coach more
+than one moment seen five times over, so the strip is for the reader in the film
 room, who can watch a fight start.
 
 The death boards cost nothing worth counting against that: a few hundred bytes
@@ -260,6 +260,53 @@ recording:
   What anyone was holding at any other second is not stored — the minute samples
   carry levels, cs, kills, deaths, assists and the ward score by seat, and no
   items — so a death's board is that second and not the minute around it.
+- **No objective events at all** (measured 12 Sep 2026). The client's event list
+  for a custom game holds champion kills, structures, multikills, aces and the
+  game's own start and end, and **not one epic monster**: a real recording of a
+  game decided by `barons 0-2` came back with a hundred raw events and no
+  dragon, no Baron, no herald and no grubs. So the minute-by-minute lines
+  genuinely have none, and their absence there is not evidence that none fell.
+  What there is instead is the **count in each frame's top bar**, which is why
+  the review's rules tell it to bracket an objective between two frames —
+  "between 12:13 and 15:41 they took a second dragon" — rather than name a
+  minute the pictures cannot support. That is also why a fight line stops at the
+  fight: "and their Baron followed forty seconds later" cannot be sourced and is
+  not claimed.
+- **Farm only to the nearest ten** (measured 12 Sep 2026). The Live Client's
+  `creepScore` is coarse in a replay: every one of the six hundred and sixty CS
+  figures in a real recording was a multiple of ten, while the `wardScore` beside
+  each of them was a full float. The figures are stored as the client gave them,
+  and `RECORDING_HEAD` says outright that a CS gap under ten is not a gap — so a
+  review may read "160 cs against 210" and may not read "our ADC was seven CS
+  down".
+
+## The fights
+
+Added 12 Sep 2026, after the lead asked for the data to be tested from a
+coach's point of view. A recording already carried every figure below and
+printed none of them: the respawn seconds sat unread on every board, and the
+prompt's forty minute-by-minute lines went almost entirely on the kill list —
+sixty-three separate "Fiddlesticks kills Mordekaiser" sentences in the game this
+was measured on, which is a roll call and not a game.
+
+`fightLines` groups the deaths of ours within `FIGHT_WINDOW_SEC` (30 seconds) of
+one another into one fight and says, per fight, what a coach actually asks:
+
+> `33:05 — four of ours fell inside 6 seconds, one of theirs with them: our Jungle, then our Support, then our ADC, then our Top; we were three down at the worst of it: our Jungle (54s left), our ADC (55s left), our Support (45s left); they were one down: their Support (46s left); our Jungle was level 17 on 220 cs against their Jungle’s 16 and 200.`
+
+Three things about it are deliberate. **The hole is read across the whole
+fight**, not off the board it opened on: a fight opens five on five and says
+nothing, and the 4v5 shows a few seconds later once one of ours is down and the
+rest fight on anyway. **The one who is falling is never counted as already
+down**, since the board is read two seconds before them. And **the count either
+side is the trade**: three of ours for four of theirs is a fight we won,
+whatever it felt like.
+
+It is built from the **kill events** and not from the boards, so a death past
+`MAX_DEATH_STATES` still gets a line and a recording made before the boards
+existed still gets its fights — the board is looked up per fight and adds the
+levels, the farm and the respawns when it is there. Over `MAX_FIGHT_LINES` (12)
+the fights kept are the ones that cost most, put back into time order.
 
 A recorded game gets the recorder's own account of the game in "How the game
 went", the frames strip on its Games row, and **The frames** in the film room

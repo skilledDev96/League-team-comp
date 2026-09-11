@@ -196,6 +196,25 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmStripComponent', () =>
     expect(text(root.querySelector('.film-strip-steps-label'))).toBe('Seconds before');
   });
 
+  it('names each step by the seconds in its own document id, not by where it sits in the strip', () => {
+    // The recorder spreads the run-up across `SHOT_LEAD_SEC` (8) seconds, one frame every two, and
+    // writes the true figure into the id as `{matchId}__{sec}__{frame}`. Counting the step off the
+    // index instead read "-4s -3s -2s -1s now" over pictures genuinely eight, six, four and two
+    // seconds before the death — four labels, every one of them wrong (12 Sep 2026).
+    const spread = { ...moments[0], frames: [`${ID}__320__8`, `${ID}__320__6`, `${ID}__320__4`, `${ID}__320__2`, `${ID}__320`] };
+    const { root } = mount(true, { ...strip, moments: [spread, moments[2]] });
+    expect(steps(root).map((b) => text(b))).toEqual(['-8s', '-6s', '-4s', '-2s', 'now']);
+    // And the same figure in the words a reader who cannot see the picture gets.
+    expect(Array.from(root.querySelectorAll<HTMLImageElement>('.film-strip-shots .replay-shot-img')).map((i) => i.getAttribute('alt'))).toEqual([
+      'Rhu (Jinx) falls at 5:20, 8 seconds before',
+      'Rhu (Jinx) falls at 5:20, 6 seconds before',
+      'Rhu (Jinx) falls at 5:20, 4 seconds before',
+      'Rhu (Jinx) falls at 5:20, 2 seconds before',
+      'Rhu (Jinx) falls at 5:20'
+    ]);
+    expect(steps(root)[4].classList.contains('active')).toBe(true);
+  });
+
   it('steps the frames of the moment without reading anything again, by pill and by arrow', () => {
     const { fixture, root } = mount();
     const first = loadShot.mock.calls.length;

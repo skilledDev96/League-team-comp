@@ -843,18 +843,20 @@ describe('the replay recorder, over a whole game', () => {
   // onto the fight, which means the FIRST frame of the sequence is the run-up and the last is the
   // picture. Taking the first — which is what the code did when every range was one second long —
   // would now keep a frame of whatever the camera was parked on before the fight started. Since
-  // 12 Sep 2026 the two frames before it are kept as well, because whether we walked into the fight
-  // or were caught out of it is the thing a single frame can never say.
-  it('keeps the last three frames of a rendered sequence, the moment last', async () => {
+  // 12 Sep 2026 four more are kept with it, SPREAD across the run-up rather than bunched at the
+  // death — three frames a second apart were three pictures of the same instant, while the seconds
+  // that explain the death were rendered and thrown away.
+  it('keeps a strip spread across the run-up, the moment last', async () => {
     const first = OUR_DEATH_SECONDS[0];
     const { recording, shots, firestore } = await record({ shots: 1, plan: { [first]: 'sequence' } });
 
-    // Three documents: the moment under the id it has always had, and the run-up hanging off it.
-    expect(firestore.writes.slice(0, -1).map((w) => w.id)).toEqual([`${MATCH_ID}__${first}__2`, `${MATCH_ID}__${first}__1`, `${MATCH_ID}__${first}`]);
-    // The moment is the last frame of the sequence; the run-up is the two before it, and each says
+    // Five documents: the moment under the id it has always had, and the run-up hanging off it,
+    // each named by how many seconds before the moment it is.
+    expect(firestore.writes.slice(0, -1).map((w) => w.id)).toEqual([`${MATCH_ID}__${first}__8`, `${MATCH_ID}__${first}__6`, `${MATCH_ID}__${first}__4`, `${MATCH_ID}__${first}__2`, `${MATCH_ID}__${first}`]);
+    // The moment is the last frame of the sequence; the run-up is spread back through it, and each says
     // how many seconds before the moment it is. The moment itself carries no `frame` key at all.
-    expect(shots.map((s) => s.bytes)).toEqual([SEQUENCE_SIZES.at(-3), SEQUENCE_SIZES.at(-2), SEQUENCE_SIZES.at(-1)]);
-    expect(shots.map((s) => s.frame)).toEqual([2, 1, undefined]);
+    expect(shots.map((s) => s.bytes)).toEqual([SEQUENCE_SIZES.at(-9), SEQUENCE_SIZES.at(-7), SEQUENCE_SIZES.at(-5), SEQUENCE_SIZES.at(-3), SEQUENCE_SIZES.at(-1)]);
+    expect(shots.map((s) => s.frame)).toEqual([8, 6, 4, 2, undefined]);
     // Every frame of the strip is filed under the moment's own second and carries its words.
     for (const shot of shots) {
       expect(shot.sec).toBe(first);
@@ -865,7 +867,7 @@ describe('the replay recorder, over a whole game', () => {
     // And the index points at them, earliest first, with the moment still its `docId`.
     expect(recording.shots).toHaveLength(1);
     expect(recording.shots[0].docId).toBe(`${MATCH_ID}__${first}`);
-    expect(recording.shots[0].runUp).toEqual([`${MATCH_ID}__${first}__2`, `${MATCH_ID}__${first}__1`]);
+    expect(recording.shots[0].runUp).toEqual([`${MATCH_ID}__${first}__8`, `${MATCH_ID}__${first}__6`, `${MATCH_ID}__${first}__4`, `${MATCH_ID}__${first}__2`]);
     // The bill counts the run-up as it is stored, which is base64.
     expect(recording.bytes).toBe(JSON.stringify({ ...recording, bytes: 0 }).length + shots.reduce((sum, shot) => sum + shot.data.length, 0));
   });
@@ -886,16 +888,17 @@ describe('the replay recorder, over a whole game', () => {
   // The step between two frames is MEASURED, never assumed (12 Sep 2026). The run asks for one
   // frame a second, but only when the client reports both `framesPerSecond` and `enforceFrameRate`
   // — a client carrying neither writes the same nine seconds as 540 frames, where "the frame
-  // before" is a sixtieth of a second earlier and a strip of three would be three frames of one
-  // heartbeat: the same fight, three times, telling the reader nothing.
+  // before" is a sixtieth of a second earlier and a strip would be five frames of one heartbeat: the
+  // same instant, five times, telling the reader nothing.
   it('measures the step from the frames the client actually wrote', async () => {
     const first = OUR_DEATH_SECONDS[0];
     const { recording, shots } = await record({ shots: 1, plan: { [first]: 'sixty' } });
     const last = SIXTY_SIZES.length - 1;
-    // Nine seconds of range over 540 frames is sixty a second, so a second back is sixty frames back.
-    expect(shots.map((s) => s.bytes)).toEqual([SIXTY_SIZES[last - 120], SIXTY_SIZES[last - 60], SIXTY_SIZES[last]]);
-    expect(shots.map((s) => s.frame)).toEqual([2, 1, undefined]);
-    expect(recording.shots[0].runUp).toEqual([`${MATCH_ID}__${first}__2`, `${MATCH_ID}__${first}__1`]);
+    // Nine seconds of range over 540 frames is sixty a second, so two seconds back is a hundred and
+    // twenty frames back — and the strip is spread two seconds at a time through the run-up.
+    expect(shots.map((s) => s.bytes)).toEqual([SIXTY_SIZES[last - 480], SIXTY_SIZES[last - 360], SIXTY_SIZES[last - 240], SIXTY_SIZES[last - 120], SIXTY_SIZES[last]]);
+    expect(shots.map((s) => s.frame)).toEqual([8, 6, 4, 2, undefined]);
+    expect(recording.shots[0].runUp).toEqual([`${MATCH_ID}__${first}__8`, `${MATCH_ID}__${first}__6`, `${MATCH_ID}__${first}__4`, `${MATCH_ID}__${first}__2`]);
   });
 
   // THE MOMENT GATES THE STRIP. The index points a review and the film at `{matchId}__{sec}` and
@@ -919,8 +922,8 @@ describe('the replay recorder, over a whole game', () => {
     const first = OUR_DEATH_SECONDS[0];
     const { recording, shots, runUpDropped, log } = await record({ shots: 1, plan: { [first]: 'huge run-up' } });
 
-    expect(shots.map((s) => s.frame)).toEqual([1, undefined]);
-    expect(recording.shots[0].runUp).toEqual([`${MATCH_ID}__${first}__1`]);
+    expect(shots.map((s) => s.frame)).toEqual([8, 6, 4, undefined]);
+    expect(recording.shots[0].runUp).toEqual([`${MATCH_ID}__${first}__8`, `${MATCH_ID}__${first}__6`, `${MATCH_ID}__${first}__4`]);
     expect(runUpDropped).toBe(1);
     // The two losses are counted apart in the one line the lead reads at the end.
     expect(log.some((line) => line.includes('1 run-up frame dropped') && !line.includes('moment dropped'))).toBe(true);
@@ -933,11 +936,11 @@ describe('the replay recorder, over a whole game', () => {
     const { recording, shots } = await record({ plan: ALL_SEQUENCES });
     const deaths = recording.shots.filter((s) => s.kind === 'death');
     expect(deaths.length).toBeGreaterThan(STRIP_MOMENTS);
-    expect(deaths.slice(0, STRIP_MOMENTS).every((s) => s.runUp?.length === 2)).toBe(true);
+    expect(deaths.slice(0, STRIP_MOMENTS).every((s) => s.runUp?.length === SHOT_FRAMES - 1)).toBe(true);
     expect(deaths.slice(STRIP_MOMENTS).every((s) => s.runUp === undefined)).toBe(true);
     // An objective and the end keep the single picture they have always had.
     expect(recording.shots.filter((s) => s.kind !== 'death').every((s) => s.runUp === undefined)).toBe(true);
-    // Which is three documents on eight moments and one on the rest.
+    // Which is five documents on eight moments and one on the rest.
     expect(shots.filter((s) => s.frame)).toHaveLength(STRIP_MOMENTS * (SHOT_FRAMES - 1));
     expect(shots.filter((s) => !s.frame)).toHaveLength(recording.shots.length);
   });

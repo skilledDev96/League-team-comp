@@ -11,7 +11,7 @@ import {
   ReplayShotRef,
   Role
 } from '../models/team.models';
-import { deathLine, deathLines, MAX_DEATH_LINES, MAX_RECORDING_LINES, RECORDING_HEAD, recordingLines, recordingSeatLines, recordingStory } from './replay-lines';
+import { deathLine, deathLines, FIGHT_WINDOW_SEC, fightLines, MAX_DEATH_LINES, MAX_FIGHT_LINES, MAX_RECORDING_LINES, RECORDING_HEAD, recordingLines, recordingSeatLines, recordingStory } from './replay-lines';
 
 /**
  * The mirror check. This is the same fixture and the same expected sentences
@@ -315,5 +315,114 @@ describe('the strip a recorder keeps of a moment', () => {
     // A run-up id is the match, the second and how many seconds before it — there is no room in one
     // for a name or a Riot id of theirs, here as everywhere.
     for (const id of ref.runUp ?? []) expect(id).toMatch(/^EUW1-7977592156__1105__[12]$/);
+  });
+});
+
+describe('fightLines', () => {
+  /** All ten on their feet at 130 farm and level 11, so a test only has to say who was not. */
+  function standing(seat: (typeof SEATS)[number], ours: boolean, over: Partial<ReplayDeathPlayer> = {}): ReplayDeathPlayer {
+    return { seat, ours, level: 11, cs: 130, items: ['Sunfire Aegis'], ...over };
+  }
+
+  function ten(over: (seat: (typeof SEATS)[number], ours: boolean) => Partial<ReplayDeathPlayer> = () => ({})): ReplayDeathPlayer[] {
+    return [...SEATS.map((seat) => standing(seat, true, over(seat, true))), ...SEATS.map((seat) => standing(seat, false, over(seat, false)))];
+  }
+
+  function board(sec: number, seat: (typeof SEATS)[number], players = ten()): ReplayDeathState {
+    return { sec, seat, players };
+  }
+
+  /** A death of ours: the client files a kill under the killer's side, so ours is a kill of theirs. */
+  function fell(sec: number, seat: (typeof SEATS)[number]): ReplayEvent {
+    return event(sec, { side: 'them', victimSeat: seat, text: 'someone kills someone' });
+  }
+
+  /** One of theirs going down. */
+  function killed(sec: number, seat: (typeof SEATS)[number]): ReplayEvent {
+    return event(sec, { side: 'us', victimSeat: seat, text: 'someone kills someone' });
+  }
+
+  it('has nothing to say about a game with no deaths of ours', () => {
+    expect(fightLines(recording({ events: [] }))).toEqual([]);
+    expect(fightLines(recording({ events: [killed(600, 'Mid'), event(844, { kind: 'objective', text: 'their dragon' })] }))).toEqual([]);
+  });
+
+  it('gives a death that stood alone its own line, and says whether anything came back', () => {
+    expect(fightLines(recording({ events: [fell(1105, 'Top')] }))).toEqual(['18:25 — our Top fell, nothing back.']);
+    expect(fightLines(recording({ events: [fell(1105, 'Top'), killed(1100, 'Mid')] }))).toEqual(['18:25 — our Top fell, one of theirs with them.']);
+  });
+
+  it('chains deaths of ours within the window into one fight and starts a new one past it', () => {
+    const events = [fell(600, 'Top'), fell(600 + FIGHT_WINDOW_SEC, 'ADC'), fell(600 + FIGHT_WINDOW_SEC + 31, 'Mid')];
+    const lines = fightLines(recording({ events }));
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toBe('10:00 — two of ours fell inside 30 seconds, nothing back: our Top, then our ADC.');
+    expect(lines[1]).toBe('11:01 — our Mid fell, nothing back.');
+  });
+
+  it('reads the hole we were in across the whole fight, not off the board it opened on', () => {
+    // The state a fight opens in is five on five and says nothing. The 4v5 a coach is looking for
+    // shows a few seconds later, once one of ours is down and the rest fight on anyway — which is
+    // the whole point of the line, and reading only the first board missed every one of them.
+    const deaths = [
+      board(600, 'Top'),
+      board(620, 'ADC', ten((seat, ours) => (ours && seat === 'Top' ? { dead: true, respawn: 14.4 } : {}))),
+      board(640, 'Mid', ten((seat, ours) => (ours && (seat === 'Top' || seat === 'ADC') ? { dead: true, respawn: 22 } : !ours && seat === 'Jungle' ? { dead: true, respawn: 9 } : {})))
+    ];
+    const [line] = fightLines(recording({ events: [fell(600, 'Top'), fell(620, 'ADC'), fell(640, 'Mid')], deaths }));
+    expect(line).toContain('we were two down at the worst of it: our Top (22s left), our ADC (22s left)');
+    expect(line).toContain('they were one down: their Jungle (9s left)');
+  });
+
+  it('never counts the player who is falling as one of the already down', () => {
+    // The board is read two seconds before the death it belongs to, so a client that has the victim
+    // on the floor early would otherwise open the sentence by giving the fight's own death as the
+    // reason for it.
+    const deaths = [board(600, 'Top', ten((seat, ours) => (ours && seat === 'Top' ? { dead: true, respawn: 30 } : {})))];
+    const [line] = fightLines(recording({ events: [fell(600, 'Top')], deaths }));
+    expect(line).not.toContain('down at the worst of it');
+    expect(line).toBe('10:00 — our Top fell, nothing back; our Top was level 11 on 130 cs against their Top’s 11 and 130.');
+  });
+
+  it('counts a kill of theirs into one fight at most, however the two sit', () => {
+    // The edge is half the window and fights are split by a gap longer than the window, so two
+    // fights' edges can never reach the same second.
+    const events = [fell(600, 'Top'), killed(612, 'Mid'), fell(640, 'ADC')];
+    const lines = fightLines(recording({ events }));
+    expect(lines).toEqual(['10:00 — our Top fell, one of theirs with them.', '10:40 — our ADC fell, nothing back.']);
+  });
+
+  it('works on a recording made before the boards existed, and says only what it can', () => {
+    const lines = fightLines(recording({ events: [fell(600, 'Top'), fell(610, 'ADC')], deaths: undefined }));
+    expect(lines).toEqual(['10:00 — two of ours fell inside 10 seconds, nothing back: our Top, then our ADC.']);
+  });
+
+  it('puts the whole of a fight into one sentence, levels and farm and all', () => {
+    const deaths = [
+      board(1447, 'Support', ten((seat, ours) => (ours && seat === 'Support' ? { level: 9, cs: 20 } : !ours && seat === 'Support' ? { level: 11, cs: 20 } : {}))),
+      board(1451, 'Top', ten((seat, ours) => (ours && seat === 'Support' ? { dead: true, respawn: 30 } : {})))
+    ];
+    const events = [fell(1447, 'Support'), fell(1451, 'Top'), killed(1449, 'Mid'), killed(1450, 'ADC')];
+    expect(fightLines(recording({ events, deaths }))).toEqual([
+      '24:07 — two of ours fell inside 4 seconds, two of theirs with them: our Support, then our Top; we were one down at the worst of it: our Support (30s left); our Support was level 9 on 20 cs against their Support’s 11 and 20.'
+    ]);
+  });
+
+  it('keeps the fights that cost most when there are more than the cap, and puts them back in time order', () => {
+    const singles = Array.from({ length: MAX_FIGHT_LINES + 4 }, (_, i) => fell(300 + i * 60, 'Mid'));
+    // One wipe late in the game, which must survive the cap however many solo deaths came first.
+    const wipe = [fell(2000, 'Top'), fell(2004, 'ADC'), fell(2008, 'Jungle')];
+    const lines = fightLines(recording({ events: [...singles, ...wipe] }));
+    expect(lines).toHaveLength(MAX_FIGHT_LINES);
+    expect(lines[lines.length - 1]).toContain('three of ours fell');
+    const seconds = lines.map((l) => l.slice(0, l.indexOf(' —')));
+    expect(seconds).toEqual([...seconds].sort((a, b) => Number(a.split(':')[0]) - Number(b.split(':')[0]) || Number(a.split(':')[1]) - Number(b.split(':')[1])));
+  });
+
+  it('is seats on sides and never a name, of ours or of theirs', () => {
+    const deaths = [board(600, 'Top', ten((seat, ours) => (ours && seat === 'Mid' ? { dead: true, respawn: 12 } : !ours && seat === 'ADC' ? { dead: true } : {})))];
+    const [line] = fightLines(recording({ events: [fell(600, 'Top'), killed(598, 'Jungle')], deaths }));
+    for (const name of [...NAMES, ...OURS, ...THEIRS]) expect(line).not.toContain(name);
+    expect(line).not.toMatch(/#|puuid/i);
   });
 });

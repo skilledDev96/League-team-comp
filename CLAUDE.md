@@ -388,7 +388,43 @@ filter rather than none, so it can never become unpickable.
    `respawn` seconds left on them — an absent key is alive, never `false`.
    `MAX_DEATH_STATES` (30) deaths get a board; `deathLines` prints
    `MAX_DEATH_LINES` (20) of them into the prompt, earliest first, and the
-   rest are stored and simply not read. It is a mirrored function like
+   rest are stored and simply not read.
+   **The fights are what a coach reads** (12 Sep 2026, the lead: "test until
+   we can actually use the data we're getting back… think from the
+   perspective of a League coach"). `fightLines` — mirrored in both files
+   like `deathLines` — groups the deaths of ours within `FIGHT_WINDOW_SEC`
+   (30) of one another into one fight and prints, per fight, the second it
+   started, how many fell on each side (the kills the client reported within
+   half the window either side, so no kill lands in two fights), who fell in
+   what order, **the deepest hole either side was in at any point of it**
+   with the respawn seconds on each, and how the first of ours to fall stood
+   against the same seat opposite. It is built from the kill events, not the
+   boards, so a death past `MAX_DEATH_STATES` still gets a line and a
+   version 1 recording still gets its fights; the board is looked up per
+   fight and adds the levels, farm and respawns when it is there. Over
+   `MAX_FIGHT_LINES` (12) the costliest are kept and put back in time order.
+   The hole is read across the **whole** fight and not off its opening board
+   — a fight opens five on five and says nothing — and the player who is
+   falling is never counted as already down, the board being read two
+   seconds before them. `happenedSection` prints it above the
+   minute-by-minute lines, deliberately: those spend their forty on the kill
+   list (sixty-three "Fiddlesticks kills Mordekaiser" sentences in the game
+   this was measured on) and the fights are the same deaths as a game.
+   **Two things the client will not give, both measured 12 Sep 2026 against a
+   real recording and both now said out loud.** It emits **no epic-monster
+   event at all** for a custom game — a hundred raw events held 63 champion
+   kills, 16 towers, multikills, aces, the start and the end, and not one
+   dragon, Baron, herald or grub, in a game decided by `barons 0-2` — so the
+   objectives live only in each frame's top-bar count and the RULES tell the
+   model to bracket one between two frames ("between 12:13 and 15:41 they
+   took a second dragon") rather than name a minute; a fight line therefore
+   stops at the fight and never claims what followed it. And `creepScore` is
+   coarse in a replay: all 660 CS figures in that recording were multiples of
+   ten while the ward scores beside them were full floats, so
+   `RECORDING_HEAD` says a CS gap under ten is not a gap. The RULES also keep
+   **what fell** (a bracket between two frames' top bars) apart from **what
+   was coming** (that frame's corner timers, true of that second only), and
+   forbid deriving a spawn time from a respawn rule. It is a mirrored function like
    `recordingLines`, so it lives in both files word for word. The summoner
    spells and the keystone ride on `ReplaySeat` instead (`spells`,
    `keystone`), because neither changes during a game. **Not a frame per
@@ -621,11 +657,12 @@ filter rather than none, so it can never become unpickable.
    local recorder rather than from Riot, and the first time the film room
    has seen a recording at all: `buildStrip` (`core/film-build.ts`) walks
    the moments the recorder kept pictures of — since recorder version 3 the
-   moment and the two seconds leading into it on the eight a review reads —
-   with the board of all ten beside each death of ours and `deathLine`'s own
-   sentence under it, so the prompt and the film cannot print one death two
-   ways. It stands after the board on a recorded game and after the map on a
-   Clash game that carries both, which is why `FILM_CHAPTER_COUNT` is 8. **A
+   moment and the eight seconds leading into it, one frame every two, on the
+   eight a review reads — with the board of all ten beside each death of ours
+   and `deathLine`'s own sentence under it, so the prompt and the film cannot
+   print one death two ways. It stands after the board on a recorded game and
+   after the map on a Clash game that carries both, which is why
+   `FILM_CHAPTER_COUNT` is 8. **A
    frame in the model is a document id and never the picture**: the model is
    rebuilt inside a computed on every visit, so
    `shared/film/replay-shot-image.component.ts` reads one picture at a time

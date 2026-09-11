@@ -1246,9 +1246,10 @@ function stripMoment(source: StripSource, key: string, seats: Map<string, Replay
     kind: shot?.kind ?? 'death',
     label: (shot?.label ?? '').trim() || (death ? deathLabel(death, seats) : `A moment at ${clockOf(sec)}`),
     // Earliest first and the moment last, which is the order it is read in:
-    // the two seconds leading in, then what it looked like as it happened. Ids
-    // only, and an empty one is left out rather than handed on as a document
-    // that will never be found — a frame the run dropped for size leaves none.
+    // the run-up in from eight seconds before, then what it looked like as it
+    // happened. Ids only, and an empty one is left out rather than handed on as
+    // a document that will never be found — a frame the run dropped for size
+    // leaves none.
     frames: shot ? [...(shot.runUp ?? []), shot.docId].filter((id) => typeof id === 'string' && !!id.trim()) : []
   };
   const seat = shot?.seat ?? death?.seat;

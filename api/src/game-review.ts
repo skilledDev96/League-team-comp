@@ -63,7 +63,7 @@ import { displayChampionName } from './champion-names';
 import { CompExpectation } from './daily-refresh';
 import { compareCurve, GameFacts, k } from './game-facts';
 import { LaneRead, LaneRole, PlayerFacts } from './lane-read';
-import { deathLines, MAX_DEATH_LINES, ReplayRecording } from './replay-recording';
+import { deathLines, fightLines, FIGHT_WINDOW_SEC, MAX_DEATH_LINES, MAX_FIGHT_LINES, ReplayRecording } from './replay-recording';
 
 export const REVIEW_VERSION = 7;
 
@@ -222,7 +222,10 @@ const RULES = `Rules that never bend:
 - Positions, "near" and "warded" come from one frame a minute and are approximate; say "around minute 14", not "at 14:07".
 - The death ledger tags what would have stopped a death, by rules over those frames. "Our jungler a screen away" is a pathing choice and belongs in the jungler's notes; "no ward nearby" belongs to whoever should have warded the spot; "their jungler was already close" belongs to the team's calls; "alone on their side" to the player who stood there. Never blame a laner for a gank nobody could have seen.
 - A solo death - one killer, the lane opponent - is a wave-state or trade choice: the advice is to hold the wave, trade differently, or wait for the jungler before stepping up. Never prescribe a ward for a solo death, and never count a solo death as evidence about vision; 'barely a ward down' is not a reason a laner died one-on-one.
-- READ THE FRAMES. Each one is captioned with the second it was taken and is a real picture of our own game, and the numbers on it are facts as good as any in the text. The top bar carries both teams' gold at that second; the corner above the minimap carries the neutral timers, which say what objective was up and what was about to spawn; the panel across the bottom carries all ten players' items, KDA and CS; and the minimap carries where everyone stood. Use them. When a fight or a death happened with Baron or a dragon close to spawning, say so and say what it was worth — a frame is the only place that clock exists. When a number on a frame is not legible, say nothing about it rather than guess at it.
+- READ THE FRAMES. Each one is captioned with the second it was taken and is a real picture of our own game, and the numbers on it are facts as good as any in the text. The top bar carries both teams' gold and both teams' objective counts at that second; the corner above the minimap carries the neutral timers, which say what objective was up and what was about to spawn; the panel across the bottom carries all ten players' items, KDA and CS; and the minimap carries where everyone stood. Use them. When a fight or a death happened with Baron or a dragon close to spawning, say so and say what it was worth — a frame is the only place that clock exists. When a number on a frame is not legible, say nothing about it rather than guess at it.
+- THE OBJECTIVES ARE ONLY IN THE FRAMES, and only for a recorded game. The League client does not report a dragon, a Baron, a herald or the grubs for a custom game at all — it reports champion kills and structures and nothing else — so the minute-by-minute list below genuinely has none, and their absence there is not evidence that none fell. What you have instead is the count in each frame's top bar: two frames with different counts mean one fell between those two seconds, which is how you say when. Bracket it honestly — "between 12:13 and 15:41 they took a second dragon" — and never state a minute the frames cannot support.
+- WHAT FELL AND WHAT WAS COMING ARE TWO READINGS, never one claim. What fell is the count in a frame's top bar, and the only honest form of it is a bracket between two frames. What was coming is the neutral timer block in that frame's corner, and it is true of that second and no other — a timer reading 1:40 says Baron was 1:40 away when the picture was taken, and says nothing at all about any other minute. Do not turn one into the other, and never work a spawn time out of a respawn rule: those change with the patch and nothing you have been given carries them.
+- WHERE THERE IS A FIGHTS BLOCK, THAT IS WHERE THE GAME WAS DECIDED (a recorded game only). A fight taken a man down is a different mistake from a fight lost five on five, and the block says which by giving you the seconds left on whoever was already on the floor. Use them: "you took that fight at 24:07 with your Support thirty seconds from respawning" is a sentence the team can act on, and every figure in it is in front of you. Read the counts either side of a fight as the trade it was — three of ours for four of theirs is a fight we won, whatever it felt like.
 - Plain sentences a player can read on a phone. No headings, no markdown, no bullet characters inside a string.`;
 
 export const TEAM_SYSTEM = `You are the coach reviewing one finished League of Legends game for an amateur five-stack. You are given what the team drafted and what they expected the comp to do, then the facts of the game with the minutes. You say, in a few plain sentences, whether the game went the way the draft intended, what to work on next, what to keep doing, and what you would draft differently with hindsight.
@@ -327,6 +330,21 @@ function happenedSection(ctx: ReviewContext, withLedger: boolean): string[] {
   const spend = f.spend.filter((s) => s.firstItemMinute !== undefined).map((s) => `${s.seat} had a first item’s worth of gold spent by minute ${s.firstItemMinute} over ${s.backs} backs`);
   if (spend.length) lines.push(`${spend.join('; ')}.`);
   if (withLedger && f.ledger?.length) lines.push('OUR DEATHS, ONE BY ONE (what would have stopped each is a rule over one frame a minute)', ...f.ledger.map((d) => d.line));
+  // The fights, above the minute-by-minute lines and deliberately so (12 Sep
+  // 2026). Those lines spend their forty on the kill list — sixty-three
+  // "Fiddlesticks kills Mordekaiser" sentences in the game this was measured on
+  // — and a kill list is not a game. This is the same deaths grouped into the
+  // fights they happened in, with the two things a coach actually asks: were we
+  // a man down when it started, and was the one who opened it behind the player
+  // opposite. Both are exact; neither was printed anywhere before this.
+  const fights = ctx.recording ? fightLines(ctx.recording, MAX_FIGHT_LINES) : [];
+  if (fights.length) {
+    lines.push(
+      `THE FIGHTS (deaths of ours within ${FIGHT_WINDOW_SEC} seconds of one another are one fight; the count on their side is the kills the client reported within half that window either side, so no kill is counted into two fights)`,
+      'Read these as the shape of the game. What is NOT in them is any objective: the League client reports no dragon, no Baron, no herald and no grubs for a custom game, so nothing here can say what fell after a fight — only the frames’ top bar can, and only as a bracket between two of them.',
+      ...fights
+    );
+  }
   // A recorded custom game (10 Sep 2026): the totals above come from the
   // replay file, the minutes below from the recorder that watched it. Both
   // prompts get the sentences; only the team call gets the frames.

@@ -1146,7 +1146,7 @@ export interface ReplayShotRef {
   /** The `replayShots` document id, `{matchId}__{sec}`. */
   docId: string;
   /**
-   * The frames leading into the moment, earliest first: two seconds before it, then one.
+   * The frames leading into the moment, earliest first: eight seconds before it, then six, four, two.
    * Document ids only — a picture is read one at a time. Absent on a recording that kept a
    * single picture a moment, which is every recording written before 12 Sep 2026 and every
    * moment this run did not think worth a strip.

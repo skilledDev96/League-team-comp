@@ -20,7 +20,7 @@
  *     FIREBASE_SERVICE_ACCOUNT="$(cat service-account.json)" node scripts/replay-recorder.mjs EUW1-7977592156
  *   Usage (PowerShell):
  *     $env:FIREBASE_SERVICE_ACCOUNT = (Get-Content service-account.json -Raw); node scripts/replay-recorder.mjs EUW1-7977592156
- *   Options: [--shots 20] [--frames 3] [--out-dir <dir>] [--dry-run] [--roster <file.json>]
+ *   Options: [--shots 20] [--frames 5] [--out-dir <dir>] [--dry-run] [--roster <file.json>]
  *
  * In the client first: open the replay for that game (Match History → Download
  * → Watch, or double-click the .rofl), let it start playing, and leave the
@@ -29,13 +29,15 @@
  *
  * What it writes (the shape both sides mirror; builder B owns the types):
  *   replayShots/{matchId}__{sec}   one picture a document, base64, under the 1 MiB cap
- *   replayShots/{matchId}__{sec}__1
+ *   replayShots/{matchId}__{sec}__8
+ *   replayShots/{matchId}__{sec}__6
+ *   replayShots/{matchId}__{sec}__4
  *   replayShots/{matchId}__{sec}__2
- *                                  the two seconds leading into that moment, kept only on the
- *                                  moments a review looks at (SHOT_FRAMES, STRIP_MOMENTS). A
- *                                  run-up frame is keyed to the moment it leads into and never to
- *                                  its own second, so two deaths three seconds apart cannot
- *                                  overwrite each other.
+ *                                  the run-up spread across the eight seconds leading into that
+ *                                  moment, one frame every two, kept only on the moments a review
+ *                                  looks at (SHOT_FRAMES, STRIP_MOMENTS). A run-up frame is keyed
+ *                                  to the moment it leads into and never to its own second, so two
+ *                                  deaths three seconds apart cannot overwrite each other.
  *   replayRecordings/{matchId}     the index — seats, samples, events, the shots — written LAST,
  *                                  so a run that dies half way leaves no index pointing at
  *                                  pictures that are not there, the run-up frames included.
@@ -128,13 +130,19 @@ export const SHOT_FPS = 1;
  * How many of a moment's rendered frames are kept (12 Sep 2026, the lead: the run renders ten and
  * throws nine away).
  *
- * Three of them — the moment, the second before it and the second before that — are a strip, and a
- * strip is the difference between a picture of a fight and the fight itself: whether we walked into
- * it, whether the ward was already gone, who turned first. The client has already rendered those
- * frames by the time the moment's is written, so keeping them costs the run nothing at all; what
- * they cost is Firestore, which is why only the moments a review actually looks at get one.
+ * A strip is the difference between a picture of a fight and the fight itself: whether we walked
+ * into it, whether the ward was already gone, who turned first. The client has already rendered
+ * every one of these frames by the time the moment's is written, so keeping them costs the run
+ * nothing at all; what they cost is Firestore, which is why only the moments a review actually
+ * looks at get one.
+ *
+ * **Five, spread across the whole run-up, not bunched at the death** (12 Sep 2026, the lead: "I
+ * don't want the screenshots, I want the actual deaths and see what happened before that to have
+ * caused it"). Three frames at one-second steps were three pictures of the same instant — the death
+ * itself, three times — while the eight seconds that explain it were rendered and thrown away. Five
+ * across `SHOT_LEAD_SEC` is one every two seconds: the approach, the engage, the turn, the death.
  */
-export const SHOT_FRAMES = 3;
+export const SHOT_FRAMES = 5;
 
 /**
  * How many moments get a strip. `shotsFor` sends a review its first `MAX_REVIEW_SHOTS` (8) frames,
@@ -448,7 +456,7 @@ export const POSITION_ROLE = {
 export const ROLES = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
 
 const USAGE =
-  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--frames 3] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--follow <seat|champion>]';
+  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--frames 5] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--follow <seat|champion>]';
 
 const CLIENT_HELP =
   'Is the League client open, with the replay playing? The Live Client and Replay APIs only answer while a replay is up.';
@@ -1622,10 +1630,14 @@ export async function run({
         const runUp = [];
         // Earliest first, which is the order the strip is read in and the order the documents are
         // written in, so a Firestore listing of one moment reads left to right like the film does.
+        // The same spacing the picker used, so a frame's name says truthfully how far before the
+        // moment it is: with five frames over an eight-second run-up that is 8s, 6s, 4s, 2s, then
+        // the moment itself.
+        const spread = shotFrameSpread(shotBody.endTime - shotBody.startTime, frameCap);
         for (const [n, png] of strip.slice(0, -1).entries()) {
           // How many seconds before the moment this frame is, which is also what hangs it off the
-          // moment's document id: the step was measured, so one frame back is one second back.
-          const frame = strip.length - 1 - n;
+          // moment's document id.
+          const frame = (strip.length - 1 - n) * spread;
           const runUpBytes = await toJpeg(png, log);
           const runUpData = runUpBytes ? runUpBytes.toString('base64') : '';
           if (!runUpData || runUpData.length > MAX_SHOT_BYTES) {
@@ -2011,6 +2023,23 @@ function shotFrameStep(count, rangeSec) {
 }
 
 /**
+ * How many SECONDS apart the kept frames are (12 Sep 2026). The render covers `SHOT_LEAD_SEC`
+ * seconds of run-up and then the moment, and the strip is spread across the whole of it rather than
+ * taken off the end: the seconds that explain a death are the ones where the fight starts, not the
+ * three pictures of the death itself that a one-second step gives.
+ *
+ * The same number names the frames, since a run-up frame's document id is how many seconds before
+ * the moment it is — so the picker and the naming cannot disagree about what a strip is.
+ */
+export function shotFrameSpread(rangeSec, want) {
+  // The range is the run-up plus the moment's own second, so the run-up itself is one shorter.
+  const runUp = Math.max(0, Math.floor(number(rangeSec)) - 1);
+  const frames = Math.max(1, Math.floor(number(want)));
+  if (frames <= 1 || runUp <= 0) return 1;
+  return Math.max(1, Math.round(runUp / (frames - 1)));
+}
+
+/**
  * The frames to keep for one moment, oldest first and the moment last. `frames` is how many are
  * wanted; a sequence too short to reach back that far gives what it has, because a two-frame or
  * one-frame strip is honest and a moment is never worth losing over its run-up.
@@ -2029,9 +2058,11 @@ function findShotFile({ fs, file, dir, stem, skip = [], frames = 1, rangeSec = 0
         .sort();
       if (!inside.length) return [];
       const step = shotFrameStep(inside.length, rangeSec);
+      // Seconds between kept frames, so the strip covers the run-up instead of the last two seconds.
+      const spread = shotFrameSpread(rangeSec, want);
       const picked = [];
       for (let back = 0; back < want; back += 1) {
-        const at = inside.length - 1 - back * step;
+        const at = inside.length - 1 - back * spread * step;
         if (at < 0) break;
         // Unshifted, so the list comes back oldest first and ends on the moment.
         picked.unshift(path.join(file, inside[at]));

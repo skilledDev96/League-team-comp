@@ -14,12 +14,30 @@ export interface StripFrame {
   docId: string;
   /** Seconds before the moment; 0 is the moment itself. */
   before: number;
-  /** The step's face: "-2s", "-1s", "now". */
+  /** The step's face: "-8s", "-6s", "now". */
   step: string;
   /** The step's tip, which is where the figure's terms are said in full. */
   tip: string;
   /** The picture's own words, for a reader who cannot see it. */
   alt: string;
+}
+
+/**
+ * How far before the moment one of its frames is, read off the document id's
+ * own suffix (`{matchId}__{sec}__{frame}`) and never counted off the index.
+ *
+ * The index was the answer only while the run-up was one frame a second. Since
+ * 12 Sep 2026 it is spread across `SHOT_LEAD_SEC` (8) seconds, so five ids
+ * counted by index read "-4s -3s -2s -1s now" over pictures genuinely eight,
+ * six, four and two seconds before — and `--frames` moves the spacing again, so
+ * no figure derived from the count can be right for every strip. The recorder
+ * writes the true one into the id; this reads it back. A moment's own picture
+ * has no suffix and is 0, which is what "now" means.
+ */
+function secondsBefore(docId: string): number {
+  const parts = String(docId ?? '').split('__');
+  const said = parts.length >= 3 ? Number(parts[parts.length - 1]) : 0;
+  return Number.isFinite(said) && said > 0 ? Math.round(said) : 0;
 }
 
 /** "Down, 8s to respawn" — the seconds the client had left on somebody already on the floor, with their terms. */
@@ -34,12 +52,13 @@ export function downLine(row: FilmStripRow): string {
  *
  * A custom game has no match and no timeline, so what we know of it is what
  * the recorder saw walking the replay in the League client: a picture at each
- * moment that mattered — since recorder version 3 the two seconds leading in
- * as well as the moment itself — and, at every death of ours, what all ten
- * were holding as we fell. The film has never shown either. This chapter is
- * where it does, and it is laid out like the map so that it reads as part of
- * the same film: the picture large on the left with a three-step control
- * under it, the board of ten beside it, and a rail of the moments under both.
+ * moment that mattered — since recorder version 3 the eight seconds leading
+ * in, one frame every two, as well as the moment itself — and, at every death
+ * of ours, what all ten were holding as we fell. The film has never shown
+ * either. This chapter is where it does, and it is laid out like the map so
+ * that it reads as part of the same film: the picture large on the left with a
+ * five-step control under it, the board of ten beside it, and a rail of the
+ * moments under both.
  *
  * **What it costs is the design.** A recording can carry twenty moments and
  * sixty frames, and each frame is a document of a few hundred kilobytes, so
@@ -190,14 +209,14 @@ export class FilmStripComponent {
 
   /**
    * The moment's frames, earliest first and the moment last, which is the
-   * order the recorder wrote them in and the order they are read in: the two
-   * seconds leading in, then what it looked like as it happened.
+   * order the recorder wrote them in and the order they are read in: the
+   * run-up leading in, then what it looked like as it happened.
    */
   protected readonly frames = computed<StripFrame[]>(() => {
     const ids = this.moment()?.frames ?? [];
     const label = this.moment()?.label ?? 'this moment';
-    return ids.map((docId, i) => {
-      const before = ids.length - 1 - i;
+    return ids.map((docId) => {
+      const before = secondsBefore(docId);
       return {
         docId,
         before,

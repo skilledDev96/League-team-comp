@@ -337,9 +337,9 @@ export interface FilmBoard {
 // replay in the League client and writes what it saw (`replayRecordings` and
 // `replayShots`). Until now the film room had never seen a recording at all:
 // the strip is where it does. It carries the moments the recorder kept
-// pictures of — since recorder version 3 up to three frames on the ones worth
-// it, the two seconds leading in and then the moment itself — and, at every
-// death of ours, what all ten were holding when we fell.
+// pictures of — since recorder version 3 up to five frames on the ones worth
+// it, the eight seconds leading in taken one every two and then the moment
+// itself — and, at every death of ours, what all ten were holding when we fell.
 //
 // Two rules hold over everything below. The other team is a champion in a
 // seat: no name of theirs is on a row, because none is stored. And a frame
@@ -390,7 +390,7 @@ export interface FilmStrip {
   moments: FilmStripMoment[];
   /** ISO, off `recording.recordedAt`; the component formats it. */
   recordedOn: string;
-  /** "Twenty deaths, three frames on the eight that mattered." */
+  /** "Twenty deaths, five frames on the eight that mattered." */
   opening: string;
   /** Why it is approximate, said once: the board is read two seconds before the death. */
   caveat: string;
