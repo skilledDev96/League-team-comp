@@ -196,6 +196,63 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmStripComponent', () =>
     expect(text(root.querySelector('.film-strip-steps-label'))).toBe('Seconds before');
   });
 
+  const rows = (root: HTMLElement) => Array.from(root.querySelectorAll<HTMLElement>('.film-strip-board .film-strip-row'));
+  const rowBtns = (root: HTMLElement) => Array.from(root.querySelectorAll<HTMLButtonElement>('.film-strip-rowbtn'));
+
+  it('makes one of ours on the board a button that leaves the rail showing that seat alone', () => {
+    // The question a board prompts is "show me every time this player fell", which is the same seat
+    // filter the tape and the map already wear (12 Sep 2026, the lead: "these should also be clickable").
+    const { fixture, root } = mount();
+    expect(chips(root)).toHaveLength(3);
+
+    // Only our seats the run kept a moment for are pressable. Theirs never is: the recorder files a
+    // moment at a death of OURS, so there is nothing of theirs to filter to.
+    const pressable = rows(root).filter((r) => r.classList.contains('is-pickable'));
+    expect(pressable.length).toBeGreaterThan(0);
+    expect(pressable.every((r) => r.classList.contains('is-ours'))).toBe(true);
+    for (const r of rows(root).filter((x) => !x.classList.contains('is-ours'))) {
+      expect(r.querySelector('.film-strip-rowbtn')).toBeNull();
+    }
+
+    // Press our Support: the rail keeps that seat's one moment and drops the rest.
+    const support = rowBtns(root).find((b) => text(b).includes('Support'));
+    expect(support).toBeTruthy();
+    support!.click();
+    fixture.detectChanges();
+    expect(chips(root)).toHaveLength(1);
+    expect(text(root.querySelector('.film-strip-filter'))).toContain('Showing our Support alone — 1 of 3 moments.');
+  });
+
+  it('puts the reader on a moment of the seat they pressed, never leaving the picture and the rail disagreeing', () => {
+    const { fixture, root } = mount();
+    // The chapter opens on 5:20, our ADC. Pressing Support has to move the stage as well as the rail,
+    // or the current chip is nowhere on screen.
+    expect(text(root.querySelector('.film-strip-clock'))).toBe('5:20');
+    rowBtns(root).find((b) => text(b).includes('Support'))!.click();
+    fixture.detectChanges();
+    expect(text(root.querySelector('.film-strip-clock'))).toBe('9:00');
+    expect(chips(root)[0].classList.contains('is-current')).toBe(true);
+  });
+
+  it('gives every moment back when the lit seat is pressed again, and by the Show all pill', () => {
+    const { fixture, root } = mount();
+    const press = () => rowBtns(root).find((b) => text(b).includes('Support'))!.click();
+    press();
+    fixture.detectChanges();
+    expect(chips(root)).toHaveLength(1);
+    // The same row again clears it.
+    press();
+    fixture.detectChanges();
+    expect(chips(root)).toHaveLength(3);
+    expect(root.querySelector('.film-strip-filter')).toBeNull();
+    // And so does the pill, which is the obvious way out for anyone who does not think to press twice.
+    press();
+    fixture.detectChanges();
+    root.querySelector<HTMLButtonElement>('.film-strip-filter .view-btn')!.click();
+    fixture.detectChanges();
+    expect(chips(root)).toHaveLength(3);
+  });
+
   it('names each step by the seconds in its own document id, not by where it sits in the strip', () => {
     // The recorder spreads the run-up across `SHOT_LEAD_SEC` (8) seconds, one frame every two, and
     // writes the true figure into the id as `{matchId}__{sec}__{frame}`. Counting the step off the

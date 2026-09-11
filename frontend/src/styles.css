@@ -15211,6 +15211,13 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 /* The seat that fell is ringed, and says so in words as well: a colour alone is not a sentence. */
 .film-strip-row.is-victim { border-color: var(--warn); border-left-color: var(--warn); box-shadow: 0 0 0 1px var(--warn); }
 .film-strip-row.is-down { opacity: 0.55; }
+/* A pressable row hands its grid to the button, because the button is what holds the cells. One of ours whose deaths the run kept leaves the rail showing that seat alone. */
+.film-strip-row.is-pickable { padding: 0; }
+.film-strip-rowbtn { display: grid; grid-template-columns: 1.7rem minmax(0, 1fr) auto; align-items: center; gap: 0.25rem 0.5rem; width: 100%; margin: 0; padding: 0.35rem 0.5rem; border: 0; border-radius: 9px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.film-strip-rowbtn:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.film-strip-rowbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.film-strip-rowbtn.active { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.film-strip-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--film-ink-1); }
 .film-strip-face { width: 1.7rem; height: 1.7rem; border-radius: 6px; }
 .film-strip-face.is-blank { display: block; background: color-mix(in srgb, var(--film-ink) 10%, transparent); }
 .film-strip-who { display: grid; min-width: 0; line-height: 1.15; }

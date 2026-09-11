@@ -1,5 +1,7 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, effect, HostListener, inject, input, output, signal, untracked } from '@angular/core';
 import { FilmGlyph, FilmModel, FilmStripMoment, FilmStripRow } from '../../../core/film-model';
+import { Role } from '../../../models/team.models';
 import { UiService } from '../../../services/ui.service';
 import { FilmGlyphComponent } from '../../../shared/film/film-glyph.component';
 import { ReplayShotImageComponent } from '../../../shared/film/replay-shot-image.component';
@@ -75,7 +77,7 @@ export function downLine(row: FilmStripRow): string {
  */
 @Component({
   selector: 'app-film-strip',
-  imports: [TooltipDirective, FilmFrameComponent, FilmGlyphComponent, ReplayShotImageComponent],
+  imports: [NgTemplateOutlet, TooltipDirective, FilmFrameComponent, FilmGlyphComponent, ReplayShotImageComponent],
   template: `
     @let strip = model().strip;
     <app-film-frame [kicker]="kicker()" [index]="index()" [count]="count()" (next)="next.emit()" (back)="back.emit()">
@@ -123,29 +125,28 @@ export function downLine(row: FilmStripRow): string {
               } @else if (m.board; as board) {
                 <ol class="list-clean film-strip-board" aria-label="What all ten were holding">
                   @for (r of board; track r.ours + ':' + r.seat) {
-                    <li class="film-strip-row" [class.is-ours]="r.ours" [class.is-victim]="!!r.victim" [class.is-down]="!!r.dead" [style.--i]="$index">
-                      @if (r.champion) {
-                        <img class="film-strip-face" [src]="ui.championIconUrl(r.champion)" alt="" loading="lazy" />
+                    <li class="film-strip-row" [class.is-ours]="r.ours" [class.is-victim]="!!r.victim" [class.is-down]="!!r.dead" [class.is-pickable]="pickable(r)" [style.--i]="$index">
+                      <!--
+                        One of ours whose deaths the run kept is a button: it leaves the rail showing
+                        that seat alone, which is the question a board actually prompts — "show me
+                        every time this player fell". The same seat filter the tape and the map wear.
+                        Theirs is never a button, and not for want of styling: the recorder files a
+                        moment at a death of OURS, so there is nothing of theirs to filter to.
+                      -->
+                      @if (pickable(r)) {
+                        <button
+                          type="button"
+                          class="film-strip-rowbtn"
+                          [class.active]="seat() === r.seat"
+                          [attr.aria-pressed]="seat() === r.seat"
+                          [appTip]="seat() === r.seat ? 'Show every moment again' : 'Show only this seat\\'s moments'"
+                          (click)="toggleSeat(r.seat)"
+                        >
+                          <ng-container *ngTemplateOutlet="rowBody; context: { $implicit: r }" />
+                        </button>
                       } @else {
-                        <span class="film-strip-face is-blank" aria-hidden="true"></span>
+                        <ng-container *ngTemplateOutlet="rowBody; context: { $implicit: r }" />
                       }
-                      <span class="film-strip-who">
-                        <b>{{ who(r) }}</b>
-                        <small>{{ r.seat }}{{ r.champion ? ' · ' + ui.championName(r.champion) : '' }}</small>
-                      </span>
-                      <span class="film-strip-figs">
-                        <b>{{ r.level }}</b><small>level</small>
-                        <b>{{ r.cs }}</b><small>CS</small>
-                      </span>
-                      @if (r.victim) { <span class="film-strip-fell">Fell here</span> }
-                      @if (r.dead) { <span class="film-strip-down">{{ down(r) }}</span> }
-                      <span class="film-strip-items">
-                        @for (item of r.items; track $index) {
-                          <span class="film-strip-item">{{ item }}</span>
-                        } @empty {
-                          <span class="film-strip-item is-none">Nothing</span>
-                        }
-                      </span>
                     </li>
                   }
                 </ol>
@@ -157,19 +158,25 @@ export function downLine(row: FilmStripRow): string {
               <p class="film-strip-caveat muted">{{ strip.caveat }}</p>
             </div>
 
+            @if (seat(); as only) {
+              <p class="film-strip-filter">
+                Showing our {{ only }} alone — {{ shown().length }} of {{ moments().length }} moments.
+                <button type="button" class="view-btn" (click)="toggleSeat(only)">Show all</button>
+              </p>
+            }
             <ol class="list-clean film-strip-rail" aria-label="The moments the recorder kept">
-              @for (x of moments(); track x.key) {
+              @for (x of shown(); track x.moment.key) {
                 <li [style.--i]="$index">
                   <button
                     type="button"
                     class="film-strip-chip"
-                    [class.is-current]="$index === cursor()"
-                    [attr.aria-current]="$index === cursor() ? 'true' : null"
-                    [appTip]="x.label"
-                    (click)="pick($index)"
+                    [class.is-current]="x.index === cursor()"
+                    [attr.aria-current]="x.index === cursor() ? 'true' : null"
+                    [appTip]="x.moment.label"
+                    (click)="pick(x.index)"
                   >
-                    <app-film-glyph [name]="glyph(x)" />
-                    <span class="film-strip-chip-clock">{{ x.clock }}</span>
+                    <app-film-glyph [name]="glyph(x.moment)" />
+                    <span class="film-strip-chip-clock">{{ x.moment.clock }}</span>
                   </button>
                 </li>
               }
@@ -182,6 +189,36 @@ export function downLine(row: FilmStripRow): string {
         <p class="film-wait">No recording for this game, so there are no frames.</p>
       }
     </app-film-frame>
+
+    <!--
+      One row of the board, written once and rendered either inside a button or on its own. Written
+      once on purpose: a copy per branch is how the two drift, and the row of ours and the row of
+      theirs have to stay identical in everything but whether they can be pressed.
+    -->
+    <ng-template #rowBody let-r>
+      @if (r.champion) {
+        <img class="film-strip-face" [src]="ui.championIconUrl(r.champion)" alt="" loading="lazy" />
+      } @else {
+        <span class="film-strip-face is-blank" aria-hidden="true"></span>
+      }
+      <span class="film-strip-who">
+        <b>{{ who(r) }}</b>
+        <small>{{ r.seat }}{{ r.champion ? ' · ' + ui.championName(r.champion) : '' }}</small>
+      </span>
+      <span class="film-strip-figs">
+        <b>{{ r.level }}</b><small>level</small>
+        <b>{{ r.cs }}</b><small>CS</small>
+      </span>
+      @if (r.victim) { <span class="film-strip-fell">Fell here</span> }
+      @if (r.dead) { <span class="film-strip-down">{{ down(r) }}</span> }
+      <span class="film-strip-items">
+        @for (item of r.items; track $index) {
+          <span class="film-strip-item">{{ item }}</span>
+        } @empty {
+          <span class="film-strip-item is-none">Nothing</span>
+        }
+      </span>
+    </ng-template>
   `
 })
 export class FilmStripComponent {
@@ -206,6 +243,29 @@ export class FilmStripComponent {
 
   protected readonly moments = computed<FilmStripMoment[]>(() => this.model().strip?.moments ?? []);
   protected readonly moment = computed<FilmStripMoment | undefined>(() => this.moments()[this.cursor()]);
+
+  /**
+   * The seat the rail is showing alone, set by pressing one of ours on the board. Per visit, like
+   * the cursor: a film is walked, not resumed.
+   */
+  protected readonly seat = signal<Role | null>(null);
+
+  /** Which of our seats the run actually kept a moment for; the rest are not worth offering. */
+  private readonly seatsKept = computed(() => new Set(this.moments().map((m) => m.seat).filter((s): s is Role => !!s)));
+
+  /**
+   * The rail's moments, each with its index in the UNFILTERED list.
+   *
+   * The index travels with the moment because `cursor` indexes the whole list and always has: a
+   * filtered rail that renumbered would put the reader on a different death than the one they
+   * pressed the moment a filter changed.
+   */
+  protected readonly shown = computed<{ moment: FilmStripMoment; index: number }[]>(() => {
+    const only = this.seat();
+    return this.moments()
+      .map((moment, index) => ({ moment, index }))
+      .filter((x) => !only || x.moment.seat === only);
+  });
 
   /**
    * The moment's frames, earliest first and the moment last, which is the
@@ -293,6 +353,33 @@ export class FilmStripComponent {
 
   protected glyph(moment: FilmStripMoment): FilmGlyph {
     return STRIP_GLYPHS[moment.kind] ?? 'flag';
+  }
+
+  /**
+   * Can this row of the board be pressed? Only one of ours, and only a seat the run kept a moment
+   * for. A button that filters to nothing is worse than no button: it reads as a broken control
+   * rather than as an empty answer.
+   */
+  protected pickable(row: FilmStripRow): boolean {
+    return !!row.ours && !!row.seat && this.seatsKept().has(row.seat);
+  }
+
+  /**
+   * Show one seat's moments, or all of them again.
+   *
+   * When the moment on stage is not in the seat being shown, the rail jumps to that seat's first —
+   * otherwise the picture and the rail disagree, with the current chip nowhere on screen.
+   */
+  protected toggleSeat(seat: Role): void {
+    const next = this.seat() === seat ? null : seat;
+    this.seat.set(next);
+    if (!next) return;
+    if (this.moment()?.seat === next) return;
+    const first = this.shown()[0];
+    if (first) {
+      this.cursor.set(first.index);
+      this.frame.set(0);
+    }
   }
 
   /** Ours by name where the recording carries one; theirs is a seat, because no name of theirs is stored anywhere. */
