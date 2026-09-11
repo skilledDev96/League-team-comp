@@ -222,6 +222,26 @@ Jinx", "Reset: every ban and pick cleared"). A hold-only change is skipped.
 `core/error-reporting.ts` is the app's `ErrorHandler`; it writes uncaught
 errors to `clientErrors` (any signed-in user may create one — see
 `firestore.rules`), capped at twenty a session and one row per message.
+**A tab open across a deploy is the commonest thing in that log**, and
+`core/stale-build.ts` is the one rule for it (11 Sep 2026): every lazy chunk
+is content-hashed and Pages redeploys on every push touching `frontend/**`
+— dozens a day — so an open tab asks for names that are gone.
+`isStaleChunkError` knows all three engines' wordings and `reloadForStaleBuild`
+reloads **once per target**, because a chunk that is genuinely missing would
+otherwise refresh forever. `App.recoverFromStaleBuild` has used it on a
+`NavigationError` since 25 Aug 2026; what it could not see is a **`@defer`
+block**, whose failure never reaches the router and surfaces only as
+Angular's `NG0750` (`DEFER_LOADING_FAILED`, latched on the *TView*, so it
+never retries for the life of the page). The review takeover's backdrop
+renders for every phase while the stage — and both of its exits — sat inside
+such a block with no `@loading` and no `@error`, so a failed chunk left a
+teammate behind a full-screen inert scrim with nothing in it and no way out
+but F5. That block now has both branches, the backdrop and Escape close the
+takeover whenever the stage is not on screen, and a **second Escape within
+`ESCAPE_TWICE_MS`** always closes it — the last one covers the other way to
+seal the page, a `MotionService.play` whose `finished` never settles (a
+hidden tab stalls WAAPI), which `minimise()` awaits before it closes.
+Any new `@defer` needs an `@error` branch for the same reason.
 Both are read on Admin → Diagnostics. The point (8 Sep 2026): a teammate who
 says "something went wrong in the draft" and cannot say what can now be read
 back step by step. Do not add per-action logging in the draft room — the diff

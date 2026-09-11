@@ -9,6 +9,7 @@ import {
   RouterLinkActive,
   RouterOutlet
 } from '@angular/router';
+import { isStaleChunkError, reloadForStaleBuild } from './core/stale-build';
 import { AuthService } from './services/auth.service';
 import { TeamDataService } from './services/team-data.service';
 import { Theme, ThemeService } from './services/theme.service';
@@ -62,21 +63,12 @@ export class App {
    * so the browser picks up the current index and its chunk names.
    */
   private recoverFromStaleBuild(event: NavigationError): void {
-    const message = String((event.error as { message?: string })?.message ?? event.error ?? '');
-    const isChunkFailure =
-      /dynamically imported module|ChunkLoadError|Loading chunk|Importing a module script failed/i.test(
-        message
-      );
-    if (!isChunkFailure) {
+    // The test and the one-reload guard live in `core/stale-build.ts` since 11 Sep 2026, because a
+    // `@defer` block's failure needs exactly the same two and never reaches the router to get them.
+    if (!isStaleChunkError(event.error)) {
       return;
     }
-    // Guard against a reload loop if the chunk is genuinely missing.
-    const key = 'bom-stale-build-reload';
-    if (sessionStorage.getItem(key) === event.url) {
-      return;
-    }
-    sessionStorage.setItem(key, event.url);
-    location.reload();
+    reloadForStaleBuild(event.url, typeof sessionStorage === 'undefined' ? null : sessionStorage, () => location.reload());
   }
 
   constructor() {
