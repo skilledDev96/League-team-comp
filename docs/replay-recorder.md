@@ -46,22 +46,35 @@ The lead does this, then runs the script.
    client's own resolution, and at 2560x1440 those frames blow the 700 KB a
    Firestore document can hold and are dropped rather than stored. The drop
    message prints the frame's real pixel size, so it says which case you are in.
-5. **Leave the camera attached to a champion.** Since 11 Sep 2026 the run points
-   it itself: before each picture it puts the camera on whoever that picture is
-   about, so a death's frame carries the victim's own HUD. That matters because
-   the abilities, the items and the cooldowns in the corner belong to the
-   followed champion alone, and they are the one thing a frame says about a
-   player that the minute-by-minute figures do not.
-   The one thing it cannot do for you is get the replay **out of manual
-   camera**. A replay whose camera you have detached — dragged the map, or
-   pressed the key that frees it — takes the request and goes on showing what it
-   was showing, and the run says so on the first picture and carries on. Click a
-   champion in the replay's own player bar once before you start, and it will
-   follow from there. Nothing else in the data depends on it: the per-minute
-   figures and the whole event list cover all ten players whoever the camera is
-   on, and every frame's minimap shows the whole map. `--no-follow` leaves the
-   camera exactly where you put it, for a run where you want one seat's HUD —
-   the jungler's, usually — on every frame instead.
+5. **Leave the mouse alone once it starts.** The run points the camera itself:
+   each picture is taken with the camera on the champion that picture is about,
+   so a death's frame carries the victim's own HUD — their abilities, their
+   items, their cooldowns — which is the one thing a frame says about a player
+   that the minute-by-minute figures cannot.
+
+   The one thing that breaks it is you: **moving the mouse over the replay flips
+   the client to Manual Camera**, and a manual camera ignores everything the run
+   asks for. Start the run and leave the machine alone for its five minutes.
+
+   If the client will not hold a selection at all, the run says so once and
+   stops asking, and every frame then carries whatever the replay's own camera
+   was showing. Set the camera dropdown to **Directed Camera** before a run and
+   that fallback is still worth having: the client's own director follows the
+   action, so a frame is at least a frame of the fight. **Manual Camera** is the
+   one setting to avoid — every picture comes back as the same patch of map.
+
+   `--no-follow` leaves the camera alone entirely, for a run where you want one
+   seat's HUD on every frame and have parked the camera there yourself.
+
+   **How the run does it** (measured against patch 26.17 on 11 Sep 2026, after
+   three attempts that did not work): `selectionName` and `cameraAttached` are
+   accepted and echoed back whenever you send them, and setting them before a
+   render does **nothing** — a seek clears the selection, and starting a render
+   clears it again. The camera only moves while a render is playing, so the run
+   re-asserts the champion on every turn of the wait that watches the render
+   write its frames. That walks the camera onto the champion and keeps it there.
+   `cameraMode` is never sent: it is the one key that moves the camera on its
+   own, and setting it to `"fps"` took the whole client down mid-test.
 6. **Have the match id.** It is the dashed replay id the Games page shows on the
    row, e.g. `EUW1-7977592156` — the same string the `.rofl` filename carries.
    Case and the underscore spelling do not matter; the script folds both.
@@ -282,17 +295,57 @@ handled now, and each is worth knowing if a patch ever changes it back.
   is a string (the champion being followed), not a toggle. The run reads the
   client's own render object first and sends back only the keys it reported, in
   the type it reported them.
-- **The camera followed nobody**, and for three reasons at once. It was pointed
-  *before* the seek, and a seek across half an hour of replay drops the
-  selection; the request went out blind inside an empty `catch`, so a client
-  that refused it said nothing at all; and a champion the client knows only by
-  its id (`MissFortune`, not `Miss Fortune`) was never going to be found. All
-  three are handled now: the camera is pointed after the seek and before the
-  render, out of the keys the client reported, with both spellings tried and the
-  answer read back. A replay in **manual camera** still keeps its own view
-  whatever it is told — the run says so once, on the first picture, and takes
-  the frames anyway. The selection is put back at the end with the panels, so
-  the replay you carry on watching is the one you started with.
+- **The camera can be pointed, but only through a render**, which took four
+  passes to find. The first pass fixed three real faults — the camera was aimed
+  *before* the seek (and seeking clears the selection outright), the request
+  went out blind inside an empty `catch` so a refusal was silent, and a champion
+  the client knows only by its id (`MissFortune`, not `Miss Fortune`) was never
+  going to be found. With all three fixed the client answered "following Vi" and
+  rendered the same patch of map it had been showing since 00:07.
+
+  So the next pass stopped believing it and watched `cameraPosition` instead:
+
+  | asked for | camera went |
+  | --- | --- |
+  | `selectionName: Sion`, `cameraAttached: true`, paused | nowhere |
+  | `selectionName: Nautilus`, `cameraAttached: true`, paused | nowhere |
+  | a second of playback at 1× | nowhere |
+  | nine seconds of being left alone | nowhere |
+  | `cameraMode: "fps"` | 400 units — **and the client died** |
+
+  The answer was that a paused replay's camera does not move at all, and a
+  render **clears the selection when it starts**. Re-asserting it every half
+  second *through* a nine-second render walked the camera along with its
+  champion — 6204, then 6761, then 7248 as Nautilus moved — and the frame came
+  back centred on him mid-fight. That is what the run does now: `makeCameraHold`
+  is handed to the wait that watches the sequence land, re-asserts the champion
+  on every turn, and reads the selection back once to find out whether this
+  client holds it at all.
+
+  Two things will still beat it. **Moving the mouse** flips the client to Manual
+  Camera, which ignores the run entirely — hands off while it works. And
+  `cameraMode` is never sent under any circumstance.
+
+  What the selection reliably buys is the **HUD**: the frame at a death carries
+  that champion's own health, mana, abilities, items and CS in the corner, which
+  is the one thing a picture says about a player that the minute-by-minute
+  figures cannot. The framing is the client's to decide.
+
+- **The event list repeats itself, and its clock drifts.** The client APPENDS to
+  it every time the playhead crosses an event, and a run crosses the same
+  seconds over and over — once for the play-through, then again for every
+  picture's run-up. A real 36-minute game came back with **266 events of which
+  108 were distinct**, one kill listed sixteen times; a review reading that would
+  have seen sixteen kills in one second.
+
+  Keying on the exact second was not enough: the same kill comes back as 354.6
+  on one crossing and 355.2 on the next, which still left **26 duplicate pairs
+  in 89 kills**. So `readEvents` reads the same actors doing the same thing
+  within `EVENT_SAME_WINDOW_SEC` (3) as one event — far under any death timer,
+  comfortably over the drift — and remembers **every** second a pair has been
+  seen at, not just the newest, because a pass covers the whole game before the
+  next begins. The client's own `EventID` is no use here; it is not stable
+  across passes.
 
 **The panels stay up.** With streamer mode on they print champions, never a Riot
 id, and they carry the team gold, the items, the KDA and the event bar. That

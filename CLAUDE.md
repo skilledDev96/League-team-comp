@@ -403,17 +403,49 @@ filter rather than none, so it can never become unpickable.
    the client will not confirm as off **stops the pictures** — the samples
    and the events are still written, and the summary says why. An exception
    to that would have to be written here beside the rule; a review pass
-   cannot grant one. **The camera is the run's to point** (11 Sep 2026, the
-   lead: "the recorder is not following anyone"): before each frame — after the
-   seek, never before it, since a seek across half an hour of replay drops the
-   selection — it POSTs `selectionName` and `cameraAttached` built out of the
-   keys the client reported, tries the printed name and then the champion id
-   (`MissFortune`, not `Miss Fortune`), and reads the answer back, so a death's
-   frame carries the victim's own HUD. A replay in manual camera keeps its own
-   view whatever it is told: that is one sentence in the log, said once, and the
-   pictures are taken anyway. `--no-follow` leaves the camera alone, and
-   `restoreRender` puts the selection back with the panels. Two more things the
-   recorder promises: a frame is taken
+   cannot grant one. **The camera is pointed through the render, never before
+   it** (11 Sep 2026, the lead: "attach the camera to each of our champions
+   like Vi, Akali"). Measured against patch 26.17 rather than assumed:
+   `/replay/render` accepts `selectionName` and `cameraAttached: true` and
+   echoes both back as done whenever they are sent, while a seek clears the
+   selection and **starting a render clears it again** — so a camera pointed
+   before a render is pointed at nothing, and `cameraPosition` never moved
+   through two champions, a second of playback and a nine-second wait. What
+   works is holding it *during* the render, the only window in which the
+   replay's camera moves at all: `makeCameraHold` is passed to `waitForShot` as
+   `onPoll` and re-asserts the champion on every turn of the wait, reading the
+   selection back once (`CAMERA_CHECK_POLL`) to learn whether this client holds
+   one and to try the id spelling (`championIdOf`: `MissFortune`, not `Miss
+   Fortune`) when it does not. A client that holds neither spelling sets
+   `cameraHeld` false, is never asked again, and the run prints
+   `CAMERA_NOT_HELD` once. `cameraMode` is **never** sent: it is the one key
+   that moves the camera on its own and setting it to `fps` killed the client
+   mid-test. The frame is also rendered from `SHOT_LEAD_SEC` (8) seconds before
+   the moment at `SHOT_FPS` (1) — the run-up is what the camera travels in, the
+   client writes at 60fps unless told otherwise (161 PNGs of 2 MB for one
+   picture), and `findShotFile` keeps the sequence's **last** frame. Moving the
+   mouse flips the client to Manual Camera and beats all of it, which is why
+   `docs/replay-recorder.md` step 5 says hands off; what the selection reliably
+   buys is the **HUD** — the victim's own health, abilities, items and CS in the
+   corner of their death's frame — while the framing stays the client's.
+   `restoreRender` puts the selection back with the panels.
+   **Two things are counted once, not as the client offers them** (11 Sep 2026):
+   `readEvents` de-duplicates, because the client APPENDS to its event list
+   every time the playhead crosses an event and a run crosses the same seconds
+   at every picture — a real game came back with 266 events of which 108 were
+   distinct, one kill sixteen times over, which a review would have read as
+   sixteen kills in a second. The key is what happened (name, killer, victim,
+   structure, dragon) and **not** the second, because the client's clock drifts
+   a second between crossings and an exact-second key still left 26 duplicate
+   pairs in 89 kills: the same actors within `EVENT_SAME_WINDOW_SEC` (3) are one
+   event, and every second a pair has been seen at is remembered, not just the
+   newest, since a pass covers the whole game before the next begins. `EventID`
+   is no use — it is not stable across passes. And **streamer mode is established, not assumed**: `streamerModeOn`
+   reads it off the event list (a `ChampionKill` names a champion with it on, a
+   Riot id with it off) and a client that is not hiding names gets the panels
+   turned off for that run instead of the blanket exception, because the old
+   code announced "streamer mode prints champions, not Riot ids" without ever
+   checking. Two more things the recorder promises: a frame is taken
    two seconds before the moment it is filed under (the death second is the
    grey recap screen, and the client renders the range it is *given*, not
    wherever playback is parked), and a minute the client never landed on is

@@ -20,9 +20,9 @@ import {
   championIdOf,
   chooseShots,
   followBody,
-  followChampion,
   jpegSize,
   mmss,
+  makeCameraHold,
   NAMING_FLAGS,
   normaliseMatchId,
   parseArgs,
@@ -30,9 +30,12 @@ import {
   readEvents,
   RENDER_FLAGS,
   run,
+  SHOT_FPS,
+  SHOT_LEAD_SEC,
   sameChampion,
   seatPlan,
-  splitRiotId
+  splitRiotId,
+  streamerModeOn
 } from '../../scripts/replay-recorder.mjs';
 
 const MATCH_ID = 'EUW1-7977592156';
@@ -165,9 +168,12 @@ function fakeFs() {
       return files.get(p).data;
     },
     statSync: (p) => {
+      // A png "path" is a FOLDER the client fills with a numbered sequence, so the fake has to be
+      // able to say which a path is — the recorder reads the sequence's last frame.
+      if (dirs.has(p) && !files.has(p)) return { size: 0, mtimeMs: 0, isDirectory: () => true };
       const file = files.get(p);
       if (!file) throw new Error(`no such file ${p}`);
-      return { size: file.data.length, mtimeMs: file.mtimeMs };
+      return { size: file.data.length, mtimeMs: file.mtimeMs, isDirectory: () => false };
     },
     readdirSync: (dir) =>
       [...files.keys()].filter((p) => path.dirname(p) === dir).map((p) => path.basename(p))
@@ -185,13 +191,13 @@ function fakeFs() {
  * printing their Riot ids. `stuck` is a client that never lands on a seek,
  * and `throwOn` a client that dies part way through the pictures.
  */
-function fakeClient({ fs, plan = {}, fail = '', render = {}, stuck = false, throwOn = null }) {
+function fakeClient({ fs, plan = {}, fail = '', render = {}, stuck = false, throwOn = null, cameraMoves = true, repeatEvents = 1 }) {
   const state = { time: 0, seeking: false };
   // The camera keys a real client carries (11 Sep 2026): `selectionName` is the champion being
   // followed — a string, which is what the first live run got a 400 for sending as a boolean — and
   // `cameraAttached` says whether the camera rides them. A test pins `render` to play the client
   // that will not take them: `{ cameraAttached: false }` is a replay in manual camera.
-  const rendered = { ...RENDER_FLAGS, selectionName: '', cameraAttached: false, cameraMode: 'top' };
+  const rendered = { ...RENDER_FLAGS, selectionName: '', cameraAttached: false, cameraMode: 'top', cameraPosition: { x: 7000, y: 1800, z: 7000 } };
   const calls = [];
   const renders = [];
   // What was actually POSTed to /replay/render, as opposed to what the client reports afterwards:
@@ -211,6 +217,14 @@ function fakeClient({ fs, plan = {}, fail = '', render = {}, stuck = false, thro
       if (method === 'POST') {
         renderPosts.push({ ...body });
         Object.assign(rendered, body, render);
+        // A client whose camera answers: naming a champion puts the camera on them, so two
+        // different champions read two different positions. `cameraMoves: false` is the client
+        // measured on 11 Sep 2026 — it reports every request as done and shows the same view,
+        // which is why the run judges the camera on where it is rather than on what it says.
+        if (cameraMoves && body?.selectionName) {
+          const seed = [...String(body.selectionName)].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+          rendered.cameraPosition = { x: 1000 + seed * 7, y: 1800, z: 1000 + seed * 11 };
+        }
       }
       renders.push({ ...rendered });
       return answer({ ...rendered, ...render });
@@ -235,18 +249,31 @@ function fakeClient({ fs, plan = {}, fail = '', render = {}, stuck = false, thro
       });
     }
     if (endpoint === '/liveclientdata/eventdata') {
-      return answer({ Events: rawEvents().filter((e) => e.EventTime <= state.time) });
+      const list = rawEvents().filter((e) => e.EventTime <= state.time);
+      return answer({ Events: Array.from({ length: repeatEvents }, () => list).flat() });
+    }
+    // The client's own recording object, read before the first picture the way the render object
+    // is: `framesPerSecond` defaults to 60 here as it does on the real client, and the run only
+    // sends a key the client has admitted to carrying.
+    if (endpoint === '/replay/recording' && method === 'GET') {
+      return answer({ codec: 'png', enforceFrameRate: false, framesPerSecond: 60, height: 1080, width: 1920, recording: false, replaySpeed: 1.0 });
     }
     if (endpoint === '/replay/recording' && method === 'POST') {
       // The stop the run sends after a render that produced nothing: no path,
       // no range, and nothing to write.
       if (body.recording === false) return answer({ recording: false });
-      // The render is asked for two seconds before the moment (the frame at
-      // the death itself is a grey screen), so the plan — which reads as the
-      // moments the recorder chose — is looked up on the moment, not the
-      // second the client is asked to draw.
-      const moment = body.startTime + 2;
-      asked.push({ startTime: body.startTime, endTime: body.endTime, path: body.path });
+      // The range ENDS a second before the moment (the frame at the death itself is a grey recap
+      // screen) and starts `SHOT_LEAD_SEC` before that, so the replay's own director has time to
+      // swing onto the fight. The plan — which reads as the moments the recorder chose — is looked
+      // up on the moment, so it is read off the end of the range, not the start.
+      const moment = body.endTime + 1;
+      asked.push({
+        startTime: body.startTime,
+        endTime: body.endTime,
+        path: body.path,
+        framesPerSecond: body.framesPerSecond,
+        enforceFrameRate: body.enforceFrameRate
+      });
       if (throwOn === moment) throw new Error('the client went away');
       const how = plan[moment] ?? 'normal';
       if (how === 'normal') fs.writeFileSync(body.path, fakeJpeg(4096));
@@ -254,6 +281,12 @@ function fakeClient({ fs, plan = {}, fail = '', render = {}, stuck = false, thro
       // Under the ceiling as a JPEG, over it once encoded: 600 KB becomes 800 KB of base64.
       if (how === 'wide') fs.writeFileSync(body.path, fakeJpeg(600 * 1024));
       if (how === 'numbered') fs.writeFileSync(body.path.replace(/\.jpg$/, '.000001.jpg'), fakeJpeg(4096));
+      // What the real client does with a png range: a folder of numbered frames, one a second. Each
+      // is a different size here, so which one the run kept is visible in the stored bytes.
+      if (how === 'sequence') {
+        fs.mkdirSync(body.path);
+        for (const [i, size] of SEQUENCE_SIZES.entries()) fs.writeFileSync(path.join(body.path, `${String(i).padStart(6, '0')}.png`), fakeJpeg(size));
+      }
       // 'missing' writes nothing at all: the client swallowed the request.
       return answer({ ...body, recording: false });
     }
@@ -278,9 +311,21 @@ function fakeFirestore(players = ROSTER, game = { matchId: MATCH_ID, durationSec
 
 const OUT_DIR = path.join('C:', 'tmp', 'replay-shots');
 
+/** A rendered sequence, run-up first and the moment last; the sizes differ so the kept frame is identifiable. */
+const SEQUENCE_SIZES = [2048, 2560, 3072, 3584, 4096, 4608, 5120, 5632, 6144, 6656];
+
 async function record(options = {}) {
   const fs = options.fs ?? fakeFs();
-  const client = fakeClient({ fs, plan: options.plan, fail: options.fail, render: options.render, stuck: options.stuck, throwOn: options.throwOn });
+  const client = fakeClient({
+    fs,
+    plan: options.plan,
+    fail: options.fail,
+    render: options.render,
+    stuck: options.stuck,
+    throwOn: options.throwOn,
+    cameraMoves: options.cameraMoves ?? true,
+    repeatEvents: options.repeatEvents ?? 1
+  });
   const firestore = options.firestore ?? fakeFirestore(options.players, 'game' in options ? options.game : undefined);
   const log = [];
   const result = await run({
@@ -297,8 +342,13 @@ async function record(options = {}) {
     sleep: async () => {},
     settleTries: 3,
     settleWaitMs: 0,
-    shotTries: 4,
+    shotTries: 8,
     shotWaitMs: 0,
+    // A fake client writes its whole sequence at once, so one still poll is a finished render here;
+    // the real default is eight, because the client writes for as long as the range is long.
+    sequenceStill: 1,
+    // The fake writes its frame at once, so the wait turns twice; the real check poll is four.
+    cameraCheckAt: 1,
     ...(options.roster ? { roster: options.roster } : {})
   });
   return { ...result, fs, firestore, log, calls: client.calls, renders: client.renders, renderPosts: client.renderPosts, seeks: client.seeks, asked: client.asked };
@@ -470,54 +520,105 @@ describe('the replay recorder, over a whole game', () => {
     const follows = renderPosts.filter((r) => r.selectionName);
     expect(follows.length).toBeGreaterThan(0);
     expect(follows.every((r) => r.cameraAttached === true && typeof r.selectionName === 'string')).toBe(true);
-    const set = renders.find((r) => 'interfaceMinimap' in r);
+    // What was POSTED, not what the fake happened to start as — reading the client's own seed
+    // object here made this assertion true before the run had done anything at all.
+    const set = renderPosts.find((r) => 'interfaceMinimap' in r);
     for (const flag of NAMING_FLAGS) expect(set[flag]).toBe(false);
     expect(set.interfaceMinimap).toBe(true);
     expect(set.interfaceAll).toBe(true);
     expect(set.fogOfWar).toBe(false);
+    expect(renders.length).toBeGreaterThan(0);
   });
 
-  // The lead after the first live run: "the recorder is not following anyone". Two reasons, both
-  // fixed here — the camera was pointed BEFORE the seek, and a seek across half an hour of replay
-  // is the likeliest thing to drop a selection; and the request went out blind inside an empty
-  // catch, so a client that refused it said nothing at all.
-  it('points the camera at the victim after the seek and before the frame is asked for', async () => {
-    const { calls, renderPosts, log } = await record({ shots: 2 });
+  // The panels are left up on the strength of streamer mode, and until 11 Sep 2026 nothing checked
+  // it — the run announced "streamer mode prints champions, not Riot ids" without ever asking. A
+  // client with streamer mode off would have uploaded twenty frames carrying both teams' Riot ids
+  // while saying that it had not.
+  // The client appends to its event list every time the playhead crosses an event, and a run
+  // crosses the same seconds again at every picture. A real 36-minute game came back with 266
+  // events of which 108 were distinct — one kill sixteen times over (11 Sep 2026, measured).
+  it('takes each event once, however many times the playhead crossed it', async () => {
+    // Each pass carries the client's own clock drift: the same kill came back a second later on
+    // the next crossing, which an exact-second key let straight through (26 pairs on a real game).
+    const drifted = (shift) => rawEvents().map((e) => ({ ...e, EventTime: e.EventTime + shift }));
+    const doubled = [...rawEvents(), ...drifted(1), ...drifted(-1)];
+    const plan = seatPlan([...OUR_LIVE, ...THEIR_LIVE], ROSTER);
+    const once = readEvents(rawEvents(), plan, 'Ruan#EUW');
+    const thrice = readEvents(doubled, plan, 'Ruan#EUW');
+    expect(thrice.events).toEqual(once.events);
+    expect(thrice.ourDeaths).toEqual(once.ourDeaths);
+    expect(thrice.objectives).toEqual(once.objectives);
+    // And the run itself, whose client repeats its list, stores it once.
+    const { recording } = await record({ shots: 1, repeatEvents: 3 });
+    const seen = new Set(recording.events.map((e) => `${e.sec}|${e.kind}|${e.text}|${e.side}`));
+    expect(seen.size).toBe(recording.events.length);
+  });
+
+  it('reads streamer mode off the event list, and turns the panels off when it is not on', async () => {
+    const players = [
+      { riotId: 'Ruan#EUW', championName: 'Ornn' },
+      { riotId: 'ShadowFang#KR1', championName: 'Gragas' }
+    ];
+    // With streamer mode on the client names the champion; without it, the Riot id.
+    expect(streamerModeOn([{ EventName: 'ChampionKill', VictimName: 'Ornn' }], players)).toBe(true);
+    expect(streamerModeOn([{ EventName: 'ChampionKill', VictimName: 'ShadowFang#KR1' }], players)).toBe(false);
+    // A name with a tag is a Riot id whether or not the ten happen to hold it.
+    expect(streamerModeOn([{ EventName: 'ChampionKill', VictimName: 'Someone#EUW' }], players)).toBe(false);
+    // Nobody named either way is not a yes.
+    expect(streamerModeOn([{ EventName: 'DragonKill', KillerName: 'Ornn' }], players)).toBe(null);
+    expect(streamerModeOn([], players)).toBe(null);
+
+    // And end to end: this fixture's client names Riot ids, so the run does NOT leave the panels up
+    // even though streamerMode is the default, and every naming panel is posted off.
+    const { renderPosts, log } = await record({ shots: 1 });
+    const set = renderPosts.find((r) => 'interfaceMinimap' in r);
+    for (const flag of NAMING_FLAGS) expect(set[flag]).toBe(false);
+    expect(log.some((line) => line.includes('NOT in streamer mode'))).toBe(true);
+  });
+
+  // The lead: "look into if we can attach the camera to each of our champions like Vi, Akali".
+  // It can be done, but only through the render: a seek clears the selection and starting a render
+  // clears it again, so a camera pointed BEFORE the render is pointed at nothing. Measured against
+  // the real client — re-asserting it while the render played walked the camera onto Nautilus and
+  // the frame came back centred on him mid-fight.
+  it('holds the camera on the victim through the render, which is the only window it moves in', async () => {
+    const { calls, renderPosts, log } = await record({ shots: 3 });
     const asking = calls.indexOf('POST /replay/recording');
     const seek = calls.lastIndexOf('POST /replay/playback', asking);
-    const camera = calls.lastIndexOf('POST /replay/render', asking);
     expect(seek).toBeGreaterThan(-1);
-    expect(camera).toBeGreaterThan(seek);
-    expect(camera).toBeLessThan(asking);
-    // Ornn falls first and Vi second, so those are who the client is told to follow, in that order.
+    expect(seek).toBeLessThan(asking);
+    // The camera is asked for AFTER the render starts, not before it: every selection POST for the
+    // first picture falls between that render request and the one for the next picture.
+    const nextAsking = calls.indexOf('POST /replay/recording', asking + 1);
+    const held = calls.map((c, i) => [c, i]).filter(([c, i]) => c === 'POST /replay/render' && i > asking && i < nextAsking);
+    expect(held.length).toBeGreaterThan(0);
+    // Ornn falls first, Vi second, Ahri third, and each picture asks for its own victim.
     const follows = renderPosts.filter((r) => r.selectionName);
     expect(follows[0]).toEqual({ selectionName: 'Ornn', cameraAttached: true });
-    expect(follows[1].selectionName).toBe('Vi');
+    expect([...new Set(follows.map((r) => r.selectionName))]).toEqual(['Ornn', 'Vi', 'Ahri']);
+    // Said once for the whole run, not at every picture.
+    expect(log.filter((line) => line.includes('the camera is following'))).toHaveLength(1);
     // And the lead gets their own camera back at the end: a selection is a string, and the first
     // version of the restore put only the booleans back, so the replay was left on whoever died last.
     const last = renderPosts.at(-1);
     expect(last.selectionName).toBe('');
     expect(last.cameraAttached).toBe(false);
-    // Once, on the first picture, not a line per frame.
-    expect(log.filter((line) => line.includes('the camera is following'))).toHaveLength(1);
+    // `cameraMode` is never sent at all: it is the one key that moved the camera on its own, and it
+    // took the client with it (11 Sep 2026). A run that kills the client loses everything it gathered.
+    expect(renderPosts.some((r) => 'cameraMode' in r)).toBe(false);
   });
 
-  // A replay left in manual camera takes the request and goes on showing whatever it was showing.
-  // That is worth one sentence the lead can act on, and nothing else: the frames are still worth
-  // taking, they just carry the HUD of whoever the client is on.
-  it('says once when the client keeps its own camera, and takes the pictures anyway', async () => {
-    const { shots, log } = await record({ shots: 3, render: { cameraAttached: false } });
+  // A client that will not hold a selection: the frames are still worth taking, they just carry
+  // whatever the replay's own camera was showing. Asked once and then left alone — twenty pictures
+  // of a camera that will not move is twenty pointless round trips.
+  it('stops asking for the camera once the client has shown it will not hold one', async () => {
+    const { shots, log, renderPosts } = await record({ shots: 3, render: { selectionName: '' } });
     expect(shots.length).toBeGreaterThan(0);
-    const said = log.filter((line) => line.includes('manual camera'));
+    const said = log.filter((line) => line.includes('would not keep the camera'));
     expect(said).toHaveLength(1);
-    expect(said[0]).toContain('The pictures are taken either way');
-  });
-
-  // For the lead who wants one seat's HUD on every frame — the jungler's, usually.
-  it('never touches the camera with --no-follow', async () => {
-    const { renderPosts, shots } = await record({ shots: 2, run: { follow: false } });
-    expect(renderPosts.filter((r) => r.selectionName)).toHaveLength(0);
-    expect(shots.length).toBeGreaterThan(0);
+    expect(said[0]).toContain('Directed Camera');
+    // Only the first picture asked. Ornn is our top, so the second and third never try.
+    expect([...new Set(renderPosts.filter((r) => r.selectionName).map((r) => r.selectionName))]).toEqual(['Ornn']);
   });
 
   it('knows a champion by both of its spellings, and asks only for keys the client carries', () => {
@@ -539,26 +640,65 @@ describe('the replay recorder, over a whole game', () => {
   });
 
   it('tries the champion id when the client will not take the printed name', async () => {
-    const sent = [];
+    const posts = [];
+    // This client knows the unit by its id alone, which is how Riot names it internally.
     const call = async (endpoint, init = {}) => {
       if (init.method === 'POST') {
-        sent.push(init.body.selectionName);
+        posts.push(init.body.selectionName);
         return {};
       }
-      // This client knows the unit by its id alone, which is how Riot names it internally.
-      const took = sent.at(-1) === 'MissFortune';
-      return { selectionName: took ? 'MissFortune' : '', cameraAttached: took, cameraMode: 'top' };
+      return { selectionName: posts.at(-1) === 'MissFortune' ? 'MissFortune' : '' };
     };
-    const went = await followChampion({
+    const hold = makeCameraHold({
       call,
       shape: { selectionName: '', cameraAttached: false },
       champion: 'Miss Fortune',
       championId: 'MissFortune',
-      sleep: async () => {}
+      checkAt: 0
     });
-    expect(went.followed).toBe(true);
-    expect(went.name).toBe('MissFortune');
-    expect(sent).toEqual(['Miss Fortune', 'MissFortune']);
+    // The printed name is asked for and read back as not taken, so the next poll tries the id.
+    await hold.poll(0);
+    expect(hold.held).toBe(null);
+    expect(hold.name).toBe('MissFortune');
+    await hold.poll(1);
+    expect(hold.held).toBe(true);
+    expect(posts).toEqual(['Miss Fortune', 'MissFortune']);
+    // Once it is held, the read-back stops: the answer is known and the polls are just re-asserting.
+    await hold.poll(2);
+    expect(posts).toEqual(['Miss Fortune', 'MissFortune', 'MissFortune']);
+  });
+
+  it('gives up on a champion the client will not take under either spelling', async () => {
+    const posts = [];
+    const call = async (endpoint, init = {}) => {
+      if (init.method === 'POST') {
+        posts.push(init.body.selectionName);
+        return {};
+      }
+      return { selectionName: '' };
+    };
+    const hold = makeCameraHold({ call, shape: { selectionName: '' }, champion: 'Miss Fortune', championId: 'MissFortune', checkAt: 0 });
+    await hold.poll(0);
+    expect(hold.held).toBe(null);
+    await hold.poll(1);
+    expect(hold.held).toBe(false);
+    expect(hold.on).toBe(false);
+    // And nothing more is sent once the answer is no.
+    const sent = posts.length;
+    await hold.poll(2);
+    expect(posts).toHaveLength(sent);
+  });
+
+  // The range starts eight seconds before the moment so the replay's own director has time to swing
+  // onto the fight, which means the FIRST frame of the sequence is the run-up and the last is the
+  // picture. Taking the first — which is what the code did when every range was one second long —
+  // would now keep a frame of whatever the camera was parked on before the fight started.
+  it('keeps the last frame of a rendered sequence, not the first', async () => {
+    const first = OUR_DEATH_SECONDS[0];
+    const { shots } = await record({ shots: 1, plan: { [first]: 'sequence' } });
+    expect(shots).toHaveLength(1);
+    expect(shots[0].bytes).toBe(SEQUENCE_SIZES[SEQUENCE_SIZES.length - 1]);
+    expect(shots[0].bytes).not.toBe(SEQUENCE_SIZES[0]);
   });
 
   it('takes no picture at all when the client will not hide a panel that names players', async () => {
@@ -580,13 +720,19 @@ describe('the replay recorder, over a whole game', () => {
   it('renders the second the seek landed on, not the death itself', async () => {
     const { recording, shots, seeks, asked } = await record({ shots: 2 });
     const wanted = OUR_DEATH_SECONDS.slice(0, 2).map((s) => s - 2);
-    // Asked for and sought to the same second, two before the moment.
-    expect(asked.map((r) => r.startTime)).toEqual(wanted);
-    // A one-second range, because this client writes a png SEQUENCE and an empty range writes nothing (11 Sep 2026).
-    expect(asked.every((r) => r.endTime === r.startTime + 1)).toBe(true);
+    // The range ENDS a second after the second the seek landed on, and the frame kept is the last
+    // of the sequence — so the picture is a second before the death, never the grey recap screen.
+    expect(asked.map((r) => r.endTime - 1)).toEqual(wanted);
     for (const sec of wanted) expect(seeks).toContain(sec);
-    // The moment itself is never sought and never rendered.
-    for (const sec of OUR_DEATH_SECONDS.slice(0, 2)) expect(asked.some((r) => r.startTime === sec)).toBe(false);
+    // And it STARTS `SHOT_LEAD_SEC` earlier, which is the only window the replay's own director has
+    // to swing onto the fight: a one-second range stored the same parked view at every death of a
+    // real run (11 Sep 2026, measured against the client).
+    expect(asked.every((r) => r.startTime === Math.max(0, r.endTime - 1 - SHOT_LEAD_SEC))).toBe(true);
+    // One frame a second, because the client writes at sixty unless told otherwise, and nine
+    // seconds of that is 161 PNGs of 2 MB for one picture.
+    expect(asked.every((r) => r.framesPerSecond === SHOT_FPS && r.enforceFrameRate === true)).toBe(true);
+    // The moment itself is never sought and never the end of a range.
+    for (const sec of OUR_DEATH_SECONDS.slice(0, 2)) expect(asked.some((r) => r.endTime === sec)).toBe(false);
     // The death is still what the picture is filed and labelled as.
     expect(shots[0].sec).toBe(OUR_DEATH_SECONDS[0]);
     expect(recording.shots[0].docId).toBe(`${MATCH_ID}__${OUR_DEATH_SECONDS[0]}`);

@@ -89,6 +89,36 @@ const MATCH_ID_RE = /^[A-Z0-9]+-\d+$/i;
 export const DURATION_TOLERANCE_SEC = 30;
 
 /**
+ * How many seconds of replay are played into each picture (11 Sep 2026, measured).
+ *
+ * The client renders the range it is GIVEN, and the range is the only window in which the replay's
+ * own **Directed Camera** can swing onto the action: a paused replay has nothing to direct, and the
+ * combo counts "Directed Camera in 5..." for five seconds after every seek. A one-second range
+ * therefore stored the same parked view at all eight deaths of a dry run — an empty Nexus with a
+ * SHUT DOWN! banner over it — while nine seconds of run-up put the fight that killed us on screen,
+ * with everyone's health bars and the ult that landed.
+ *
+ * The frame kept is the LAST of the sequence, so the run-up is spent moving the camera and the
+ * picture is still the moment (a second before the death, which is a grey recap screen).
+ */
+export const SHOT_LEAD_SEC = 8;
+/**
+ * How many frames a second the client writes while it renders that range. Left alone it writes at
+ * **60**, and nine seconds of that came back as 161 PNGs of 2 MB each — 360 MB for one picture.
+ * The sequence is only ever read for its last frame, so one a second is plenty, and a nine-second
+ * run-up at one frame a second costs less disk than the old one-second range did at sixty.
+ */
+export const SHOT_FPS = 1;
+
+/**
+ * How close two identical-looking events have to be before they are read as one crossing of the
+ * same moment rather than two moments. Three seconds is far under any death timer, so a killer
+ * cannot legitimately kill the same victim twice inside it — and comfortably over the second the
+ * client's own clock drifts between passes.
+ */
+export const EVENT_SAME_WINDOW_SEC = 3;
+
+/**
  * How fast the replay is played through to fill the client's event list (11 Sep 2026). Seeking does
  * not fire the events between two seconds — the first live run seeked to the end and read a single
  * event for a whole game — so the run plays it once at speed first: a thirty-six minute game takes
@@ -146,26 +176,46 @@ export const NAMING_FLAGS = [
 ];
 
 /**
- * Pointing the camera (11 Sep 2026, the lead: "the recorder is not following
- * anyone"). The HUD in the corner of a frame — the abilities, the items, the
- * cooldowns — belongs to the followed champion alone, so a death's frame is
- * worth twice as much when the camera is on the victim. `/replay/render` is
- * the only way to ask for it: `selectionName` is the champion being followed
- * and `cameraAttached` is whether the camera rides them.
+ * Keeping the camera on one champion (11 Sep 2026, the lead: "look into if we
+ * can attach the camera to each of our champions like Vi, Akali"). The HUD in
+ * the corner of a frame — the abilities, the items, the cooldowns — belongs to
+ * the followed champion alone, so a death's frame is worth twice as much when
+ * the camera is on the victim.
  *
- * Three things the first live run taught, all of them handled here:
- * - **The request is built from the client's own object**, the way the flags
- *   are. A key this client does not carry answers 400 for the WHOLE request,
- *   and the first version sent both keys blind inside an empty `catch` — so a
- *   client that refused them said nothing at all and the camera never moved.
- * - **It comes after the seek, not before.** A seek across half an hour of
- *   replay is the likeliest thing to drop a selection, and the first version
- *   set the camera and then jumped.
- * - **The answer is read back.** A replay left in manual camera keeps its own
- *   view whatever it is told; that is worth one sentence in the log, once,
- *   rather than twenty frames of the wrong champion and no explanation.
+ * `/replay/render` is the only way to ask, and it took four measured passes
+ * against the real client to find the one that works:
+ *
+ * - `selectionName` is the champion being followed and `cameraAttached`
+ *   whether the camera rides them. Both are built out of the keys THIS client
+ *   reported, because a key it does not carry answers 400 for the whole
+ *   request — `selectionName: false` once cost a run every one of its pictures.
+ * - Setting them **before** the render does nothing whatsoever. A seek clears
+ *   the selection, and starting a render clears it again. Measured: the camera
+ *   sat on 14052,12817 through two different champions, a second of playback
+ *   and a nine-second wait, while the client reported every request as done.
+ *   Nothing this client SAYS about its camera is worth believing.
+ * - What works is holding the selection **while the render plays**. A render
+ *   is the only window in which the replay's camera moves at all, and
+ *   re-POSTing the selection every poll through it walks the camera onto the
+ *   champion and keeps it there — 6204, then 6761, then 7248 as Nautilus moved,
+ *   and the frame came back centred on Nautilus in the middle of the fight.
+ * - **`cameraMode` is never sent.** It is the one key that moved the camera on
+ *   its own, and setting it to `fps` took the client with it: every request
+ *   after that was refused because the replay had gone. Moving a camera is not
+ *   worth killing a run that has spent five minutes gathering minutes.
+ *
+ * A client that will not hold the selection loses nothing by trying: its frames
+ * carry whatever the replay's own camera was showing, which is what they always
+ * did, and the run says so once rather than at every picture.
  */
 export const CAMERA_KEYS = ['selectionName', 'cameraAttached'];
+
+/**
+ * Which poll of a render reads the selection back. Early enough that the answer
+ * is known while there is still time to try the other spelling of the
+ * champion's name, late enough that the client has had a moment to take it.
+ */
+export const CAMERA_CHECK_POLL = 4;
 
 /**
  * The champion's own id, which is not always the name the client prints: the
@@ -191,8 +241,8 @@ export function sameChampion(a, b) {
 
 /**
  * What to POST to put the camera on one champion, built out of the keys THIS
- * client reported and their types — the same rule `setRenderFlags` follows,
- * for the same reason. Null when the client carries no `selectionName` at all,
+ * client reported and their types — the same rule `setRenderFlags` follows, for
+ * the same reason. Null when the client carries no `selectionName` at all,
  * which means the camera cannot be pointed from here and the run should say so
  * once rather than try it at every picture.
  */
@@ -205,40 +255,57 @@ export function followBody(shape, name) {
 }
 
 /**
- * Put the camera on a champion and say whether it actually went: both
- * spellings are tried, the answer is read back rather than trusted, and the
- * sentence that comes back on a refusal is one the lead can act on.
+ * The camera for one picture. `poll` is called on every turn of the wait that
+ * watches the render write its frames, which is exactly the window the camera
+ * can be moved in, and it does two things: re-assert the champion, and on one
+ * poll read the selection back to find out whether the client is holding it.
+ *
+ * A client that is not holding it gets the champion's other spelling tried —
+ * some know the unit only as `MissFortune` — and if that will not hold either,
+ * `held` goes false and the run says so once and stops asking.
+ *
+ * `held` is null until the check has run: unknown, not no.
  */
-export async function followChampion({ call, shape, champion, championId, sleep = realSleep, settleMs = 200 }) {
-  const names = [champion, championId]
-    .map((name) => String(name ?? '').trim())
-    .filter((name, i, all) => name && all.indexOf(name) === i);
-  if (!names.length) return { followed: false, note: '' };
-  if (!followBody(shape, names[0])) {
-    return { followed: false, note: 'this client reports no selectionName, so the camera cannot be pointed from here; the frames carry whichever champion you left it on.' };
-  }
-  let said = {};
-  for (const name of names) {
-    try {
-      await call('/replay/render', { method: 'POST', body: followBody(shape, name) });
-      await sleep(settleMs);
-      const answer = await call('/replay/render');
-      said = answer && typeof answer === 'object' ? answer : {};
-    } catch (err) {
-      return { followed: false, note: `the client refused the camera (${messageOf(err)}); the frames carry whichever champion you left it on.` };
-    }
-    // A client with no cameraAttached key at all is judged on the selection alone; one that reports
-    // false after being asked for true is a replay holding its own camera, which is the manual mode.
-    const attached = typeof said.cameraAttached === 'boolean' ? said.cameraAttached : true;
-    if (attached && sameChampion(said.selectionName, name)) return { followed: true, note: '', name };
-  }
-  const selection = String(said.selectionName ?? '').trim();
-  const mode = typeof said.cameraMode === 'string' && said.cameraMode ? `, camera mode "${said.cameraMode}"` : '';
+export function makeCameraHold({ call, shape, champion, championId, checkAt = CAMERA_CHECK_POLL }) {
+  const names = [...new Set([champion, championId].map((name) => String(name ?? '').trim()).filter(Boolean))];
+  let which = 0;
+  let held = null;
+  let checked = 0;
   return {
-    followed: false,
-    note: `the client kept its own camera (it says the selection is "${selection || 'nobody'}", attached ${said.cameraAttached === true ? 'yes' : 'no'}${mode}). That is a replay in manual camera: click a champion in the replay's own player bar once, or turn the manual camera off in its control bar, and run it again. The pictures are taken either way — they just carry whichever HUD the client is showing.`
+    get held() {
+      return held;
+    },
+    get name() {
+      return names[which] ?? '';
+    },
+    /** True while there is any point calling `poll`. */
+    get on() {
+      return held !== false && names.length > 0 && Boolean(followBody(shape, names[which]));
+    },
+    async poll(i) {
+      if (!this.on) return;
+      const body = followBody(shape, names[which]);
+      await call('/replay/render', { method: 'POST', body }).catch(() => undefined);
+      // One read-back per spelling, so a run of twenty pictures does not spend forty extra reads
+      // asking a question it already has the answer to.
+      if (held === true || i !== checkAt + checked) return;
+      const said = await call('/replay/render').catch(() => null);
+      if (sameChampion(said?.selectionName, names[which])) {
+        held = true;
+        return;
+      }
+      checked += 1;
+      // The client may know this champion only by its id; if that was the last spelling, the
+      // camera is the lead's and the run stops asking for it.
+      if (which + 1 < names.length) which += 1;
+      else held = false;
+    }
   };
 }
+
+/** Said once when the client will not hold a selection, so the lead knows what their frames show. */
+export const CAMERA_NOT_HELD =
+  'the client would not keep the camera on a champion while it rendered, so every frame carries whatever the replay\'s own camera was showing. Set the replay\'s camera to Directed Camera before a run and the frames will at least be of the fight.';
 
 /** The Live Client's positions, in our own seat words. Mirrors POSITION_ROLE in api/src/lane-read.ts. */
 export const POSITION_ROLE = {
@@ -630,6 +697,37 @@ export function sampleFrom(minute, allPlayers, plan) {
   return { minute, ours: ours.sort(bySeat), theirs: theirs.sort(bySeat) };
 }
 
+/**
+ * Is this client's streamer mode actually on? (11 Sep 2026, from the review.)
+ *
+ * The panels are left up on the strength of it — the scoreboard, the team frames and the event bar
+ * carry the gold, the items and the kills, and with streamer mode on they print champions where
+ * the Riot ids would be. But nothing checked, and the log said so as though it had: a client with
+ * streamer mode off would have uploaded twenty frames carrying both teams' Riot ids while
+ * announcing that it had not. That is the "mechanism that silently does nothing" this repo has
+ * been bitten by before.
+ *
+ * The event list is the tell, and it costs nothing: the client names the victim of a
+ * `ChampionKill` the same way it paints the panels — `"VictimName": "Aphelios"` with streamer mode
+ * on, `"VictimName": "Name#TAG"` without it. Null when the list names nobody either way, which is
+ * not a yes.
+ */
+export function streamerModeOn(rawEvents, livePlayers) {
+  const champions = new Set((livePlayers ?? []).map((p) => String(p?.championName ?? '').trim().toLowerCase()).filter(Boolean));
+  const ids = new Set((livePlayers ?? []).map((p) => liveName(p).toLowerCase()).filter(Boolean));
+  let asChampion = 0;
+  let asRiotId = 0;
+  for (const raw of rawEvents ?? []) {
+    if (String(raw?.EventName ?? '') !== 'ChampionKill') continue;
+    const said = String(raw?.VictimName ?? '').trim().toLowerCase();
+    if (!said) continue;
+    if (champions.has(said)) asChampion += 1;
+    else if (said.includes('#') || ids.has(said)) asRiotId += 1;
+  }
+  if (!asChampion && !asRiotId) return null;
+  return asChampion >= asRiotId;
+}
+
 /** A killer the client names but the ten do not hold: a turret, minions, the jungle. Never stored raw. */
 function killerLabel(name) {
   const raw = String(name ?? '');
@@ -650,6 +748,21 @@ export function readEvents(rawEvents, plan, watcherName = '', fallbackWin = null
   const objectives = [];
   let endSec = 0;
   let winner = null;
+  // The client APPENDS to its event list every time the playhead crosses an event, and this run
+  // crosses the same seconds over and over — the play-through, then a nine-second run-up at every
+  // picture. A real 36-minute game came back with 266 events of which 108 were distinct, one kill
+  // repeated sixteen times (11 Sep 2026, measured). A review reading that would see sixteen kills
+  // in one second. So each event is taken once, keyed on what happened rather than on the client's
+  // own id, which is not stable across those passes.
+  //
+  // Nor is its clock: the same kill came back as 354.6 on one pass and 355.2 on the next, so an
+  // exact-second key still let 26 pairs through on a real game. The same actors doing the same
+  // thing within `EVENT_SAME_WINDOW_SEC` are therefore one event — a killer cannot kill the same
+  // victim twice inside a death timer, and two different towers carry two different names.
+  // Every second this pair of actors has already been seen at, not just the newest: a pass covers
+  // the whole game before the next one starts, so "the last time we saw this key" is the END of the
+  // game by the time the second pass reaches minute three, and the repeat sails through.
+  const seenAt = new Map();
 
   /** Whose it was, off the seat the actor sits in. Null when the client named nobody we placed. */
   const sideOf = (name) => {
@@ -675,6 +788,13 @@ export function readEvents(rawEvents, plan, watcherName = '', fallbackWin = null
   for (const raw of rawEvents ?? []) {
     const sec = Math.max(0, Math.round(number(raw?.EventTime)));
     const name = String(raw?.EventName ?? '');
+    // The same actors doing the same thing at about the same time is the same event, however many
+    // times the playhead has crossed it and whatever second the client rounded it to that pass.
+    const key = [name, raw?.KillerName ?? '', raw?.VictimName ?? '', raw?.TurretKilled ?? raw?.InhibKilled ?? '', raw?.DragonType ?? '', raw?.Recipient ?? '', raw?.Acer ?? ''].join('|');
+    const before = seenAt.get(key);
+    if (before?.some((was) => Math.abs(sec - was) <= EVENT_SAME_WINDOW_SEC)) continue;
+    if (before) before.push(sec);
+    else seenAt.set(key, [sec]);
     if (name === 'ChampionKill') {
       const killer = plan.seatOfName(raw.KillerName);
       const victim = plan.seatOfName(raw.VictimName);
@@ -887,8 +1007,15 @@ export async function run({
   // six were not enough, and an unsettled seek used to be stored anyway).
   settleTries = 70,
   settleWaitMs = 150,
-  shotTries = 60,
-  shotWaitMs = 250
+  // A picture is now nine seconds of replay rendered at one frame a second, so the client is busy
+  // for ten seconds or so before the sequence is even finished; sixty tries at 250ms used to be
+  // fifteen seconds, which the run-up would have timed out on every time.
+  shotTries = 160,
+  shotWaitMs = 250,
+  sequenceStill = 8,
+  // Which poll of a render reads the selection back. Only a test moves it: a fake client writes
+  // its whole sequence at once, so the real default would never be reached there.
+  cameraCheckAt = CAMERA_CHECK_POLL
 }) {
   // Normalised here as well as in parseArgs, because run() is called directly
   // by the spec and by any future caller, and the id becomes a Firestore
@@ -1016,6 +1143,22 @@ export async function run({
   const read = readEvents(rawEvents, plan, liveName(finalData?.activePlayer), typeof known?.win === 'boolean' ? known.win : null, gameLength);
   if (!read.winner) log('  the client did not say who won, so the recording carries no end event.');
 
+  // The panels stay up only if streamer mode is really on, and this is where that is established
+  // rather than assumed (11 Sep 2026). A client that is not hiding the names gets the panels turned
+  // off instead — the frames lose the gold and the items, which is a real loss, and a good deal
+  // cheaper than uploading their Riot ids to a review.
+  let panelsUp = streamerMode;
+  if (streamerMode) {
+    const hidden = streamerModeOn(rawEvents, allPlayers);
+    if (hidden === false) {
+      panelsUp = false;
+      log("  this client is NOT in streamer mode — its events name players rather than champions — so the panels that would print their Riot ids are turned off for this run, and the frames lose the gold, the items and the event bar with them.");
+    } else if (hidden === null) {
+      panelsUp = false;
+      log('  the client named nobody in its event list, so streamer mode could not be confirmed; the panels that print Riot ids are turned off for this run.');
+    }
+  }
+
   // 4. A minute at a time. The client has to seek for each one, which is why
   //    this is the slow half of the run and says where it has got to. A minute
   //    the client would not land on is left out: the samples are a list, not
@@ -1048,15 +1191,24 @@ export async function run({
   let dropped = 0;
   let framesOff = '';
   let renderShape = null;
+  // The client's own recording object, for the same reason the render one is read: a key it does
+  // not carry answers 400 for the whole request, and `framesPerSecond` is the difference between
+  // ten PNGs and a hundred and sixty.
+  let recordShape = null;
   if (chosen.length) {
-    const set = await setRenderFlags({ call, log, noHealthBars, streamerMode });
+    const set = await setRenderFlags({ call, log, noHealthBars, streamerMode: panelsUp });
     framesOff = set.refused;
     renderShape = set.shape;
     if (set.warn) log(`  ${set.warn}`);
+    if (!set.refused) recordShape = await call('/replay/recording').catch(() => null);
   }
   // Said once, however many pictures the camera will not take: a line a picture is twenty copies of
   // one sentence, and the lead leaves the run alone for five minutes anyway.
   let cameraSaid = false;
+  // Whether this client holds a selection at all. Null until the first picture has asked and read
+  // the answer back, because there is no way to find out while the replay is paused — the camera
+  // only moves while a render plays (11 Sep 2026, measured).
+  let cameraHeld = null;
   if (framesOff) {
     log(`  no pictures this run: ${framesOff}`);
   } else {
@@ -1087,48 +1239,66 @@ export async function run({
           log(`  the client never landed on ${mmss(at)}, so no picture was taken for ${shot.label}.`);
           continue;
         }
-        // Follow whoever the picture is about, now that the playhead is there (11 Sep 2026): the
-        // HUD in the corner belongs to the followed champion alone, so a death's frame is worth
-        // twice as much when it is the victim's. After the seek, because a seek across half an hour
-        // of replay is the likeliest thing to drop a selection — which is how the first live run
-        // came back following nobody.
-        if (follow && shot.champion) {
-          const went = await followChampion({ call, shape: renderShape, champion: shot.champion, championId: shot.championId, sleep });
-          if (!cameraSaid && (went.followed || went.note)) {
-            cameraSaid = true;
-            log(went.followed ? `  the camera is following whoever each picture is about (${went.name}).` : `  ${went.note}`);
-          }
-        }
+        // Follow whoever the picture is about (11 Sep 2026): the HUD in the corner belongs to the
+        // followed champion alone, so a death's frame is worth twice as much when it is the
+        // victim's. The asking happens THROUGH the render, not before it — a seek clears the
+        // selection and starting a render clears it again, so the only window in which the camera
+        // moves is the one where it is playing. `hold.poll` is handed to the wait below.
+        const hold =
+          follow && shot.champion && renderShape && cameraHeld !== false
+            ? makeCameraHold({ call, shape: renderShape, champion: shot.champion, championId: shot.championId, checkAt: cameraCheckAt })
+            : null;
         // Every frame this run's stem could match is deleted first, so nothing
         // an earlier run left behind can be picked up and uploaded as if it
         // were fresh — the usual reason to re-run is that the first run's
         // frames were bad, and those were exactly the ones being re-stored.
         const stale = clearShotFiles({ fs, dir: shotsDir, stem });
-        // width and height are ignored by older clients; sending them costs nothing
-        // and a client that honours them saves us a third of the bytes.
+        // png or webm are the only codecs this client's AVContainer takes, and a png "path" is a
+        // FOLDER it fills with a numbered sequence (11 Sep 2026, measured). The frame is picked out
+        // of it below and turned into a jpeg, because a 1920x1080 png is about 2 MB and a document
+        // holds 1 MiB — this client ignores the width and height asked for and renders at its own.
+        const shotBody = {
+          codec: 'png',
+          // The run-up the replay's own director needs; the LAST frame of the sequence is the one kept.
+          startTime: Math.max(0, at - SHOT_LEAD_SEC),
+          endTime: at + 1,
+          path: file,
+          recording: true,
+          replaySpeed: 1,
+          width: 1280,
+          height: 720
+        };
+        if (typeof recordShape?.framesPerSecond === 'number' && typeof recordShape?.enforceFrameRate === 'boolean') {
+          shotBody.framesPerSecond = SHOT_FPS;
+          shotBody.enforceFrameRate = true;
+        }
         const answer = await call('/replay/recording', {
           method: 'POST',
-          body: {
-            // png or webm are the only codecs this client's AVContainer takes, and a png "path" is a
-            // FOLDER it fills with a numbered sequence (11 Sep 2026, measured). The frame is picked out
-            // of it below and turned into a jpeg, because a 1280x720 png is about 2 MB and a document
-            // holds 1 MiB.
-            codec: 'png',
-            startTime: at,
-            endTime: at + 1,
-            path: file,
-            recording: true,
-            replaySpeed: 1,
-            width: 1280,
-            height: 720
-          },
+          body: shotBody,
           help: 'The client refused to render a frame. Is the replay still open, and can it write to the --out-dir?'
         });
         // The client's own answer, once: which path it actually chose and
         // whether it says it is recording. That one line is the difference
         // between "the client refused" and "the client is still writing".
         if (i === 0) log(`  the client answered the first render with recording=${answer?.recording ?? 'nothing'}, path ${answer?.path ?? '(none)'}.`);
-        const png = await waitForShot({ fs, file, dir: shotsDir, stem, skip: stale, tries: shotTries, waitMs: shotWaitMs, sleep });
+        const png = await waitForShot({
+          fs,
+          file,
+          dir: shotsDir,
+          stem,
+          skip: stale,
+          tries: shotTries,
+          waitMs: shotWaitMs,
+          sleep,
+          sequenceStill,
+          onPoll: hold ? (turn) => hold.poll(turn) : null
+        });
+        // What the camera did, said once for the whole run rather than at every picture.
+        if (hold && hold.held !== null && cameraHeld === null) {
+          cameraHeld = hold.held;
+          cameraSaid = true;
+          log(cameraHeld ? `  the camera is following whoever each picture is about (${hold.name} here).` : `  ${CAMERA_NOT_HELD}`);
+        }
         const bytes = png ? await toJpeg(png, log) : null;
         if (!bytes) {
           dropped += 1;
@@ -1213,18 +1383,23 @@ export async function run({
 
   // 6. The pictures first, the index last. A run that dies half way then leaves
   //    no index pointing at documents that are not there.
-  if (dryRun) {
-    for (const shot of kept) fs.writeFileSync(path.join(shotsDir, `replay-shot-${shot.matchId}__${shot.sec}.json`), JSON.stringify(shot));
-    fs.writeFileSync(path.join(shotsDir, `replay-recording-${matchId}.json`), JSON.stringify(recording, null, 2));
-    log(`Dry run: wrote ${kept.length + 1} JSON files to ${shotsDir}; Firestore was not touched.`);
-  } else {
-    if (!firestore) throw new Error('No Firestore to write to. Set FIREBASE_SERVICE_ACCOUNT, or run with --dry-run.');
-    for (const shot of kept) await firestore.set('replayShots', `${shot.matchId}__${shot.sec}`, shot);
-    await firestore.set('replayRecordings', matchId, recording);
-    log(`Wrote replayShots (${kept.length}), then replayRecordings/${matchId}.`);
+  // In a `finally`, because the lead's replay must come back the way they left it whatever happens
+  // here: a Firestore write that throws used to leave the panels moved, the fog off and the camera
+  // on whoever died last, with no clue why (11 Sep 2026, from the review).
+  try {
+    if (dryRun) {
+      for (const shot of kept) fs.writeFileSync(path.join(shotsDir, `replay-shot-${shot.matchId}__${shot.sec}.json`), JSON.stringify(shot));
+      fs.writeFileSync(path.join(shotsDir, `replay-recording-${matchId}.json`), JSON.stringify(recording, null, 2));
+      log(`Dry run: wrote ${kept.length + 1} JSON files to ${shotsDir}; Firestore was not touched.`);
+    } else {
+      if (!firestore) throw new Error('No Firestore to write to. Set FIREBASE_SERVICE_ACCOUNT, or run with --dry-run.');
+      for (const shot of kept) await firestore.set('replayShots', `${shot.matchId}__${shot.sec}`, shot);
+      await firestore.set('replayRecordings', matchId, recording);
+      log(`Wrote replayShots (${kept.length}), then replayRecordings/${matchId}.`);
+    }
+  } finally {
+    await restoreRender({ call });
   }
-
-  await restoreRender({ call });
 
   // The summary says what was NOT read as well as what was: a minute the
   // client never landed on is a gap in the samples, and a run whose pictures
@@ -1266,9 +1441,9 @@ export async function restoreRender({ call }) {
   }
   // The camera as well as the panels: the run moves the selection at every picture, and a string
   // left behind is the lead coming back to a replay following whoever died last (11 Sep 2026).
-  for (const key of ['selectionName', 'cameraMode']) {
-    if (typeof beforeRender[key] === 'string') flags[key] = beforeRender[key];
-  }
+  // `cameraMode` is NOT put back, because it is never changed — sending it at all is what took a
+  // client down mid-probe, and a key this run does not touch needs no restoring.
+  if (typeof beforeRender.selectionName === 'string') flags.selectionName = beforeRender.selectionName;
   beforeRender = null;
   try {
     await call('/replay/render', { method: 'POST', body: flags });
@@ -1346,6 +1521,16 @@ function clearShotFiles({ fs, dir, stem }) {
   return stuck;
 }
 
+/** How many frames the client has written into the sequence folder so far, or -1 when it is not writing one. */
+function countShotFrames({ fs, file }) {
+  try {
+    if (!fs.existsSync(file) || !fs.statSync(file).isDirectory()) return -1;
+    return fs.readdirSync(file).filter((name) => /\.(png|jpe?g)$/i.test(name)).length;
+  } catch {
+    return -1;
+  }
+}
+
 /** Every file in the out dir that could be this shot's frame: the exact name and anything the client numbered beside it. */
 function shotFilesFor({ fs, dir, stem }) {
   let names = [];
@@ -1354,7 +1539,24 @@ function shotFilesFor({ fs, dir, stem }) {
   } catch {
     return [];
   }
-  return names.filter((name) => name.startsWith(stem) && /\.(jpe?g|png)$/i.test(name)).map((name) => path.join(dir, name));
+  const flat = names.filter((name) => name.startsWith(stem) && /\.(jpe?g|png)$/i.test(name)).map((name) => path.join(dir, name));
+  // And the frames inside the sequence folder the client fills for a png range. They are this
+  // shot's too, and clearing only the flat names left a previous run's sequence in place — which
+  // matters now that the frame kept is the LAST one, since a shorter range would leave a stale
+  // frame sitting past the end of the new one (11 Sep 2026).
+  const folder = path.join(dir, stem);
+  let inside = [];
+  try {
+    if (fs.existsSync(folder) && fs.statSync(folder).isDirectory()) {
+      inside = fs
+        .readdirSync(folder)
+        .filter((name) => /\.(jpe?g|png)$/i.test(name))
+        .map((name) => path.join(folder, name));
+    }
+  } catch {
+    /* not a folder, or gone under us: the flat names are all there is */
+  }
+  return [...flat, ...inside];
 }
 
 /**
@@ -1365,10 +1567,22 @@ function shotFilesFor({ fs, dir, stem }) {
  * or is still locked by the client is a missing picture, never an exception —
  * the whole run used to die on one.
  */
-async function waitForShot({ fs, file, dir, stem, skip = [], tries, waitMs, sleep }) {
+async function waitForShot({ fs, file, dir, stem, skip = [], tries, waitMs, sleep, sequenceStill = 8, onPoll = null }) {
   let lastSize = -1;
+  let lastCount = -1;
+  let still = 0;
   for (let i = 0; i < tries; i += 1) {
-    const found = findShotFile({ fs, file, dir, stem, skip });
+    // The render is playing while this loop turns, and that is the ONLY window in which the
+    // replay's camera can be moved, so whoever wants it pointed gets a turn here (11 Sep 2026).
+    if (onPoll) await onPoll(i);
+    // A sequence GROWS for as long as the render runs, and the frame wanted is its last one, so the
+    // count has to stop moving before anything is read — a poll that catches it half way through
+    // keeps a frame from the run-up instead of the moment (11 Sep 2026). A client writing a single
+    // flat file answers -1 here and is judged on size alone, the way it always was.
+    const count = countShotFrames({ fs, file });
+    still = count === lastCount ? still + 1 : 0;
+    lastCount = count;
+    const found = count < 0 || still >= sequenceStill ? findShotFile({ fs, file, dir, stem, skip }) : '';
     if (found) {
       const size = sizeOf(fs, found);
       if (size > 0 && size === lastSize) {
@@ -1421,15 +1635,17 @@ function mtimeOf(fs, full) {
 }
 
 function findShotFile({ fs, file, dir, stem, skip = [] }) {
-  // A png sequence: the client makes `file` a folder and numbers the frames inside it. The first is
-  // the second we asked for (11 Sep 2026).
+  // A png sequence: the client makes `file` a folder and numbers the frames inside it. The LAST is
+  // the one wanted (11 Sep 2026): the range starts `SHOT_LEAD_SEC` before the moment so the
+  // replay's own director has time to swing onto the fight, and the final frame is the moment
+  // itself. Taking the first, as this did until the run-up existed, keeps the run-up.
   try {
     if (fs.existsSync(file) && fs.statSync(file).isDirectory()) {
       const inside = fs
         .readdirSync(file)
         .filter((name) => /\.(png|jpe?g)$/i.test(name))
         .sort();
-      if (inside.length) return path.join(file, inside[0]);
+      if (inside.length) return path.join(file, inside[inside.length - 1]);
       return null;
     }
   } catch {
