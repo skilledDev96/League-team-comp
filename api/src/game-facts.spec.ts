@@ -258,7 +258,10 @@ describe('endOfGameFacts', () => {
     expect(f.tier).toBe('endOfGame');
     expect(f.curve.shape).toBe('unknown');
     expect(f.lines[0]).toBe('Lost in 33 minutes. Totals only, from the replay: no minute-by-minute figures.');
-    expect(f.lines[1]).toBe('Dragons 1–3, towers 4–9, barons 0–1, grubs 3–3.');
+    // Heralds are in the line because they are in the data (12 Sep 2026). The fixture's 0–1 is the
+    // case that exposed the gap: a tally the prompt does not print is one a review will read off a
+    // frame's top bar instead, and one did, giving our own herald to the other side.
+    expect(f.lines[1]).toBe('Dragons 1–3, towers 4–9, barons 0–1, heralds 0–1, grubs 3–3.');
     expect(f.lines[2]).toBe('Kills 12–25.');
     expect(f.lines[3]).toBe('Dan (Mid) on Ahri went even in the lane into Syndra.');
     expect(f.lines[4]).toBe('Lost the fights: 12 kills to 25');

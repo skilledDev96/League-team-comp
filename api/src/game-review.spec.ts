@@ -247,6 +247,8 @@ describe('the prompts', () => {
       expect(prompt).toContain('24:07 — two of ours fell inside 4 seconds, one of theirs with them: our Support, then our Top; we were one down at the worst of it: our Support (30s left).');
       // The one thing the events cannot say, said outright so nothing invents it.
       expect(prompt).toContain('the League client reports no dragon, no Baron, no herald and no grubs for a custom game');
+      // And the other half of the same rule: the counts are not the frames' to give.
+      expect(prompt).toContain('How many fell and whose they were is the tally above and is exact');
       expect(prompt.indexOf('THE FIGHTS')).toBeLessThan(prompt.indexOf('RECORDED FROM THE REPLAY, MINUTE BY MINUTE'));
       expect(prompt).not.toMatch(/#|puuid|summoner/i);
     }
@@ -260,6 +262,13 @@ describe('the prompts', () => {
     expect(TEAM_SYSTEM).toContain('When frames of the game are attached they are pictures of OUR own game');
     expect(TEAM_SYSTEM).toContain('read the minimap for where everyone was and the HUD for the spectated player');
     expect(TEAM_SYSTEM).toContain('never describe a person on the other team');
+    // A frame says WHEN an objective fell and never whose it was: the tally already says whose, and
+    // reading a small top bar instead gave our own herald to the other team (12 Sep 2026).
+    for (const system of [TEAM_SYSTEM, PLAYER_SYSTEM]) {
+      expect(system).toContain('WHOSE AN OBJECTIVE WAS IS ALREADY COUNTED FOR YOU. THE FRAMES ONLY SAY WHEN.');
+      expect(system).toContain('never work out whose an objective was by looking at a picture');
+      expect(system).toContain('one job here, and only as a bracket');
+    }
     // Only the team call is sent pictures, so only its system prompt says how to read one.
     expect(PLAYER_SYSTEM).not.toContain('When frames of the game are attached');
   });

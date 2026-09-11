@@ -491,7 +491,13 @@ export function endOfGameFacts(game: AnalysisGameLike): GameFacts {
   const lines = [resultLine(facts)];
   if (game.objectives) {
     const o = game.objectives;
-    lines.push(`Dragons ${o.ours.dragons}–${o.theirs.dragons}, towers ${o.ours.towers}–${o.theirs.towers}, barons ${o.ours.barons}–${o.theirs.barons}, grubs ${o.ours.grubs}–${o.theirs.grubs}.`);
+    // Heralds belong here as much as the rest, and were missing until 12 Sep 2026. The count was
+    // carried on the objectives all along and simply never printed, so a review of a recorded game
+    // saw a herald in a frame's top bar, had no figure to check it against, and reported OUR herald
+    // as theirs. A tally the prompt does not print is a tally the model will read off a picture.
+    lines.push(
+      `Dragons ${o.ours.dragons}–${o.theirs.dragons}, towers ${o.ours.towers}–${o.theirs.towers}, barons ${o.ours.barons}–${o.theirs.barons}, heralds ${o.ours.heralds}–${o.theirs.heralds}, grubs ${o.ours.grubs}–${o.theirs.grubs}.`
+    );
   }
   if (game.kills) lines.push(`Kills ${game.kills.ours}–${game.kills.theirs}.`);
   for (const l of lanes) if (l.verdict !== 'unknown') lines.push(l.line);
