@@ -14335,7 +14335,11 @@ button .player-mark { vertical-align: -0.3rem; }
 /* No .review-theme here any more (12 Sep 2026): a theme is content, so it draws as one of the film's
    own glyphs, not as a Material icon in a pill. THEME_GLYPHS in core/review-view.ts is the table. */
 .evidence-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.15rem; }
-.evidence-chip { display: inline-block; padding: 0.05rem 0.45rem; border-radius: 6px; background: color-mix(in srgb, var(--text-1) 12%, transparent); font-size: 0.7rem; font-variant-numeric: tabular-nums; color: var(--text-1); }
+/* The figures are read, not glanced at, so the chip wears the full text colour. Measured across
+   every theme: 6.29:1 → 10.41:1 in bomb, 4.78:1 → 8.35:1 in light. A heavier wash scores WORSE
+   (22% drops it to 9.54) because the wash lightens the ground beneath light text — the text is the
+   term that moves, not the background. The film keeps its own colours through .film-stage below. */
+.evidence-chip { display: inline-block; padding: 0.05rem 0.45rem; border-radius: 6px; background: color-mix(in srgb, var(--text-1) 18%, transparent); font-size: 0.7rem; font-variant-numeric: tabular-nums; color: var(--text-0); }
 
 /* One line per point: a small label, the tags, then the ask. */
 .game-review-line-one { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.3rem 0.5rem; margin: 0; padding: 0.45rem 0.7rem; border-radius: 10px; border: 1px solid var(--card-border); border-left-width: 3px; background: color-mix(in srgb, var(--surface-controls) 70%, transparent); font-size: 0.88rem; line-height: 1.45; color: var(--text-0); min-width: 0; }
@@ -14373,7 +14377,7 @@ button .player-mark { vertical-align: -0.3rem; }
 .review-seat { display: grid; gap: 0.3rem; padding: 0.5rem 0.6rem; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--card-border)); background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .review-seat-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0.2rem 0.45rem; }
 .review-seat-head .player-mark { margin: 0; }
-.review-seat-name { font-size: 0.95rem; }
+.review-seat-name { font-size: 0.95rem; font-weight: 600; color: color-mix(in srgb, var(--text-0) 80%, var(--text-1)); }
 .review-seat-role { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-1); }
 .review-seat-stats { margin-left: auto; font-size: 0.76rem; font-variant-numeric: tabular-nums; color: var(--text-1); }
 .review-seat-more { margin: 0; }
@@ -14396,7 +14400,9 @@ button .player-mark { vertical-align: -0.3rem; }
 .review-draft-lacked { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem; margin: 0; }
 .review-draft-lacked-label { font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--warn); }
 .review-draft-lacked .film-gain-chip { border-color: color-mix(in srgb, var(--warn) 55%, transparent); background: color-mix(in srgb, var(--warn) 14%, transparent); }
-.review-draft-in { font-size: 0.9rem; }
+/* A name still leads its line, but it was the brightest thing on the panel by a factor of two and
+   a half over the chips beside it. Same treatment as a player's name on a seat row. */
+.review-draft-in { font-size: 0.9rem; font-weight: 600; color: color-mix(in srgb, var(--text-0) 75%, var(--text-1)); }
 
 /* The moments along the game rather than evenly spaced (12 Sep 2026): three pills inside the last
    eight minutes reads as a game that was fine until it was not, which is the shape a coach wants
@@ -14408,7 +14414,7 @@ button .player-mark { vertical-align: -0.3rem; }
 .game-review-moment-strip.is-track { padding-top: 0.1rem; }
 .game-review-line-one.is-person { align-items: center; border-left-color: var(--accent); }
 .game-review-line-one.is-person .player-mark { flex: none; width: 1.5rem; height: 1.5rem; margin: 0; }
-.game-review-line-one.is-person > b { font-size: 0.88rem; letter-spacing: 0; text-transform: none; font-weight: 700; }
+.game-review-line-one.is-person > b { font-size: 0.88rem; letter-spacing: 0; text-transform: none; font-weight: 600; color: color-mix(in srgb, var(--text-0) 75%, var(--text-1)); }
 .game-review-line-one.is-commit { align-items: center; border-left-color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 8%, var(--surface-controls)); }
 .game-review-line-one.is-commit > b { color: var(--accent-2); }
 .game-review-line-one.is-commit > .material-symbols-rounded { font-size: 1.1rem; color: var(--accent-2); }
