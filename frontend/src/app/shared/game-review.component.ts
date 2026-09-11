@@ -1,8 +1,8 @@
 import { DatePipe, Location } from '@angular/common';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
-import { AnalysisGame, FilmChoice, GameReview, ReviewPoint, ReviewSwap, ReviewTheme, Role } from '../models/team.models';
-import { alternativesPhrase, askOf, gainsPhrase, reviewAsText, reviewSource, THEME_GLYPHS } from '../core/review-view';
+import { AnalysisGame, DraftGain, FilmChoice, GameReview, ReviewGap, ReviewPoint, ReviewSwap, ReviewTheme, Role } from '../models/team.models';
+import { alternativesPhrase, askOf, GAIN_LABELS, reviewAsText, reviewSource, THEME_GLYPHS } from '../core/review-view';
 import type { FilmGlyph } from '../core/film-model';
 import { DecidedByComponent } from './review/decided-by.component';
 import { ReviewPointComponent } from './review/review-point.component';
@@ -56,7 +56,7 @@ import { TooltipDirective } from './tooltip.directive';
           <span class="material-symbols-rounded intel-collapse-chevron" aria-hidden="true">chevron_right</span>
         </summary>
         <div class="game-review-body">
-        <app-film-poster [review]="r" [game]="game()" [opponent]="opponent()" size="row" />
+        <app-film-poster [review]="r" [game]="game()" [opponent]="opponent()" size="bar" />
 
         <app-decided-by [review]="r" />
 
@@ -180,17 +180,31 @@ import { TooltipDirective } from './tooltip.directive';
           </p>
         }
 
-        @if (view() === 'team') {
-        @for (s of draftSwaps(); track s.seat + ':' + s.in) {
-          <!-- The draft with hindsight, one line a swap (10 Sep 2026): the why is cut to the line here; the film's draft chapter has the whole of it.
-               Since review version 6 the swap's other options follow the champion, "Nautilus, or Braum for Leona"; the gaps the comp lacked stay in the film. -->
-          <p class="game-review-draft" [appTip]="s.why">
-            <img class="player-mark is-out" [src]="ui.championIconUrl(s.out)" alt="" loading="lazy" />
-            <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
-            <img class="player-mark is-in" [src]="ui.championIconUrl(s.in)" alt="" loading="lazy" />
-            <span><b>{{ s.in }}</b>@if (altsOf(s); as alts) {<span class="game-review-draft-alt">, {{ alts }}</span>} for {{ ui.championName(s.out) }}{{ gainsOf(s) }}&#8195;<span class="game-review-draft-why">{{ s.why }}</span></span>
-          </p>
-        }
+        @if (view() === 'team' && (draftSwaps().length || lacked().length)) {
+          <!-- The draft with hindsight, as faces and chips (12 Sep 2026): the reason for a swap is behind
+               the tip, and what the comp lacked stands beside it for the first time outside the film. -->
+          <div class="review-draft" role="group" aria-label="The draft, again">
+            <h4 class="review-group-label">The draft, again</h4>
+            @if (lacked().length) {
+              <p class="review-draft-lacked">
+                <span class="review-draft-lacked-label">Lacked</span>
+                @for (g of lacked(); track $index) {
+                  <span class="film-gain-chip" [appTip]="g.why">{{ gainLabel(g.gain) }}</span>
+                }
+              </p>
+            }
+            @for (s of draftSwaps(); track s.seat + ':' + s.in) {
+              <p class="game-review-draft">
+                <img class="player-mark is-champ is-out" [src]="ui.championIconUrl(s.out)" [appTip]="ui.championName(s.out)" alt="" loading="lazy" />
+                <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
+                <img class="player-mark is-champ is-in" [src]="ui.championIconUrl(s.in)" alt="" loading="lazy" />
+                <b class="review-draft-in">{{ s.in }}</b>
+                @for (g of s.gains ?? []; track g) { <span class="film-gain-chip">{{ gainLabel(g) }}</span> }
+                @if (altsOf(s); as alts) { <span class="game-review-draft-alt" appTip="Other champions the review would take for this seat">{{ alts }}</span> }
+                <app-info-tip [text]="s.why" [label]="'Why ' + s.in" />
+              </p>
+            }
+          </div>
         }
 
         <p class="muted game-review-foot">
@@ -369,10 +383,12 @@ export class GameReviewComponent {
   /** The draft with hindsight (review version 5): the swaps to try, none when the draft held, so the panel stays short. */
   protected readonly draftSwaps = computed<ReviewSwap[]>(() => this.review()?.team.draft?.swaps ?? []);
 
-  /** ", for peel and engage": what the swap buys, as the tail of the line; nothing when the review named no gain. */
-  protected gainsOf(s: ReviewSwap): string {
-    const phrase = gainsPhrase(s.gains);
-    return phrase ? `, ${phrase}` : '';
+  /** What the comp lacked (review version 6), which until now only the film room has shown. */
+  protected readonly lacked = computed<ReviewGap[]>(() => this.review()?.team.draft?.lacked ?? []);
+
+  /** One gain as its word; the same table the film chapter and the chat copy read, so they cannot drift. */
+  protected gainLabel(gain: DraftGain): string {
+    return GAIN_LABELS[gain] ?? gain;
   }
 
   /** "or Braum, or Alistar": the swap's other options (review version 6), empty for a review that named none. */

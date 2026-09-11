@@ -27,7 +27,7 @@ export const FILM_CHAPTER_KEY = 'bom-film-chapter:';
   imports: [TooltipDirective],
   template: `
     @let r = review();
-    <div class="film-poster" [class]="'stock-' + stock()" [class.is-row]="size() === 'row'" [class.is-card]="size() === 'card'" [class.is-win]="win()" [class.is-loss]="!win()">
+    <div class="film-poster" [class]="'stock-' + stock()" [class.is-row]="size() === 'row'" [class.is-card]="size() === 'card'" [class.is-bar]="size() === 'bar'" [class.is-win]="win()" [class.is-loss]="!win()">
       <div class="film-poster-art" aria-hidden="true">
         @if (champion()) {
           <img class="film-splash" [src]="ui.championArtUrl(champion())" (error)="ui.artFallback($event, champion())" alt="" loading="lazy" />
@@ -56,8 +56,13 @@ export class FilmPosterComponent {
   readonly review = input.required<GameReview>();
   readonly game = input<AnalysisGame | undefined>(undefined);
   readonly opponent = input<string | undefined>(undefined);
-  /** A 5:1 strip on a game row, a 3:1 one on the Reviews tab card. */
-  readonly size = input<'row' | 'card'>('row');
+  /**
+   * A 5:1 strip on a game row, a 3:1 one on the Reviews tab card, and a slim bar in the rebuilt
+   * review panel (12 Sep 2026) — the splash is atmosphere, and atmosphere that costs a fifth of a
+   * drawer is the panel being long for the wrong reason. A new size rather than a change to
+   * `is-row`, which shares a narrow-screen rule with `is-card`.
+   */
+  readonly size = input<'row' | 'card' | 'bar'>('row');
 
   protected readonly ui = inject(UiService);
   private readonly prefs = inject(UserPrefsService);

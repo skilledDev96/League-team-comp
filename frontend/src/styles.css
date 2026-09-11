@@ -14322,7 +14322,6 @@ button .player-mark { vertical-align: -0.3rem; }
 .review-options .view-btn.is-static { cursor: default; font-size: 0.74rem; color: var(--text-1); }
 .review-options .view-btn.is-static:hover { border-color: var(--card-border); }
 
-.game-review-scoreline { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; }
 .score-chip { display: inline-flex; align-items: baseline; gap: 0.3rem; padding: 0.18rem 0.6rem; border-radius: 999px; border: 1px solid var(--card-border); background: var(--surface-controls); font-size: 0.8rem; font-variant-numeric: tabular-nums; color: var(--text-0); }
 .score-chip small { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-1); }
 .score-chip b { font-weight: 700; }
@@ -14333,8 +14332,8 @@ button .player-mark { vertical-align: -0.3rem; }
 .score-chip:first-child { border-color: color-mix(in srgb, currentColor 30%, var(--card-border)); }
 .advice-head.is-warn { color: var(--warn); }
 .advice-head.is-ok { color: var(--ok); }
-.review-theme { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.05rem 0.5rem 0.05rem 0.35rem; border-radius: 999px; border: 1px solid var(--card-border); font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-1); }
-.review-theme .material-symbols-rounded { font-size: 0.9rem; }
+/* No .review-theme here any more (12 Sep 2026): a theme is content, so it draws as one of the film's
+   own glyphs, not as a Material icon in a pill. THEME_GLYPHS in core/review-view.ts is the table. */
 .evidence-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.15rem; }
 .evidence-chip { display: inline-block; padding: 0.05rem 0.45rem; border-radius: 6px; background: color-mix(in srgb, var(--text-1) 12%, transparent); font-size: 0.7rem; font-variant-numeric: tabular-nums; color: var(--text-1); }
 
@@ -14342,13 +14341,11 @@ button .player-mark { vertical-align: -0.3rem; }
 .game-review-line-one { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.3rem 0.5rem; margin: 0; padding: 0.45rem 0.7rem; border-radius: 10px; border: 1px solid var(--card-border); border-left-width: 3px; background: color-mix(in srgb, var(--surface-controls) 70%, transparent); font-size: 0.88rem; line-height: 1.45; color: var(--text-0); min-width: 0; }
 .game-review-line-one > b { flex: none; font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; }
 .game-review-line-one > span:last-child { flex: 1 1 14rem; min-width: 0; }
-.game-review-line-one .review-theme { align-self: center; padding: 0.05rem 0.3rem; }
 .game-review-line-one .review-minute { margin-right: 0; }
 .game-review-line-one.is-warn { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn) 6%, var(--surface-controls)); }
 .game-review-line-one.is-warn > b { color: var(--warn); }
 .game-review-line-one.is-ok { border-left-color: var(--ok); background: color-mix(in srgb, var(--ok) 5%, var(--surface-controls)); }
 .game-review-line-one.is-ok > b { color: var(--ok); }
-.game-review-asks { display: grid; gap: 0.3rem; margin: 0; }
 
 /* A point as figures rather than a paragraph (12 Sep 2026): the theme's glyph, the evidence chipped,
    and the coach's whole sentence behind the info tip. Built on .game-review-line-one so the border,
@@ -14391,6 +14388,15 @@ button .player-mark { vertical-align: -0.3rem; }
 .review-seat-none { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin: 0; font-size: 0.82rem; }
 /* A champion is a square portrait; a person is round. Two kinds of face on one line otherwise read as one. */
 .player-mark.is-champ { border-radius: 6px; }
+
+/* The draft, again (12 Sep 2026): two faces, the gains as chips, the why behind the tip. The gain
+   chip is the film's own; outside .film-stage it has no --film-ink to read, so the colour is set here. */
+.review-draft { display: grid; gap: 0.3rem; }
+.review-draft .film-gain-chip { padding: 0.1rem 0.55rem; font-size: 0.72rem; color: var(--text-0); }
+.review-draft-lacked { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem; margin: 0; }
+.review-draft-lacked-label { font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--warn); }
+.review-draft-lacked .film-gain-chip { border-color: color-mix(in srgb, var(--warn) 55%, transparent); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.review-draft-in { font-size: 0.9rem; }
 .game-review-line-one.is-person { align-items: center; border-left-color: var(--accent); }
 .game-review-line-one.is-person .player-mark { flex: none; width: 1.5rem; height: 1.5rem; margin: 0; }
 .game-review-line-one.is-person > b { font-size: 0.88rem; letter-spacing: 0; text-transform: none; font-weight: 700; }
@@ -14857,6 +14863,12 @@ app-film-title .film-frame-nav { bottom: 2rem; }
 body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: var(--bg-1); --film-shade: var(--text-0); }
 .film-poster.is-row { aspect-ratio: 5 / 1; }
 .film-poster.is-card { aspect-ratio: 3 / 1; }
+/* The review panel's bar (12 Sep 2026): the splash as a band rather than a fifth of the drawer. A
+   separate size, because .is-row shares the narrow-screen rule below with .is-card. */
+.film-poster.is-bar { aspect-ratio: auto; min-height: 0; padding: 0.4rem 0.5rem 0.4rem 0.7rem; align-items: center; }
+.film-poster.is-bar .film-poster-text { min-width: 0; }
+.film-poster.is-bar .film-poster-kicker { font-size: 0.74rem; }
+.film-poster.is-bar .film-poster-open { padding: 0.3rem 0.8rem; font-size: 0.76rem; }
 .film-poster-art { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
 .film-poster-art .film-splash { object-position: 50% 25%; }
 /* The sheen a hover sends across the poster; still until the motion block sends it. */
@@ -15642,7 +15654,6 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 .game-review-draft .player-mark.is-in { border-color: var(--ok); }
 .game-review-draft > .material-symbols-rounded { flex: none; font-size: 1rem; color: var(--ok); }
 .game-review-draft > span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.game-review-draft-why { color: var(--text-1); }
 
 /* The card's block: the champion we played struck beside the one to try, "<in> for <out>", the gains under. Joins the card's own entrance stagger through .film-card-block. */
 .film-card-draft { border-left-color: var(--ok); gap: 0.4rem; }
