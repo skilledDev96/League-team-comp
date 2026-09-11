@@ -15662,7 +15662,11 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 .game-review-draft .player-mark.is-out { filter: saturate(0.4) brightness(0.9); }
 .game-review-draft .player-mark.is-in { border-color: var(--ok); }
 .game-review-draft > .material-symbols-rounded { flex: none; font-size: 1rem; color: var(--ok); }
-.game-review-draft > span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Written when the row was two faces and one text span; every gain is a span of its own now, so a
+   bare `> span` stretched each chip across the line. The slack belongs to the alternatives alone. */
+.game-review-draft > .game-review-draft-alt { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.game-review-draft > .film-gain-chip, .game-review-draft > .review-draft-in { flex: none; }
+.game-review-draft > .info-tip { flex: none; margin-left: auto; }
 
 /* The card's block: the champion we played struck beside the one to try, "<in> for <out>", the gains under. Joins the card's own entrance stagger through .film-card-block. */
 .film-card-draft { border-left-color: var(--ok); gap: 0.4rem; }
