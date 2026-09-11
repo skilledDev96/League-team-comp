@@ -304,18 +304,61 @@ export function makeCameraHold({ call, shape, champion, championId, checkAt = CA
 }
 
 /**
- * The champion `--follow` names, resolved against the ten actually in this game. A typo is answered
- * before the run spends five minutes on it, rather than by twenty frames of nobody in particular —
- * and both spellings come back, since the client knows some champions only by their id.
+ * The seat words `--follow` accepts, so a lead can say what they mean once and mean it every game:
+ * the champion in the jungle changes weekly, the jungle does not.
  */
-export function pinnedChampion(name, livePlayers) {
+export const SEAT_WORDS = {
+  top: 'Top',
+  toplane: 'Top',
+  toplaner: 'Top',
+  jungle: 'Jungle',
+  jungler: 'Jungle',
+  jg: 'Jungle',
+  jung: 'Jungle',
+  mid: 'Mid',
+  middle: 'Mid',
+  midlane: 'Mid',
+  midlaner: 'Mid',
+  adc: 'ADC',
+  bot: 'ADC',
+  botlane: 'ADC',
+  bottom: 'ADC',
+  carry: 'ADC',
+  marksman: 'ADC',
+  support: 'Support',
+  supp: 'Support',
+  sup: 'Support',
+  utility: 'Support'
+};
+
+/**
+ * Who `--follow` names, resolved against this game. Either a seat of ours (`jungle`, `adc`, `sup`)
+ * or a champion by either spelling — no champion is called "Jungle", so the two cannot collide.
+ * A word that matches neither is answered before the run spends five minutes on it, rather than by
+ * twenty frames of nobody in particular.
+ */
+export function pinnedChampion(name, livePlayers, plan = null) {
   const said = String(name ?? '').trim();
   if (!said) return null;
+
+  // A seat first: it is what the lead actually means, and it survives next week's draft.
+  const seat = SEAT_WORDS[said.toLowerCase().replace(/[^a-z]/g, '')];
+  if (seat) {
+    const ours = (plan?.seats ?? []).filter((one) => one.ours);
+    const mine = ours.find((one) => one.seat === seat);
+    if (!mine?.champion) {
+      const seats = ours.map((one) => `${one.seat} (${one.champion})`).join(', ');
+      throw new Error(`--follow ${said}: nobody of ours is in the ${seat} seat in this game.${seats ? ` Our five are ${seats}.` : ''}`);
+    }
+    const player = (livePlayers ?? []).find((one) => sameChampion(one?.championName, mine.champion));
+    return { champion: mine.champion, championId: player ? championIdOf(player) : mine.champion.replace(/[^A-Za-z0-9]/g, ''), seat };
+  }
+
   const found = (livePlayers ?? []).find((player) => sameChampion(player?.championName, said) || sameChampion(championIdOf(player), said));
   if (!found) {
     // Champions are what the other team is allowed to be, so naming the ten here breaks no rule.
     const playing = [...new Set((livePlayers ?? []).map((player) => String(player?.championName ?? '').trim()).filter(Boolean))];
-    throw new Error(`--follow ${said}: nobody is playing that champion in this game. The ten here are ${playing.join(', ')}.`);
+    throw new Error(`--follow ${said}: no seat of ours and nobody playing that champion. Seats are top, jungle, mid, adc, support; the ten champions here are ${playing.join(', ')}.`);
   }
   return { champion: String(found.championName ?? '').trim(), championId: championIdOf(found) };
 }
@@ -337,7 +380,7 @@ export const POSITION_ROLE = {
 export const ROLES = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
 
 const USAGE =
-  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--follow <champion>] [--no-follow]';
+  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--follow <seat|champion>] [--no-follow]';
 
 const CLIENT_HELP =
   'Is the League client open, with the replay playing? The Live Client and Replay APIs only answer while a replay is up.';
@@ -395,8 +438,8 @@ export function parseArgs(argv) {
       parsed.shots = Math.min(MAX_SHOTS, Math.floor(n));
     } else if (name === '--out-dir') parsed.outDir = value;
     else if (name === '--roster') parsed.roster = value;
-    // One champion's HUD on every frame instead of each victim's own: the jungler for pathing and
-    // smite, a carry for the cooldowns in the fights they died in.
+    // One seat's HUD on every frame instead of each victim's own: the jungler for pathing and
+    // smite, a carry for the cooldowns in the fights they died in. A seat word or a champion.
     else if (name === '--follow') parsed.followChampion = value;
     else throw new Error(`Unknown option ${name}.\n${USAGE}`);
   };
@@ -1161,8 +1204,10 @@ export async function run({
 
   // Resolved here, before the thirty-six seeks, so `--follow Vhi` costs a sentence rather than five
   // minutes. Null means every picture follows its own victim, which is the default.
-  const pinned = follow && followChampion ? pinnedChampion(followChampion, allPlayers) : null;
-  if (pinned) log(`  every picture will follow ${pinned.champion}, so each frame carries their HUD rather than the victim's.`);
+  const pinned = follow && followChampion ? pinnedChampion(followChampion, allPlayers, plan) : null;
+  if (pinned) {
+    log(`  every picture will follow ${pinned.seat ? `our ${pinned.seat}, ${pinned.champion}` : pinned.champion}, so each frame carries their HUD rather than the victim's.`);
+  }
 
   const eventData = await call('/liveclientdata/eventdata');
   const rawEvents = Array.isArray(eventData?.Events) ? eventData.Events : [];

@@ -429,11 +429,14 @@ filter rather than none, so it can never become unpickable.
    buys is the **HUD** — the victim's own health, abilities, items and CS in the
    corner of their death's frame — while the framing stays the client's. Three
    ways to run it, trading the same thing (the lead, 11 Sep 2026: "that should
-   be an option"): no flag follows each death's victim, `--follow <champion>`
-   holds one seat for every picture (`pinnedChampion` resolves either spelling
-   against the ten and refuses one nobody is playing *before* the thirty-six
-   seeks), and `--no-follow` does not touch the camera at all, so the replay's
-   own Directed Camera frames the fight instead.
+   be an option"): no flag follows each death's victim, `--follow <seat|champion>`
+   holds one player for every picture, and `--no-follow` does not touch the
+   camera at all so the replay's own Directed Camera frames the fight instead.
+   `pinnedChampion` takes a **seat** first (`SEAT_WORDS`: jungle/jg/top/mid/adc/
+   bot/support and the rest), because the champion in the jungle changes weekly
+   and the jungle does not — a seat only ever resolves to one of ours — then a
+   champion by either spelling, and refuses a word that is neither *before* the
+   thirty-six seeks rather than after them.
    `restoreRender` puts the selection back with the panels.
    **Two things are counted once, not as the client offers them** (11 Sep 2026):
    `readEvents` de-duplicates, because the client APPENDS to its event list

@@ -68,7 +68,7 @@ The lead does this, then runs the script.
    | | what each frame shows |
    | --- | --- |
    | *(no flag)* | the victim's own HUD, a different champion each picture |
-   | `--follow Vi` | Vi's HUD on every picture, whoever died |
+   | `--follow jungle` | our jungler's HUD on every picture, whoever died |
    | `--no-follow` | no HUD; the replay's own Directed Camera frames the fight |
 
    The HUD is the part nothing else can give you — abilities, items and
@@ -120,7 +120,7 @@ be run directly: `node scripts/replay-recorder.mjs EUW1-7977592156`.
 | `--out-dir <dir>` | `./replay-shots` | Where the client writes the frames. They stay on disk after the run (gitignored) so the lead can look at them. |
 | `--dry-run` | off | Writes the documents as JSON into the out dir and touches no Firestore. |
 | `--roster <file.json>` | — | Only needed for a dry run with no service account: `[{ "name": "Ruan", "role": "Top", "profile": { "riotTag": "EUW" } }, …]`. `riotTag` is the tag alone, not `Name#TAG`. |
-| `--follow <champion>` | — | Holds one champion for every picture instead of following each death's victim, so every frame carries that seat's HUD — the jungler for pathing and smite, a carry for the cooldowns in the fights they died in. Either spelling works (`Vi`, `Miss Fortune`, `MissFortune`), and a champion nobody is playing is refused before the run starts rather than after it. |
+| `--follow <seat\|champion>` | — | Holds one player for every picture instead of following each death's victim, so every frame carries that seat's HUD — the jungler for pathing and smite, a carry for the cooldowns in the fights they died in. **Say the seat** (`jungle`, `jg`, `top`, `mid`, `adc`, `bot`, `support`, `sup`) and the same command line keeps working next week, whoever is playing what; a champion by either spelling (`Vi`, `Miss Fortune`, `MissFortune`) works too. A seat always resolves to one of ours. Anything that matches neither is refused before the run starts rather than after it. |
 | `--no-follow` | off | Touches the camera not at all, so the replay's own **Directed Camera** decides every shot. Use it when you want frames of the fight rather than of one player. |
 
 A 35-minute game is roughly 35 seeks for the samples plus one per picture, so

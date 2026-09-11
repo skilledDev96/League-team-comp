@@ -625,7 +625,8 @@ describe('the replay recorder, over a whole game', () => {
   // `--follow Vi`: one seat's HUD on every frame instead of each victim's own — the jungler for
   // pathing and smite, a carry for the cooldowns in the fights they died in.
   it('holds one champion for every picture when --follow names one', async () => {
-    const { shots, renderPosts, log } = await record({ shots: 3, run: { followChampion: 'Vi' } });
+    // Said as a seat, which is how a lead thinks of it: our jungler is Vi this game.
+    const { shots, renderPosts, log } = await record({ shots: 3, run: { followChampion: 'jungle' } });
     expect(shots.length).toBeGreaterThan(0);
     // Every picture asks for Vi, not for Ornn, Vi, Ahri in turn.
     expect([...new Set(renderPosts.filter((r) => r.selectionName).map((r) => r.selectionName))]).toEqual(['Vi']);
@@ -633,6 +634,19 @@ describe('the replay recorder, over a whole game', () => {
     // The pictures are still filed under the deaths they are of, whoever the camera is on.
     expect(shots.map((s) => s.sec)).toEqual(OUR_DEATH_SECONDS.slice(0, 3));
     expect(shots[0].label).toContain('Ornn');
+  });
+
+  it('takes a seat as readily as a champion, since the seat outlives the draft', () => {
+    const ten = [...OUR_LIVE, ...THEIR_LIVE];
+    const plan = seatPlan(ten, ROSTER);
+    // The lead means "the jungler", and next week that is somebody else. Vi is ours this game.
+    expect(pinnedChampion('jungle', ten, plan)).toEqual({ champion: 'Vi', championId: 'Vi', seat: 'Jungle' });
+    expect(pinnedChampion('jungler', ten, plan)).toMatchObject({ seat: 'Jungle' });
+    expect(pinnedChampion('jg', ten, plan)).toMatchObject({ seat: 'Jungle' });
+    expect(pinnedChampion('SUPPORT', ten, plan)).toMatchObject({ champion: 'Leona', seat: 'Support' });
+    expect(pinnedChampion('bot', ten, plan)).toMatchObject({ champion: 'Jinx', seat: 'ADC' });
+    // A seat only ever resolves to one of OURS: their jungler is a champion in a seat, not a seat.
+    expect(pinnedChampion('jungle', ten, plan).champion).not.toBe('Sejuani');
   });
 
   it('answers a --follow nobody is playing before the run spends five minutes on it', () => {
@@ -644,9 +658,10 @@ describe('the replay recorder, over a whole game', () => {
       championId: 'MissFortune'
     });
     expect(pinnedChampion('', ten)).toBe(null);
-    // The refusal names the ten, which are champions and so may be printed.
-    expect(() => pinnedChampion('Vhi', ten)).toThrow(/nobody is playing that champion/);
+    // The refusal names the ten, which are champions and so may be printed, and the seat words.
+    expect(() => pinnedChampion('Vhi', ten)).toThrow(/no seat of ours and nobody playing that champion/);
     expect(() => pinnedChampion('Vhi', ten)).toThrow(/Ornn/);
+    expect(() => pinnedChampion('Vhi', ten)).toThrow(/jungle/);
   });
 
   it('knows a champion by both of its spellings, and asks only for keys the client carries', () => {
