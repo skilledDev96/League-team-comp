@@ -12525,8 +12525,13 @@ body:has(.draft-stage) .edit-mode-frame {
   border-radius: 50%;
 }
 
+/* The track may be narrower than its content (12 Sep 2026). An implicit grid column is 1fr with
+   min-width: auto, so it sizes to the widest row's min-content: measured on a 390px phone, this grid
+   sat in a 322px box with a 609px column, and every row and the page went with it. The rows have
+   their own scrolling table inside; what they needed was permission to be narrow. */
 .opp-history-games {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.3rem;
   margin-top: 0.6rem;
 }
