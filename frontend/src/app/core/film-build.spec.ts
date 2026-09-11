@@ -217,6 +217,38 @@ describe('buildFilm on the timeline tier', () => {
     expect(unnamed.title.protagonist.seat).toBe(mvpSeatOf(game));
   });
 
+  /**
+   * The card and the panel ask and answer the same question, so they read one rule.
+   *
+   * Caught in review before it shipped (12 Sep 2026): this card took `workOn[0].theme` while
+   * `decidedByOf` had already learned to prefer review version 8's own `decidedBy`. On a review
+   * where the two differ the panel said one theme and the card marked the other correct — and
+   * because the distractor pool excluded only the work-on themes, the panel's answer could be
+   * dealt as one of the three WRONG ones to a reader repeating what it had just told them.
+   */
+  it('answers what decided the game from the same field the panel reads', () => {
+    // The fixture's first work-on is 'fights'; version 8 names something else.
+    const v8 = buildFilm(
+      { ...review, team: { ...review.team, decidedBy: { theme: 'macro', why: 'Side waves went unanswered after 20' } } } as unknown as GameReview,
+      game,
+      timeline,
+      previous
+    );
+    const call = v8.title.call!;
+    expect(call.theme).toBe('macro');
+    expect(call.options[call.answer]).toBe('macro');
+    // The reason is the model's own when it wrote one.
+    expect(call.why).toBe('Side waves went unanswered after 20');
+    // The answer is dealt once and never as a distractor, and the first work-on is not the answer.
+    expect(call.options.filter((o) => o === 'macro')).toHaveLength(1);
+    expect(call.options[call.answer]).not.toBe('fights');
+
+    // A review from before version 8 keeps the old answer exactly, which is what eleven stored ones are.
+    expect(film.title.call!.theme).toBe('fights');
+    expect(film.title.call!.options[film.title.call!.answer]).toBe('fights');
+    expect(film.title.call!.why).toBe(review.team.workOn[0].text);
+  });
+
   it('titles the film with the headline, the loss, and the MVP by the line', () => {
     expect(film.title.headline).toBe('Bled 35 kills while farming even');
     expect(film.title.win).toBe(false);

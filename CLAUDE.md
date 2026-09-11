@@ -572,11 +572,28 @@ filter rather than none, so it can never become unpickable.
    dashed id and the Games row lights its Recorded chip either way, so
    gating the read on the replay tier dropped a Clash recording in silence.
    **The review itself** (`api/src/game-review.ts`, handler `gameReview`,
-   `REVIEW_VERSION` 7 since 11 Sep 2026: 3 on 9 Sep, 4, 5 and 6 on 10 Sep,
+   `REVIEW_VERSION` 8 since 12 Sep 2026: 3 on 9 Sep, 4, 5 and 6 on 10 Sep,
    7 on 11 Sep for `GameReview.recorded` — the one field that says a review
    was written off the recorder's minutes and frames, so the panel stops
    calling a recorded review "Totals only" and drawing dots where its
-   minutes are) is
+   minutes are — and **8 for `decidedBy`**, the one thing that decided the
+   game as one of the seven themes plus at most twelve words on why, which
+   the panel draws first and largest. It is **required in `TEAM_SCHEMA` and
+   optional on `TeamReview`**: eleven stored reviews predate it, and a
+   malformed answer falls back to `workOn[0].theme` in `parseTeamReview` —
+   already one of the seven, and what every earlier review is read with — so
+   a bad field costs a field and not a review. Its `why` is the one free-text
+   field besides the draft's and the lessons' that goes through
+   `optionNamingOurs`, because it is the largest text the panel draws.
+   Version 8 also **moved the prompt's word caps and the validators'
+   character caps together**, which are separate places and had drifted
+   apart — the prompt asked for 40 words where the validator allowed 320
+   characters, about 53 — so nothing was enforced; the pairs are now roughly
+   six characters a word and the cuts go through `strWords`, on a word
+   boundary, since `str` sliced through the middle of one. And the RULES now
+   say the evidence separator is load-bearing: figures parted by ` · ` and
+   never a comma, because the panel splits on it and draws a chip per figure,
+   so a comma made a chip reading "nothing back" on its own) is
    two calls over the facts, both to Opus at medium effort: the team —
    headline, summary, the game in `moments` (three to six, time order),
    `workOn`, `keepDoing`, the comp verdict, and since version 4 and 5 the

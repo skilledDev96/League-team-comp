@@ -283,7 +283,7 @@ describe('the prompts', () => {
   it('ask the team question for the draft with hindsight, and keep the swap about our draft', () => {
     // 7 since 11 Sep 2026: the stored review gained `recorded`, so an older
     // document is not mistaken for one written off the recorder's minutes.
-    expect(REVIEW_VERSION).toBe(7);
+    expect(REVIEW_VERSION).toBe(8);
     expect(TEAM_SYSTEM).toContain('"draft" is one sentence ("verdict") on whether the five we drafted fit the game that was played');
     expect(TEAM_SYSTEM).toContain('"swaps" is at most three changes to OUR draft the coach would make with hindsight');
     expect(TEAM_SYSTEM).toContain('("out", exactly as given in OUR PLAYERS)');
@@ -387,6 +387,43 @@ describe('the schemas', () => {
 });
 
 describe('parseTeamReview', () => {
+  /**
+   * What decided the game (version 8). The panel draws this largest and above everything else, so
+   * the branch that matters is the one where the model answers badly: a review is expensive and
+   * must not be lost over one field, and the theme of the first thing to work on is already one of
+   * the seven and is the answer every review before version 8 is read with.
+   */
+  it('takes what decided the game from the model, or falls back to the first work-on', () => {
+    const workOn = [{ text: 'One', evidence: 'minute 8 dragon', minute: 8, theme: 'objectives' }];
+    const base = { summary: 's', workOn, keepDoing: [], compVerdict: 'unclear', compWhy: 'w' };
+
+    // The model's own answer, with its reason.
+    const named = parseTeamReview({ ...base, decidedBy: { theme: 'fights', why: 'Two late fights thrown with three down' } }, ctx);
+    expect(named.decidedBy).toEqual({ theme: 'fights', why: 'Two late fights thrown with three down' });
+
+    // A theme that is not one of the seven, and no theme at all: the first work-on stands in.
+    for (const bad of [{ theme: 'vibes', why: 'x' }, {}, undefined, 'fights', 7]) {
+      expect(parseTeamReview({ ...base, decidedBy: bad }, ctx).decidedBy?.theme, JSON.stringify(bad)).toBe('objectives');
+    }
+
+    // No theme anywhere is an honest absence: the panel draws no row rather than an empty one.
+    expect(parseTeamReview({ ...base, workOn: [{ text: 'One', evidence: 'e', minute: null }] }, ctx).decidedBy).toBeUndefined();
+    expect(parseTeamReview({ ...base, workOn: [] }, ctx).decidedBy).toBeUndefined();
+
+    // The why is cut on a word boundary, and an empty one is left off rather than stored blank.
+    const long = parseTeamReview({ ...base, decidedBy: { theme: 'macro', why: 'word '.repeat(40) } }, ctx);
+    expect(long.decidedBy!.why!.length).toBeLessThanOrEqual(85);
+    expect(long.decidedBy!.why!.endsWith('word')).toBe(true);
+    expect(parseTeamReview({ ...base, decidedBy: { theme: 'macro', why: '  ' } }, ctx).decidedBy).toEqual({ theme: 'macro' });
+
+    // The Riot rule, on the largest text the panel draws. A why naming anyone off our five goes
+    // whole and the theme stands; one of ours keeps the name and loses the tag, which is never shown.
+    const stranger = parseTeamReview({ ...base, decidedBy: { theme: 'fights', why: 'Darius#EUW won every fight' } }, ctx);
+    expect(stranger.decidedBy).toEqual({ theme: 'fights' });
+    const mine = parseTeamReview({ ...base, decidedBy: { theme: 'fights', why: `${ctx.players[0].name}#EUW1 fought alone` } }, ctx);
+    expect(mine.decidedBy!.why).toBe(`${ctx.players[0].name} fought alone`);
+  });
+
   it('caps the lists, drops points without evidence, nulls a minute outside the game, and corrects a bad verdict', () => {
     const got = parseTeamReview(
       {
@@ -404,7 +441,8 @@ describe('parseTeamReview', () => {
       },
       ctx
     );
-    expect(got.summary).toHaveLength(400);
+    // 290 since version 8: the prompt asks for two sentences of 45 words and the validator holds it there.
+    expect(got.summary).toHaveLength(315);
     expect(got.workOn.map((w) => w.text)).toEqual(['One', 'Three', 'Four']);
     expect(got.workOn[1].minute).toBeNull();
     expect(got.keepDoing).toHaveLength(2);
@@ -654,7 +692,7 @@ describe('parseTeamReview: the draft with hindsight', () => {
 
   it('needs a why, caps it, drops a swap naming anyone off our five by Riot id, and cuts our own tags', () => {
     expect(parse({ verdict: 'v', swaps: [swap({ why: '' }), swap({ why: 7 }), swap({ why: undefined })] })!.swaps).toEqual([]);
-    expect(parse({ verdict: 'v', swaps: [swap({ why: 'w'.repeat(400) })] })!.swaps[0].why).toHaveLength(300);
+    expect(parse({ verdict: 'v', swaps: [swap({ why: 'w'.repeat(400) })] })!.swaps[0].why).toHaveLength(210);
     const got = parse({
       verdict: 'v',
       swaps: [swap({ why: 'Darius#EUW dived Kai twice before ten.' }), swap({ seat: 'Top', out: 'Ornn', in: 'Sion', why: 'Ruan#EUW was alone in their jungle at 12, Group at #20.' })]
@@ -706,7 +744,7 @@ describe('parseTeamReview: the draft with hindsight', () => {
     expect(got!.lacked).toEqual([
       { gain: 'frontline', why: 'Nobody could stand in front around minute 24, and Kai died first in every fight.' },
       { gain: 'engage', why: 'Ruan had no way in at 18, Group at #20.' },
-      { gain: 'waveclear', why: 'w'.repeat(200) }
+      { gain: 'waveclear', why: 'w'.repeat(175) }
     ]);
   });
 

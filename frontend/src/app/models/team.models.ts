@@ -805,6 +805,13 @@ export interface GameReview {
   compName: string | null;
   expect?: CompExpectation;
   team: {
+    /**
+     * The one thing that decided the game, as one of the seven themes and at most twelve words on
+     * why (review version 8, 12 Sep 2026). It is what the panel shows first and largest. Optional:
+     * every review before version 8 has none, and `decidedByOf` falls back to the theme of the
+     * first thing to work on for those — the nearest honest answer, and already one of the seven.
+     */
+    decidedBy?: { theme: ReviewTheme; why?: string };
     /** How the game was decided, in at most eight words; absent before review version 2. */
     headline?: string;
     summary: string;

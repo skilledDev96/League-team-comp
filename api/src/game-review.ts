@@ -66,7 +66,7 @@ import { LaneRead, LaneRole, PlayerFacts } from './lane-read';
 import { LaneMatchup, matchupLines } from './lane-matchups';
 import { deathLines, fightLines, FIGHT_WINDOW_SEC, MAX_DEATH_LINES, MAX_FIGHT_LINES, ReplayRecording } from './replay-recording';
 
-export const REVIEW_VERSION = 7;
+export const REVIEW_VERSION = 8;
 
 /** What a team point is about; the panel shows it as a tag with an icon. */
 export const REVIEW_THEMES = ['draft', 'lanes', 'fights', 'objectives', 'vision', 'tempo', 'macro'] as const;
@@ -224,7 +224,7 @@ const RULES = `Rules that never bend:
 - Lead with the decision that decided the game. Then the rest, most important first.
 - Each point rests on a different fact. Do not repeat a figure across points, and do not restate the summary.
 - One point per theme. A second point on the same theme is allowed only when it rests on a different fact, and then it says what is new in it.
-- Evidence is figures only, no sentence: "Leona 1/9/7 · kills 14-35 · first tower conceded". Never repeat the point's own words in its evidence.
+- Evidence is figures only, never a sentence, and every figure is separated by a middle dot: "Leona 1/9/7 · kills 14-35 · first tower conceded". Two to five figures, and NO COMMA anywhere inside it. The app splits the evidence on those separators and draws each figure as its own chip on the review panel, so a comma splits too: "22:44 and 28:34 solo deaths, nothing back" becomes a chip reading "nothing back" on its own, which is half a thought in a box. Write "22:44 and 28:34 solo deaths · nothing back" instead. Never repeat the point's own words in its evidence.
 - No throat-clearing. Never write "it is worth asking whether", "worth reviewing whether", "is there a way to", "one option is agreeing". Say what happened, then the choice.
 - This is a finished game. Say nothing about a game in progress.
 - Positions, "near" and "warded" come from one frame a minute and are approximate; say "around minute 14", not "at 14:07".
@@ -243,13 +243,13 @@ ${RULES}
 - A swap is about OUR draft. The other team's champions may be named as the matchup they posed — "into Darius", "against a Syndra" — never a person.
 - When frames of the game are attached they are pictures of OUR own game, taken from the replay at the second the caption gives: read the minimap for where everyone was and the HUD for the spectated player's abilities and items, say "around minute N" because a frame is one moment and not a stretch of play, and never describe a person on the other team — a frame shows champions in seats.
 
-Length: "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences at most and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 40 words with the evidence beside it in at most 25 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence. "moments" is three to six entries in time order that walk through the game: the minute, one sentence of at most 30 words on what happened and why it mattered, and "swing" for whose way it went. A moment's "seats" names the seats of ours it is about, at most three, and stays empty when it is about the whole team. A "workOn" item that offers a choice carries its two choices again in "options" as short imperatives, and leaves them out when it offers none. "lessons" is at most three things a player should be able to answer tomorrow, each on a fact already used by "workOn" or "keepDoing" and about OUR play only: a question of at most 20 words, three options of at most 12 words with one true and the wrong ones plausible, "answer" as the index of the true one, and "why" as one sentence of at most 25 words citing the fact and the minute. "oneThing" is the one thing to watch for next game in at most twelve words, a choice not an order. "draft" is one sentence ("verdict") on whether the five we drafted fit the game that was played, and "swaps" is at most three changes to OUR draft the coach would make with hindsight, each naming the seat, the champion we played ("out", exactly as given in OUR PLAYERS), the champion to try instead ("in", from CHAMPIONS A SWAP MAY NAME, in a similar role for that seat, a mainstream pick not a niche one, never one of our own five in that game), one sentence of at most 40 words on "why" that cites the fact and the minute (for instance the fight around minute 24 where nobody could follow the engage, or the nine deaths of the carry with nobody to peel), "gains" as what the swap buys from the list, and "alternatives" as at most two other champions from CHAMPIONS A SWAP MAY NAME that would do the same job in that seat ("Orianna, or Syndra"), empty when there is no second option; for instance a Malphite for the all-in with Miss Fortune, or a Nautilus for the peel on a hypercarry. "lacked" is what the comp was missing that the game exposed: at most three gains from the same list, each with "why" as one sentence of at most 25 words citing the fact and the minute behind it. Leave both "swaps" and "lacked" empty when the draft held.`;
+Length: "decidedBy" names the ONE thing that decided this game as one of the seven themes, with "why" as at most twelve words citing a figure. It is the largest thing the team sees, above the headline, so it must name the single biggest cause and never summarise the whole game. "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences of at most 45 words together and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 30 words with the evidence beside it in at most 18 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence of at most 25 words. "moments" is three to six entries in time order that walk through the game: the minute, one sentence of at most 25 words on what happened and why it mattered, and "swing" for whose way it went. A moment's "seats" names the seats of ours it is about, at most three, and stays empty when it is about the whole team. A "workOn" item that offers a choice carries its two choices again in "options" as short imperatives, and leaves them out when it offers none. "lessons" is at most three things a player should be able to answer tomorrow, each on a fact already used by "workOn" or "keepDoing" and about OUR play only: a question of at most 20 words, three options of at most 12 words with one true and the wrong ones plausible, "answer" as the index of the true one, and "why" as one sentence of at most 25 words citing the fact and the minute. "oneThing" is the one thing to watch for next game in at most twelve words, a choice not an order. "draft" is one sentence ("verdict") on whether the five we drafted fit the game that was played, and "swaps" is at most three changes to OUR draft the coach would make with hindsight, each naming the seat, the champion we played ("out", exactly as given in OUR PLAYERS), the champion to try instead ("in", from CHAMPIONS A SWAP MAY NAME, in a similar role for that seat, a mainstream pick not a niche one, never one of our own five in that game), one sentence of at most 30 words on "why" that cites the fact and the minute (for instance the fight around minute 24 where nobody could follow the engage, or the nine deaths of the carry with nobody to peel), "gains" as what the swap buys from the list, and "alternatives" as at most two other champions from CHAMPIONS A SWAP MAY NAME that would do the same job in that seat ("Orianna, or Syndra"), empty when there is no second option; for instance a Malphite for the all-in with Miss Fortune, or a Nautilus for the peel on a hypercarry. "lacked" is what the comp was missing that the game exposed: at most three gains from the same list, each with "why" as one sentence of at most 25 words citing the fact and the minute behind it. Leave both "swaps" and "lacked" empty when the draft held.`;
 
 export const PLAYER_SYSTEM = `You are the coach writing the notes per player after one finished League of Legends game for an amateur five-stack. For each of OUR players you are given their seat, champion, line, lane read, habits, damage, and their deaths one by one with what would have stopped each. You write, per player, one strength, the first thing to work on, and up to three more things to work on, each tied to a different fact.
 
 ${RULES}
 
-Length: one entry per player in OUR PLAYERS, in the same order, using exactly the name given. Speak to the player as "you". "strength" and "workOn" are each one sentence of at most 35 words that open with the concrete fact and end with what to keep or what to change, with the evidence beside it in at most 25 words. "more" is at most three further things to work on, most important first, each one sentence of at most 35 words with evidence of at most 25 words and a "theme"; each rests on a fact the other points do not use. A player with nothing to fault gets a "workOn" that names the next step up, not a question, and a short "more"; never pad. The jungler's notes weigh the laners' deaths within reach first: for each, say where the jungler was and the choice — either be there by that minute, or tell the lane to hold.`;
+Length: one entry per player in OUR PLAYERS, in the same order, using exactly the name given. Speak to the player as "you". "strength" and "workOn" are each one sentence of at most 28 words that open with the concrete fact and end with what to keep or what to change, with the evidence beside it in at most 18 words. "more" is at most three further things to work on, most important first, each one sentence of at most 28 words with evidence of at most 18 words and a "theme"; each rests on a fact the other points do not use. A player with nothing to fault gets a "workOn" that names the next step up, not a question, and a short "more"; never pad. The jungler's notes weigh the laners' deaths within reach first: for each, say where the jungler was and the choice — either be there by that minute, or tell the lane to hold.`;
 
 function dateOf(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
@@ -531,9 +531,12 @@ const lesson = {
 
 /**
  * One change to our draft with hindsight. The caps (three swaps, three gains,
- * two alternatives, 40 words) live in the descriptions and `draftOf`, never as
+ * two alternatives, 30 words) live in the descriptions and `draftOf`, never as
  * schema keywords: the API rejects maxItems and friends (structured-output
  * schema limits, 10 Sep 2026).
+ *
+ * A description here is read by the model AT the field, so it beats the Length paragraph in
+ * TEAM_SYSTEM when the two disagree. Both move together or neither does.
  */
 const swap = {
   type: 'object',
@@ -541,7 +544,7 @@ const swap = {
     seat: { type: 'string', enum: [...ROLES], description: 'The seat of ours the swap is in.' },
     out: { type: 'string', description: 'The champion we played in that seat, exactly as given in OUR PLAYERS.' },
     in: { type: 'string', description: 'The champion to try instead, from CHAMPIONS A SWAP MAY NAME, in a similar role for that seat, a mainstream pick; never one of our own five in this game.' },
-    why: { type: 'string', description: 'One sentence of at most 40 words citing the fact and the minute.' },
+    why: { type: 'string', description: 'One sentence of at most 30 words citing the fact and the minute.' },
     gains: { type: 'array', items: { type: 'string', enum: [...DRAFT_GAINS] }, description: 'What the swap buys, at most three.' },
     alternatives: {
       type: 'array',
@@ -575,9 +578,29 @@ const draft = {
   additionalProperties: false
 } as const;
 
+/**
+ * What decided the game, which the panel shows as one glyph and one word above everything else.
+ *
+ * Required here and optional on the answer: the model is always asked, and `parseTeamReview` falls
+ * back to the theme of the first thing to work on when the answer is malformed, so a bad field
+ * costs a field rather than a review. `why` is the tip behind the word; the panel prints the
+ * standing meaning of the theme when the model wrote none.
+ */
+const decidedBy = {
+  type: 'object',
+  description: 'The one thing that decided this game.',
+  properties: {
+    theme: { type: 'string', enum: [...REVIEW_THEMES], description: 'Which of the seven decided it.' },
+    why: { type: 'string', description: 'At most twelve words on why that is the answer, citing a figure.' }
+  },
+  required: ['theme', 'why'],
+  additionalProperties: false
+} as const;
+
 export const TEAM_SCHEMA = {
   type: 'object',
   properties: {
+    decidedBy,
     headline: { type: 'string', description: 'At most eight words naming how the game was decided.' },
     summary: { type: 'string', description: 'Two sentences at most: how the game went and why. Not a repeat of the headline.' },
     workOn: { type: 'array', description: 'At most three, most important first.', items: choicePoint },
@@ -612,7 +635,7 @@ export const TEAM_SCHEMA = {
     oneThing: { type: 'string', description: 'The one thing to watch for next game, at most twelve words, a choice not an order' },
     draft
   },
-  required: ['headline', 'summary', 'workOn', 'keepDoing', 'compVerdict', 'compWhy', 'moments', 'lessons', 'oneThing', 'draft'],
+  required: ['decidedBy', 'headline', 'summary', 'workOn', 'keepDoing', 'compVerdict', 'compWhy', 'moments', 'lessons', 'oneThing', 'draft'],
   additionalProperties: false
 } as const;
 
@@ -704,6 +727,12 @@ export interface ReviewDraft {
 }
 
 export interface TeamReview {
+  /**
+   * The one thing that decided the game (version 8). Optional on the answer even though the schema
+   * requires it: eleven stored reviews predate the field, and a malformed one falls back to the
+   * first work-on's theme rather than failing the review.
+   */
+  decidedBy?: { theme: ReviewTheme; why?: string };
   /** At most eight words on how the game was decided; absent on reviews before version 2. */
   headline?: string;
   summary: string;
@@ -759,8 +788,8 @@ function optionsOf(v: unknown): [string, string] | undefined {
 
 function evidencedOf(v: unknown, textMax: number, durationMin: number): Evidenced | null {
   const row = (v ?? {}) as Record<string, unknown>;
-  const text = str(row.text, textMax);
-  const evidence = str(row.evidence, 220);
+  const text = strWords(row.text, textMax);
+  const evidence = strWords(row.evidence, 130); // 18 words
   if (!text || !evidence) return null;
   const m = typeof row.minute === 'number' && Number.isFinite(row.minute) ? Math.round(row.minute) : null;
   const minute = m !== null && m >= 0 && m <= Math.max(durationMin, 1) ? m : null;
@@ -769,10 +798,27 @@ function evidencedOf(v: unknown, textMax: number, durationMin: number): Evidence
   return { text, evidence, minute, ...(theme && { theme }), ...(options && { options }) };
 }
 
+/**
+ * What decided the game. The model's own answer when it gave a real theme, and the theme of the
+ * first thing to work on when it did not — that is already one of the seven and is the nearest
+ * honest answer, which is what the panel fell back to for every review before version 8. Nothing
+ * at all when there is no theme anywhere, because a blank word reads as a thing that failed.
+ */
+function decidedByOf(v: unknown, workOn: readonly Evidenced[], ours: ReadonlySet<string>): { theme: ReviewTheme; why?: string } | undefined {
+  const row = (v ?? {}) as Record<string, unknown>;
+  const theme = themeOf(row.theme) ?? workOn[0]?.theme;
+  if (!theme) return undefined;
+  // The reason goes through the Riot-id guard, which `headline`, `summary` and `compWhy` do not:
+  // this is the largest text on the panel, and a why naming anyone off our five is dropped whole
+  // rather than shown. The theme survives, and the panel prints the theme's standing meaning.
+  const why = optionNamingOurs(strWords(row.why, 85), ours); // 12 words
+  return { theme, ...(why && { why }) };
+}
+
 function pointsOf(list: unknown, max: number, durationMin: number): Evidenced[] {
   return Array.isArray(list)
     ? list
-        .map((x) => evidencedOf(x, 320, durationMin))
+        .map((x) => evidencedOf(x, 210, durationMin)) // 30 words
         .filter((x): x is Evidenced => !!x)
         .slice(0, max)
     : [];
@@ -784,7 +830,7 @@ function momentsOf(list: unknown, durationMin: number, seats: readonly LaneRole[
   const out: Moment[] = [];
   for (const raw of list) {
     const row = (raw ?? {}) as Record<string, unknown>;
-    const text = str(row.text, 240);
+    const text = strWords(row.text, 175); // 25 words
     const m = typeof row.minute === 'number' && Number.isFinite(row.minute) ? Math.round(row.minute) : null;
     if (!text || m === null || m < 0 || m > Math.max(durationMin, 1)) continue;
     const swing = row.swing === 'us' || row.swing === 'them' ? row.swing : 'even';
@@ -853,7 +899,7 @@ function lackedOf(list: unknown, ours: ReadonlySet<string>): ReviewGap[] {
     const g = (raw ?? {}) as Record<string, unknown>;
     const gain = g.gain;
     if (!(DRAFT_GAINS as readonly unknown[]).includes(gain) || out.some((x) => x.gain === gain)) continue;
-    const why = optionNamingOurs(str(g.why, 200), ours);
+    const why = optionNamingOurs(strWords(g.why, 175), ours); // 25 words
     if (!why) continue;
     out.push({ gain: gain as DraftGain, why });
   }
@@ -900,7 +946,7 @@ function draftOf(v: unknown, ctx: ReviewContext): ReviewDraft | undefined {
     if (typeof s.out !== 'string' || norm(s.out) !== norm(out)) continue;
     const pick = typeof s.in === 'string' ? offered.get(norm(s.in)) : undefined;
     if (!pick || ourChampions.has(norm(pick))) continue;
-    const why = optionNamingOurs(str(s.why, 300), ours);
+    const why = optionNamingOurs(strWords(s.why, 210), ours); // 30 words
     if (!why) continue;
     const gains = Array.isArray(s.gains)
       ? (s.gains.filter((g, i, all): g is DraftGain => (DRAFT_GAINS as readonly unknown[]).includes(g) && all.indexOf(g) === i) as DraftGain[]).slice(0, 3)
@@ -928,13 +974,16 @@ export function parseTeamReview(value: unknown, ctx: ReviewContext): TeamReview 
   const headline = str(v.headline, 80).replace(/[.!]+$/, '');
   const oneThing = strWords(v.oneThing, 90);
   const draft = draftOf(v.draft, ctx);
+  const workOn = pointsOf(v.workOn, 3, d);
+  const decided = decidedByOf(v.decidedBy, workOn, new Set(ctx.players.map((pl) => norm(pl.name))));
   return {
+    ...(decided ? { decidedBy: decided } : {}),
     ...(headline ? { headline } : {}),
-    summary: str(v.summary, 400),
-    workOn: pointsOf(v.workOn, 3, d),
+    summary: strWords(v.summary, 315),
+    workOn,
     keepDoing: pointsOf(v.keepDoing, 2, d),
     compVerdict: ctx.comp ? verdict : 'unclear',
-    compWhy: str(v.compWhy, 240),
+    compWhy: strWords(v.compWhy, 175),
     moments: momentsOf(v.moments, d, ctx.players.map((p) => p.seat)),
     lessons: lessonsOf(v.lessons, ctx),
     ...(oneThing ? { oneThing } : {}),
@@ -952,8 +1001,8 @@ export function parsePlayerNotes(value: unknown, ctx: ReviewContext): PlayerNote
     const row = (raw ?? {}) as Record<string, unknown>;
     const player = typeof row.name === 'string' ? known.get(norm(row.name)) : undefined;
     if (!player || seen.has(player.name)) continue;
-    const strength = evidencedOf(row.strength, 320, ctx.facts.durationMin);
-    const workOn = evidencedOf(row.workOn, 320, ctx.facts.durationMin);
+    const strength = evidencedOf(row.strength, 195, ctx.facts.durationMin); // 28 words
+    const workOn = evidencedOf(row.workOn, 195, ctx.facts.durationMin);
     if (!strength && !workOn) continue;
     seen.add(player.name);
     const blank: Evidenced = { text: '', evidence: '', minute: null };

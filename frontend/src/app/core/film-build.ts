@@ -17,6 +17,7 @@ import {
   ReviewLesson,
   ReviewMoment,
   ReviewPoint,
+  ReviewTheme,
   Role,
   ROLES,
   TimelineDeath,
@@ -169,17 +170,32 @@ function buildTitle(review: GameReview, game: AnalysisGame | undefined, facts: G
   const protagonist = { seat, champion: reviewed?.champion ?? gamePlayer?.champion ?? '', name: reviewed?.name ?? gamePlayer?.name };
 
   const first = team.workOn[0];
+  /*
+   * The card asks the question the panel now answers, so both must read one rule (12 Sep 2026).
+   *
+   * This used to take the first work-on's theme while `decidedByOf` had already learned to prefer
+   * review version 8's own `decidedBy`. On a review where the two differ the panel said "Decided by
+   * Fights" and the card marked Objectives correct — and worse, because `taken` held only the
+   * work-on themes, Fights stayed in the distractor pool and could be offered as a WRONG answer to
+   * a reader repeating what the panel had just told them. That is the two-surfaces-disagreeing
+   * failure `app-decided-by` was pulled out of the panel to prevent.
+   */
+  const decided = team.decidedBy?.theme ?? first?.theme;
   let titleCall: FilmCall | undefined;
-  if (first?.theme) {
-    const taken = new Set(team.workOn.map((w) => w.theme).filter(Boolean));
+  if (decided) {
+    // The answer is out of the distractor pool as well as the work-on themes, so the right answer
+    // can never appear twice or be dealt as one of the three wrong ones.
+    const taken = new Set<ReviewTheme | undefined>([decided, ...team.workOn.map((w) => w.theme)]);
     const distractors = shuffle(
       seed,
       REVIEW_THEMES.filter((t) => !taken.has(t)),
       'title'
     ).slice(0, 3);
-    const options = shuffle(seed, [first.theme, ...distractors], 'title-order');
+    const options = shuffle(seed, [decided, ...distractors], 'title-order');
     // The options are theme ids, not words: the chapter draws each as a chip with its icon.
-    titleCall = { key: 'title', question: 'What decided this game?', options: [...options], answer: options.indexOf(first.theme), why: first.text, theme: first.theme };
+    // The why is the model's own reason when version 8 wrote one, the first work-on's sentence otherwise.
+    const why = (team.decidedBy?.why ?? '').trim() || first?.text || '';
+    titleCall = { key: 'title', question: 'What decided this game?', options: [...options], answer: options.indexOf(decided), why, theme: decided };
   }
 
   const durationMin = game?.durationSec ? Math.round(game.durationSec / 60) : facts?.durationMin;

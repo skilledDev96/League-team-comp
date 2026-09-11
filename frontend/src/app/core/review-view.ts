@@ -257,8 +257,10 @@ const DECIDED_TIPS: Record<ReviewTheme, string> = {
  * empty word is worse than nothing: it reads as a thing that failed to load.
  */
 export function decidedByOf(review: GameReview | undefined): { glyph: FilmGlyph; word: string; tip: string } | undefined {
-  const named = (review?.team as { decidedBy?: { theme?: string; why?: string } } | undefined)?.decidedBy;
-  const theme = (named?.theme ?? review?.team?.workOn?.[0]?.theme) as ReviewTheme | undefined;
+  // The cast is gone (12 Sep 2026): `decidedBy` is a field on the model now that review version 8
+  // writes it, so the shape is checked rather than asserted.
+  const named = review?.team?.decidedBy;
+  const theme = named?.theme ?? review?.team?.workOn?.[0]?.theme;
   if (!theme || !THEME_GLYPHS[theme]) return undefined;
   return {
     glyph: THEME_GLYPHS[theme],
