@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { displayChampionName, riotChampionId } from './champion-names';
-import { LaneMatchup, matchupFor, matchupLines, MatchupIndexDoc, MIN_MATCHUP_GAMES, SOLID_MATCHUP_GAMES } from './lane-matchups';
+import { LaneMatchup, matchupFor, matchupLines, MatchupIndexDoc, MIN_BASELINE_GAMES, MIN_MATCHUP_GAMES, normalise, SOLID_MATCHUP_GAMES } from './lane-matchups';
 
 /**
  * The rates the review reads off `matchupIndex`. The draft room reads the same documents through
@@ -81,6 +81,49 @@ describe('matchupFor', () => {
   });
 });
 
+describe('normalise', () => {
+  const base = (winRate: number, games = 20_000) => ({ games, winRate });
+
+  it('splits a rate into the pairing and the two picks, Bradley-Terry on the odds', () => {
+    // The real figures: Nautilus 49.29% overall, Rell 51.95%, the pairing observed at 40.5%. Their
+    // own strength alone predicts 47.4%, so the pairing costs a further ~6.9 and the rest is Rell
+    // simply being the stronger pick this patch — a different conversation with the player.
+    const split = normalise(40.5, base(49.3), base(51.9));
+    expect(split?.expected).toBeCloseTo(47.4, 1);
+    expect(split?.delta).toBeCloseTo(-6.9, 1);
+  });
+
+  it('reproduces the published normalisation from the same inputs, which is why this method and not another', () => {
+    // lolalytics gives Nautilus 51.79% / Rell 53.2% / observed 45.8% and publishes -2.79. If our
+    // arithmetic did not land on their answer from their numbers, one of us would be wrong and it
+    // would be silent.
+    const split = normalise(45.8, base(51.79), base(53.2));
+    expect(split?.expected).toBeCloseTo(48.6, 1);
+    expect(split?.delta).toBeCloseTo(-2.8, 1);
+  });
+
+  it('reads two evenly-matched picks as an even expectation', () => {
+    expect(normalise(50, base(50), base(50))?.expected).toBe(50);
+    expect(normalise(50, base(50), base(50))?.delta).toBe(0);
+    // And a stronger champion opposite drags the expectation down even with no matchup effect.
+    expect(normalise(45, base(48), base(54))?.expected ?? 0).toBeLessThan(50);
+  });
+
+  it('says nothing rather than guess when either champion has too thin a record', () => {
+    // A wrong split is worse than none: it would move a coaching point from the draft to the player
+    // or back on the strength of forty games.
+    expect(normalise(40.5, base(49.3, MIN_BASELINE_GAMES - 1), base(51.9))).toBe(null);
+    expect(normalise(40.5, base(49.3), base(51.9, 10))).toBe(null);
+    expect(normalise(40.5, null, base(51.9))).toBe(null);
+    expect(normalise(40.5, base(49.3), null)).toBe(null);
+  });
+
+  it('survives a champion at the extremes rather than dividing by zero', () => {
+    expect(Number.isFinite(normalise(50, base(0), base(50))?.expected ?? NaN)).toBe(true);
+    expect(Number.isFinite(normalise(50, base(100), base(50))?.expected ?? NaN)).toBe(true);
+  });
+});
+
 describe('riotChampionId', () => {
   it('turns a display name back into the id the counters are under', () => {
     // The Wukong case: a review reading the display name finds nothing, and a missing rate looks
@@ -150,5 +193,25 @@ describe('matchupLines', () => {
 
   it('prints nothing at all when no lane cleared the floor, rather than an empty heading', () => {
     expect(matchupLines([])).toEqual([]);
+  });
+
+  it('separates the pairing from the picks, so a bad lane and a strong opponent read differently', () => {
+    // "You drafted a bad lane" and "they picked the stronger champion" call for different things:
+    // one is a habit to fix and the other is the meta and nobody's mistake.
+    const [, , , , line] = matchupLines([rate({ expected: 47.4, delta: -6.9, ourBase: 49.3, theirBase: 51.9 })]);
+    expect(line).toContain('On strength: Nautilus wins 49.3% of their games this patch and Rell 51.9%, so on picks alone this would read 47.4%');
+    expect(line).toContain('at 40.5% the pairing itself costs a further 6.9 points');
+  });
+
+  it('says outright when the pairing is worth nothing and the lane is just the champions in it', () => {
+    const [, , , , line] = matchupLines([rate({ winRate: 48.9, ours: 'Akali', theirs: 'Yasuo', seat: 'Mid', expected: 48.2, delta: 0.7, ourBase: 48.6, theirBase: 50.4 })]);
+    expect(line).toContain('which is where it landed, so the pairing itself is worth nothing either way');
+    expect(line).not.toContain('costs a further');
+  });
+
+  it('leaves the split off entirely when the baselines were too thin to compute one', () => {
+    const [, , , , line] = matchupLines([rate({})]);
+    expect(line).not.toContain('On strength');
+    expect(line.endsWith('badly.')).toBe(true);
   });
 });

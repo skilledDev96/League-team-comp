@@ -50,7 +50,7 @@ import {
   summariseTogether
 } from './team-history';
 import { buildIndex, indexDocPath, splitIndexId, RawMatchupDoc } from './matchup-index';
-import { LANE_OF, LaneMatchup, matchupFor, MatchupIndexDoc } from './lane-matchups';
+import { ChampionBaseline, LANE_OF, LaneMatchup, matchupFor, MatchupIndexDoc } from './lane-matchups';
 import { describeLoss, describeWin, GameObjectives, LossFactor, WinFactor } from './objectives';
 import { displayChampionName, riotChampionId } from './champion-names';
 import { ChampionTraits, toTraits } from './champion-traits';
@@ -2520,7 +2520,25 @@ async function laneMatchupsFor(ours: ReviewContext["players"], enemies: { positi
       }
     }
     if (!paths.size) return [];
-    const snaps = await db.getAll(...[...paths.keys()].map((p) => db.doc(p)));
+    // The champions' own records for the same patches, so a rate can be split into the pairing and
+    // the picks. `_ALL` is every tier together, which is the widest and steadiest baseline there is
+    // — 196,385 matches on 16.17 against a few hundred in any one tier bucket.
+    const patchesInPlay = [...new Set([...paths.values()].map((p) => p.patch))];
+    const [snaps, baseSnaps] = await Promise.all([
+      db.getAll(...[...paths.keys()].map((p) => db.doc(p))),
+      db.getAll(...patchesInPlay.map((patch) => db.doc(`championStats/${patch}_ALL`)))
+    ]);
+    const baselines = new Map<string, ChampionBaseline>();
+    for (const [i, patch] of patchesInPlay.entries()) {
+      const champs = (baseSnaps[i]?.data() as { champions?: Record<string, { games?: number; wins?: number }> } | undefined)?.champions ?? {};
+      for (const [id, tally] of Object.entries(champs)) {
+        const games = Number(tally?.games);
+        const wins = Number(tally?.wins);
+        if (!Number.isFinite(games) || !Number.isFinite(wins) || games <= 0 || wins < 0 || wins > games) continue;
+        baselines.set(`${patch}|${id}`, { games, winRate: Math.round((wins / games) * 1000) / 10 });
+      }
+    }
+    const baselineOf = (championId: string, patch: string): ChampionBaseline | null => baselines.get(`${patch}|${championId}`) ?? null;
     const docsByLane = new Map<string, MatchupIndexDoc[]>();
     for (const [i, path] of [...paths.keys()].entries()) {
       const where = paths.get(path);
@@ -2530,7 +2548,7 @@ async function laneMatchupsFor(ours: ReviewContext["players"], enemies: { positi
     }
     // Newest first, which is the order `matchupFor` reads them in.
     for (const list of docsByLane.values()) list.sort((a, b) => comparePatch(b.patch, a.patch));
-    return wanted.map((w) => matchupFor(w.seat, w.ours, w.theirs, docsByLane.get(w.lane) ?? [])).filter((m): m is LaneMatchup => !!m);
+    return wanted.map((w) => matchupFor(w.seat, w.ours, w.theirs, docsByLane.get(w.lane) ?? [], baselineOf)).filter((m): m is LaneMatchup => !!m);
   } catch (err) {
     console.warn(`[gameReview] matchupIndex could not be read for ${matchId}; the review carries no lane rates: ${(err as Error)?.message ?? err}`);
     return [];

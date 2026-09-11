@@ -45,6 +45,46 @@ export const MIN_MATCHUP_GAMES = 50;
 /** Past this far from even, a lane was a real edge on paper rather than a coin flip. */
 export const EDGE_POINTS = 3;
 
+/** A champion's own record needs at least this many games before it can be used to normalise anything. */
+export const MIN_BASELINE_GAMES = 200;
+
+/** Past this far from what the two champions' own strength predicts, the PAIRING is doing the work rather than the picks. */
+export const MATCHUP_POINTS = 2;
+
+/** One champion's overall record on a patch, from `championStats/{patch}_ALL`. */
+export interface ChampionBaseline {
+  games: number;
+  /** 0-100. */
+  winRate: number;
+}
+
+/**
+ * What a pairing would read at if neither champion were better than the other, and how far the real
+ * rate sits from it.
+ *
+ * Why a raw rate is not the whole answer (12 Sep 2026). Nautilus into Rell came back at 40.5% and
+ * the block called it "a losing lane, badly" — but Rell wins 51.95% of all her games this patch and
+ * Nautilus 49.29%, so some of that gap is simply which champion is stronger right now and not the
+ * matchup at all. Telling a support they drafted a bad lane when half of it is "Rell is a strong
+ * pick" is the wrong note: the first is a drafting mistake and the second is the meta.
+ *
+ * Bradley-Terry on the odds, which is the standard way to ask "given each one's strength, who should
+ * win this?" — and it is the same method lolalytics publishes its own normalised figure with, whose
+ * answer for this pairing (-2.79 points) our arithmetic reproduces from their inputs.
+ */
+export function normalise(observed: number, ours: ChampionBaseline | null, theirs: ChampionBaseline | null): { expected: number; delta: number } | null {
+  if (!ours || !theirs) return null;
+  if (ours.games < MIN_BASELINE_GAMES || theirs.games < MIN_BASELINE_GAMES) return null;
+  // Clamped off the ends: a champion at 0% or 100% would divide by zero, and neither is a real rate.
+  const odds = (rate: number) => {
+    const p = Math.min(Math.max(rate / 100, 0.01), 0.99);
+    return p / (1 - p);
+  };
+  const ourOdds = odds(ours.winRate);
+  const expected = Math.round((ourOdds / (ourOdds + odds(theirs.winRate))) * 1000) / 10;
+  return { expected, delta: Math.round((observed - expected) * 10) / 10 };
+}
+
 /** One published lane document, as `matchupIndex/{patch}_{LANE}` stores it. */
 export interface MatchupIndexDoc {
   patch: string;
@@ -75,6 +115,12 @@ export interface LaneMatchup {
    * figure is FROM, and citing it is a small lie in the one block whose whole job is provenance.
    */
   patches: string[];
+  /** What the two champions own strength alone predicts, and how far the real rate is from it; absent when either baseline is too thin. */
+  expected?: number;
+  delta?: number;
+  /** Each champions overall win rate on that patch, for the sentence that explains the split. */
+  ourBase?: number;
+  theirBase?: number;
 }
 
 /**
@@ -112,15 +158,30 @@ function tallyOf(doc: MatchupIndexDoc | null | undefined, key: string): { games:
  *
  * `docs` is newest patch first. Champions are Riot ids.
  */
-export function matchupFor(seat: LaneRole, ourId: string, theirId: string, docs: readonly MatchupIndexDoc[]): LaneMatchup | null {
+export function matchupFor(
+  seat: LaneRole,
+  ourId: string,
+  theirId: string,
+  docs: readonly MatchupIndexDoc[],
+  baselineOf: (championId: string, patch: string) => ChampionBaseline | null = () => null
+): LaneMatchup | null {
   if (!ourId || !theirId || !docs.length) return null;
   const oursIsA = ourId.localeCompare(theirId) <= 0;
   const [a, b] = oursIsA ? [ourId, theirId] : [theirId, ourId];
   const key = matchupKey(a, b);
 
+  const withBaselines = (rate: LaneMatchup): LaneMatchup => {
+    const patch = rate.patches[0];
+    const ours = baselineOf(ourId, patch);
+    const theirs = baselineOf(theirId, patch);
+    const split = normalise(rate.winRate, ours, theirs);
+    if (!split || !ours || !theirs) return rate;
+    return { ...rate, ...split, ourBase: ours.winRate, theirBase: theirs.winRate };
+  };
+
   const current = tallyOf(docs[0], key);
   if (current && current.games >= SOLID_MATCHUP_GAMES) {
-    return { seat, ours: ourId, theirs: theirId, games: current.games, ...rateFrom(current.games, current.winsA, oursIsA), thin: false, combined: false, patches: [docs[0].patch] };
+    return withBaselines({ seat, ours: ourId, theirs: theirId, games: current.games, ...rateFrom(current.games, current.winsA, oursIsA), thin: false, combined: false, patches: [docs[0].patch] });
   }
   const prior = tallyOf(docs[1], key);
   const games = (current?.games ?? 0) + (prior?.games ?? 0);
@@ -128,7 +189,7 @@ export function matchupFor(seat: LaneRole, ourId: string, theirId: string, docs:
   if (games < MIN_MATCHUP_GAMES) return null;
   // Only the patches that actually put games in, newest first.
   const patches = [current ? docs[0].patch : null, prior ? docs[1]?.patch : null].filter((p): p is string => !!p);
-  return {
+  return withBaselines({
     seat,
     ours: ourId,
     theirs: theirId,
@@ -137,7 +198,26 @@ export function matchupFor(seat: LaneRole, ourId: string, theirId: string, docs:
     thin: games < SOLID_MATCHUP_GAMES,
     combined: patches.length > 1,
     patches
-  };
+  });
+}
+
+/**
+ * How much of the rate is the PAIRING and how much is just which champion is stronger right now.
+ *
+ * This is the half that changes the coaching (12 Sep 2026). "You drafted a bad lane" and "they
+ * picked the stronger champion" call for different things — the first is a drafting habit to fix,
+ * the second is the meta and is nobody's mistake — and a raw win rate cannot tell them apart. Silent
+ * when either champion's own record is too thin to normalise against, because a wrong split is
+ * worse than none.
+ */
+function splitOf(rate: LaneMatchup, displayOf: (id: string) => string): string {
+  if (rate.expected === undefined || rate.delta === undefined || rate.ourBase === undefined || rate.theirBase === undefined) return '';
+  const strength = `${displayOf(rate.ours)} wins ${rate.ourBase}% of their games this patch and ${displayOf(rate.theirs)} ${rate.theirBase}%, so on picks alone this would read ${rate.expected}%`;
+  if (Math.abs(rate.delta) < MATCHUP_POINTS) {
+    return ` On strength: ${strength} — which is where it landed, so the pairing itself is worth nothing either way and this lane is simply the champions in it.`;
+  }
+  const worse = rate.delta < 0;
+  return ` On strength: ${strength}; at ${rate.winRate}% the pairing itself ${worse ? 'costs a further' : 'is worth another'} ${Math.abs(rate.delta)} points${worse ? '' : ' on top'}.`;
 }
 
 /** How a rate reads to a coach, in the fewest words that are still true. */
@@ -166,7 +246,7 @@ export function matchupLines(rates: readonly LaneMatchup[], displayOf: (id: stri
     ...usable.map((r) => {
       const sample = `${r.games} games on ${r.combined ? `patches ${r.patches.join(' and ')}` : `patch ${r.patches[0]}`}`;
       const doubt = r.thin ? ` — thin, ±${r.margin} points, so treat it as a hint and not a fact` : '';
-      return `- Our ${r.seat} ${displayOf(r.ours)} into their ${displayOf(r.theirs)}: ${r.winRate}% over ${sample} — ${verdictOf(r)}${doubt}.`;
+      return `- Our ${r.seat} ${displayOf(r.ours)} into their ${displayOf(r.theirs)}: ${r.winRate}% over ${sample} — ${verdictOf(r)}${doubt}.${splitOf(r, displayOf)}`;
     })
   ];
 }
