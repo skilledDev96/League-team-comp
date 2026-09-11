@@ -160,7 +160,9 @@ export function matchupLines(rates: readonly LaneMatchup[], displayOf: (id: stri
   if (!usable.length) return [];
   return [
     'THE LANES AS A DRAFT, FROM SOLO QUEUE AT LARGE (not our games, and not this game)',
-    'These are real win rates for the two champions that stood in each lane, collected across ranked solo queue — hundreds of games a pairing. They say whether a lane was worth taking BEFORE anyone played it, which is a different question from how it went. Use them to separate the two: a lane lost at 41% is a draft problem as much as a play problem, and a lane lost at 50% is not a draft problem at all. Never report one of these as something a player of ours did, and never add them to this game’s own figures.',
+    'These are real win rates for the two champions that stood in each lane, collected across ranked solo queue — hundreds of games a pairing. They answer the one question the rest of this prompt cannot: was that lane worth taking, BEFORE anyone played it.',
+    'SAY SO WHERE IT CHANGES THE POINT. A seat that lost a lane the wider game wins half of has a play problem and owns it. A seat that lost one the wider game loses 41% of was set a harder task than the scoreline shows, and the draft owns part of it — that is a different conversation with that player, and it belongs in the draft verdict as much as in their notes. Quote the figure when you lean on it.',
+    'Two things these are not. They are not anything a player of ours did, so never report one as a result of theirs; and they are not this game’s figures, so never add them to a kill count or a farm total. Where a rate is marked thin, say it is thin or leave it alone — do not rest a point on it.',
     ...usable.map((r) => {
       const sample = `${r.games} games on ${r.combined ? `patches ${r.patches.join(' and ')}` : `patch ${r.patches[0]}`}`;
       const doubt = r.thin ? ` — thin, ±${r.margin} points, so treat it as a hint and not a fact` : '';

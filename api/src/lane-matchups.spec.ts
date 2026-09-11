@@ -116,31 +116,35 @@ describe('matchupLines', () => {
     const lines = matchupLines([rate({})]);
     expect(lines[0]).toContain('FROM SOLO QUEUE AT LARGE (not our games, and not this game)');
     expect(lines[1]).toContain('BEFORE anyone played it');
-    expect(lines[1]).toContain('Never report one of these as something a player of ours did');
+    // The invitation has to be its own line and not buried between two prohibitions: the first run in
+    // production carried the block and the review cited none of it (12 Sep 2026).
+    expect(lines[2]).toContain('SAY SO WHERE IT CHANGES THE POINT');
+    expect(lines[2]).toContain('Quote the figure when you lean on it');
+    expect(lines[3]).toContain('never report one as a result of theirs');
     // And the separation a coach actually needs: draft problem versus play problem.
-    expect(lines[1]).toContain('a lane lost at 41% is a draft problem as much as a play problem');
+    expect(lines[2]).toContain('the draft owns part of it');
   });
 
   it('reads a losing lane as one, with the sample it rests on', () => {
-    const [, , line] = matchupLines([rate({})]);
+    const [, , , , line] = matchupLines([rate({})]);
     expect(line).toBe('- Our Support Nautilus into their Rell: 40.5% over 597 games on patch 16.17 — a losing lane before anyone played it, badly.');
   });
 
   it('calls an even lane even rather than inventing an edge from half a point', () => {
-    expect(matchupLines([rate({ winRate: 48.9, ours: 'Akali', theirs: 'Yasuo', seat: 'Mid', games: 650 })])[2]).toContain('even on paper');
-    expect(matchupLines([rate({ winRate: 51.3 })])[2]).toContain('even on paper');
-    expect(matchupLines([rate({ winRate: 56 })])[2]).toContain('a lane we were favoured in');
-    expect(matchupLines([rate({ winRate: 61 })])[2]).toContain('strongly');
+    expect(matchupLines([rate({ winRate: 48.9, ours: 'Akali', theirs: 'Yasuo', seat: 'Mid', games: 650 })])[4]).toContain('even on paper');
+    expect(matchupLines([rate({ winRate: 51.3 })])[4]).toContain('even on paper');
+    expect(matchupLines([rate({ winRate: 56 })])[4]).toContain('a lane we were favoured in');
+    expect(matchupLines([rate({ winRate: 61 })])[4]).toContain('strongly');
   });
 
   it('carries its own doubt when the sample is thin, and says when it spans two patches', () => {
-    const [, , line] = matchupLines([rate({ games: 120, thin: true, margin: 8.9, combined: true, patches: ['16.18', '16.17'] })]);
+    const [, , , , line] = matchupLines([rate({ games: 120, thin: true, margin: 8.9, combined: true, patches: ['16.18', '16.17'] })]);
     expect(line).toContain('over 120 games on patches 16.18 and 16.17');
     expect(line).toContain('thin, ±8.9 points, so treat it as a hint and not a fact');
   });
 
   it('prints display names, so nobody reads MonkeyKing in a coaching sentence', () => {
-    const [, , line] = matchupLines([rate({ ours: 'MonkeyKing', theirs: 'Kaisa' })], displayChampionName);
+    const [, , , , line] = matchupLines([rate({ ours: 'MonkeyKing', theirs: 'Kaisa' })], displayChampionName);
     expect(line).toContain('Our Support Wukong into their Kai’Sa'.replace('’', "'"));
   });
 
