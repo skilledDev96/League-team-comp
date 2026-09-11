@@ -63,8 +63,17 @@ The lead does this, then runs the script.
    action, so a frame is at least a frame of the fight. **Manual Camera** is the
    one setting to avoid — every picture comes back as the same patch of map.
 
-   `--no-follow` leaves the camera alone entirely, for a run where you want one
-   seat's HUD on every frame and have parked the camera there yourself.
+   There are three ways to run it, and they trade the same thing:
+
+   | | what each frame shows |
+   | --- | --- |
+   | *(no flag)* | the victim's own HUD, a different champion each picture |
+   | `--follow Vi` | Vi's HUD on every picture, whoever died |
+   | `--no-follow` | no HUD; the replay's own Directed Camera frames the fight |
+
+   The HUD is the part nothing else can give you — abilities, items and
+   cooldowns exist nowhere in Riot's data for a custom game. The framing is the
+   part the client does better than we can.
 
    **How the run does it** (measured against patch 26.17 on 11 Sep 2026, after
    three attempts that did not work): `selectionName` and `cameraAttached` are
@@ -111,7 +120,8 @@ be run directly: `node scripts/replay-recorder.mjs EUW1-7977592156`.
 | `--out-dir <dir>` | `./replay-shots` | Where the client writes the frames. They stay on disk after the run (gitignored) so the lead can look at them. |
 | `--dry-run` | off | Writes the documents as JSON into the out dir and touches no Firestore. |
 | `--roster <file.json>` | — | Only needed for a dry run with no service account: `[{ "name": "Ruan", "role": "Top", "profile": { "riotTag": "EUW" } }, …]`. `riotTag` is the tag alone, not `Name#TAG`. |
-| `--no-follow` | off | Leaves the camera where you put it instead of moving it onto whoever each picture is about. For a run where one seat's HUD on every frame is what you want. |
+| `--follow <champion>` | — | Holds one champion for every picture instead of following each death's victim, so every frame carries that seat's HUD — the jungler for pathing and smite, a carry for the cooldowns in the fights they died in. Either spelling works (`Vi`, `Miss Fortune`, `MissFortune`), and a champion nobody is playing is refused before the run starts rather than after it. |
+| `--no-follow` | off | Touches the camera not at all, so the replay's own **Directed Camera** decides every shot. Use it when you want frames of the fight rather than of one player. |
 
 A 35-minute game is roughly 35 seeks for the samples plus one per picture, so
 expect a few minutes. It prints `minute 12 of 34` as it goes, then a summary:

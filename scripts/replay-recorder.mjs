@@ -303,6 +303,23 @@ export function makeCameraHold({ call, shape, champion, championId, checkAt = CA
   };
 }
 
+/**
+ * The champion `--follow` names, resolved against the ten actually in this game. A typo is answered
+ * before the run spends five minutes on it, rather than by twenty frames of nobody in particular —
+ * and both spellings come back, since the client knows some champions only by their id.
+ */
+export function pinnedChampion(name, livePlayers) {
+  const said = String(name ?? '').trim();
+  if (!said) return null;
+  const found = (livePlayers ?? []).find((player) => sameChampion(player?.championName, said) || sameChampion(championIdOf(player), said));
+  if (!found) {
+    // Champions are what the other team is allowed to be, so naming the ten here breaks no rule.
+    const playing = [...new Set((livePlayers ?? []).map((player) => String(player?.championName ?? '').trim()).filter(Boolean))];
+    throw new Error(`--follow ${said}: nobody is playing that champion in this game. The ten here are ${playing.join(', ')}.`);
+  }
+  return { champion: String(found.championName ?? '').trim(), championId: championIdOf(found) };
+}
+
 /** Said once when the client will not hold a selection, so the lead knows what their frames show. */
 export const CAMERA_NOT_HELD =
   'the client would not keep the camera on a champion while it rendered, so every frame carries whatever the replay\'s own camera was showing. Set the replay\'s camera to Directed Camera before a run and the frames will at least be of the fight.';
@@ -320,7 +337,7 @@ export const POSITION_ROLE = {
 export const ROLES = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
 
 const USAGE =
-  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--no-follow]';
+  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--follow <champion>] [--no-follow]';
 
 const CLIENT_HELP =
   'Is the League client open, with the replay playing? The Live Client and Replay APIs only answer while a replay is up.';
@@ -365,7 +382,7 @@ export function parseArgs(argv) {
   // back rather than the normalised form nobody typed.
   // Panels on unless the lead says otherwise: the client's streamer mode is what keeps a Riot id off the screen,
   // and a frame without the scoreboard and the team frames is missing the gold, the items and the kills.
-  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: true };
+  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: true, followChampion: '' };
   const assign = (name, value) => {
     // `--out-dir --dry-run` used to swallow the flag as the value, write the
     // frames to a directory called "--dry-run" and upload to Firestore for
@@ -378,6 +395,9 @@ export function parseArgs(argv) {
       parsed.shots = Math.min(MAX_SHOTS, Math.floor(n));
     } else if (name === '--out-dir') parsed.outDir = value;
     else if (name === '--roster') parsed.roster = value;
+    // One champion's HUD on every frame instead of each victim's own: the jungler for pathing and
+    // smite, a carry for the cooldowns in the fights they died in.
+    else if (name === '--follow') parsed.followChampion = value;
     else throw new Error(`Unknown option ${name}.\n${USAGE}`);
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -995,6 +1015,7 @@ export async function run({
   noHealthBars = false,
   streamerMode = true,
   follow = true,
+  followChampion = '',
   roster = null,
   fetchImpl,
   fs = fsDefault,
@@ -1138,6 +1159,11 @@ export async function run({
   }
   log(`Ours are ${plan.ourSide}: ${plan.matchedCount} of the roster matched, ${plan.seats.length} seats read.`);
 
+  // Resolved here, before the thirty-six seeks, so `--follow Vhi` costs a sentence rather than five
+  // minutes. Null means every picture follows its own victim, which is the default.
+  const pinned = follow && followChampion ? pinnedChampion(followChampion, allPlayers) : null;
+  if (pinned) log(`  every picture will follow ${pinned.champion}, so each frame carries their HUD rather than the victim's.`);
+
   const eventData = await call('/liveclientdata/eventdata');
   const rawEvents = Array.isArray(eventData?.Events) ? eventData.Events : [];
   const read = readEvents(rawEvents, plan, liveName(finalData?.activePlayer), typeof known?.win === 'boolean' ? known.win : null, gameLength);
@@ -1244,9 +1270,10 @@ export async function run({
         // victim's. The asking happens THROUGH the render, not before it — a seek clears the
         // selection and starting a render clears it again, so the only window in which the camera
         // moves is the one where it is playing. `hold.poll` is handed to the wait below.
+        const who = pinned ?? { champion: shot.champion, championId: shot.championId };
         const hold =
-          follow && shot.champion && renderShape && cameraHeld !== false
-            ? makeCameraHold({ call, shape: renderShape, champion: shot.champion, championId: shot.championId, checkAt: cameraCheckAt })
+          follow && who.champion && renderShape && cameraHeld !== false
+            ? makeCameraHold({ call, shape: renderShape, champion: who.champion, championId: who.championId, checkAt: cameraCheckAt })
             : null;
         // Every frame this run's stem could match is deleted first, so nothing
         // an earlier run left behind can be picked up and uploaded as if it
@@ -1297,7 +1324,13 @@ export async function run({
         if (hold && hold.held !== null && cameraHeld === null) {
           cameraHeld = hold.held;
           cameraSaid = true;
-          log(cameraHeld ? `  the camera is following whoever each picture is about (${hold.name} here).` : `  ${CAMERA_NOT_HELD}`);
+          log(
+            cameraHeld
+              ? pinned
+                ? `  the camera is holding ${hold.name} for every picture.`
+                : `  the camera is following whoever each picture is about (${hold.name} here).`
+              : `  ${CAMERA_NOT_HELD}`
+          );
         }
         const bytes = png ? await toJpeg(png, log) : null;
         if (!bytes) {
@@ -1745,6 +1778,7 @@ async function main() {
       noHealthBars: args.noHealthBars,
       streamerMode: args.streamerMode,
       follow: args.follow,
+      followChampion: args.followChampion,
       roster,
       firestore,
       fetchImpl: clientFetch()

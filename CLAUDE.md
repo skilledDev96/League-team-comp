@@ -427,7 +427,13 @@ filter rather than none, so it can never become unpickable.
    mouse flips the client to Manual Camera and beats all of it, which is why
    `docs/replay-recorder.md` step 5 says hands off; what the selection reliably
    buys is the **HUD** — the victim's own health, abilities, items and CS in the
-   corner of their death's frame — while the framing stays the client's.
+   corner of their death's frame — while the framing stays the client's. Three
+   ways to run it, trading the same thing (the lead, 11 Sep 2026: "that should
+   be an option"): no flag follows each death's victim, `--follow <champion>`
+   holds one seat for every picture (`pinnedChampion` resolves either spelling
+   against the ten and refuses one nobody is playing *before* the thirty-six
+   seeks), and `--no-follow` does not touch the camera at all, so the replay's
+   own Directed Camera frames the fight instead.
    `restoreRender` puts the selection back with the panels.
    **Two things are counted once, not as the client offers them** (11 Sep 2026):
    `readEvents` de-duplicates, because the client APPENDS to its event list

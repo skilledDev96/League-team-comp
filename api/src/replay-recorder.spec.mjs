@@ -27,6 +27,7 @@ import {
   normaliseMatchId,
   parseArgs,
   parseServiceAccount,
+  pinnedChampion,
   readEvents,
   RENDER_FLAGS,
   run,
@@ -621,6 +622,33 @@ describe('the replay recorder, over a whole game', () => {
     expect([...new Set(renderPosts.filter((r) => r.selectionName).map((r) => r.selectionName))]).toEqual(['Ornn']);
   });
 
+  // `--follow Vi`: one seat's HUD on every frame instead of each victim's own — the jungler for
+  // pathing and smite, a carry for the cooldowns in the fights they died in.
+  it('holds one champion for every picture when --follow names one', async () => {
+    const { shots, renderPosts, log } = await record({ shots: 3, run: { followChampion: 'Vi' } });
+    expect(shots.length).toBeGreaterThan(0);
+    // Every picture asks for Vi, not for Ornn, Vi, Ahri in turn.
+    expect([...new Set(renderPosts.filter((r) => r.selectionName).map((r) => r.selectionName))]).toEqual(['Vi']);
+    expect(log.some((line) => line.includes('holding Vi for every picture'))).toBe(true);
+    // The pictures are still filed under the deaths they are of, whoever the camera is on.
+    expect(shots.map((s) => s.sec)).toEqual(OUR_DEATH_SECONDS.slice(0, 3));
+    expect(shots[0].label).toContain('Ornn');
+  });
+
+  it('answers a --follow nobody is playing before the run spends five minutes on it', () => {
+    const ten = [...OUR_LIVE, ...THEIR_LIVE];
+    expect(pinnedChampion('Vi', ten)).toEqual({ champion: 'Vi', championId: 'Vi' });
+    // Either spelling, and the id comes back for the client that knows only that one.
+    expect(pinnedChampion('miss fortune', [{ championName: 'Miss Fortune', rawChampionName: 'game_character_displayname_MissFortune' }])).toEqual({
+      champion: 'Miss Fortune',
+      championId: 'MissFortune'
+    });
+    expect(pinnedChampion('', ten)).toBe(null);
+    // The refusal names the ten, which are champions and so may be printed.
+    expect(() => pinnedChampion('Vhi', ten)).toThrow(/nobody is playing that champion/);
+    expect(() => pinnedChampion('Vhi', ten)).toThrow(/Ornn/);
+  });
+
   it('knows a champion by both of its spellings, and asks only for keys the client carries', () => {
     // The engine knows the unit by its id; the client prints the display name beside it.
     expect(championIdOf({ championName: 'Miss Fortune', rawChampionName: 'game_character_displayname_MissFortune' })).toBe('MissFortune');
@@ -959,7 +987,7 @@ describe('the pure parts', () => {
   });
 
   it('parses the argument line and holds the hard cap', () => {
-    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: true });
+    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: true, followChampion: '' });
     // The camera follows whoever each picture is about unless the lead wants their own seat's HUD on every frame.
     expect(parseArgs([MATCH_ID, '--no-follow']).follow).toBe(false);
     // The bars are on by default (11 Sep 2026); a client that prints summoner names over champions turns them off again.
@@ -977,7 +1005,8 @@ describe('the pure parts', () => {
       roster: '',
       noHealthBars: false,
       streamerMode: true,
-      follow: true
+      follow: true,
+      followChampion: ''
     });
     expect(parseArgs([MATCH_ID, '--shots=99']).shots).toBe(30);
     expect(() => parseArgs([MATCH_ID, '--shts', '4'])).toThrow(/Unknown option/);
