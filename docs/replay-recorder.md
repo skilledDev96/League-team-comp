@@ -125,7 +125,7 @@ choppier but there.
 Once that was true, capturing at fifteen frames stopped being worth it. On one twenty-two-second
 fight, after the re-encode: **15fps 4.1 MB, 30fps 5.0 MB, 60fps 5.4 MB**. Sixty costs eight per
 cent more than thirty because H.264 codes the difference between frames and consecutive frames at
-60fps are nearly identical — so  is 60, the game's own rate, and the choppiness goes for
+60fps are nearly identical — so `CLIP_FPS` is 60, the game's own rate, and the choppiness goes for
 a third more bytes.
 
 **Two settings are measured, not guessed.** The same nine seconds came back at **9.8 MB** at the
