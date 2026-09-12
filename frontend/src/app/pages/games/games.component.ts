@@ -452,7 +452,14 @@ export class GamesComponent {
    * point. Full folds the header instead; Starter simply shows the games.
    */
   protected readonly listOpen = signal(true);
-  protected readonly playersOpen = signal(true);
+  /**
+   * The Players card's fold (12 Sep 2026). `null` until somebody presses it, so the card starts
+   * closed at Starter and open at Full, and a press wins after that — the same null-sentinel the
+   * Prep page uses for which series is open. Ten columns a player is a thing a reader checks, so
+   * Starter collapses it; hiding it outright meant nobody could find it.
+   */
+  protected readonly playersOpen = signal<boolean | null>(null);
+  protected readonly playersShown = computed(() => this.playersOpen() ?? this.full());
 
   /** The scoreboard as a table or as the post-game graphs (9 Sep 2026); remembered per browser. */
   protected readonly scoreboardView = signal<'table' | 'graphs'>(GamesComponent.readScoreboardView());
@@ -502,6 +509,11 @@ export class GamesComponent {
   }
 
   /** True once this person reached the film's card for the game: the collapsed row's chip reads Watched instead of Reviewed (10 Sep 2026). */
+  /** The film room for this game. The Reviewed chip on the row is the way in. */
+  protected openFilm(matchId: string): void {
+    void this.router.navigate(['/film', matchId]);
+  }
+
   protected watched(matchId: string | undefined): boolean {
     return !!matchId && !!this.prefs.filmProgress(matchId)?.done;
   }

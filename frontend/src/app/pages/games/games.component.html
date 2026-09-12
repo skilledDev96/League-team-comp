@@ -203,22 +203,26 @@
 
   <!-- Who is carrying, over whatever is filtered. Tournament games add nothing
        here: they have no numbers. -->
+  <!-- Collapsed at Starter rather than hidden (12 Sep 2026, the lead: "make the players
+       section in the games collapsed in the starter view rather than hidden completely").
+       Ten columns a player is a thing a reader checks, not acts on — but a section that is
+       not there cannot be found, and a heading with a Show beside it costs one line. Full
+       opens it; a press either way is remembered for the visit. -->
   @if (players().length) {
-  @if (full()) {
     <section class="card games-players" aria-label="Player lines">
       <div class="section-head">
-        <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>Players</h2>
-        <button type="button" class="view-btn games-fold" (click)="playersOpen.set(!playersOpen())" [attr.aria-expanded]="playersOpen()">
-          <span class="material-symbols-rounded" aria-hidden="true">{{ playersOpen() ? 'expand_less' : 'expand_more' }}</span>{{ playersOpen() ? 'Hide' : 'Show' }}
+        <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>Players <small class="muted">{{ players().length }}</small></h2>
+        <button type="button" class="view-btn games-fold" (click)="playersOpen.set(!playersShown())" [attr.aria-expanded]="playersShown()">
+          <span class="material-symbols-rounded" aria-hidden="true">{{ playersShown() ? 'expand_less' : 'expand_more' }}</span>{{ playersShown() ? 'Hide' : 'Show' }}
         </button>
-        @if (benchCount()) {
+        @if (playersShown() && benchCount()) {
           <button type="button" class="view-btn" [class.active]="showBench()" (click)="showBench.set(!showBench())"
                   [appTip]="showBench() ? 'Back to the five starters' : 'Add the bench players who appear in these games'">
             {{ showBench() ? 'Starters only' : 'Show bench' }} <small>{{ benchCount() }}</small>
           </button>
         }
       </div>
-      <div class="games-scroll" [hidden]="!playersOpen()">
+      <div class="games-scroll" [hidden]="!playersShown()">
         <table class="opp-history-stats games-player-table">
           <thead>
             <tr>
@@ -271,7 +275,7 @@
           </tbody>
         </table>
       </div>
-      @if (toughest().length) {
+      @if (playersShown() && toughest().length) {
         <p class="games-toughest">
           <span class="insight-label">Beats us most</span>
           @for (t of toughest(); track t.champion) {
@@ -283,7 +287,6 @@
         </p>
       }
     </section>
-  }
   }
 
   <!-- The games themselves. Same row as the opponent history, because it is
@@ -333,9 +336,11 @@
                    hidden, so a reader still hears it (10 Sep 2026, second fix pass: an aria-label on a plain span is not announced).
                    Ringed while the takeover's landing mark stands on this game (10 Sep 2026): the poster it lights is inside the drawer. -->
               @if (data.reviewFor(g.matchId)) {
-                <span class="games-row-reviewed" [class.is-watched]="watched(g.matchId)" [class.is-ready]="takeover.ready(g.matchId)" [appTip]="watched(g.matchId) ? 'You reached the end of this film' : 'The coach has reviewed this game; the review and the film room are in the row'">
-                  <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span><span class="games-row-reviewed-word">{{ watched(g.matchId) ? 'Watched' : 'Reviewed' }}</span>
-                </span>
+                <button type="button" class="games-row-reviewed" [class.is-watched]="watched(g.matchId)" [class.is-ready]="takeover.ready(g.matchId)"
+                        [appTip]="watched(g.matchId) ? 'You have seen this one through — open the film room again' : 'The coach has reviewed this game and nobody has watched it yet. Opens the film room.'"
+                        (click)="$event.preventDefault(); $event.stopPropagation(); openFilm(g.matchId!)">
+                  <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span><span class="games-row-reviewed-word">{{ watched(g.matchId) ? 'Watched' : 'Review ready' }}</span>
+                </button>
               }
               <!-- Who carried it (11 Sep 2026): the row's own figures, whichever source they came from, with the terms behind it in the
                    tooltip so nobody has to trust a mark. A tournament game typed in by hand carries no figures and so carries no chip. -->

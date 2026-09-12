@@ -7,7 +7,6 @@ const NOW = Date.parse('2026-09-12T10:00:00Z');
 const line = (text: string): NextUpLine => ({ glyph: 'flag', label: 'The one thing', text });
 
 const input = (over: Partial<NextUpInput> = {}): NextUpInput => ({
-  unwatched: [],
   reminder: null,
   unreviewed: [],
   nextSeries: null,
@@ -21,49 +20,16 @@ describe('the next thing to do', () => {
     expect(nextUp(input())).toBeNull();
   });
 
-  it('puts an unwatched review above everything else', () => {
+  it('puts a due film reminder above everything else', () => {
     const card = nextUp(
       input({
-        unwatched: [{ matchId: 'm1', when: NOW - DAY, opponent: 'Sunset Wolves', headline: 'We lost the map after twenty.' }],
-        reminder: { matchId: 'm2', headline: 'older', lines: [line('a')] },
+        reminder: { matchId: 'm2', headline: 'Vision went quiet.', lines: [line('a')] },
         unreviewed: [{ matchId: 'm3', when: NOW }],
         nextSeries: { id: 's1', opponent: 'Iron Larks' },
         canEdit: true
       })
     );
-    expect(card).toMatchObject({ kind: 'watch', matchId: 'm1', headline: 'We lost the map after twenty.' });
-  });
-
-  it('names the opponent when the review carries no headline', () => {
-    const card = nextUp(input({ unwatched: [{ matchId: 'm1', when: NOW - DAY, opponent: 'Sunset Wolves' }] }));
-    expect(card!.headline).toBe('The review of the Sunset Wolves game is waiting.');
-  });
-
-  it('takes the newest of several, not the first in the list', () => {
-    const card = nextUp(
-      input({
-        unwatched: [
-          { matchId: 'old', when: NOW - 5 * DAY },
-          { matchId: 'new', when: NOW - DAY },
-          { matchId: 'middle', when: NOW - 3 * DAY }
-        ]
-      })
-    );
-    expect(card!.matchId).toBe('new');
-  });
-
-  it('lets a game older than the window go', () => {
-    // 181 games over nine months are all unwatched the day somebody signs in; without
-    // the window the card is about February and stays about February.
-    const stale = [{ matchId: 'm1', when: NOW - (NEXT_UP_DAYS + 1) * DAY }];
-    expect(nextUp(input({ unwatched: stale }))).toBeNull();
-    expect(nextUp(input({ unwatched: stale, nextSeries: { id: 's1', opponent: 'Iron Larks' } }))!.kind).toBe('draft');
-  });
-
-  it('falls to the film reminder once every review has been watched', () => {
-    const card = nextUp(input({ reminder: { matchId: 'm2', headline: 'Vision went quiet.', lines: [line('a'), line('b')] } }));
     expect(card).toMatchObject({ kind: 'remind', matchId: 'm2', headline: 'Vision went quiet.' });
-    expect(card!.lines).toHaveLength(2);
   });
 
   it('cuts the reminder to three lines, because the card is a prompt and not a page', () => {
@@ -78,6 +44,32 @@ describe('the next thing to do', () => {
     const card = nextUp(input({ ...games, canEdit: true }));
     expect(card).toMatchObject({ kind: 'ask', matchId: 'm3' });
     expect(card!.headline).toBe('The Iron Larks game has no review yet.');
+  });
+
+  it('names the game only when the row knows the opponent', () => {
+    const card = nextUp(input({ unreviewed: [{ matchId: 'm3', when: NOW - DAY }], canEdit: true }));
+    expect(card!.headline).toBe('The game has no review yet.');
+  });
+
+  it('takes the newest unreviewed game, not the first in the list', () => {
+    const card = nextUp(
+      input({
+        canEdit: true,
+        unreviewed: [
+          { matchId: 'old', when: NOW - 5 * DAY },
+          { matchId: 'new', when: NOW - DAY },
+          { matchId: 'middle', when: NOW - 3 * DAY }
+        ]
+      })
+    );
+    expect(card!.matchId).toBe('new');
+  });
+
+  it('lets a game older than the window go', () => {
+    // 181 games over nine months would otherwise make the card about February, and keep it there.
+    const stale = [{ matchId: 'm1', when: NOW - (NEXT_UP_DAYS + 1) * DAY }];
+    expect(nextUp(input({ unreviewed: stale, canEdit: true }))).toBeNull();
+    expect(nextUp(input({ unreviewed: stale, canEdit: true, nextSeries: { id: 's1', opponent: 'Iron Larks' } }))!.kind).toBe('draft');
   });
 
   it('ends on the next opponent, for an editor and a viewer alike', () => {
@@ -95,11 +87,21 @@ describe('the next thing to do', () => {
 
   it('never carries more than three lines on any rung', () => {
     const cards = [
-      nextUp(input({ unwatched: [{ matchId: 'm1', when: NOW }] })),
       nextUp(input({ reminder: { matchId: 'm2', headline: 'h', lines: ['a', 'b', 'c', 'd'].map(line) } })),
       nextUp(input({ unreviewed: [{ matchId: 'm3', when: NOW }], canEdit: true })),
       nextUp(input({ nextSeries: { id: 's1', opponent: 'X' } }))
     ];
     for (const card of cards) expect(card!.lines.length).toBeLessThanOrEqual(3);
+  });
+
+  /**
+   * An unwatched review used to be the top rung and was removed on 12 Sep 2026: every review is
+   * unwatched until somebody watches it, so it fired for nearly everyone nearly always and the
+   * card stopped carrying news. The prompt moved to the game's own row. This pins the decision —
+   * a card that only fires on something DUE is the whole point of the ladder.
+   */
+  it('says nothing about a review nobody has watched — that lives on the row now', () => {
+    const everythingReviewed = input({ canEdit: true, unreviewed: [] });
+    expect(nextUp(everythingReviewed)).toBeNull();
   });
 });

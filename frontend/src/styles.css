@@ -14546,6 +14546,12 @@ button .player-mark { vertical-align: -0.3rem; }
 .games-row-reviewed .material-symbols-rounded { font-size: 0.9rem; color: var(--accent-2); }
 .games-row-reviewed.is-watched { border-color: color-mix(in srgb, var(--ok) 40%, var(--card-border)); }
 .games-row-reviewed.is-watched .material-symbols-rounded { color: var(--ok); }
+/* It became a button on 12 Sep 2026 — the way into the film room lives on the game's own row
+   now, not in a card at the top of the page — so it needs the reset and the two states a
+   clickable thing owes a reader. */
+.games-row-reviewed { background: transparent; font-family: inherit; cursor: pointer; transition: border-color 140ms ease, color 140ms ease; }
+.games-row-reviewed:hover, .games-row-reviewed:focus-visible { color: var(--text-0); border-color: var(--accent); }
+.games-row-reviewed:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 40rem) {
   .games-row-reviewed { position: relative; padding: 0.05rem 0.35rem; gap: 0; }
   /* Off the screen, not out of the tree (10 Sep 2026, second fix pass): display none took the word from a screen reader as well, and the

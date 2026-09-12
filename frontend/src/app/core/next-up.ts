@@ -10,20 +10,27 @@ import { FilmGlyph } from './film-model';
  *
  * A ladder, not a list. The rungs are in the order the week actually runs:
  *
- * 1. **A review nobody has watched.** The app spent real money making it; it is the payload.
- * 2. **A film that asked to be remembered.** Already earned its place — somebody set the reminder.
- * 3. **A game with no review** (editors only, since only they can ask for one).
- * 4. **The next opponent** — an editor opens the draft, a viewer goes and scouts them.
- * 5. **Nothing.** The card does not render. A team that is up to date should see an empty top of
+ * 1. **A film that asked to be remembered.** It earned its place — somebody set the reminder, and
+ *    it is due now rather than merely available.
+ * 2. **A game with no review** (editors only, since only they can ask for one).
+ * 3. **The next opponent** — an editor opens the draft, a viewer goes and scouts them.
+ * 4. **Nothing.** The card does not render. A team that is up to date should see an empty top of
  *    page, not a card congratulating them, and certainly not a second card stacked under the
  *    first — two cards at the top of Games is the complaint restated.
+ *
+ * **An unwatched review is deliberately NOT a rung** (12 Sep 2026, the lead: *"remove the watch
+ * this first… it is redundant unless looking for it"*). Every review is unwatched until somebody
+ * watches it, so that rung fired for most people most of the time and the card stopped carrying
+ * news. The prompt lives on the game's own row instead, where a reader meets it while looking at
+ * that game: the Reviewed chip opens the film room. A card at the top of the page is for what is
+ * due; a mark on a row is for what is there.
  *
  * Pure: the page assembles what it knows and this decides. "Now" comes in, so the specs pin
  * every date.
  */
 
 /** Which rung fired. The page maps it to the two pills, since one of them is not a route. */
-export type NextUpKind = 'watch' | 'remind' | 'ask' | 'draft';
+export type NextUpKind = 'remind' | 'ask' | 'draft';
 
 /** One line of the card, with the film-room glyph that names what kind of line it is. */
 export interface NextUpLine {
@@ -48,13 +55,9 @@ export interface NextUpGame {
   /** Milliseconds, so the caller does the date parsing once. */
   when: number;
   opponent?: string;
-  /** The review's own headline, for a game that has one. */
-  headline?: string;
 }
 
 export interface NextUpInput {
-  /** Games with a review this person has never opened, any order. */
-  unwatched: readonly NextUpGame[];
   /** The film whose reminder is due for this person, with what it would remind of. */
   reminder: { matchId: string; headline: string; lines: NextUpLine[] } | null;
   /** Games played that carry no review yet, any order. Ignored for a viewer. */
@@ -94,17 +97,6 @@ function nameOf(game: NextUpGame): string {
 }
 
 export function nextUp(input: NextUpInput): NextUpCard | null {
-  const watch = newest(input.unwatched, input.now);
-  if (watch) {
-    return {
-      kind: 'watch',
-      kicker: 'Watch this first',
-      headline: watch.headline?.trim() || `The review of ${nameOf(watch)} is waiting.`,
-      lines: [],
-      matchId: watch.matchId
-    };
-  }
-
   if (input.reminder) {
     return {
       kind: 'remind',

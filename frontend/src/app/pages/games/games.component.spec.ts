@@ -313,7 +313,6 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, Starter an
     expect(root.querySelector('[data-tour="games-list-fold"]')).toBeNull();
 
     // What a reader checks rather than acts on is not here.
-    expect(root.querySelector('.games-player-table')).toBeNull();
     expect(root.querySelector('.insight-tile.is-source')).toBeNull();
     expect(root.querySelector('[aria-label="Result"]')).toBeNull();
 
@@ -322,12 +321,36 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, Starter an
     expect(root.querySelector('[aria-label="Window"]')).not.toBeNull();
   });
 
+  /**
+   * The Players card is the one thing Starter **collapses** rather than hides (12 Sep 2026, the
+   * lead: "make the players section in the games collapsed in the starter view rather than hidden
+   * completely"). A section that is not there cannot be found; a heading with a Show beside it
+   * costs one line and answers "where did the player numbers go".
+   */
+  it('collapses the players rather than hiding them, and opens on a press', async () => {
+    const { harness, root } = await page();
+    const card = root.querySelector('.games-players');
+    expect(card, 'the card is on the page at Starter').not.toBeNull();
+    expect(card!.querySelector('.games-scroll')!.hasAttribute('hidden')).toBe(true);
+    expect(root.querySelector('.games-toughest'), 'a collapsed card is a heading and a Show').toBeNull();
+
+    const show = [...card!.querySelectorAll<HTMLButtonElement>('.games-fold')][0];
+    expect(show.textContent).toContain('Show');
+    show.click();
+    harness.detectChanges();
+
+    expect(card!.querySelector('.games-scroll')!.hasAttribute('hidden')).toBe(false);
+    expect(root.querySelector('.games-player-table')).not.toBeNull();
+  });
+
   it('gives all of it back on Full, and the fortnight is a window you can pick', async () => {
     const { harness, root } = await page();
     const full = [...root.querySelectorAll<HTMLButtonElement>('app-detail-toggle button')].find((b) => b.textContent?.trim() === 'Full')!;
     full.click();
     harness.detectChanges();
 
+    // Full opens the players card as well as restoring the rest.
+    expect(root.querySelector('.games-players .games-scroll')!.hasAttribute('hidden')).toBe(false);
     expect(root.querySelector('.games-player-table')).not.toBeNull();
     expect(root.querySelector('.insight-tile.is-source')).not.toBeNull();
     expect(root.querySelector('[aria-label="Result"]')).not.toBeNull();

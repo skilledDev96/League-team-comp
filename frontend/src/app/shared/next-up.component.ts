@@ -25,6 +25,10 @@ import { FilmGlyphComponent } from './film/film-glyph.component';
  *
  * What each rung offers is decided here rather than in `next-up.ts`, because one of the pills is
  * not a route: Got it writes to this person's prefs.
+ *
+ * An unwatched review is **not** a rung — it fired for nearly everyone nearly always, so the card
+ * stopped carrying news. That prompt lives on the game's own row, where the Reviewed chip opens
+ * the film room.
  */
 @Component({
   selector: 'app-next-up',
@@ -48,14 +52,6 @@ import { FilmGlyphComponent } from './film/film-glyph.component';
         }
         <div class="next-up-actions">
           @switch (c.kind) {
-            @case ('watch') {
-              <button type="button" class="view-btn active" (click)="openFilm(c.matchId!)">
-                <span class="material-symbols-rounded" aria-hidden="true">movie</span> Watch the review
-              </button>
-              <button type="button" class="view-btn" (click)="openGame(c.matchId!)">
-                <span class="material-symbols-rounded" aria-hidden="true">list</span> Open the game
-              </button>
-            }
             @case ('remind') {
               <button type="button" class="view-btn active" (click)="gotIt()">
                 <span class="material-symbols-rounded" aria-hidden="true">check</span> Got it
@@ -122,15 +118,6 @@ export class NextUpComponent {
     }));
   });
 
-  /** A review is watched once the film's card was reached — `FilmProgress.done`. */
-  private readonly unwatched = computed<NextUpGame[]>(() => {
-    const films = this.prefs.prefs().film?.films ?? {};
-    const reviewed = new Set(this.data.gameReviews().map((r) => r.matchId));
-    return this.played()
-      .filter((g) => reviewed.has(g.matchId) && !films[g.matchId]?.done)
-      .map((g) => ({ ...g, headline: headlineOf(this.data.reviewFor(g.matchId)) }));
-  });
-
   private readonly unreviewed = computed<NextUpGame[]>(() => {
     const reviewed = new Set(this.data.gameReviews().map((r) => r.matchId));
     return this.played().filter((g) => !reviewed.has(g.matchId));
@@ -182,7 +169,6 @@ export class NextUpComponent {
 
   protected readonly card = computed<NextUpCard | null>(() =>
     nextUp({
-      unwatched: this.unwatched(),
       reminder: this.reminder(),
       unreviewed: this.unreviewed(),
       nextSeries: this.nextSeries(),
@@ -204,7 +190,7 @@ export class NextUpComponent {
   }
 
   protected icon(kind: NextUpCard['kind']): string {
-    return { watch: 'movie', remind: 'sports_esports', ask: 'rate_review', draft: 'event_upcoming' }[kind];
+    return { remind: 'sports_esports', ask: 'rate_review', draft: 'event_upcoming' }[kind];
   }
 
   /** Got it: one step up the ladder, the same step Done took when the card still asked. */
@@ -213,10 +199,6 @@ export class NextUpComponent {
     if (!matchId) return;
     const progress = this.prefs.filmProgress(matchId) ?? {};
     void this.prefs.saveFilmProgress(matchId, advance(progress, new Date().toISOString()));
-  }
-
-  protected openFilm(matchId: string): void {
-    void this.router.navigate(['/film', matchId]);
   }
 
   protected openCard(matchId: string): void {
