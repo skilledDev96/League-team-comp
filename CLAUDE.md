@@ -356,7 +356,17 @@ filter rather than none, so it can never become unpickable.
    second seats are set on the Roster page (Cards view) in edit mode — the
    same `sub` flag Admin sets, so the five stay one thing everywhere. Whether
    the read is Riot's or a replay's is no longer a switch: `patternSource`
-   follows from the games selected.
+   follows from the games selected. **They persist** (12 Sep 2026,
+   `bom-patterns-filters`, read back through `readPatternFilters` in
+   `win-loss-splits.ts`): they were in-memory, so every visit reset to
+   Flex / Prep / A team / Main. Per browser, like the sections' key beside
+   them — which games you were last looking at is a place in the page, not a
+   preference about yourself. Each field falls back on its own when a stored
+   value is no longer an option, and a hand-picked five with nobody left in it
+   drops back to the A team. A `<select>` that renders its stored value must
+   set `[selected]` per option, not `[value]` on the select: the comps arrive
+   after the select does, and a value set against an empty list silently falls
+   back to the first option while the page keeps filtering on the real one.
 8. **The post-game review has two tiers** (8 Sep 2026). *Timeline tier*:
    the morning run fetches up to `MAX_TIMELINE_FETCHES` (20) Match-V5
    timelines for prep Flex and Clash games, newest first, after the players
@@ -778,9 +788,11 @@ filter rather than none, so it can never become unpickable.
    most 60 tokens on a map. Slice 3: three film stocks, schema v4 lessons
    (Call it back on the card, keys `lesson:<i>`; the validator cuts our own
    Riot tags and drops a lesson naming anyone else) and the Before you play
-   card (`shared/before-you-play.component.ts`, at the top of Games only (the
-   roster quick actions carried a compact one until 10 Sep 2026, when the
-   lead asked for it off the main view); since 10 Sep 2026 a reminder, never a question:
+   reminder (the top of Games; the roster quick actions carried a compact one
+   until 10 Sep 2026, when the lead asked for it off the main view. Since
+   12 Sep 2026 it is a rung of `app-next-up` rather than a card of its own —
+   `shared/before-you-play.component.ts` was deleted, its behaviour moved
+   whole. Since 10 Sep 2026 a reminder, never a question:
    `reminderFor` returns a `FilmReminder`, the one thing (the review's, else
    the first work-on as an ask), what the team committed to, the viewer's
    own seat's ask and up to two further asks (the other work-ons, then the
@@ -1034,12 +1046,17 @@ filter rather than none, so it can never become unpickable.
    walks, the film's key handler stands down and the lab opens with
    `dialog.show()` rather than `showModal()`, since nothing painted at any
    z-index reaches over the browser's top layer.
-   **Post-game graphs** (`shared/game-graphs.component.ts`) sit behind a
-   Table | Graphs segment on every Games row's scoreboard, drawn from the
-   row's `RowStats` so replays and Riot games get the same view; a figure a
-   row lacks is a dash. Surfaces: the panel on the row, the
-   Reviews tab on `/games` (`?tab=reviews`), Coaching notes on the player
-   profile, and "Played out as drafted in n of m" on each Comps panel.
+   **Post-game graphs** (`shared/game-graphs.component.ts`) are the scoreboard
+   on a Games row, drawn from the row's `RowStats` so replays and Riot games get
+   the same view; a figure a row lacks is a dash. Since 12 Sep 2026 they **are**
+   Starter's scoreboard — the ten-column table and the Table | Graphs segment
+   that used to choose between them are Full only, and the open row runs review,
+   objectives, scoreboard, note, actions, story in that order, because the
+   review used to sit fifth under a scoreboard and five buttons. The **Reviews
+   tab** (`?tab=reviews`) mounts the newest review open in full through
+   `app-game-review` rather than drawing posters; the posters and the comp
+   filter are Full only. Other surfaces: Coaching notes on the player profile,
+   and "Played out as drafted in n of m" on each Comps panel.
    **Comp expectation**: `Comp.expect` (early, scaling, objectives,
    teamfight; low/mid/high) is derived from champion traits in
    `core/comp-expectation.ts`, editable on the Comps panel
@@ -1073,15 +1090,23 @@ the e2e console sweep runs on every page). The overlay
 `.card` (cards carry a transform), and lets clicks through everywhere but the
 card; the last button is "Got it" and the escape is "Skip tour", the two names
 `e2e/tests/auth.setup.ts` and the `authenticated.spec.ts` beforeEach click,
-scoped to `.tour-card` since 10 Sep 2026 because the Before you play reminder
-and the Games banner carry a "Got it" of their own.
+scoped to `.tour-card` since 10 Sep 2026 because the Next up card (the Before
+you play reminder until 12 Sep 2026) and the Games banner carry a "Got it" of
+their own.
 A tour whose `match.path` is a prefix (ending in `/`) is opened from elsewhere by
 appending the first player's id — right for `/player/`, wrong for anything else —
 so such a tour carries `onlyHere: true` (the film room's does, 11 Sep 2026) and
 `blocker` then tells the help list to say where it starts instead of walking there.
 Never name a tour button with "edit mode": a viewer test asserts none exists.
-Nothing a tour adds to the draft room may change its height. Seen state is
-`userPrefs/{email}.toursSeen` (`services/user-prefs.service.ts`, localStorage
+Nothing a tour adds to the draft room may change its height.
+**Prep & Draft has two tours with no role and no `editMode` step** (12 Sep 2026):
+`prep-read` walks a series card as it stands and starts by itself; `draft-watch`
+walks the room and carries `autoStart: false`, because a tour opening over a
+draft in progress is the worst moment this app has. The other three tours on
+that page are all `role: 'editor'` with every step behind edit mode, which is
+why the viewers doing the complaining had never been shown the page.
+
+Seen state is `userPrefs/{email}.toursSeen` (`services/user-prefs.service.ts`, localStorage
 fallback; the old `tourSeen` flag is still written for the welcome tour). The
 welcome modal in `app.html` is gone; the welcome tour replaced it. Help and
 tours in the user menu lists every tour the role can run; the hero pill
@@ -1096,6 +1121,53 @@ costs is admin-only; the rest was deleted. The player editor is one form
 used by Admin and by the drawer opened from a profile or a roster card; the
 bench flag is labelled **A team / Bench** everywhere; every Riot refresh is
 "Refresh … from Riot" with its scope.
+
+**How much of a page to draw is a preference, not a layout** (12 Sep 2026).
+`UserPrefs.depth?: Partial<Record<DepthSurface, 'full'>>` where `DepthSurface`
+is `'games' | 'reviews' | 'patterns' | 'prep'`; **absent means Starter**, so no
+stored document changed shape and going back to Starter deletes the key rather
+than storing the default a second way. It is per person (Firestore, through
+`UserPrefsService.commit()`), not per browser like `bom-split-view` — a reading
+preference should follow whoever is reading. One shared control draws it
+everywhere: `shared/detail-toggle.component.ts`, a `.view-segment` taking
+`surface`. The rule for what sits at which level, applied on every surface:
+**does a reader act on it, or check it?** Act is Starter, check is Full.
+(Roster, Comps and Player Intel have had a Starter | Full of their own since
+8 Sep 2026 with their own signals; they can be pointed here later. Do not invent
+a second vocabulary for the same idea.) `UserPrefsService.load()` puts the local
+copy into the signal **before** awaiting Firestore, or a stored Full renders
+Starter and flips.
+
+**A deep link pins a game, it does not widen the list** (12 Sep 2026).
+`?match=` on `/games` sets `pinnedMatch` and `listRows` prepends that row only
+when the window does not already hold it; `days()` stays where it was. The
+record tiles, the player lines and the form strip keep reading `rows()`, so **a
+pinned game never changes the record** — which is the whole reason to pin rather
+than widen. `?comp=` still widens: it is a visible, deliberate filter with a
+chip that says so.
+
+**One card at the top of Games says what to do next** (12 Sep 2026).
+`core/next-up.ts` is a pure ladder — an unwatched review, then a due film
+reminder, then a game with no review (editors), then the next opponent, then
+**nothing, which renders nothing**. `shared/next-up.component.ts` draws it, at
+most three lines and two pills. It **replaced** `app-before-you-play`, which was
+deleted: two cards at the top of Games is the complaint this answers, restated.
+Everything that card did is still there — Got it walks the reminder up the
+ladder, Open the card goes to the film's card, a due film with nothing to remind
+of is switched off, and that rung still needs Firebase. The ladder only looks
+back `NEXT_UP_DAYS` (14): 181 games over nine months are all "unwatched" the day
+somebody signs in.
+
+**Prep opens on the series you have to play** (12 Sep 2026). `nextSeriesId`
+(`pages/tournaments/series-order.ts`) is the first series with no result
+recorded, and the last one when the tournament is over. Read from the games, not
+from `TournamentSeries.status` — that field is only ever written as
+`'scheduled'`, so a rule asking it would quietly do nothing. The stored order is
+left alone. At Starter the roster is one line a player (`topPlays` and
+`bestRank` in `core/opponent-view.ts`); **edit mode always draws the six-column
+table**, because every scouting control lives in its cells. One win-rate scale
+everywhere on the page: `rateBand` (65 / above 50 / 50 / below), never a
+hand-coded 55/45.
 
 **Native checkboxes and selects are styled once, globally** (`styles.css`, the
 "Native checkboxes and selects" block): `appearance: none` with the app's
