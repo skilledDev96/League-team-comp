@@ -159,6 +159,9 @@
       <h3 class="section-divider">
         Series
         <span class="section-divider-count">{{ seriesList().length }}</span>
+        <app-detail-toggle surface="prep"
+                           starterTip="Their five on a line each, the ban board, and the games"
+                           fullTip="The full roster table: both queues, who beats them, what they played lately, and the bench" />
       </h3>
       @for (series of seriesList(); track series.id; let i = $index) {
         <details class="card series-panel" data-tour="prep-series" [open]="isSeriesOpen(series.id)">
@@ -557,6 +560,52 @@
                     </div>
                   }
                 }
+                @if (compactRoster()) {
+                  <!-- Their five on a line each: the seat, who, one rank and the three
+                       champions they actually play. The table under this says the same
+                       thing across six columns and up to nine cells a player, because a
+                       solo-and-flex player emits two of everything — about three hundred
+                       figures for a scouted opponent. This is what a reader acts on
+                       before a series; the rest is what they check, and it waits for
+                       Full. Edit mode always draws the table, because that is where the
+                       controls live. -->
+                  <ul class="list-clean opp-lines" aria-label="Their five">
+                    @for (opp of orderedRoster(series); track opp.name + opp.riotTag) {
+                      <li class="opp-line">
+                        <span class="opp-line-seat">{{ opp.role }}</span>
+                        <span class="opp-line-name">
+                          <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
+                             target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
+                          @if (opp.sub) { <span class="opp-sub-tag">sub</span> }
+                        </span>
+                        @if (bestRank(opp); as r) {
+                          <span class="opp-line-rank" [appTip]="(r.label || 'Ranked') + ' — switch to Full for both queues'">@if (r.label) { <em>{{ r.label }}</em> } {{ r.rank }}</span>
+                        } @else {
+                          <span class="opp-line-rank is-unranked" appTip="No ranked games recorded">&mdash;</span>
+                        }
+                        <span class="opp-line-plays">
+                          @for (rec of topPlays(opp); track rec.champion) {
+                            <span class="opp-champ-cell"
+                                  [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won, solo and flex together' : ' — no record')">
+                              <img class="opp-champ" [class.is-match]="filter.matches(rec.champion)"
+                                   [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                              @if (rateOf(rec) !== null) {
+                                <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rateOf(rec) }}%<em>{{ rec.games }}</em></span>
+                              }
+                            </span>
+                          } @empty {
+                            <span class="opp-none">&mdash;</span>
+                          }
+                        </span>
+                      </li>
+                    } @empty {
+                      <li class="muted opp-empty">Nobody in their five yet.</li>
+                    }
+                  </ul>
+                  @if (bench(series).length) {
+                    <p class="muted opp-lines-more">{{ bench(series).length }} on their bench, and what they played lately, are in Full.</p>
+                  }
+                } @else {
                 <div class="opp-scroll">
                 <div class="opp-table" role="table" aria-label="Their roster">
                   <div class="opp-head" role="row">
@@ -717,7 +766,7 @@
                     <!-- Six column headers over nothing read as a broken table rather than
                          an empty one. Everyone on the roster is on the bench, or the five
                          pasted in were all marked as subs. -->
-                    <p class="muted opp-empty" role="row">
+                    <p class="muted opp-empty" role="row"><span role="cell">
                       Nobody in their five yet.
                       @if (bench(series).length) {
                         Their whole roster is on the bench &mdash; put someone back in the five below.
@@ -726,7 +775,7 @@
                       } @else {
                         Nobody has scouted this opponent.
                       }
-                    </p>
+                    </span></p>
                   }
                 </div>
                 </div>
@@ -751,6 +800,7 @@
                       }
                     </div>
                   }
+                }
                 }
               </div>
 
@@ -805,6 +855,7 @@
                       }
                     </div>
                   }
+                  @if (full()) {
                   <div class="opp-history-games">
                     @for (g of h.games; track g.matchId) {
                       <!-- The row opens to the match: kills, objectives and each player's line,
@@ -901,6 +952,9 @@
                       </details>
                     }
                   </div>
+                  } @else if (h.games.length) {
+                    <p class="muted opp-history-folded">{{ h.games.length }} {{ h.games.length === 1 ? 'game' : 'games' }} game by game, with each player's line, are in Full.</p>
+                  }
                 }
               </section>
 

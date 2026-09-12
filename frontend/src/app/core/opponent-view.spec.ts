@@ -4,6 +4,7 @@ import {
   appendToRoster,
   banCandidates,
   bench,
+  bestRank,
   orderedRoster,
   poolFor,
   queueRows,
@@ -13,7 +14,8 @@ import {
   reseatOpponent,
   scoutedAgo,
   setSubstitute,
-  starters
+  starters,
+  topPlays
 } from './opponent-view';
 
 const p = (name: string, role: OpponentPlayer['role'], extra: Partial<OpponentPlayer> = {}): OpponentPlayer => ({
@@ -265,5 +267,63 @@ describe('recentForSeat / recentHidden', () => {
     const player = p('a', 'Top', { recentChampions: ['Ashe', 'Thresh'] });
     expect(recentForSeat(player)).toEqual(['Ashe', 'Thresh']);
     expect(recentHidden(player)).toBe(0);
+  });
+});
+
+/**
+ * The one-line roster (12 Sep 2026). The table draws six columns and up to nine cells a
+ * player; a reader scouting the night before wants the seat, who, a rank and what they
+ * actually play, so both of those come from here.
+ */
+describe('topPlays', () => {
+  const twoQueues = p('a', 'Top', {
+    byQueue: {
+      solo: { poolByRole: { Top: [{ champion: 'Sett', games: 5, wins: 3 }, { champion: 'Ornn', games: 4, wins: 1 }] } },
+      flex: { poolByRole: { Top: [{ champion: 'Ornn', games: 7, wins: 5 }, { champion: 'Jax', games: 1, wins: 1 }] } }
+    }
+  });
+
+  it('adds the two queues together, because a ban is aimed at comfort and not at a ladder', () => {
+    expect(topPlays(twoQueues)).toEqual([
+      { champion: 'Ornn', games: 11, wins: 6, winRate: 55 },
+      { champion: 'Sett', games: 5, wins: 3, winRate: 60 },
+      { champion: 'Jax', games: 1, wins: 1, winRate: 100 }
+    ]);
+  });
+
+  it('ranks by games, not by win rate: a 100% over one game is a curiosity', () => {
+    expect(topPlays(twoQueues).map((r) => r.champion)).toEqual(['Ornn', 'Sett', 'Jax']);
+  });
+
+  it('takes as many as it is asked for', () => {
+    expect(topPlays(twoQueues, 1).map((r) => r.champion)).toEqual(['Ornn']);
+    expect(topPlays(p('b', 'Mid'))).toEqual([]);
+  });
+
+  it('still reads a roster scouted before records existed, with no numbers to go with it', () => {
+    expect(topPlays(p('c', 'Mid', { top3: ['Ahri', 'Sylas'] }))).toEqual([
+      { champion: 'Ahri', games: 0, wins: 0, winRate: 0 },
+      { champion: 'Sylas', games: 0, wins: 0, winRate: 0 }
+    ]);
+  });
+});
+
+describe('bestRank', () => {
+  it('quotes solo, the ladder a player is measured on, and says which queue it is', () => {
+    const both = p('a', 'Top', { soloRank: 'GOLD II', flexRank: 'PLATINUM IV', byQueue: { solo: {}, flex: {} } });
+    expect(bestRank(both)).toEqual({ rank: 'GOLD II', label: 'Solo' });
+  });
+
+  it('falls back to flex when there is no solo rank', () => {
+    const flexOnly = p('a', 'Top', { flexRank: 'PLATINUM IV', byQueue: { solo: {}, flex: {} } });
+    expect(bestRank(flexOnly)).toEqual({ rank: 'PLATINUM IV', label: 'Flex' });
+  });
+
+  it('reads the single unlabelled rank of a roster scouted before the split', () => {
+    expect(bestRank(p('a', 'Top', { rank: 'SILVER I' }))).toEqual({ rank: 'SILVER I', label: '' });
+  });
+
+  it('is nothing for a player with no ranked games at all', () => {
+    expect(bestRank(p('a', 'Top'))).toBeNull();
   });
 });

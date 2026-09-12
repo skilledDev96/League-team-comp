@@ -298,30 +298,49 @@ export interface BanCandidate {
  * Games first, win rate to break ties. A 100% over three games is a curiosity;
  * a 52% over twenty-one is what they will pick under pressure.
  */
+/**
+ * What one player actually plays: both queues added together, most games first.
+ *
+ * Solo and flex are separate ladders with separate pools, and a ban is aimed at comfort
+ * rather than at a queue, so the two are merged before they are ranked. Games first, win
+ * rate to break ties — a 100% over three games is a curiosity, a 52% over twenty-one is
+ * what they will pick under pressure. The ban board and the one-line roster share it.
+ */
+export function topPlays(player: OpponentPlayer, take = 3): (ChampionRecord & { winRate: number })[] {
+  const merged = new Map<string, { games: number; wins: number }>();
+  for (const row of queueRows(player)) {
+    for (const rec of row.pool) {
+      const m = merged.get(rec.champion) ?? { games: 0, wins: 0 };
+      m.games += rec.games;
+      m.wins += rec.wins;
+      merged.set(rec.champion, m);
+    }
+  }
+  return [...merged.entries()]
+    .map(([champion, { games, wins }]) => ({ champion, games, wins, winRate: games ? Math.round((wins / games) * 100) : 0 }))
+    .sort((a, b) => b.games - a.games || b.winRate - a.winRate)
+    .slice(0, take);
+}
+
+/**
+ * The one rank worth printing when there is room for one (12 Sep 2026).
+ *
+ * Solo first: it is the ladder a player is measured on, and a roster scouted before the
+ * queues were split carries a single unlabelled rank which lands here too. The label
+ * travels with it, because "Diamond II" means different things in the two queues.
+ */
+export function bestRank(player: OpponentPlayer): { rank: string; label: string } | null {
+  const rows = queueRows(player);
+  const row = rows.find((r) => r.key === 'solo' && r.rank) ?? rows.find((r) => r.rank);
+  return row?.rank ? { rank: row.rank, label: row.label } : null;
+}
+
 export function banCandidates(players: readonly OpponentPlayer[], limit = 6): BanCandidate[] {
   const out: BanCandidate[] = [];
   for (const player of players) {
     if (player.sub) continue; // the board answers "who do we ban of the five"
-    const merged = new Map<string, { games: number; wins: number }>();
-    for (const row of queueRows(player)) {
-      for (const rec of row.pool) {
-        const m = merged.get(rec.champion) ?? { games: 0, wins: 0 };
-        m.games += rec.games;
-        m.wins += rec.wins;
-        merged.set(rec.champion, m);
-      }
-    }
-    const theirs = [...merged.entries()]
-      .map(([champion, { games, wins }]) => ({
-        champion,
-        player: player.name,
-        role: player.role,
-        games,
-        wins,
-        winRate: games ? Math.round((wins / games) * 100) : 0
-      }))
-      .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
-    out.push(...theirs.slice(0, 2));
+    const theirs = topPlays(player, 2).map((rec) => ({ ...rec, player: player.name, role: player.role }));
+    out.push(...theirs);
   }
   return out.sort((a, b) => b.games - a.games || b.winRate - a.winRate).slice(0, limit);
 }

@@ -13,6 +13,7 @@ import { noteLines } from '../../../core/note-lines';
 import { parseRiotIds } from '../../../core/riot-id';
 import { seatChampions } from '../../../core/replay-parse';
 import { DRAFT_LENGTH } from '../draft-sequence';
+import { nextSeriesId } from '../series-order';
 import { readReplay, ReplayRead, REPLAY_REQUIREMENTS } from '../../../core/replay-import';
 import { ToastService } from '../../../services/toast.service';
 import { rosterIds, scrimSide } from '../../games/game-rows';
@@ -39,7 +40,9 @@ import {
   reseatOpponent,
   scoutedAgo,
   setSubstitute,
-  starters
+  starters,
+  bestRank,
+  topPlays
 } from '../../../core/opponent-view';
 import { OpponentHistoryService } from '../../../services/opponent-history.service';
 import { ChampionChipComponent } from '../../../shared/champion-chip.component';
@@ -52,6 +55,8 @@ import { playedElsewhere } from '../../../core/opponent-roles';
 import { TournamentContextService } from '../tournament-context.service';
 import { mvpGameFromScrim, SeriesMvp, SeriesMvpGame, seriesMvpOf } from '../../../core/game-mvp';
 import { MvpChipComponent } from '../../../shared/mvp-chip.component';
+import { DetailToggleComponent } from '../../../shared/detail-toggle.component';
+import { UserPrefsService } from '../../../services/user-prefs.service';
 
 /**
  * Planning a tournament: the schedule, each series, and the prep around it.
@@ -68,6 +73,7 @@ import { MvpChipComponent } from '../../../shared/mvp-chip.component';
     MatchNoteComponent,
     MatchNoteButtonComponent,
     TooltipDirective,
+    DetailToggleComponent,
     NgModelNameDirective,
     MvpChipComponent
   ],
@@ -238,7 +244,36 @@ export class TournamentPlanComponent {
     void this.data.deleteSeriesGame(game.id);
   }
 
-  protected readonly openSeriesId = signal<string>('');
+  /**
+   * How much of a series to draw (12 Sep 2026). Starter is their five on a line each, the
+   * ban board and the games; Full adds the roster table, the bench and the team's games one
+   * by one. **Edit mode always draws the table** — scouting writes seats, subs and target
+   * bans, and every control for that lives in the table's cells, so a compact line in edit
+   * mode would be a page with the work taken out of it.
+   */
+  private readonly userPrefs = inject(UserPrefsService);
+  protected readonly full = computed(() => this.userPrefs.depthOf('prep') === 'full');
+  protected readonly compactRoster = computed(() => !this.full() && !this.auth.editing());
+  protected readonly topPlays = topPlays;
+  protected readonly bestRank = bestRank;
+
+  /**
+   * Which series the page lands on: the first with no result recorded yet, and the last one
+   * when every series has been played. Nothing opened before, so a reader arriving the day
+   * before a match met a column of closed cards and had to remember which one was theirs.
+   *
+   * Read from the games rather than from `status`, which is only ever written as
+   * 'scheduled' — sorting on it would have been a control that quietly does nothing.
+   */
+  protected readonly nextSeriesId = computed(() =>
+    nextSeriesId(this.seriesList(), (id) => {
+      const score = this.seriesScore(id);
+      return !!score && score.wins + score.losses > 0;
+    })
+  );
+
+  /** null until someone presses one: the next series is open, and any press wins after that. */
+  protected readonly openSeriesId = signal<string | null>(null);
 
   // ---- Reaching the prep panel -------------------------------------------
   //
@@ -322,11 +357,12 @@ export class TournamentPlanComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   protected toggleSeries(id: string): void {
-    this.openSeriesId.set(this.openSeriesId() === id ? '' : id);
+    this.openSeriesId.set(this.isSeriesOpen(id) ? '' : id);
   }
 
   protected isSeriesOpen(id: string): boolean {
-    return this.openSeriesId() === id;
+    const open = this.openSeriesId();
+    return open === null ? id === this.nextSeriesId() : open === id;
   }
 
 

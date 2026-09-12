@@ -12521,6 +12521,40 @@ body:has(.draft-stage) .edit-mode-frame {
 /* Six column headers over nothing read as a broken table rather than an empty one. */
 .opp-empty { grid-column: 1 / -1; margin: 0.6rem 0 0.2rem; }
 
+/* Starter: their five on a line each. The table says the same thing across six columns
+   and up to nine cells a player; this is the part a reader acts on before a series. */
+.opp-lines { display: grid; gap: 0.3rem; margin: 0.2rem 0 0; }
+.opp-line {
+  display: grid;
+  grid-template-columns: 5.4rem minmax(8rem, 1fr) 8.5rem minmax(0, auto);
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.5rem;
+  background: var(--surface-controls);
+}
+.opp-line-seat { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-1); }
+.opp-line-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opp-line-name a { color: var(--text-0); }
+.opp-line-rank { font-size: 0.8rem; color: var(--text-1); }
+.opp-line-rank em { font-style: normal; opacity: 0.7; margin-right: 0.25rem; }
+.opp-line-rank.is-unranked { opacity: 0.55; }
+.opp-line-plays { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+/* Five players should fit in one look, so the icons come down from the table's size. */
+.opp-line .opp-champ { width: 2.1rem; height: 2.1rem; }
+.opp-line .opp-champ-cell { gap: 0.15rem; }
+.opp-line .opp-champ-stat { font-size: 0.7rem; }
+.opp-lines-more { margin: 0.45rem 0 0; font-size: 0.78rem; }
+.opp-history-folded { margin: 0.5rem 0 0; font-size: 0.78rem; }
+
+/* The depth switch belongs after the divider's rule, not between the count and it.
+   The flex child is the element, not the .field inside it — and in a divider the
+   label reads beside the segment rather than stacked over it. */
+.section-divider::after { order: 1; }
+.section-divider app-detail-toggle { order: 2; margin-left: 0.6rem; }
+.section-divider .detail-toggle { flex-direction: row; align-items: center; gap: 0.45rem; margin-left: 0; text-transform: none; letter-spacing: 0; }
+.section-divider .detail-toggle > span { color: var(--text-2); }
+
 .opp-history-head .view-btn {
   margin-left: auto;
 }
