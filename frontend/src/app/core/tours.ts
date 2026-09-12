@@ -126,13 +126,13 @@ export const TOURS: readonly Tour[] = [
       },
       {
         anchor: 'roster-views',
-        title: 'One roster, three depths',
-        text: 'Cards for who plays what, Table for rank and form, Scouting for pools, matchups and the practice board.'
+        title: 'One roster, four depths',
+        text: 'Cards for who plays what, Table for rank and form, Scouting for pools, matchups and the practice board, and Scout report for us the way an opponent scouts us.'
       },
       {
         anchor: 'quick-actions',
         title: 'The things you do most',
-        text: 'One press each: refresh after practice, open the draft room, add a comp, scout the next opponent, import a replay.'
+        text: 'One press each: open the draft room, scout the next opponent. In edit mode, refreshing after practice, adding a comp and importing a replay join them.'
       },
       {
         anchor: 'edit-toggle',
@@ -143,8 +143,8 @@ export const TOURS: readonly Tour[] = [
       },
       {
         anchor: 'user-menu',
-        title: 'Admin, refresh and help',
-        text: 'Admin holds settings, roles and diagnostics. Refresh everything from Riot re-reads the players and the matches. Help and tours brings any of these tours back.',
+        title: 'Help, and what an editor also finds here',
+        text: 'Help and tours brings any of these tours back, and Log out is here. In edit mode the menu also holds Admin — settings, roles and diagnostics — and Refresh everything from Riot, which re-reads the players and the matches.',
         before: 'openUserMenu'
       }
     ]
@@ -176,7 +176,7 @@ export const TOURS: readonly Tour[] = [
     role: 'editor',
     needs: 'players',
     steps: [
-      { anchor: 'player-edit', title: 'Edit this player', text: 'The menu here opens the editor in a drawer. It is the same form Admin uses, so nothing about a player lives anywhere else.', editMode: true },
+      { anchor: 'player-edit', title: 'Edit this player', text: 'Edit this player, here in the quick actions, opens the editor in a drawer. It is the same form Admin uses, so nothing about a player lives anywhere else.', editMode: true },
       { anchor: 'pe-identity', title: 'Name, tag and role', text: 'The Riot ID is what every refresh reads. Change the role and the roster regroups.', editMode: true, before: 'openPlayerEditor' },
       { anchor: 'pe-bench', title: 'A team or Bench', text: 'The same flag as the roster card. The second seats are the roles they also cover.', editMode: true, before: 'openPlayerEditor' },
       { anchor: 'pe-pool', title: 'Pool and bans', text: 'The declared pool, first champion shown as the main. Bans are what to take away from them in practice.', editMode: true, before: 'openPlayerEditor' },
@@ -400,7 +400,7 @@ export const TOURS: readonly Tour[] = [
         anchor: 'film-map-seats',
         before: 'openFilmMap',
         title: 'One seat at a time',
-        text: 'Six tiles: All, then our five. Pick one and the Rift, the counts, the strip and the cards keep that seat alone. The tape wears the same six.'
+        text: 'Six tiles: All, then our five. Pick one and the Rift, the counts, the costliest deaths and the cards keep that seat alone. The tape wears the same six.'
       },
       {
         anchor: 'film-costliest',
