@@ -196,7 +196,9 @@ export class PlayerIntelComponent {
     return this.poolOpenIds().has(playerId);
   }
 
-  protected togglePoolEdit(playerId: string): void {
+  /** Starting an edit opens a shut pool fold, so the picker is on screen; finishing leaves it open. */
+  protected togglePoolEdit(playerId: string, fold?: HTMLDetailsElement): void {
+    if (fold && !this.isPoolOpen(playerId)) fold.open = true;
     this.poolOpenIds.update((ids) => {
       const next = new Set(ids);
       if (next.has(playerId)) {

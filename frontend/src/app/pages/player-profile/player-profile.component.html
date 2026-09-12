@@ -127,12 +127,20 @@
         }
       </div>
 
-      <h3 [appTip]="'The pool set for this player, not what they have been playing'">Declared pool</h3>
-      <div class="champ-chip-row">
-        @for (champ of p.top3; track champ) {
-          <app-champion-chip [champion]="champ" />
-        }
-      </div>
+      <!-- Shut: the page has no Starter | Full, Main Champion above names the first pick, and Build Guides
+           below lists the same champions (12 Sep 2026). "Declared" stays, beside "Most played recently". -->
+      <details class="intel-collapse fold-card pool-fold">
+        <summary class="section-head intel-collapse-head">
+          <h3 [appTip]="'The pool set for this player, not what they have been playing'">Declared pool</h3>
+          <span class="intel-collapse-count">{{ p.top3.length }}</span>
+          <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+        </summary>
+        <div class="champ-chip-row">
+          @for (champ of p.top3; track champ) {
+            <app-champion-chip [champion]="champ" />
+          }
+        </div>
+      </details>
 
       <app-external-profiles [name]="p.name" [profile]="p.profile" />
 

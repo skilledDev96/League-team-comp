@@ -1751,7 +1751,8 @@ a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-d
 }
 
 .clickable-card .role-toggle,
-.clickable-card .role-details a {
+.clickable-card .role-details a,
+.clickable-card .role-details summary {
   position: relative;
   z-index: 3;
 }
@@ -1851,10 +1852,6 @@ a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-d
   gap: 0.6rem;
 }
 
-#playerCard .title-row {
-  margin-bottom: 0.35rem;
-}
-
 .avatar {
   width: 4.125rem;
   height: 4.125rem;
@@ -1924,11 +1921,6 @@ body[data-theme='light'] .avatar-role {
 .card h3 {
   font-size: 0.95rem;
   color: var(--accent-2);
-}
-
-#playerCard h3 {
-  margin-top: 0.75rem;
-  margin-bottom: 0.45rem;
 }
 
 .muted {
@@ -2077,10 +2069,6 @@ body[data-theme='light'] .avatar-role {
   gap: 0.48rem 0.9rem;
 }
 
-#playerCard .meta-line {
-  margin: 0.2rem 0;
-}
-
 .meta-label {
   color: color-mix(in srgb, var(--text-0) 88%, var(--accent-2) 12%);
   font-weight: 700;
@@ -2113,13 +2101,6 @@ body[data-theme='light'] .avatar-role {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-}
-
-#playerCard .tag-row,
-#playerCard .champ-chip-row,
-#playerCard .links,
-#playerCard .link-dropdown {
-  margin-top: 0.4rem;
 }
 
 /* Through the tokens, like everything else (12 Sep 2026). These were three hardcoded values from
@@ -2156,14 +2137,6 @@ body[data-theme='light'] .avatar-role {
 
 .list-clean li {
   margin: 0.3rem 0;
-}
-
-#playerCard .list-clean {
-  margin-top: 0.35rem;
-}
-
-#playerCard .list-clean li {
-  margin: 0.4rem 0;
 }
 
 .links {
@@ -6098,12 +6071,6 @@ app-match-note {
 }
 
 /* ---- Section heading with an inline action ---------------------------- */
-
-.head-with-action {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
 
 .head-action {
   display: inline-flex;
@@ -13055,8 +13022,6 @@ button .player-mark { vertical-align: -0.3rem; }
 
 /* ---- Roster cards in three groups (9 Sep 2026) ---- */
 .section-title-note { margin-left: 0.6rem; font-size: 0.78rem; font-weight: 400; letter-spacing: 0; text-transform: none; }
-.fillin-card .title-row { gap: 0.6rem; }
-.fillin-card .links { margin-top: 0.6rem; }
 
 /* ---- Prep & Draft (9 Sep 2026): the scrims group's head, the Draft pill, the move banner ---- */
 .scrims-head { display: grid; gap: 0.6rem; }
@@ -15443,3 +15408,57 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
   align-content: start;
   padding-right: 0.25rem;
 }
+
+/* ---- Roster cards (12 Sep 2026) ---------------------------------------------------------------------
+   The lead: "the styling looks misaligned in the cards itself … 2nd seat should be a pill or something".
+   Three rows each started at their own x: the playstyle line carried its own padding, the main champion
+   put a 2.9rem portrait ahead of its label, and every label had its own width. Now one left edge, the
+   facts in two columns with both icons the size of a line, and the 2nd seat as the muted role pills
+   the table already uses. Scoped to .roster-card: the meta-line family is shared with the profile,
+   Scouting and Synergy. */
+.roster-card .title-row { gap: 0.75rem; margin-bottom: 0.8rem; align-items: center; }
+.roster-card .avatar { width: 3.25rem; height: 3.25rem; }
+.roster-card-id { flex: 1 1 auto; min-width: 0; display: grid; gap: 0.3rem; }
+.roster-card .roster-card-id h2 { margin: 0; line-height: 1.2; overflow-wrap: anywhere; }
+.roster-card-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
+.roster-card-tags .sub-badge { margin-left: 0; margin-right: 0.2rem; }
+.roster-card-also { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-1); }
+.roster-card .title-row-edit .material-symbols-rounded { font-size: 1rem; }
+.roster-card .roster-edit { margin: 0 0 0.8rem; }
+.roster-card .roster-edit-label { margin-left: 0; }
+
+.roster-card-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 0.45rem 1rem;
+  margin: 0;
+}
+
+.roster-card-facts dt {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-1);
+}
+
+.roster-card-facts dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-0);
+}
+
+.roster-card-facts .playstyle-icon,
+.roster-card-champ { flex: none; width: 1.35rem; height: 1.35rem; }
+.roster-card-champ { border-radius: 50%; object-fit: cover; border: 1px solid var(--card-border); }
+.roster-card-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roster-card .roster-card-foot { margin-top: 0.9rem; padding-top: 0.75rem; border-top: 1px solid var(--card-border); }
+.roster-card.expanded .role-details { display: grid; gap: 0.5rem; }

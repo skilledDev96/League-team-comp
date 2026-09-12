@@ -8,12 +8,25 @@
 <!-- One card template, three groups: the A team in seat order, the bench,
      then the fill-ins (9 Sep 2026). The A team is everyone without the bench flag. -->
 <ng-template #playerCard let-player let-fill="fill">
-      <article data-tour="roster-card" class="card clickable-card" [class.expanded]="isExpanded(player.id)">
+      <!-- One left edge for every row, the facts in two columns, the 2nd seat as quiet pills under the
+           name (12 Sep 2026, the lead: "the styling looks misaligned in the cards itself … 2nd seat should
+           be a pill or something, not needing to be so visible"). -->
+      <article data-tour="roster-card" class="card clickable-card roster-card" [class.expanded]="isExpanded(player.id)">
         <div class="title-row">
           <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
-          <h2>{{ player.role }} - {{ player.name }}</h2>
-          @if (fill) { <span class="sub-badge" [appTip]="'A fill-in outside the roster — ' + (fill.status || 'provisional')">Fill-in</span> }
-          @else if (player.sub) { <span class="sub-badge" title="On the bench: the draft room follows the starter in this seat.">Sub</span> }
+          <div class="roster-card-id">
+            <h2>{{ player.role }} - {{ player.name }}</h2>
+            @if (fill || player.sub || player.secondaryRoles?.length) {
+              <div class="roster-card-tags">
+                @if (fill) { <span class="sub-badge" [appTip]="'A fill-in outside the roster — ' + (fill.status || 'provisional')">Fill-in</span> }
+                @else if (player.sub) { <span class="sub-badge" title="On the bench: the draft room follows the starter in this seat.">Sub</span> }
+                @if (player.secondaryRoles?.length) {
+                  <span class="roster-card-also">Also</span>
+                  @for (r of player.secondaryRoles ?? []; track r) { <span class="pp-role flex">{{ r }}</span> }
+                }
+              </div>
+            }
+          </div>
           @if (auth.editing() && fill) {
             <a class="view-btn roster-edit-open title-row-edit" [routerLink]="['/admin']" [queryParams]="{ tab: 'fillins' }" appTip="Fill-ins are edited on Admin › Fill-ins, where Fill from Riot lives">
               <span class="material-symbols-rounded" aria-hidden="true">edit</span> Edit
@@ -51,24 +64,21 @@
               }
             </span>
           </div>
-        } @else if (player.secondaryRoles?.length) {
-          <p class="meta-line">
-            <span class="meta-label">2nd seat</span>
-            <span class="meta-value">{{ player.secondaryRoles!.join(', ') }}</span>
-          </p>
         }
-        <p class="meta-line meta-playstyle">
-          <span class="meta-label">Playstyle</span>
-          <span class="meta-value">{{ player.playstyle || (fill ? 'Not read from Riot yet' : 'Unknown') }}</span>
-          <span class="playstyle-icon material-symbols-rounded trailing" aria-hidden="true">{{ ui.playstyleIcon(player.playstyle) }}</span>
-        </p>
-        @if (player.top3.length) {
-          <p class="meta-line main-champ-inline">
-            <img class="main-champ-icon" [src]="ui.championIconUrl(player.top3[0])" [alt]="player.top3[0] + ' icon'" />
-            <span class="meta-label">Main Champion</span>
-            <span class="meta-value">{{ player.top3[0] }}</span>
-          </p>
-        }
+        <dl class="roster-card-facts">
+          <dt>Playstyle</dt>
+          <dd>
+            <span class="playstyle-icon material-symbols-rounded" aria-hidden="true">{{ ui.playstyleIcon(player.playstyle) }}</span>
+            <span class="roster-card-value">{{ player.playstyle || (fill ? 'Not read from Riot yet' : 'Unknown') }}</span>
+          </dd>
+          @if (player.top3.length) {
+            <dt>Main Champion</dt>
+            <dd>
+              <img class="roster-card-champ" [src]="ui.championIconUrl(player.top3[0])" alt="" />
+              <span class="roster-card-value">{{ player.top3[0] }}</span>
+            </dd>
+          }
+        </dl>
         <div class="roster-card-foot">
           @if (fill) {
             <a class="view-btn roster-profile-chip" [href]="ui.summonerSearchUrl(player.name, player.profile)" target="_blank" rel="noopener noreferrer">op.gg <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
@@ -86,11 +96,23 @@
         }
 
         <div class="role-details">
-          <div class="champ-chip-row">
-            @for (champ of player.top3; track champ) {
-              <app-champion-chip [champion]="champ" />
-            }
-          </div>
+          <!-- A player's pool reaches eighteen once the refreshes have added what they play, so it folds
+               (12 Sep 2026, the lead: "put these under a collapsable panel, champion pool"). Shut at
+               Starter, open at Full; the whole header is the toggle. -->
+          @if (player.top3.length) {
+            <details class="intel-collapse fold-card pool-fold" [open]="full()">
+              <summary class="section-head intel-collapse-head">
+                <h3>Champion pool</h3>
+                <span class="intel-collapse-count">{{ player.top3.length }}</span>
+                <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+              </summary>
+              <div class="champ-chip-row">
+                @for (champ of player.top3; track champ) {
+                  <app-champion-chip [champion]="champ" />
+                }
+              </div>
+            </details>
+          }
           <div class="tag-row">
             @for (s of player.strengths.slice(0, 2); track s) {
               <span class="tag good">{{ s }}</span>

@@ -152,11 +152,11 @@
         }
 
         @if (painFor(player.id).length) {
-          <details class="intel-collapse">
-            <summary class="intel-collapse-head">
-              <span class="material-symbols-rounded intel-collapse-chevron" aria-hidden="true">chevron_right</span>
+          <details class="intel-collapse fold-card">
+            <summary class="section-head intel-collapse-head">
               <h3>Working On</h3>
               <span class="intel-collapse-count">{{ painFor(player.id).length }}</span>
+              <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
             </summary>
             <ul class="player-pain-list">
               @for (pain of painFor(player.id); track pain.id) {
@@ -169,28 +169,37 @@
           </details>
         }
 
-        <h3 class="head-with-action">
-          Champion Pool
-          @if (auth.editing()) {
-            <button type="button" class="head-action" [class.on]="isPoolOpen(player.id)"
-                    [appTip]="isPoolOpen(player.id) ? 'Done editing the pool' : 'Edit champion pool'"
-                    (click)="togglePoolEdit(player.id)">
-              <span class="material-symbols-rounded" aria-hidden="true">{{ isPoolOpen(player.id) ? 'check' : 'edit' }}</span>
-            </button>
-          }
-        </h3>
-        @if (auth.editing() && isPoolOpen(player.id)) {
-          <app-champion-picker [champions]="player.top3 || []" [role]="player.role"
-                               [inputName]="'pool-' + player.id" placeholder="Add a champion…"
-                               (championsChange)="savePool(player, $event)" />
-          <p class="muted pool-hint">First champion is shown as the Main Champion.</p>
-        } @else {
-          <div class="champ-chip-row">
-            @for (champ of player.top3; track champ) {
-              <app-champion-chip [champion]="champ" />
+        <!-- The pool folds like Working On above it (12 Sep 2026): shut at Starter, open at Full. The
+             edit button lives in the header, so it stops the click reaching the <summary> and opens the
+             fold itself, or pressing it would shut the pool it is about to edit. -->
+        <details #poolFold class="intel-collapse fold-card pool-fold" [open]="full()">
+          <summary class="section-head intel-collapse-head">
+            <h3>Champion Pool</h3>
+            <span class="intel-collapse-count">{{ player.top3.length }}</span>
+            @if (auth.editing()) {
+              <button type="button" class="head-action" [class.on]="isPoolOpen(player.id)"
+                      [attr.aria-pressed]="isPoolOpen(player.id)"
+                      [attr.aria-label]="isPoolOpen(player.id) ? 'Done editing the pool' : 'Edit champion pool'"
+                      [appTip]="isPoolOpen(player.id) ? 'Done editing the pool' : 'Edit champion pool'"
+                      (click)="$event.preventDefault(); $event.stopPropagation(); togglePoolEdit(player.id, poolFold)">
+                <span class="material-symbols-rounded" aria-hidden="true">{{ isPoolOpen(player.id) ? 'check' : 'edit' }}</span>
+              </button>
             }
-          </div>
-        }
+            <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+          </summary>
+          @if (auth.editing() && isPoolOpen(player.id)) {
+            <app-champion-picker [champions]="player.top3 || []" [role]="player.role"
+                                 [inputName]="'pool-' + player.id" placeholder="Add a champion…"
+                                 (championsChange)="savePool(player, $event)" />
+            <p class="muted pool-hint">First champion is shown as the Main Champion.</p>
+          } @else {
+            <div class="champ-chip-row">
+              @for (champ of player.top3; track champ) {
+                <app-champion-chip [champion]="champ" />
+              }
+            </div>
+          }
+        </details>
 
         @if (learnFor(player.id).length || auth.editing()) {
           <h3>Learning</h3>
