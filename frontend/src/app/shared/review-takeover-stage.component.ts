@@ -1,4 +1,5 @@
 import { afterRenderEffect, Component, computed, effect, ElementRef, HostListener, inject, input, signal, untracked, viewChild, viewChildren } from '@angular/core';
+import { InfoTipComponent } from './info-tip.component';
 import { Router } from '@angular/router';
 import { boardCountsOf, reelTallyOf, tapeEventsOf, TapePlayer } from '../core/film-build';
 import { createFilmClock, FilmClock } from '../core/film-clock';
@@ -7,6 +8,7 @@ import { MatchTimeline, Role, ROLES } from '../models/team.models';
 import { MatchTimelineService } from '../services/match-timeline.service';
 import { MotionService } from '../services/motion.service';
 import { ReviewTakeoverService } from '../services/review-takeover.service';
+import { reviewFailure } from '../core/review-error';
 import { TeamDataService } from '../services/team-data.service';
 import { UiService } from '../services/ui.service';
 import { UserPrefsService } from '../services/user-prefs.service';
@@ -55,7 +57,7 @@ function firstSentence(text: string): string {
  */
 @Component({
   selector: 'app-review-takeover-stage',
-  imports: [RiftMapComponent, FilmScrubberComponent, TooltipDirective],
+  imports: [InfoTipComponent, RiftMapComponent, FilmScrubberComponent, TooltipDirective],
   host: { style: 'display: contents' },
   template: `
         <div class="rt-stage" #stage role="dialog" aria-modal="true" aria-live="polite" [attr.aria-label]="ariaLabel()" tabindex="-1"
@@ -156,9 +158,18 @@ function firstSentence(text: string): string {
               }
 
               @if (phase() === 'error') {
+                <!-- A refusal reaches the reader as a sentence and the action that clears it; the
+                     provider's own words are behind the tip. See core/review-error.ts. -->
                 <div class="rt-callout" role="alert">
                   <span class="material-symbols-rounded" aria-hidden="true">error</span>
-                  <span><b>The review did not come back.</b> {{ svc.error() }}</span>
+                  <span class="rt-callout-said">
+                    <b>The review did not come back.</b>
+                    @if (failure(); as f) {
+                      {{ f.said }}
+                      @if (f.fix) { <small class="rt-callout-fix">{{ f.fix }}</small> }
+                    }
+                  </span>
+                  @if (failure(); as f) { <app-info-tip [text]="f.detail" label="What the reviewer actually said" /> }
                 </div>
                 <div class="rt-pills"><button type="button" class="view-btn" (click)="svc.close()">Close</button></div>
               } @else if (phase() === 'landed') {
@@ -328,6 +339,9 @@ export class ReviewTakeoverStageComponent {
         return this.timeline() ? ['GENERATING', 'A', 'TIMELINE', 'OF', 'THE', 'GAME'] : ['READING', 'THE', 'GAME'];
     }
   });
+  /** The failure as a sentence and an action; null when there is nothing to say. */
+  protected readonly failure = computed(() => reviewFailure(this.svc.error()));
+
   protected readonly titleKey = computed(() => `${this.phase() === 'landed' || this.phase() === 'error' ? this.phase() : 'reel'}:${this.timeline() ? 'tape' : 'totals'}`);
   protected readonly headlineWords = computed(() => {
     const team = this.review()?.team;

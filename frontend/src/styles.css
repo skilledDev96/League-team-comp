@@ -13668,6 +13668,11 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .games-scoreboard-head .games-row-actions { margin-left: auto; }
 .games-scoreboard-head .scoreboard-view { flex: none; }
 
+/* The one destructive control here, so it is the smallest and quietest thing in the row and it
+   stands at the left, away from Re-review (12 Sep 2026). It still confirms before it deletes. */
+.games-review-remove { padding: 0.18rem 0.5rem; font-size: 0.7rem; color: var(--text-1); border-color: color-mix(in srgb, var(--card-border) 80%, transparent); background: transparent; }
+.games-review-remove:hover, .games-review-remove:focus-visible { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, transparent); }
+.games-review-remove .material-symbols-rounded { font-size: 0.9rem; vertical-align: -0.15rem; }
 .games-row-actions .field { margin: 0; }
 .games-empty { margin: 0.3rem 0; }
 
@@ -14407,7 +14412,10 @@ button .player-mark { vertical-align: -0.3rem; }
 .review-seat-name { font-size: 0.95rem; font-weight: 600; color: color-mix(in srgb, var(--text-0) 80%, var(--text-1)); }
 .review-seat-you { padding: 0.02rem 0.4rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 22%, transparent); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-0); cursor: help; }
 .review-seat-role { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-1); }
-.review-seat-stats { margin-left: auto; font-size: 0.76rem; font-variant-numeric: tabular-nums; color: var(--text-1); cursor: help; }
+/* Each figure in its own quiet box. As one muted string the farm and the vision were the hardest
+   numbers on the block to find, which is backwards: they are the two a coach checks first. */
+.review-seat-stats { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-left: auto; cursor: help; }
+.review-seat-stat { padding: 0.05rem 0.4rem; border-radius: 6px; background: color-mix(in srgb, var(--text-1) 14%, transparent); font-size: 0.74rem; font-variant-numeric: tabular-nums; color: var(--text-0); }
 /* The label over the chips: a row of figures under no heading is a puzzle however scannable it is. */
 .review-seat .review-group-label { margin: 0.35rem 0 0; }
 .review-seat .review-group-label:first-of-type { margin-top: 0.1rem; }
@@ -16609,6 +16617,13 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .rt-ring-label { font-size: 0.78rem; color: var(--film-ink-1); }
 .rt-still { font-size: 0.9rem; color: var(--film-ink-1); }
 .rt-callout { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent); background: color-mix(in srgb, var(--warn) 14%, transparent); font-size: 0.92rem; line-height: 1.4; }
+/* The failure must fit its card: the provider's body used to run off the right edge, and the one
+   thing to do was the part that left the screen (12 Sep 2026). */
+.rt-callout { align-items: flex-start; }
+.rt-callout-said { display: grid; gap: 0.25rem; min-width: 0; overflow-wrap: anywhere; }
+.rt-callout-fix { font-size: 0.82rem; line-height: 1.45; color: var(--film-ink-1, var(--text-1)); }
+.rt-callout .info-tip { flex: none; margin-left: auto; }
+
 .rt-callout .material-symbols-rounded { flex: none; color: var(--warn); }
 .rt-landed-kicker { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ok); }
 .rt-landed-kicker .material-symbols-rounded { font-size: 1.1rem; }

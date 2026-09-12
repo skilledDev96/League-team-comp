@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { reviewFailure } from '../../core/review-error';
 import { matchLink } from '../../core/match-link';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -356,6 +357,11 @@ export class GamesComponent {
     if (!row.matchId || reviewBlockReason(row)) return;
     const button = event?.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     this.takeover.open(row.matchId, this.expectFor(row), button?.getBoundingClientRect() ?? null, button);
+  }
+
+  /** The failure in the team's words; the provider's own JSON never reaches a row. */
+  protected reviewSaid(matchId: string | undefined): string {
+    return reviewFailure(matchId ? this.reviews.errorFor(matchId) : undefined)?.said ?? '';
   }
 
   protected removeReview(row: GameRow): void {

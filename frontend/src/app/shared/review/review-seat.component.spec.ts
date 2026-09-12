@@ -41,8 +41,9 @@ describe.skipIf(typeof document === 'undefined')('ReviewSeatComponent', () => {
   it('draws the reader own seat as a block with the figures the game holds', () => {
     const { root } = mount(player(), true, game());
     expect(text(root.querySelector('.review-seat-name'))).toBe('Go10x');
-    // Straight off the analysed game, not off the model's prose.
-    expect(text(root.querySelector('.review-seat-stats'))).toBe('3/8/3 · 218 CS · vision 29 · 43% KP');
+    // Straight off the analysed game, not off the model's prose — and each figure in its own box,
+    // so the farm and the vision can be found without reading a sentence of numbers.
+    expect([...root.querySelectorAll('.review-seat-stat')].map((el) => text(el))).toEqual(['3/8/3', '218 CS', 'vision 29', '43% KP']);
     expect(root.querySelector('.review-seat')).not.toBeNull();
   });
 

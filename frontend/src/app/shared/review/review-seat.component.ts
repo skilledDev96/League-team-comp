@@ -43,7 +43,11 @@ type ReviewPlayer = GameReview['players'][number];
             @if (own()) { <span class="review-seat-you" appTip="The seat you picked in the film room">You</span> }
             <small class="review-seat-role">{{ player().seat }} · {{ ui.championName(player().champion) }}</small>
           </span>
-          @if (stats()) { <span class="review-seat-stats" appTip="Straight off the game, not off the review">{{ stats() }}</span> }
+          @if (statBits().length) {
+            <span class="review-seat-stats" appTip="Straight off the game, not off the review">
+              @for (s of statBits(); track $index) { <span class="review-seat-stat">{{ s }}</span> }
+            </span>
+          }
         </div>
 
         <h5 class="review-group-label is-warn">Work on</h5>
@@ -97,6 +101,14 @@ export class ReviewSeatComponent {
   protected readonly stats = computed(() =>
     playerStatLine(gamePlayerFor(this.game(), this.player().seat, this.player().name, this.player().champion))
   );
+
+  /**
+   * The stat line split at its own separator (12 Sep 2026, the lead: "lets make the cs and vision a
+   * bit more visible"). As one muted string the farm and the vision were the hardest figures on the
+   * block to find, which is backwards — they are the two a coach checks first. Each stands in its
+   * own quiet box now, the same shape the evidence chips use, so the eye can land on one.
+   */
+  protected readonly statBits = computed(() => this.stats().split(' · ').filter(Boolean));
 
   /** What they did well, and the further work-ons — the two the panel showed nowhere until 12 Sep 2026. */
   protected readonly strength = computed<ReviewPoint | undefined>(() => {
