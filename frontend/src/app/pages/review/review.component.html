@@ -19,6 +19,7 @@
           }
         </div>
       </div>
+      @if (full()) {
       <!-- Prep is the games played to win; a game tagged as messing around
            on the Games page is out of it. -->
       <div data-tour="patterns-prep" class="field"><span id="reviewSerious">Games <a class="field-help" routerLink="/games" [queryParams]="{ tab: 'games' }" appTip="Practice games are marked on a game's row on the Games tab">marked on Games</a></span>
@@ -57,12 +58,13 @@
           }
         </div>
       </div>
-      <div class="field"><span>Figures</span><app-split-view-toggle /></div>
       <label class="field compact-field"><span>Comp</span>
-        <select name="reviewComp" [value]="compFilter()" (change)="compFilter.set($any($event.target).value)">
-          <option value="all">All comps</option>
+        <!-- selected per option, not [value] on the select: the comps arrive after the
+             select does, and a value set against an empty list falls back to All comps. -->
+        <select name="reviewComp" (change)="compFilter.set($any($event.target).value)">
+          <option value="all" [selected]="compFilter() === 'all'">All comps</option>
           @for (comp of compOptions(); track comp.id) {
-            <option [value]="comp.id">{{ comp.name }}</option>
+            <option [value]="comp.id" [selected]="compFilter() === comp.id">{{ comp.name }}</option>
           }
         </select>
       </label>
@@ -76,6 +78,7 @@
             @if (!customPlayers().size) { <small class="muted">Nobody picked: every game counts.</small> }
           </div>
         </div>
+      }
       }
       <p class="meta-line">
         <span class="meta-label">Record</span>
@@ -178,6 +181,7 @@
     @if (patternSource() === 'replay') {
       <!-- A replay has the end of the game and nothing of the clock, so no
            lane can be called; these are the totals it does carry. -->
+      <app-split-view-toggle />
       <app-column-picker table="laneTotals" [options]="totalColumns" [defaults]="totalDefaults" />
       <div class="split-scroll">
         <table class="split-table">
@@ -207,6 +211,7 @@
       </div>
       <p class="muted split-note">Totals only <app-info-tip text="A replay has end-of-game totals and nothing of the clock, so no lane can be called won or lost here; these are the totals it does carry, per player, split by result." /></p>
     } @else if (laneRows(); as t) {
+      <app-split-view-toggle />
       <app-column-picker table="lanes" [options]="laneColumns" [defaults]="laneDefaults" />
       <div class="split-scroll">
         <table class="split-table">
@@ -258,7 +263,8 @@
   @if (sections().changes) {
   <section class="card" aria-label="Wins against losses">
     <h2>What changes when we win</h2>
-    <app-column-picker table="team" [options]="teamColumns()" [defaults]="teamDefaults()" />
+    <app-split-view-toggle />
+      <app-column-picker table="team" [options]="teamColumns()" [defaults]="teamDefaults()" />
     <div class="split-scroll">
       <table class="split-table">
         <thead>

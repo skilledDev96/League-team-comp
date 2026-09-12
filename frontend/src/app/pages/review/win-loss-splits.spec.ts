@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, AnalysisPlayer } from '../../models/team.models';
-import { gameSource, keepDoing, killParticipationOf, laneTable, laneTotals, mainFiveGames, playerSplits, roleFit, seatFit, sourceOf, split, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { DEFAULT_PATTERN_FILTERS, gameSource, keepDoing, killParticipationOf, laneTable, laneTotals, mainFiveGames, PatternFilters, playerSplits, readPatternFilters, roleFit, seatFit, sourceOf, split, starterCount, teamSplits, workOn } from './win-loss-splits';
 
 const player = (name: string, position: string, over: Partial<AnalysisPlayer> = {}): AnalysisPlayer => ({
   name,
@@ -300,5 +300,59 @@ describe('playerSplits', () => {
     // The jungler never moved: one seat, every game, so no breakdown is needed but it is still listed.
     const jg = rows.find((r) => r.name === 'jungle')!;
     expect(jg.seats.map((s) => s.role + ':' + s.games)).toEqual(['Jungle:16']);
+  });
+});
+
+/**
+ * Reading the Patterns filters back (12 Sep 2026).
+ *
+ * The point of storing them is that a reader who set Tournament / everything / Any last week sees
+ * those numbers again this week. The point of validating them is that a key which outlives a
+ * renamed option must not leave the page filtering on a value it can no longer draw — so each
+ * field falls back on its own rather than the whole selection being thrown away.
+ */
+describe('the stored Patterns filters', () => {
+  const stored = (filters: Partial<PatternFilters>) => readPatternFilters(JSON.stringify(filters));
+
+  it('starts at Flex, Prep, A team, Main when nothing was ever stored', () => {
+    expect(readPatternFilters(null)).toEqual(DEFAULT_PATTERN_FILTERS);
+  });
+
+  it('gives back what was chosen', () => {
+    expect(stored({ source: 'tournament', prep: false, roles: 'any', comp: 'comp-7' })).toEqual({
+      source: 'tournament',
+      prep: false,
+      starters: 'team',
+      custom: [],
+      roles: 'any',
+      comp: 'comp-7'
+    });
+  });
+
+  it('keeps a hand-picked five, and the mode that uses it', () => {
+    const back = stored({ starters: 'custom', custom: ['Ruan', 'Milio'] });
+    expect(back.starters).toBe('custom');
+    expect(back.custom).toEqual(['Ruan', 'Milio']);
+  });
+
+  it('drops back to the A team when the hand-picked five is empty', () => {
+    // Otherwise 'custom' with nobody ticked counts every game — not what the reader chose.
+    expect(stored({ starters: 'custom', custom: [] }).starters).toBe('team');
+  });
+
+  it('falls back one field at a time when a value is no longer an option', () => {
+    const back = stored({ source: 'scrim' as never, roles: 'support' as never, comp: 'comp-7' });
+    expect(back.source).toBe('flex');
+    expect(back.roles).toBe('main');
+    expect(back.comp).toBe('comp-7');
+  });
+
+  it('survives a half-written or hostile key', () => {
+    expect(readPatternFilters('{"source":')).toEqual(DEFAULT_PATTERN_FILTERS);
+    expect(readPatternFilters('"flex"')).toEqual(DEFAULT_PATTERN_FILTERS);
+    expect(readPatternFilters(JSON.stringify({ prep: 'yes', custom: [1, 'Ruan', null] }))).toEqual({
+      ...DEFAULT_PATTERN_FILTERS,
+      custom: ['Ruan']
+    });
   });
 });

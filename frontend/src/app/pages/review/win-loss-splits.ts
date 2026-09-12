@@ -143,6 +143,57 @@ export function gameSource(game: AnalysisGame, tournamentIds: ReadonlySet<string
 
 export type RoleMode = 'main' | 'second' | 'any';
 
+/**
+ * The five filters the Patterns page keeps across visits (12 Sep 2026). They were in-memory only,
+ * so every visit reset to Flex / Prep / A team / Main and the reader paid four presses before the
+ * numbers meant what they last asked them to mean.
+ */
+export interface PatternFilters {
+  source: GameSource;
+  prep: boolean;
+  starters: 'team' | 'custom';
+  custom: readonly string[];
+  roles: RoleMode;
+  comp: string;
+}
+
+export const DEFAULT_PATTERN_FILTERS: PatternFilters = {
+  source: 'flex',
+  prep: true,
+  starters: 'team',
+  custom: [],
+  roles: 'main',
+  comp: 'all'
+};
+
+/**
+ * Read a stored selection back. Anything the page can no longer honour — a source that has been
+ * renamed, a hand-picked five with nobody left in it, a half-written value — falls back to the
+ * default for that one field rather than throwing the whole selection away.
+ */
+export function readPatternFilters(raw: string | null): PatternFilters {
+  let saved: Partial<PatternFilters> | null = null;
+  try {
+    saved = raw ? (JSON.parse(raw) as Partial<PatternFilters>) : null;
+  } catch {
+    return DEFAULT_PATTERN_FILTERS;
+  }
+  if (!saved || typeof saved !== 'object') return DEFAULT_PATTERN_FILTERS;
+
+  const custom = Array.isArray(saved.custom) ? saved.custom.filter((n): n is string => typeof n === 'string') : DEFAULT_PATTERN_FILTERS.custom;
+  const sources: readonly string[] = ['flex', 'scrimClash', 'tournament'];
+  const roles: readonly string[] = ['main', 'second', 'any'];
+  return {
+    source: sources.includes(saved.source as string) ? (saved.source as GameSource) : DEFAULT_PATTERN_FILTERS.source,
+    prep: typeof saved.prep === 'boolean' ? saved.prep : DEFAULT_PATTERN_FILTERS.prep,
+    // A custom five with nobody in it counts every game, which is not what the reader chose.
+    starters: saved.starters === 'custom' && custom.length > 0 ? 'custom' : 'team',
+    custom,
+    roles: roles.includes(saved.roles as string) ? (saved.roles as RoleMode) : DEFAULT_PATTERN_FILTERS.roles,
+    comp: typeof saved.comp === 'string' ? saved.comp : DEFAULT_PATTERN_FILTERS.comp
+  };
+}
+
 export interface RosterRoles {
   name: string;
   role: string;

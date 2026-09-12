@@ -1,7 +1,8 @@
 import { ChampionFilterService } from '../../services/champion-filter.service';
+import { UserPrefsService } from '../../services/user-prefs.service';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AnalysisGame, LaneRead } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
@@ -27,7 +28,7 @@ import {
   summarise,
   MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
-import { formatGap, formatSide, gameSource, GameSource, gapIsGood, keepDoing, laneTable, laneTotals, MetricSplit, PatternSource, roleFit, RoleMode, SideStat, sourceOf, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { formatGap, formatSide, gameSource, GameSource, gapIsGood, keepDoing, laneTable, laneTotals, MetricSplit, PatternFilters, PatternSource, readPatternFilters, roleFit, RoleMode, SideStat, sourceOf, starterCount, teamSplits, workOn } from './win-loss-splits';
 import { InfoTipComponent } from '../../shared/info-tip.component';
 
 /**
@@ -63,7 +64,7 @@ export class ReviewComponent {
 
   protected readonly offBook = OFF_BOOK;
 
-  protected readonly compFilter = signal<string>('all');
+  protected readonly compFilter = signal<string>(ReviewComponent.storedFilters().comp);
   /** Match id of the game whose objective detail is open, or null for none. */
   protected readonly expandedId = signal<string | null>(null);
 
@@ -85,8 +86,8 @@ export class ReviewComponent {
    * the Roster page), or a hand-picked set — tick three players and the games
    * those three played together count (8 Sep 2026).
    */
-  protected readonly starterMode = signal<'team' | 'custom'>('team');
-  protected readonly customPlayers = signal<ReadonlySet<string>>(new Set());
+  protected readonly starterMode = signal<'team' | 'custom'>(ReviewComponent.storedFilters().starters);
+  protected readonly customPlayers = signal<ReadonlySet<string>>(new Set(ReviewComponent.storedFilters().custom));
   private readonly starterNames = computed(() => this.data.starters().map((p) => p.name));
 
   protected toggleCustom(name: string): void {
@@ -99,7 +100,7 @@ export class ReviewComponent {
   }
 
   /** Main seat only, main or a second seat, or anywhere — as set on the Roster page. */
-  protected readonly roleMode = signal<RoleMode>('main');
+  protected readonly roleMode = signal<RoleMode>(ReviewComponent.storedFilters().roles);
   protected readonly roleSteps: { mode: RoleMode; label: string; tip: string }[] = [
     { mode: 'main', label: 'Main', tip: 'Games where all of ours sat in their main seat — the role in each player’s title, set on the Roster card in edit mode. A 0 means every game had someone off-role.' },
     { mode: 'second', label: '2nd', tip: 'Main seat or a second seat they are listed for' },
@@ -108,7 +109,7 @@ export class ReviewComponent {
   private readonly rosterRoles = computed(() => this.data.players().map((p) => ({ name: p.name, role: p.role, secondaryRoles: p.secondaryRoles })));
 
   /** Serious games only by default; a game tagged as messing around is left out. */
-  protected readonly seriousOnly = signal(true);
+  protected readonly seriousOnly = signal(ReviewComponent.storedFilters().prep);
 
   /** Comp and champion filters applied, every game, tagged or not. */
   private readonly taggedOrNot = computed<AnalysisGame[]>(() => {
@@ -133,7 +134,15 @@ export class ReviewComponent {
    * reads are. Whether the read is Riot's or a replay's follows from the
    * games themselves (`patternSource`).
    */
-  protected readonly sourceMode = signal<GameSource>('flex');
+  /**
+   * How much of this tab to draw (12 Sep 2026). Starter is the conclusion — Work on and Keep doing,
+   * the record, and the four section chips — because that is what a reader acts on; the twelve
+   * filters that change what the numbers MEAN are things they check, and they wait for Full.
+   */
+  private readonly userPrefs = inject(UserPrefsService);
+  protected readonly full = computed(() => this.userPrefs.depthOf('patterns') === 'full');
+
+  protected readonly sourceMode = signal<GameSource>(ReviewComponent.storedFilters().source);
   protected readonly sourceSteps: { source: GameSource; label: string; tip: string }[] = [
     { source: 'flex', label: 'Flex', tip: 'Ranked flex: per-minute figures, lane reads, the lot' },
     { source: 'scrimClash', label: 'Scrims + Clash', tip: 'Practice against a team: scrims from replay files and Clash' },
@@ -178,6 +187,23 @@ export class ReviewComponent {
 
   // ---- The long sections behind chips, remembered per browser ----
 
+  /**
+   * The filters, kept across visits (12 Sep 2026). They were in-memory only, so every visit reset
+   * to Flex / Prep / A team / Main — a tax on a tab the team opens weekly, and four presses before
+   * the numbers meant what the reader last asked them to mean. Per browser, like the sections' key
+   * beside it: which games you were last looking at is a place in the page, not a preference about
+   * yourself. A stored value that is no longer a valid option falls back to the default.
+   */
+  private static readonly FILTERS_KEY = 'bom-patterns-filters';
+
+  private static storedFilters(): PatternFilters {
+    try {
+      return readPatternFilters(localStorage.getItem(ReviewComponent.FILTERS_KEY));
+    } catch {
+      return readPatternFilters(null);
+    }
+  }
+
   private static readonly SECTIONS_KEY = 'bom-patterns-sections';
   protected readonly sectionSteps: { key: SectionKey; label: string }[] = [
     { key: 'lanes', label: 'Lanes' },
@@ -186,6 +212,23 @@ export class ReviewComponent {
     { key: 'games', label: 'Game by game' }
   ];
   protected readonly sections = signal<Record<SectionKey, boolean>>(this.storedSections());
+
+  /** Every filter read together, so one effect covers all of them and none can be forgotten. */
+  private readonly remember = effect(() => {
+    const saved = {
+      source: this.sourceMode(),
+      prep: this.seriousOnly(),
+      starters: this.starterMode(),
+      custom: [...this.customPlayers()],
+      roles: this.roleMode(),
+      comp: this.compFilter()
+    };
+    try {
+      localStorage.setItem(ReviewComponent.FILTERS_KEY, JSON.stringify(saved));
+    } catch {
+      // A private window: the filters last the page instead.
+    }
+  });
 
   private storedSections(): Record<SectionKey, boolean> {
     const closed: Record<SectionKey, boolean> = { lanes: false, changes: false, recurring: false, games: false };
