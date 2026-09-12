@@ -403,6 +403,37 @@ export function teamSplits(games: readonly AnalysisGame[], topName?: string, sou
   return source === 'replay' ? all.filter((x) => x.needs === 'any') : all;
 }
 
+/**
+ * What each row of the team table counts (12 Sep 2026).
+ *
+ * Nineteen rows carried a label and nothing else, and several of them are only obvious to
+ * whoever wrote them: "Vision per minute" is Riot's vision score over the clock and not a
+ * count of wards, "Biggest damage share" is one player's share and not the team's, and a
+ * plate is credited to everyone who took part so the honest figure is per player. A
+ * definition a reader wants once belongs in a tip, where it costs no height.
+ */
+export const METRIC_TIPS: Record<string, string> = {
+  killShare: 'Our kills as a share of every kill in the game. 50% is an even fight; it says nothing about who was ahead in gold.',
+  deaths: 'Deaths by the whole team in a game, all five added up.',
+  timeDead: 'Minutes the team spent waiting to respawn, added up across the five. It climbs with the clock as timers get longer, so compare games of similar length.',
+  vision: "Riot's vision score per player, per minute — wards placed, wards cleared and time an enemy ward was denied, over the clock. Not a count of wards.",
+  visionScore: "Riot's vision score per player over the whole game, so a long game scores higher than a short one at the same rate.",
+  controlWards: 'Control wards bought by the team in a game, all five added up.',
+  wardTakedowns: 'Enemy wards the team destroyed in a game.',
+  dragons: 'Dragons we took. Elder counts as one.',
+  barons: 'Barons we took.',
+  towers: 'Towers we destroyed, inhibitor turrets and nexus turrets included.',
+  grubs: 'Voidgrubs we took, out of the six that spawn.',
+  heralds: 'Rift Heralds we took.',
+  firstBlood: 'Share of games where we drew first blood.',
+  firstTower: 'Share of games where we took the first tower.',
+  plates: 'Turret plates per player. Riot credits a plate to everyone who took part, so adding the five up counts one plate several times.',
+  soloKills: 'Kills taken with nobody else of ours in on it.',
+  tpTop: 'Kills and assists our Top was in on within a few seconds of a Teleport — the flank that lands, not the lane reset.',
+  damageBalance: 'The biggest single share of the team damage. High means one player carried the damage; even means the whole team did.',
+  goldBalance: "The biggest single share of the team's gold per minute. High means the gold went to one lane."
+};
+
 // ---- Lane totals: what a replay can say about a lane ---------------------------
 
 export interface LaneTotalRow {
@@ -608,10 +639,18 @@ export interface Advice {
   evidence?: Sample[];
   /** How to print an evidence value. */
   evidenceUnit?: MetricSplit['unit'] | 'diff';
+  /** What the evidence value IS, printed after it — a column of bare "+143" says nothing. */
+  evidenceLabel?: string;
 }
 
 interface Scored extends Advice {
   effect: number;
+  /**
+   * What the line is about, where two rules read the same thing at different rates
+   * (12 Sep 2026). Only the stronger of a topic survives, so a reader is never given the
+   * same advice twice in different arithmetic. Defaults to the line's own key.
+   */
+  topic?: string;
 }
 
 /** Lane lost (or won) in at least this share of losses (wins)… */
@@ -656,6 +695,27 @@ const TAKE = 4;
 const EVIDENCE_TAKE = 12;
 
 /** Which metric a rule's key averaged, so its games can be shown. */
+/**
+ * What an evidence figure is, printed after it. A column of bare signed numbers is the
+ * complaint this tab is being rewritten for: the reader has to remember which line they
+ * opened to know what the number counts.
+ */
+const EVIDENCE_LABEL: Record<string, string> = {
+  vision: 'vision score',
+  visionScore: 'vision score',
+  controlWards: 'control wards',
+  tpTop: 'Teleport takedowns',
+  deaths: 'deaths',
+  firstBlood: 'of games with first blood',
+  dragons: 'dragons',
+  soloKills: 'solo kills',
+  damageBalance: 'to the biggest damage share',
+  plates: 'plates per player',
+  towers: 'towers',
+  barons: 'barons',
+  goldBalance: 'to the biggest gold share'
+};
+
 const EVIDENCE_METRIC: Record<string, string> = {
   vision: 'vision', controlWards: 'controlWards', tp: 'tpTop', deaths: 'deaths', early: 'firstBlood', dragons: 'dragons',
   solo: 'soloKills', damage: 'damageBalance', plates: 'plates', towers: 'towers', visionScore: 'visionScore',
@@ -674,10 +734,19 @@ function withEvidence(
   team: Map<string, MetricSplit>,
   laneVerdict: 'lost' | 'won'
 ): Advice[] {
+  const seenTopic = new Set<string>();
+  const seenStrong = new Set<string>();
   return out
     .sort((a, b) => b.effect - a.effect)
+    .filter((a) => {
+      const topic = a.topic ?? a.key;
+      if (seenTopic.has(topic) || seenStrong.has(a.strong)) return false;
+      seenTopic.add(topic);
+      seenStrong.add(a.strong);
+      return true;
+    })
     .slice(0, TAKE)
-    .map(({ effect: _e, ...a }) => {
+    .map(({ effect: _e, topic: _t, ...a }) => {
       if (a.key.startsWith('lane-')) {
         const subject = subjects.find((s) => `lane-${s.key}` === a.key);
         const evidence: Sample[] = [];
@@ -686,11 +755,11 @@ function withEvidence(
           if (lane?.verdict === laneVerdict) evidence.push({ matchId: g.matchId, date: g.date, win: g.win, value: lane.goldPerMinDiff ?? 0 });
         }
         evidence.sort((x, y) => y.date - x.date);
-        return { ...a, evidence: evidence.slice(0, EVIDENCE_TAKE), evidenceUnit: 'diff' as const };
+        return { ...a, evidence: evidence.slice(0, EVIDENCE_TAKE), evidenceUnit: 'diff' as const, evidenceLabel: 'gold/min' };
       }
       const metric = team.get(EVIDENCE_METRIC[a.key] ?? '');
       return metric?.split.samples
-        ? { ...a, evidence: metric.split.samples.slice(0, EVIDENCE_TAKE), evidenceUnit: metric.unit }
+        ? { ...a, evidence: metric.split.samples.slice(0, EVIDENCE_TAKE), evidenceUnit: metric.unit, evidenceLabel: EVIDENCE_LABEL[metric.key] }
         : a;
     });
 }
@@ -733,7 +802,7 @@ export function workOn(games: readonly AnalysisGame[], by: LaneBy = 'seat', rost
 
   const vision = s('vision');
   if (enough(vision) && vision.gap !== undefined && vision.gap >= VISION_GAP) {
-    out.push({ key: 'vision', strong: 'Vision drops in losses', rest: `${vision.losses.mean}/min per player against ${vision.wins.mean}/min in wins. Control ward on every back; sweep before dragon and baron.`, n: nOf(vision), effect: vision.gap / VISION_GAP });
+    out.push({ key: 'vision', topic: 'vision', strong: 'Vision per minute drops in losses', rest: `${vision.losses.mean}/min per player against ${vision.wins.mean}/min in wins. Control ward on every back; sweep before dragon and baron.`, n: nOf(vision), effect: vision.gap / VISION_GAP });
   }
   const wards = s('controlWards');
   if (enough(wards) && wards.gap !== undefined && wards.gap >= CONTROL_WARD_GAP) {
@@ -788,7 +857,7 @@ export function workOn(games: readonly AnalysisGame[], by: LaneBy = 'seat', rost
   }
   const visionScore = s('visionScore');
   if (enough(visionScore) && visionScore.gap !== undefined && visionScore.gap >= VISION_SCORE_GAP) {
-    out.push({ key: 'visionScore', strong: 'Vision drops in losses', rest: `${visionScore.losses.mean} vision score per player against ${visionScore.wins.mean} in wins. Control ward on every back; sweep before dragon and baron.`, n: nOf(visionScore), effect: visionScore.gap / VISION_SCORE_GAP });
+    out.push({ key: 'visionScore', topic: 'vision', strong: 'Vision score drops in losses', rest: `${visionScore.losses.mean} vision score per player against ${visionScore.wins.mean} in wins. Control ward on every back; sweep before dragon and baron.`, n: nOf(visionScore), effect: visionScore.gap / VISION_SCORE_GAP });
   }
   const barons = s('barons');
   if (enough(barons) && barons.gap !== undefined && barons.gap >= BARON_GAP) {
@@ -850,7 +919,7 @@ export function keepDoing(games: readonly AnalysisGame[], by: LaneBy = 'seat', r
   }
   const visionScore = s('visionScore');
   if (enough(visionScore) && visionScore.gap !== undefined && visionScore.gap >= VISION_SCORE_GAP) {
-    out.push({ key: 'visionScore', strong: 'Vision comes with the wins', rest: `${visionScore.wins.mean} vision score per player against ${visionScore.losses.mean} in losses.`, n: nOf(visionScore), effect: visionScore.gap / VISION_SCORE_GAP });
+    out.push({ key: 'visionScore', topic: 'vision', strong: 'Vision score comes with the wins', rest: `${visionScore.wins.mean} vision score per player against ${visionScore.losses.mean} in losses.`, n: nOf(visionScore), effect: visionScore.gap / VISION_SCORE_GAP });
   }
   const barons = s('barons');
   if (enough(barons) && barons.gap !== undefined && barons.gap >= BARON_GAP) {

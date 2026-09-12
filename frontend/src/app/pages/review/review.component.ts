@@ -28,7 +28,7 @@ import {
   summarise,
   MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
-import { formatGap, formatSide, gameSource, GameSource, gapIsGood, keepDoing, laneTable, laneTotals, MetricSplit, PatternFilters, PatternSource, readPatternFilters, roleFit, RoleMode, SideStat, sourceOf, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { formatGap, formatSide, gameSource, GameSource, gapIsGood, keepDoing, laneTable, laneTotals, METRIC_TIPS, MetricSplit, PatternFilters, PatternSource, readPatternFilters, roleFit, RoleMode, SideStat, sourceOf, starterCount, teamSplits, workOn } from './win-loss-splits';
 import { InfoTipComponent } from '../../shared/info-tip.component';
 
 /**
@@ -382,6 +382,11 @@ export class ReviewComponent {
 
   protected side(s: SideStat, unit: MetricSplit['unit'] | 'diff'): string {
     return formatSide(s, unit);
+  }
+
+  /** What a row of the team table counts. Empty for a row nobody has written one for yet. */
+  protected metricTip(key: string): string {
+    return METRIC_TIPS[key] ?? '';
   }
 
   protected gapOf(m: { split: { gap?: number }; unit: MetricSplit['unit'] | 'diff' }): string {

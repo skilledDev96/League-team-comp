@@ -264,6 +264,42 @@ describe('evidence', () => {
     expect(lane.evidence![0].value).toBe(-45);
     expect(lane.evidenceUnit).toBe('diff');
   });
+
+  it('says what each figure counts, because a column of bare numbers does not', () => {
+    const games = botLaneStory(8, (win) => ({ deaths: win ? 1 : 6 })).map((g, i) => ({ ...g, date: i }));
+    expect(workOn(games).find((a) => a.key === 'deaths')!.evidenceLabel).toBe('deaths');
+    expect(workOn(games).find((a) => a.key === 'lane-ADC')!.evidenceLabel).toBe('gold/min');
+  });
+});
+
+/**
+ * Two rules read vision: one over the clock (Riot's vision score per minute) and one over the
+ * whole game. Both used to print the headline "Vision drops in losses", so the tab could give the
+ * same advice twice and the reader could not tell which figure either line was quoting.
+ */
+describe('one line per subject', () => {
+  const visionBoth = (n: number) =>
+    botLaneStory(n, (win) => ({ facts: { visionPerMin: win ? 2.0 : 1.0 }, visionScore: win ? 40 : 18 }));
+
+  it('keeps the stronger of two rules reading the same thing', () => {
+    const keys = workOn(visionBoth(8)).map((a) => a.key);
+    expect(keys.filter((k) => k === 'vision' || k === 'visionScore')).toHaveLength(1);
+  });
+
+  it('names the figure each vision line is quoting', () => {
+    const workOnLine = workOn(visionBoth(8)).find((a) => a.key === 'vision' || a.key === 'visionScore')!;
+    expect(workOnLine.strong).toMatch(/^Vision (per minute|score) drops in losses$/);
+    const keepLine = keepDoing(visionBoth(8)).find((a) => a.key === 'visionScore');
+    if (keepLine) expect(keepLine.strong).toBe('Vision score comes with the wins');
+  });
+
+  it('never prints the same headline twice', () => {
+    const advice = [...workOn(visionBoth(8)), ...keepDoing(visionBoth(8))];
+    for (const list of [workOn(visionBoth(8)), keepDoing(visionBoth(8))]) {
+      expect(new Set(list.map((a) => a.strong)).size).toBe(list.length);
+    }
+    expect(advice.length).toBeGreaterThan(0);
+  });
 });
 
 describe('keepDoing', () => {

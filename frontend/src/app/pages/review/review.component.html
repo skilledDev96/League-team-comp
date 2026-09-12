@@ -137,6 +137,7 @@
               <span class="form-pip" [class.win]="e.win" [class.loss]="!e.win">{{ e.win ? 'W' : 'L' }}</span>
               <span class="muted">{{ e.date | date: 'd MMM' }}</span>
               <b>{{ side({ mean: e.value, n: 1 }, a.evidenceUnit ?? 'count') }}</b>
+              @if (a.evidenceLabel) { <span class="muted">{{ a.evidenceLabel }}</span> }
               <a [routerLink]="['/games']" [queryParams]="{ match: e.matchId }">open</a>
             </li>
           }
@@ -269,7 +270,7 @@
       <table class="split-table">
         <thead>
           <tr>
-            <th scope="col">Per game</th>
+            <th scope="col">Per game <app-info-tip text="Every row is an average over the games in the selection. Hover an underlined name for what it counts." label="What the rows are" /></th>
             @if (prefs.view() === 'wl') {
               <th scope="col" class="num">Wins</th>
               <th scope="col" class="num">Losses</th>
@@ -282,7 +283,13 @@
         <tbody>
           @for (m of shownTeamRows(); track m.key) {
             <tr [class.is-thin]="prefs.view() === 'wl' ? (m.split.wins.n < claimFloor || m.split.losses.n < claimFloor) : m.split.all.n < claimFloor">
-              <td>{{ m.label }}</td>
+              <td>
+                @if (metricTip(m.key); as tip) {
+                  <span class="tip-term" [appTip]="tip" tabindex="0">{{ m.label }}</span>
+                } @else {
+                  {{ m.label }}
+                }
+              </td>
               @if (prefs.view() === 'wl') {
                 <td class="num">{{ side(m.split.wins, m.unit) }} <small>{{ m.split.wins.n ? m.split.wins.n : '' }}</small></td>
                 <td class="num">{{ side(m.split.losses, m.unit) }} <small>{{ m.split.losses.n ? m.split.losses.n : '' }}</small></td>

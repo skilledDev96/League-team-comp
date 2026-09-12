@@ -14230,6 +14230,12 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .field-help { margin-left: 0.4rem; font-size: 0.68rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-1); text-decoration: underline dotted; }
 .field-help:hover { color: var(--accent); }
 
+/* A term with a definition behind it. Nineteen rows of the team table are named
+   and not explained; an info icon on each would be nineteen icons, so the label
+   itself carries the dotted underline that has always meant "there is more here". */
+.tip-term { text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, var(--text-1) 60%, transparent); text-underline-offset: 0.2rem; cursor: help; }
+.tip-term:hover, .tip-term:focus-visible { color: var(--accent); text-decoration-color: var(--accent); }
+
 
 /* ---- Tours: the spotlight and the card ------------------------------------ */
 .tour-layer { position: fixed; inset: 0; z-index: 300; pointer-events: none; }
