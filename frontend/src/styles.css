@@ -14413,7 +14413,7 @@ button .player-mark { vertical-align: -0.3rem; }
 .review-seat .review-group-label:first-of-type { margin-top: 0.1rem; }
 /* A pill, because that is what everything clickable in this app is — it was a <summary> in small
    capitals with a disclosure triangle, and nobody could tell it opened. */
-.review-seat-fold { align-self: start; margin-top: 0.45rem; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.74rem; color: var(--text-1); }
+.review-seat-fold { justify-self: start; margin-top: 0.45rem; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.74rem; color: var(--text-1); }
 .review-seat-fold:hover, .review-seat-fold:focus-visible { color: var(--text-0); border-color: var(--accent); }
 .review-seat-fold .material-symbols-rounded { font-size: 1rem; }
 .review-seat > app-review-point { display: block; }
