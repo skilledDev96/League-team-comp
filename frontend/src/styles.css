@@ -15655,3 +15655,204 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
   @keyframes home-sheen { from { opacity: 1; transform: translateX(-110%); } to { opacity: 1; transform: translateX(110%); } }
   @keyframes home-blink { 50% { opacity: 0.3; } }
 }
+
+/* Home's bento (13 Sep 2026): twelve columns, every cell the same size as its placeholder shell, so the
+   tiles land without moving anything. */
+.home-bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 1rem; }
+.home-cell { display: block; min-width: 0; }
+.home-cell > .home-tile { height: 100%; box-sizing: border-box; }
+.home-cell-podium { grid-column: span 4; min-height: 16rem; }
+.home-cell-record { grid-column: span 3; min-height: 16rem; }
+.home-cell-trend { grid-column: span 5; min-height: 16rem; }
+.home-cell-comp, .home-cell-records { grid-column: span 6; min-height: 16.75rem; }
+.home-cell-advice { grid-column: 1 / -1; min-height: 14.5rem; }
+.home-cell-lineup { grid-column: 1 / -1; min-height: 19rem; }
+.home-cell-objectives { grid-column: 1 / -1; min-height: 12.25rem; }
+.home-cell-trophies { grid-column: 1 / -1; min-height: 19.25rem; }
+.home-tile { display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
+.home-tile-shell { background: color-mix(in srgb, var(--card) 60%, transparent); box-shadow: none; }
+.home-tile-note { margin: 0; font-size: 0.76rem; color: var(--text-2); }
+.home-tile-empty { flex: 1; display: grid; place-items: center; align-content: center; gap: 0.35rem; text-align: center; color: var(--text-1); font-size: 0.86rem; }
+.home-tile-empty p { margin: 0; max-width: 28rem; }
+.home-tile-empty .material-symbols-rounded { font-size: 2rem; color: color-mix(in srgb, var(--accent-2) 70%, transparent); }
+.home-tile-error { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.home-tile-error p { margin: 0; color: var(--text-1); }
+.home-card-head .home-pill { font-size: 0.74rem; }
+
+/* Podium */
+.home-podium-steps { list-style: none; margin: auto 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 0.5rem; }
+.home-podium-step { display: grid; justify-items: center; gap: 0.4rem; min-width: 0; }
+.home-podium-who { display: grid; justify-items: center; gap: 0.25rem; min-height: 3.6rem; align-content: end; }
+.home-podium-person { display: grid; justify-items: center; gap: 0.15rem; min-width: 0; }
+.home-podium-person .avatar { width: 2.3rem; height: 2.3rem; }
+.home-podium-step.is-first .home-podium-person .avatar { width: 2.9rem; height: 2.9rem; box-shadow: 0 0 0 2px var(--accent-2); }
+.home-podium-person b { max-width: 7rem; font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-podium-open { display: grid; place-items: center; width: 2.3rem; height: 2.3rem; border-radius: 50%; border: 1px dashed var(--card-border); color: var(--text-2); font-family: "Chakra Petch", sans-serif; }
+.home-podium-block { width: 100%; display: grid; justify-items: center; align-content: start; gap: 0.1rem; padding-top: 0.4rem; border-radius: 10px 10px 4px 4px; transform-origin: bottom center;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 30%, var(--card)), color-mix(in srgb, var(--accent) 8%, var(--card))); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.home-podium-step:nth-child(1) .home-podium-block { height: 4.2rem; }
+.home-podium-step.is-first .home-podium-block { height: 5.8rem; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-2) 45%, var(--card)), color-mix(in srgb, var(--accent) 12%, var(--card))); }
+.home-podium-step:nth-child(3) .home-podium-block { height: 3.2rem; }
+.home-podium-step.is-empty .home-podium-block { background: transparent; border-style: dashed; border-color: var(--card-border); }
+.home-podium-place { font-family: "Chakra Petch", sans-serif; font-size: 1.4rem; font-weight: 700; line-height: 1; color: var(--text-0); }
+.home-podium-block small { font-size: 0.66rem; color: var(--text-1); }
+
+/* Record donut */
+.home-record-body { flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 1rem; }
+.home-donut { position: relative; margin: 0; width: 8.5rem; height: 8.5rem; }
+.home-donut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.home-donut circle { fill: none; stroke-width: 4.2; }
+.home-donut-track { stroke: color-mix(in srgb, var(--text-1) 16%, transparent); }
+.home-donut-part.is-win { stroke: var(--ok); }
+.home-donut-part.is-loss { stroke: var(--warn); }
+.home-donut-centre { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; }
+.home-donut-centre b { font-family: "Chakra Petch", sans-serif; font-size: 1.6rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.home-donut-centre small { font-size: 0.7rem; color: var(--text-2); }
+.home-record-facts { margin: 0; display: grid; gap: 0.35rem; font-size: 0.82rem; }
+.home-record-facts div { display: flex; justify-content: space-between; gap: 0.5rem; }
+.home-record-facts dt { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--text-1); }
+.home-record-facts dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.home-key { width: 0.6rem; height: 0.6rem; border-radius: 2px; }
+.home-key.is-win { background: var(--ok); }
+.home-key.is-loss { background: var(--warn); }
+
+/* Form trend */
+.home-trend-chart { position: relative; flex: 1; min-height: 9rem; margin: 0; }
+.home-trend-chart svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.home-trend-even { stroke: color-mix(in srgb, var(--text-1) 35%, transparent); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.home-trend-line { fill: none; stroke: var(--accent-2); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.home-trend-flag { stroke: color-mix(in srgb, var(--text-1) 30%, transparent); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.home-trend-flag.is-win { stroke: color-mix(in srgb, var(--ok) 55%, transparent); }
+.home-trend-flag.is-loss { stroke: color-mix(in srgb, var(--warn) 55%, transparent); }
+.home-trend-dot { position: absolute; width: 0.5rem; height: 0.5rem; margin: -0.25rem 0 0 -0.25rem; border-radius: 50%; border: 1px solid var(--bg-1); }
+.home-trend-dot.is-win { background: var(--ok); }
+.home-trend-dot.is-loss { background: var(--warn); }
+.home-trend-marker { position: absolute; top: -0.2rem; margin-left: -0.55rem; display: grid; place-items: center; width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--card); color: var(--text-1); cursor: help; }
+.home-trend-marker .material-symbols-rounded { font-size: 0.85rem; }
+.home-trend-marker.is-win { color: var(--ok); }
+.home-trend-marker.is-loss { color: var(--warn); }
+.home-trend-marker:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.home-trend-wait { position: absolute; inset: auto 0 0.3rem; margin: 0; text-align: center; font-size: 0.8rem; color: var(--text-1); }
+
+/* Comp of the month */
+.home-comp-body { flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 1.1rem; }
+.home-comp-faces { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 3.2rem); gap: 0.4rem; }
+.home-comp-face { display: grid; justify-items: center; gap: 0.2rem; }
+.home-comp-face img, .home-comp-face-empty { width: 3.2rem; height: 3.2rem; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); object-fit: cover; }
+.home-comp-face-empty { border-style: dashed; }
+.home-comp-face small { font-size: 0.62rem; color: var(--text-2); }
+.home-comp-stats { display: grid; justify-items: start; gap: 0.2rem; min-width: 0; }
+.home-comp-stats p { margin: 0; }
+.home-comp-name { font-family: "Chakra Petch", sans-serif; font-size: 1.35rem; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
+.home-comp-rate { font-size: 0.85rem; color: var(--text-1); }
+.home-comp-rate b { font-family: "Chakra Petch", sans-serif; font-size: 1.6rem; color: var(--text-0); }
+.home-comp-rate.is-good b, .home-comp-rate.is-ok b { color: var(--ok); }
+.home-comp-rate.is-poor b { color: var(--warn); }
+.home-comp-stats .home-pill { margin-top: 0.35rem; }
+
+/* Records to beat */
+.home-records-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+.home-records-row { display: grid; grid-template-columns: 2rem 8.5rem 3.5rem minmax(0, 1fr); align-items: center; gap: 0.6rem; padding: 0.35rem 0.5rem; border-radius: 10px; background: color-mix(in srgb, var(--text-1) 5%, transparent); }
+.home-records-icon { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 8px; font-size: 1.15rem; color: var(--accent-2); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.home-records-label { font-size: 0.8rem; color: var(--text-1); }
+.home-records-value { font-family: "Chakra Petch", sans-serif; font-size: 1.25rem; font-variant-numeric: tabular-nums; text-align: right; }
+.home-records-who { min-width: 0; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-records-who small { margin-left: 0.4rem; color: var(--text-2); }
+.home-records-row.is-empty .home-records-who { color: var(--text-2); font-style: italic; }
+.home-records-row.is-empty .home-records-value { color: var(--text-2); }
+
+/* Do well / work on */
+.home-advice-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.home-advice-col { padding: 0.7rem 0.9rem; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent); }
+.home-advice-col.is-good { background: color-mix(in srgb, var(--ok) 7%, transparent); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+.home-advice-col.is-work { background: color-mix(in srgb, var(--warn) 6%, transparent); border-color: color-mix(in srgb, var(--warn) 28%, transparent); }
+.home-advice-col h3 { margin: 0 0 0.4rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; }
+.home-advice-col.is-good h3 .material-symbols-rounded { color: var(--ok); font-size: 1.1rem; }
+.home-advice-col.is-work h3 .material-symbols-rounded { color: var(--warn); font-size: 1.1rem; }
+.home-advice-line { margin: 0 0 0.35rem; font-size: 0.84rem; color: var(--text-1); line-height: 1.4; }
+.home-advice-line strong { color: var(--text-0); }
+.home-advice-line small { color: var(--text-2); }
+
+/* The lineup */
+.home-lineup-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.75rem; flex: 1; }
+.home-lineup-card { position: relative; overflow: hidden; isolation: isolate; height: 100%; min-height: 14.5rem; display: flex; flex-direction: column; justify-content: space-between; padding: 0.7rem; border-radius: 12px; border: 1px solid var(--card-border); background: var(--bg-1); color: var(--text-0); text-decoration: none; }
+.home-lineup-card:hover, .home-lineup-card:focus-visible { border-color: var(--accent); text-decoration: none; }
+.home-lineup-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.home-lineup-card.is-crowned { border-color: color-mix(in srgb, var(--accent) 75%, transparent); box-shadow: 0 0 1.4rem color-mix(in srgb, var(--accent) 18%, transparent); }
+.home-lineup-art { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; filter: saturate(0.9) brightness(0.8); }
+.home-lineup-shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 94%, transparent) 0%, color-mix(in srgb, var(--bg-0) 40%, transparent) 50%, color-mix(in srgb, var(--bg-0) 20%, transparent) 100%); }
+.home-lineup-crown { position: absolute; top: 0.55rem; left: 50%; margin-left: -0.75rem; font-size: 1.5rem; color: var(--accent-2); filter: drop-shadow(0 0.1rem 0.4rem color-mix(in srgb, var(--bg-0) 80%, transparent)); }
+.home-lineup-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.4rem; }
+.home-lineup-role { padding: 0.12rem 0.5rem; border-radius: 999px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: color-mix(in srgb, var(--bg-0) 70%, transparent); border: 1px solid var(--card-border); }
+.home-ring { position: relative; display: grid; place-items: center; width: 2.9rem; height: 2.9rem; }
+.home-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.home-ring circle { fill: none; stroke-width: 3.4; }
+.home-ring-track { stroke: color-mix(in srgb, var(--bg-0) 60%, transparent); }
+.home-ring-fill { stroke: var(--text-1); stroke-linecap: round; }
+.home-ring.is-good .home-ring-fill, .home-ring.is-ok .home-ring-fill { stroke: var(--ok); }
+.home-ring.is-poor .home-ring-fill { stroke: var(--warn); }
+.home-ring b { position: relative; font-family: "Chakra Petch", sans-serif; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.home-lineup-foot { display: grid; gap: 0.1rem; min-width: 0; }
+.home-lineup-name { font-family: "Chakra Petch", sans-serif; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-lineup-foot small { font-size: 0.72rem; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-lineup-queue { color: var(--text-2); }
+.home-lineup-foot .home-lineup-games { color: var(--text-2); }
+
+/* Objective control */
+.home-objectives-body { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; gap: 1.25rem; align-items: center; }
+.home-objectives-bars { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem 1.5rem; }
+.home-objectives-row { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) 2.8rem; align-items: center; gap: 0.6rem; font-size: 0.82rem; }
+.home-objectives-label { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--text-1); }
+.home-objectives-label .material-symbols-rounded { font-size: 1rem; color: var(--accent-2); }
+.home-objectives-bar { position: relative; height: 0.55rem; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--warn) 45%, var(--card)); }
+.home-objectives-ours { position: absolute; inset: 0; border-radius: inherit; background: var(--ok); transform-origin: left center; transform: scaleX(var(--home-share, 0.5)); }
+.home-objectives-row.is-empty .home-objectives-bar { background: color-mix(in srgb, var(--text-1) 14%, transparent); }
+.home-objectives-row.is-empty .home-objectives-ours { background: transparent; }
+.home-objectives-figure { font-family: "Chakra Petch", sans-serif; font-variant-numeric: tabular-nums; text-align: right; }
+.home-objectives-firsts { margin: 0; display: grid; gap: 0.5rem; }
+.home-objectives-firsts div { padding: 0.5rem 0.7rem; border-radius: 10px; background: color-mix(in srgb, var(--text-1) 6%, transparent); }
+.home-objectives-firsts dt { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+.home-objectives-firsts dd { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.05rem; }
+
+/* Trophy cabinet */
+.home-trophy-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.6rem; }
+.home-trophy { display: grid; justify-items: center; align-content: start; gap: 0.25rem; padding: 0.7rem 0.4rem; border-radius: 12px; text-align: center; border: 1px dashed var(--card-border); color: var(--text-2); cursor: help; }
+.home-trophy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.home-trophy-icon { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; font-size: 1.4rem; background: color-mix(in srgb, var(--text-1) 8%, transparent); }
+.home-trophy-title { font-size: 0.76rem; line-height: 1.2; }
+.home-trophy small { font-size: 0.66rem; }
+.home-trophy.is-earned { border-style: solid; border-color: color-mix(in srgb, var(--accent) 50%, transparent); color: var(--text-0); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.home-trophy.is-earned .home-trophy-icon { color: var(--bg-0); background: linear-gradient(145deg, var(--accent-2), var(--accent)); box-shadow: 0 0 1rem color-mix(in srgb, var(--accent) 35%, transparent); }
+.home-trophy.is-earned small { color: var(--text-1); }
+.home-trophy-progress { width: 80%; height: 0.3rem; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--text-1) 14%, transparent); }
+.home-trophy-progress span { display: block; height: 100%; background: var(--accent); transform-origin: left center; transform: scaleX(var(--home-share, 0)); }
+
+@media (max-width: 62rem) {
+  .home-cell-podium, .home-cell-record, .home-cell-trend, .home-cell-comp, .home-cell-records { grid-column: 1 / -1; }
+  .home-lineup-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-objectives-body, .home-objectives-bars, .home-advice-cols { grid-template-columns: minmax(0, 1fr); }
+  .home-trophy-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home:not(.is-still) .home-tile.is-seen { animation: film-rise 600ms ease backwards; }
+  .home:not(.is-still) .home-tile:not(.is-seen) > * { opacity: 0; }
+  .home:not(.is-still) .home-podium.is-seen .home-podium-block { animation: home-step-rise 800ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(250ms + var(--home-i, 0) * 120ms); }
+  .home-podium-step.is-first { --home-i: 1; }
+  .home-podium-step:nth-child(3) { --home-i: 2; }
+  .home:not(.is-still) .home-podium.is-seen .home-podium-who { animation: film-drop 500ms ease backwards; animation-delay: calc(700ms + var(--home-i, 0) * 120ms); }
+  .home:not(.is-still) .home-record.is-seen .home-donut-part { animation: home-ring-draw 1100ms cubic-bezier(0.3, 0.7, 0.2, 1) 200ms backwards; }
+  .home:not(.is-still) .home-lineup.is-seen .home-ring-fill { animation: home-ring-draw 1000ms cubic-bezier(0.3, 0.7, 0.2, 1) 300ms backwards; }
+  /* A wipe rather than a dash: the chart stretches to its box with non-scaling strokes, and a dash length does not survive that. */
+  .home:not(.is-still) .home-trend.is-seen .home-trend-chart svg { animation: film-wipe 1400ms ease-out 200ms backwards; }
+  .home:not(.is-still) .home-trend.is-seen :is(.home-trend-dot, .home-trend-marker) { animation: home-fade-in 500ms ease 1300ms backwards; }
+  .home:not(.is-still) .home-objectives.is-seen .home-objectives-ours,
+  .home:not(.is-still) .home-trophies.is-seen .home-trophy-progress span { animation: home-bar-grow 900ms cubic-bezier(0.2, 0.7, 0.2, 1) 250ms backwards; }
+  .home:not(.is-still) .home-trophies.is-seen .home-trophy.is-earned .home-trophy-icon { animation: home-stamp 600ms ease 300ms backwards; }
+  .home:not(.is-still) .home-lineup-card { transition: border-color 160ms ease, transform 200ms ease; }
+  .home:not(.is-still) .home-lineup-card:hover .home-lineup-art { transform: scale(1.04); }
+  .home:not(.is-still) .home-lineup-art { transition: transform 600ms ease; }
+  @keyframes home-step-rise { from { transform: scaleY(0); } }
+  @keyframes home-ring-draw { from { stroke-dasharray: 0 100; } }
+  @keyframes home-stamp { from { opacity: 0; transform: scale(1.5) rotate(-8deg); } }
+}

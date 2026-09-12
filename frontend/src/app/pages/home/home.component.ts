@@ -7,6 +7,7 @@ import { UserPrefsService } from '../../services/user-prefs.service';
 import { HomeHeroComponent } from './home-hero.component';
 import { HomeRaceComponent } from './home-race.component';
 import { HomeSpotlightComponent } from './home-spotlight.component';
+import { HomeTilesComponent } from './home-tiles.component';
 import { HomeWelcomeComponent } from './home-welcome.component';
 
 const SEASON_KEY = 'bom-home-season';
@@ -42,7 +43,7 @@ function writeStored(key: string, value: string): void {
  */
 @Component({
   selector: 'app-home',
-  imports: [HomeHeroComponent, HomeRaceComponent, HomeSpotlightComponent, HomeWelcomeComponent],
+  imports: [HomeHeroComponent, HomeRaceComponent, HomeSpotlightComponent, HomeTilesComponent, HomeWelcomeComponent],
   template: `
     @let h = home();
     <div class="home" [class.is-still]="motion.reduced()">
@@ -61,6 +62,29 @@ function writeStored(key: string, value: string): void {
         <app-home-spotlight [spotlight]="h.spotlight" [scope]="scope()" />
         <app-home-race [race]="h.race" [seasonLabel]="h.season.label" />
       </div>
+      <!-- The tour's anchor stands outside the deferred block, so a step can find it before the chunk arrives. -->
+      <section class="home-tiles" data-tour="home-tiles" aria-label="The season at a glance">
+        @defer (on viewport; prefetch on idle) {
+          <app-home-tiles [home]="h" [scope]="scope()" />
+        } @placeholder {
+          <div class="home-bento is-shell" aria-hidden="true">
+            @for (cell of cells; track cell) {
+              <div class="home-cell home-cell-{{ cell }}"><div class="card home-tile home-tile-shell"></div></div>
+            }
+          </div>
+        } @loading (after 150ms; minimum 300ms) {
+          <div class="home-bento is-shell" role="status" aria-label="Loading the season">
+            @for (cell of cells; track cell) {
+              <div class="home-cell home-cell-{{ cell }}"><div class="card home-tile home-tile-shell"></div></div>
+            }
+          </div>
+        } @error {
+          <div class="card home-tile-error" role="alert">
+            <p><b>A newer version is live.</b> This tab was open while the site was updated, so this part of the page could not load.</p>
+            <button type="button" class="view-btn home-pill" (click)="reload()"><span class="material-symbols-rounded" aria-hidden="true">refresh</span> Reload</button>
+          </div>
+        }
+      </section>
     </div>
   `
 })
@@ -68,6 +92,9 @@ export class HomeComponent {
   private readonly data = inject(TeamDataService);
   private readonly prefs = inject(UserPrefsService);
   protected readonly motion = inject(MotionService);
+
+  /** The bento's cells, top to bottom: the placeholder draws each as an empty shell of the same size, so nothing moves when the tiles land. */
+  protected readonly cells = ['podium', 'record', 'trend', 'comp', 'records', 'advice', 'lineup', 'objectives', 'trophies'] as const;
 
   protected readonly mode = signal<SeasonMode>(readStored(SEASON_KEY) === 'all' ? 'all' : 'season');
   private readonly seatDismissed = signal(readStored(SEAT_DISMISSED_KEY) === '1');
@@ -112,6 +139,10 @@ export class HomeComponent {
   protected setMode(mode: SeasonMode): void {
     this.mode.set(mode);
     writeStored(SEASON_KEY, mode);
+  }
+
+  protected reload(): void {
+    if (typeof location !== 'undefined') location.reload();
   }
 
   protected dismissSeat(): void {

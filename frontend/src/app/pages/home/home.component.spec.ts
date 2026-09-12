@@ -1,10 +1,10 @@
 import { Component } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { environment } from '../../../environments/environment';
-import { Player, Scrim, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
+import { AnalysisGame, Comp, CompAnalysis, Player, Scrim, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { TeamDataService } from '../../services/team-data.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { TournamentContextService } from '../tournaments/tournament-context.service';
@@ -145,6 +145,36 @@ describe.skipIf(typeof localStorage === 'undefined')('HomeComponent', () => {
     expect(root.querySelector('[data-tour="home-hero"]')).not.toBeNull();
     expect(root.querySelector('[data-tour="home-spotlight"]')).not.toBeNull();
     const names = [...root.querySelectorAll('a, [role="link"]')].map((a) => text(a).toLowerCase());
+    expect(names.filter((n) => n.includes('comps'))).toEqual([]);
+  });
+  it('lands the bento: the five in the lineup, the comp of the month by name, and the trophy cabinet last', async () => {
+    const engage = { id: 'engage', name: 'Engage', picks: { Top: 'Ornn', Jungle: 'Sejuani', Mid: 'Orianna', ADC: 'Jinx', Support: 'Leona' } } as unknown as Comp;
+    const flex = (i: number, win: boolean): AnalysisGame =>
+      ({
+        matchId: 'EUW1_' + i,
+        compId: 'engage',
+        compName: 'Engage',
+        win,
+        queue: 'Flex',
+        date: NOW - (i + 1) * DAY,
+        durationSec: 1800,
+        players: players.map((p, k) => ({ name: p.name, position: p.role, champion: ['Ornn', 'Sejuani', 'Orianna', 'Jinx', 'Leona'][k], kills: 3, deaths: 2, assists: 6, cs: 150, damage: 15_000 })),
+        enemies: []
+      }) as unknown as AnalysisGame;
+    data.comps.set([engage]);
+    data.compAnalysis.set({ games: [flex(1, true), flex(2, true), flex(3, false)], comps: [], totalTeamGames: 3, scannedMatches: 3, generatedAt: new Date(NOW).toISOString() } as CompAnalysis);
+    const { harness, root } = await open();
+    const [bento] = await harness.fixture.getDeferBlocks();
+    expect(bento, 'the bento is deferred').toBeTruthy();
+    await bento.render(DeferBlockState.Complete);
+    harness.detectChanges();
+    const cells = [...root.querySelectorAll('app-home-tiles .home-cell')].map((c) => c.className.replace(/^home-cell home-cell-/, ''));
+    expect(cells.at(-1)).toBe('trophies');
+    expect(root.querySelectorAll('.home-lineup-card')).toHaveLength(5);
+    expect(text(root.querySelector('.home-comp-name'))).toBe('Engage');
+    expect(text(root.querySelector('.home-comp-rate'))).toContain('67%');
+    // The comp opens by a button: a second link named for Comps would make the e2e nav locator ambiguous.
+    const names = [...root.querySelectorAll('a')].map((a) => text(a).toLowerCase());
     expect(names.filter((n) => n.includes('comps'))).toEqual([]);
   });
 });
