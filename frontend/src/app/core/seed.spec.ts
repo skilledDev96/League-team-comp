@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jitter, pick, rng, seedOf, shuffle } from './seed';
+import { pick, rng, seedOf, shuffle } from './seed';
 
 const THEMES = ['draft', 'lanes', 'fights', 'objectives', 'vision', 'tempo', 'macro'] as const;
 
@@ -60,15 +60,3 @@ describe('pick and shuffle', () => {
   });
 });
 
-describe('jitter', () => {
-  it('pins its outputs and stays within [-1, 1]', () => {
-    expect(jitter(7, 'x')).toBeCloseTo(-0.33881567837670445, 15);
-    expect(jitter(7, 'y')).toBeCloseTo(-0.6842085877433419, 15);
-    expect(jitter(seedOf('film'), 'x')).toBeCloseTo(-0.07376036187633872, 15);
-    for (let i = 0; i < 500; i++) {
-      const v = jitter(i, 'salt');
-      expect(v).toBeGreaterThanOrEqual(-1);
-      expect(v).toBeLessThanOrEqual(1);
-    }
-  });
-});

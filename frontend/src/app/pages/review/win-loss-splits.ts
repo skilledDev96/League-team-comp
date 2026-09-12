@@ -114,20 +114,6 @@ export function starterCount(game: AnalysisGame, starters: readonly string[]): n
  * read should not carry it. With fewer than five starters named (a roster
  * still being set up) nothing is filtered out rather than everything.
  */
-export interface RosterSeat {
-  name: string;
-  role: string;
-}
-
-/**
- * Whether every roster member in the game sat in their own seat. 'off' is
- * autofill: someone we know played a seat that is not theirs. Asked for on
- * 8 Sep 2026, so the team can read its off-role games apart from the rest.
- */
-export function seatFit(game: AnalysisGame, roster: readonly RosterSeat[]): 'on' | 'off' {
-  const byName = new Map(roster.map((r) => [r.name, r.role]));
-  return game.players.some((p) => byName.has(p.name) && byName.get(p.name) !== p.position) ? 'off' : 'on';
-}
 
 /**
  * Where a game came from, the way the team sorts them (8 Sep 2026): flex is
@@ -214,11 +200,6 @@ export function roleFit(game: AnalysisGame, roster: readonly RosterRoles[], mode
     if (p.position === r.role) return true;
     return mode === 'second' && (r.secondaryRoles ?? []).includes(p.position);
   });
-}
-
-export function mainFiveGames(games: readonly AnalysisGame[], starters: readonly string[]): AnalysisGame[] {
-  if (starters.length < 5) return [...games];
-  return games.filter((g) => starterCount(g, starters) >= 5);
 }
 
 // ---- Lane table ---------------------------------------------------------------

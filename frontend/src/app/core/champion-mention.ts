@@ -1,7 +1,7 @@
 import { Role } from '../models/team.models';
 
 /** A seat and the champion on it, the shape both the review's players and the film's seats share. */
-export interface SeatChampion {
+interface SeatChampion {
   seat: Role;
   champion: string;
 }

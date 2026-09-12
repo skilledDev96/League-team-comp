@@ -405,7 +405,7 @@ function ourDeathKeys(timeline: MatchTimeline): Map<TimelineDeath, string> {
 }
 
 /** A point on the Rift and where it came from: the event's own position, or the seeded sample inside its zone. */
-export interface PlacedPoint extends Point {
+interface PlacedPoint extends Point {
   placed: FilmPlacement;
 }
 

@@ -49,7 +49,3 @@ export function shuffle<T>(seed: number, list: readonly T[], salt: string): T[] 
   return out;
 }
 
-/** A number in [-1, 1], for placing something a little off its spot. */
-export function jitter(seed: number, salt: string): number {
-  return draw(seed, salt)() * 2 - 1;
-}

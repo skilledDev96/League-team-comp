@@ -271,24 +271,6 @@ export function areaAt(x: number, y: number): RiftArea | null {
   return null;
 }
 
-/** `areaAt`, resolved to the timeline's zone names for our side. */
-export function zoneAt(x: number, y: number, ourSide: RiftSide): MapZone | null {
-  const area = areaAt(x, y);
-  if (!area) return null;
-  switch (area) {
-    case 'blueBase':
-      return ourSide === 'blue' ? 'ourBase' : 'theirBase';
-    case 'redBase':
-      return ourSide === 'red' ? 'ourBase' : 'theirBase';
-    case 'blueJungle':
-      return ourSide === 'blue' ? 'ourJungle' : 'theirJungle';
-    case 'redJungle':
-      return ourSide === 'red' ? 'ourJungle' : 'theirJungle';
-    default:
-      return area;
-  }
-}
-
 /** Where a seat stands on its side of the map. */
 export function laneSpot(seat: Role, side: RiftSide): Point {
   return { ...MAP_SPOTS[side][seat] };

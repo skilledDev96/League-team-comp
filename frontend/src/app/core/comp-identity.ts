@@ -133,7 +133,7 @@ export const IDENTITY_ICON: Record<CompIdentity, string> = {
  * a label rather than a reading of the draft. "Arrows and Spears" is plainly a
  * poke comp and the name knows nothing about it.
  */
-export function iconFromName(name: string): string | null {
+function iconFromName(name: string): string | null {
   const n = (name || '').toLowerCase();
   if (n.includes('engage')) return 'bolt';
   if (n.includes('pick')) return IDENTITY_ICON.pick;

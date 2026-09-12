@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FilmCommitment, FilmPrefs, GameReview } from '../models/team.models';
-import { advance, dueReminder, dueReminders, nextAskAt, reminderFor, tallyLine } from './film-progress';
+import { advance, dueReminders, nextAskAt, reminderFor, tallyLine } from './film-progress';
 
 const done = '2026-09-09T20:00:00.000Z';
 const now = '2026-09-10T21:00:00.000Z';
@@ -133,7 +133,7 @@ describe('nextAskAt', () => {
   });
 });
 
-describe('dueReminder', () => {
+describe('the earliest due reminder', () => {
   const prefs: FilmPrefs = {
     seat: 'Mid',
     films: {
@@ -146,17 +146,17 @@ describe('dueReminder', () => {
   };
 
   it('finds the earliest film that is due, and skips the ones switched off', () => {
-    expect(dueReminder(prefs, '2026-09-13T08:00:00.000Z')?.matchId).toBe('early');
-    expect(dueReminder(prefs, '2026-09-10T20:00:00.000Z')?.matchId).toBe('early');
-    expect(dueReminder(prefs, '2026-09-10T19:59:59.000Z')).toBeUndefined();
+    expect(dueReminders(prefs, '2026-09-13T08:00:00.000Z')[0]?.matchId).toBe('early');
+    expect(dueReminders(prefs, '2026-09-10T20:00:00.000Z')[0]?.matchId).toBe('early');
+    expect(dueReminders(prefs, '2026-09-10T19:59:59.000Z')[0]).toBeUndefined();
     const only = { films: { late: prefs.films!['late'], off: prefs.films!['off'] } };
-    expect(dueReminder(only, '2026-09-20T00:00:00.000Z')).toEqual({ matchId: 'late', progress: prefs.films!['late'] });
+    expect(dueReminders(only, '2026-09-20T00:00:00.000Z')[0]).toEqual({ matchId: 'late', progress: prefs.films!['late'] });
   });
 
   it('is nothing without prefs or without a readable now', () => {
-    expect(dueReminder(undefined, done)).toBeUndefined();
-    expect(dueReminder({}, done)).toBeUndefined();
-    expect(dueReminder(prefs, 'later')).toBeUndefined();
+    expect(dueReminders(undefined, done)[0]).toBeUndefined();
+    expect(dueReminders({}, done)[0]).toBeUndefined();
+    expect(dueReminders(prefs, 'later')[0]).toBeUndefined();
   });
 
   it('lists every due film earliest first, so a film with nothing to ask never blocks the next', () => {

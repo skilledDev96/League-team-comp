@@ -24,7 +24,7 @@ export interface ClientError {
   userAgent: string;
 }
 
-export async function reportClientError(error: unknown): Promise<void> {
+async function reportClientError(error: unknown): Promise<void> {
   const db = getDb();
   if (!db || seen.size >= MAX_PER_SESSION) return;
   const message = error instanceof Error ? error.message : String(error);

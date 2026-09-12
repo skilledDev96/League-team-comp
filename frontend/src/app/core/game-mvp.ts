@@ -281,7 +281,7 @@ function lineFor(read: number, of: number, seatGames: number): string {
 }
 
 /** One of our seats on a game row, whichever of the three sources the row came from. Structural, so `pages/games/game-rows.ts` fits without core knowing about it. */
-export interface MvpRowPlayer {
+interface MvpRowPlayer {
   role: string;
   champion: string;
   /** Our roster member, or null for a teammate who is not on it. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, AnalysisPlayer } from '../../models/team.models';
-import { DEFAULT_PATTERN_FILTERS, gameSource, keepDoing, killParticipationOf, laneTable, laneTotals, mainFiveGames, PatternFilters, playerSplits, readPatternFilters, roleFit, seatFit, sourceOf, split, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { DEFAULT_PATTERN_FILTERS, gameSource, keepDoing, killParticipationOf, laneTable, laneTotals, PatternFilters, playerSplits, readPatternFilters, roleFit, sourceOf, split, starterCount, teamSplits, workOn } from './win-loss-splits';
 
 const player = (name: string, position: string, over: Partial<AnalysisPlayer> = {}): AnalysisPlayer => ({
   name,
@@ -51,17 +51,6 @@ function botLaneStory(n: number, extra: (win: boolean, role: string) => Partial<
   return games;
 }
 
-describe('mainFiveGames', () => {
-  const five = ['top', 'jungle', 'mid', 'adc', 'support'];
-  it('keeps only the games every starter played, and filters nothing while the roster is short', () => {
-    const full = game(true);
-    const withSub = { ...game(false), players: game(false).players.map((p) => (p.name === 'top' ? { ...p, name: 'sub' } : p)) };
-    expect(starterCount(withSub, five)).toBe(4);
-    expect(mainFiveGames([full, withSub], five).map((g) => g.matchId)).toEqual([full.matchId]);
-    expect(mainFiveGames([full, withSub], five.slice(0, 4))).toHaveLength(2);
-  });
-});
-
 describe('gameSource and roleFit', () => {
   it('sorts flex, Clash with the scrims, and a replay imported against a tournament game', () => {
     const ids = new Set(['EUW1-1']);
@@ -81,16 +70,6 @@ describe('gameSource and roleFit', () => {
     const atJungle = { ...g, players: g.players.map((p) => (p.name === 'adc' ? { ...p, position: 'Jungle' } : p)) };
     expect(roleFit(atJungle, roster, 'second')).toBe(false);
     expect(roleFit(atJungle, roster, 'any')).toBe(true);
-  });
-});
-
-describe('seatFit', () => {
-  it('is off the moment one of ours sits in a seat that is not theirs', () => {
-    const roster = [{ name: 'top', role: 'Top' }, { name: 'adc', role: 'ADC' }];
-    expect(seatFit(game(true), roster)).toBe('on');
-    const swapped = { ...game(true), players: game(true).players.map((p) => (p.name === 'adc' ? { ...p, position: 'Top' } : p)) };
-    expect(seatFit(swapped, roster)).toBe('off');
-    expect(seatFit(swapped, [{ name: 'someone else', role: 'Mid' }])).toBe('on');
   });
 });
 

@@ -16,7 +16,6 @@ import {
   regionFor,
   riotToPercent,
   unitsToPercent,
-  zoneAt
 } from './rift-zones';
 
 const ZONES: MapZone[] = ['ourBase', 'theirBase', 'top', 'mid', 'bot', 'river', 'ourJungle', 'theirJungle'];
@@ -74,7 +73,7 @@ describe('regionFor', () => {
   });
 });
 
-describe('areaAt and zoneAt', () => {
+describe('areaAt', () => {
   it('classifies the known points', () => {
     expect(areaAt(15, 50)).toBe('top');
     expect(areaAt(50, 15)).toBe('top');
@@ -95,15 +94,6 @@ describe('areaAt and zoneAt', () => {
     expect(areaAt(10, 90)).toBe('blueBase');
     expect(areaAt(90, 10)).toBe('redBase');
     expect(areaAt(2, 2)).toBeNull();
-  });
-
-  it('names zones for our side', () => {
-    expect(zoneAt(10, 90, 'blue')).toBe('ourBase');
-    expect(zoneAt(10, 90, 'red')).toBe('theirBase');
-    expect(zoneAt(25, 60, 'blue')).toBe('ourJungle');
-    expect(zoneAt(25, 60, 'red')).toBe('theirJungle');
-    expect(zoneAt(50, 15, 'red')).toBe('top');
-    expect(zoneAt(2, 2, 'red')).toBeNull();
   });
 });
 

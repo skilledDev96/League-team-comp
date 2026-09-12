@@ -158,10 +158,6 @@ export function dueReminders(prefs: FilmPrefs | undefined, nowIso: string): { ma
   return due.sort((a, b) => a.at - b.at).map(({ matchId, progress }) => ({ matchId, progress }));
 }
 
-/** The film whose reminder is earliest and already due at `nowIso`, or nothing when none is. */
-export function dueReminder(prefs: FilmPrefs | undefined, nowIso: string): { matchId: string; progress: FilmProgress } | undefined {
-  return dueReminders(prefs, nowIso)[0];
-}
 
 /**
  * The words beside "Open the film room": "Watched" once the card was reached,
