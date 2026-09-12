@@ -38,6 +38,16 @@ test('the session gets past the login gate', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Comps' })).toBeVisible();
 });
 
+test('signing in lands on Home, and the old landing still leads there', async ({ page }) => {
+  await page.goto('./');
+  await expect(page).toHaveURL(/\/home$/, { timeout: 30_000 });
+  await expect(page.locator('.home-hero h1')).toBeVisible();
+
+  await page.goto('./overview');
+  await expect(page).toHaveURL(/\/home$/, { timeout: 30_000 });
+  await expect(page.locator('.home-hero h1')).toBeVisible();
+});
+
 test('the account is a viewer, so the tests cannot change anything', async ({ page }) => {
   await page.goto('./');
   await expect(page.getByRole('link', { name: 'Comps' })).toBeVisible();
@@ -118,6 +128,8 @@ test('the review path opens the patterns tab', async ({ page }) => {
 
 test('no console errors while moving around signed in', async ({ page }) => {
   const errors: string[] = [];
+  const missingSplashes = new Set<string>();
+  const fallbackSplashes = new Set<string>();
   page.on('console', (msg) => {
     // Resource-load failures surface here with no usable location; the
     // response listener below reports those with a URL instead.
@@ -134,10 +146,25 @@ test('no console errors while moving around signed in', async ({ page }) => {
     // app error, and it failed the deploy verify once on 8 Sep 2026 while
     // every check passed against the same build.
     if (/firestore\.googleapis\.com\/.*\/Listen\/channel/.test(response.url())) return;
+    // CommunityDragon renames a few splash files after a rework, and the app asks
+    // Data Dragon for the same champion when it does (UiService.artFallback, and
+    // the home page's rotation). That 404 is the fallback working — so long as
+    // the fallback was asked for, which is checked below. A Data Dragon 404 is
+    // still an error.
+    const splash = /communitydragon\.org\/.*\/characters\/([^/]+)\/skins\/base\/images\/[^/]+_splash_centered_0\.jpg/.exec(response.url());
+    if (splash) {
+      missingSplashes.add(splash[1].toLowerCase());
+      return;
+    }
     errors.push(`404: ${response.url()}`);
   });
+  page.on('request', (request) => {
+    const fallback = /ddragon\.leagueoflegends\.com\/cdn\/img\/champion\/splash\/([^/]+)_0\.jpg/.exec(request.url());
+    if (fallback) fallbackSplashes.add(fallback[1].toLowerCase());
+  });
 
-  for (const path of ['./', './comps', './games', './review', './tournaments', './film/none']) {
+  // Home is where sign-in lands, and Roster is no longer reached by './', so both are named.
+  for (const path of ['./', './home', './roster', './comps', './games', './review', './tournaments', './film/none']) {
     await page.goto(path);
     // What proves the app booted at a deep link is a nav link — except on the
     // film, which takes the whole screen and hides the topbar (10 Sep 2026, the
@@ -150,5 +177,7 @@ test('no console errors while moving around signed in', async ({ page }) => {
     await expect(booted).toBeVisible({ timeout: 30_000 });
   }
 
+  const unanswered = [...missingSplashes].filter((id) => !fallbackSplashes.has(id));
+  expect(unanswered, 'a CommunityDragon splash 404 with no Data Dragon fallback asked for').toEqual([]);
   expect(errors, `console errors:\n${errors.join('\n')}`).toEqual([]);
 });

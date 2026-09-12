@@ -161,6 +161,13 @@ all pills on the left. Something that belongs to one view goes in a row under th
 A control present on one view and not another is **removed**, not hidden: Prep's switch hidden on
 Draft pushed the whole draft room 35px down.
 
+**Home is the one exception** (13 Sep 2026). It is a landing page rather than a tool, so it has its own
+stage — a hero with the team's splash art, a welcome band, a gold-framed spotlight — and no toolbar.
+Everything on it is still drawn from the theme tokens, its pills are `.view-btn`, and its season switch is
+a `.view-segment`. Its animations sit behind one gate: motion allowed, `.home` not `.is-still`, the section
+`.is-seen` (`shared/in-view.directive.ts`), transform and opacity only. Do not copy its stage onto a
+working page.
+
 **Facts on a card** are a two-column `<dl>` — labels in one column, values in the other, every icon the
 height of a line — so every row starts at the same x (`.roster-card-facts`). Secondary attributes,
 like a player's 2nd seat, are small muted pills under the name, not a labelled line.

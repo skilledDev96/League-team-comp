@@ -155,7 +155,12 @@ export class UiService {
     const img = event.target as HTMLImageElement | null;
     if (!img || img.dataset['fallback']) return;
     img.dataset['fallback'] = '1';
-    img.src = `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${this.championDDragonName(championName)}_0.jpg`;
+    img.src = this.championSplashFallbackUrl(championName);
+  }
+
+  /** Data Dragon's base splash: the fallback when CommunityDragon's centered one is missing. The home page preloads it the same way. */
+  championSplashFallbackUrl(championName: string): string {
+    return `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${this.championDDragonName(championName)}_0.jpg`;
   }
 
   /**

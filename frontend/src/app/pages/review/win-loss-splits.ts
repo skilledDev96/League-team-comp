@@ -281,7 +281,7 @@ export interface PatternContext {
 
 /**
  * The games the Patterns tab counts for a stored selection, without the comp and the champion
- * filter (13 Sep 2026). Home reads the team off whatever the reader last left on Patterns, and
+ * filter (13 Sep 2026). Home reads the team with the tab's defaults, and
  * neither of those two belongs there: the comp filter asks about one comp, and the champion filter
  * is a search that lasts a session. The steps run in the tab's order: practice, source, starters,
  * seats.

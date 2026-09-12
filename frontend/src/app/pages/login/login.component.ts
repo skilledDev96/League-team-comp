@@ -24,7 +24,7 @@ export class LoginComponent {
 
   constructor() {
     // After sign-in, back to whatever the person was sent — a shared draft
-    // link, say — and otherwise the overview.
+    // link, say — and otherwise Home.
     effect(() => {
       if (!this.auth.isAuthed()) {
         return;
@@ -42,7 +42,7 @@ export class LoginComponent {
   /** Only a path on this site; anything else is ignored rather than followed. */
   private destination(): string {
     const wanted = this.route.snapshot.queryParamMap.get('returnUrl') ?? '';
-    return wanted.startsWith('/') && !wanted.startsWith('//') ? wanted : '/overview';
+    return wanted.startsWith('/') && !wanted.startsWith('//') ? wanted : '/home';
   }
 
   private tokenFromFragment(): string | null {

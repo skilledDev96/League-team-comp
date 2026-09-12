@@ -4,7 +4,7 @@
   }
   <header class="topbar">
     @if (auth.isAuthed()) {
-      <a class="brand brand-link" routerLink="/roster">
+      <a class="brand brand-link" routerLink="/home">
         <img class="brand-mark" src="assets/brand/bomb-128.png" alt="" width="128" height="128" />
         <span class="brand-text">
           {{ data.settings().teamName || 'Bom Squad' }}
@@ -24,6 +24,7 @@
       <nav class="nav-links" aria-label="Main navigation" data-tour="nav">
         <!-- Overview, Player Intel and Profiles are modes of /roster now. The
              old paths still resolve, so this stays highlighted on all of them. -->
+        <a routerLink="/home" routerLinkActive="active">Home</a>
         <a routerLink="/roster" routerLinkActive="active">Roster</a>
         <a routerLink="/comps" routerLinkActive="active">Comps</a>
         <a routerLink="/games" routerLinkActive="active">Games</a>

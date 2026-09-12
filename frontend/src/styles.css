@@ -15500,3 +15500,158 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .roster-card-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .roster-card .roster-card-foot { margin-top: 0.9rem; padding-top: 0.75rem; border-top: 1px solid var(--card-border); }
 .roster-card.expanded .role-details { display: grid; gap: 0.5rem; }
+
+/* ---- Home, the landing page (13 Sep 2026) -------------------------------------------------------
+   The one expressive page: its own stage instead of the page toolbar, drawn from the theme tokens only,
+   so all ten themes get their own version. Every animation sits behind one gate — motion allowed by the
+   OS, `.home` not `.is-still` (the Motion pill), and the section `.is-seen` — and moves transform and
+   opacity alone, so nothing on the page shifts while it plays. See docs/design-system.md. */
+.home { display: grid; gap: 1rem; }
+.home-kicker { margin: 0; display: inline-flex; align-items: center; gap: 0.35rem; font-family: "Chakra Petch", sans-serif; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-2); }
+.home-kicker .material-symbols-rounded { font-size: 1.05rem; }
+.home-pill { display: inline-flex; align-items: center; gap: 0.3rem; }
+.home-pill .material-symbols-rounded { font-size: 1.05rem; }
+.home-pill.active { background: color-mix(in srgb, var(--accent) 22%, var(--surface-btn)); }
+.home-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.18rem 0.6rem; border-radius: 999px; font-size: 0.76rem; font-weight: 600; color: var(--accent-2); background: color-mix(in srgb, var(--accent) 16%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.home-chip .material-symbols-rounded { font-size: 0.95rem; }
+
+/* The hero */
+.home-hero { position: relative; overflow: hidden; isolation: isolate; min-height: 26rem; display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, 21rem); grid-template-rows: auto 1fr; gap: 1rem 1.5rem; padding: 1.25rem 1.6rem 1.5rem; border-radius: 18px; border: 1px solid var(--card-border); background: var(--bg-0); box-shadow: 0 18px 40px var(--shadow-elev); }
+.home-hero-art { position: absolute; inset: 0; z-index: -1; overflow: hidden; }
+.home-hero-slide { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 60% 22%; filter: saturate(0.95) brightness(0.82); transform-origin: 70% 30%; }
+.home-hero-shade { position: absolute; inset: 0; background:
+  linear-gradient(90deg, color-mix(in srgb, var(--bg-0) 94%, transparent) 0%, color-mix(in srgb, var(--bg-0) 72%, transparent) 36%, color-mix(in srgb, var(--bg-0) 12%, transparent) 68%, color-mix(in srgb, var(--bg-0) 50%, transparent) 100%),
+  linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 85%, transparent), transparent 55%),
+  radial-gradient(ellipse 60% 80% at 0% 0%, var(--glow-a), transparent 70%); }
+.home-hero-top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.home-hero-tools { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.home-season button { padding: 0.3rem 0.9rem; font-size: 0.76rem; }
+.home-hero-body { grid-column: 1; align-self: end; min-width: 0; display: grid; justify-items: start; }
+.home-title { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 4.2rem; font-weight: 700; line-height: 0.95; letter-spacing: 0.01em; text-transform: uppercase; color: var(--text-0); text-shadow: 0 0.25rem 1.5rem color-mix(in srgb, var(--bg-0) 75%, transparent); overflow-wrap: anywhere; }
+.home-hero-caption { margin: 0.35rem 0 0; min-height: 1.25rem; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--text-1); }
+.home-hero-caption .material-symbols-rounded { font-size: 0.95rem; color: var(--text-2); }
+.home-counters { margin: 1rem 0 0; display: grid; grid-template-columns: repeat(4, minmax(7rem, 9rem)); gap: 0.6rem; }
+.home-counter { padding: 0.55rem 0.8rem 0.5rem; border-radius: 12px; background: color-mix(in srgb, var(--card) 72%, transparent); border: 1px solid color-mix(in srgb, var(--card-border) 75%, transparent); backdrop-filter: blur(6px); }
+.home-counter dt { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-1); }
+.home-counter dd { margin: 0; }
+.home-counter-figure { display: block; min-height: 2.3rem; font-family: "Chakra Petch", sans-serif; font-size: 2rem; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; color: var(--text-0); }
+.home-counter-sub { display: block; min-height: 1.05rem; font-size: 0.72rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-hero-empty { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--text-1); }
+
+/* The next series, in the hero's corner */
+.home-hero-next { grid-column: 2; align-self: end; display: block; min-width: 0; }
+.home-next { display: grid; gap: 0.3rem; padding: 0.95rem 1.05rem; border-radius: 14px; background: color-mix(in srgb, var(--card) 84%, transparent); border: 1px solid var(--card-border); backdrop-filter: blur(8px); box-shadow: 0 10px 26px var(--shadow-elev); }
+.home-next.is-live { border-color: color-mix(in srgb, var(--warn) 60%, var(--card-border)); }
+.home-next-vs { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.35rem; font-weight: 700; line-height: 1.15; color: var(--text-0); overflow-wrap: anywhere; }
+.home-next-vs-word { margin-right: 0.15rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-2); }
+.home-next.is-empty .home-next-vs { font-size: 1.05rem; }
+.home-next-meta { margin: 0; font-size: 0.78rem; color: var(--text-1); }
+.home-countdown { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.35rem; margin: 0.3rem 0 0.1rem; }
+.home-countdown-unit { display: grid; justify-items: center; padding: 0.35rem 0 0.25rem; border-radius: 10px; background: color-mix(in srgb, var(--bg-0) 55%, transparent); border: 1px solid color-mix(in srgb, var(--card-border) 50%, transparent); }
+.home-countdown-unit b { font-family: "Chakra Petch", sans-serif; font-size: 1.3rem; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--text-0); }
+.home-countdown-unit small { font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); }
+.home-next-pill { justify-self: start; margin-top: 0.35rem; padding: 0.38rem 0.85rem; font-size: 0.82rem; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 20%, var(--surface-btn)); }
+.home-live-dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--warn); }
+
+/* The welcome band */
+.home-welcome { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem 1.5rem; padding: 0.75rem 1.1rem; }
+.home-welcome-hello { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+.home-welcome .avatar { width: 2.75rem; height: 2.75rem; }
+.home-welcome-wave { font-size: 1.9rem; color: var(--accent-2); }
+.home-welcome-text { min-width: 0; }
+.home-welcome-greeting { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.2rem; line-height: 1.2; }
+.home-welcome-line { margin: 0.1rem 0 0; display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.82rem; color: var(--text-1); }
+.home-welcome-line b { color: var(--text-0); }
+.home-welcome-titles { display: inline-flex; align-items: center; gap: 0.2rem; color: var(--accent-2); }
+.home-welcome-titles .material-symbols-rounded { font-size: 1rem; }
+.home-form { list-style: none; margin: 0 0 0 auto; padding: 0; display: flex; gap: 0.3rem; }
+.home-form-pip { width: 1.6rem; height: 1.6rem; display: grid; place-items: center; border-radius: 6px; font-family: "Chakra Petch", sans-serif; font-size: 0.78rem; font-weight: 700; border: 1px solid var(--card-border); }
+.home-form-pip.is-win { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.home-form-pip.is-loss { color: var(--warn); background: color-mix(in srgb, var(--warn) 13%, transparent); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.home-seat-ask { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; }
+.home-seat-q { margin-right: 0.2rem; font-size: 0.85rem; font-weight: 600; color: var(--text-0); }
+.home-seat-later { border-color: var(--card-border); color: var(--text-1); }
+
+/* The spotlight and the race */
+.home-duo { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1rem; align-items: stretch; }
+.home-spotlight { position: relative; overflow: hidden; isolation: isolate; min-height: 22rem; display: grid; align-items: end; padding: 1.5rem 1.6rem; border-radius: 16px; background: var(--bg-0); border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: 0 14px 34px var(--shadow-elev), 0 0 2.5rem color-mix(in srgb, var(--accent) 16%, transparent); }
+.home-spotlight::before { content: ""; position: absolute; inset: 0.45rem; z-index: 1; border-radius: 11px; border: 1px solid color-mix(in srgb, var(--accent-2) 38%, transparent); pointer-events: none; }
+.home-spotlight-art { z-index: -1; }
+.home-spotlight-art .film-splash { object-position: 50% 18%; filter: saturate(1) brightness(0.88); transform-origin: 60% 30%; }
+.home-spotlight-shade { position: absolute; inset: 0; background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 94%, transparent) 0%, color-mix(in srgb, var(--bg-0) 50%, transparent) 42%, transparent 72%), linear-gradient(90deg, color-mix(in srgb, var(--bg-0) 70%, transparent), transparent 62%); }
+.home-spotlight-sheen { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0; background: linear-gradient(115deg, transparent 38%, color-mix(in srgb, var(--accent-2) 26%, transparent) 50%, transparent 62%); }
+.home-spotlight-body { position: relative; z-index: 2; display: grid; justify-items: start; gap: 0.3rem; max-width: 36rem; }
+.home-spotlight-name { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 2.8rem; font-weight: 700; line-height: 1; color: var(--text-0); text-shadow: 0 0.2rem 1.2rem color-mix(in srgb, var(--bg-0) 70%, transparent); overflow-wrap: anywhere; }
+.home-spotlight-meta { margin: 0; display: flex; flex-wrap: wrap; gap: 0.2rem 0.5rem; font-size: 0.9rem; color: var(--text-1); }
+.home-spotlight-meta span + span::before { content: "·"; margin-right: 0.5rem; color: var(--text-2); }
+.home-spotlight-meta .is-win { color: var(--ok); }
+.home-spotlight-meta .is-loss { color: var(--warn); }
+.home-spotlight-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.4rem; }
+.home-spotlight.is-empty { align-items: center; justify-items: center; text-align: center; background: radial-gradient(ellipse 70% 70% at 50% 35%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 72%), var(--card); }
+.home-spotlight-empty { position: relative; z-index: 2; display: grid; justify-items: center; gap: 0.4rem; max-width: 30rem; }
+.home-spotlight-crown { font-size: 3.4rem; color: var(--accent-2); }
+.home-spotlight.is-empty .home-spotlight-name { font-size: 1.55rem; line-height: 1.2; }
+.home-race { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+.home-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.home-card-head h2 { margin: 0; display: inline-flex; align-items: center; gap: 0.35rem; font-family: "Chakra Petch", sans-serif; font-size: 1.05rem; }
+.home-card-head h2 .material-symbols-rounded { font-size: 1.2rem; color: var(--accent-2); }
+.home-card-scope { font-size: 0.74rem; color: var(--text-2); text-align: right; }
+.home-race-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
+.home-race-row { display: grid; grid-template-columns: 1.1rem auto minmax(0, 1fr) minmax(2.5rem, 4.5rem) auto; align-items: center; gap: 0.55rem; padding: 0.3rem 0.45rem; border-radius: 10px; }
+.home-race-row.is-empty { display: block; color: var(--text-1); font-size: 0.85rem; }
+.home-race-row.is-leader { background: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+.home-race-row .avatar { width: 2rem; height: 2rem; }
+.home-race-rank { font-family: "Chakra Petch", sans-serif; font-weight: 700; text-align: center; color: var(--text-2); }
+.home-race-row.is-leader .home-race-rank { color: var(--accent-2); }
+.home-race-who { display: grid; min-width: 0; line-height: 1.2; }
+.home-race-who b { font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-race-who small { font-size: 0.7rem; color: var(--text-2); }
+.home-race-bar { height: 0.4rem; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--text-1) 14%, transparent); }
+.home-race-fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transform-origin: left center; transform: scaleX(var(--home-share, 0)); }
+.home-race-titles { display: inline-flex; align-items: baseline; justify-content: flex-end; gap: 0.25rem; font-family: "Chakra Petch", sans-serif; font-variant-numeric: tabular-nums; }
+.home-race-titles b { font-size: 1.1rem; }
+.home-race-provisional { padding: 0 0.35rem; border-radius: 999px; border: 1px dashed var(--card-border); font-size: 0.68rem; color: var(--text-1); cursor: help; }
+.home-race-provisional:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.home-race-foot { margin-top: auto; padding-top: 0.6rem; display: grid; gap: 0.3rem; border-top: 1px solid color-mix(in srgb, var(--card-border) 60%, transparent); font-size: 0.8rem; color: var(--text-1); }
+.home-race-foot p { margin: 0; display: flex; align-items: flex-start; gap: 0.35rem; }
+.home-race-foot .material-symbols-rounded { font-size: 1.1rem; color: var(--accent-2); }
+.home-race-last b { color: var(--text-0); }
+.home-race-waiting, .home-race-last.is-empty { color: var(--text-2); }
+.home-race-waiting .material-symbols-rounded { font-size: 1rem; color: var(--text-2); }
+
+@media (max-width: 62rem) {
+  .home-hero { grid-template-columns: minmax(0, 1fr); }
+  .home-hero-next { grid-column: 1; }
+  .home-counters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-title { font-size: 3rem; }
+  .home-duo { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home .card { animation: none; }
+  .home:not(.is-still) .home-hero-slide { animation: film-pan 20s ease-in-out 1 forwards; }
+  .home:not(.is-still) .home-hero-slide.is-incoming { animation: home-fade-in 1400ms ease backwards, film-pan 20s ease-in-out 1 forwards; }
+  .home:not(.is-still) .home-hero:not(.is-seen) :is(.home-title, .home-counter, .home-hero-next),
+  .home:not(.is-still) .home-spotlight:not(.is-seen) .home-spotlight-body { opacity: 0; }
+  .home:not(.is-still) .home-hero.is-seen .home-title { animation: film-word-rise 700ms ease backwards; }
+  .home:not(.is-still) .home-hero.is-seen .home-counter { animation: film-rise 600ms ease backwards; animation-delay: calc(180ms + var(--home-i, 0) * 70ms); }
+  .home-counter:nth-child(2) { --home-i: 1; }
+  .home-counter:nth-child(3) { --home-i: 2; }
+  .home-counter:nth-child(4) { --home-i: 3; }
+  .home:not(.is-still) .home-hero.is-seen .home-hero-next { animation: film-rise 700ms 320ms ease backwards; }
+  .home:not(.is-still) .home-live-dot { animation: home-blink 1.6s ease-in-out infinite; }
+  .home:not(.is-still) .home-spotlight.is-seen .home-spotlight-body { animation: film-rise 700ms 120ms ease backwards; }
+  .home:not(.is-still) .home-spotlight.is-seen .home-spotlight-sheen { animation: home-sheen 2600ms 500ms ease-in-out 1 both; }
+  .home:not(.is-still) .home-spotlight.is-seen .home-spotlight-art .film-splash { animation: film-pan 26s ease-in-out 1 forwards; }
+  .home:not(.is-still) .home-spotlight.is-seen .film-clip { transition: opacity 600ms ease; }
+  .home:not(.is-still) .home-race.is-seen .home-race-fill { animation: home-bar-grow 900ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: calc(200ms + var(--home-i, 0) * 80ms); }
+  .home-race-row:nth-child(2) { --home-i: 1; }
+  .home-race-row:nth-child(3) { --home-i: 2; }
+  .home-race-row:nth-child(4) { --home-i: 3; }
+  .home-race-row:nth-child(n + 5) { --home-i: 4; }
+  .home:not(.is-still) :is(.home-pill, .home-season button) { transition: background-color 160ms ease, border-color 160ms ease; }
+  @keyframes home-fade-in { from { opacity: 0; } }
+  @keyframes home-bar-grow { from { transform: scaleX(0); } }
+  @keyframes home-sheen { from { opacity: 1; transform: translateX(-110%); } to { opacity: 1; transform: translateX(110%); } }
+  @keyframes home-blink { 50% { opacity: 0.3; } }
+}

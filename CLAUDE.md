@@ -93,7 +93,7 @@ In Firebase mode the signals are kept live by `onSnapshot` listeners set up in `
 **Pages and routes** (`frontend/src/app/app.routes.ts`, nav in `app/app.html`): every
 route is lazy via `loadComponent`, and every content route is behind `viewerGuard`
 (`/admin` uses `authGuard`). `/` and `/login` are the login page; the rest are
-`/roster`, `/player/:id`, `/comps`, `/games` (with `/analysis` and `/review`
+`/home` (where sign-in lands), `/roster`, `/player/:id`, `/comps`, `/games` (with `/analysis` and `/review`
 still resolving to it), `/tournaments`,
 `/synergy`, `/admin`. Adding a page means touching both files — the route alone
 leaves it unreachable.
@@ -128,10 +128,30 @@ and the resource links — nothing in the app edits either, both are the origina
 seed, and the lead: "we are not using those tools" — so they went from the page;
 `teamIdentity` and `resourceLinks` are still in the data.
 
-`/overview`, `/players` and `/profiles` **still resolve**, each carrying
+`/players` and `/profiles` **still resolve**, each carrying
 `data: { view }` naming the mode it used to be, so old links and the `e2e`
 suite land where they always did. Do not turn them into redirects without
 checking `e2e/tests/authenticated.spec.ts`, which navigates to `./players`.
+`/overview` was the landing page and **redirects to `/home`** since 13 Sep 2026.
+
+**`/home` is the landing page** (13 Sep 2026, the lead: "a welcoming page for our
+team with animations, stats with graphs, splash art… highlight a team member who has
+been the MVP of the previous series"). `core/home-build.ts` `buildHome` builds the
+whole page as one pure `HomeModel` (the `buildFilm` pattern) from the same
+`buildGameRows` the Games page lists, and `pages/home/` draws slices of it: the hero
+(our five starters' mains rotating, the season's counters, the This split | All time
+switch, a Motion pill, the next series with a countdown and **Scout them**, which
+opens that series' prep through `TournamentContextService.openPrep` and never the
+draft room), the welcome band (the reader is the starter in `UserPrefs.film.seat`),
+the MVP of the last series in a gold frame with the page's one ability clip, and the
+MVP race with the last series MVP at its foot. **A series is finished** when its
+best-of is decided or a later series of its tournament has results
+(`core/series-results.ts`; scrim blocks never), and **a crown counts** when it names
+a roster player and more than half its games carry figures (`CROWN_MIN_READ_SHARE`).
+The season is the running tournament, else the last 90 days (`core/team-season.ts`).
+The other side is a team name and nothing else — the spec serialises a model built
+from replays carrying their Riot ids and checks none survives. No link on Home may
+have a name containing "comps": the e2e sign-in check matches that substring.
 
 **Prep & Draft holds every opponent** (`/tournaments`, renamed in the nav on
 9 Sep 2026; `/scrims` redirects there). A **group** is a `Tournament` with

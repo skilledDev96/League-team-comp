@@ -234,6 +234,10 @@ export class TournamentContextService {
 
   /** Go to this opponent's prep, wherever you are now. */
   openPrep(seriesId: string): void {
+    // A series from another tournament brings its tournament along, as openDraft does — the home page's
+    // Scout them pill can name any series, and the plan only opens panels in the tournament it shows.
+    const series = seriesId ? this.data.tournamentSeries().find((s) => s.id === seriesId) : undefined;
+    if (series && series.tournamentId !== this.currentTournament()?.id) this.chosenTournamentId.set(series.tournamentId);
     this.view.set('plan');
     this.prepRequest.set(seriesId);
   }

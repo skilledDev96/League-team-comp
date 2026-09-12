@@ -7,6 +7,12 @@ export const routes: Routes = [
     path: '',
     loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent)
   },
+  {
+    // The landing page (13 Sep 2026): the team, the season, the next series and the MVP race.
+    path: 'home',
+    canActivate: [viewerGuard],
+    loadComponent: () => import('./pages/home/home.component').then((m) => m.HomeComponent)
+  },
   // One page, three modes. The old paths still resolve rather than redirecting:
   // links and bookmarks keep working, and each names the mode it used to be, so
   // /profiles still opens the table.
@@ -15,12 +21,9 @@ export const routes: Routes = [
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/roster/roster.component').then((m) => m.RosterComponent)
   },
-  {
-    path: 'overview',
-    canActivate: [viewerGuard],
-    data: { view: 'cards' },
-    loadComponent: () => import('./pages/roster/roster.component').then((m) => m.RosterComponent)
-  },
+  // Sign-in used to land on /overview, Roster's Cards view. Home is the landing page now (13 Sep 2026),
+  // and a bookmark of the old landing lands on the new one.
+  { path: 'overview', redirectTo: 'home' },
   {
     path: 'players',
     canActivate: [viewerGuard],
