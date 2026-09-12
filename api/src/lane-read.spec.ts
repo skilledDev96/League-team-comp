@@ -102,6 +102,13 @@ describe('readLane', () => {
 });
 
 describe('playerFacts', () => {
+  it('keeps the multikills a v6 entry carries, and none at all for an entry without them', () => {
+    const facts = playerFacts(part({ teamId: 100, teamPosition: 'BOTTOM', extras: { doubleKills: 3, tripleKills: 1, quadraKills: 1, pentaKills: 1, largestMultiKill: 5 } }), 1800);
+    expect(facts).toMatchObject({ doubleKills: 3, tripleKills: 1, quadraKills: 1, pentaKills: 1, largestMultiKill: 5 });
+    const old = playerFacts(part({ teamId: 100, teamPosition: 'BOTTOM', extras: { soloKills: 2 } }), 1800);
+    expect(Object.keys(old).filter((k) => /Kills$|MultiKill$/.test(k) && k !== 'soloKills')).toEqual([]);
+  });
+
   it('reads Teleport from either slot and keeps teleport takedowns only for a player who took it', () => {
     const withTp = playerFacts(part({ teamId: 100, teamPosition: 'TOP', extras: { summoner1Id: 4, summoner2Id: TELEPORT_SUMMONER_ID, teleportTakedowns: 2 } }), 1800);
     expect(withTp).toMatchObject({ hasTeleport: true, tpTakedowns: 2 });

@@ -47,6 +47,13 @@ export interface ParticipantExtras {
   turretTakedowns?: number;
   summoner1Id?: number;
   summoner2Id?: number;
+  /** Multikills (cache v6, 13 Sep 2026, for the home page's pentakills). Absent below v6, never a zero standing in for one. */
+  doubleKills?: number;
+  tripleKills?: number;
+  quadraKills?: number;
+  pentaKills?: number;
+  /** The biggest multikill of the game: 1 for none, 5 for a penta. */
+  largestMultiKill?: number;
 }
 
 const CHALLENGE_FIELDS = [
@@ -79,7 +86,12 @@ const TOP_LEVEL_FIELDS = [
   'wardsKilled',
   'turretTakedowns',
   'summoner1Id',
-  'summoner2Id'
+  'summoner2Id',
+  'doubleKills',
+  'tripleKills',
+  'quadraKills',
+  'pentaKills',
+  'largestMultiKill'
 ] as const;
 
 /** The slice of a Riot participant this reads; anything else is ignored. */

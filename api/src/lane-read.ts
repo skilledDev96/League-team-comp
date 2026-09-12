@@ -65,6 +65,12 @@ export interface PlayerFacts {
   killsNearEnemyTurret?: number;
   /** Share of the team's damage to champions, 0-1, from Riot. */
   damageShare?: number;
+  /** Multikills, from cache v6 (13 Sep 2026): absent on an older entry rather than zero. */
+  doubleKills?: number;
+  tripleKills?: number;
+  quadraKills?: number;
+  pentaKills?: number;
+  largestMultiKill?: number;
 }
 
 export const POSITION_ROLE: Record<string, LaneRole> = {
@@ -193,7 +199,12 @@ export function playerFacts(p: LaneParticipant, durationSec: number): PlayerFact
     ...(x.dragonTakedowns !== undefined ? { dragonTakedowns: x.dragonTakedowns } : {}),
     ...(x.baronTakedowns !== undefined ? { baronTakedowns: x.baronTakedowns } : {}),
     ...(x.killsNearEnemyTurret !== undefined ? { killsNearEnemyTurret: x.killsNearEnemyTurret } : {}),
-    ...(x.teamDamagePercentage !== undefined ? { damageShare: Math.round(x.teamDamagePercentage * 1000) / 1000 } : {})
+    ...(x.teamDamagePercentage !== undefined ? { damageShare: Math.round(x.teamDamagePercentage * 1000) / 1000 } : {}),
+    ...(x.doubleKills !== undefined ? { doubleKills: x.doubleKills } : {}),
+    ...(x.tripleKills !== undefined ? { tripleKills: x.tripleKills } : {}),
+    ...(x.quadraKills !== undefined ? { quadraKills: x.quadraKills } : {}),
+    ...(x.pentaKills !== undefined ? { pentaKills: x.pentaKills } : {}),
+    ...(x.largestMultiKill !== undefined ? { largestMultiKill: x.largestMultiKill } : {})
   };
   return facts;
 }

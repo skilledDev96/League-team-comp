@@ -34,8 +34,12 @@ export interface CachedMatch {
  * and a few top-level counters (`participant-extras.ts`) — so the analysis can
  * read each lane and each player's habits (`lane-read.ts`). Absent below v5;
  * the Patterns tab says how many games are still waiting on the backfill.
+ *
+ * v6 (13 Sep 2026) keeps each participant's multikills — doubles to pentas and the largest — in
+ * `extras`, for the home page's pentakills and its biggest-multikill record. Absent below v6, and the
+ * page counts over the games that carry them rather than reading a missing one as none.
  */
-export const CACHE_VERSION = 5;
+export const CACHE_VERSION = 6;
 
 /** A Summoner's Rift match has ten participants, and always exactly ten. */
 const FULL_LOBBY = 10;

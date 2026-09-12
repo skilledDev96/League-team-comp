@@ -394,7 +394,10 @@ filter rather than none, so it can never become unpickable.
    gaps that clear `MIN_FOR_A_CLAIM` on both sides, a lane table, and the
    team and each player split by result. Replays have totals only, so a
    scrim's lanes stay `unknown` and the table counts it as skipped. A bump
-   to v5 refills forty entries a run; the tab says how many are waiting.
+   to v5 refills forty entries a run; the tab says how many are waiting. **v6** (13 Sep 2026)
+   keeps each participant's multikills (doubles to pentas, the largest) in `extras` and
+   `PlayerFacts`, for Home's pentakills; absent below v6 and counted over the games that
+   carry them.
    Since 10 Sep 2026 `AnalysisGame.enemies[].stats` carries the other side's
    figures (`enemyStats`), so the post-game graphs draw both sides.
 6. **Patterns reads Riot games and replays apart, serious games only by
