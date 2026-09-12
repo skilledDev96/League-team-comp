@@ -1,5 +1,6 @@
-@if (tournaments().length > 1) {
-  <section class="view-controls" aria-label="Group picker" data-tour="prep-groups">
+<!-- The groups and the opponent filter in one row, the toolbar's shape (12 Sep 2026). -->
+<section class="view-controls" aria-label="Groups" [attr.data-tour]="tournaments().length > 1 ? 'prep-groups' : null">
+  @if (tournaments().length > 1) {
     @for (t of tournaments(); track t.id) {
       <button type="button" class="view-btn" [class.active]="currentTournament()?.id === t.id"
               [appTip]="t.kind === 'scrims' ? 'Every team we scrim: replays, scouting, bans and drafts' : (t.format || 'A tournament: series, games and the fearless pool')"
@@ -8,8 +9,27 @@
         {{ t.name }}
       </button>
     }
-  </section>
-}
+  }
+  <div class="view-controls-tools">
+    <app-champion-filter [count]="holders().length" noun="opponents" placeholder="Who on their side plays a champion — Tristana, Rakan…" />
+  </div>
+  @if (filter.active()) {
+    <p class="champ-filter-answer is-inset">
+      @if (holders().length) {
+        @for (h of holders(); track h.series.id) {
+          <span class="champ-filter-holder">
+            <b>{{ h.series.opponent }}</b>:
+            @for (p of h.players; track p.name + p.riotTag; let last = $last) {
+              {{ p.name }} ({{ p.role }}){{ last ? '' : ',' }}
+            }
+          </span>
+        }
+      } @else {
+        None of the scouted opponents in this tournament list {{ filter.active() }}.
+      }
+    </p>
+  }
+</section>
 
 @if (auth.editing() && migration.pending()) {
   <section class="card scrims-migrate" role="status" aria-live="polite">
@@ -24,23 +44,6 @@
   </section>
 }
 
-<app-champion-filter [count]="holders().length" noun="opponents" placeholder="Who on their side plays a champion — Tristana, Rakan…" />
-@if (filter.active()) {
-  <p class="champ-filter-answer">
-    @if (holders().length) {
-      @for (h of holders(); track h.series.id) {
-        <span class="champ-filter-holder">
-          <b>{{ h.series.opponent }}</b>:
-          @for (p of h.players; track p.name + p.riotTag; let last = $last) {
-            {{ p.name }} ({{ p.role }}){{ last ? '' : ',' }}
-          }
-        </span>
-      }
-    } @else {
-      None of the scouted opponents in this tournament list {{ filter.active() }}.
-    }
-  </p>
-}
 
 @if (currentTournament(); as tournament) {
   @if (isScrims()) {
@@ -159,9 +162,6 @@
       <h3 class="section-divider">
         Series
         <span class="section-divider-count">{{ seriesList().length }}</span>
-        <app-detail-toggle surface="prep"
-                           starterTip="Their five on a line each, the ban board, and the games"
-                           fullTip="The full roster table: both queues, who beats them, what they played lately, and the bench" />
       </h3>
       @for (series of seriesList(); track series.id; let i = $index) {
         <details class="card series-panel" data-tour="prep-series" [open]="isSeriesOpen(series.id)">

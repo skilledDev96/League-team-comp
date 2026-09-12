@@ -4,29 +4,31 @@
   <app-tour-pill />
 </section>
 
-<section class="view-controls" aria-label="View controls">
-  <app-detail-toggle surface="comps" starterTip="Open a comp for its picks, plan and bans" fullTip="Every comp open, with its record and the games behind it" />
+<!-- One toolbar on every page, the Games one (12 Sep 2026, the lead: "I like how the games top page
+     looks, with the detail option on the right — make this consistent across all pages"). The views as
+     pills on the left, anything that belongs to the whole page pushed right, Detail last. -->
+<!-- Comps has no views, so its categories are the pills: they were a select, which read as a form. -->
+<section class="view-controls" aria-label="Comps views">
   @if (compCategories().length) {
-    <label class="field comp-cat-field">
-      <span>Category</span>
-      <select [ngModel]="compCategoryFilter()" (ngModelChange)="compCategoryFilter.set($event)" name="compCatFilter">
-        <option value="all">All categories</option>
-        @for (cat of compCategories(); track cat) { <option [value]="cat">{{ cat }}</option> }
-      </select>
-    </label>
+    <button type="button" class="view-btn" [class.active]="compCategoryFilter() === 'all'" [attr.aria-pressed]="compCategoryFilter() === 'all'" (click)="compCategoryFilter.set('all')">All</button>
+    @for (cat of compCategories(); track cat) {
+      <button type="button" class="view-btn" [class.active]="compCategoryFilter() === cat" [attr.aria-pressed]="compCategoryFilter() === cat" (click)="compCategoryFilter.set(cat)">{{ cat }}</button>
+    }
   }
-  @if (auth.editing()) {
-    <button data-tour="comps-add" type="button" class="view-btn active view-controls-cta" (click)="addComp()" appTip="A blank comp, opened with its board so the picks go straight in">
-      <span class="material-symbols-rounded" aria-hidden="true">add_circle</span> Add a comp
-    </button>
-  }
+  <div class="view-controls-tools">
+    <app-champion-filter [count]="visibleComps().length" noun="comps" placeholder="Comps with a champion — Tristana, Rakan…" />
+    @if (auth.editing()) {
+      <button data-tour="comps-add" type="button" class="view-btn active view-controls-cta" (click)="addComp()" appTip="A blank comp, opened with its board so the picks go straight in">
+        <span class="material-symbols-rounded" aria-hidden="true">add_circle</span> Add a comp
+      </button>
+    }
+  </div>
+  <app-detail-toggle surface="comps" starterTip="Open a comp for its picks, plan and bans" fullTip="Every comp open, with its record and the games behind it" />
 </section>
 
 <datalist id="compcatlist">
   @for (cat of categorySuggestions; track cat) { <option [value]="cat"></option> }
 </datalist>
-
-<app-champion-filter [count]="visibleComps().length" noun="comps" placeholder="Comps with a champion — Tristana, Rakan…" />
 
 <section id="compSection" class="grid two" aria-label="Team compositions">
   @for (comp of visibleComps(); track comp.id) {

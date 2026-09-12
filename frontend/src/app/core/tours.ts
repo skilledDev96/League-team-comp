@@ -191,7 +191,7 @@ export const TOURS: readonly Tour[] = [
     role: 'editor',
     needs: 'players',
     steps: [
-      { anchor: 'player-edit', title: 'Edit this player', text: 'Opens the editor in a drawer, from the quick actions.', more: 'It is the same form Admin uses, so nothing about a player lives anywhere else.', editMode: true },
+      { anchor: 'player-edit', title: 'Edit this player', text: 'Opens the editor in a drawer.', more: 'It is the same form Admin uses, so nothing about a player lives anywhere else.', editMode: true },
       { anchor: 'pe-identity', title: 'Name, tag and role', text: 'Riot ID is what every refresh reads.', more: 'Change the role and the roster regroups.', editMode: true, before: 'openPlayerEditor' },
       { anchor: 'pe-bench', title: 'A team or Bench', text: 'A team or Bench, the same flag as the roster card.', more: 'The second seats are the roles they also cover.', editMode: true, before: 'openPlayerEditor' },
       { anchor: 'pe-pool', title: 'Pool and bans', text: 'Their declared pool, plus bans to take away from them in practice.', more: 'First champion in the pool is shown as the main.', editMode: true, before: 'openPlayerEditor' },

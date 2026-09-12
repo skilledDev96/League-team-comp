@@ -5,6 +5,7 @@ import { TournamentDraftComponent } from './draft/draft.component';
 import { TournamentPlanComponent } from './plan/plan.component';
 import { TournamentContextService } from './tournament-context.service';
 import { TourPillComponent } from '../../shared/tour-pill.component';
+import { DetailToggleComponent } from '../../shared/detail-toggle.component';
 import { ChampionDataService } from '../../services/champion-data.service';
 
 /**
@@ -14,7 +15,7 @@ import { ChampionDataService } from '../../services/champion-data.service';
  */
 @Component({
   selector: 'app-tournaments',
-  imports: [TournamentPlanComponent, TournamentDraftComponent, TourPillComponent],
+  imports: [DetailToggleComponent, TournamentPlanComponent, TournamentDraftComponent, TourPillComponent],
   templateUrl: './tournaments.component.html'
 })
 export class TournamentsComponent {

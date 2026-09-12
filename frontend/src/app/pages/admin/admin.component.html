@@ -5,10 +5,6 @@
   <app-tour-pill />
 </section>
 
-@if (ctx.status()) {
-  <p class="tag good" role="ctx.status">{{ ctx.status() }}</p>
-}
-
 <section data-tour="admin-tabs" class="view-controls" aria-label="Editor tabs">
   @if (auth.canManageUsers()) {
     <button class="view-btn" [class.active]="ctx.activeTab() === 'settings'" type="button" (click)="ctx.openTab('settings')">Settings</button>
@@ -22,6 +18,11 @@
     <button class="view-btn" [class.active]="ctx.activeTab() === 'diagnostics'" type="button" (click)="ctx.openTab('diagnostics')">Diagnostics</button>
   }
 </section>
+
+<!-- Under the tabs rather than between them and the hero, so the toolbar sits where it does on every page. -->
+@if (ctx.status()) {
+  <p class="tag good admin-status" role="status">{{ ctx.status() }}</p>
+}
 
 @if (auth.canManageUsers() && ctx.activeTab() === 'settings') {
   <app-admin-settings />

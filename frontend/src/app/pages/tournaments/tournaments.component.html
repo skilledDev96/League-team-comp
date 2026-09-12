@@ -4,6 +4,9 @@
   <app-tour-pill />
 </section>
 
+<!-- One toolbar on every page, the Games one (12 Sep 2026, the lead: "I like how the games top page
+     looks, with the detail option on the right — make this consistent across all pages"). The views as
+     pills on the left, anything that belongs to the whole page pushed right, Detail last. -->
 <section class="view-controls" aria-label="View">
   <button type="button" class="view-btn" [class.active]="view() === 'plan'" (click)="view.set('plan')">
     <span class="material-symbols-rounded" aria-hidden="true">calendar_month</span> Plan
@@ -11,6 +14,12 @@
   <button type="button" class="view-btn" [class.active]="view() === 'draft'" (click)="view.set('draft')">
     <span class="material-symbols-rounded" aria-hidden="true">swords</span> Draft
   </button>
+  <!-- Plan only. Hidden, not removed, on Draft: the switch is taller than the pills, and the toolbar
+       over the draft room must not change height when the view does. The draft room is not a depth
+       surface. -->
+  <app-detail-toggle surface="prep" [style.visibility]="view() === 'plan' ? null : 'hidden'"
+                     starterTip="Their five on a line each, the ban board, and the games"
+                     fullTip="The full roster table: both queues, who beats them, what they played lately, and the bench" />
 </section>
 
 @if (view() === 'plan') {

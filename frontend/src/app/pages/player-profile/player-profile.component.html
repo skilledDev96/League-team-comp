@@ -5,25 +5,27 @@
     <app-tour-pill />
 </section>
 
-    <section class="card quick-actions profile-actions" aria-label="Quick actions">
-      <span data-tour="player-edit" class="quick-actions-label"><span class="material-symbols-rounded" aria-hidden="true">bolt</span>Quick actions</span>
-      <div class="quick-actions-row">
-        @if (auth.editing()) {
+    <!-- One toolbar on every page, the Games one (12 Sep 2026, the lead: "I like how the games top page
+         looks, with the detail option on the right — make this consistent across all pages"). The views as
+         pills on the left, anything that belongs to the whole page pushed right, Detail last. -->
+    <section class="view-controls" aria-label="Player">
+      <a class="view-btn quick-action" routerLink="/roster"><span class="material-symbols-rounded" aria-hidden="true">groups</span>Back to Roster</a>
+      <a class="view-btn quick-action" routerLink="/comps"><span class="material-symbols-rounded" aria-hidden="true">dashboard</span>Team comps</a>
+      <a class="view-btn quick-action" [routerLink]="['/games']" [queryParams]="{ tab: 'reviews' }"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Reviews</a>
+      @if (auth.editing()) {
+        <div class="view-controls-tools">
+          <button class="view-btn quick-action" type="button" data-tour="player-edit" (click)="editor.open(p.id)" appTip="Name, tag, seats, pool, bans, playstyle and links, in a drawer">
+            <span class="material-symbols-rounded" aria-hidden="true">edit</span>Edit this player
+          </button>
           <button class="view-btn active quick-action" type="button" [disabled]="refreshing()" (click)="refreshData()" appTip="Re-reads rank, recent champions and the observed playstyle. Anything typed by hand is kept.">
             @if (refreshing()) { <span class="btn-spinner" aria-hidden="true"></span> Refreshing… } @else { <span class="material-symbols-rounded" aria-hidden="true">sync</span>Refresh from Riot }
           </button>
-          <button class="view-btn quick-action" type="button" (click)="editor.open(p.id)" appTip="Name, tag, seats, pool, bans, playstyle and links, in a drawer">
-            <span class="material-symbols-rounded" aria-hidden="true">edit</span>Edit this player
-          </button>
-        }
-        <a class="view-btn quick-action" routerLink="/roster"><span class="material-symbols-rounded" aria-hidden="true">groups</span>Back to Roster</a>
-        <a class="view-btn quick-action" routerLink="/comps"><span class="material-symbols-rounded" aria-hidden="true">dashboard</span>Team comps</a>
-        <a class="view-btn quick-action" [routerLink]="['/games']" [queryParams]="{ tab: 'reviews' }"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Reviews</a>
-      </div>
-      @if (refreshStatus()) {
-        <p class="tag good quick-actions-also" role="status">{{ refreshStatus() }}</p>
+        </div>
       }
     </section>
+    @if (refreshStatus()) {
+      <p class="tag good profile-refresh-status" role="status">{{ refreshStatus() }}</p>
+    }
 
   <section class="grid two">
     <article class="card card-loadable">

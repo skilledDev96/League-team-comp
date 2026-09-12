@@ -55,7 +55,6 @@ import { playedElsewhere, SeatChange, seatOffer, withSeats } from '../../../core
 import { TournamentContextService } from '../tournament-context.service';
 import { GameMvp, MvpGame, mvpGameFromScrim, mvpOf, SeriesMvp, SeriesMvpGame, seriesMvpOf } from '../../../core/game-mvp';
 import { MvpChipComponent } from '../../../shared/mvp-chip.component';
-import { DetailToggleComponent } from '../../../shared/detail-toggle.component';
 import { UserPrefsService } from '../../../services/user-prefs.service';
 
 /**
@@ -73,7 +72,6 @@ import { UserPrefsService } from '../../../services/user-prefs.service';
     MatchNoteComponent,
     MatchNoteButtonComponent,
     TooltipDirective,
-    DetailToggleComponent,
     NgModelNameDirective,
     MvpChipComponent
   ],
