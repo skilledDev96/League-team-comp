@@ -239,6 +239,49 @@ export const TOURS: readonly Tour[] = [
       { anchor: 'patterns-sections', title: 'More sections', text: 'Lanes, the team split by result and the objective patterns sit behind these chips. Your choice is remembered.' }
     ]
   },
+  /**
+   * The two viewer tours on Prep & Draft (12 Sep 2026).
+   *
+   * Every tour this page had — drafting, scouting, replays — is `role: 'editor'` with every step
+   * `editMode: true`, so the people who complain that the page is unreadable have never been shown
+   * it. These two have no role and no edit-mode step: they walk the page as it stands.
+   *
+   * Reading the prep starts by itself, the way the Games and Patterns tours do. Watching a draft
+   * does not — the draft room is used live, and a tour opening over a draft in progress is the
+   * worst moment this app has. It waits for the Show me around pill.
+   */
+  {
+    id: 'prep-read',
+    title: 'Reading the prep',
+    blurb: 'What a series card holds before you play it: what is burned, who they are, and what to ban.',
+    version: 1,
+    match: { path: '/tournaments', query: { view: 'plan' } },
+    needs: 'series',
+    steps: [
+      { anchor: 'prep-series', title: 'A series', text: 'One card an opponent. The page opens on the next one you have to play — the ones already played are closed.' },
+      { anchor: 'prep-fearless', title: 'What is burned', text: 'Under Fearless Draft a champion played by either team is gone for the rest of the series. This is what is already spent.' },
+      { anchor: 'detail-prep', title: 'How much to show', text: 'Starter is their five on a line each. Full adds both ranked queues, who beats them, what they played lately and their bench. It is remembered for you.' },
+      { anchor: 'prep-roster', title: 'Their five', text: 'The seat we expect them in, their rank, and the three champions they actually play — both queues added together, most games first.' },
+      { anchor: 'prep-banboard', title: 'Who to ban', text: 'The champions across their five that a ban would actually hurt, ranked by games rather than win rate: a 100% over three games is a curiosity.' },
+      { anchor: 'prep-team', title: 'As a team', text: 'The games their five queued together lately, and what they pick when they do. An editor fetches it once and everyone sees it.' }
+    ]
+  },
+  {
+    id: 'draft-watch',
+    title: 'Watching a draft',
+    blurb: 'Following the room from the side, on the shared link.',
+    version: 1,
+    match: { path: '/tournaments', query: { view: 'draft' } },
+    needs: 'series',
+    autoStart: false,
+    steps: [
+      { anchor: 'draft-games', title: 'Which game', text: 'A series is several games. This picks which one the room is showing; everyone on the link sees the same one.' },
+      { anchor: 'draft-step-bar', title: 'Whose turn', text: 'Ban or pick, and whose. Twenty steps, the order fixed by which side we are on. The clock here is a reminder; the real one is in the client.' },
+      { anchor: 'draft-wall', title: 'What is left', text: 'Every champion, with the ones taken, banned or burned earlier in the series greyed out.' },
+      { anchor: 'draft-lanes', title: 'How the lanes read', text: 'Each of our picks against theirs, seat by seat, once both are on the board.' },
+      { anchor: 'draft-board', title: 'Which comps survive', text: 'Our own comps, sorted into the ones still playable and the ones a ban or a pick has broken.' }
+    ]
+  },
   {
     id: 'draft',
     title: 'Drafting',

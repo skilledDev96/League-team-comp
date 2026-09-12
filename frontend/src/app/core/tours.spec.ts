@@ -153,3 +153,39 @@ describe('the registry', () => {
     }
   });
 });
+
+/**
+ * Prep & Draft had three tours and all three were for editors, with every step behind edit mode —
+ * so the viewers who say the page is unreadable had never been shown it. These two are the way in,
+ * and the thing that makes them one is that a viewer keeps every step.
+ */
+describe('the viewer tours on Prep & Draft', () => {
+  const viewerTours = TOURS.filter((t) => t.id === 'prep-read' || t.id === 'draft-watch');
+
+  it('exists, both of them', () => {
+    expect(viewerTours.map((t) => t.id).sort()).toEqual(['draft-watch', 'prep-read']);
+  });
+
+  it('runs for a viewer and keeps every step', () => {
+    for (const t of viewerTours) {
+      expect(canRun(t, 'viewer'), t.id).toBe(true);
+      expect(stepsFor(t, 'viewer').length, t.id).toBe(t.steps.length);
+      for (const s of t.steps) {
+        expect(s.editMode, `${t.id}: ${s.anchor}`).toBeUndefined();
+        expect(s.role, `${t.id}: ${s.anchor}`).toBeUndefined();
+      }
+    }
+  });
+
+  it('lands on the Prep & Draft views they are about', () => {
+    expect(routeMatches(TOURS.find((t) => t.id === 'prep-read')!.match, '/tournaments?view=plan')).toBe(true);
+    expect(routeMatches(TOURS.find((t) => t.id === 'draft-watch')!.match, '/tournaments?view=draft')).toBe(true);
+    expect(routeMatches(TOURS.find((t) => t.id === 'prep-read')!.match, '/tournaments?view=draft')).toBe(false);
+  });
+
+  it('never opens the draft room by itself', () => {
+    // A tour opening over a draft in progress is the worst moment this app has.
+    expect(TOURS.find((t) => t.id === 'draft-watch')!.autoStart).toBe(false);
+    expect(TOURS.find((t) => t.id === 'prep-read')!.autoStart).not.toBe(false);
+  });
+});

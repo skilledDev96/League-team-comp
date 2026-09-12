@@ -851,7 +851,7 @@
            there to talk about. -->
       @if (readableLanes(game); as lanes) {
         @if (lanes.length) {
-          <section class="draft-lanes" aria-label="Lane read">
+          <section class="draft-lanes" data-tour="draft-lanes" aria-label="Lane read">
             <div class="advice-block is-lanes">
               <span class="advice-head">Lanes</span>
               <ul class="list-clean lane-list">
@@ -905,7 +905,7 @@
         }
       </div>
 
-      <div class="draft-board-body is-page">
+      <div class="draft-board-body is-page" data-tour="draft-board">
         <div class="draft-col">
           <span class="draft-col-head is-ok">Still playable</span>
           @for (row of draftPlayable(game); track row.id) {

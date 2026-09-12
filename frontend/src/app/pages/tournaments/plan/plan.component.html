@@ -234,7 +234,7 @@
           </summary>
 
           <!-- Fearless pool: the reason this page exists. -->
-          <div class="fearless">
+          <div class="fearless" data-tour="prep-fearless">
             <div class="fearless-head">
               <span class="material-symbols-rounded" aria-hidden="true">block</span>
               <span class="fearless-title">Fearless pool</span>
@@ -569,7 +569,7 @@
                        before a series; the rest is what they check, and it waits for
                        Full. Edit mode always draws the table, because that is where the
                        controls live. -->
-                  <ul class="list-clean opp-lines" aria-label="Their five">
+                  <ul class="list-clean opp-lines" data-tour="prep-roster" aria-label="Their five">
                     @for (opp of orderedRoster(series); track opp.name + opp.riotTag) {
                       <li class="opp-line">
                         <span class="opp-line-seat">{{ opp.role }}</span>
@@ -606,7 +606,7 @@
                     <p class="muted opp-lines-more">{{ bench(series).length }} on their bench, and what they played lately, are in Full.</p>
                   }
                 } @else {
-                <div class="opp-scroll">
+                <div class="opp-scroll" data-tour="prep-roster">
                 <div class="opp-table" role="table" aria-label="Their roster">
                   <div class="opp-head" role="row">
                     <span role="columnheader">Seat</span>
