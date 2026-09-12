@@ -62,10 +62,7 @@
       @for (opp of five(); track opp.name + opp.riotTag) {
         <li class="opp-line">
           <span class="opp-line-seat">{{ opp.role }}</span>
-          <span class="opp-line-name">
-            <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
-               target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
-          </span>
+          <span class="opp-line-name">{{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}</span>
           @if (bestRank(opp); as r) {
             <span class="opp-line-rank" [appTip]="(r.label || 'Ranked') + ' — Full shows both queues'">@if (r.label) { <em>{{ r.label }}</em> } {{ r.rank }}</span>
           } @else {
@@ -85,6 +82,10 @@
               <span class="opp-none">&mdash;</span>
             }
           </span>
+          <a class="view-btn roster-profile-chip opp-line-opgg"
+             [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
+             target="_blank" rel="noopener noreferrer"
+             [appTip]="'Open ' + opp.name + ' on op.gg'" [attr.aria-label]="'Open ' + opp.name + ' on op.gg'">op.gg <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
         </li>
       }
     </ul>

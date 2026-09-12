@@ -10972,30 +10972,46 @@ body:has(.draft-stage) .edit-mode-frame {
 
 /* Starter: their five on a line each. The table says the same thing across six columns
    and up to nine cells a player; this is the part a reader acts on before a series. */
-.opp-lines { display: grid; gap: 0.3rem; margin: 0.2rem 0 0; max-width: 62rem; }
-.opp-line {
+.opp-lines {
   display: grid;
-  /* The name column was minmax(8rem, 1fr), which on a wide desktop absorbed every spare pixel
-     and stranded the rank and the champions at the far edge with a dead zone between (12 Sep 2026,
-     the lead: "looks a bit odd"). It is capped now, and the champions take the slack. */
-  grid-template-columns: 5.4rem minmax(8rem, 20rem) 8.5rem minmax(0, 1fr);
+  /* seat | who | rank | plays | op.gg, each as wide as its widest row and no wider (12 Sep 2026, the
+     lead on the Scout report: "same as the other page issue"). Fixed rem tracks — a name capped at
+     20rem, the champions taking the rest of a 62rem line — scaled with the root font on a wide screen
+     and left most of the line empty between the name, the rank and three small icons. */
+  grid-template-columns: max-content minmax(0, max-content) max-content minmax(min-content, max-content) max-content;
+  column-gap: 0.9rem;
+  row-gap: 0.25rem;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0.2rem 0 0;
+  padding-left: 0;
+  list-style: none;
+}
+/* Every line shares the list's columns, so the rows line up down the page. */
+.opp-lines > .opp-line {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.35rem 0.5rem;
+  margin: 0;
+  padding: 0.25rem 0.6rem;
   border-radius: 0.5rem;
   background: var(--surface-controls);
 }
 .opp-line-seat { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-1); }
-.opp-line-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.opp-line-name a { color: var(--text-0); }
-.opp-line-rank { font-size: 0.8rem; color: var(--text-1); }
+.opp-line-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--text-0); }
+.opp-line-rank { font-size: 0.8rem; color: var(--text-1); white-space: nowrap; }
 .opp-line-rank em { font-style: normal; opacity: 0.7; margin-right: 0.25rem; }
 .opp-line-rank.is-unranked { opacity: 0.55; }
-.opp-line-plays { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-/* Five players should fit in one look, so the icons come down from the table's size. */
-.opp-line .opp-champ { width: 2.1rem; height: 2.1rem; }
-.opp-line .opp-champ-cell { gap: 0.15rem; }
-.opp-line .opp-champ-stat { font-size: 0.7rem; }
+.opp-line-plays { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+/* The stat beside the icon rather than under it, so a line is one icon tall. */
+.opp-line .opp-champ-cell { display: inline-flex; align-items: center; gap: 0.3rem; min-width: 4.3rem; }
+.opp-line .opp-champ { width: 1.9rem; height: 1.9rem; }
+.opp-line .opp-champ-stat { flex-direction: column; align-items: flex-start; gap: 0.1rem; font-size: 0.74rem; }
+.opp-line .opp-champ-stat em { font-size: 0.62rem; }
+/* op.gg as a small pill, never an underlined name. */
+.opp-line .opp-line-opgg { padding: 0.15rem 0.55rem; font-size: 0.72rem; }
+.opp-line .opp-line-opgg .material-symbols-rounded { font-size: 0.9rem; }
 .opp-lines-more { margin: 0.45rem 0 0; font-size: 0.78rem; }
 .opp-history-folded { margin: 0.5rem 0 0; font-size: 0.78rem; }
 
