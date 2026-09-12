@@ -214,23 +214,30 @@ holds the component; the rules it obeys are pure and tested next door in
   occupy reserved space (`.draft-head`, `.draft-confirm-slot`, a fixed grid
   height). Verify a change here by measuring an element's `top` across every
   filter and state, not by eye.
-- **The comp finder sits straight under the wall** (12 Sep 2026, the lead:
-  "can't see which comps have a champion", "the board is too far down the
-  page", "too many comps to scan"). It was the sixth row of the middle stack
-  with its three lists stacked; `.draft-finder` is the second — wall, finder,
-  advice, lane read, bans — with the lists side by side at `--wall-w` and each
-  comp wearing its five faces. A search goes through `compFinds` and
-  `championFinds` in `draft.util.ts` (a comp's name anywhere, a champion by the
-  start of its name or by Riot's id); broken comps start folded and a search
-  opens them. **Its box is a fixed height that scrolls inside**, so searching,
-  folding or opening a comp can never move the advice under it — measured
-  across all five states in both views. The stack's rows are placed with
-  `grid-row` in several blocks of `styles.css`; the old
-  `.draft-stage .draft-status` / `.draft-board-body` placements were descendant
-  selectors that would have reached inside the finder, so they went. Change the
-  order in the `@media (min-width: 1101px)` block after the lane read, then
-  measure every block's rect for overlaps at 1920, 1280 and 1000. Rates here use
-  `bandOf`, `rateBand`'s scale for a rate that arrives already rounded.
+- **The comps board is a popup, not part of the room** (12 Sep 2026, the
+  lead: "remove the comps from the actual draft for now, make it a popup … then
+  we can have a fixed view and keep it focused"). A comp finder under the wall
+  was tried the same evening and reverted on the lead's word ("exactly as
+  before"). The board — Still playable, Broken, Pool left — is unchanged inside
+  a native `<dialog class="draft-comps-dialog">`, rendered outside the `.card`
+  under `@if (compsShown())` and opened with `showModal` by an
+  `afterRenderEffect`, so it sits in the top layer and nothing in the room can
+  move. It opens from the **Comps** pill (`.draft-comps-link`,
+  `data-tour="draft-board"`) in `.draft-page-head`, always drawn and disabled
+  with no game; its height is fixed (`min(44rem, 100vh - 4rem)`) because a
+  dialog centred with `margin: auto` re-centres when a comp opens inside it.
+  Escape (`cancel`) and a backdrop click close it through `hideComps`, and the
+  tour overlay leaves keys alone while any `dialog:modal` is open — or Escape
+  skipped the whole tour and never closed the dialog. **While a sequence runs,
+  `pickFromComps` holds the champion through `proposeFromSequence` and closes
+  the popup onto the confirm row**, after `cancelReplace()`, and aims the wall's
+  lane at the comp's seat on our pick; the board used to write a pick straight
+  into a seat without moving the step. Rates in it use the room's
+  `winRateBand`. The middle stack is wall, advice, lane read, bans (the team
+  columns span four rows), and map view between 1101 and 1399px keeps the wall
+  to row 1 or it covers the advice. Measured against the room before either
+  change, at 1920 in both views: the head, wall, advice and bans sit on the same
+  pixel.
 - **The clock is a reminder, not a referee** — it never advances the draft or
   discards a pick. The real clock is in the League client.
 - **The page scrolls sideways by ~8px here, and that is a known, accepted
@@ -1233,6 +1240,11 @@ adding a control or a colour. The three rules that cost the most time before it 
   `<summary class="section-head">` + `.fold-chevron`. Copy an existing one; do not write a fold
   button. A control inside a clickable header needs `preventDefault()` **as well as**
   `stopPropagation()` — inside a `<summary>`, stopping propagation alone is not enough.
+- **One toolbar on every page, the Games one** (12 Sep 2026): a bare `.view-controls` straight under
+  the hero, the page's views as `.view-btn` pills on the left, page-wide tools in
+  `.view-controls-tools` packed right, `app-detail-toggle` last and only on a depth surface. A control
+  one view lacks is removed there, never hidden — Prep's switch hidden on Draft pushed the draft room
+  35px down. See `docs/design-system.md` §3½.
 
 **The deployed site says which commit it is** (12 Sep 2026). `scripts/gen-build-info.mjs` writes
 `frontend/public/build.json` alongside the two `build-info.ts` files, and a public e2e check waits

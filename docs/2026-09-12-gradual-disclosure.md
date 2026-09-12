@@ -278,6 +278,39 @@ the card's lift. Each was checked in the code or the running app before anything
 
 ---
 
+## Part 6 — the lead's look at the evening pass (late)
+
+The lead: *"I do not see a lot of changes to the comps and roster pages?"* Fair: most of Part 5 lived
+in Full, inside opened panels, on the Scout report and in edit mode, and the Starter views a person
+lands on looked nearly the same. What the lead asked for next, and what shipped:
+
+- **The draft room back as it was, the comps in a popup.** *"I would like the advisor back … return
+  the view back as it was … remove the comps from the actual draft, make it a popup."* Part 5's finder
+  (042cb0c) was reverted exactly, so the table row, the decision and bugs 6 and 7 above describing it no
+  longer hold. The board sits unchanged in a native `<dialog>` from a Comps pill. Measured against the
+  room before either change, the head, wall, advice and bans are on the same pixel at 1920.
+- **One toolbar on every page**, copied from Games: views as pills on the left, Detail on the right.
+- **Roster cards** on one left edge with the 2nd seat as quiet pills; **every champion pool folds**.
+- **The Scout report's lines**, which spread three columns hundreds of pixels apart: rows 95 → 48px
+  apart, columns sized to their content, op.gg as a pill instead of an underlined name. Prep shares it.
+
+### Found by an adversarial review of those commits (12 confirmed, 6 refuted)
+
+1. Escape in the popup during a tour skipped the whole tour, marked it seen, and cancelled the key so
+   the dialog never closed. The tour overlay now leaves keys to an open modal.
+2. A chip clicked with a seat still aimed replaced a confirmed pick at once, behind a hint saying
+   "hold". The popup now always holds, says whose ban or pick, and aims the wall at the comp's seat.
+3. **Mid-sequence the old board wrote picks into seats without moving the step** — the free-form edit
+   the room forbids. It was always there; the popup made it one click. It holds now.
+4. Map view between 1101 and 1399px drew the wall over the advice. Part 5's finder had hidden it; the
+   revert brought it back. Fixed, measured at 1280.
+5. Prep's Detail switch, hidden rather than removed on Draft, pushed the whole room 35px down.
+6. The popup's rates were back on a hand-coded 50; they use the room's own bands beside the advice.
+7. Smaller: the Sub badge's tip sat under the card's link; a name could shrink to nothing on a narrow
+   line; a visited op.gg pill turned link-blue (a redundant `a:visited` rule outranked the pill).
+
+---
+
 ## What is still owed
 
 - Walking the live site **as a viewer and as a contributor**. Both complained.
@@ -289,3 +322,6 @@ the card's lift. Each was checked in the code or the running app before anything
   sandbox, so no comp has traits. It should land on the live site; check it there.
 - Three of the five pill-only collapse panels are converted; Player Intel and Admin › Players still
   use a chevron button.
+- Synergy (`/synergy`, linked from nowhere) still uses its own toolbar and segmented control.
+- Picking a comp's champion from the draft popup in a live draft: check the hold lands in the comp's
+  seat, on the live site, in edit mode.

@@ -133,6 +133,38 @@ Use `<details class="card fold-card">` with `<summary class="section-head">` and
 A control that must live *inside* a clickable header needs **`$event.preventDefault()` as well as
 `$event.stopPropagation()`** — stopping propagation alone is not enough inside a `<summary>`.
 
+**Inside a card**, a section folds the same way without a card of its own:
+`<details class="intel-collapse fold-card">` with `<summary class="section-head intel-collapse-head">`
+holding the `h3`, an `.intel-collapse-count` pill and a trailing `.fold-chevron`. A player's champion
+pool uses it everywhere (Cards' Quick look, Scouting, the profile's Declared pool), and so does Working
+On. A card whose whole face is a link (`.card-link-overlay`) needs anything clickable inside it lifted
+above the overlay (`.clickable-card .role-details summary`), or a click on the header opens the page.
+
+---
+
+## 3½. One toolbar on every page
+
+The lead, 12 Sep 2026: *"I like how the games top page looks, with the detail option on the right —
+make this consistent across all pages."* Games' anatomy, copied everywhere:
+
+```
+<section class="hero"> h1, p, <app-tour-pill /> </section>
+<section class="view-controls">            ← bare, straight under the hero, no card around it
+  .view-btn pills: the page's views        ← left
+  <div class="view-controls-tools">        ← page-wide tools: a count, the champion search, Add
+  <app-detail-toggle surface="…" />         ← last, only on a depth surface
+</section>
+```
+
+Roster's four views, Comps' categories, Prep's Plan | Draft, the profile's links and Admin's tabs are
+all pills on the left. Something that belongs to one view goes in a row under the toolbar, not in it.
+A control present on one view and not another is **removed**, not hidden: Prep's switch hidden on
+Draft pushed the whole draft room 35px down.
+
+**Facts on a card** are a two-column `<dl>` — labels in one column, values in the other, every icon the
+height of a line — so every row starts at the same x (`.roster-card-facts`). Secondary attributes,
+like a player's 2nd seat, are small muted pills under the name, not a labelled line.
+
 ---
 
 ## 4. How much to show: act, or check?
@@ -164,9 +196,9 @@ Three more, from Roster and Comps (12 Sep 2026):
   comes back when a seat or Change picks is pressed. Same clicks, a tenth of the marks.
 
 The **draft room is deliberately not a depth surface**: a switch whose two states differ in height
-is the one thing `CLAUDE.md` forbids there. Anything added there whose content can change size is a
-**fixed box that scrolls inside** — the comp finder is — and is proven by measuring the tops of what
-sits below it, never by eye.
+is the one thing `CLAUDE.md` forbids there. Anything there whose content can change size lives **off
+the page** — the comps board is a native `<dialog>` in the top layer with a fixed height — and every
+change is proven by measuring the tops of the head, the wall, the advice and the bans, never by eye.
 
 **Still unanswered:** edit mode on Roster and Comps had its act-or-check pass on 12 Sep 2026; Games,
 Patterns, Prep's editing controls and Admin have not, and the "too much information" complaint came
@@ -192,7 +224,7 @@ from contributors as well as viewers.
 
 1. Which of the **seven roles** is it? If none, say why in the comment.
 2. Does it use **tokens only** — no literal colour, no hand-coded threshold? A win rate goes
-   through `rateBand` (wins over games) or `bandOf` (a rate already rounded), never `>= 50`.
+   through `rateBand` (wins over games), or in the draft room its own `winRateBand`, never `>= 50`.
 3. Does it have **hover and focus-visible**?
 4. Act or check — does it belong at **Starter or Full**?
 5. If it collapses, is the **whole header** the toggle?
