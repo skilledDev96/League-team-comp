@@ -3,14 +3,14 @@
        where the next champion lands. -->
   <ol class="board-slots" aria-label="Comp by role">
     @for (role of roles; track role) {
-      <li class="board-slot" [class.is-focused]="focused() === role"
+      <li class="board-slot" [class.is-focused]="gridShown() && focused() === role"
           [class.is-filled]="championOf(picks()[role])"
           draggable="true"
           (dragstart)="$event.dataTransfer?.setData('text/plain', role)"
           (dragover)="$event.preventDefault()"
           (drop)="$event.preventDefault(); drop($any($event.dataTransfer?.getData('text/plain')), role)">
-        <button type="button" class="board-slot-main" (click)="focused.set(role)"
-                [attr.aria-pressed]="focused() === role">
+        <button type="button" class="board-slot-main" (click)="aim(role)"
+                [attr.aria-pressed]="gridShown() && focused() === role">
           <span class="board-role">{{ role }}</span>
           @if (championOf(picks()[role]); as champ) {
             <img class="board-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
@@ -61,5 +61,16 @@
     </p>
   }
 
-  <app-champion-grid [unavailable]="unavailable()" [taken]="taken()" (pick)="choose($event)" />
+  @if (gridShown()) {
+    @if (complete()) {
+      <button type="button" class="view-btn board-grid-toggle" (click)="gridWanted.set(false)">
+        <span class="material-symbols-rounded" aria-hidden="true">check</span> Done
+      </button>
+    }
+    <app-champion-grid [unavailable]="unavailable()" [taken]="taken()" (pick)="choose($event)" />
+  } @else {
+    <button type="button" class="view-btn board-grid-toggle" (click)="aim(focused())">
+      <span class="material-symbols-rounded" aria-hidden="true">edit</span> Change picks
+    </button>
+  }
 </div>

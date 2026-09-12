@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 import { Comp } from '../../models/team.models';
 import { ChampionFilterService } from '../../services/champion-filter.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { UserPrefsService } from '../../services/user-prefs.service';
 import { CompsComponent } from './comps.component';
 
 // Local mode, the way the film page's spec does it: no listeners, no backend, and
@@ -147,5 +148,38 @@ describe.skipIf(typeof localStorage === 'undefined')('CompsComponent', () => {
     expect(TestBed.inject(Router).url).toBe('/comps?comp=gone');
     await afterTheScroll();
     expect(scroll).not.toHaveBeenCalled();
+  });
+
+  // 12 Sep 2026: a shut <details> still renders everything inside it, so in edit mode every comp
+  // built its board and a wall of about 170 champions nobody could see.
+  it('builds a panel only while it is open', async () => {
+    data.comps.set([c1, c2]);
+    const { harness, root } = await open('/comps');
+    expect(root.querySelector('[data-comp="c1"] .comp-slots')).toBeNull();
+    const p = panel(root, 'c1')!;
+    p.open = true;
+    p.dispatchEvent(new Event('toggle'));
+    harness.detectChanges();
+    expect(root.querySelector('[data-comp="c1"] .comp-slots')).not.toBeNull();
+    expect(root.querySelector('[data-comp="c2"] .comp-slots')).toBeNull();
+  });
+
+  it('opens every comp at Full and adds the results one by one, which Starter leaves out', async () => {
+    data.comps.set([c1, c2]);
+    data.compResults.set([
+      { id: 'r1', compId: 'c1', outcome: 'win', playedOn: '2026-09-01', order: 0 },
+      { id: 'r2', compId: 'c1', outcome: 'loss', playedOn: '2026-09-02', order: 1 }
+    ]);
+    const { harness, root } = await open('/comps?comp=c1');
+    await afterTheScroll();
+    expect(panel(root, 'c1')?.open).toBe(true);
+    expect(root.querySelectorAll('[data-comp="c1"] .comp-result')).toHaveLength(0);
+
+    await TestBed.inject(UserPrefsService).setDepth('comps', true);
+    harness.detectChanges();
+    expect(panel(root, 'c1')?.open).toBe(true);
+    expect(panel(root, 'c2')?.open).toBe(true);
+    expect(root.querySelectorAll('[data-comp="c1"] .comp-result')).toHaveLength(2);
+    await TestBed.inject(UserPrefsService).setDepth('comps', false);
   });
 });

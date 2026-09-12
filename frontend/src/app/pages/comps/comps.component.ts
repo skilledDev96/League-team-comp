@@ -27,6 +27,9 @@ import { compToOpen, revealBehavior } from './open-comp.util';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { TourPillComponent } from '../../shared/tour-pill.component';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
+import { DetailToggleComponent } from '../../shared/detail-toggle.component';
+import { UserPrefsService } from '../../services/user-prefs.service';
+import { rateBand } from '../../core/opponent-view';
 
 interface ResultDraft {
   outcome: CompOutcome;
@@ -38,7 +41,7 @@ interface ResultDraft {
 import { PlayerMarkComponent } from '../../shared/player-mark.component';
 @Component({
   selector: 'app-comps',
-  imports: [PlayerMarkComponent, DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective, NgModelNameDirective, ChampionFilterComponent, TourPillComponent],
+  imports: [PlayerMarkComponent, DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective, NgModelNameDirective, ChampionFilterComponent, TourPillComponent, DetailToggleComponent],
   templateUrl: './comps.component.html'
 })
 export class CompsComponent {
@@ -53,10 +56,66 @@ export class CompsComponent {
   private readonly router = inject(Router);
   private readonly motion = inject(MotionService);
 
-  // ---- Adding a comp, here rather than in Admin (8 Sep 2026) ----------------
+  // ---- How much to draw (12 Sep 2026) ------------------------------------------
+  //
+  // Comps opens calm — three controls and no figures — and the weight is inside a panel: about a
+  // hundred marks for a reader and three hundred for an editor, most of them the history under the
+  // plan. Starter keeps what somebody acts on before a game (the five, the plan, what we expect, the
+  // bans, the record's headline); Full opens every comp and adds the checks — how it played out,
+  // the results one by one, the notes from its games and the counts-under rule.
 
-  /** The comp whose panel is held open because it was just made, or because a link asked for it. */
-  protected readonly openCompId = signal<string | null>(null);
+  private readonly prefs = inject(UserPrefsService);
+  protected readonly full = computed(() => this.prefs.depthOf('comps') === 'full');
+
+  /** Panels turned against the depth: the open ones at Starter, the shut ones at Full. */
+  private readonly flipped = signal<ReadonlySet<string>>(new Set());
+  private lastFull: boolean | null = null;
+
+  protected isOpen(id: string): boolean {
+    return this.full() !== this.flipped().has(id);
+  }
+
+  /** The <details> is the source of truth for a click on its header; the signal follows it. */
+  protected onToggle(id: string, event: Event): void {
+    const open = (event.target as HTMLDetailsElement).open;
+    if (open !== this.isOpen(id)) this.flip(id);
+  }
+
+  private ensureOpen(id: string): void {
+    if (!this.isOpen(id)) this.flip(id);
+  }
+
+  private flip(id: string): void {
+    this.flipped.update((set) => {
+      const next = new Set(set);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  /** The recorded win rate on the app's one scale for a rate, not a hand-coded 50. */
+  protected recordBand(r: { wins: number; losses: number }): string {
+    return rateBand({ champion: '', games: r.wins + r.losses, wins: r.wins });
+  }
+
+  /**
+   * The one comp the tours walk (12 Sep 2026). Every panel used to carry the same anchors, so each
+   * step landed on whichever comp came first in the page — the board on one comp, the record on
+   * another — and a step vanished outright when the first open panel was a blank comp with no
+   * expectation to point at. A finished comp with a record, else a finished comp, else the first.
+   */
+  protected readonly tourCompId = computed<string | null>(() => {
+    const comps = this.visibleComps();
+    const five = (c: Comp) => this.championsOf(c).every(Boolean);
+    return (comps.find((c) => five(c) && this.panelBadge(c.id)) ?? comps.find(five) ?? comps[0])?.id ?? null;
+  });
+
+  protected tour(comp: Comp, anchor: string): string | null {
+    return comp.id === this.tourCompId() ? anchor : null;
+  }
+
+  // ---- Adding a comp, here rather than in Admin (8 Sep 2026) ----------------
 
   /** The comp a link asked for with ?comp=<id>, until the list holds it and it has been opened. */
   private readonly wantedComp = signal<string | null>(null);
@@ -92,6 +151,13 @@ export class CompsComponent {
     // page comes next (10 Sep 2026: the spec caught one test's card scrolling in
     // the next test).
     inject(DestroyRef).onDestroy(() => clearTimeout(this.revealTimer));
+    // A change of depth starts every panel from the depth's own default. Only a change: the first
+    // run must not wipe a panel a link has just opened.
+    effect(() => {
+      const full = this.full();
+      if (this.lastFull !== null && this.lastFull !== full) untracked(() => this.flipped.set(new Set()));
+      this.lastFull = full;
+    });
   }
 
   /** The reveal's pending scroll, so leaving the page cancels it. */
@@ -107,7 +173,7 @@ export class CompsComponent {
     // marked open, the param already gone and nothing on screen saying why). Cleared only when it would hide this comp.
     const comp = this.data.comps().find((c) => c.id === id);
     if (comp && !this.filter.passes(this.championsOf(comp))) this.filter.clear();
-    this.openCompId.set(id);
+    this.ensureOpen(id);
     void this.router.navigate([], { relativeTo: this.route, queryParams: { comp: null }, queryParamsHandling: 'merge', replaceUrl: true });
     clearTimeout(this.revealTimer);
     this.revealTimer = setTimeout(() => {
@@ -122,12 +188,11 @@ export class CompsComponent {
     const n = this.data.comps().length + 1;
     const picks = Object.fromEntries(this.roles.map((r) => [r, ''])) as CompPicks;
     const id = await this.data.createComp({ name: `New comp ${n}`, picks });
-    this.openCompId.set(id);
+    this.ensureOpen(id);
     this.saved({ id, name: `New comp ${n}` });
     setTimeout(() => {
       const panel = document.querySelector<HTMLDetailsElement>(`[data-comp="${CSS.escape(id)}"] details.comp-panel`);
       if (!panel) return;
-      panel.open = true;
       panel.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
       panel.querySelector<HTMLElement>('input, .board-slot-main')?.focus();
     }, 80);
@@ -141,10 +206,6 @@ export class CompsComponent {
     this.savedAt.set(comp.id, Date.now());
     this.toast.show(`Saved ${comp.name}`, { kind: 'ok', timeout: 1800 });
   }
-
-  // Start calm: Starter view with comp panels collapsed.
-  protected readonly fullView = signal(false);
-  protected readonly showPicks = signal(false);
 
   // ---- Comp categories + notes -----------------------------------------
 
@@ -481,11 +542,6 @@ export class CompsComponent {
   protected readonly banRows = computed(() =>
     this.data.players().map((p) => ({ role: p.role, name: p.name, bans: p.bans }))
   );
-
-  protected setView(full: boolean): void {
-    this.fullView.set(full);
-    this.showPicks.set(full);
-  }
 
   protected isLogging(compId: string): boolean {
     return !!this.logging()[compId];

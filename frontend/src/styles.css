@@ -2373,12 +2373,20 @@ body[data-theme='light'] .avatar-role {
   color: var(--text-0);
 }
 
-.comp-record-badge.is-positive {
+/* A comp's record on the app's one rate scale, rateBand, rather than a hand-coded 50 (12 Sep 2026). */
+.comp-record-badge.is-good {
   border-color: color-mix(in srgb, var(--ok) 55%, var(--card-border) 45%);
   color: var(--ok);
 }
 
-.comp-record-badge.is-negative {
+.comp-record-badge.is-ok {
+  border-color: color-mix(in srgb, var(--ok) 30%, var(--card-border) 70%);
+  color: color-mix(in srgb, var(--ok) 75%, var(--text-1));
+}
+
+.comp-record-badge.is-even { color: var(--text-1); }
+
+.comp-record-badge.is-poor {
   border-color: color-mix(in srgb, var(--warn) 55%, var(--card-border) 45%);
   color: var(--warn);
 }
@@ -3152,13 +3160,10 @@ body[data-theme='light'] .avatar-role {
   font-variant-numeric: tabular-nums;
 }
 
-.comp-ranked-value.is-positive {
-  color: var(--ok);
-}
-
-.comp-ranked-value.is-negative {
-  color: var(--warn);
-}
+.comp-ranked-value.is-good { color: var(--ok); }
+.comp-ranked-value.is-ok { color: color-mix(in srgb, var(--ok) 75%, var(--text-1)); }
+.comp-ranked-value.is-even { color: var(--text-1); }
+.comp-ranked-value.is-poor { color: var(--warn); }
 
 .log-result-toggle button.active {
   background: color-mix(in srgb, var(--accent) 30%, var(--surface-btn) 70%);
@@ -7368,6 +7373,13 @@ body[data-theme="bomb"] {
 
 .board-damage-warn {
   font-size: 0.74rem;
+}
+
+/* Change picks on a finished comp, and Done over its open wall. Left-aligned under the seats, so it
+   reads as belonging to the board rather than to the panel. */
+.board-grid-toggle {
+  justify-self: start;
+  margin: 0.2rem 0;
 }
 
 /* The Riot attribution notice. Deliberately quiet — it is a legal requirement

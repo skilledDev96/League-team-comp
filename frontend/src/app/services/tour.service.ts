@@ -323,9 +323,17 @@ export class TourService {
         return this.raiseDepth('patterns');
       case 'showFullPrep':
         return this.raiseDepth('prep');
-      case 'openCompMore': {
-        document.querySelector<HTMLElement>('details.comp-more')?.setAttribute('open', '');
-        await this.pause(40);
+      case 'showFullComps':
+        return this.raiseDepth('comps');
+      case 'openTourComp': {
+        // The comp the tour walks is marked by the page; a panel builds its body only while open,
+        // so its anchors do not exist until it is. Setting `open` fires the page's own toggle.
+        const panel = document.querySelector<HTMLDetailsElement>('[data-tour-comp] details.comp-panel');
+        if (!panel) return false;
+        if (!panel.open) {
+          panel.open = true;
+          await this.pause(150);
+        }
         return true;
       }
       case 'openPlayerEditor': {

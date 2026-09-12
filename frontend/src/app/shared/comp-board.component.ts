@@ -55,6 +55,22 @@ export class CompBoardComponent implements OnInit {
    */
   protected readonly focused = signal<Role>('Top');
 
+  /**
+   * The wall shows while there is somewhere to put a champion (12 Sep 2026). A finished comp opens
+   * on its five seats; pressing a seat, or Change picks, brings the wall back aimed at that seat,
+   * and it goes again once all five are in. Swapping a pick was already "press the seat, press the
+   * champion", so no click was added — but a finished comp no longer draws about 170 champions
+   * under it for somebody who opened it to read the plan.
+   */
+  protected readonly gridWanted = signal(false);
+  protected readonly complete = computed(() => ROLES.every((role) => !!championOf(this.picks()[role])));
+  protected readonly gridShown = computed(() => this.gridWanted() || !this.complete());
+
+  protected aim(role: Role): void {
+    this.focused.set(role);
+    this.gridWanted.set(true);
+  }
+
   ngOnInit(): void {
     const firstEmpty = ROLES.find((role) => !championOf(this.picks()[role]));
     if (firstEmpty) this.focused.set(firstEmpty);
@@ -124,6 +140,7 @@ export class CompBoardComponent implements OnInit {
 
     const next = nextEmptySlot(picks, slot);
     if (next) this.focused.set(next);
+    else this.gridWanted.set(false);
   }
 
   protected clear(role: Role): void {
