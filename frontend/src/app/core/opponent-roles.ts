@@ -74,6 +74,58 @@ export function rolesDisagree(players: readonly (Positioned & { role?: Role })[]
   return players.some((player, index) => player.role !== suggested[index]);
 }
 
+/** A scouted player as the offer needs them: a seat, a name to say it with, and whether they are a sub. */
+export interface Seated extends Positioned {
+  role: Role;
+  name: string;
+  sub?: boolean;
+}
+
+/** One seat the scouted games would move, and who holds it. */
+export interface SeatChange<T> {
+  player: T;
+  from: Role;
+  to: Role;
+}
+
+/**
+ * The seats their games suggest, when those are not the seats somebody typed.
+ *
+ * An op.gg multi-link is not ordered by role, so pasting a roster in the wrong
+ * order is the easy mistake — and when it happens every row of the table is
+ * about the wrong player: the pool, the counters and the Plays column all read
+ * off a seat that is not theirs, and the draft is prepared against it. Nothing
+ * said so until now.
+ *
+ * Nothing unless there are exactly five starters. A roster with a sub has six
+ * people for five seats, so "disagrees" is meaningless there — two of them
+ * share a seat by definition, which is the truth of the roster and not an
+ * error. Nothing either when the roster already agrees.
+ *
+ * This is an offer and must stay one (see `rolesDisagree`): a team that has
+ * just swapped roles looks exactly like a roster pasted in the wrong order, and
+ * only the person watching them knows which it is.
+ */
+export function seatOffer<T extends Seated>(players: readonly T[]): SeatChange<T>[] | null {
+  const five = players.filter((p) => !p.sub);
+  if (five.length !== 5) return null;
+  if (!rolesDisagree(five)) return null;
+  const suggested = assignRolesFromPlay(five);
+  const changes = five
+    .map((player, index) => ({ player, from: player.role, to: suggested[index] }))
+    .filter((c) => c.from !== c.to);
+  return changes.length ? changes : null;
+}
+
+/** The roster with an offer taken. Anyone the offer does not name — a sub, or a seat already right — is untouched. */
+export function withSeats<T extends Seated>(players: readonly T[], changes: readonly SeatChange<T>[]): T[] {
+  const moved = new Map<T, Role>(changes.map((c) => [c.player, c.to]));
+  return players.map((p) => {
+    const to = moved.get(p);
+    return to ? { ...p, role: to } : p;
+  });
+}
+
 /**
  * The seat this player's scouted history is actually about, when that is not
  * the seat they have been given.

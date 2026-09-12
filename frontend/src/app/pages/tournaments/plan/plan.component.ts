@@ -51,7 +51,7 @@ import { MatchNoteButtonComponent } from '../../../shared/match-note-button.comp
 import { MatchNoteComponent } from '../../../shared/match-note.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { OpponentScoutService } from '../../../services/opponent-scout.service';
-import { playedElsewhere } from '../../../core/opponent-roles';
+import { playedElsewhere, SeatChange, seatOffer, withSeats } from '../../../core/opponent-roles';
 import { TournamentContextService } from '../tournament-context.service';
 import { GameMvp, MvpGame, mvpGameFromScrim, mvpOf, SeriesMvp, SeriesMvpGame, seriesMvpOf } from '../../../core/game-mvp';
 import { MvpChipComponent } from '../../../shared/mvp-chip.component';
@@ -613,6 +613,26 @@ export class TournamentPlanComponent {
    * Swaps rather than overwrites: five players hold five seats, so giving one
    * away has to hand the old seat to whoever had the new one.
    */
+  /**
+   * The seats their scouted games suggest, when those are not the ones somebody typed.
+   *
+   * An op.gg multi-link carries no roles and is not ordered by one, so a roster pasted in the
+   * wrong order is the easy mistake — and then every row of the table below is about the wrong
+   * player: the pool, the counters and the Plays column all read off a seat that is not theirs.
+   * An offer, never a rewrite: a team that has just swapped roles looks exactly the same, and
+   * only the person watching them knows which it is.
+   */
+  protected seatOffer(series: TournamentSeries): SeatChange<OpponentPlayer>[] | null {
+    return seatOffer(series.opponentPlayers ?? []);
+  }
+
+  /** Take the offer: their five get the seats their games point at, subs untouched. */
+  protected useSeatOffer(series: TournamentSeries): void {
+    const changes = seatOffer(series.opponentPlayers ?? []);
+    if (!changes) return;
+    this.patchSeries(series, { opponentPlayers: withSeats(series.opponentPlayers ?? [], changes) });
+  }
+
   protected setOpponentRole(series: TournamentSeries, player: OpponentPlayer, role: Role): void {
     const roster = reseatOpponent(series.opponentPlayers ?? [], player, role);
     if (roster) this.patchSeries(series, { opponentPlayers: roster });

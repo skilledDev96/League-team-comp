@@ -439,6 +439,25 @@
                   }
                 </div>
 
+                <!-- Their games disagree with the seats somebody typed. Only ever an offer: a team
+                     that has just swapped roles looks exactly like a roster pasted in the wrong
+                     order. Editors only, since taking it writes the roster. -->
+                @if (auth.editing() && seatOffer(series); as offer) {
+                  <p class="opp-seat-offer">
+                    <span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span>
+                    <span class="opp-seat-offer-text">
+                      Their games point at different seats:
+                      @for (c of offer; track c.player.name + c.player.riotTag) {
+                        <span class="opp-seat-move"><b>{{ c.to }}</b> {{ c.player.name }}</span>
+                      }
+                    </span>
+                    <button type="button" class="view-btn active" (click)="useSeatOffer(series)"
+                            appTip="Writes these seats onto their five. Everything on the table below follows the seat, so a roster pasted out of order reads as the wrong player until this is right.">
+                      Use these seats
+                    </button>
+                  </p>
+                }
+
                 <!-- A minute a player is the rate limit, not a slow
                      implementation, so the wait is stated rather than left to
                      look like a hang. It also says the app stays usable: the

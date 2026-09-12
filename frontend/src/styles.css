@@ -15581,3 +15581,23 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 }
 .series-game-nofigures .material-symbols-rounded { font-size: 0.85rem; }
 .series-game-nofigures:hover { color: var(--text-1); border-color: var(--accent); }
+
+/* Their games disagree with the seats somebody typed (12 Sep 2026). Rare, and worth stopping for
+   when it happens: every row of the roster table reads off the seat, so a roster pasted out of
+   order is a table about the wrong five people. */
+.opp-seat-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--card-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  font-size: 0.86rem;
+}
+.opp-seat-offer > .material-symbols-rounded { color: var(--warn); }
+.opp-seat-offer-text { flex: 1 1 20rem; min-width: 0; color: var(--text-1); }
+.opp-seat-move { display: inline-flex; gap: 0.25rem; margin-left: 0.5rem; white-space: nowrap; }
+.opp-seat-move b { color: var(--text-0); }

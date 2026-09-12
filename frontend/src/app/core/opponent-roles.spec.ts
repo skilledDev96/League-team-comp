@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Role } from '../models/team.models';
-import { assignRolesFromPlay, rolesDisagree } from './opponent-roles';
+import { assignRolesFromPlay, rolesDisagree, seatOffer, withSeats } from './opponent-roles';
 
 const at = (role: Role, games: number) => ({ role, games });
 
@@ -79,5 +79,89 @@ describe('rolesDisagree', () => {
 
   it('stays quiet on an unscouted roster rather than offering a shuffle', () => {
     expect(rolesDisagree([{ role: 'Top' as Role }, { role: 'Mid' as Role }])).toBe(false);
+  });
+});
+
+/**
+ * The offer (12 Sep 2026). An op.gg multi-link is not ordered by role, so pasting a roster in the
+ * wrong order is the easy mistake — and then every row of the table is about the wrong player.
+ * This is what notices. It stays an offer: a team that has just swapped roles looks identical.
+ */
+describe('seatOffer', () => {
+  const p = (name: string, role: Role, positions?: { role: Role; games: number }[], sub?: boolean) => ({
+    name,
+    role,
+    ...(positions ? { positions } : {}),
+    ...(sub ? { sub: true } : {})
+  });
+
+  /** Five pasted in the wrong order: each of them mains the seat of the next one along. */
+  const wrongOrder = [
+    p('a', 'Top', [{ role: 'Jungle', games: 40 }]),
+    p('b', 'Jungle', [{ role: 'Mid', games: 40 }]),
+    p('c', 'Mid', [{ role: 'ADC', games: 40 }]),
+    p('d', 'ADC', [{ role: 'Support', games: 40 }]),
+    p('e', 'Support', [{ role: 'Top', games: 40 }])
+  ];
+
+  it('names every seat the games would move, and who holds it', () => {
+    const offer = seatOffer(wrongOrder)!;
+    expect(offer).not.toBeNull();
+    expect(offer.map((c) => `${c.player.name}: ${c.from}->${c.to}`)).toEqual([
+      'a: Top->Jungle',
+      'b: Jungle->Mid',
+      'c: Mid->ADC',
+      'd: ADC->Support',
+      'e: Support->Top'
+    ]);
+  });
+
+  it('says nothing when the roster already agrees with the games', () => {
+    const right = [
+      p('a', 'Top', [{ role: 'Top', games: 40 }]),
+      p('b', 'Jungle', [{ role: 'Jungle', games: 40 }]),
+      p('c', 'Mid', [{ role: 'Mid', games: 40 }]),
+      p('d', 'ADC', [{ role: 'ADC', games: 40 }]),
+      p('e', 'Support', [{ role: 'Support', games: 40 }])
+    ];
+    expect(seatOffer(right)).toBeNull();
+  });
+
+  it('says nothing for a roster that is not a clean five', () => {
+    // Six people cannot hold five distinct seats, so "disagrees" means nothing there.
+    expect(seatOffer([...wrongOrder, p('f', 'Mid', [{ role: 'Mid', games: 40 }], true)])).not.toBeNull();
+    expect(seatOffer(wrongOrder.slice(0, 4))).toBeNull();
+    expect(seatOffer([])).toBeNull();
+  });
+
+  it('ignores a sub when deciding, and never offers to move one', () => {
+    const withSub = [...wrongOrder, p('sub', 'Mid', [{ role: 'Mid', games: 99 }], true)];
+    const offer = seatOffer(withSub)!;
+    expect(offer.some((c) => c.player.name === 'sub')).toBe(false);
+    expect(offer).toHaveLength(5);
+  });
+
+  it('says nothing when nobody has been scouted, rather than guessing', () => {
+    const unscouted = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'].map((r) => p('x' + r, r as Role));
+    expect(seatOffer(unscouted)).toBeNull();
+  });
+});
+
+describe('withSeats', () => {
+  const p = (name: string, role: Role, sub?: boolean) => ({ name, role, ...(sub ? { sub: true } : {}) });
+
+  it('moves exactly the players the offer names and leaves the rest alone', () => {
+    const roster = [p('a', 'Top'), p('b', 'Jungle'), p('sub', 'Mid', true)];
+    const changes = [{ player: roster[0], from: 'Top' as Role, to: 'Jungle' as Role }];
+    const out = withSeats(roster, changes);
+    expect(out.map((x) => x.role)).toEqual(['Jungle', 'Jungle', 'Mid']);
+    expect(out[1]).toBe(roster[1]);
+    expect(out[2]).toBe(roster[2]);
+  });
+
+  it('does not mutate what it was given', () => {
+    const roster = [p('a', 'Top')];
+    withSeats(roster, [{ player: roster[0], from: 'Top', to: 'ADC' }]);
+    expect(roster[0].role).toBe('Top');
   });
 });
