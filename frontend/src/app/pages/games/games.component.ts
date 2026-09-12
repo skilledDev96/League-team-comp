@@ -23,7 +23,7 @@ import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { GameStoryComponent } from '../../shared/game-story.component';
 import { ReplayRecordingService } from '../../services/replay-recording.service';
-import { BeforeYouPlayComponent } from '../../shared/before-you-play.component';
+import { NextUpComponent } from '../../shared/next-up.component';
 import { GameReviewComponent } from '../../shared/game-review.component';
 import { GameGraphsComponent } from '../../shared/game-graphs.component';
 import { GameReviewService } from '../../services/game-review.service';
@@ -69,7 +69,7 @@ import { PlayerMarkComponent } from '../../shared/player-mark.component';
     NgModelNameDirective,
     TooltipDirective,
     ReviewComponent,
-    DetailToggleComponent, GameStoryComponent, GameReviewComponent, TourPillComponent, BeforeYouPlayComponent, MvpChipComponent],
+    DetailToggleComponent, GameStoryComponent, GameReviewComponent, TourPillComponent, NextUpComponent, MvpChipComponent],
   templateUrl: './games.component.html'
 })
 export class GamesComponent {

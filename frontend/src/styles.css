@@ -16739,21 +16739,18 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
    own seat's ask under footsteps, up to two further asks under a smaller flag), and Got it. Since 10 Sep 2026 it reminds and never asks:
    no options, nothing right or wrong; the lessons' answers left the card the same day, because a why explains an answer and read as a
    fragment on its own. */
-.before-you-play { display: grid; gap: 0.6rem; padding: 0.85rem 1rem 0.9rem; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface-controls)); }
-.quick-actions > .before-you-play { flex: 1 1 100%; margin: 0.25rem 0 0.35rem; }
-.byp-kicker { display: inline-flex; align-items: center; gap: 0.3rem; margin: 0; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
-.byp-kicker .material-symbols-rounded { font-size: 1.1rem; }
-.byp-film { margin: 0; font-size: 0.82rem; color: var(--text-1); }
-.byp-lines { display: grid; gap: 0.45rem; margin: 0; padding: 0; }
-.byp-line { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 0.55rem; margin: 0; font-size: 0.95rem; line-height: 1.4; color: var(--text-0); }
-.byp-line .film-glyph { margin-top: 0.15rem; color: var(--accent); }
-/* The one thing leads, set like the film's point. */
-.byp-line.is-one { font-family: "Chakra Petch", sans-serif; font-size: clamp(1.05rem, 2.2vw, 1.3rem); font-weight: 700; line-height: 1.25; }
-.byp-line.is-one .film-glyph { margin-top: 0.1rem; color: var(--warn); }
-.byp-line.is-commit .film-glyph { color: var(--ok); }
-.byp-line.is-more { font-size: 0.88rem; color: var(--text-1); }
-.byp-line.is-more .film-glyph { color: var(--text-1); }
-.byp-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+/* Next up (12 Sep 2026): the one card at the top of Games, in place of the two that used to
+   stack there. The headline is set like the film's point, because on three of the four rungs it
+   IS the film's point; the lines under it are the reminder's, when that rung fired. */
+.next-up { display: grid; gap: 0.6rem; padding: 0.85rem 1rem 0.9rem; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface-controls)); }
+.next-up-kicker { display: inline-flex; align-items: center; gap: 0.3rem; margin: 0; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.next-up-kicker .material-symbols-rounded { font-size: 1.1rem; }
+.next-up-head { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: clamp(1.05rem, 2.2vw, 1.3rem); font-weight: 700; line-height: 1.25; color: var(--text-0); }
+.next-up-lines { display: grid; gap: 0.45rem; margin: 0; padding: 0; }
+.next-up-line { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 0.55rem; margin: 0; font-size: 0.92rem; line-height: 1.4; color: var(--text-1); }
+.next-up-line .film-glyph { margin-top: 0.15rem; color: var(--accent); }
+.next-up-line:first-child .film-glyph { color: var(--warn); }
+.next-up-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 
 /* The card's Try it now beside the reminder toggle. */
 .film-card-ask-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
@@ -16773,12 +16770,9 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .film-card-lesson .film-chip { min-height: 2.25rem; padding: 0.35rem 0.85rem; font-size: 0.88rem; }
 .film-card-lesson .film-call-why > b { margin-right: 0.25rem; color: var(--film-ink); }
 
-/* The compact card inside the roster's quick actions: no card chrome inside a card, the question and its options only. */
-.before-you-play.is-compact { padding: 0.55rem 0.75rem 0.6rem; border-radius: 8px; background: color-mix(in srgb, var(--accent) 6%, transparent); }
-
 @media (max-width: 48rem) {
-  .before-you-play { padding: 0.75rem 0.8rem 0.8rem; }
-  .byp-actions .view-btn { min-height: 2.75rem; }
+  .next-up { padding: 0.75rem 0.8rem 0.8rem; }
+  .next-up-actions .view-btn { min-height: 2.75rem; }
 }
 
 /* ---- The Recorded chip on a game row, 10 Sep 2026 ---- */
