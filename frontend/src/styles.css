@@ -12509,6 +12509,18 @@ body:has(.draft-stage) .edit-mode-frame {
   color: var(--warn);
 }
 
+/* One scale for a win rate wherever it is printed (12 Sep 2026). The ban board and
+   the team's picks coloured on 55/45 while the roster table used rateBand's 65/50, so
+   the same champion could read green on the board and plain in the row under it. Both
+   go through rateBand now, which needs the two middle bands it also draws. */
+.opp-ban-stat small.is-ok,
+.opp-history-pick small.is-ok { color: color-mix(in srgb, var(--ok) 75%, var(--text-1)); }
+.opp-ban-stat small.is-even,
+.opp-history-pick small.is-even { color: var(--text-1); }
+
+/* Six column headers over nothing read as a broken table rather than an empty one. */
+.opp-empty { grid-column: 1 / -1; margin: 0.6rem 0 0.2rem; }
+
 .opp-history-head .view-btn {
   margin-left: auto;
 }

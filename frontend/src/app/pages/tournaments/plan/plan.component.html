@@ -540,7 +540,7 @@
                           <span class="opp-ban-stat" [appTip]="c.games ? c.wins + ' of ' + c.games + ' won at ' + c.role + ', solo and flex together' : 'Scouted by name only — no games recorded'">
                             <b>{{ c.games }}g</b>
                             @if (c.games) {
-                              <small [class.is-good]="c.winRate >= 55" [class.is-poor]="c.winRate < 45">{{ c.winRate }}%</small>
+                              <small [class]="rateBand(c)">{{ c.winRate }}%</small>
                             } @else {
                               <small>no record</small>
                             }
@@ -563,7 +563,7 @@
                     <span role="columnheader">Seat</span>
                     <span role="columnheader">Player</span>
                     <span role="columnheader">Rank</span>
-                    <span role="columnheader" [appTip]="'What they play — in this seat where we have games for it, otherwise overall'">Plays</span>
+                    <span role="columnheader" [appTip]="'What they play — in this seat where we have games for it, otherwise overall. The win rate beside each is coloured: green from 65%, pale green above 50%, plain at exactly 50%, red below.'">Plays</span>
                     <span role="columnheader" [appTip]="'Champions that beat them in lane, from games they lost'">Loses to</span>
                     <span role="columnheader" [appTip]="'Everything they have touched in the last two months, newest first'">Lately</span>
                   </div>
@@ -713,6 +713,20 @@
                         <span class="opp-cell opp-error" role="cell">{{ opp.scoutError }}</span>
                       }
                     </div>
+                  } @empty {
+                    <!-- Six column headers over nothing read as a broken table rather than
+                         an empty one. Everyone on the roster is on the bench, or the five
+                         pasted in were all marked as subs. -->
+                    <p class="muted opp-empty" role="row">
+                      Nobody in their five yet.
+                      @if (bench(series).length) {
+                        Their whole roster is on the bench &mdash; put someone back in the five below.
+                      } @else if (auth.editing()) {
+                        Paste their op.gg links above to scout them.
+                      } @else {
+                        Nobody has scouted this opponent.
+                      }
+                    </p>
                   }
                 </div>
                 </div>
@@ -786,7 +800,7 @@
                       @for (pk of h.summary.picks.slice(0, 8); track pk.champion + pk.role) {
                         <span class="opp-history-pick" [appTip]="pk.champion + (pk.role ? ' at ' + pk.role : '') + ': ' + pk.wins + ' of ' + pk.games + ' won together'">
                           <img [src]="ui.championIconUrl(pk.champion)" [alt]="pk.champion" loading="lazy" />
-                          <b>{{ pk.games }}</b><small [class.is-good]="pk.winRate >= 55" [class.is-poor]="pk.winRate < 45">{{ pk.winRate }}%</small>
+                          <b>{{ pk.games }}</b><small [class]="rateBand(pk)">{{ pk.winRate }}%</small>
                         </span>
                       }
                     </div>
@@ -994,7 +1008,7 @@
         }
       </ul>
     } @else {
-      <p class="muted">No analysed games yet. Refresh from Riot on the Analysis page.</p>
+      <p class="muted">No analysed games yet. Press Refresh matches from Riot on the Games tab.</p>
     }
   </details>
   }

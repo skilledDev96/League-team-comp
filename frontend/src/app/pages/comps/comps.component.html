@@ -260,7 +260,7 @@
 
         @if (rankedRecord(comp.id); as ranked) {
           <a class="comp-ranked-record" [routerLink]="['/games']" [queryParams]="{ comp: comp.id }"
-             appTip="Open this comp&rsquo;s games on the Analysis page">
+             appTip="Open this comp&rsquo;s games on the Games tab">
             <span class="material-symbols-rounded" aria-hidden="true">query_stats</span>
             <span class="comp-ranked-label">Match history</span>
             <span class="comp-ranked-value" [class.is-positive]="ranked.winRate >= 50" [class.is-negative]="ranked.winRate < 50">
