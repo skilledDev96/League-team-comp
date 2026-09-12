@@ -13,10 +13,12 @@
     <button type="button" [class.active]="selectedQueue() === 'clash'" (click)="selectedQueue.set('clash')">Clash</button>
   </div>
   </div>
-  @if (summary(); as s) {
-    <p class="muted">
-      {{ s.players }} of {{ data.players().length }} with data · {{ s.games }} games · {{ s.winRate }}% win rate
-    </p>
+  @if (full()) {
+    @if (summary(); as s) {
+      <p class="muted">
+        {{ s.players }} of {{ data.players().length }} with data · {{ s.games }} games · {{ s.winRate }}% win rate
+      </p>
+    }
   }
   @if (auth.editing()) {
     <button type="button" class="view-btn profiles-refresh-all" [class.is-busy]="refreshingAll()"
@@ -32,7 +34,7 @@
 </section>
 
 <section class="card" aria-label="Player profiles">
-  <div class="profiles-table" role="table">
+  <div class="profiles-table" role="table" [class.is-starter]="!full()">
     <div class="profiles-row profiles-head" role="row">
       <span role="columnheader">Player</span>
       <span role="columnheader">Rank</span>
@@ -41,9 +43,11 @@
            bad run look impossible. -->
       <span role="columnheader" class="num"
             appTip="Win rate over the recent games scanned in this queue — not the season ladder record beside it">Recent</span>
-      <span role="columnheader" class="num">KDA</span>
-      <span role="columnheader" class="num">CS/min</span>
-      <span role="columnheader" class="num">Vision</span>
+      @if (full()) {
+        <span role="columnheader" class="num">KDA</span>
+        <span role="columnheader" class="num">CS/min</span>
+        <span role="columnheader" class="num">Vision</span>
+      }
       <span role="columnheader">Main</span>
     </div>
 
@@ -64,18 +68,20 @@
 
         @if (row.matches; as m) {
           <span class="profiles-rank" role="cell">{{ selectedQueue() === 'clash' ? '—' : rankLabel(row.rank) }}</span>
-          <span class="num" role="cell" [class.pos]="m.winRate >= 50" [class.neg]="m.winRate < 50"
+          <span class="num" role="cell" [class]="recentBand(m)"
                 [appTip]="m.wins + 'W-' + m.losses + 'L over the last ' + m.games + ' games'">
             {{ m.winRate }}%<small class="sample-size">{{ m.games }}g</small>
           </span>
-          <span class="num" role="cell">{{ m.avgKda | number: '1.1-1' }}</span>
-          <span class="num" role="cell">{{ m.avgCsPerMin | number: '1.1-1' }}</span>
-          <span class="num" role="cell" [appTip]="visionNote(m)">
-            @if (visionSample(m); as n) {
-              {{ m.avgVisionScore | number: '1.0-0' }}
-              @if (n < m.games) { <small class="sample-size">{{ n }}g</small> }
-            } @else { — }
-          </span>
+          @if (full()) {
+            <span class="num" role="cell">{{ m.avgKda | number: '1.1-1' }}</span>
+            <span class="num" role="cell">{{ m.avgCsPerMin | number: '1.1-1' }}</span>
+            <span class="num" role="cell" [appTip]="visionNote(m)">
+              @if (visionSample(m); as n) {
+                {{ m.avgVisionScore | number: '1.0-0' }}
+                @if (n < m.games) { <small class="sample-size">{{ n }}g</small> }
+              } @else { — }
+            </span>
+          }
           <span class="profiles-main" role="cell">
             @if (row.player.top3[0]; as champ) {
               <img class="profiles-champ" [src]="ui.championIconUrl(champ)" [alt]="champ" [appTip]="champ" loading="lazy" />

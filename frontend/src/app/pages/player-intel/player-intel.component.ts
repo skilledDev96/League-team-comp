@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { LearnEntry, LearnPriority, PainPoint, Player } from '../../models/team.models';
@@ -41,17 +41,31 @@ export class PlayerIntelComponent {
   protected readonly editor = inject(PlayerEditorService);
   protected readonly champData = inject(ChampionDataService);
 
-  protected readonly fullView = signal(false);
-  private readonly expanded = signal<Set<string>>(new Set());
+  /**
+   * Starter opens a card on its pool and what the player is working on and learning — the parts
+   * somebody acts on. Full opens every card and adds the strengths, weaknesses, links and suggested
+   * bans. The Roster shell's one switch sets it (12 Sep 2026); this view had a switch of its own.
+   */
+  readonly full = input(false);
+
+  /** Cards turned against the depth: the open ones at Starter, the shut ones at Full. */
+  private readonly flipped = signal<ReadonlySet<string>>(new Set());
+  private readonly resetFlips = effect(() => {
+    this.full();
+    untracked(() => this.flipped.set(new Set()));
+  });
 
   protected isExpanded(id: string): boolean {
-    return this.fullView() || this.expanded().has(id);
+    return this.full() !== this.flipped().has(id);
   }
 
   protected toggle(id: string): void {
-    const next = new Set(this.expanded());
-    next.has(id) ? next.delete(id) : next.add(id);
-    this.expanded.set(next);
+    this.flipped.update((set) => {
+      const next = new Set(set);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   // ---- Pain points / practice board -------------------------------------

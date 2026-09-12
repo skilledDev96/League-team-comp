@@ -1,7 +1,7 @@
 <section class="card scout-report" aria-label="Scout report">
   <div class="scout-report-head">
     <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">query_stats</span>Us, as a scout sees us
-      <app-info-tip text="The same read an opponent gets when they scout us: rank per queue with the games read behind it, what each of us plays in the seat, what beats us, what we have touched lately, and the champions a ban would take from us. Everything comes from Riot, nothing from the roster cards." label="What this is" /></h2>
+      <app-info-tip text="What an opponent sees when they scout us, straight from Riot: rank, what we play, what beats us, and what they would ban." label="What this is" /></h2>
     @if (when()) { <span class="muted scout-report-when">scouted {{ when() }}</span> }
     @if (auth.editing()) {
       <button data-tour="roster-scout-us" type="button" class="view-btn active scout-report-btn" [disabled]="busy() || !data.players().length" (click)="scoutUs()"
@@ -47,7 +47,7 @@
           <span class="opp-ban-stat" [appTip]="c.games ? c.wins + ' of ' + c.games + ' won at ' + c.role + ', solo and flex together' : 'Scouted by name only — no games recorded'">
             <b>{{ c.games }}g</b>
             @if (c.games) {
-              <small [class.is-good]="c.winRate >= 55" [class.is-poor]="c.winRate < 45">{{ c.winRate }}%</small>
+              <small [class]="rateBand(c)">{{ c.winRate }}%</small>
             } @else {
               <small>no record</small>
             }
@@ -57,7 +57,43 @@
     </div>
   }
 
-  @if (five().length) {
+  @if (five().length && !full()) {
+    <ul class="list-clean opp-lines" data-tour="roster-report-five" aria-label="Our five, as scouted">
+      @for (opp of five(); track opp.name + opp.riotTag) {
+        <li class="opp-line">
+          <span class="opp-line-seat">{{ opp.role }}</span>
+          <span class="opp-line-name">
+            <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
+               target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
+          </span>
+          @if (bestRank(opp); as r) {
+            <span class="opp-line-rank" [appTip]="(r.label || 'Ranked') + ' — Full shows both queues'">@if (r.label) { <em>{{ r.label }}</em> } {{ r.rank }}</span>
+          } @else {
+            <span class="opp-line-rank is-unranked" appTip="No ranked games recorded">&mdash;</span>
+          }
+          <span class="opp-line-plays">
+            @for (rec of topPlays(opp); track rec.champion) {
+              <span class="opp-champ-cell"
+                    [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won, solo and flex together' : ' — no record')">
+                <img class="opp-champ" [class.is-match]="filter.matches(rec.champion)"
+                     [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                @if (rateOf(rec) !== null) {
+                  <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rateOf(rec) }}%<em>{{ rec.games }}</em></span>
+                }
+              </span>
+            } @empty {
+              <span class="opp-none">&mdash;</span>
+            }
+          </span>
+        </li>
+      }
+    </ul>
+    @if (subs().length) {
+      <p class="muted opp-lines-more">The bench, both queues and what beats us are in Full.</p>
+    }
+  }
+
+  @if (five().length && full()) {
     <div class="opp-scroll">
       <div class="opp-table" role="table" aria-label="Our roster, as scouted">
         <div class="opp-head" role="row">

@@ -497,10 +497,13 @@ export interface ResourceLink {
 
 export type ResourceLinks = Record<string, ResourceLink[]>;
 
-/** What one account has seen, at `userPrefs/{email}`. */
-/** A surface that can be read at two depths. The draft room is deliberately not one. */
-export type DepthSurface = 'games' | 'reviews' | 'patterns' | 'prep';
+/**
+ * A surface that can be read at two depths. The draft room is deliberately not one. `roster` is one
+ * switch for all four Roster views, not one each (12 Sep 2026, the lead: "one switch all four").
+ */
+export type DepthSurface = 'games' | 'reviews' | 'patterns' | 'prep' | 'roster' | 'comps';
 
+/** What one account has seen, at `userPrefs/{email}`. */
 export interface UserPrefs {
   /** The welcome modal's old flag; still written when the welcome tour finishes. */
   tourSeen?: boolean;

@@ -11,18 +11,24 @@ import { TeamProfilesComponent } from '../profiles/team-profiles.component';
 import { ScoutReportComponent } from './scout-report.component';
 import { QuickActionsComponent } from '../../shared/quick-actions.component';
 import { TourPillComponent } from '../../shared/tour-pill.component';
+import { DetailToggleComponent } from '../../shared/detail-toggle.component';
+import { UserPrefsService } from '../../services/user-prefs.service';
 
 export type RosterView = 'cards' | 'table' | 'scouting' | 'report';
 
 const VIEWS: RosterView[] = ['cards', 'table', 'scouting', 'report'];
 
 /**
- * The roster, three ways.
+ * The roster, four ways.
  *
  * Overview, Profiles and Player Intel were three nav entries answering the same
  * question — who is on this team and what do they play — at different depths,
  * so people had to remember which page held which fact. They are now modes of
- * one page.
+ * one page, with the Scout report as the fourth.
+ *
+ * One Starter | Full switch speaks for all four (12 Sep 2026). There used to be
+ * two unrelated ones — Cards' own and Scouting's own, neither remembered — and
+ * none at all on the Scout report, the densest thing the app draws.
  *
  * A shell hosting the three existing components rather than one rewritten
  * page: each already works, carries its own tests and its own state, and
@@ -32,7 +38,7 @@ const VIEWS: RosterView[] = ['cards', 'table', 'scouting', 'report'];
  */
 @Component({
   selector: 'app-roster',
-  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ScoutReportComponent, ChampionFilterComponent, QuickActionsComponent, TourPillComponent, TooltipDirective],
+  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ScoutReportComponent, ChampionFilterComponent, QuickActionsComponent, TourPillComponent, TooltipDirective, DetailToggleComponent],
   templateUrl: './roster.component.html'
 })
 export class RosterComponent {
@@ -47,9 +53,11 @@ export class RosterComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
+  private readonly prefs = inject(UserPrefsService);
+
   protected readonly view = signal<RosterView>('cards');
-  /** Cards view: Starter is the cards only, Full adds the identity, fill-ins and links. */
-  protected readonly detailFull = signal(false);
+  /** Every view reads the one preference: Starter is what a reader acts on, Full everything expanded. */
+  protected readonly full = computed(() => this.prefs.depthOf('roster') === 'full');
 
   protected readonly heading = computed(() => {
     const team = this.data.settings().teamName || 'Bom Squad';

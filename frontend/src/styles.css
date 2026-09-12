@@ -1116,12 +1116,17 @@ a.profiles-row:focus-visible {
   color: var(--text-0);
 }
 
-.profiles-row .num.pos {
-  color: var(--ok);
-}
+/* Recent form on the app's one rate scale, rateBand, not a hand-coded 50 (12 Sep 2026). */
+.profiles-row .num.is-good { color: var(--ok); }
+.profiles-row .num.is-ok { color: color-mix(in srgb, var(--ok) 75%, var(--text-1)); }
+.profiles-row .num.is-even { color: var(--text-1); }
+.profiles-row .num.is-poor { color: var(--warn); }
 
-.profiles-row .num.neg {
-  color: var(--warn);
+/* Starter draws four columns — who, rank, recent form, main — because that is what the view
+   promises. KDA, CS/min and vision are what a reader checks, and wait for Full. */
+.profiles-table.is-starter .profiles-row {
+  grid-template-columns: minmax(11rem, 1.6fr) 8rem 5rem minmax(8rem, 1fr);
+  min-width: 32rem;
 }
 
 .profiles-main {

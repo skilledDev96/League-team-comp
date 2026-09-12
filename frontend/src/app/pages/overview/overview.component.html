@@ -5,35 +5,6 @@
   </section>
 }
 
-@if (full()) {
-  <section class="grid two" aria-label="Team snapshot">
-    <article class="card">
-      <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">shield</span>Team Identity</h2>
-      @if (data.teamIdentity(); as identity) {
-        <dl class="kv kv-icons">
-          <dt><span class="material-symbols-rounded" aria-hidden="true">visibility</span>Vision</dt><dd>{{ identity.visionDriven ? 'Primary pillar' : 'Secondary' }}</dd>
-          <dt><span class="material-symbols-rounded" aria-hidden="true">flag</span>Objectives</dt><dd>{{ identity.objectiveFocused ? 'Priority' : 'Flexible' }}</dd>
-          <dt><span class="material-symbols-rounded" aria-hidden="true">bolt</span>Primary</dt><dd>{{ identity.primaryPlaystyle.join(' + ') }}</dd>
-          <dt><span class="material-symbols-rounded" aria-hidden="true">timer</span>Jungle</dt><dd>{{ identity.jungleTempo }}</dd>
-          <dt><span class="material-symbols-rounded" aria-hidden="true">swords</span>Damage</dt><dd>{{ identity.damageProfile }}</dd>
-          <dt><span class="material-symbols-rounded" aria-hidden="true">person</span>Mid role</dt><dd>{{ identity.midRole }}</dd>
-          <dt><span class="material-symbols-rounded" aria-hidden="true">security</span>Frontline</dt><dd>{{ identity.lateGameFrontline }}</dd>
-        </dl>
-      }
-    </article>
-
-    <article class="card">
-      <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">bolt</span>Quick Access</h2>
-      <div class="links">
-        <a routerLink="/roster" [queryParams]="{ view: 'scouting' }"><span class="link-icon material-symbols-rounded" aria-hidden="true">groups</span>Open scouting view</a>
-        <a routerLink="/comps"><span class="link-icon material-symbols-rounded" aria-hidden="true">menu_book</span>Open comp cheat sheets</a>
-        <a routerLink="/comps"><span class="link-icon material-symbols-rounded" aria-hidden="true">block</span>Open ban recommendations</a>
-        <a routerLink="/synergy"><span class="link-icon material-symbols-rounded" aria-hidden="true">hub</span>Open team synergy stats</a>
-      </div>
-    </article>
-  </section>
-}
-
 <!-- One card template, three groups: the A team in seat order, the bench,
      then the fill-ins (9 Sep 2026). The A team is everyone without the bench flag. -->
 <ng-template #playerCard let-player let-fill="fill">
@@ -158,25 +129,6 @@
       <small class="muted section-title-note">outside the roster, pencilled in when the bench is short</small></h2>
     <div class="grid three">
       @for (card of fillInCards(); track card.id) { <ng-container *ngTemplateOutlet="playerCard; context: { $implicit: card, fill: card.fillIn }" /> }
-    </div>
-  </section>
-}
-
-@if (full()) {
-
-  <section aria-label="Resources">
-    <h2 class="section-title"><span class="section-icon material-symbols-rounded">map</span>Macro, Research and Draft Tools</h2>
-    <div class="grid three">
-      @for (group of resourceGroups(); track group[0]) {
-        <article class="card">
-          <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">{{ resourceIconSymbol[group[0]] || 'link' }}</span>{{ groupLabel(group[0]) }}</h2>
-          <div class="links">
-            @for (link of group[1]; track link.url) {
-              <a [href]="link.url" target="_blank" rel="noopener noreferrer"><span class="link-icon material-symbols-rounded" aria-hidden="true">open_in_new</span>{{ link.label }}</a>
-            }
-          </div>
-        </article>
-      }
     </div>
   </section>
 }

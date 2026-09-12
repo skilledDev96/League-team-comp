@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -84,33 +84,33 @@ export class OverviewComponent {
     void this.editor.patch(player, { secondaryRoles: next.length ? next : undefined });
   }
 
-  /** Full adds the team identity, the fill-ins and the links; the shell's toolbar sets it. */
+  /**
+   * Full opens every card's Quick look; the shell's switch sets it (12 Sep 2026).
+   *
+   * It used to add the Team Identity card, a Quick Access card and the Macro, Research and Draft
+   * Tools links. The lead: "we are not using those tools." Nothing in the app edits either the
+   * identity or the links — both are the original seed — and the real quick actions already sit
+   * above every view, so Full now means what it means everywhere else: the same things, expanded.
+   */
   readonly full = input(false);
-  private readonly expanded = signal<Set<string>>(new Set());
 
-  protected readonly resourceGroups = computed(() => Object.entries(this.data.resourceLinks()));
-  protected readonly resourceIcon: Record<string, string> = {
-    DraftTools: 'DT',
-    MacroAndObjectives: 'MO',
-    MatchupResearch: 'MR'
-  };
-  protected readonly resourceIconSymbol: Record<string, string> = {
-    DraftTools: 'construction',
-    MacroAndObjectives: 'map',
-    MatchupResearch: 'query_stats'
-  };
+  /** Cards turned against the depth: the open ones at Starter, the shut ones at Full. */
+  private readonly flipped = signal<ReadonlySet<string>>(new Set());
+  private readonly resetFlips = effect(() => {
+    this.full();
+    untracked(() => this.flipped.set(new Set()));
+  });
 
   protected isExpanded(id: string): boolean {
-    return this.expanded().has(id);
+    return this.full() !== this.flipped().has(id);
   }
 
   protected toggle(id: string): void {
-    const next = new Set(this.expanded());
-    next.has(id) ? next.delete(id) : next.add(id);
-    this.expanded.set(next);
-  }
-
-  protected groupLabel(group: string): string {
-    return group.replace(/([A-Z])/g, ' $1').trim();
+    this.flipped.update((set) => {
+      const next = new Set(set);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 }

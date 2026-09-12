@@ -5,17 +5,8 @@
   </section>
 }
 
-<section class="view-controls" aria-label="View controls">
-  <div class="field"><span>Detail</span>
-  <div class="view-segment" role="group" aria-label="Detail level">
-    <button type="button" [class.active]="!fullView()" (click)="fullView.set(false)">Starter</button>
-    <button type="button" [class.active]="fullView()" (click)="fullView.set(true)">Full</button>
-  </div>
-  </div>
-  <p class="muted">Starter keeps each role compact. Full expands every scouting card.</p>
-</section>
-
-<details data-tour="scouting-practice-board" class="card practice-board" aria-label="Team practice board">
+<!-- Open on arrival: the practice board is the one thing on this view a reader acts on. -->
+<details data-tour="scouting-practice-board" class="card practice-board" open aria-label="Team practice board">
   <summary class="practice-head">
     <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">fitness_center</span>Practice Board</h2>
     @if (painSummary(); as s) {
@@ -82,7 +73,7 @@
   }
 </details>
 
-@if (data.fillIns().length) {
+@if (full() && data.fillIns().length) {
   <section class="grid two" aria-label="Fill-in profiles">
     @for (player of data.fillIns(); track player.id) {
       <article class="card">
@@ -136,27 +127,29 @@
       </button>
 
       <div class="role-details">
-        @if (player.top3.length) {
-          <p class="meta-line main-champ-inline">
-            <img class="main-champ-icon" [src]="ui.championIconUrl(player.top3[0])" [alt]="player.top3[0] + ' icon'" />
-            <span class="meta-label">Main Champion</span>
-            <span class="meta-value">{{ player.top3[0] }}</span>
-          </p>
+        @if (full()) {
+          @if (player.top3.length) {
+            <p class="meta-line main-champ-inline">
+              <img class="main-champ-icon" [src]="ui.championIconUrl(player.top3[0])" [alt]="player.top3[0] + ' icon'" />
+              <span class="meta-label">Main Champion</span>
+              <span class="meta-value">{{ player.top3[0] }}</span>
+            </p>
+          }
+
+          <h3>Strengths</h3>
+          <div class="tag-row">
+            @for (s of player.strengths; track s) {
+              <span class="tag good">{{ s }}</span>
+            }
+          </div>
+
+          <h3>Weaknesses</h3>
+          <div class="tag-row">
+            @for (w of player.weaknesses; track w) {
+              <span class="tag bad">{{ w }}</span>
+            }
+          </div>
         }
-
-        <h3>Strengths</h3>
-        <div class="tag-row">
-          @for (s of player.strengths; track s) {
-            <span class="tag good">{{ s }}</span>
-          }
-        </div>
-
-        <h3>Weaknesses</h3>
-        <div class="tag-row">
-          @for (w of player.weaknesses; track w) {
-            <span class="tag bad">{{ w }}</span>
-          }
-        </div>
 
         @if (painFor(player.id).length) {
           <details class="intel-collapse">
@@ -241,23 +234,25 @@
           }
         }
 
-        <app-external-profiles [name]="player.name" [profile]="player.profile" />
+        @if (full()) {
+          <app-external-profiles [name]="player.name" [profile]="player.profile" />
 
-        <details class="link-dropdown">
-          <summary>Build Guides</summary>
-          <div class="links compact">
-            @for (champ of player.top3; track champ) {
-              <a [href]="ui.championBuildUrl(champ)" target="_blank" rel="noopener noreferrer">Build guide: {{ champ }}</a>
+          <details class="link-dropdown">
+            <summary>Build Guides</summary>
+            <div class="links compact">
+              @for (champ of player.top3; track champ) {
+                <a [href]="ui.championBuildUrl(champ)" target="_blank" rel="noopener noreferrer">Build guide: {{ champ }}</a>
+              }
+            </div>
+          </details>
+
+          <h3>Suggested Bans</h3>
+          <ul class="list-clean">
+            @for (ban of player.bans; track ban) {
+              <li>{{ ban }}</li>
             }
-          </div>
-        </details>
-
-        <h3>Suggested Bans</h3>
-        <ul class="list-clean">
-          @for (ban of player.bans; track ban) {
-            <li>{{ ban }}</li>
-          }
-        </ul>
+          </ul>
+        }
       </div>
     </article>
   }

@@ -8,6 +8,7 @@ import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
+import { rateBand } from '../../core/opponent-view';
 
 type QueueKey = 'solo' | 'flex' | 'clash';
 
@@ -25,6 +26,11 @@ interface ProfileRow {
 export class TeamProfilesComponent {
   /** Hosted inside the Roster page, which supplies the heading and the mode switch. */
   readonly embedded = input(false);
+  /**
+   * Starter is who, rank, recent form and main — what the view's own line promises. KDA, CS/min,
+   * vision and the roster totals are what a reader checks, so they wait for Full (12 Sep 2026).
+   */
+  readonly full = input(false);
 
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
@@ -56,6 +62,11 @@ export class TeamProfilesComponent {
    */
   protected visionSample(m: QueueMatchStats): number {
     return m.visionSamples ?? m.games;
+  }
+
+  /** The recent win rate on the one scale the app uses for a rate, not a hand-coded 50. */
+  protected recentBand(m: QueueMatchStats): string {
+    return rateBand({ champion: '', games: m.games, wins: m.wins });
   }
 
   protected visionNote(m: QueueMatchStats): string {

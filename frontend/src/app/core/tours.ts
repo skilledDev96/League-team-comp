@@ -168,7 +168,7 @@ export const TOURS: readonly Tour[] = [
     id: 'roster',
     title: 'Roster',
     blurb: 'Cards, the A team, second seats, the table and the scouting view.',
-    version: 1,
+    version: 2,
     match: { path: '/roster' },
     needs: 'players',
     steps: [
@@ -176,9 +176,9 @@ export const TOURS: readonly Tour[] = [
       { anchor: 'roster-ateam', title: 'A team for Patterns', text: 'Patterns counts these five by default, and the draft room follows them.', more: 'Bench leaves a player out. Same flag Admin sets, so the five stay one thing everywhere.', editMode: true, query: { view: 'cards' } },
       { anchor: 'roster-main-seat', title: 'Main seat', text: 'The seat in the title, read by Patterns’ Main filter.', more: 'Patterns’ Main counts a game only when all five sat in their main seat, so set these before reading it.', editMode: true, query: { view: 'cards' } },
       { anchor: 'roster-second-seat', title: 'Second seat', text: 'Other roles this player can cover.', more: 'Patterns’ Roles filter and the draft room’s seat proposals read this.', editMode: true, query: { view: 'cards' } },
-      { anchor: 'roster-detail-level', title: 'Starter and Full', text: 'Starter is the basic card, Full adds everything under it.', more: 'Full adds the team identity, the fill-ins and the resource links under the cards.', query: { view: 'cards' } },
+      { anchor: 'detail-roster', title: 'Starter or Full', text: 'Starter is the basics, Full is everything expanded.', more: 'One switch for all four views, remembered for you.' },
       { anchor: 'table-queue', title: 'The table', text: 'Rank and recent form per queue, one row per player.', more: 'Recent is the last games scanned, not the ladder record beside it.', query: { view: 'table' } },
-      { anchor: 'scouting-card', title: 'Scouting', text: 'Strengths, weaknesses, pool and suggested bans, for each of our players.', more: 'Each card also shows what that player is learning.', query: { view: 'scouting' } },
+      { anchor: 'scouting-card', title: 'Scouting', text: 'Each player’s pool, and what they are working on and learning.', more: 'Full opens every card and adds strengths, weaknesses and suggested bans.', query: { view: 'scouting' } },
       { anchor: 'scouting-practice-board', title: 'Practice board', text: 'Pain points per player, open until someone resolves them.', query: { view: 'scouting' } }
     ]
   },

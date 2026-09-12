@@ -28,14 +28,7 @@
         </button>
       </div>
     </div>
-    @if (view() === 'cards') {
-      <div data-tour="roster-detail-level" class="field"><span>Detail</span>
-        <div class="view-segment" role="group" aria-label="Detail level">
-          <button type="button" [class.active]="!detailFull()" (click)="detailFull.set(false)" appTip="The cards only">Starter</button>
-          <button type="button" [class.active]="detailFull()" (click)="detailFull.set(true)" appTip="Adds team identity, fill-ins and the resource links">Full</button>
-        </div>
-      </div>
-    }
+    <app-detail-toggle surface="roster" starterTip="The basics, in all four views" fullTip="Everything expanded, in all four views" />
     <div class="roster-toolbar-find">
       <p class="meta-line">
         <span class="meta-label">Roster</span>
@@ -66,15 +59,15 @@
      the same roster for no benefit. -->
 @switch (view()) {
   @case ('table') {
-    <app-team-profiles [embedded]="true" />
+    <app-team-profiles [embedded]="true" [full]="full()" />
   }
   @case ('scouting') {
-    <app-player-intel [embedded]="true" />
+    <app-player-intel [embedded]="true" [full]="full()" />
   }
   @case ('report') {
-    <app-scout-report />
+    <app-scout-report [full]="full()" />
   }
   @default {
-    <app-overview [embedded]="true" [full]="detailFull()" />
+    <app-overview [embedded]="true" [full]="full()" />
   }
 }

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { OpponentPlayer } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { ChampionFilterService } from '../../services/champion-filter.service';
@@ -11,6 +11,7 @@ import { playedElsewhere } from '../../core/opponent-roles';
 import {
   banCandidates,
   bench,
+  bestRank,
   masteryLabel,
   masteryOf,
   poolIsForSeat,
@@ -20,7 +21,8 @@ import {
   recentForSeat,
   recentHidden,
   scoutedAgo,
-  starters
+  starters,
+  topPlays
 } from '../../core/opponent-view';
 
 /**
@@ -29,6 +31,11 @@ import {
  * behind it, what each of us plays in the seat, what beats us, what we have
  * touched lately — and the ban board an opponent would draw against us.
  * The result lives at `meta/selfScout`, one document, rewritten per scout.
+ *
+ * Starter is the ban board and our five on a line each — the line Prep & Draft draws for an
+ * opponent (12 Sep 2026). The table under Full says the same across six columns and two queues a
+ * player: measured at about five hundred marks in one card, with no fold and no switch, the densest
+ * surface in the app, and all of it for checking.
  */
 @Component({
   selector: 'app-scout-report',
@@ -43,6 +50,8 @@ export class ScoutReportComponent {
   protected readonly scout = inject(OpponentScoutService);
 
   protected readonly SELF_ID = 'us';
+  /** Set by the Roster shell's one switch. */
+  readonly full = input(false);
 
   protected readonly report = this.data.selfScout;
   protected readonly players = computed<OpponentPlayer[]>(() => this.report()?.players ?? []);
@@ -78,6 +87,8 @@ export class ScoutReportComponent {
   }
 
   protected readonly queueRows = queueRows;
+  protected readonly topPlays = topPlays;
+  protected readonly bestRank = bestRank;
   protected readonly masteryOf = masteryOf;
   protected readonly masteryLabel = masteryLabel;
   protected readonly rateOf = rateOf;
