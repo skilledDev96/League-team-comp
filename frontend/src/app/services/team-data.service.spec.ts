@@ -44,6 +44,18 @@ describe('TeamDataService in local mode', () => {
     expect(stored()['practiceGames']).toEqual([]);
   });
 
+  it('keeps a trophy entered by hand: writes it through, edits it in place, survives a reload, and deletes it', async () => {
+    const id = await data.createTrophy({ title: 'Split 1 champions', placement: 1, date: '2026-06-28' });
+    expect(stored()['trophies'].map((t) => t.id)).toEqual([id]);
+    await data.updateTrophy({ ...data.trophies()[0], note: 'Won the final 3–1' });
+    expect(data.trophies()).toHaveLength(1);
+    TestBed.resetTestingModule();
+    const reloaded = TestBed.inject(TeamDataService);
+    expect(reloaded.trophies()[0]).toMatchObject({ id, title: 'Split 1 champions', placement: 1, note: 'Won the final 3–1' });
+    await reloaded.deleteTrophy(id);
+    expect(stored()['trophies']).toEqual([]);
+  });
+
   it('starts in local mode and seeds itself', () => {
     expect(data.mode).toBe('local');
     expect(data.players().length).toBeGreaterThan(0);

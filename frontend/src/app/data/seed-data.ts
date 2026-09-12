@@ -175,6 +175,7 @@ export const SEED_DATA: TeamData = {
     }
   ],
   compResults: [],
+  trophies: [],
   plays: [],
   painPoints: [],
   learnEntries: [],

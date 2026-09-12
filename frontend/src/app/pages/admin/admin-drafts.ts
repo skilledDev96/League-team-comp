@@ -85,7 +85,7 @@ export function accessRenamePlan(draft: AccessDraft, existingEmails: readonly st
   return { exists, deleteEmail: renamed ? original : null };
 }
 
-export type EditorTab = 'settings' | 'players' | 'fillins' | 'comps' | 'tournaments' | 'access' | 'diagnostics';
+export type EditorTab = 'settings' | 'players' | 'fillins' | 'comps' | 'tournaments' | 'trophies' | 'access' | 'diagnostics';
 
 export function splitList(value: string): string[] {
   return value

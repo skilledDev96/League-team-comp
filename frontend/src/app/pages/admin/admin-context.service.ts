@@ -330,7 +330,7 @@ export class AdminContextService {
   private applyRouteFocus(): void {
     const params = this.route.snapshot.queryParamMap;
     const tab = params.get('tab');
-    if (tab === 'settings' || tab === 'players' || tab === 'fillins' || tab === 'comps' || tab === 'tournaments' || tab === 'access' || tab === 'diagnostics') {
+    if (tab === 'settings' || tab === 'players' || tab === 'fillins' || tab === 'comps' || tab === 'tournaments' || tab === 'trophies' || tab === 'access' || tab === 'diagnostics') {
       this.openTab(tab);
     }
     // "Add a comp" from the quick actions: one blank comp, not one per visit.

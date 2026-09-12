@@ -693,6 +693,8 @@ export interface TeamData {
   compOverrides: CompOverride[];
   practiceGames: PracticeGame[];
   selfScout?: SelfScout;
+  /** Trophies entered by hand (13 Sep 2026); optional, since older data has none. */
+  trophies?: Trophy[];
 }
 
 /** What the draft advisor answered. Mirrors `api/src/draft-advice.ts`. */
@@ -1287,6 +1289,31 @@ export interface Tournament {
   kind?: 'tournament' | 'scrims';
   /** Whether picks burn across the series. Tournaments default to true; the scrims group is false. */
   fearless?: boolean;
+  order: number;
+}
+
+/**
+ * A trophy or a placement, entered by hand on Admin › Trophies (13 Sep 2026).
+ *
+ * The home page's cabinet reads what the games already prove on its own; this is for what they cannot:
+ * a final placing, a Clash cup, a split won before the app kept any games. It is ours only — the team we
+ * beat in a final is a name in the title or the note if anyone wants it there, never a player.
+ */
+export interface Trophy {
+  id: string;
+  /** "Split 1 champions", "Clash cup". */
+  title: string;
+  /** Where it was won when that is not one of our tournaments: "Clash — 7 Sep". */
+  event?: string;
+  /** 1 for first, 2 for second and so on; absent for a trophy that is not a placing. */
+  placement?: number;
+  /** The day, YYYY-MM-DD. */
+  date?: string;
+  /** The tournament it was won in, when it is one of ours. */
+  tournamentId?: string;
+  /** A champion whose splash stands behind it in the cabinet. */
+  champion?: string;
+  note?: string;
   order: number;
 }
 

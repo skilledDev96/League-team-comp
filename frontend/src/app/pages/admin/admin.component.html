@@ -13,6 +13,7 @@
   <button class="view-btn" [class.active]="ctx.activeTab() === 'fillins'" type="button" (click)="ctx.openTab('fillins')">Fill-ins</button>
   <button class="view-btn" [class.active]="ctx.activeTab() === 'comps'" type="button" (click)="ctx.openTab('comps')">Comps</button>
   <button class="view-btn" [class.active]="ctx.activeTab() === 'tournaments'" type="button" (click)="ctx.openTab('tournaments')">Tournaments</button>
+  <button class="view-btn" [class.active]="ctx.activeTab() === 'trophies'" type="button" (click)="ctx.openTab('trophies')">Trophies</button>
   @if (auth.canManageUsers()) {
     <button class="view-btn" [class.active]="ctx.activeTab() === 'access'" type="button" (click)="ctx.openTab('access')">Access</button>
     <button class="view-btn" [class.active]="ctx.activeTab() === 'diagnostics'" type="button" (click)="ctx.openTab('diagnostics')">Diagnostics</button>
@@ -38,6 +39,9 @@
 }
 @if (ctx.activeTab() === 'tournaments') {
   <app-admin-tournaments />
+}
+@if (ctx.activeTab() === 'trophies') {
+  <app-admin-trophies />
 }
 @if (auth.canManageUsers() && ctx.activeTab() === 'access') {
   <app-admin-access />

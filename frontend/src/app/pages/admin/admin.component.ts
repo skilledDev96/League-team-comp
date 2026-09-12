@@ -12,6 +12,7 @@ import { AdminPlayersComponent } from './tabs/players.component';
 import { AdminSettingsComponent } from './tabs/settings.component';
 import { TourPillComponent } from '../../shared/tour-pill.component';
 import { AdminTournamentsComponent } from './tabs/tournaments.component';
+import { AdminTrophiesComponent } from './tabs/trophies.component';
 
 /**
  * Shell for the admin page: the tab bar, and whichever tab is open.
@@ -27,6 +28,7 @@ import { AdminTournamentsComponent } from './tabs/tournaments.component';
     AdminFillInsComponent,
     AdminCompsComponent,
     AdminTournamentsComponent,
+    AdminTrophiesComponent,
     AdminAccessComponent,
     AdminDiagnosticsComponent, TourPillComponent],
   templateUrl: './admin.component.html'

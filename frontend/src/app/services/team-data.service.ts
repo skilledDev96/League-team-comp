@@ -26,6 +26,7 @@ import {
   KeyHealth,
   Tournament,
   TournamentSeries,
+  Trophy,
   SeriesGame,
   ChampionTraitMap,
   ChampionTraits,
@@ -72,7 +73,8 @@ type EntityKey =
   | 'scrimOpponents'
   | 'plays'
   | 'painPoints'
-  | 'learnEntries';
+  | 'learnEntries'
+  | 'trophies';
 
 @Injectable({ providedIn: 'root' })
 export class TeamDataService {
@@ -84,6 +86,8 @@ export class TeamDataService {
   readonly fillIns = signal<FillIn[]>([]);
   readonly comps = signal<Comp[]>([]);
   readonly compResults = signal<CompResult[]>([]);
+  /** Trophies and placings entered by hand, for the home page's cabinet. */
+  readonly trophies = signal<Trophy[]>([]);
   readonly scrims = signal<Scrim[]>([]);
   readonly scrimOpponents = signal<ScrimOpponent[]>([]);
   readonly plays = signal<Play[]>([]);
@@ -252,6 +256,7 @@ export class TeamDataService {
     this.fillIns.set([...data.fillIns].sort((a, b) => a.order - b.order));
     this.comps.set([...data.comps].sort((a, b) => a.order - b.order));
     this.compResults.set([...(data.compResults ?? [])].sort((a, b) => a.order - b.order));
+    this.trophies.set([...(data.trophies ?? [])].sort((a, b) => a.order - b.order));
     this.scrims.set([...(data.scrims ?? [])].sort((a, b) => a.order - b.order));
     this.scrimOpponents.set([...(data.scrimOpponents ?? [])].sort((a, b) => a.order - b.order));
     this.plays.set([...(data.plays ?? [])].sort((a, b) => a.order - b.order));
@@ -284,6 +289,7 @@ export class TeamDataService {
       fillIns: this.fillIns(),
       comps: this.comps(),
       compResults: this.compResults(),
+      trophies: this.trophies(),
       scrims: this.scrims(),
       scrimOpponents: this.scrimOpponents(),
       plays: this.plays(),
@@ -350,6 +356,10 @@ export class TeamDataService {
     onSnapshot(collection(db, 'learnEntries'), (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<LearnEntry, 'id'>) }));
       this.learnEntries.set(list.sort((a, b) => a.order - b.order));
+    });
+    onSnapshot(collection(db, 'trophies'), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Trophy, 'id'>) }));
+      this.trophies.set(list.sort((a, b) => a.order - b.order));
     });
     onSnapshot(collection(db, 'tournaments'), (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Tournament, 'id'>) }));
@@ -443,6 +453,10 @@ export class TeamDataService {
     for (const result of SEED_DATA.compResults) {
       const { id, ...rest } = result;
       batch.set(doc(db, 'compResults', id), rest);
+    }
+    for (const trophy of SEED_DATA.trophies ?? []) {
+      const { id, ...rest } = trophy;
+      batch.set(doc(db, 'trophies', id), rest);
     }
     for (const play of SEED_DATA.plays) {
       const { id, ...rest } = play;
@@ -747,6 +761,22 @@ export class TeamDataService {
 
   deleteCompResult(id: string): Promise<void> {
     return this.persistRemove('compResults', this.compResults, id);
+  }
+
+  // ---- Trophies ---------------------------------------------------------
+
+  async createTrophy(data: Omit<Trophy, 'id' | 'order'>): Promise<string> {
+    const trophy: Trophy = { ...data, id: this.newId('trophy'), order: this.nextOrder(this.trophies()) };
+    await this.persistUpsert('trophies', this.trophies, trophy);
+    return trophy.id;
+  }
+
+  updateTrophy(trophy: Trophy): Promise<void> {
+    return this.persistUpsert('trophies', this.trophies, trophy);
+  }
+
+  deleteTrophy(id: string): Promise<void> {
+    return this.persistRemove('trophies', this.trophies, id);
   }
 
   /**
