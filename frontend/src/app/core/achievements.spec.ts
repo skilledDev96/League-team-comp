@@ -50,7 +50,7 @@ const cabinet = (over: Partial<AchievementSources> = {}) => achievementsOf({ ...
 const trophy = (over: Partial<AchievementSources>, id: string): Achievement => cabinet(over).find((a) => a.id === id)!;
 
 describe('the cabinet', () => {
-  it('lists the fourteen trophies in their fixed order, the counts carrying a target', () => {
+  it('lists the sixteen trophies in their fixed order, the counts carrying a target', () => {
     expect(ACHIEVEMENTS.map((a) => a.id)).toEqual([
       'series-won',
       'clean-sweep',
@@ -63,6 +63,8 @@ describe('the cabinet', () => {
       'double-baron',
       'no-tower-lost',
       'deathless',
+      'quadra',
+      'penta',
       'full-stack-25',
       'century',
       'three-crowns'
@@ -84,6 +86,26 @@ describe('the cabinet', () => {
     expect(all.find((a) => a.id === 'century')?.progress).toEqual({ have: 0, need: 100 });
     expect(all.find((a) => a.id === 'streak-3')?.progress).toEqual({ have: 0, need: 3 });
     expect(all.find((a) => a.id === 'series-won')?.progress).toBeUndefined();
+  });
+});
+
+describe('multikill trophies', () => {
+  const carry = (facts: Record<string, number>) => [{ name: 'SkilledScarecrow', position: 'ADC', champion: 'Jinx', kills: 12, deaths: 1, assists: 4, cs: 250, damage: 30_000, facts }];
+
+  it('earns a Pentakill off the earliest game with one, naming who and on what, and says what it was counted over', () => {
+    const analysis = [
+      analysisGame('m-old', { date: T0 - 40 * DAY, players: [] }),
+      analysisGame('m-quad', { date: T0 + DAY, players: carry({ largestMultiKill: 4, quadraKills: 1, pentaKills: 0 }) as never }),
+      analysisGame('m-penta', { date: T0 + 2 * DAY, players: carry({ largestMultiKill: 5, quadraKills: 1, pentaKills: 1 }) as never }),
+      analysisGame('m-replay', { queue: 'Scrim', players: [] })
+    ];
+    const penta = trophy({ analysis }, 'penta');
+    expect(penta).toMatchObject({ unlocked: true, by: 'SkilledScarecrow', champion: 'Jinx', earnedAt: T0 + 2 * DAY, coverage: { read: 2, of: 3 } });
+    expect(trophy({ analysis }, 'quadra')).toMatchObject({ unlocked: true, earnedAt: T0 + DAY });
+  });
+
+  it('stays locked over games that carry no multikills, and says how few were read', () => {
+    expect(trophy({ analysis: [analysisGame('m1'), analysisGame('m2')] }, 'penta')).toMatchObject({ unlocked: false, coverage: { read: 0, of: 2 } });
   });
 });
 

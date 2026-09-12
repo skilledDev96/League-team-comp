@@ -14,7 +14,7 @@ import { AnalysisGame } from '../models/team.models';
  * purpose: the frontend cannot import the api package, and a game below this
  * version is the one thing the health table must be able to say.
  */
-export const EXPECTED_CACHE_VERSION = 5;
+export const EXPECTED_CACHE_VERSION = 6;
 
 /** Under ten minutes a game was a remake or a surrender at fifteen never happened. */
 const MIN_DURATION_SEC = 600;
@@ -54,7 +54,8 @@ export function healthChecks(game: AnalysisGame): HealthRow {
   if (game.cacheVersion !== undefined && game.cacheVersion < EXPECTED_CACHE_VERSION) flags.push(`cache v${game.cacheVersion}, waiting on the backfill`);
   if (game.cacheVersion === undefined) flags.push('no cache version stamped');
   const longEnough = game.durationSec === undefined || game.durationSec >= MIN_DURATION_SEC;
-  if (!replay && longEnough && game.cacheVersion === EXPECTED_CACHE_VERSION && !hasLanes) flags.push('v5 Riot game with no lane read');
+  // Lanes are read from v5 on, so a v5 entry still waiting on the v6 backfill should have one too.
+  if (!replay && longEnough && game.cacheVersion !== undefined && game.cacheVersion >= 5 && !hasLanes) flags.push(`v${game.cacheVersion} Riot game with no lane read`);
   return {
     matchId: game.matchId,
     date: game.date,

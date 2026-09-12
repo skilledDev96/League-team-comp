@@ -11,19 +11,20 @@ const game = (over: Partial<AnalysisGame> = {}): AnalysisGame => ({
   matchId: 'EUW1_1', compId: null, compName: null, win: true, queue: 'Flex', date: 1, durationSec: 1800,
   players: five(), kills: { ours: 10, theirs: 4 },
   objectives: { ours: { firstBlood: true, firstTower: true, dragons: 2, barons: 0, heralds: 0, grubs: 0, towers: 5, inhibitors: 1 }, theirs: { firstBlood: false, firstTower: false, dragons: 1, barons: 0, heralds: 0, grubs: 0, towers: 2, inhibitors: 0 } },
-  cacheVersion: 5,
+  cacheVersion: 6,
   ...over
 });
 
 describe('healthChecks', () => {
-  it('passes a sound v5 game with a lane read', () => {
+  it('passes a sound v6 game with a lane read', () => {
     const row = healthChecks(game({ players: five({ facts: { goldPerMin: 400 }, lane: { position: 'Top', theirChampion: 'Y', verdict: 'won' } }) }));
     expect(row.flags).toEqual([]);
-    expect(row).toMatchObject({ players: 5, killsSum: 10, killsTally: 10, hasExtras: true, hasLanes: true, cacheVersion: 5 });
+    expect(row).toMatchObject({ players: 5, killsSum: 10, killsTally: 10, hasExtras: true, hasLanes: true, cacheVersion: 6 });
   });
 
-  it('flags a v5 Riot game with no lane read, but not a replay', () => {
-    expect(healthChecks(game()).flags).toEqual(['v5 Riot game with no lane read']);
+  it('flags a v6 Riot game with no lane read, but not a replay, and a v5 one waiting on the backfill as well', () => {
+    expect(healthChecks(game()).flags).toEqual(['v6 Riot game with no lane read']);
+    expect(healthChecks(game({ cacheVersion: 5 })).flags).toEqual(['cache v5, waiting on the backfill', 'v5 Riot game with no lane read']);
     expect(healthChecks(game({ queue: 'Scrim' })).flags).toEqual([]);
   });
 

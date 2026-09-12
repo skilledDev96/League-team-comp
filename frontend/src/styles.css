@@ -15669,7 +15669,7 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .home-cell-podium { grid-column: span 4; min-height: 16rem; }
 .home-cell-record { grid-column: span 3; min-height: 16rem; }
 .home-cell-trend { grid-column: span 5; min-height: 16rem; }
-.home-cell-comp, .home-cell-records { grid-column: span 6; min-height: 16.75rem; }
+.home-cell-comp, .home-cell-records { grid-column: span 6; min-height: 19.5rem; }
 .home-cell-advice { grid-column: 1 / -1; min-height: 14.5rem; }
 .home-cell-lineup { grid-column: 1 / -1; min-height: 19rem; }
 .home-cell-climb { grid-column: 1 / -1; min-height: 16rem; }
@@ -15758,7 +15758,7 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 
 /* Records to beat */
 .home-records-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
-.home-records-row { display: grid; grid-template-columns: 2rem 8.5rem 3.5rem minmax(0, 1fr); align-items: center; gap: 0.6rem; padding: 0.35rem 0.5rem; border-radius: 10px; background: color-mix(in srgb, var(--text-1) 5%, transparent); }
+.home-records-row { display: grid; grid-template-columns: 2rem 8.5rem 4.75rem minmax(0, 1fr); align-items: center; gap: 0.6rem; padding: 0.35rem 0.5rem; border-radius: 10px; background: color-mix(in srgb, var(--text-1) 5%, transparent); }
 .home-records-icon { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 8px; font-size: 1.15rem; color: var(--accent-2); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .home-records-label { font-size: 0.8rem; color: var(--text-1); }
 .home-records-value { font-family: "Chakra Petch", sans-serif; font-size: 1.25rem; font-variant-numeric: tabular-nums; text-align: right; }

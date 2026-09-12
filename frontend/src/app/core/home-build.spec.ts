@@ -181,6 +181,25 @@ describe('buildHome', () => {
     expect(buildHome(input({ banner: { champion: '  ' } }))).toMatchObject({ motto: '', banner: null });
   });
 
+  it('names the biggest multikill of the season and counts the pentas, over the games whose cache carries them', () => {
+    const withFacts = (matchId: string, date: string, facts: Record<string, number>) => {
+      const g = flex(matchId, date, true);
+      return { ...g, players: g.players.map((p) => (p.name === 'Go10x' ? { ...p, facts } : { ...p, facts: { largestMultiKill: 1 } })) } as AnalysisGame;
+    };
+    const home = buildHome(
+      input({
+        analysis: [
+          withFacts('EUW_1', '2026-09-03T20:00:00Z', { largestMultiKill: 5, pentaKills: 1 }),
+          withFacts('EUW_2', '2026-09-08T20:00:00Z', { largestMultiKill: 5, pentaKills: 1 }),
+          flex('EUW_3', '2026-09-09T20:00:00Z', false)
+        ]
+      })
+    );
+    expect(home.records.biggestMultikill).toMatchObject({ value: 5, player: 'Go10x', champion: 'Vi', date: Date.parse('2026-09-03T20:00:00Z'), pentas: 2 });
+    expect(home.records.multikillCoverage).toEqual({ read: 2, of: 3 });
+    expect(buildHome(input()).records.biggestMultikill).toBeNull();
+  });
+
   it('draws the seed as intentional empties: five mains, no record, nobody crowned, every trophy locked', () => {
     const home = buildHome(input({ analysis: [], seriesGames: [], scrims: [], series: [] }));
     expect(home.slides.map((s) => s.champion)).toEqual(['Aatrox', 'Vi', 'Ahri', 'Jinx', 'Leona']);

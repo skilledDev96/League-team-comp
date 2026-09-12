@@ -38,6 +38,11 @@ const DAY = (at: number) => (at > 0 ? new Date(at).toLocaleDateString(undefined,
           </li>
         }
       </ul>
+      @if (records().multikillCoverage; as c) {
+        @if (c.of && c.read < c.of) {
+          <p class="home-tile-note">Multikills counted over {{ c.read }} of {{ c.of }} Riot games; older games gain them as the match cache refills.</p>
+        }
+      }
     </section>
   `
 })
@@ -77,6 +82,16 @@ export class HomeRecordsComponent {
         when: r.longestWinStreak ? [DAY(r.longestWinStreak.from), DAY(r.longestWinStreak.to)].filter(Boolean).join(' – ') : ''
       },
       {
+        key: 'multikill',
+        icon: 'crisis_alert',
+        label: 'Biggest multikill',
+        value: r.biggestMultikill ? MULTIKILL_WORDS[r.biggestMultikill.value] ?? `${r.biggestMultikill.value} kills` : '',
+        who: r.biggestMultikill
+          ? [on(r.biggestMultikill.player, r.biggestMultikill.champion), r.biggestMultikill.pentas ? `${r.biggestMultikill.pentas} ${r.biggestMultikill.pentas === 1 ? 'pentakill' : 'pentakills'}` : ''].filter(Boolean).join(' · ')
+          : '',
+        when: r.biggestMultikill ? DAY(r.biggestMultikill.date) : ''
+      },
+      {
         key: 'vision',
         icon: 'visibility',
         label: 'Most vision',
@@ -87,6 +102,8 @@ export class HomeRecordsComponent {
     ];
   });
 }
+
+const MULTIKILL_WORDS: Record<number, string> = { 2: 'Double', 3: 'Triple', 4: 'Quadra', 5: 'Penta' };
 
 function clock(sec: number): string {
   const m = Math.floor(sec / 60);

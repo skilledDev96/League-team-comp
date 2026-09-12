@@ -1,4 +1,4 @@
-import { Player, ROLES } from '../models/team.models';
+import { AnalysisGame, Player, ROLES } from '../models/team.models';
 import { buildGameRows, GameRow, PlayerLine, playerLines } from '../pages/games/game-rows';
 import { MIN_FOR_A_CLAIM } from '../pages/review/loss-patterns.util';
 import { Advice, DEFAULT_PATTERN_FILTERS, keepDoing, patternInputs, tournamentMatchIds, workOn } from '../pages/review/win-loss-splits';
@@ -6,7 +6,7 @@ import { achievementsOf } from './achievements';
 import { compOfTheMonth } from './comp-month';
 import { mvpGameFromRow, mvpOf } from './game-mvp';
 import { donutSegments } from './home-charts';
-import { HomeAdviceLine, HomeHandTrophy, HomeInput, HomeLineupCard, HomeModel, HomeNextSeries, HomeSlide, HomeSpotlight, HomeWelcome } from './home-model';
+import { HomeAdviceLine, HomeHandTrophy, HomeInput, HomeLineupCard, HomeModel, HomeNextSeries, HomeRecords, HomeSlide, HomeSpotlight, HomeWelcome } from './home-model';
 import { parseLocalDate } from './local-date';
 import { welcomeFor } from './home-welcome';
 import { lastCrown, mvpRace, podium } from './mvp-race';
@@ -116,6 +116,29 @@ function handTrophiesOf(i: HomeInput, season: SeasonWindow): HomeHandTrophy[] {
     .map((x) => x.trophy);
 }
 
+/**
+ * The biggest multikill of the season and how many pentakills, over the Riot games whose cache entry
+ * carries multikills (13 Sep 2026). A game read before cache v6 has none recorded, which is not the same
+ * as none taken, so the coverage travels with the record.
+ */
+function multikillsOf(games: readonly AnalysisGame[]): Pick<HomeRecords, 'biggestMultikill' | 'multikillCoverage'> {
+  const riot = games.filter((g) => g.queue !== 'Scrim');
+  const read = riot.filter((g) => g.players.some((p) => p.facts?.largestMultiKill !== undefined));
+  let best: HomeRecords['biggestMultikill'] = null;
+  let pentas = 0;
+  for (const g of read) {
+    for (const p of g.players) {
+      pentas += p.facts?.pentaKills ?? 0;
+      const value = p.facts?.largestMultiKill ?? 0;
+      // A tie stays with whoever set it first, as every other record does.
+      if (value >= 2 && (!best || value > best.value || (value === best.value && g.date > 0 && g.date < best.date))) {
+        best = { value, player: p.name, champion: p.champion, date: g.date, pentas: 0 };
+      }
+    }
+  }
+  return { biggestMultikill: best ? { ...best, pentas } : null, multikillCoverage: { read: read.length, of: riot.length } };
+}
+
 function lineupOf(starters: readonly Player[], seasonLines: readonly PlayerLine[], allLines: readonly PlayerLine[], titles: ReadonlyMap<string, number>): HomeLineupCard[] {
   const most = Math.max(0, ...titles.values());
   return starters.map((p) => {
@@ -161,6 +184,7 @@ export function buildHome(i: HomeInput): HomeModel {
   const season = seasonWindow(i.tournaments, i.now, i.mode);
   const seriesTournament = new Map(i.series.map((s) => [s.id, s.tournamentId]));
   const seasonGames = seasonRows(rows, season, { practice: i.practice, seriesTournament });
+  const seasonMatchIds = new Set(seasonGames.flatMap((r) => (r.matchId ? [r.matchId] : [])));
 
   const analysisById = new Map(i.analysis.map((g) => [g.matchId, g]));
   const scrimById = new Map(i.scrims.map((s) => [s.id, s]));
@@ -283,7 +307,7 @@ export function buildHome(i: HomeInput): HomeModel {
     },
     trend: winRateTrend(seasonGames, seasonFinished),
     compMonth: compOfTheMonth(serious, i.comps, i.now),
-    records: recordsToBeat(seasonGames),
+    records: { ...recordsToBeat(seasonGames), ...multikillsOf(i.analysis.filter((g) => seasonMatchIds.has(g.matchId))) },
     advice: {
       workOn: adviceLines(workOn(inputs.games, 'player', inputs.roster, inputs.source)),
       keepDoing: adviceLines(keepDoing(inputs.games, 'player', inputs.roster, inputs.source)),

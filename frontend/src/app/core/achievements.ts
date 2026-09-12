@@ -55,6 +55,8 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
   { id: 'double-baron', title: 'Double Baron', blurb: 'Took two or more Barons in one game.', icon: 'swords' },
   { id: 'no-tower-lost', title: 'Untouched', blurb: 'Won without losing a single tower.', icon: 'shield' },
   { id: 'deathless', title: 'Deathless', blurb: 'One of ours finished a win without dying.', icon: 'favorite' },
+  { id: 'quadra', title: 'Quadra kill', blurb: 'One of ours took four kills in a row.', icon: 'filter_4' },
+  { id: 'penta', title: 'Pentakill', blurb: 'One of ours took all five.', icon: 'filter_5' },
   { id: 'full-stack-25', title: 'Full stack', blurb: 'Played 25 games with all five from the roster.', icon: 'groups', need: 25 },
   { id: 'century', title: 'Century', blurb: 'Played 100 games.', icon: 'sports_esports', need: 100 },
   { id: 'three-crowns', title: 'Three crowns', blurb: 'One player took three series MVP titles.', icon: 'military_tech', need: 3 }
@@ -75,6 +77,12 @@ export interface Achievement extends AchievementDef {
   opponent?: string;
   /** Earned inside the window the home page is reading. Set on an earned trophy only. */
   thisSeason?: boolean;
+  /**
+   * The games a trophy could be read from, out of the games it would be read from: multikills only
+   * reach the analysis from cache v6 (13 Sep 2026), so until the backfill is through a locked Pentakill
+   * means none in the games that say, not none at all.
+   */
+  coverage?: { read: number; of: number };
 }
 
 /** What the cabinet is read from, all of it already held by the home page. */
@@ -93,7 +101,7 @@ export interface AchievementSources {
   window: { from: number; to: number; mode: 'season' | 'all' };
 }
 
-type Reading = Pick<Achievement, 'unlocked' | 'progress' | 'earnedAt' | 'by' | 'champion' | 'opponent'>;
+type Reading = Pick<Achievement, 'unlocked' | 'progress' | 'earnedAt' | 'by' | 'champion' | 'opponent' | 'coverage'>;
 
 const LOCKED: Reading = { unlocked: false };
 
@@ -259,6 +267,19 @@ export function achievementsOf(i: AchievementSources): Achievement[] {
         const first = earliest(rows.filter((r) => deathlessSeat(r) !== undefined), (r) => r.date);
         const seat = first ? deathlessSeat(first) : undefined;
         return first && seat ? earned(first.date, first.opponent, seat.player ?? undefined, seat.champion) : LOCKED;
+      }
+      case 'quadra':
+      case 'penta': {
+        const field = def.id === 'penta' ? 'pentaKills' : 'quadraKills';
+        const riot = i.analysis.filter((g) => g.queue !== 'Scrim');
+        const coverage = { read: riot.filter((g) => g.players.some((p) => p.facts?.largestMultiKill !== undefined)).length, of: riot.length };
+        const dateOf = (g: AnalysisGame) => dated(g.date) ?? dated(rowByMatch.get(g.matchId)?.date);
+        const first = earliest(
+          riot.filter((g) => g.players.some((p) => (p.facts?.[field] ?? 0) > 0)),
+          dateOf
+        );
+        const who = first?.players.find((p) => (p.facts?.[field] ?? 0) > 0);
+        return first && who ? { ...earned(dateOf(first), rowByMatch.get(first.matchId)?.opponent, who.name, who.champion), coverage } : { ...LOCKED, coverage };
       }
       case 'full-stack-25': {
         const fullStack = (r: GameRow) => r.rosterCount === FULL_STACK;

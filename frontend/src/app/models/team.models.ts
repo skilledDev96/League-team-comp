@@ -252,6 +252,12 @@ export interface PlayerFacts {
   baronTakedowns?: number;
   killsNearEnemyTurret?: number;
   damageShare?: number;
+  /** Multikills, from cache v6 (13 Sep 2026; mirrors api/src/lane-read.ts): absent on an older entry, never a zero for one. */
+  doubleKills?: number;
+  tripleKills?: number;
+  quadraKills?: number;
+  pentaKills?: number;
+  largestMultiKill?: number;
 }
 
 export interface AnalysisPlayer {

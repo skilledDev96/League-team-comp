@@ -97,8 +97,9 @@ export class HomeTrophiesComponent {
   }
 
   protected tip(t: Achievement): string {
+    const counted = t.coverage && t.coverage.read < t.coverage.of ? ` Counted over ${t.coverage.read} of ${t.coverage.of} Riot games so far.` : '';
     if (!t.unlocked) {
-      return t.progress ? `${t.blurb} ${t.progress.have} of ${t.progress.need} so far.` : `${t.blurb} Not yet.`;
+      return t.progress ? `${t.blurb} ${t.progress.have} of ${t.progress.need} so far.` : `${t.blurb} Not yet.${counted}`;
     }
     const who = t.by ? [t.by, t.champion ? `on ${this.ui.championName(t.champion)}` : ''].filter(Boolean).join(' ') : '';
     const against = t.opponent ? `${who ? 'against' : 'Against'} ${t.opponent}` : '';
