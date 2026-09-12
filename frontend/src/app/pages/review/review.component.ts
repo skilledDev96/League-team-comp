@@ -28,7 +28,7 @@ import {
   summarise,
   MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
-import { formatGap, formatSide, gameSource, GameSource, gapIsGood, keepDoing, laneTable, laneTotals, METRIC_TIPS, MetricSplit, PatternFilters, PatternSource, readPatternFilters, roleFit, RoleMode, SideStat, sourceOf, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { atSource, formatGap, formatSide, GameSource, gapIsGood, keepDoing, laneTable, laneTotals, METRIC_TIPS, MetricSplit, PatternFilters, PatternSource, patternSourceOf, readPatternFilters, RoleMode, rosterOrderOf, seriousOnly, SideStat, starterNamesFor, teamSplits, tournamentMatchIds, withRoles, withStarters, workOn } from './win-loss-splits';
 import { InfoTipComponent } from '../../shared/info-tip.component';
 
 /**
@@ -88,7 +88,11 @@ export class ReviewComponent {
    */
   protected readonly starterMode = signal<'team' | 'custom'>(ReviewComponent.storedFilters().starters);
   protected readonly customPlayers = signal<ReadonlySet<string>>(new Set(ReviewComponent.storedFilters().custom));
-  private readonly starterNames = computed(() => this.data.starters().map((p) => p.name));
+
+  /** The names a starters mode asks for: the A team off the roster, or the ticked set. */
+  private startersFor(mode: 'team' | 'custom'): string[] {
+    return starterNamesFor(mode, this.customPlayers(), this.data.players());
+  }
 
   protected toggleCustom(name: string): void {
     this.customPlayers.update((set) => {
@@ -121,11 +125,9 @@ export class ReviewComponent {
   });
 
   /** Serious-only applied; both sources still in, for the source badges. */
-  private readonly seriousGames = computed<AnalysisGame[]>(() => {
-    if (!this.seriousOnly()) return this.taggedOrNot();
-    const practice = this.data.practiceSet();
-    return this.taggedOrNot().filter((g) => !practice.has(g.matchId));
-  });
+  private readonly seriousGames = computed<AnalysisGame[]>(() =>
+    this.seriousOnly() ? seriousOnly(this.taggedOrNot(), this.data.practiceSet()) : this.taggedOrNot()
+  );
 
   /**
    * Where the games came from, the way the team sorts them: the flex ladder,
@@ -149,32 +151,17 @@ export class ReviewComponent {
     { source: 'tournament', label: 'Tournaments', tip: 'Replays imported against a tournament game' }
   ];
   /** Replays imported against a tournament game. A game in the scrims group is a scrim, whatever carries it (9 Sep 2026). */
-  private readonly tournamentIds = computed(() => {
-    const scrimsGroup = this.data.tournaments().find((t) => t.kind === 'scrims')?.id;
-    const scrimSeries = new Set(this.data.tournamentSeries().filter((s) => s.tournamentId === scrimsGroup).map((s) => s.id));
-    return new Set(
-      this.data
-        .seriesGames()
-        .filter((g) => !scrimSeries.has(g.seriesId))
-        .map((g) => g.matchId)
-        .filter((id): id is string => !!id)
-    );
-  });
+  private readonly tournamentIds = computed(() =>
+    tournamentMatchIds(this.data.tournaments(), this.data.tournamentSeries(), this.data.seriesGames())
+  );
   protected gamesAtSource(source: GameSource): number {
-    const ids = this.tournamentIds();
-    return this.seriousGames().filter((g) => gameSource(g, ids) === source).length;
+    return atSource(this.seriousGames(), source, this.tournamentIds()).length;
   }
 
-  private readonly anyStackGames = computed<AnalysisGame[]>(() => {
-    const source = this.sourceMode();
-    const ids = this.tournamentIds();
-    return this.seriousGames().filter((g) => gameSource(g, ids) === source);
-  });
+  private readonly anyStackGames = computed<AnalysisGame[]>(() => atSource(this.seriousGames(), this.sourceMode(), this.tournamentIds()));
 
   /** Riot's read or a replay's: replays when nothing in the selection carries per-minute figures. */
-  protected readonly patternSource = computed<PatternSource>(() =>
-    this.filteredGames().some((g) => sourceOf(g) === 'riot') ? 'riot' : 'replay'
-  );
+  protected readonly patternSource = computed<PatternSource>(() => patternSourceOf(this.filteredGames()));
 
   /** Tournament games the replay view cannot count, because nobody imported the replay. */
   protected readonly missingReplays = computed(() => {
@@ -257,37 +244,16 @@ export class ReviewComponent {
   });
 
   /** Games with the right people in, before the role question. */
-  private readonly starterGames = computed<AnalysisGame[]>(() => {
-    const games = this.anyStackGames();
-    if (this.starterMode() === 'custom') {
-      const picked = [...this.customPlayers()];
-      return picked.length ? games.filter((g) => starterCount(g, picked) >= picked.length) : games;
-    }
-    const starters = this.starterNames();
-    return starters.length ? games.filter((g) => starterCount(g, starters) >= starters.length) : games;
-  });
+  private readonly starterGames = computed<AnalysisGame[]>(() => withStarters(this.anyStackGames(), this.startersFor(this.starterMode())));
 
-  protected readonly filteredGames = computed<AnalysisGame[]>(() => {
-    const mode = this.roleMode();
-    if (mode === 'any') return this.starterGames();
-    const roster = this.rosterRoles();
-    return this.starterGames().filter((g) => roleFit(g, roster, mode));
-  });
+  protected readonly filteredGames = computed<AnalysisGame[]>(() => withRoles(this.starterGames(), this.rosterRoles(), this.roleMode()));
 
   protected gamesAtRole(mode: RoleMode): number {
-    if (mode === 'any') return this.starterGames().length;
-    const roster = this.rosterRoles();
-    return this.starterGames().filter((g) => roleFit(g, roster, mode)).length;
+    return withRoles(this.starterGames(), this.rosterRoles(), mode).length;
   }
 
   protected gamesAtStarters(mode: 'team' | 'custom'): number {
-    const games = this.anyStackGames();
-    if (mode === 'custom') {
-      const picked = [...this.customPlayers()];
-      return picked.length ? games.filter((g) => starterCount(g, picked) >= picked.length).length : games.length;
-    }
-    const starters = this.starterNames();
-    return starters.length ? games.filter((g) => starterCount(g, starters) >= starters.length).length : games.length;
+    return withStarters(this.anyStackGames(), this.startersFor(mode)).length;
   }
 
   /** Games left out by the current step. */
@@ -340,10 +306,7 @@ export class ReviewComponent {
   // ---- Wins against losses: the tables and the two lists (8 Sep 2026) ----
 
   /** Roster order for the lane rows: starters by seat, then the subs. */
-  private readonly rosterOrder = computed(() => {
-    const seat = (r: string) => { const i = (['Top', 'Jungle', 'Mid', 'ADC', 'Support'] as string[]).indexOf(r); return i < 0 ? 5 : i; };
-    return [...this.data.players()].sort((a, b) => Number(!!a.sub) - Number(!!b.sub) || seat(a.role) - seat(b.role)).map((p) => p.name);
-  });
+  private readonly rosterOrder = computed(() => rosterOrderOf(this.data.players()));
   protected readonly workOnList = computed(() => workOn(this.filteredGames(), 'player', this.rosterOrder(), this.patternSource()));
   protected readonly keepDoingList = computed(() => keepDoing(this.filteredGames(), 'player', this.rosterOrder(), this.patternSource()));
   protected readonly laneRows = computed(() => laneTable(this.filteredGames(), 'player', this.rosterOrder()));

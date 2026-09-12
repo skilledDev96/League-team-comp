@@ -1,6 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { AnalysisGame, AnalysisPlayer } from '../../models/team.models';
-import { DEFAULT_PATTERN_FILTERS, gameSource, keepDoing, killParticipationOf, laneTable, laneTotals, PatternFilters, playerSplits, readPatternFilters, roleFit, sourceOf, split, starterCount, teamSplits, workOn } from './win-loss-splits';
+import { AnalysisGame, AnalysisPlayer, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
+import {
+  atSource,
+  DEFAULT_PATTERN_FILTERS,
+  gameSource,
+  keepDoing,
+  killParticipationOf,
+  laneTable,
+  laneTotals,
+  PatternContext,
+  PatternFilters,
+  patternGames,
+  patternInputs,
+  patternSourceOf,
+  playerSplits,
+  readPatternFilters,
+  roleFit,
+  rosterOrderOf,
+  seriousOnly,
+  sourceOf,
+  split,
+  starterCount,
+  starterNamesFor,
+  teamSplits,
+  tournamentMatchIds,
+  withRoles,
+  withStarters,
+  workOn
+} from './win-loss-splits';
 
 const player = (name: string, position: string, over: Partial<AnalysisPlayer> = {}): AnalysisPlayer => ({
   name,
@@ -369,5 +396,118 @@ describe('the stored Patterns filters', () => {
       ...DEFAULT_PATTERN_FILTERS,
       custom: ['Ruan']
     });
+  });
+});
+
+/**
+ * The Patterns selection as steps (13 Sep 2026).
+ *
+ * The tab counts what each filter leaves out, and Home reads the same selection without the tab. So
+ * each step has to remove exactly what the tab removed, and the composition has to be those steps in
+ * the order the tab runs them.
+ */
+describe('the Patterns selection, step by step', () => {
+  const at = 1_757_750_400_000; // 13 Sep 2026
+  const flex = game(true, { matchId: 'EUW1-100', date: at });
+  const practice = game(false, { matchId: 'EUW1-101', date: at - 60_000 });
+  const clash = game(true, { matchId: 'EUW1-102', queue: 'Clash', date: at - 120_000 });
+  const scrim = game(false, { matchId: 'scrim-103', queue: 'Scrim', laneData: 'none', date: at - 180_000 });
+  const tournament = game(true, { matchId: 'scrim-104', queue: 'Scrim', laneData: 'none', date: at - 240_000 });
+  // The bench player sat Support, so one of the A team missed it.
+  const subIn = game(false, { matchId: 'EUW1-105', date: at - 300_000 }, (role) => (role === 'Support' ? { name: 'bench' } : {}));
+  // The ADC sat Mid and the Mid sat ADC: each in a second seat, neither in their main one.
+  const offRole = game(true, { matchId: 'EUW1-106', date: at - 360_000 }, (role) => (role === 'Mid' ? { name: 'adc' } : role === 'ADC' ? { name: 'mid' } : {}));
+  const all = [flex, practice, clash, scrim, tournament, subIn, offRole];
+
+  const roster: PatternContext['roster'] = [
+    { name: 'bench', role: 'Support', sub: true },
+    { name: 'support', role: 'Support' },
+    { name: 'adc', role: 'ADC', secondaryRoles: ['Mid'] },
+    { name: 'mid', role: 'Mid', secondaryRoles: ['ADC'] },
+    { name: 'jungle', role: 'Jungle' },
+    { name: 'top', role: 'Top' }
+  ];
+  const ctx: PatternContext = { practice: new Set([practice.matchId]), tournamentIds: new Set([tournament.matchId]), roster };
+  const ids = (games: readonly AnalysisGame[]) => games.map((g) => g.matchId);
+  const without = (...gone: AnalysisGame[]) => ids(all.filter((g) => !gone.includes(g)));
+
+  it('leaves out the game tagged as practice and nothing else', () => {
+    expect(ids(seriousOnly(all, ctx.practice))).toEqual(without(practice));
+    expect(seriousOnly(all, new Set<string>())).toEqual(all);
+  });
+
+  it('sorts every game into exactly one source', () => {
+    expect(ids(atSource(all, 'flex', ctx.tournamentIds))).toEqual(ids([flex, practice, subIn, offRole]));
+    expect(ids(atSource(all, 'scrimClash', ctx.tournamentIds))).toEqual(ids([clash, scrim]));
+    expect(ids(atSource(all, 'tournament', ctx.tournamentIds))).toEqual(ids([tournament]));
+    // With no series game carrying it, the tournament replay is a scrim.
+    expect(ids(atSource(all, 'scrimClash', new Set<string>()))).toEqual(ids([clash, scrim, tournament]));
+  });
+
+  it('names the A team without the bench, or the ticked set once each', () => {
+    expect(starterNamesFor('team', ['bench'], roster)).toEqual(['support', 'adc', 'mid', 'jungle', 'top']);
+    expect(starterNamesFor('custom', ['top', 'bench', 'top'], roster)).toEqual(['top', 'bench']);
+  });
+
+  it('leaves out the game a starter missed, and nothing when nobody is named', () => {
+    expect(ids(withStarters(all, starterNamesFor('team', [], roster)))).toEqual(without(subIn));
+    expect(ids(withStarters(all, ['top', 'bench']))).toEqual(ids([subIn]));
+    expect(withStarters(all, [])).toEqual(all);
+  });
+
+  it('leaves out the off-role game on Main, keeps it on a second seat, and keeps every game on Any', () => {
+    expect(ids(withRoles(all, roster, 'main'))).toEqual(without(offRole));
+    expect(withRoles(all, roster, 'second')).toEqual(all);
+    expect(withRoles(all, roster, 'any')).toEqual(all);
+  });
+
+  it('with the default filters, is the steps run by hand in the order the tab runs them', () => {
+    const byHand = withRoles(
+      withStarters(atSource(seriousOnly(all, ctx.practice), 'flex', ctx.tournamentIds), starterNamesFor('team', [], roster)),
+      roster,
+      'main'
+    );
+    expect(patternGames(all, DEFAULT_PATTERN_FILTERS, ctx)).toEqual(byHand);
+    expect(ids(byHand)).toEqual(ids([flex]));
+  });
+
+  it('follows a stored selection, and never reads the comp filter', () => {
+    const everyGame: PatternFilters = { ...DEFAULT_PATTERN_FILTERS, prep: false, roles: 'second', starters: 'custom', custom: ['top', 'mid'] };
+    expect(ids(patternGames(all, everyGame, ctx))).toEqual(ids([flex, practice, subIn, offRole]));
+    expect(ids(patternGames(all, { ...DEFAULT_PATTERN_FILTERS, source: 'tournament' }, ctx))).toEqual(ids([tournament]));
+    expect(patternGames(all, { ...DEFAULT_PATTERN_FILTERS, comp: 'comp-7' }, ctx)).toEqual(patternGames(all, DEFAULT_PATTERN_FILTERS, ctx));
+  });
+
+  it('orders the roster the way the rows by player do: the A team by seat, then the bench', () => {
+    expect(rosterOrderOf(roster)).toEqual(['top', 'jungle', 'mid', 'adc', 'support', 'bench']);
+    // Two in one seat keep the roster order, and a seat nobody knows sorts last.
+    expect(rosterOrderOf([{ name: 'b', role: 'Mid' }, { name: 'x', role: 'Coach' }, { name: 'a', role: 'Mid' }])).toEqual(['b', 'a', 'x']);
+  });
+
+  it('reads the Riot figures when any Riot game is selected, and the replay figures otherwise', () => {
+    expect(patternSourceOf([scrim, flex])).toBe('riot');
+    expect(patternSourceOf([scrim, tournament])).toBe('replay');
+    expect(patternSourceOf([])).toBe('replay');
+  });
+
+  it('hands Home the selection with the roster order and the source the tab passes to workOn', () => {
+    const inputs = patternInputs(all, { ...DEFAULT_PATTERN_FILTERS, source: 'scrimClash' }, ctx);
+    expect(ids(inputs.games)).toEqual(ids([clash, scrim]));
+    expect(inputs.roster).toEqual(['top', 'jungle', 'mid', 'adc', 'support', 'bench']);
+    expect(inputs.source).toBe('riot'); // the Clash game is a Riot game
+    expect(patternInputs(all, { ...DEFAULT_PATTERN_FILTERS, source: 'tournament' }, ctx).source).toBe('replay');
+  });
+
+  it('counts the replays imported against a tournament game, and never the scrims group or a game with no replay', () => {
+    const tournaments = [{ id: 'cup', kind: 'tournament' }, { id: 'scrims', kind: 'scrims' }] as unknown as Tournament[];
+    const series = [{ id: 's-cup', tournamentId: 'cup' }, { id: 's-scrim', tournamentId: 'scrims' }] as unknown as TournamentSeries[];
+    const seriesGames = [
+      { seriesId: 's-cup', matchId: 'scrim-104' },
+      { seriesId: 's-cup' },
+      { seriesId: 's-scrim', matchId: 'scrim-103' }
+    ] as unknown as SeriesGame[];
+    expect([...tournamentMatchIds(tournaments, series, seriesGames)]).toEqual(['scrim-104']);
+    // Before a scrims group exists, every series belongs to a tournament.
+    expect([...tournamentMatchIds([], series, seriesGames)]).toEqual(['scrim-104', 'scrim-103']);
   });
 });

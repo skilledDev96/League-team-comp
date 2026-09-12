@@ -1,4 +1,5 @@
 import { Component, computed, DestroyRef, effect, ElementRef, inject, input, signal, untracked, viewChild } from '@angular/core';
+import { prefersSaveData } from '../../core/save-data';
 import { MotionService } from '../../services/motion.service';
 import { UiService } from '../../services/ui.service';
 
@@ -49,7 +50,7 @@ export class ChampionMotionComponent {
   protected readonly failed = signal(false);
   protected readonly playing = signal(false);
   protected readonly clip = computed(() => this.ui.championClipUrls(this.champion(), this.slot()));
-  private readonly wants = computed(() => this.active() && !this.motion.reduced() && !saveData() && !!this.clip() && !this.failed());
+  private readonly wants = computed(() => this.active() && !this.motion.reduced() && !prefersSaveData() && !!this.clip() && !this.failed());
 
   /** Which clip the video element has been pointed at, so a new champion on the same instance reloads it. */
   private loaded = '';
@@ -109,13 +110,4 @@ export class ChampionMotionComponent {
 
 function isAbort(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { name?: unknown }).name === 'AbortError';
-}
-
-/** The Save-Data request header's browser-side twin; absent on most browsers, which reads as off. */
-function saveData(): boolean {
-  try {
-    return (navigator as unknown as { connection?: { saveData?: boolean } }).connection?.saveData === true;
-  } catch {
-    return false;
-  }
 }

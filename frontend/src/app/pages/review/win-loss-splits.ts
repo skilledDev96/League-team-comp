@@ -11,7 +11,7 @@
  * Pure. The page hands in its filtered games and reads back tables and two
  * short lists of sentences: what to work on, what to keep doing.
  */
-import { AnalysisGame, AnalysisPlayer } from '../../models/team.models';
+import { AnalysisGame, AnalysisPlayer, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { MIN_FOR_A_CLAIM } from './loss-patterns.util';
 
 export const ROLES = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'] as const;
@@ -200,6 +200,130 @@ export function roleFit(game: AnalysisGame, roster: readonly RosterRoles[], mode
     if (p.position === r.role) return true;
     return mode === 'second' && (r.secondaryRoles ?? []).includes(p.position);
   });
+}
+
+// ---- The Patterns selection, one step at a time --------------------------------
+//
+// The tab narrows its games in a fixed order: the comp and the champion filter, then practice,
+// then the source, then the starters, then the seats. Each step below does exactly one of those,
+// so the tab can still count what each filter left out, and the Home page can read the same games
+// without the tab (13 Sep 2026). The comp and the champion filter stay on the tab.
+
+/** The games nobody tagged as practice, which is what Prep means on the tab. */
+export function seriousOnly(games: readonly AnalysisGame[], practice: ReadonlySet<string>): AnalysisGame[] {
+  return games.filter((g) => !practice.has(g.matchId));
+}
+
+/** The games from one source, sorted the way `gameSource` sorts them. */
+export function atSource(games: readonly AnalysisGame[], source: GameSource, tournamentIds: ReadonlySet<string>): AnalysisGame[] {
+  return games.filter((g) => gameSource(g, tournamentIds) === source);
+}
+
+/**
+ * The match ids `gameSource` reads as tournament games: replays imported against a series game.
+ * A game in the scrims group is a scrim whatever carries it (9 Sep 2026), and a series game nobody
+ * imported a replay for has no id to count.
+ */
+export function tournamentMatchIds(
+  tournaments: readonly Pick<Tournament, 'id' | 'kind'>[],
+  series: readonly Pick<TournamentSeries, 'id' | 'tournamentId'>[],
+  seriesGames: readonly Pick<SeriesGame, 'seriesId' | 'matchId'>[]
+): Set<string> {
+  const scrimsGroup = tournaments.find((t) => t.kind === 'scrims')?.id;
+  const scrimSeries = new Set(series.filter((s) => s.tournamentId === scrimsGroup).map((s) => s.id));
+  return new Set(
+    seriesGames
+      .filter((g) => !scrimSeries.has(g.seriesId))
+      .map((g) => g.matchId)
+      .filter((id): id is string => !!id)
+  );
+}
+
+/** What the selection needs to know about one of ours: the seats the roster gives them, and whether they are on the bench. */
+export interface RosterSeat extends RosterRoles {
+  sub?: boolean;
+}
+
+/**
+ * Who has to be in a game for it to count: the A team, which is everyone not on the bench, or the
+ * hand-picked set. A name ticked twice counts once, as a checkbox does.
+ */
+export function starterNamesFor(
+  mode: PatternFilters['starters'],
+  custom: Iterable<string>,
+  roster: readonly Pick<RosterSeat, 'name' | 'sub'>[]
+): string[] {
+  return mode === 'custom' ? [...new Set(custom)] : roster.filter((p) => !p.sub).map((p) => p.name);
+}
+
+/**
+ * The games every named player was on our side for. With nobody named, whether a roster still being
+ * set up or a hand-picked set with every box unticked, nothing is left out rather than everything.
+ */
+export function withStarters(games: readonly AnalysisGame[], names: readonly string[]): AnalysisGame[] {
+  return names.length ? games.filter((g) => starterCount(g, names) >= names.length) : [...games];
+}
+
+/** The games where everyone of ours sat where `roleFit` allows. Any leaves every game in. */
+export function withRoles(games: readonly AnalysisGame[], roster: readonly RosterRoles[], mode: RoleMode): AnalysisGame[] {
+  return mode === 'any' ? [...games] : games.filter((g) => roleFit(g, roster, mode));
+}
+
+/** What the selection reads besides the games and the filters. A `Player` list serves as the roster. */
+export interface PatternContext {
+  /** Match ids tagged as practice on the Games page. */
+  practice: ReadonlySet<string>;
+  /** From `tournamentMatchIds`. */
+  tournamentIds: ReadonlySet<string>;
+  /** Every player, the bench included, in any order. */
+  roster: readonly RosterSeat[];
+}
+
+/**
+ * The games the Patterns tab counts for a stored selection, without the comp and the champion
+ * filter (13 Sep 2026). Home reads the team off whatever the reader last left on Patterns, and
+ * neither of those two belongs there: the comp filter asks about one comp, and the champion filter
+ * is a search that lasts a session. The steps run in the tab's order: practice, source, starters,
+ * seats.
+ */
+export function patternGames(games: readonly AnalysisGame[], filters: PatternFilters, ctx: PatternContext): AnalysisGame[] {
+  const serious = filters.prep ? seriousOnly(games, ctx.practice) : [...games];
+  const sourced = atSource(serious, filters.source, ctx.tournamentIds);
+  const named = withStarters(sourced, starterNamesFor(filters.starters, filters.custom, ctx.roster));
+  return withRoles(named, ctx.roster, filters.roles);
+}
+
+/**
+ * The order the rows by player list people in: the A team by seat, then the bench by seat. Two
+ * players in the same seat keep the order the roster has them in.
+ */
+export function rosterOrderOf(roster: readonly Pick<RosterSeat, 'name' | 'role' | 'sub'>[]): string[] {
+  return [...roster].sort((a, b) => Number(!!a.sub) - Number(!!b.sub) || seatOrder(a.role) - seatOrder(b.role)).map((p) => p.name);
+}
+
+/**
+ * Riot's read or a replay's, from the games selected. It is a replay's only when nothing selected
+ * is a Riot game, so an empty selection reads as a replay's, as the tab has always read it.
+ */
+export function patternSourceOf(games: readonly AnalysisGame[]): PatternSource {
+  return games.some((g) => sourceOf(g) === 'riot') ? 'riot' : 'replay';
+}
+
+/** A selection, with the two arguments `workOn` and `keepDoing` are handed beside it on the tab. */
+export interface PatternInputs {
+  games: AnalysisGame[];
+  /** Names in `rosterOrderOf` order, for the rows by player. */
+  roster: string[];
+  source: PatternSource;
+}
+
+/**
+ * Everything Home needs to print the Work on and Keep doing lines the tab prints (13 Sep 2026):
+ * `workOn(inputs.games, 'player', inputs.roster, inputs.source)`, and the same for `keepDoing`.
+ */
+export function patternInputs(games: readonly AnalysisGame[], filters: PatternFilters, ctx: PatternContext): PatternInputs {
+  const selected = patternGames(games, filters, ctx);
+  return { games: selected, roster: rosterOrderOf(ctx.roster), source: patternSourceOf(selected) };
 }
 
 // ---- Lane table ---------------------------------------------------------------
