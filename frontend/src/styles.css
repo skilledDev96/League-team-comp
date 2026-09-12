@@ -12594,10 +12594,13 @@ body:has(.draft-stage) .edit-mode-frame {
 
 /* Starter: their five on a line each. The table says the same thing across six columns
    and up to nine cells a player; this is the part a reader acts on before a series. */
-.opp-lines { display: grid; gap: 0.3rem; margin: 0.2rem 0 0; }
+.opp-lines { display: grid; gap: 0.3rem; margin: 0.2rem 0 0; max-width: 62rem; }
 .opp-line {
   display: grid;
-  grid-template-columns: 5.4rem minmax(8rem, 1fr) 8.5rem minmax(0, auto);
+  /* The name column was minmax(8rem, 1fr), which on a wide desktop absorbed every spare pixel
+     and stranded the rank and the champions at the far edge with a dead zone between (12 Sep 2026,
+     the lead: "looks a bit odd"). It is capped now, and the champions take the slack. */
+  grid-template-columns: 5.4rem minmax(8rem, 20rem) 8.5rem minmax(0, 1fr);
   align-items: center;
   gap: 0.7rem;
   padding: 0.35rem 0.5rem;
