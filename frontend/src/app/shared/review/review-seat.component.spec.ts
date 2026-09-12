@@ -25,11 +25,12 @@ const game = (): AnalysisGame =>
 
 // TestBed needs the DOM the Angular runner provides; bare vitest steps aside.
 describe.skipIf(typeof document === 'undefined')('ReviewSeatComponent', () => {
-  function mount(p: ReviewPlayer, mine: boolean, g?: AnalysisGame): { fixture: ComponentFixture<ReviewSeatComponent>; root: HTMLElement } {
+  function mount(p: ReviewPlayer, mine: boolean, g?: AnalysisGame, own = false): { fixture: ComponentFixture<ReviewSeatComponent>; root: HTMLElement } {
     TestBed.resetTestingModule();
     const fixture = TestBed.createComponent(ReviewSeatComponent);
     fixture.componentRef.setInput('player', p);
     fixture.componentRef.setInput('mine', mine);
+    fixture.componentRef.setInput('own', own);
     if (g) fixture.componentRef.setInput('game', g);
     fixture.detectChanges();
     return { fixture, root: fixture.nativeElement as HTMLElement };
@@ -45,19 +46,47 @@ describe.skipIf(typeof document === 'undefined')('ReviewSeatComponent', () => {
     expect(root.querySelector('.review-seat')).not.toBeNull();
   });
 
-  it('folds the strength and the further points, which the panel never showed', () => {
-    const { root } = mount(player(), true, game());
-    const fold = root.querySelector('.review-seat-more');
+  /**
+   * The fold is a pill now, not a <summary> in small capitals (12 Sep 2026, the lead: "not sure
+   * where to click"). What matters is that it says what pressing it will show, and that the points
+   * are genuinely behind it rather than merely hidden — five open blocks is the wall this replaced.
+   */
+  it('promises what the fold holds, and holds it until it is pressed', () => {
+    const { fixture, root } = mount(player(), true, game());
+    const fold = root.querySelector<HTMLButtonElement>('button.review-seat-fold');
     expect(fold).not.toBeNull();
-    expect(text(fold!.querySelector('summary'))).toBe('What went well · 1 more to work on');
-    // Behind the fold, not gone: both are in the tree for a reader who opens it.
-    expect(fold!.querySelectorAll('app-review-point').length).toBe(2);
+    expect(text(fold)).toContain('What went well + 1 more to work on');
+    expect(fold!.getAttribute('aria-expanded')).toBe('false');
+
+    // Shut: the ask alone. The ask is the point of the block.
+    expect(root.querySelectorAll('app-review-point').length).toBe(1);
+
+    fold!.click();
+    fixture.detectChanges();
+    expect(root.querySelectorAll('app-review-point').length).toBe(3);
+    expect(fold!.getAttribute('aria-expanded')).toBe('true');
+    // And each group says what it is, rather than leaving three rows of chips unlabelled.
+    expect([...root.querySelectorAll('.review-group-label')].map((el) => text(el))).toEqual(['Work on', 'What went well', 'More to work on']);
+  });
+
+  it('marks the reader own seat and leaves the others plain', () => {
+    expect(mount(player(), true, game()).root.querySelector('.review-seat-you')).toBeNull();
+    const own = mount(player(), true, game(), true).root;
+    expect(text(own.querySelector('.review-seat-you'))).toBe('You');
+    expect(own.querySelector('.review-seat.is-own')).not.toBeNull();
+  });
+
+  it('draws one face, not two', () => {
+    // The champion's square and the player's round mark for one person is what made the row a puzzle.
+    const { root } = mount(player(), true, game());
+    expect(root.querySelectorAll('.review-seat-face').length).toBe(1);
+    expect(root.querySelector('app-player-mark')).toBeNull();
   });
 
   it('draws no fold for a review that wrote neither', () => {
     // `more` arrived on version 3, so an older review has the ask and nothing else.
     const { root } = mount(player({ strength: point('') , more: undefined }), true, game());
-    expect(root.querySelector('.review-seat-more')).toBeNull();
+    expect(root.querySelector('.review-seat-fold')).toBeNull();
   });
 
   it('draws everybody else as one line, not as a block', () => {

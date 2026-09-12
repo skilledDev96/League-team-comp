@@ -1703,15 +1703,21 @@ a.profiles-row:focus-visible {
 }
 
 .view-btn {
-  border: 1px solid rgba(79, 208, 232, 0.4);
+  /* Through the tokens rather than a pre-theme literal, and never underlined: an <a class="view-btn">
+     is a pill, and the browser's own anchor underline was still showing through it, so every link
+     wearing this class read as a link in a button's clothing (12 Sep 2026). */
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
   color: var(--text-0);
   background: var(--surface-btn);
   border-radius: 999px;
   padding: 0.3rem 0.72rem;
   font-family: "Sora", sans-serif;
   font-size: 0.78rem;
+  text-decoration: none;
   cursor: pointer;
 }
+a.view-btn { display: inline-flex; align-items: center; gap: 0.3rem; }
+a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-decoration: none; }
 
 .view-btn:hover,
 .view-btn:focus-visible {
@@ -13650,13 +13656,17 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 
 .games-row.is-focused { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 
+/* At the top of an open row now, beside the Table/Graphs switch rather than at the far bottom
+   (12 Sep 2026, the lead: "place the open draft button on the top table"). */
 .games-row-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem;
-  margin-top: 0.5rem;
 }
+.games-scoreboard-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; }
+.games-scoreboard-head .games-row-actions { margin-left: auto; }
+.games-scoreboard-head .scoreboard-view { flex: none; }
 
 .games-row-actions .field { margin: 0; }
 .games-empty { margin: 0.3rem 0; }
@@ -14389,17 +14399,24 @@ button .player-mark { vertical-align: -0.3rem; }
 .review-seat.is-own { border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border)); background: color-mix(in srgb, var(--accent) 7%, transparent); }
 .review-seat-depth { flex: none; margin-bottom: 0.1rem; }
 .review-seat-depth button { padding: 0.26rem 0.7rem; font-size: 0.72rem; }
-.review-seat-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0.2rem 0.45rem; }
-.review-seat-head .player-mark { margin: 0; }
+/* One face, the name beside it, the figures at the end of the line. The player's round mark went:
+   two faces for one person is what made this row a puzzle (12 Sep 2026). */
+.review-seat-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0.2rem 0.55rem; }
+.review-seat-face { flex: none; width: 1.9rem; height: 1.9rem; border-radius: 8px; border: 1px solid var(--card-border); background: var(--surface-btn); object-fit: cover; }
+.review-seat-who { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.2rem 0.45rem; min-width: 0; }
 .review-seat-name { font-size: 0.95rem; font-weight: 600; color: color-mix(in srgb, var(--text-0) 80%, var(--text-1)); }
+.review-seat-you { padding: 0.02rem 0.4rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 22%, transparent); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-0); cursor: help; }
 .review-seat-role { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-1); }
-.review-seat-stats { margin-left: auto; font-size: 0.76rem; font-variant-numeric: tabular-nums; color: var(--text-1); }
-.review-seat-more { margin: 0; }
-.review-seat-more > summary { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-1); cursor: pointer; padding: 0.1rem 0; }
-.review-seat-more > summary:hover { color: var(--accent); }
-.review-seat-more[open] > summary { margin-bottom: 0.3rem; }
-.review-seat-more > app-review-point { display: block; margin-top: 0.3rem; }
-/* The first run: nobody has told this app which seat is theirs, so it asks rather than guessing. */
+.review-seat-stats { margin-left: auto; font-size: 0.76rem; font-variant-numeric: tabular-nums; color: var(--text-1); cursor: help; }
+/* The label over the chips: a row of figures under no heading is a puzzle however scannable it is. */
+.review-seat .review-group-label { margin: 0.35rem 0 0; }
+.review-seat .review-group-label:first-of-type { margin-top: 0.1rem; }
+/* A pill, because that is what everything clickable in this app is — it was a <summary> in small
+   capitals with a disclosure triangle, and nobody could tell it opened. */
+.review-seat-fold { align-self: start; margin-top: 0.45rem; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.74rem; color: var(--text-1); }
+.review-seat-fold:hover, .review-seat-fold:focus-visible { color: var(--text-0); border-color: var(--accent); }
+.review-seat-fold .material-symbols-rounded { font-size: 1rem; }
+.review-seat > app-review-point { display: block; }
 .review-seat-pick { display: grid; gap: 0.35rem; padding: 0.55rem 0.7rem; border-radius: 12px; border: 1px dashed var(--card-border); }
 .review-seat-pick p { margin: 0; font-size: 0.82rem; }
 .review-seat-pick-row { display: flex; flex-wrap: wrap; gap: 0.35rem; }

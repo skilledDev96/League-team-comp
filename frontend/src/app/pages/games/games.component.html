@@ -345,11 +345,32 @@
                   @if (o.ours.firstTower || o.theirs.firstTower) { <span><small>First tower</small>{{ o.ours.firstTower ? 'us' : 'them' }}</span> }
                 </div>
               }
-              @if (g.ours[0]?.stats) {
-                <div class="view-segment scoreboard-view" role="group" aria-label="Scoreboard as">
-                  <button type="button" [class.active]="scoreboardView() === 'table'" (click)="setScoreboardView('table')">Table</button>
-                  <button type="button" [class.active]="scoreboardView() === 'graphs'" (click)="setScoreboardView('graphs')">Graphs</button>
+              <!-- The row's own actions, at the top where the scoreboard is rather than at the far bottom
+                   under the review (12 Sep 2026). The League of Graphs link is the one thing the old
+                   "Check the numbers" drawer carried that lives nowhere else on this row; the drawer itself
+                   was the scoreboard above it printed a second time, and it is still on the Patterns tab. -->
+              <div class="games-scoreboard-head">
+                @if (g.ours[0]?.stats) {
+                  <div class="view-segment scoreboard-view" role="group" aria-label="Scoreboard as">
+                    <button type="button" [class.active]="scoreboardView() === 'table'" (click)="setScoreboardView('table')">Table</button>
+                    <button type="button" [class.active]="scoreboardView() === 'graphs'" (click)="setScoreboardView('graphs')">Graphs</button>
+                  </div>
+                }
+                <div class="games-row-actions">
+                  @if (outsideLink(g.matchId); as href) {
+                    <a class="view-btn" [href]="href" target="_blank" rel="noopener" appTip="The same game on League of Graphs, to compare a figure against somebody else's reading of it">
+                      League of Graphs <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span>
+                    </a>
+                  }
+                  @if (g.link) {
+                    <a class="view-btn" [routerLink]="[g.link.path]" [queryParams]="g.link.query ?? {}">
+                      {{ g.source === 'scrim' ? 'Open on Prep & Draft' : 'Open the draft' }}
+                      <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                    </a>
+                  }
                 </div>
+              </div>
+              @if (g.ours[0]?.stats) {
                 @if (scoreboardView() === 'graphs') {
                   <app-game-graphs [ours]="g.ours" [theirs]="g.theirs" [source]="g.source" />
                 } @else {
@@ -447,21 +468,9 @@
                     </label>
                   }
                 </div>
-                <!-- The recorder's frames, above the review (10 Sep 2026): nothing is read until this row is open, and a picture not
-                     until its thumbnail is in view or tapped. A game with no recording draws nothing at all. -->
-                <app-replay-frames [matchId]="g.matchId" [open]="rowOpen(g.id)" />
                 <!-- One door to the film (10 Sep 2026): the poster's pill inside the review panel; the "Watched | Film room" line under it went, and the collapsed row's chip says Reviewed or Watched. -->
                 <app-game-review [review]="data.reviewFor(g.matchId)" [game]="analysisOf(g)" [opponent]="g.opponent" [open]="g.id === focus()" />
                 <app-game-story data-tour="games-story" [game]="analysisOf(g)" [expect]="expectFor(g)" />
-                <app-game-check [game]="analysisOf(g)" />
-              }
-              @if (g.link) {
-                <div class="games-row-actions">
-                  <a class="view-btn" [routerLink]="[g.link.path]" [queryParams]="g.link.query ?? {}">
-                    {{ g.source === 'scrim' ? 'Open on Prep & Draft' : 'Open the draft' }}
-                    <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
-                  </a>
-                </div>
               }
             </div>
           </details>

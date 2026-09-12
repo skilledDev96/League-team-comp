@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { matchLink } from '../../core/match-link';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -18,9 +19,7 @@ import { MatchNoteButtonComponent } from '../../shared/match-note-button.compone
 import { MatchNoteComponent } from '../../shared/match-note.component';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 import { TooltipDirective } from '../../shared/tooltip.directive';
-import { GameCheckComponent } from '../../shared/game-check.component';
 import { GameStoryComponent } from '../../shared/game-story.component';
-import { ReplayFramesComponent } from '../../shared/replay-frames.component';
 import { ReplayRecordingService } from '../../services/replay-recording.service';
 import { BeforeYouPlayComponent } from '../../shared/before-you-play.component';
 import { GameReviewComponent } from '../../shared/game-review.component';
@@ -69,10 +68,21 @@ import { PlayerMarkComponent } from '../../shared/player-mark.component';
     NgModelNameDirective,
     TooltipDirective,
     ReviewComponent,
-    GameCheckComponent, GameStoryComponent, GameReviewComponent, TourPillComponent, BeforeYouPlayComponent, ReplayFramesComponent, MvpChipComponent],
+    GameStoryComponent, GameReviewComponent, TourPillComponent, BeforeYouPlayComponent, MvpChipComponent],
   templateUrl: './games.component.html'
 })
 export class GamesComponent {
+  /**
+   * The same game on League of Graphs, for comparing a figure against somebody else's reading of it.
+   * It is the one thing the "Check the numbers" drawer carried that lives nowhere else on this row;
+   * the drawer's table was the scoreboard above it a second time, and it is still on the Patterns
+   * tab where checking a number is the job. A custom game has no page outside this app, so a replay
+   * simply gets no link.
+   */
+  protected outsideLink(matchId: string | undefined): string | null {
+    return matchLink(matchId);
+  }
+
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);

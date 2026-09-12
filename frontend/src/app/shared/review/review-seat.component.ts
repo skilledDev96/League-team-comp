@@ -1,47 +1,71 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { AnalysisGame, GameReview, ReviewPoint } from '../../models/team.models';
 import { gamePlayerFor, playerStatLine } from '../../core/review-view';
 import { UiService } from '../../services/ui.service';
-import { PlayerMarkComponent } from '../player-mark.component';
 import { ReviewPointComponent } from './review-point.component';
 import { TooltipDirective } from '../tooltip.directive';
 
 type ReviewPlayer = GameReview['players'][number];
 
 /**
- * One seat of a review (12 Sep 2026), in two sizes.
+ * One seat of a review, in two sizes.
  *
- * The viewer's own seat is the block: the champion, the figures the game actually holds
- * (`3/8/3 · 218 CS · vision 29 · 43% KP`, straight off the analysed game rather than off the
- * model's prose), their one ask, and — behind a single fold — what they did well and the further
- * points the review wrote for them. Those last two have been stored since review version 3 and the
- * panel has never shown either; the film room was the only way to reach them.
+ * The block is the champion's face, who played it, the figures the game actually holds, the one
+ * thing to work on under a heading that says so, and — behind a pill that looks like a pill — what
+ * they did well and the further points. Everybody else is one line of the same `app-review-point`
+ * shape the team's points wear.
  *
- * Everybody else is one line, the same `app-review-point` shape the team's points wear. A reader
- * opening a review is looking for their own name first and the other four as context, which is the
- * whole reason the panel now has a Team / My seat switch instead of five equal rows.
+ * Rebuilt for readability on 12 Sep 2026, the lead: *"its hard to read… not sure where to click or
+ * what to read, so can we redesign it to be better readable and let the user be guided to what to
+ * know and what to click on"*. Four things were wrong and each had the same cause — nothing on the
+ * row said what it was:
+ *
+ * - **Two faces side by side**, the champion's square and the player's round mark, for one person.
+ *   One face now; the name is written beside it, which is what the second face was for.
+ * - **A row of chips under no heading.** Figures with nothing naming them are a puzzle, however
+ *   scannable they are. They sit under **Work on** now, the same label the team view uses.
+ * - **A fold that did not look like one.** It was a `<summary>` in small capitals with a disclosure
+ *   triangle; it is a pill button with a chevron now, which is what everything else clickable in
+ *   this app is, and it says what opening it will show.
+ * - **No mark of whose seat it is.** The reader's own carries a You badge and the accent ring; the
+ *   other four are plain, so the eye lands on the right one without hunting for a name.
  */
 @Component({
   selector: 'app-review-seat',
-  imports: [PlayerMarkComponent, ReviewPointComponent, TooltipDirective],
+  imports: [ReviewPointComponent, TooltipDirective],
   template: `
     @if (mine()) {
       <div class="review-seat" [class.is-own]="own()">
         <div class="review-seat-head">
-          <img class="player-mark is-champ" [src]="ui.championIconUrl(player().champion)" alt="" loading="lazy" />
-          <app-player-mark [name]="player().name" />
-          <b class="review-seat-name">{{ player().name }}</b>
-          <span class="review-seat-role">{{ player().seat }} · {{ ui.championName(player().champion) }}</span>
-          @if (stats()) { <span class="review-seat-stats">{{ stats() }}</span> }
+          <img class="review-seat-face" [src]="ui.championIconUrl(player().champion)" alt="" loading="lazy" />
+          <span class="review-seat-who">
+            <b class="review-seat-name">{{ player().name }}</b>
+            @if (own()) { <span class="review-seat-you" appTip="The seat you picked in the film room">You</span> }
+            <small class="review-seat-role">{{ player().seat }} · {{ ui.championName(player().champion) }}</small>
+          </span>
+          @if (stats()) { <span class="review-seat-stats" appTip="Straight off the game, not off the review">{{ stats() }}</span> }
         </div>
+
+        <h5 class="review-group-label is-warn">Work on</h5>
         <app-review-point [point]="player().workOn" tone="warn" [timed]="timed()" />
-        @if (folded().length) {
-          <details class="review-seat-more">
-            <summary>{{ foldLabel() }}</summary>
-            @for (p of folded(); track $index) {
-              <app-review-point [point]="p.point" [tone]="p.tone" [timed]="timed()" />
+
+        @if (strength() || more().length) {
+          <button type="button" class="view-btn review-seat-fold" (click)="open.set(!open())" [attr.aria-expanded]="open()">
+            <span class="material-symbols-rounded" aria-hidden="true">{{ open() ? 'expand_less' : 'expand_more' }}</span>
+            {{ open() ? 'Hide the rest' : foldLabel() }}
+          </button>
+          @if (open()) {
+            @if (strength(); as s) {
+              <h5 class="review-group-label is-ok">What went well</h5>
+              <app-review-point [point]="s" tone="ok" [timed]="timed()" />
             }
-          </details>
+            @if (more().length) {
+              <h5 class="review-group-label is-warn">More to work on</h5>
+              @for (m of more(); track $index) {
+                <app-review-point [point]="m" tone="warn" [timed]="timed()" />
+              }
+            }
+          }
         }
       </div>
     } @else {
@@ -59,32 +83,32 @@ export class ReviewSeatComponent {
   /** Whether to draw the block rather than the one-line row. */
   readonly mine = input<boolean>(false);
   /**
-   * Whether this seat is the reader's. Separate from `mine` since 12 Sep 2026, when an admin gained
-   * the option of every seat as a block: `mine` is now "how much of it to draw" and `own` is "whose
-   * it is", and only `own` gets the accent ring. Five equally ringed blocks ring nothing.
+   * Whether this seat is the reader's. Separate from `mine`: `mine` is "how much of it to draw" and
+   * `own` is "whose it is". Only `own` gets the ring and the badge — five ringed blocks ring nothing.
    */
   readonly own = input<boolean>(false);
   readonly timed = input<boolean>(false);
 
   protected readonly ui = inject(UiService);
 
+  /** Shut to start: the ask is the point of the block, and five open blocks is the wall this replaced. */
+  protected readonly open = signal(false);
+
   protected readonly stats = computed(() =>
     playerStatLine(gamePlayerFor(this.game(), this.player().seat, this.player().name, this.player().champion))
   );
 
-  /** What they did well, then the further work-ons — the two the panel has never shown. */
-  protected readonly folded = computed<{ point: ReviewPoint; tone: 'ok' | 'warn' }[]>(() => {
-    const p = this.player();
-    const out: { point: ReviewPoint; tone: 'ok' | 'warn' }[] = [];
-    if (p.strength?.text) out.push({ point: p.strength, tone: 'ok' });
-    for (const m of p.more ?? []) if (m?.text) out.push({ point: m, tone: 'warn' });
-    return out;
+  /** What they did well, and the further work-ons — the two the panel showed nowhere until 12 Sep 2026. */
+  protected readonly strength = computed<ReviewPoint | undefined>(() => {
+    const s = this.player().strength;
+    return s?.text ? s : undefined;
   });
+  protected readonly more = computed<ReviewPoint[]>(() => (this.player().more ?? []).filter((m) => m?.text));
 
+  /** What the pill promises, so pressing it is never a guess: "What went well + 3 more to work on". */
   protected readonly foldLabel = computed(() => {
-    const more = this.folded().length - (this.player().strength?.text ? 1 : 0);
-    const strength = this.player().strength?.text ? 'What went well' : '';
-    const rest = more ? `${more} more to work on` : '';
-    return [strength, rest].filter(Boolean).join(' · ');
+    const rest = this.more().length;
+    const bits = [this.strength() ? 'What went well' : '', rest ? `${rest} more to work on` : ''].filter(Boolean);
+    return bits.join(' + ');
   });
 }
