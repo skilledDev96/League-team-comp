@@ -152,11 +152,25 @@ Two rules learned the hard way:
   filtering whether or not they are drawn; at Starter that produced "*N left out by the filters*"
   with no filter on screen.
 
-The **draft room is deliberately not a depth surface**: a switch whose two states differ in height
-is the one thing `CLAUDE.md` forbids there.
+Three more, from Roster and Comps (12 Sep 2026):
 
-**Still unanswered:** edit mode has had no act-or-check pass at all, and the "too much information"
-complaint came from contributors as well as viewers.
+- **One switch per page, not per mode.** Roster's four views share `roster`. A page with modes that
+  each carried their own Starter | Full had three of them, none remembered, and none on the densest
+  view.
+- **Build heavy content only while it is shown.** A shut `<details>` still renders its body. A
+  panel holding a wall, a board or a long table gates its body on its open state — Comps built
+  seven boards and seven 173-champion walls nobody could see.
+- **A tool is summoned, not drawn.** A finished comp opens on its five seats; the champion wall
+  comes back when a seat or Change picks is pressed. Same clicks, a tenth of the marks.
+
+The **draft room is deliberately not a depth surface**: a switch whose two states differ in height
+is the one thing `CLAUDE.md` forbids there. Anything added there whose content can change size is a
+**fixed box that scrolls inside** — the comp finder is — and is proven by measuring the tops of what
+sits below it, never by eye.
+
+**Still unanswered:** edit mode on Roster and Comps had its act-or-check pass on 12 Sep 2026; Games,
+Patterns, Prep's editing controls and Admin have not, and the "too much information" complaint came
+from contributors as well as viewers.
 
 ---
 
@@ -177,7 +191,8 @@ complaint came from contributors as well as viewers.
 ## 6. Before you add anything
 
 1. Which of the **seven roles** is it? If none, say why in the comment.
-2. Does it use **tokens only** — no literal colour, no hand-coded threshold?
+2. Does it use **tokens only** — no literal colour, no hand-coded threshold? A win rate goes
+   through `rateBand` (wins over games) or `bandOf` (a rate already rounded), never `>= 50`.
 3. Does it have **hover and focus-visible**?
 4. Act or check — does it belong at **Starter or Full**?
 5. If it collapses, is the **whole header** the toggle?

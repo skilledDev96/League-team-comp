@@ -14,8 +14,8 @@ import { TooltipDirective } from './tooltip.directive';
  * The words are the app's own. Roster, Comps and Player Intel have said Starter | Full since
  * 8 Sep 2026, and Comps' own comment reads *"Start calm: Starter view with comp panels
  * collapsed."* A second vocabulary for the same idea is itself the kind of thing that makes an app
- * feel big, so this is that control made shared and made to persist — those three keep their own
- * signals for now and can be pointed here later.
+ * feel big, so this is that control made shared and made to persist. Since the evening of 12 Sep
+ * 2026 Roster (one switch for all four views) and Comps read it too, so no page keeps its own.
  *
  * The rule for what sits at which level, applied on every surface: **does a reader act on it, or
  * check it?** Act is Starter, check is Full.

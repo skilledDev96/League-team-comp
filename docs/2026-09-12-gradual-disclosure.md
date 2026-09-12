@@ -206,15 +206,86 @@ only ever be run by CI. It runs locally now, which is how (1) was caught at all.
 
 ---
 
+## Part 5 — Roster, Comps and the draft room's comp finder (evening)
+
+The lead: *"take the same designer approach … and apply it to the Roster and Comps pages … same clean
+up."* Then, asked what Full should mean and what was wrong in the draft room: *"one switch all four
+mode"*, *"we are not using those tools"*, *"defer stats, fix depth now"*, and three complaints about
+the board — *"can't see which comps have a champion"*, *"the board is too far down the page"*, *"too
+many comps to scan"*.
+
+### The two pages failed in opposite directions
+
+Roster was front-loaded: four views, two unrelated Starter | Full switches (Cards and Scouting, neither
+remembered) and none at all on the Scout report. Comps opened calm — three controls, no figures — and
+the weight was inside one panel. Copying the Games fix onto both would have been wrong for one of them.
+
+Measured on the same seeded data, before → after:
+
+| | before | after |
+|---|---|---|
+| Scout report | 370 marks, 190 figures | **111, 45** at Starter |
+| Scouting, first screen | its own switch, fill-ins, a shut practice board | 35 marks, the board open |
+| Table | 7 columns | **4** at Starter |
+| Comps, a reader's open panel (8 results) | 80 marks, 16 figures | **52, 5** |
+| Comps, an editor with every panel shut | 7 boards and 7 walls built, hidden | **0** |
+| Comps, an editor's open finished comp | ~414 marks (173 champions) | **56**, and Change picks |
+| Comps, editor at Full | 7 walls, ~1,200 tiles | **0** |
+| Draft board, editor at 1920 | sixth row, lists stacked | **11px under the wall** |
+
+### Decisions
+
+- **One preference, `UserPrefs.depth.roster`, for all four views**, and `comps` for Comps. Every
+  Starter | Full in the app now reads `UserPrefs.depth`.
+- **Full on Cards opens every Quick look.** It used to draw Team Identity, a static Quick Access card
+  and the resource links. Nothing in the app edits either; both are the seed. They left the page, not
+  the data — the overview page the lead wants is where team identity can come back, as stats.
+- **A comp panel builds only while open**, and **the board's wall is summoned** by pressing a seat.
+- **The finder goes straight under the wall, and the advice moves down one fixed box.** The advice was
+  moved under the wall on purpose once; the lead's complaint outranks that, and a fixed-height box
+  means it now sits a known 458px lower at 1920 and never moves while somebody searches.
+- **The editor `draft` tour keeps version 1** even though it gained a step: it auto-starts, and a tour
+  opening over a live draft is the worst moment this app has. `draft-watch` never auto-starts, so its
+  version means nothing either way — a spec pins both.
+
+### Bugs found on the way
+
+1. **A green run that exited 1.** `games.component.ts` called `scrollIntoView` in a timer; jsdom has
+   none, and the pinned-row spec added this morning let the timer fire after its test ended. 1150 of
+   1150 passed and the suite failed. Now an optional call, as Comps already did.
+2. **Cards' switch said Full added fill-ins** in its tooltip, its doc comment and its tour step. The
+   fill-ins were always drawn.
+3. **The profile's champion overflow `<select>` bound `[value]` ahead of its options** — the same bug
+   the Patterns comp filter had this morning.
+4. **Every Comps tour step could land on a different comp**, because each card carried the same
+   anchors and the tour took the first in the page. One comp now carries them.
+5. **Two tour actions pointed at nothing**: `openCompMore` looked for a `details.comp-more` that no
+   longer existed. Removed.
+6. **The draft stage placed the old board by descendant selectors.** Moving the board inside a new
+   section would have dragged those rules in with it and opened empty rows inside the finder. Found
+   by reading the cascade before measuring, then confirmed by the overlap check.
+7. **Four hand-coded win-rate scales** (the Scout report ban board at 55/45, Comps' badge and match
+   history at 50, the Table's recent form at 50, the draft board at 50) now go through `rateBand` or
+   the new `bandOf`.
+
+### Corrections to my own plan
+
+The measuring agents misread three things, and building on them would have produced the wrong page:
+Cards' Full held no "per-queue sample lines", Scouting had no "matchup tables", and the Comps tour's
+first step does not create a blank comp. The audit's "no visible focus on roster cards" was also
+overstated — a real Tab showed the browser's default ring; what was missing was the theme's ring and
+the card's lift. Each was checked in the code or the running app before anything was built on it.
+
+---
+
 ## What is still owed
 
 - Walking the live site **as a viewer and as a contributor**. Both complained.
-- Roster, Comps and Player Intel keep their own Starter | Full signals from 8 Sep; one rename commit
-  across seven surfaces would point them at the shared, remembered one.
+- **The team-stats overview page** — what we do well and badly — deferred by the lead to its own plan.
+- Edit mode on Games, Patterns, Prep and Admin has had no act-or-check pass.
 - The type and spacing scales do not exist as tokens — see `docs/design-system.md` §2.
 - ~74 of the 81 button recipes are drift that could collapse into the seven roles.
-- `assignRolesFromPlay` / `rolesDisagree`: a working, tested seat-assignment algorithm whose comment
-  describes an offer that was never built. Unbuilt scaffolding rather than a leftover — build it or
-  delete it, but not quietly.
+- "What we expect" on the Comps editor tour could not be walked locally: Data Dragon is blocked in the
+  sandbox, so no comp has traits. It should land on the live site; check it there.
 - Three of the five pill-only collapse panels are converted; Player Intel and Admin › Players still
   use a chevron button.

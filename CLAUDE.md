@@ -113,6 +113,21 @@ rather than replacing them — each keeps its own state and controls, and passes
 `embedded` so only the shell renders a heading. `@switch` means only the
 selected one is alive.
 
+**One Starter | Full speaks for all four views** (12 Sep 2026, the lead: "one
+switch all four"). The shell reads `UserPrefs.depth.roster` and passes `full` to
+each mode; there used to be one on Cards only, another unrelated one on
+Scouting, neither remembered, and none on the Scout report — measured at ~370
+marks in one card on seeded data, the densest thing the app draws. Starter:
+the Scout report is its ban board and one line a player (`topPlays`,
+`bestRank`, the line Prep draws); the Table is who, rank, recent form and main;
+Scouting opens its practice board and a card holds the pool, what they are
+working on and learning. Full is everything expanded, and on Cards and Scouting
+it opens every card (a click turns one card against the depth, and changing the
+depth resets them). Cards' Full used to add Team Identity, a Quick Access card
+and the resource links — nothing in the app edits either, both are the original
+seed, and the lead: "we are not using those tools" — so they went from the page;
+`teamIdentity` and `resourceLinks` are still in the data.
+
 `/overview`, `/players` and `/profiles` **still resolve**, each carrying
 `data: { view }` naming the mode it used to be, so old links and the `e2e`
 suite land where they always did. Do not turn them into redirects without
@@ -199,6 +214,23 @@ holds the component; the rules it obeys are pure and tested next door in
   occupy reserved space (`.draft-head`, `.draft-confirm-slot`, a fixed grid
   height). Verify a change here by measuring an element's `top` across every
   filter and state, not by eye.
+- **The comp finder sits straight under the wall** (12 Sep 2026, the lead:
+  "can't see which comps have a champion", "the board is too far down the
+  page", "too many comps to scan"). It was the sixth row of the middle stack
+  with its three lists stacked; `.draft-finder` is the second — wall, finder,
+  advice, lane read, bans — with the lists side by side at `--wall-w` and each
+  comp wearing its five faces. A search goes through `compFinds` and
+  `championFinds` in `draft.util.ts` (a comp's name anywhere, a champion by the
+  start of its name or by Riot's id); broken comps start folded and a search
+  opens them. **Its box is a fixed height that scrolls inside**, so searching,
+  folding or opening a comp can never move the advice under it — measured
+  across all five states in both views. The stack's rows are placed with
+  `grid-row` in several blocks of `styles.css`; the old
+  `.draft-stage .draft-status` / `.draft-board-body` placements were descendant
+  selectors that would have reached inside the finder, so they went. Change the
+  order in the `@media (min-width: 1101px)` block after the lane read, then
+  measure every block's rect for overlaps at 1920, 1280 and 1000. Rates here use
+  `bandOf`, `rateBand`'s scale for a rate that arrives already rounded.
 - **The clock is a reminder, not a referee** — it never advances the draft or
   discards a pick. The real clock is in the League client.
 - **The page scrolls sideways by ~8px here, and that is a known, accepted
@@ -1126,7 +1158,8 @@ bench flag is labelled **A team / Bench** everywhere; every Riot refresh is
 
 **How much of a page to draw is a preference, not a layout** (12 Sep 2026).
 `UserPrefs.depth?: Partial<Record<DepthSurface, 'full'>>` where `DepthSurface`
-is `'games' | 'reviews' | 'patterns' | 'prep'`; **absent means Starter**, so no
+is `'games' | 'reviews' | 'patterns' | 'prep' | 'roster' | 'comps'` (`roster` is
+one switch for all four Roster views); **absent means Starter**, so no
 stored document changed shape and going back to Starter deletes the key rather
 than storing the default a second way. It is per person (Firestore, through
 `UserPrefsService.commit()`), not per browser like `bom-split-view` — a reading
@@ -1134,11 +1167,25 @@ preference should follow whoever is reading. One shared control draws it
 everywhere: `shared/detail-toggle.component.ts`, a `.view-segment` taking
 `surface`. The rule for what sits at which level, applied on every surface:
 **does a reader act on it, or check it?** Act is Starter, check is Full.
-(Roster, Comps and Player Intel have had a Starter | Full of their own since
-8 Sep 2026 with their own signals; they can be pointed here later. Do not invent
-a second vocabulary for the same idea.) `UserPrefsService.load()` puts the local
-copy into the signal **before** awaiting Firestore, or a stored Full renders
-Starter and flips.
+Every Starter | Full in the app reads it since 12 Sep 2026; do not give a page a
+signal of its own, and do not invent a second vocabulary for the same idea.
+`UserPrefsService.load()` puts the local copy into the signal **before**
+awaiting Firestore, or a stored Full renders Starter and flips.
+
+**A comp panel builds only while it is open** (12 Sep 2026). A shut `<details>`
+still renders everything inside it, so edit mode built every comp's board and a
+173-champion wall nobody could see. `CompsComponent.isOpen` is
+`full() !== flipped.has(id)`: Starter opens nothing, Full opens every comp, a
+click turns one against the depth, and a change of depth resets them — only a
+change, or the first run would undo a `?comp=` reveal. Starter keeps the five,
+the notes, the plan, the expectation, the bans and the record's headline; Full
+adds how it played out, each result, the notes from its games and Counts as
+part of. `app-comp-board` draws its wall only while a seat is empty or after a
+seat or **Change picks** is pressed, and closes it once all five are in — the
+same clicks a swap always took. The tours walk one comp, `tourCompId` (a
+finished comp with a record, else a finished comp, else the first), because the
+anchors used to repeat on every card and each step landed on whichever came
+first; `openTourComp` opens it and `comps-read` is the tour a viewer gets.
 
 **A deep link pins a game, it does not widen the list** (12 Sep 2026).
 `?match=` on `/games` sets `pinnedMatch` and `listRows` prepends that row only
