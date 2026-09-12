@@ -71,6 +71,10 @@
     <p class="muted edit-hint">
       <b>{{ t.withTimeline }}</b> games with a minute-by-minute timeline, <b>{{ t.waitingTimeline }}</b> Riot games waiting (twenty more each morning, practice games left out)@if (data.refreshLog()?.timelines; as tl) {; last run wrote <b>{{ tl.fetched }}</b>@if (tl.failed) {, <b>{{ tl.failed }}</b> failed}@if (tl.skipped === 'time') { and stopped for time}@if (tl.skipped === 'analysis') { — skipped, the analysis failed}}.
     </p>
+    @if (data.refreshLog()?.ranksRecorded !== undefined) {
+      <!-- One rank a morning per ranked player, for Home's rank climb (13 Sep 2026). -->
+      <p class="muted edit-hint">Last run wrote down the rank of <b>{{ data.refreshLog()?.ranksRecorded }}</b> {{ data.refreshLog()?.ranksRecorded === 1 ? 'player' : 'players' }} for the rank climb on Home.</p>
+    }
     <p class="muted edit-hint">
       <b>{{ data.gameReviews().length }}</b> games reviewed by the model@if (data.refreshLog()?.reviews; as rv) {; last run @if (rv.skipped === 'off') {skipped them (the setting is off)} @else if (rv.skipped === 'noKey') {skipped them (no ANTHROPIC_API_KEY)} @else if (rv.skipped === 'analysis') {skipped them (the analysis failed)} @else {wrote <b>{{ rv.written.length }}</b>@if (rv.failed.length) {, <b>{{ rv.failed.length }}</b> failed} for about {{ rv.costUsd | number: '1.2-2' }} dollars@if (rv.skipped === 'time') { and stopped for time}}}.
     </p>

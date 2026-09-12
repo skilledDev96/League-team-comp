@@ -82,6 +82,7 @@ import {
   Usage
 } from './game-review';
 import { MAX_REVIEW_SHOTS, MAX_SHOT_BYTES, recordingLines, ReplayRecording, ReplayShot, ReplayShotRef, shotsFor } from './replay-recording';
+import { amsterdamDay, appendRankPoints, RankHistoryDoc, rankPointsFrom } from './rank-history';
 import {
   CompExpectation,
   MAX_TIMELINE_FETCHES,
@@ -2052,8 +2053,10 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
     playersUpdated: [],
     playersFailed: [],
     playersSkipped: [],
+    ranksRecorded: 0,
     analysis: { ok: false }
   };
+  const today = amsterdamDay(new Date(startedAt));
 
   // Players first: enrichment warms the shared match cache, so the analysis
   // that follows spends fewer of its own Riot calls. Oldest refresh first, and
@@ -2090,6 +2093,20 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
       const { id, ...doc } = merged;
       await db.doc(`players/${id}`).set(stripUndefinedDeep(doc), { merge: true });
       log.playersUpdated.push(player.name);
+      // The rank this morning, for the home page's climb (13 Sep 2026). Its own try: a history that
+      // cannot be written must never turn a refreshed player into a failed one.
+      try {
+        const points = rankPointsFrom(merged.queueStats, today);
+        if (points.length) {
+          const ref = db.doc(`rankHistory/${id}`);
+          const existing = await ref.get();
+          const history = appendRankPoints((existing.data() as RankHistoryDoc | undefined)?.points, points);
+          await ref.set({ playerId: id, points: history.points, updatedAt: new Date().toISOString() } satisfies RankHistoryDoc);
+          log.ranksRecorded = (log.ranksRecorded ?? 0) + 1;
+        }
+      } catch (error) {
+        console.error(`Morning refresh: ${player.name}'s rank history was not written`, error);
+      }
     } catch (error) {
       console.error(`Morning refresh: ${player.name} failed`, error);
       log.playersFailed.push(player.name);

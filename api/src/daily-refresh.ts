@@ -211,6 +211,8 @@ export interface RefreshLog {
   playersFailed: string[];
   /** Players left for the next run because the time budget ran out. */
   playersSkipped: string[];
+  /** Players whose rank this morning went into `rankHistory` (13 Sep 2026); absent on runs before it. */
+  ranksRecorded?: number;
   analysis: { ok: boolean; games?: number; newMatches?: number; pending?: number; error?: string };
   /** The timeline step: how many derived documents were written, and how many prep games still wait. */
   timelines?: { fetched: number; failed: number; pending: number; skipped?: 'time' | 'analysis' };

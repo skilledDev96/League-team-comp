@@ -736,6 +736,8 @@ export interface RefreshLog {
   playersUpdated: string[];
   playersFailed: string[];
   playersSkipped: string[];
+  /** Players whose rank this morning went into rankHistory (13 Sep 2026); absent on runs before it. Mirrors api/src/daily-refresh.ts. */
+  ranksRecorded?: number;
   analysis: { ok: boolean; games?: number; newMatches?: number; pending?: number; error?: string };
   /** The timeline step: derived documents written, and prep games still waiting. */
   timelines?: { fetched: number; failed: number; pending: number; skipped?: 'time' | 'analysis' };
