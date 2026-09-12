@@ -211,3 +211,61 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, the Review
     expect(text(root.querySelector('.review-cards'))).toBe('');
   });
 });
+
+
+/**
+ * A link to one game used to rewrite the whole page's window (12 Sep 2026). `?match=` called
+ * `days.set(0)`, and `?match=` is how the film room's Back pill, the Reviews tab's "Open the game"
+ * and every evidence link arrive — so the commonest way onto this page opened nine months of games
+ * to show one row, and silently restated the team's record over all of it.
+ */
+describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, a link to one game', () => {
+  let data: TeamDataService;
+
+  /** Well outside the thirty-day window the page opens on. */
+  const OLD_DAY = TODAY - 200 * 86_400_000;
+  const oldGame = { ...riotGame, matchId: 'EUW1_5000000005', date: OLD_DAY, win: false } as unknown as AnalysisGame;
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'games', component: GamesComponent }])] });
+    data = TestBed.inject(TeamDataService);
+    data.compAnalysis.set({
+      games: [riotGame, oldGame],
+      comps: [],
+      totalTeamGames: 2,
+      scannedMatches: 2,
+      generatedAt: new Date(TODAY).toISOString()
+    } as CompAnalysis);
+  });
+
+  it('pins the game to the list and leaves the window and the record alone', async () => {
+    const harness = await RouterTestingHarness.create();
+    const page = await harness.navigateByUrl('/games?match=EUW1_5000000005', GamesComponent);
+    harness.detectChanges();
+    const root = harness.routeNativeElement as HTMLElement;
+
+    // The window never moved: the page still says thirty days.
+    expect((page as unknown as { days: () => number }).days()).toBe(30);
+
+    // The row asked for is on the list anyway, and says why it is there.
+    const row = root.querySelector('[data-row="riot-EUW1_5000000005"]');
+    expect(row).not.toBeNull();
+    expect(text(row!.querySelector('.games-pinned'))).toBe('from a link');
+
+    // And the record still counts the window only — one game, a win — not the pinned loss.
+    expect(text(root.querySelector('.insight-tile.is-lead .insight-value'))).toContain('1W');
+    expect(text(root.querySelector('.insight-tile.is-lead .insight-value'))).toContain('0L');
+  });
+
+  it('does not double the row or mark it when the window already holds it', async () => {
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/games?match=EUW1_7000000001', GamesComponent);
+    harness.detectChanges();
+    const root = harness.routeNativeElement as HTMLElement;
+    expect(root.querySelectorAll('[data-row="riot-EUW1_7000000001"]').length).toBe(1);
+    expect(root.querySelector('.games-pinned')).toBeNull();
+  });
+});

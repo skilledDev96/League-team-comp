@@ -156,10 +156,45 @@ export class GamesComponent {
     });
   });
 
+  /**
+   * One game reached by a link, kept on the list whatever the window says (12 Sep 2026).
+   *
+   * `?match=` used to call `days.set(0)`, and `?match=` is how the film room's Back pill, the
+   * Reviews tab's "Open the game" and every evidence link arrive — so the commonest way onto this
+   * page opened the longest list it has, nine months and 181 games, to show one row.
+   *
+   * Widening also lies about everything above the list: the record, the form strip and the player
+   * lines are all read off the same window, so following a link to a game from March silently
+   * restated the team's record over nine months. Pinning keeps the window where the reader left it
+   * and puts the one row they asked for at the top of it, carrying a chip that says why it is there.
+   *
+   * `?comp=` still widens: that is a deliberate filter with a chip on the bar announcing it.
+   */
+  protected readonly pinnedMatch = signal('');
+
   protected readonly rows = computed<GameRow[]>(() => {
     const source = this.source();
     return source === 'all' ? this.rowsAnySource() : this.rowsAnySource().filter((r) => r.source === source);
   });
+
+  /**
+   * The rows the list draws: the window's, plus the pinned game when the window does not already
+   * hold it. Only the list reads this — the record, the form strip and the player lines keep
+   * reading `rows()`, so a game arrived at by a link never moves a figure.
+   */
+  protected readonly listRows = computed<GameRow[]>(() => {
+    const rows = this.rows();
+    const id = this.pinnedMatch();
+    if (!id || rows.some((r) => r.matchId === id)) return rows;
+    const pinned = this.allRows().find((r) => r.matchId === id);
+    return pinned ? [pinned, ...rows] : rows;
+  });
+
+  /** True for the row that is only here because a link asked for it, so it can say so. */
+  protected isPinned(row: GameRow): boolean {
+    const id = this.pinnedMatch();
+    return !!id && row.matchId === id && !this.rows().some((r) => r.matchId === id);
+  }
 
   protected readonly opponents = computed<string[]>(() => {
     const seen = new Set<string>();
@@ -227,7 +262,7 @@ export class GamesComponent {
       const match = params.get('match');
       if (match) {
         this.tab.set('games');
-        this.days.set(0);
+        this.pinnedMatch.set(match);
         this.listOpen.set(true);
         this.matchFocus.set(match);
       }
@@ -340,7 +375,7 @@ export class GamesComponent {
   /** Jump from a review to its row on the Games tab. */
   protected openMatch(matchId: string): void {
     this.tab.set('games');
-    this.days.set(0);
+    this.pinnedMatch.set(matchId);
     this.listOpen.set(true);
     this.revealed = null;
     this.matchFocus.set(matchId);

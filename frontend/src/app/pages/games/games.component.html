@@ -277,15 +277,16 @@
         <span class="material-symbols-rounded" aria-hidden="true">{{ listOpen() ? 'expand_less' : 'expand_more' }}</span>{{ listOpen() ? 'Hide' : 'Show' }}
       </button>
     </div>
-    @if (rows().length && listOpen()) {
+    @if (listRows().length && listOpen()) {
       <div class="opp-history-games games-list">
-        @for (g of rows(); track g.id) {
+        @for (g of listRows(); track g.id) {
           <details [attr.data-tour]="g.matchId ? 'games-row' : null" class="opp-history-game games-row" [class.is-win]="g.win" [attr.data-row]="g.id" [class.is-new]="isNew(g)" [class.is-focused]="g.id === focus()" (toggle)="onRowToggle(g.id, $event)">
             <summary class="opp-history-head">
               <span class="opp-history-result">{{ g.win ? 'W' : 'L' }}</span>
               <span class="opp-history-when">{{ day(g.date) }}</span>
               <span class="games-source" [class]="'games-source is-' + g.source">{{ g.label }}</span>
               @if (data.isPractice(g.matchId)) { <span class="games-practice" appTip="Tagged as messing around: Patterns leaves it out">practice</span> }
+              @if (isPinned(g)) { <span class="games-pinned" appTip="Older than the window above, and here because you followed a link to it. The record and the form strip still count the window only.">from a link</span> }
               @if (g.opponent) { <span class="games-opp">vs {{ g.opponent }}</span> }
               @if (g.side) { <span class="opp-history-side" [class.is-blue]="g.side === 'blue'">{{ g.side }}</span> }
               @if (g.rosterCount !== undefined && g.rosterCount < 5) {

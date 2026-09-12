@@ -13910,6 +13910,9 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 
 
 /* ---- Practice tag, the check drawer, data health (8 Sep 2026) ---------- */
+/* The row a link asked for, kept on the list when the window does not hold it (12 Sep 2026). Quiet:
+   it explains itself and is not a state the reader chose. */
+.games-pinned { display: inline-flex; align-items: center; padding: 0.05rem 0.45rem; border-radius: 999px; border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent); font-size: 0.68rem; color: var(--text-1); white-space: nowrap; cursor: help; }
 .games-practice {
   padding: 0.05rem 0.45rem;
   border-radius: 999px;
