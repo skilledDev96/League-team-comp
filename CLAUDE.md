@@ -1104,7 +1104,9 @@ Nothing a tour adds to the draft room may change its height.
 walks the room and carries `autoStart: false`, because a tour opening over a
 draft in progress is the worst moment this app has. The other three tours on
 that page are all `role: 'editor'` with every step behind edit mode, which is
-why the viewers doing the complaining had never been shown the page.
+why nobody who only reads the page had ever been shown it. Note the correction of
+12 Sep 2026: the "too much information" complaint came from **contributors as well as viewers**, so
+edit-mode surfaces are in scope for the same act-or-check pass and have not had one yet.
 
 Seen state is `userPrefs/{email}.toursSeen` (`services/user-prefs.service.ts`, localStorage
 fallback; the old `tourSeen` flag is still written for the welcome tour). The

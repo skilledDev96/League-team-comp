@@ -1004,7 +1004,14 @@ body {
 /* Segmented Starter/Full control replaces the old row of view buttons. */
 /* Starter | Full, on the pages that say it (12 Sep 2026). Pushed to the end of its controls row so
    it reads as a property of the page rather than as another filter. */
-.detail-toggle { margin-left: auto; }
+/* The flex child is the ELEMENT, not the .field inside it, so margin-left:auto has to sit on
+   app-detail-toggle. It was on .detail-toggle, which pushed nothing: the switch sat bunched
+   against the tabs with the whole row empty to its right (12 Sep 2026, the lead: "this looks
+   odd… just to the right side?"). The same mistake, made twice — the section divider needed
+   the element selector too. */
+app-detail-toggle { margin-left: auto; }
+.detail-toggle { display: flex; align-items: center; gap: 0.45rem; }
+.detail-toggle > span { text-transform: none; letter-spacing: 0; color: var(--text-2); font-size: 0.72rem; }
 .detail-toggle .view-segment button { padding: 0.3rem 0.85rem; font-size: 0.76rem; }
 
 .view-segment {
@@ -12615,7 +12622,7 @@ body:has(.draft-stage) .edit-mode-frame {
    The flex child is the element, not the .field inside it — and in a divider the
    label reads beside the segment rather than stacked over it. */
 .section-divider::after { order: 1; }
-.section-divider app-detail-toggle { order: 2; margin-left: 0.6rem; }
+.section-divider app-detail-toggle { order: 2; margin-left: 0.6rem !important; }
 .section-divider .detail-toggle { flex-direction: row; align-items: center; gap: 0.45rem; margin-left: 0; text-transform: none; letter-spacing: 0; }
 .section-divider .detail-toggle > span { color: var(--text-2); }
 
@@ -16929,3 +16936,54 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .fold-card > summary > .section-head,
 .fold-card > summary.section-head { margin-bottom: 0; }
 .fold-card[open] > summary.section-head { margin-bottom: 0.6rem; }
+
+/* The tour card's second register (12 Sep 2026). Every step is one short line now; the caveat,
+   the exception and the thing that is easy to get wrong sit behind this, shut by default and shut
+   again on every step. A card is read standing up, over the thing it points at. */
+.tour-more-btn {
+  display: inline-grid; place-items: center;
+  width: 1.25rem; height: 1.25rem; margin-left: 0.3rem; vertical-align: -0.2rem;
+  padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  background: transparent; color: var(--text-2);
+  transition: color 140ms ease, background 140ms ease;
+}
+.tour-more-btn .material-symbols-rounded { font-size: 1rem; }
+.tour-more-btn:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.tour-more-btn[aria-expanded="true"] { color: var(--accent); }
+.tour-more-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.tour-more {
+  margin: 0.5rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--card-border);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--text-1);
+}
+
+/* The roster's control row read as six things jammed at the left with the row empty to the right
+   (12 Sep 2026, the lead: "it looks clumped"). Three groups now — what to show, how much of it,
+   and finding somebody — with the find group pushed right and allowed to take its own line when
+   the row runs out. */
+.roster-toolbar-find {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.roster-toolbar-find .meta-line { margin: 0; }
+.roster-toolbar-find .roster-toolbar-filter { flex: 1 1 16rem; min-width: 0; }
+
+/* app-detail-toggle pushes itself right by default; inside this row the find group is what sits
+   at the end, so the switch stays beside the view it belongs to. */
+.roster-toolbar-find ~ app-detail-toggle,
+.view-controls app-detail-toggle:not(:last-child) { margin-left: 0; }
+
+.champ-filter-answer.is-inset {
+  margin: 0.65rem 0 0;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--card-border);
+  font-size: 0.86rem;
+}

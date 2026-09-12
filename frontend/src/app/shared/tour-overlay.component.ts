@@ -1,4 +1,4 @@
-import { Component, computed, effect, ElementRef, HostListener, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, ElementRef, HostListener, inject, signal, untracked, viewChild } from '@angular/core';
 import { placeCard } from './tooltip-position.util';
 import { TourService } from '../services/tour.service';
 
@@ -29,7 +29,17 @@ import { TourService } from '../services/tour.service';
                    [class.is-sheet]="sheet()" [style.top.px]="sheet() ? null : pos().top" [style.left.px]="sheet() ? null : pos().left">
             <p class="tour-count">{{ tour.title }} · {{ tours.index() + 1 }} of {{ tours.steps().length }}</p>
             <h3 id="tour-title" class="tour-title">{{ step.title }}</h3>
-            <p class="tour-text">{{ step.text }}</p>
+            <p class="tour-text">
+              {{ step.text }}
+              @if (step.more) {
+                <button type="button" class="tour-more-btn" [attr.aria-expanded]="more()"
+                        [attr.aria-label]="more() ? 'Hide the detail' : 'More about this'"
+                        (click)="more.set(!more())">
+                  <span class="material-symbols-rounded" aria-hidden="true">info</span>
+                </button>
+              }
+            </p>
+            @if (step.more && more()) { <p class="tour-more">{{ step.more }}</p> }
             @if (tours.busy()) { <p class="muted tour-wait"><span class="btn-spinner" aria-hidden="true"></span> Finding it…</p> }
             <div class="tour-actions">
               @if (tours.index() > 0) { <button type="button" class="view-btn" (click)="tours.back()" [disabled]="tours.busy()">Back</button> }
@@ -50,6 +60,8 @@ export class TourOverlayComponent {
   protected readonly tours = inject(TourService);
   protected readonly pad = 6;
   private readonly card = viewChild<ElementRef<HTMLElement>>('card');
+  /** The detail behind the card's ⓘ, shut again on every step so it never follows you. */
+  protected readonly more = signal(false);
   private readonly cardSize = signal({ width: 352, height: 200 });
   private readonly viewport = signal({ width: 1200, height: 800 });
 
@@ -63,6 +75,11 @@ export class TourOverlayComponent {
   });
 
   constructor() {
+    // The detail is shut again on every step, so it never follows you down the walk.
+    effect(() => {
+      this.tours.index();
+      untracked(() => this.more.set(false));
+    });
     if (typeof window !== 'undefined') {
       const read = () => this.viewport.set({ width: window.innerWidth, height: window.innerHeight });
       read();

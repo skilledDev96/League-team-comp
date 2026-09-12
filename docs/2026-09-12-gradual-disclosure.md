@@ -5,6 +5,13 @@
 **The lead's complaint:** *"I've got a lot of complaints from too much information to read. Maybe we
 need to look at something to introduce all the information gradually."*
 
+**Who complained — corrected 12 Sep 2026.** This was written up as though it came from viewers, and
+the lead put that right: *"it was the contributors as well."* That is not a wording fix. It means the
+editing surfaces are in scope for the same treatment, and the three tours that were editor-only were
+not the whole of the problem — the contributors could see those tours and still found the pages too
+much. **Edit mode has had no depth pass at all**, and on Prep it deliberately draws the full roster
+table. That is the next thing to look at, not a settled decision.
+
 **Scope:** `/games` (Games, Patterns, Reviews), `/tournaments` (Plan and the Draft room).
 
 **Measured before designing.** 181 games over nine months, 11 from the last week, 11 with a review.
@@ -70,7 +77,7 @@ Grouped by how they failed, because that is what makes the next one recognisable
 | Thirteen Patterns filters reset on every visit | In-memory only. |
 | `UserPrefsService.load()` set the signal only after awaiting Firestore | Every reader drew its default and flipped. |
 | The Games tab folded away its own list to keep its header | — |
-| All three Prep & Draft tours were editor-only, every step behind edit mode | The viewers doing the complaining had never been shown the page. |
+| All three Prep & Draft tours were editor-only, every step behind edit mode | Nobody who only reads the page had ever been shown it. |
 
 ---
 
@@ -139,7 +146,7 @@ It produced every table in the plan, and it is the test for anything added later
 
 ## What is still owed
 
-- Walking the live site **as a viewer**. That is the audience that complained.
+- Walking the live site **as a viewer and as a contributor**. Both complained.
 - Roster, Comps and Player Intel keep their own Starter | Full signals from 8 Sep; one rename commit
   across seven surfaces would point them at the shared, remembered one.
 - The type and spacing scales do not exist as tokens — see `docs/design-system.md` §2.

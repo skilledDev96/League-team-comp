@@ -237,9 +237,38 @@ export class TournamentPlanComponent {
     this.seriesNote.update((n) => ({ ...n, [series.id]: report }));
   }
 
-  /** A migrated replay nobody could side: the champions are there, the side and result are not. */
+  /**
+   * A replay nobody could side. The champions came out of the file; which five were ours did not.
+   *
+   * The `win === undefined` clause went on 12 Sep 2026. It was written for migrated replays that
+   * had neither a side nor a result, but it also silenced the question for a game somebody had
+   * since typed a result on — and that game is excluded from the series MVP with no way to fix it,
+   * because the draft room's own "Which side are we on?" modal needs `freshBoard`, which requires
+   * empty champion lists. A replay import has champions. So neither surface asked, and the mark
+   * quietly averaged fewer games than the series had.
+   */
   protected sideUnknown(game: SeriesGame): boolean {
-    return !!game.matchId && !game.ourSide && game.win === undefined;
+    return !!game.matchId && !game.ourSide;
+  }
+
+  /**
+   * What the series mark averaged, and — when it is fewer games than the series has — why.
+   *
+   * "1 of 3" says the count. It does not say that two of those games have a replay sitting right
+   * there and are only missing a side, which is one press to fix (12 Sep 2026, the lead asking
+   * what the count meant).
+   */
+  protected seriesMvpNote(series: TournamentSeries): string {
+    const mvp = this.seriesMvp(series.id);
+    if (!mvp) return '';
+    const missed = this.gamesFor(series.id).filter((g) => !this.mvpGameOf(g));
+    if (!missed.length) return mvp.line;
+    const noSide = missed.filter((g) => !!g.matchId && !g.ourSide).length;
+    const noReplay = missed.filter((g) => !g.matchId).length;
+    const why: string[] = [];
+    if (noSide) why.push(`${noSide} ${noSide === 1 ? 'has a replay but no side recorded' : 'have replays but no side recorded'} — set the side and ${noSide === 1 ? 'it counts' : 'they count'}`);
+    if (noReplay) why.push(`${noReplay} ${noReplay === 1 ? 'has' : 'have'} no replay imported yet`);
+    return why.length ? `${mvp.line} ${why.join('; ')}.` : mvp.line;
   }
 
   protected setSideFromReplay(game: SeriesGame, side: 'blue' | 'red'): void {

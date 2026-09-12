@@ -18,7 +18,22 @@ export interface TourStep {
   /** `data-tour` id(s); the first one on the page wins. */
   anchor: string | string[];
   title: string;
+  /**
+   * One short line — what this is, in the fewest words that are still true.
+   *
+   * Measured on 12 Sep 2026 before the rewrite: 101 steps averaging 25 words, 98 of them over 12
+   * and 14 over 35. The lead, on a three-sentence step: *"this does not make sense… keep it short.
+   * Starter is basic view and full is everything expanded… no need for long sentences."* A tour
+   * card is read standing up, mid-task, over the thing it is pointing at.
+   *
+   * **Aim for twelve words. Anything a reader might want second goes in `more`.**
+   */
   text: string;
+  /**
+   * The rest, behind the card's ⓘ — the caveat, the exception, the thing it is easy to get wrong.
+   * Absent on most steps; a step that needs no footnote should not grow one.
+   */
+  more?: string;
   /** The page the step lives on, when it differs from the tour's own. */
   route?: string;
   query?: Record<string, string>;
