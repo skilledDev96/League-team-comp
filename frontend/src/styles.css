@@ -580,12 +580,28 @@ body[data-theme="light"] {
 body {
   font-family: "Sora", sans-serif;
   color: var(--text-0);
-  background:
-    radial-gradient(1000px 500px at 80% -20%, var(--glow-a), transparent 55%),
-    radial-gradient(900px 480px at -15% 5%, var(--glow-b), transparent 60%),
-    linear-gradient(145deg, var(--bg-0), var(--bg-1) 45%, var(--bg-2));
+  background: linear-gradient(145deg, var(--bg-0), var(--bg-1) 45%, var(--bg-2));
   line-height: 1.45;
 }
+
+/* The ambient light (13 Sep 2026, the lead on the Team HQ mockup: "i also like the gradient background,
+   can we apply this across the app"). A warm glow from the top-left and a cool one from the right, sized
+   to the screen rather than the page, so they sit behind every page at every scroll position. They were
+   two 1000px glows at the top of the document, which scrolled away with the first screen. A fixed layer
+   rather than background-attachment: fixed, which repaints the whole page on every scroll. Each theme's
+   own --glow-a and --glow-b, so all ten get their colours. The film room keeps its own ground. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 75% 65% at 8% -5%, var(--glow-a), transparent 70%),
+    radial-gradient(ellipse 60% 75% at 100% 30%, var(--glow-b), transparent 72%);
+}
+
+body:has(.page.is-film)::before { content: none; }
 
 .page {
   /* 82.5rem is the old 1320px at the default root size, but in rem it widens
