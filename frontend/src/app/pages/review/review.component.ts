@@ -294,6 +294,18 @@ export class ReviewComponent {
   protected readonly leftOut = computed(() => this.anyStackGames().length - this.filteredGames().length);
 
   /**
+   * Take the reader to the filters that are doing this (12 Sep 2026).
+   *
+   * Source stays on the page at Starter; Prep, Starters, Roles and Comp do not — but they keep
+   * filtering, because they are restored from `bom-patterns-filters` whether or not they are
+   * drawn. So a Starter reader could be told "19 left out by the filters" with no filter in
+   * sight. Rather than add a control, the sentence that reports it becomes the way to them.
+   */
+  protected showFilters(): void {
+    void this.userPrefs.setDepth('patterns', true);
+  }
+
+  /**
    * Which side of the result the page is showing.
    *
    * A toggle rather than two stacked sections: the losses alone already ran to

@@ -82,7 +82,20 @@
       }
       <p class="meta-line">
         <span class="meta-label">Record</span>
-        <span class="meta-value">{{ record().wins }}W / {{ record().losses }}L over {{ record().games }} games@if (leftOut()) { <small class="muted"> · {{ leftOut() }} left out by the filters</small> }@if (seriousOnly() && practiceCount()) { <small class="muted"> · {{ practiceCount() }} practice {{ practiceCount() === 1 ? 'game' : 'games' }} left out</small> }</span>
+        <span class="meta-value">{{ record().wins }}W / {{ record().losses }}L over {{ record().games }} games@if (leftOut()) {
+          @if (full()) {
+            <small class="muted"> · {{ leftOut() }} left out by the filters</small>
+          } @else {
+            <!-- At Starter the filters are not on the screen but they are still filtering, which
+                 made this sentence read as an accusation with no accused (12 Sep 2026). The
+                 sentence itself is the way to them — no new control, and it only appears when
+                 something really is being left out. -->
+            <button type="button" class="link-undo patterns-filters-on" (click)="showFilters()"
+                    appTip="A filter you set earlier is still narrowing these figures. Opens Full, where the filters are.">
+              {{ leftOut() }} left out by filters you cannot see — show them
+            </button>
+          }
+        }@if (seriousOnly() && practiceCount()) { <small class="muted"> · {{ practiceCount() }} practice {{ practiceCount() === 1 ? 'game' : 'games' }} left out</small> }</span>
       </p>
     </div>
   </section>

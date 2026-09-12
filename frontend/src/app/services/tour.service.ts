@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { PlayerEditorService } from './player-editor.service';
 import { TeamDataService } from './team-data.service';
 import { UserPrefsService } from './user-prefs.service';
+import { DepthSurface } from '../models/team.models';
 
 /**
  * Runs a tour: walks the page to each step's anchor, turning edit mode on
@@ -39,6 +40,16 @@ export class TourService {
 
   private anchorEl: HTMLElement | null = null;
   private editModeBefore: boolean | null = null;
+  /**
+   * The reading depth a surface was on before the tour raised it (12 Sep 2026), so it can be put
+   * back. Exactly the shape `editModeBefore` has, for exactly the same reason: a tour may turn
+   * something on to show it, and must not leave it on.
+   *
+   * Three of the Patterns tour's six steps are about filters that only exist in Full, so at
+   * Starter — the default for everyone — they were skipped in silence. A tour that cannot show
+   * the thing it is describing is not a tour.
+   */
+  private depthBefore: { surface: DepthSurface; full: boolean } | null = null;
   private missing = new Set<number>();
   private observer: ResizeObserver | null = null;
   private frame: ReturnType<typeof setTimeout> | undefined;
@@ -161,6 +172,7 @@ export class TourService {
     this.steps.set(steps);
     this.missing = new Set();
     this.editModeBefore = null;
+    this.depthBefore = null;
     await this.goTo(0, 1);
     return true;
   }
@@ -190,6 +202,7 @@ export class TourService {
     if (!tour) return;
     void this.prefs.markTourSeen(tour.id, tour.version);
     if (this.editModeBefore === false) this.auth.editMode.set(false);
+    if (this.depthBefore && !this.depthBefore.full) void this.prefs.setDepth(this.depthBefore.surface, false);
     this.clear();
   }
 
@@ -265,6 +278,20 @@ export class TourService {
     return step.before ? this.action(step.before) : true;
   }
 
+  /**
+   * Put a surface on Full for the rest of the walk. Returns true even when it was already Full —
+   * the thing the step is about will be there either way, which is what the return value means.
+   */
+  private async raiseDepth(surface: DepthSurface): Promise<boolean> {
+    const was = this.prefs.depthOf(surface) === 'full';
+    if (this.depthBefore === null) this.depthBefore = { surface, full: was };
+    if (!was) {
+      await this.prefs.setDepth(surface, true);
+      await this.pause(80);
+    }
+    return true;
+  }
+
   /** Runs a step's named action; false only when it can say the thing the step is about will not appear. */
   private async action(name: string): Promise<boolean> {
     switch (name) {
@@ -275,14 +302,27 @@ export class TourService {
         return true;
       }
       case 'openGameList': {
-        // The game list is folded by default; the row steps need it open.
-        const fold = document.querySelector<HTMLElement>('[data-tour="games-list-fold"]');
-        if (fold && fold.getAttribute('aria-expanded') === 'false') {
-          fold.click();
+        // The list opens by default, but a reader who shut it would otherwise be walked to rows
+        // that are not drawn. Its header is a <summary> since 12 Sep 2026, so the open state is
+        // the <details>' own, not an aria-expanded attribute.
+        const panel = document.querySelector<HTMLElement>('[data-tour="games-list-fold"]')?.closest('details');
+        if (panel && !panel.open) {
+          panel.open = true;
+          panel.dispatchEvent(new Event('toggle'));
           await this.pause(150);
         }
         return true;
       }
+      // Raise a surface to Full so the tour can point at something Starter does not draw, and
+      // remember what it was so `stop()` can put it back. Only the first raise is remembered: a
+      // tour with three such steps must restore the depth the reader arrived on, not the one the
+      // step before it set.
+      case 'showFullGames':
+        return this.raiseDepth('games');
+      case 'showFullPatterns':
+        return this.raiseDepth('patterns');
+      case 'showFullPrep':
+        return this.raiseDepth('prep');
       case 'openCompMore': {
         document.querySelector<HTMLElement>('details.comp-more')?.setAttribute('open', '');
         await this.pause(40);

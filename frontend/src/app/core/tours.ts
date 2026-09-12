@@ -207,36 +207,46 @@ export const TOURS: readonly Tour[] = [
     id: 'games',
     title: 'Games and reviews',
     blurb: 'Every game, the filters, and what a row can do.',
-    version: 1,
+    // 2 on 12 Sep 2026: the page grew a Starter | Full switch and a Next up card, the row's
+    // drawer was reordered around the review, and two steps described controls Starter does not
+    // draw. Everyone sees it once more.
+    version: 2,
     match: { path: '/games' },
     needs: 'analysis',
     steps: [
+      { anchor: 'detail-games', title: 'Starter or Full', text: 'How much of this page to draw. Starter is the few things to act on; Full adds everything it knows. It is remembered for you, on every page that offers it.', query: { tab: 'games' } },
+      { anchor: 'games-next-up', title: 'What to do next', text: 'One card, when there is something: a film that asked to be remembered, a game nobody has reviewed, or the next opponent. Nothing here means nothing is waiting.', query: { tab: 'games' } },
       { anchor: 'games-refresh', title: 'Refresh matches from Riot', text: 'Pulls in the flex and Clash games we played. Scrims come from replays and tournament games from the draft room.', editMode: true, query: { tab: 'games' } },
-      { anchor: 'games-filters', title: 'Filters', text: 'Source, window, result and opponent, plus the champion box every page shares.', query: { tab: 'games' } },
-      { anchor: 'games-record', title: 'The record', text: 'Wins and losses over what is filtered, by source and by side.', query: { tab: 'games' } },
-      { anchor: 'games-row', title: 'A game', text: 'Open a row for the objectives, the scoreboard and everything below it.', query: { tab: 'games' }, before: 'openGameList' },
+      { anchor: 'games-filters', title: 'Filters', text: 'How far back to look, and the champion box every page shares. Full adds the source, the result and the opponent.', query: { tab: 'games' } },
+      { anchor: 'games-record', title: 'The record', text: 'Wins and losses over whatever is filtered, with the last games beside it as a strip of W and L. Full splits the record by source and by side.', query: { tab: 'games' } },
+      { anchor: 'games-row', title: 'A game', text: 'Open a row: the review first, then the objectives, the scoreboard, the note and how the game went.', query: { tab: 'games' }, before: 'openGameList' },
+      { anchor: 'games-review-panel', title: 'The review', text: 'What the coach wrote about this game: the one thing to work on, what went well, and a note for each seat. The Reviewed chip on the row itself opens the film room, where the same review is walked through.', query: { tab: 'games' }, before: 'openGameList' },
       { anchor: 'games-note', title: 'Match note', text: 'A sentence about the game. Comps collect these under Notes from its games, and the review reads them too.', editMode: true, query: { tab: 'games' }, before: 'openGameList' },
       { anchor: 'games-practice', title: 'Practice', text: 'Mark a game as practice and Patterns leaves it out.', editMode: true, query: { tab: 'games' }, before: 'openGameList' },
       { anchor: 'games-counts-as', title: 'Counts as', text: 'Which comp the game counts towards. Auto is the matcher’s read of the five champions; pick a comp to overrule it.', editMode: true, query: { tab: 'games' }, before: 'openGameList' },
-      { anchor: 'games-story', title: 'How the game went', text: 'Minute by minute from Riot’s timeline, when there is one: the gold curve, the lanes, the fights and the deaths nobody was near.', query: { tab: 'games' }, before: 'openGameList' },
+      { anchor: 'games-story', title: 'How the game went', text: 'Minute by minute at the bottom of the row: the gold curve, the lanes, the fights, and who swung the game most. A game Riot cannot see reads from the replay recorder instead, and one with neither says so.', query: { tab: 'games' }, before: 'openGameList' },
       { anchor: 'games-review-btn', title: 'Review this game', text: 'Two model calls, about a dime, after you confirm. The review lands on the row, on the Reviews tab and on each player’s profile.', editMode: true, query: { tab: 'games' }, before: 'openGameList' },
-      { anchor: 'games-tabs', title: 'Patterns and Reviews', text: 'Patterns is what keeps happening across the games. Reviews is every written review, newest first.', query: { tab: 'games' } }
+      { anchor: 'games-tabs', title: 'Patterns and Reviews', text: 'Patterns is what keeps happening across the games. Reviews opens on the newest review in full, with the rest a line each.', query: { tab: 'games' } }
     ]
   },
   {
     id: 'patterns',
     title: 'Patterns',
     blurb: 'The filters, and what the Work on lines mean.',
-    version: 1,
+    // 2 on 12 Sep 2026: three of these six steps pointed at filters that only exist in Full, so
+    // at Starter — the default for everyone — they were skipped in silence. They now raise the
+    // page to Full to show them, and stop() puts the reader's own depth back.
+    version: 2,
     match: { path: '/games', query: { tab: 'patterns' } },
     needs: 'analysis',
     steps: [
-      { anchor: 'patterns-source', title: 'Source', text: 'Flex, scrims and Clash, or tournaments. A replay imported against a series game counts as a tournament game.' },
-      { anchor: 'patterns-prep', title: 'Prep', text: 'Games played to win. Anything marked as practice on the Games tab is left out until you choose All.' },
-      { anchor: 'patterns-starters', title: 'Starters', text: 'A team is whoever is not on the bench on the Roster page. Custom is any set of players who all have to be on our side.' },
-      { anchor: 'patterns-roles', title: 'Roles', text: 'Main counts a player only in their main role; 2nd adds the second seats; Any counts every game.' },
+      { anchor: 'detail-patterns', title: 'Starter or Full', text: 'Starter is the conclusion — what to work on, what to keep doing, and the record. Full adds the filters that decide what those numbers mean. The next three are Full' + "'" + 's, so this walk opens it and puts your setting back at the end.' },
+      { anchor: 'patterns-source', title: 'Source', text: 'Flex, scrims and Clash, or tournaments — a replay imported against a series game counts as a tournament game. The number on each is how many games it would leave you.' },
+      { anchor: 'patterns-prep', title: 'Prep', text: 'Games played to win: anything marked as practice on the Games tab drops out until you choose All. It keeps filtering at Starter, where the field is not drawn.', before: 'showFullPatterns' },
+      { anchor: 'patterns-starters', title: 'Starters', text: 'A team is whoever is not on the bench on the Roster page. Custom is any set of players who all have to be on our side — tick them in the row that opens under it.', before: 'showFullPatterns' },
+      { anchor: 'patterns-roles', title: 'Roles', text: 'The one most likely to look broken. Main counts a game only when all five sat in their main seat, so a single off-role game shows 0; 2nd adds the second seats; Any counts every game.', before: 'showFullPatterns' },
       { anchor: 'patterns-workon', title: 'Work on, keep doing', text: 'Each line is the biggest gap between our wins and our losses that clears the minimum on both sides. Fold it out for the games it was read from.' },
-      { anchor: 'patterns-sections', title: 'More sections', text: 'Lanes, the team split by result and the objective patterns sit behind these chips. Your choice is remembered.' }
+      { anchor: 'patterns-sections', title: 'More sections', text: 'Lanes, what changes when we win, the recurring problems and the game-by-game list each sit behind one of these chips. All four start closed, and whichever you open is remembered.' }
     ]
   },
   /**

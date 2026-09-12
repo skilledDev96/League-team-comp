@@ -189,3 +189,57 @@ describe('the viewer tours on Prep & Draft', () => {
     expect(TOURS.find((t) => t.id === 'prep-read')!.autoStart).not.toBe(false);
   });
 });
+
+/**
+ * The 12 Sep 2026 disclosure batch put half of two pages behind a Starter | Full switch, and the
+ * tours kept describing the Full version. Three Patterns steps pointed at anchors that Starter
+ * does not render at all, so they were skipped in silence — the failure mode this repo has a
+ * memory about: a mechanism whose only symptom is nothing happening.
+ */
+describe('the tours on the pages the disclosure batch changed', () => {
+  const byId = (id: string) => TOURS.find((t) => t.id === id)!;
+
+  it('re-runs for everyone on the two pages whose controls moved', () => {
+    // Bumping the version is the documented way to show a tour once more.
+    expect(byId('games').version).toBeGreaterThan(1);
+    expect(byId('patterns').version).toBeGreaterThan(1);
+    // The Prep tours are new, so they run for everyone already.
+    expect(byId('prep-read').version).toBe(1);
+    expect(byId('draft-watch').version).toBe(1);
+  });
+
+  it('opens the depth switch before describing anything it hides', () => {
+    for (const id of ['games', 'patterns']) {
+      const steps = byId(id).steps;
+      const depth = steps.findIndex((s) => String(s.anchor).startsWith('detail-'));
+      expect(depth, `${id} names the switch`).toBeGreaterThanOrEqual(0);
+      expect(depth, `${id} names it first`).toBe(0);
+    }
+  });
+
+  it('raises Patterns to Full for every step whose anchor only exists there', () => {
+    // These three live inside the one @if (full()) block in review.component.html.
+    const fullOnly = ['patterns-prep', 'patterns-starters', 'patterns-roles'];
+    for (const anchor of fullOnly) {
+      const step = byId('patterns').steps.find((s) => s.anchor === anchor)!;
+      expect(step, anchor).toBeDefined();
+      expect(step.before, `${anchor} would skip in silence without it`).toBe('showFullPatterns');
+    }
+  });
+
+  it('keeps every step a viewer can reach free of edit mode', () => {
+    // A viewer at the default depth is the reader these tours were rewritten for.
+    for (const id of ['patterns', 'prep-read', 'draft-watch']) {
+      for (const s of stepsFor(byId(id), 'viewer')) {
+        expect(s.editMode, `${id}: ${s.anchor}`).toBeUndefined();
+      }
+    }
+  });
+
+  it('names the three things the batch added to the Games page', () => {
+    const anchors = byId('games').steps.map((s) => String(s.anchor));
+    expect(anchors).toContain('detail-games');
+    expect(anchors).toContain('games-next-up');
+    expect(anchors).toContain('games-review-panel');
+  });
+});

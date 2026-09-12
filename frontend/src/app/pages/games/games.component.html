@@ -14,7 +14,7 @@
 
 <!-- The one thing to do next: an unwatched review, a due film reminder, a game nobody has
      reviewed, or the next opponent. Nothing when there is nothing. -->
-<app-next-up />
+<app-next-up data-tour="games-next-up" />
 
 <!-- The Riot data line: who refreshed what, and the button to do it again.
      Small on purpose — it used to be the top third of the Analysis page. -->
@@ -368,7 +368,7 @@
                    below the fold of a drawer inside a row. One door to the film is still the
                    poster's pill inside it. -->
               @if (g.matchId && data.reviewFor(g.matchId)) {
-                <app-game-review [review]="data.reviewFor(g.matchId)" [game]="analysisOf(g)" [opponent]="g.opponent" [open]="g.id === focus()" />
+                <app-game-review data-tour="games-review-panel" [review]="data.reviewFor(g.matchId)" [game]="analysisOf(g)" [opponent]="g.opponent" [open]="g.id === focus()" />
               }
               @if (g.objectives; as o) {
                 <div class="opp-history-line" aria-label="Objectives, ours first">
