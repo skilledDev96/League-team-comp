@@ -6,7 +6,7 @@
 }
 
 <!-- Open on arrival: the practice board is the one thing on this view a reader acts on. -->
-<details data-tour="scouting-practice-board" class="card practice-board" open aria-label="Team practice board">
+<details data-tour="scouting-practice-board" class="card fold-card practice-board" open aria-label="Team practice board">
   <summary class="practice-head">
     <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">fitness_center</span>Practice Board</h2>
     @if (painSummary(); as s) {
@@ -15,7 +15,7 @@
         <span class="practice-count done">{{ s.resolved }} resolved</span>
       </span>
     }
-    <span class="practice-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+    <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
   </summary>
 
   <div class="practice-filters">

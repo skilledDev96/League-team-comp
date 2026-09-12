@@ -1158,30 +1158,19 @@ a.profiles-row:focus-visible {
   margin-bottom: 1.25rem;
 }
 
-.practice-head {
-  display: flex;
-  align-items: center;
+/* A .fold-card since 12 Sep 2026: the shared chevron and focus ring rather than copies of both.
+   It keeps its wider gap, and the counts take the spare room so the chevron sits at the edge. */
+.practice-board > .practice-head {
   gap: 0.8rem;
   flex-wrap: wrap;
-  cursor: pointer;
-  list-style: none;
-}
-
-.practice-head::-webkit-details-marker {
-  display: none;
 }
 
 .practice-head h2 {
   margin: 0;
 }
 
-.practice-chevron {
-  color: var(--accent-2);
-  transition: transform 160ms ease;
-}
-
-.practice-board[open] .practice-chevron {
-  transform: rotate(180deg);
+.practice-board > .practice-head .fold-chevron {
+  margin-left: 0;
 }
 
 .practice-board[open] .practice-head {
@@ -1767,8 +1756,11 @@ a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-d
   z-index: 3;
 }
 
+/* The card is never the thing focused; its overlay link is. A keyboard user gets the same lift
+   and border a pointer does, and the ring follows the card's own corners (12 Sep 2026). */
 .clickable-card:hover,
-.clickable-card:focus-visible {
+.clickable-card:focus-visible,
+.clickable-card:has(> .card-link-overlay:focus-visible) {
   transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--accent) 70%, var(--card-border) 30%);
   box-shadow: 0 14px 30px var(--shadow-elev);
@@ -15391,6 +15383,33 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 }
 
 .fold-card > summary::-webkit-details-marker { display: none; }
+
+/* Keyboard focus in the theme's accent for the clickable things on Roster, Comps and the draft room
+   that had only the browser's default ring (12 Sep 2026). None was invisible — measured with a real
+   Tab — but the design system owes every clickable thing a :focus-visible of its own. An outline
+   takes no room, so none of this can move the draft room. */
+.card-link-overlay:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.comp-summary:focus-visible,
+.player-panel-header:focus-visible,
+.segment:focus-visible,
+.opp-more:focus-visible,
+.practice-check:focus-visible,
+.learn-check:focus-visible,
+.comp-log-toggle:focus-visible,
+.board-slot-main:focus-visible,
+.board-clear:focus-visible,
+.draft-map-token:focus-visible,
+.pick-slot-role:focus-visible,
+.pick-target:focus-visible,
+.pick-target-clear:focus-visible,
+.draft-slot-ban:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 .fold-card > summary:focus-visible {
   outline: 2px solid var(--accent);
