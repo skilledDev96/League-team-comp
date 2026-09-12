@@ -96,16 +96,16 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, the row\'s
     data = TestBed.inject(TeamDataService);
   });
 
-  /** The game list starts folded on purpose; the chip lives on a row's summary line inside it. */
+  /**
+   * The game list is open from the start (12 Sep 2026) — it used to be folded, and pressing that
+   * fold was this helper's first act. The fold button itself is Full's now, so the helper opens the
+   * page and the rows are simply there.
+   */
   async function open(): Promise<{ harness: RouterTestingHarness; root: HTMLElement }> {
     const harness = await RouterTestingHarness.create();
     await harness.navigateByUrl('/games', GamesComponent);
     harness.detectChanges();
-    const root = harness.routeNativeElement as HTMLElement;
-    // Two folds on the page: the player table's and the game list's. The list's is the one the tour anchors.
-    root.querySelector<HTMLButtonElement>('[data-tour="games-list-fold"]')!.click();
-    harness.detectChanges();
-    return { harness, root };
+    return { harness, root: harness.routeNativeElement as HTMLElement };
   }
 
   function tipOf(harness: RouterTestingHarness, selector: string): string {
@@ -267,5 +267,68 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, a link to 
     const root = harness.routeNativeElement as HTMLElement;
     expect(root.querySelectorAll('[data-row="riot-EUW1_7000000001"]').length).toBe(1);
     expect(root.querySelector('.games-pinned')).toBeNull();
+  });
+});
+
+
+/**
+ * Starter and Full on the Games tab (12 Sep 2026). Measured before it was built: 23 controls and
+ * about 85 figures stood between a reader and the first game row, and the list itself was folded —
+ * the page folding away the only thing on it that is the point.
+ *
+ * The rule, applied here and on every other surface: does a reader ACT on it, or CHECK it? The
+ * record and the games are acted on; the Riot telemetry, the breakdown tiles and the ten-column
+ * player table are checked, and they wait for Full.
+ */
+describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, Starter and Full', () => {
+  let data: TeamDataService;
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'games', component: GamesComponent }])] });
+    data = TestBed.inject(TeamDataService);
+    data.compAnalysis.set({ games: [riotGame], comps: [], totalTeamGames: 1, scannedMatches: 1, generatedAt: new Date(TODAY).toISOString() } as CompAnalysis);
+  });
+
+  async function page(): Promise<{ harness: RouterTestingHarness; root: HTMLElement; comp: { full: () => boolean } }> {
+    const harness = await RouterTestingHarness.create();
+    const comp = (await harness.navigateByUrl('/games', GamesComponent)) as unknown as { full: () => boolean };
+    harness.detectChanges();
+    return { harness, root: harness.routeNativeElement as HTMLElement, comp };
+  }
+
+  it('opens on Starter, with the games on screen and the furniture away', async () => {
+    const { root, comp } = await page();
+    expect(comp.full()).toBe(false);
+
+    // The list is the page: rows without pressing anything.
+    expect(root.querySelectorAll('.games-row').length).toBeGreaterThan(0);
+    expect(root.querySelector('[data-tour="games-list-fold"]')).toBeNull();
+
+    // What a reader checks rather than acts on is not here.
+    expect(root.querySelector('.games-player-table')).toBeNull();
+    expect(root.querySelector('.insight-tile.is-source')).toBeNull();
+    expect(root.querySelector('[aria-label="Result"]')).toBeNull();
+
+    // The record and the window are: the answer, and the one filter a coach actually changes.
+    expect(root.querySelector('.insight-tile.is-lead')).not.toBeNull();
+    expect(root.querySelector('[aria-label="Window"]')).not.toBeNull();
+  });
+
+  it('gives all of it back on Full, and the fortnight is a window you can pick', async () => {
+    const { harness, root } = await page();
+    const full = [...root.querySelectorAll<HTMLButtonElement>('app-detail-toggle button')].find((b) => b.textContent?.trim() === 'Full')!;
+    full.click();
+    harness.detectChanges();
+
+    expect(root.querySelector('.games-player-table')).not.toBeNull();
+    expect(root.querySelector('.insight-tile.is-source')).not.toBeNull();
+    expect(root.querySelector('[aria-label="Result"]')).not.toBeNull();
+    expect(root.querySelector('[data-tour="games-list-fold"]')).not.toBeNull();
+
+    const windows = [...root.querySelectorAll('[aria-label="Window"] button')].map((b) => (b.textContent ?? '').trim());
+    expect(windows).toEqual(['7 days', '14 days', '30 days', '90 days', 'All']);
   });
 });

@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { DetailToggleComponent } from '../../shared/detail-toggle.component';
 import { reviewFailure } from '../../core/review-error';
 import { matchLink } from '../../core/match-link';
 import { Component, computed, effect, inject, signal } from '@angular/core';
@@ -68,7 +69,7 @@ import { PlayerMarkComponent } from '../../shared/player-mark.component';
     NgModelNameDirective,
     TooltipDirective,
     ReviewComponent,
-    GameStoryComponent, GameReviewComponent, TourPillComponent, BeforeYouPlayComponent, MvpChipComponent],
+    DetailToggleComponent, GameStoryComponent, GameReviewComponent, TourPillComponent, BeforeYouPlayComponent, MvpChipComponent],
   templateUrl: './games.component.html'
 })
 export class GamesComponent {
@@ -105,6 +106,7 @@ export class GamesComponent {
   protected readonly comp = signal('');
   protected readonly windows = [
     { days: 7, label: '7 days' },
+    { days: 14, label: '14 days' },
     { days: 30, label: '30 days' },
     { days: 90, label: '90 days' },
     { days: 0, label: 'All' }
@@ -171,6 +173,30 @@ export class GamesComponent {
    * `?comp=` still widens: that is a deliberate filter with a chip on the bar announcing it.
    */
   protected readonly pinnedMatch = signal('');
+
+  /**
+   * Starter or Full, for whichever tab is showing (12 Sep 2026). The three tabs are separate
+   * surfaces and are remembered separately: somebody who wants the whole Patterns table rarely
+   * wants the ten-column player table on the list beside it.
+   */
+  protected readonly full = computed(() => {
+    const tab = this.tab();
+    return this.prefs.depthOf(tab === 'patterns' ? 'patterns' : tab === 'reviews' ? 'reviews' : 'games') === 'full';
+  });
+
+  protected detailStarterTip(): string {
+    const tab = this.tab();
+    if (tab === 'patterns') return 'The conclusion: what to work on and what to keep doing';
+    if (tab === 'reviews') return 'The reviews themselves, newest open';
+    return 'The record and the games — the two things to act on';
+  }
+
+  protected detailFullTip(): string {
+    const tab = this.tab();
+    if (tab === 'patterns') return 'Every filter and every table this tab can draw';
+    if (tab === 'reviews') return 'Adds the posters and the comp filter';
+    return 'Adds the Riot data line, every filter, the breakdown tiles and the player table';
+  }
 
   protected readonly rows = computed<GameRow[]>(() => {
     const source = this.source();
@@ -410,7 +436,12 @@ export class GamesComponent {
 
   /** The game list and the player table fold away, so the page can be the record and the form.
    *  The list starts folded (8 Sep 2026); a link to a game, a refresh with new games, or Show opens it. */
-  protected readonly listOpen = signal(false);
+  /**
+   * Open (12 Sep 2026). It started folded, which meant a reader pressed 23 controls' worth of page
+   * furniture before one game existed — the page folding away the only thing on it that is the
+   * point. Full folds the header instead; Starter simply shows the games.
+   */
+  protected readonly listOpen = signal(true);
   protected readonly playersOpen = signal(true);
 
   /** The scoreboard as a table or as the post-game graphs (9 Sep 2026); remembered per browser. */

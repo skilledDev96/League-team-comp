@@ -498,6 +498,9 @@ export interface ResourceLink {
 export type ResourceLinks = Record<string, ResourceLink[]>;
 
 /** What one account has seen, at `userPrefs/{email}`. */
+/** A surface that can be read at two depths. The draft room is deliberately not one. */
+export type DepthSurface = 'games' | 'reviews' | 'patterns' | 'prep';
+
 export interface UserPrefs {
   /** The welcome modal's old flag; still written when the welcome tour finishes. */
   tourSeen?: boolean;
@@ -505,6 +508,14 @@ export interface UserPrefs {
   toursSeen?: Record<string, number>;
   /** The film room (9 Sep 2026): which seat is mine, and where I am in each film. */
   film?: FilmPrefs;
+  /**
+   * How much of a surface this person wants (12 Sep 2026, the lead: "too much information to read
+   * … introduce all the information gradually"). Only the non-default is stored, so **an absent
+   * key means Starter** and a document written before this reads exactly as it did. Per person
+   * rather than per browser, unlike `bom-split-view` and the rest, because it is a reading
+   * preference and it should follow whoever is reading.
+   */
+  depth?: Partial<Record<DepthSurface, 'full'>>;
 }
 
 // ---- The film room ----------------------------------------------------------

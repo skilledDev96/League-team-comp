@@ -983,6 +983,11 @@ body {
 }
 
 /* Segmented Starter/Full control replaces the old row of view buttons. */
+/* Starter | Full, on the pages that say it (12 Sep 2026). Pushed to the end of its controls row so
+   it reads as a property of the page rather than as another filter. */
+.detail-toggle { margin-left: auto; }
+.detail-toggle .view-segment button { padding: 0.3rem 0.85rem; font-size: 0.76rem; }
+
 .view-segment {
   display: inline-flex;
   border-radius: 999px;

@@ -1,7 +1,7 @@
 import { effect, inject, Injectable, signal } from '@angular/core';
 import { deleteField, doc, getDoc, setDoc } from 'firebase/firestore';
 import { getDb, isFirebaseConfigured } from '../core/firebase';
-import { FilmProgress, Role, UserPrefs } from '../models/team.models';
+import { DepthSurface, FilmProgress, Role, UserPrefs } from '../models/team.models';
 import { AuthService } from './auth.service';
 
 /**
@@ -116,6 +116,25 @@ export class UserPrefsService {
     await this.commit(next, { film: { films: { [matchId]: fields } } });
   }
 
+  // ---- How much of a surface to draw ------------------------------------
+
+  /**
+   * Starter unless this person has asked for Full. Absent means Starter, so nothing has to be
+   * written for the default and an older document needs no migration.
+   */
+  depthOf(surface: DepthSurface): 'starter' | 'full' {
+    return this.prefs().depth?.[surface] === 'full' ? 'full' : 'starter';
+  }
+
+  async setDepth(surface: DepthSurface, full: boolean): Promise<void> {
+    const depth = { ...(this.prefs().depth ?? {}) };
+    if (full) depth[surface] = 'full';
+    else delete depth[surface];
+    // Back to the default is a delete, not a stored 'starter': the absent key IS the default, and
+    // writing one would be a second way to say the same thing.
+    await this.commit({ ...this.prefs(), depth }, { depth: { [surface]: full ? 'full' : deleteField() } });
+  }
+
   async setFilmSeat(seat: Role): Promise<void> {
     const film = this.prefs().film ?? {};
     const next: UserPrefs = { ...this.prefs(), film: { ...film, seat } };
@@ -137,18 +156,28 @@ export class UserPrefsService {
     }
   }
 
+  /**
+   * The local copy first, then the document over it.
+   *
+   * Both used to land together, after the `await` (12 Sep 2026): `prefs.set` ran once, at the end,
+   * so everything read from here rendered its default for as long as Firestore took to answer and
+   * then flipped. Nobody noticed while this held tours and film progress, which nothing draws on
+   * first paint — a reading depth is drawn immediately, and a stored Full would have shown Starter
+   * and jumped. The local read is synchronous and already correct, so it goes in first and the
+   * document merges over it.
+   */
   private async load(email: string): Promise<void> {
-    let prefs = this.readLocal(email);
+    const local = this.readLocal(email);
+    this.prefs.set(local);
     const db = isFirebaseConfigured() ? getDb() : null;
     if (db) {
       try {
         const snap = await getDoc(doc(db, 'userPrefs', email));
-        if (snap.exists()) prefs = { ...prefs, ...(snap.data() as UserPrefs) };
+        if (snap.exists()) this.prefs.set({ ...local, ...(snap.data() as UserPrefs) });
       } catch {
         // offline or refused: the local copy stands
       }
     }
-    this.prefs.set(prefs);
     this.loaded.set(true);
   }
 

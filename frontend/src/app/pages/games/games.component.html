@@ -8,6 +8,8 @@
   <button class="view-btn" type="button" [class.active]="tab() === 'games'" (click)="tab.set('games')">Games</button>
   <button class="view-btn" type="button" [class.active]="tab() === 'patterns'" (click)="tab.set('patterns')">Patterns</button>
   <button class="view-btn" type="button" [class.active]="tab() === 'reviews'" (click)="tab.set('reviews')">Reviews @if (data.gameReviews().length) { <small>{{ data.gameReviews().length }}</small> }</button>
+  <app-detail-toggle [surface]="tab() === 'patterns' ? 'patterns' : tab() === 'reviews' ? 'reviews' : 'games'"
+                     [starterTip]="detailStarterTip()" [fullTip]="detailFullTip()" />
 </section>
 
 <!-- One thing the last film taught, when its reminder is due; nothing otherwise. -->
@@ -15,8 +17,13 @@
 
 <!-- The Riot data line: who refreshed what, and the button to do it again.
      Small on purpose — it used to be the top third of the Analysis page. -->
+<!-- The Riot data line. The three telemetry sentences — stacked games, the morning log, key
+     health — are things a reader CHECKS rather than acts on, so they wait for Full; the refresh
+     buttons are the page's main editor action and stay at both depths (12 Sep 2026). -->
+@if (full() || auth.editing()) {
 <section class="card games-data" aria-label="Riot match data">
   <div class="games-data-line">
+    @if (full()) {
     @if (data.compAnalysis(); as a) {
       <span class="muted">
         Riot: <b>{{ a.totalTeamGames }}</b> stacked games, updated {{ a.generatedAt | date: 'MMM d, HH:mm' }}
@@ -37,6 +44,7 @@
         <span class="key-health is-bad"><span class="material-symbols-rounded" aria-hidden="true">key_off</span>{{ k.message }}</span>
       }
     }
+    }
     @if (auth.editing()) {
       <span class="games-data-actions">
         <button data-tour="games-refresh" type="button" class="view-btn" [disabled]="refresh.anyRunning()" (click)="refreshAnalysis()">
@@ -54,6 +62,7 @@
   </div>
   @if (analysisError()) { <p class="analysis-error">{{ analysisError() }}</p> }
 </section>
+}
 
 @if (tab() === 'patterns') {
   <app-review />
@@ -111,22 +120,26 @@
     </section>
   }
   <section data-tour="games-filters" class="card games-filters" aria-label="Filters">
+    @if (full()) {
     <div class="view-segment" role="group" aria-label="Source">
       <button type="button" [class.active]="source() === 'all'" (click)="source.set('all')">All</button>
       <button type="button" [class.active]="source() === 'tournament'" (click)="source.set('tournament')">Tournament</button>
       <button type="button" [class.active]="source() === 'scrim'" (click)="source.set('scrim')">Scrims</button>
       <button type="button" [class.active]="source() === 'riot'" (click)="source.set('riot')">Flex &amp; Clash</button>
     </div>
+    }
     <div class="view-segment" role="group" aria-label="Window">
       @for (w of windows; track w.days) {
         <button type="button" [class.active]="days() === w.days" (click)="days.set(w.days)">{{ w.label }}</button>
       }
     </div>
+    @if (full()) {
     <div class="view-segment" role="group" aria-label="Result">
       <button type="button" [class.active]="result() === 'all'" (click)="result.set('all')">All</button>
       <button type="button" [class.active]="result() === 'win'" (click)="result.set('win')">Wins</button>
       <button type="button" [class.active]="result() === 'loss'" (click)="result.set('loss')">Losses</button>
     </div>
+    }
     @if (comp()) {
       <button type="button" class="view-btn active" (click)="clearComp()" appTip="Showing only the games under this comp — click to show every game">
         {{ compName() || 'comp' }} <span class="material-symbols-rounded" aria-hidden="true">close</span>
@@ -134,7 +147,7 @@
     }
     <div class="games-filters-row">
     <app-champion-filter [count]="rows().length" noun="games" placeholder="Games with a champion, either side — Tristana, Rakan…" />
-    @if (opponents().length) {
+    @if (full() && opponents().length) {
       <label class="field games-opponent"><span>Opponent</span>
         <select [ngModel]="opponent()" (ngModelChange)="opponent.set($event)" name="gamesOpponent">
           <option value="">Anyone</option>
@@ -155,6 +168,7 @@
         </span>
         <span class="insight-sub">{{ overall().games }} game{{ overall().games === 1 ? '' : 's' }}@if (length()) { · {{ clock(length()) }} average }</span>
       </div>
+      @if (full()) {
       @for (s of bySource(); track s.source) {
         <button type="button" class="insight-tile is-source" [class.active]="source() === s.source"
                 (click)="source.set(source() === s.source ? 'all' : s.source)">
@@ -173,6 +187,7 @@
         </span>
         <span class="insight-sub">{{ sides().blue.games }} blue, {{ sides().red.games }} red</span>
       </div>
+      }
       <div class="insight-tile insight-form">
         <span class="insight-label">Form, newest first</span>
         <span class="form-strip">
@@ -188,6 +203,7 @@
   <!-- Who is carrying, over whatever is filtered. Tournament games add nothing
        here: they have no numbers. -->
   @if (players().length) {
+  @if (full()) {
     <section class="card games-players" aria-label="Player lines">
       <div class="section-head">
         <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>Players</h2>
@@ -267,15 +283,18 @@
       }
     </section>
   }
+  }
 
   <!-- The games themselves. Same row as the opponent history, because it is
        the same question: who played what, and how did it go. -->
   <section class="card" aria-label="Games">
     <div class="section-head games-list-head">
       <p class="title-with-icon games-list-title"><span class="section-icon material-symbols-rounded">sports_esports</span>Game list <small class="muted">{{ rows().length }}</small></p>
-      <button type="button" class="view-btn games-fold" data-tour="games-list-fold" (click)="listOpen.set(!listOpen())" [attr.aria-expanded]="listOpen()">
-        <span class="material-symbols-rounded" aria-hidden="true">{{ listOpen() ? 'expand_less' : 'expand_more' }}</span>{{ listOpen() ? 'Hide' : 'Show' }}
-      </button>
+      @if (full()) {
+        <button type="button" class="view-btn games-fold" data-tour="games-list-fold" (click)="listOpen.set(!listOpen())" [attr.aria-expanded]="listOpen()">
+          <span class="material-symbols-rounded" aria-hidden="true">{{ listOpen() ? 'expand_less' : 'expand_more' }}</span>{{ listOpen() ? 'Hide' : 'Show' }}
+        </button>
+      }
     </div>
     @if (listRows().length && listOpen()) {
       <div class="opp-history-games games-list">
