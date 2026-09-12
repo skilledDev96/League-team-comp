@@ -98,14 +98,19 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, the row\'s
 
   /**
    * The game list is open from the start (12 Sep 2026) — it used to be folded, and pressing that
-   * fold was this helper's first act. The fold button itself is Full's now, so the helper opens the
-   * page and the rows are simply there.
+   * fold was this helper's first act. The fold button itself is Full's now.
+   *
+   * These tests ask for Full, because the MVP chip is one of the marks that waits for it: it is a
+   * verdict on a game already played, and at Starter it was on nearly every row at once.
    */
   async function open(): Promise<{ harness: RouterTestingHarness; root: HTMLElement }> {
     const harness = await RouterTestingHarness.create();
     await harness.navigateByUrl('/games', GamesComponent);
     harness.detectChanges();
-    return { harness, root: harness.routeNativeElement as HTMLElement };
+    const root = harness.routeNativeElement as HTMLElement;
+    [...root.querySelectorAll<HTMLButtonElement>('app-detail-toggle button')].find((b) => b.textContent?.trim() === 'Full')!.click();
+    harness.detectChanges();
+    return { harness, root };
   }
 
   function tipOf(harness: RouterTestingHarness, selector: string): string {

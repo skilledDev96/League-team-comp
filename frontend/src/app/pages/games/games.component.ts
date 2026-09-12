@@ -184,6 +184,16 @@ export class GamesComponent {
     return this.prefs.depthOf(tab === 'patterns' ? 'patterns' : tab === 'reviews' ? 'reviews' : 'games') === 'full';
   });
 
+  /**
+   * Graphs, unless someone at Full has asked for the table (12 Sep 2026).
+   *
+   * The ten-column scoreboard is a hundred cells and about 115 figures — on its own it is most of
+   * what an open row weighs. `app-game-graphs` says the same game in ten bars. Starter draws the
+   * bars and does not offer the switch; Full offers both and the stored choice wins, because which
+   * of the two you want is a per-browser rendering taste, not a reading depth.
+   */
+  protected readonly showGraphs = computed(() => !this.full() || this.scoreboardView() === 'graphs');
+
   protected detailStarterTip(): string {
     const tab = this.tab();
     if (tab === 'patterns') return 'The conclusion: what to work on and what to keep doing';

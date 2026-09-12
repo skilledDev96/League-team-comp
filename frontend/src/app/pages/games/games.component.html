@@ -304,11 +304,11 @@
               <span class="opp-history-result">{{ g.win ? 'W' : 'L' }}</span>
               <span class="opp-history-when">{{ day(g.date) }}</span>
               <span class="games-source" [class]="'games-source is-' + g.source">{{ g.label }}</span>
-              @if (data.isPractice(g.matchId)) { <span class="games-practice" appTip="Tagged as messing around: Patterns leaves it out">practice</span> }
+              @if (full() && data.isPractice(g.matchId)) { <span class="games-practice" appTip="Tagged as messing around: Patterns leaves it out">practice</span> }
               @if (isPinned(g)) { <span class="games-pinned" appTip="Older than the window above, and here because you followed a link to it. The record and the form strip still count the window only.">from a link</span> }
               @if (g.opponent) { <span class="games-opp">vs {{ g.opponent }}</span> }
-              @if (g.side) { <span class="opp-history-side" [class.is-blue]="g.side === 'blue'">{{ g.side }}</span> }
-              @if (g.rosterCount !== undefined && g.rosterCount < 5) {
+              @if (full() && g.side) { <span class="opp-history-side" [class.is-blue]="g.side === 'blue'">{{ g.side }}</span> }
+              @if (full() && g.rosterCount !== undefined && g.rosterCount < 5) {
                 <span class="opp-history-count" [appTip]="g.rosterCount + ' of the roster on our side'">{{ g.rosterCount }}/5</span>
               }
               <span class="opp-history-lineup">
@@ -317,12 +317,14 @@
                        [appTip]="(p.player || (g.source === 'tournament' ? 'us' : 'not on the roster')) + ' — ' + p.champion + (p.role ? ' (' + p.role + ')' : '')" />
                 }
               </span>
-              <span class="opp-history-vs">vs</span>
-              <span class="opp-history-lineup is-enemy">
-                @for (p of g.theirs; track p.role + p.champion) {
-                  <img [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" loading="lazy" [appTip]="p.champion + (p.role ? ' (' + p.role + ')' : '')" />
-                }
-              </span>
+              @if (full()) {
+                <span class="opp-history-vs">vs</span>
+                <span class="opp-history-lineup is-enemy">
+                  @for (p of g.theirs; track p.role + p.champion) {
+                    <img [src]="ui.championIconUrl(p.champion)" [alt]="p.champion" loading="lazy" [appTip]="p.champion + (p.role ? ' (' + p.role + ')' : '')" />
+                  }
+                </span>
+              }
               @if (g.kills) { <span class="games-kills" [appTip]="'Kills, ours first'">{{ g.kills.ours }}&ndash;{{ g.kills.theirs }}</span> }
               @if (g.durationSec) { <span class="opp-history-when">{{ clock(g.durationSec) }}</span> }
               <!-- A review exists (a signal read: the chip goes when the review does); Watched once this person reached the film's card.
@@ -336,21 +338,28 @@
               }
               <!-- Who carried it (11 Sep 2026): the row's own figures, whichever source they came from, with the terms behind it in the
                    tooltip so nobody has to trust a mark. A tournament game typed in by hand carries no figures and so carries no chip. -->
-              @if (mvp(g); as m) {
+              @if (full() && mvp(g); as m) {
                 <app-mvp-chip kind="mvp" [champion]="m.champion" [name]="m.name ?? ''" [seat]="m.seat" [terms]="m.why" [compact]="true" />
               }
               <!-- The recorder walked this game's replay in the League client and kept frames of it (10 Sep 2026). The service only
                    knows about a game whose row has been opened, so this is a mark the row keeps once looked at: asking for every row
                    in the list would be a Firestore read a row, and the list starts folded on purpose. -->
-              @if (recorded(g.matchId)) {
+              @if (full() && recorded(g.matchId)) {
                 <span class="games-row-recorded" appTip="Recorded off the replay: the frames and the recorder's own account of the game are in the row">
                   <span class="material-symbols-rounded" aria-hidden="true">photo_camera</span><span class="games-row-recorded-word">Recorded</span>
                 </span>
               }
-              @if (g.compName) { <span class="games-comp" [appTip]="'Counted under this comp'">{{ g.compName }}</span> }
+              @if (full() && g.compName) { <span class="games-comp" [appTip]="'Counted under this comp'">{{ g.compName }}</span> }
               <span class="opp-history-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
             </summary>
             <div class="opp-history-detail">
+              <!-- The review first (12 Sep 2026). It used to be fifth, under the objectives, the
+                   scoreboard, the note and the editor's row — the thing the whole app builds toward,
+                   below the fold of a drawer inside a row. One door to the film is still the
+                   poster's pill inside it. -->
+              @if (g.matchId && data.reviewFor(g.matchId)) {
+                <app-game-review [review]="data.reviewFor(g.matchId)" [game]="analysisOf(g)" [opponent]="g.opponent" [open]="g.id === focus()" />
+              }
               @if (g.objectives; as o) {
                 <div class="opp-history-line" aria-label="Objectives, ours first">
                   <span><small>Dragons</small><b>{{ o.ours.dragons }}</b>&ndash;{{ o.theirs.dragons }}</span>
@@ -367,7 +376,7 @@
                    "Check the numbers" drawer carried that lives nowhere else on this row; the drawer itself
                    was the scoreboard above it printed a second time, and it is still on the Patterns tab. -->
               <div class="games-scoreboard-head">
-                @if (g.ours[0]?.stats) {
+                @if (full() && g.ours[0]?.stats) {
                   <div class="view-segment scoreboard-view" role="group" aria-label="Scoreboard as">
                     <button type="button" [class.active]="scoreboardView() === 'table'" (click)="setScoreboardView('table')">Table</button>
                     <button type="button" [class.active]="scoreboardView() === 'graphs'" (click)="setScoreboardView('graphs')">Graphs</button>
@@ -388,7 +397,7 @@
                 </div>
               </div>
               @if (g.ours[0]?.stats) {
-                @if (scoreboardView() === 'graphs') {
+                @if (showGraphs()) {
                   <app-game-graphs [ours]="g.ours" [theirs]="g.theirs" [source]="g.source" />
                 } @else {
                 <div class="games-scroll">
@@ -485,8 +494,6 @@
                     </label>
                   }
                 </div>
-                <!-- One door to the film (10 Sep 2026): the poster's pill inside the review panel; the "Watched | Film room" line under it went, and the collapsed row's chip says Reviewed or Watched. -->
-                <app-game-review [review]="data.reviewFor(g.matchId)" [game]="analysisOf(g)" [opponent]="g.opponent" [open]="g.id === focus()" />
                 <app-game-story data-tour="games-story" [game]="analysisOf(g)" [expect]="expectFor(g)" />
               }
             </div>
