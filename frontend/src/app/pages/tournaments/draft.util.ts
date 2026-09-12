@@ -15,27 +15,6 @@ export function normalizeChampion(name: string): string {
   return (name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-/**
- * Whether a champion answers what somebody typed into the draft board's search (12 Sep 2026): the
- * start of its name, or the same champion under Riot's id — people type Wukong, games carry
- * MonkeyKing. `keyOf` resolves a name to that id; the page passes the champion index's.
- */
-export function championFinds(champion: string, query: string, keyOf: (name: string) => string): boolean {
-  const q = normalizeChampion(query);
-  if (!q || !champion) return false;
-  return normalizeChampion(champion).startsWith(q) || keyOf(champion).startsWith(q) || keyOf(champion) === keyOf(query);
-}
-
-/**
- * Whether a comp answers the search: its name anywhere, or any of its five champions. An empty
- * search finds everything, so the board reads exactly as it did before anybody typed.
- */
-export function compFinds(name: string, champions: readonly string[], query: string, keyOf: (name: string) => string): boolean {
-  const q = normalizeChampion(query);
-  if (!q) return true;
-  return normalizeChampion(name).includes(q) || champions.some((c) => championFinds(c, query, keyOf));
-}
-
 /** One set, normalised, from however many lists of champions. */
 export function blockedSet(...groups: (readonly string[] | undefined)[]): Set<string> {
   const blocked = new Set<string>();

@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, computed, effect, inject, signal, untracked, viewChild, ElementRef } from '@angular/core';
+import { Component, DestroyRef, OnInit, afterRenderEffect, computed, effect, inject, signal, untracked, viewChild, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChampionTraits, OpponentPlayer, Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
@@ -11,10 +11,8 @@ import { ChampionPickerComponent } from '../../../shared/champion-picker.compone
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import {
   blockedSet,
-  championFinds,
   CompAvailability,
   compAvailability,
-  compFinds,
   normalizeChampion,
   PoolPressure,
   poolPressure
@@ -51,7 +49,7 @@ import {
 } from '../draft-advice';
 import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
 import { comfortOf, gamePlan, GamePlan, LaneRead, LaneVerdict, readLanes, SeatInput } from '../lane-read';
-import { bandOf, countersFor, poolFor, starters } from '../../../core/opponent-view';
+import { countersFor, poolFor, starters } from '../../../core/opponent-view';
 import { playsRole } from '../../../core/champion-lanes';
 import { MAP_SPOTS } from '../../../core/rift-zones';
 import { DraftAdvisorService } from '../../../services/draft-advisor.service';
@@ -395,37 +393,6 @@ export class TournamentDraftComponent implements OnInit {
     this.pickedGameId.set(added?.id ?? '');
   }
 
-  // ---- The comp finder (12 Sep 2026) ------------------------------------------------
-  //
-  // The lead: "can't see which comps have a champion", "the board is too far down the page", "too
-  // many comps to scan". Each comp now wears its five faces, a search narrows by name or champion,
-  // the broken column starts folded, and the board sits straight under the wall in a box whose
-  // height never follows what it shows.
-
-  /** What somebody typed: part of a champion, or of a comp's name. */
-  protected readonly compQuery = signal('');
-  /** Broken comps start folded — by definition they are the ones we cannot play. */
-  protected readonly brokenOpen = signal(false);
-  /** A search opens the fold: a comp with the champion that is broken is still an answer. */
-  protected readonly brokenShown = computed(() => this.brokenOpen() || !!normalizeChampion(this.compQuery()));
-
-  private readonly keyOf = (name: string): string => normalizeChampion(this.champs.resolveId(name) ?? name);
-
-  protected found(rows: CompAvailability[]): CompAvailability[] {
-    const query = this.compQuery();
-    if (!normalizeChampion(query)) return rows;
-    return rows.filter((row) => compFinds(row.name, this.compLineup(row.id).map((l) => l.champion), query, this.keyOf));
-  }
-
-  protected isFound(champion: string): boolean {
-    return championFinds(champion, this.compQuery(), this.keyOf);
-  }
-
-  /** A comp's record on the app's one rate scale, not a hand-coded 50. */
-  protected compBand(row: CompAvailability): string {
-    return bandOf(row.winRate);
-  }
-
   /** Comps and pools open on click, so the detail is there when it is wanted. */
   private readonly openComps = signal<ReadonlySet<string>>(new Set());
   private readonly openPools = signal<ReadonlySet<string>>(new Set());
@@ -454,6 +421,78 @@ export class TournamentDraftComponent implements OnInit {
       next.add(key);
     }
     return next;
+  }
+
+  // ---- The comps board, as a popup (12 Sep 2026) -------------------------------------
+  //
+  // The lead: "remove the comps from the actual draft for now, make it a popup if need be … then we
+  // can have a fixed view and keep it focused on what needs focusing." The board was the last rows of
+  // the stage, under the wall, the advice, the lane read and the bans. It is the same board in a
+  // native <dialog> now, opened from a pill in the head.
+
+  protected readonly compsShown = signal(false);
+  private readonly compsDialog = viewChild<ElementRef<HTMLDialogElement>>('compsDialog');
+
+  /** Into the top layer as soon as it is on the page. jsdom has no showModal, and is left alone. */
+  private readonly openCompsDialog = afterRenderEffect(() => {
+    const dialog = this.compsDialog()?.nativeElement;
+    if (!dialog || dialog.open) return;
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+  });
+
+  /** A game removed while the board is open must not leave it armed for the next one. */
+  private readonly closeCompsWithoutGame = effect(() => {
+    if (!this.draftGame()) untracked(() => this.compsShown.set(false));
+  });
+
+  protected showComps(): void {
+    this.compsShown.set(true);
+  }
+
+  protected hideComps(): void {
+    const dialog = this.compsDialog()?.nativeElement;
+    if (dialog?.open && typeof dialog.close === 'function') dialog.close();
+    this.compsShown.set(false);
+  }
+
+  /** Escape: closed through the signal, or the browser shuts the dialog behind its back. */
+  protected onCompsCancel(event: Event): void {
+    event.preventDefault();
+    this.hideComps();
+  }
+
+  /** A click on the backdrop lands on the dialog itself; a click inside the card never does. */
+  protected onCompsBackdrop(event: MouseEvent): void {
+    if (event.target === event.currentTarget) this.hideComps();
+  }
+
+  /**
+   * A champion picked from a comp. While the sequence runs it is held, exactly as a click on the wall
+   * holds it — the sequence decides the seat and the drafter confirms in the room — and the popup
+   * closes so the confirm slot is in view. The board always wrote a pick straight into a seat, which
+   * mid-sequence puts a pick on the board without moving the step: the free-form edit that must
+   * stand down while a sequence runs. With no sequence running it picks as it always did.
+   */
+  protected pickFromComps(game: SeriesGame, champion: string, role?: Role): void {
+    if (this.sequenceActive(game)) {
+      this.proposeFromSequence(champion);
+      this.hideComps();
+      return;
+    }
+    this.togglePick(game, champion, role);
+  }
+
+  /** Mid-sequence a champion on the board, or one this step cannot take, cannot be held. */
+  protected compsPickBlocked(game: SeriesGame, champion: string, role?: Role): boolean {
+    if (!this.sequenceActive(game)) return this.pickBlocked(game, champion, role);
+    const key = normalizeChampion(champion);
+    return this.isPicked(game, champion) || this.sequenceUnavailable(game).some((c) => normalizeChampion(c) === key);
+  }
+
+  protected compsPickHint(game: SeriesGame, champion: string, role?: Role): string {
+    if (!this.sequenceActive(game)) return this.pickHint(game, champion, role);
+    if (this.compsPickBlocked(game, champion, role)) return champion + ' cannot be taken on this step';
+    return 'Hold ' + champion + ', then confirm it in the room';
   }
 
   /** A comp's picks by role, for the expanded row. */

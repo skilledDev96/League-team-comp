@@ -320,8 +320,8 @@ export const TOURS: readonly Tour[] = [
       { anchor: 'draft-games', title: 'Which game', text: 'Picks which game of the series the room is showing.', more: 'Everyone on the link sees the same game.' },
       { anchor: 'draft-step-bar', title: 'Whose turn', text: 'Ban or pick, and whose, across the draft’s twenty steps.', more: 'The order is fixed by which side we are on. The clock here is a reminder: the real one is in the client.' },
       { anchor: 'draft-wall', title: 'What is left', text: 'Every champion, greyed out if taken, banned or burned this series.' },
-      { anchor: 'draft-board', title: 'Find a comp', text: 'Type a champion to see which of our comps have it.', more: 'Playable comps first. Broken ones stay folded unless a search finds one; a ban or a pick is what breaks a comp.' },
-      { anchor: 'draft-lanes', title: 'How the lanes read', text: 'Our picks against theirs, seat by seat.', more: 'A lane only reads once both picks are on the board.' }
+      { anchor: 'draft-lanes', title: 'How the lanes read', text: 'Our picks against theirs, seat by seat.', more: 'A lane only reads once both picks are on the board.' },
+      { anchor: 'draft-board', title: 'Which comps survive', text: 'Comps opens our comps: still playable, broken, and whose pool is thinning.', more: 'A ban or a pick is what breaks one. Escape closes it.' }
     ]
   },
   {
@@ -337,7 +337,7 @@ export const TOURS: readonly Tour[] = [
       { anchor: 'draft-side', title: 'Our side', text: 'Blue bans and picks first, so set our side before anything else.', more: 'Everything after depends on it: whose turn it is, which seat a pick lands in, who banned what.', editMode: true },
       { anchor: 'draft-step-bar', title: 'Whose turn', text: 'Shows whether it is a ban or a pick, and whose.', more: 'The clock here is a reminder only. The real one runs in the client.', editMode: true },
       { anchor: 'draft-wall', title: 'Hold, then confirm', text: 'Click a champion to hold it, then confirm to lock it in.', more: 'Holding shows the seat the pick would land in. Confirming locks it and moves the draft on.', editMode: true },
-      { anchor: 'draft-board', title: 'Find a comp', text: 'Type a champion to see which of our comps have it.', more: 'Playable comps first, each with its five. Open one to pick straight from it.', editMode: true },
+      { anchor: 'draft-board', title: 'Our comps', text: 'Comps opens which of our comps still work on this board.', more: 'Mid-draft, a champion clicked there is held like one clicked on the wall.', editMode: true },
       { anchor: 'draft-target-bans', title: 'Target bans', text: 'Target bans from scouting the opponent, shown on our ban steps.', more: 'One click holds one.', editMode: true },
       { anchor: 'draft-undo', title: 'Undo and Reset', text: 'Undo steps back one and Reset clears the whole game.', more: 'Both ask first: Undo before it removes a pick, Reset before it clears the game.', editMode: true },
       { anchor: 'draft-advisor', title: 'Ask what to pick', text: 'One model call, a few cents, for a pick suggestion.', more: 'The answer is saved on the game for everyone on the link, and it leads with your team plan while that is still legal.', editMode: true },

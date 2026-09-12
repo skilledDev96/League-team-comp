@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockedSet, championFinds, compAvailability, CompChampions, compFinds, poolPressure } from './draft.util';
+import { blockedSet, compAvailability, CompChampions, poolPressure } from './draft.util';
 
 const COMPS: CompChampions[] = [
   { id: 'engage', name: 'Engage', champions: ['Maokai', 'Vi', 'Yasuo', 'Miss Fortune', 'Nautilus'] },
@@ -123,41 +123,5 @@ describe('poolPressure', () => {
     const rows = poolPressure([{ name: 'Solo', pool: ['Ahri'] }], blockedSet(['Ahri']));
     expect(rows[0].left).toEqual([]);
     expect(rows[0].critical).toBe(true);
-  });
-});
-
-/**
- * The draft board's search (12 Sep 2026, the lead: "can't see which comps have a champion").
- * Mid-draft nobody types a whole name, and nobody types Riot's id for Wukong.
- */
-describe('compFinds', () => {
-  // Riot's id for the one champion whose display name and id share nothing.
-  const keyOf = (name: string) => (/^wukong$/i.test(name) ? 'monkeyking' : name.toLowerCase().replace(/[^a-z0-9]/g, ''));
-  const engage = ['Maokai', 'Vi', 'Galio', 'Miss Fortune', 'Leona'];
-
-  it('finds everything when nothing is typed', () => {
-    expect(compFinds('Engage', engage, '', keyOf)).toBe(true);
-    expect(compFinds('Engage', engage, '   ', keyOf)).toBe(true);
-  });
-
-  it('finds a comp by the start of any champion in it, however it is punctuated', () => {
-    expect(compFinds('Engage', engage, 'mao', keyOf)).toBe(true);
-    expect(compFinds('Engage', engage, 'missf', keyOf)).toBe(true);
-    expect(compFinds('Engage', engage, 'Miss F', keyOf)).toBe(true);
-    expect(compFinds('Engage', engage, 'ahri', keyOf)).toBe(false);
-  });
-
-  it('does not find a champion by the middle of its name, which mid-draft is noise', () => {
-    // "on" would light up Leona, Galio and half the roster.
-    expect(championFinds('Leona', 'on', keyOf)).toBe(false);
-  });
-
-  it('finds a comp by its name anywhere in it', () => {
-    expect(compFinds('Front to back', ['Ornn'], 'back', keyOf)).toBe(true);
-  });
-
-  it('finds Wukong whichever way either side spells him', () => {
-    expect(compFinds('Dive', ['MonkeyKing'], 'Wukong', keyOf)).toBe(true);
-    expect(compFinds('Dive', ['Wukong'], 'wuk', keyOf)).toBe(true);
   });
 });

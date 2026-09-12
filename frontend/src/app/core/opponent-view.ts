@@ -200,12 +200,8 @@ export function rateOf(r: ChampionRecord): number | null {
 
 /** Colour band for a champion win rate, matching the draft panel. */
 export function rateBand(r: ChampionRecord): string {
-  return bandOf(rateOf(r));
-}
-
-/** The same bands for a rate that arrives already rounded, like a comp's record on the draft board. */
-export function bandOf(rate: number | null | undefined): string {
-  if (rate === null || rate === undefined) return '';
+  const rate = rateOf(r);
+  if (rate === null) return '';
   if (rate >= 65) return 'is-good';
   if (rate > 50) return 'is-ok';
   if (rate === 50) return 'is-even';
