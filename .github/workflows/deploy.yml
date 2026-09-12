@@ -29,6 +29,14 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v7
+        with:
+          # gen-build-info stamps API_SHA from `git log -1 -- api`, the last commit that
+          # touched the functions, so a frontend-only deploy never reads as a backend
+          # behind. A shallow clone has one commit with no parent, and git treats EVERY
+          # path as changed in it — so that command returned HEAD and every build stamped
+          # its own SHA as the api one. The Admin page's drift warning then fired after
+          # every frontend-only deploy, which is how a warning stops being read.
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 24
