@@ -1,4 +1,4 @@
-import { Role, ROLES, Scrim } from '../models/team.models';
+import { Role, ROLES, Scrim, SeriesGame } from '../models/team.models';
 
 /**
  * Who carried a game, and who carried a series (11 Sep 2026, queue items 5
@@ -331,4 +331,39 @@ export function mvpGameFromScrim(scrim: Scrim, ourSide?: 'blue' | 'red'): MvpGam
     players: ours.map((p) => ({ name: p.name, position: p.position, champion: p.champion, kills: p.kills, deaths: p.deaths, assists: p.assists, damage: p.damage })),
     kills: { ours: ours.reduce((n, p) => n + p.kills, 0), theirs: scrim.players.filter((p) => p.team !== team).reduce((n, p) => n + p.kills, 0) }
   };
+}
+
+/**
+ * The figures behind one game of a series, whichever source has them: Riot's analysis when the match
+ * reached it, otherwise the imported replay with the game's own side. Nothing when no `.rofl` has been
+ * dropped on the game yet, which for a tournament custom is the normal state until somebody imports it.
+ * Moved from Prep & Draft on 13 Sep 2026 so the home page crowns exactly the person Prep does.
+ */
+export function mvpGameOfSeriesGame(
+  game: Pick<SeriesGame, 'matchId' | 'ourSide'>,
+  analysisById: ReadonlyMap<string, MvpGame>,
+  scrimById: ReadonlyMap<string, Scrim>
+): MvpGame | null {
+  if (!game.matchId) return null;
+  const riot = analysisById.get(game.matchId);
+  if (riot) return riot;
+  const scrim = scrimById.get(game.matchId);
+  return scrim ? mvpGameFromScrim(scrim, game.ourSide) : null;
+}
+
+/**
+ * Who carried a series, from its games: each labelled "Game N", and the series' own length passed in
+ * so the mark can say "1 of 3" rather than quietly averaging one game and calling it the series.
+ */
+export function seriesMvpOfGames(
+  games: readonly Pick<SeriesGame, 'matchId' | 'ourSide' | 'gameNumber'>[],
+  analysisById: ReadonlyMap<string, MvpGame>,
+  scrimById: ReadonlyMap<string, Scrim>
+): SeriesMvp | null {
+  const read: SeriesMvpGame[] = [];
+  for (const g of games) {
+    const game = mvpGameOfSeriesGame(g, analysisById, scrimById);
+    if (game) read.push({ label: `Game ${g.gameNumber}`, game });
+  }
+  return seriesMvpOf(read, games.length);
 }

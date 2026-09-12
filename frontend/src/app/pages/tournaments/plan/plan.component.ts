@@ -53,7 +53,7 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { OpponentScoutService } from '../../../services/opponent-scout.service';
 import { playedElsewhere, SeatChange, seatOffer, withSeats } from '../../../core/opponent-roles';
 import { TournamentContextService } from '../tournament-context.service';
-import { GameMvp, MvpGame, mvpGameFromScrim, mvpOf, SeriesMvp, SeriesMvpGame, seriesMvpOf } from '../../../core/game-mvp';
+import { GameMvp, MvpGame, mvpGameOfSeriesGame, mvpOf, SeriesMvp, seriesMvpOfGames } from '../../../core/game-mvp';
 import { MvpChipComponent } from '../../../shared/mvp-chip.component';
 import { UserPrefsService } from '../../../services/user-prefs.service';
 
@@ -139,11 +139,7 @@ export class TournamentPlanComponent {
    * the game yet, which for a tournament custom is the normal state until somebody imports it.
    */
   private mvpGameOf(game: SeriesGame): MvpGame | null {
-    if (!game.matchId) return null;
-    const riot = this.analysisById().get(game.matchId);
-    if (riot) return riot;
-    const scrim = this.scrimById().get(game.matchId);
-    return scrim ? mvpGameFromScrim(scrim, game.ourSide) : null;
+    return mvpGameOfSeriesGame(game, this.analysisById(), this.scrimById());
   }
 
   /** Who carried one game of a series — the same mark the Games row draws, on the game it is about. */
@@ -176,15 +172,9 @@ export class TournamentPlanComponent {
   private readonly seriesMvps = computed(() => {
     const map = new Map<string, SeriesMvp | null>();
     for (const series of this.seriesList()) {
-      const all = this.gamesFor(series.id);
-      const games: SeriesMvpGame[] = [];
-      for (const g of all) {
-        const game = this.mvpGameOf(g);
-        if (game) games.push({ label: `Game ${g.gameNumber}`, game });
-      }
       // The series' own length goes in, so the mark can say "1 of 3" rather than quietly
-      // averaging one game and calling it the series (12 Sep 2026).
-      map.set(series.id, seriesMvpOf(games, all.length));
+      // averaging one game and calling it the series (12 Sep 2026). core/game-mvp.ts, shared with Home.
+      map.set(series.id, seriesMvpOfGames(this.gamesFor(series.id), this.analysisById(), this.scrimById()));
     }
     return map;
   });

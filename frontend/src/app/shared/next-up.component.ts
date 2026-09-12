@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { advance, dueReminders, reminderFor } from '../core/film-progress';
 import { isFirebaseConfigured } from '../core/firebase';
 import { NextUpCard, NextUpGame, NextUpLine, nextUp } from '../core/next-up';
-import { nextSeriesId } from '../pages/tournaments/series-order';
+import { nextOpenSeries } from '../core/series-results';
 import { seedOf } from '../core/seed';
 import { GameReview } from '../models/team.models';
 import { AuthService } from '../services/auth.service';
@@ -154,17 +154,9 @@ export class NextUpComponent {
    * whichever was prepped last and means nothing.
    */
   private readonly nextSeries = computed(() => {
-    const scrims = new Set(this.data.tournaments().filter((t) => t.kind === 'scrims').map((t) => t.id));
-    const list = this.data.tournamentSeries().filter((s) => !scrims.has(s.tournamentId));
-    if (!list.length) return null;
-    const id = nextSeriesId(list, (seriesId) => {
-      const score = this.ctx.seriesScore(seriesId);
-      return score.wins + score.losses > 0;
-    });
-    const series = list.find((s) => s.id === id);
-    // Only the one still ahead: a finished bracket has nothing to draft.
-    if (!series || this.ctx.seriesScore(series.id).wins + this.ctx.seriesScore(series.id).losses > 0) return null;
-    return { id: series.id, opponent: series.opponent, when: whenOf(series.scheduledAt) };
+    // Only the one still ahead: a finished bracket has nothing to draft. core/series-results.ts, shared with Home.
+    const series = nextOpenSeries({ tournaments: this.data.tournaments(), series: this.data.tournamentSeries(), seriesGames: this.data.seriesGames() });
+    return series ? { id: series.id, opponent: series.opponent, when: whenOf(series.scheduledAt) } : null;
   });
 
   protected readonly card = computed<NextUpCard | null>(() =>

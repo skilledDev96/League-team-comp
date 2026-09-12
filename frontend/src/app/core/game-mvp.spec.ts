@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Scrim } from '../models/team.models';
-import { GameMvp, MvpGame, MvpPlayer, mvpGameFromScrim, mvpOf, mvpSeatOf, SeriesMvp, seriesMvpOf } from './game-mvp';
+import { GameMvp, MvpGame, MvpPlayer, mvpGameFromScrim, mvpGameOfSeriesGame, mvpOf, mvpSeatOf, SeriesMvp, seriesMvpOf, seriesMvpOfGames } from './game-mvp';
 
 /** A seat's line, Riot's way round: everything the analysis carries. */
 const riot = (position: string, champion: string, name: string, kills: number, deaths: number, assists: number, damage: number, killParticipation: number): MvpPlayer => ({
@@ -250,5 +250,33 @@ describe('mvpGameFromScrim', () => {
 
   it('guesses nothing when nobody has said which side we were', () => {
     expect(mvpGameFromScrim(scrim())).toBeNull();
+  });
+});
+
+/** Moved from Prep & Draft on 13 Sep 2026 so Home crowns exactly the person Prep does. */
+describe('reading a series game', () => {
+  const riotGame: MvpGame = { players: [riot('BOTTOM', 'Jinx', 'Ours', 9, 1, 4, 20_000, 0.7)], kills: { ours: 20, theirs: 8 } };
+  const replay = {
+    id: 'r1', playedOn: '2026-09-01T18:00:00.000Z', durationSec: 1500, blueWon: true, order: 0,
+    players: [
+      { name: 'Ours', tag: 'X', champion: 'Leona', team: 100, win: true, position: 'UTILITY', kills: 1, deaths: 2, assists: 14, gold: 8000, damage: 6000, damageToBuildings: 0, damageTaken: 20000, visionScore: 60, cs: 30 },
+      { name: 'Theirs', tag: 'Y', champion: 'Ahri', team: 200, win: false, position: 'MIDDLE', kills: 3, deaths: 4, assists: 1, gold: 9000, damage: 12000, damageToBuildings: 0, damageTaken: 9000, visionScore: 10, cs: 200 }
+    ]
+  } as unknown as Scrim;
+
+  it('prefers the Riot game, falls back to the replay on the side the game recorded, and reads nothing without a side', () => {
+    const analysis = new Map([['m1', riotGame]]);
+    const scrims = new Map([['r1', replay]]);
+    expect(mvpGameOfSeriesGame({ matchId: 'm1' }, analysis, scrims)).toBe(riotGame);
+    expect(mvpGameOfSeriesGame({ matchId: 'r1', ourSide: 'blue' }, analysis, scrims)?.players.map((p) => p.champion)).toEqual(['Leona']);
+    expect(mvpGameOfSeriesGame({ matchId: 'r1' }, analysis, scrims)).toBeNull();
+    expect(mvpGameOfSeriesGame({}, analysis, scrims)).toBeNull();
+  });
+
+  it('labels each game and passes the series length, so the mark knows it read 1 of 2', () => {
+    const mvp = seriesMvpOfGames([{ gameNumber: 1, matchId: 'm1' }, { gameNumber: 2 }], new Map([['m1', riotGame]]), new Map())!;
+    expect(mvp.read).toBe(1);
+    expect(mvp.of).toBe(2);
+    expect(mvp.why[0]).toMatch(/^Game 1 on Jinx/);
   });
 });
