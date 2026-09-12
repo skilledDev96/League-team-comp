@@ -16716,44 +16716,11 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
   .byp-actions .view-btn { min-height: 2.75rem; }
 }
 
-/* ---- The replay recorder's frames on a game row, 10 Sep 2026 ---- */
-/* A tournament or scrim game is invisible to Riot's API, so the local recorder walks the replay in the League client and keeps a real
-   picture of our own game at each death and each objective. The strip is those pictures as thumbnails — one Firestore document each, a
-   few hundred kilobytes, so one is read when it scrolls into view or is tapped and never twenty at once — and the lightbox under it is
-   the picture large, inside the drawer, with pills to step and to close. The chip on the row's face is the mark a row keeps once it has
-   been opened: asking for every row would be a read a row on a list that starts folded. */
-.replay-frames-host { display: contents; }
-/* The strip scrolls inside itself, but a grid child defaults to min-width: auto, so it sized to its
-   nine-rem thumbnails and pushed the whole games row to 609px inside a 390px phone — the page then
-   scrolled sideways. The track has to be allowed to shrink for the child's own overflow to work. */
-.replay-frames { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; margin: 0.6rem 0 0.2rem; min-width: 0; }
-.rf-note { margin: 0; font-size: 0.8rem; }
-.rf-strip { display: flex; min-width: 0; gap: 0.6rem; overflow-x: auto; padding-bottom: 0.35rem; scroll-snap-type: x proximity; }
-.rf-shot { flex: none; width: 9rem; display: grid; gap: 0.2rem; padding: 0.3rem; border: 1px solid var(--card-border); border-radius: 10px; background: var(--surface-controls); color: var(--text-1); text-align: left; cursor: pointer; scroll-snap-align: start; }
-.rf-shot:hover, .rf-shot:focus-visible { border-color: var(--accent); color: var(--text-0); }
-.rf-shot.is-open { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
-.rf-thumb { display: grid; place-items: center; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; border-radius: 6px; background: color-mix(in srgb, var(--bg-0) 70%, transparent); }
-.rf-thumb .material-symbols-rounded { font-size: 1.5rem; color: var(--text-1); }
-.rf-thumb-img { width: 100%; height: 100%; object-fit: cover; }
-.rf-when { font-family: "Chakra Petch", sans-serif; font-size: 0.78rem; font-variant-numeric: tabular-nums; color: var(--accent-2); }
-.rf-label { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 0.75rem; line-height: 1.25; color: var(--text-1); }
-.rf-light { display: grid; gap: 0.6rem; padding: 0.75rem; border: 1px solid var(--card-border); border-radius: 12px; background: color-mix(in srgb, var(--bg-0) 88%, transparent); }
-.rf-light:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.rf-light-frame { display: grid; place-items: center; min-height: 6rem; }
-.rf-light-img { max-width: 100%; max-height: min(70vh, 34rem); object-fit: contain; border-radius: 8px; }
-.rf-light-missing { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; }
-.rf-light-label { margin: 0; font-size: 0.9rem; color: var(--text-1); }
-.rf-light-label b { margin-right: 0.35rem; font-family: "Chakra Petch", sans-serif; color: var(--accent-2); }
-.rf-light-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+/* ---- The Recorded chip on a game row, 10 Sep 2026 ---- */
 
 /* The folded row's Recorded chip: beside Reviewed and shaped like it, in --ok because a recording is something the team did. */
 .games-row-recorded { position: relative; display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.05rem 0.5rem 0.05rem 0.35rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--card-border)); font-size: 0.72rem; color: var(--text-1); white-space: nowrap; }
 .games-row-recorded .material-symbols-rounded { font-size: 0.9rem; color: var(--ok); }
-
-@media (max-width: 48rem) {
-  .rf-shot { width: 7.5rem; }
-  .rf-light-actions .view-btn { min-height: 2.75rem; }
-}
 
 @media (max-width: 40rem) {
   /* The word off the screen and the mark kept, the way the Reviewed chip does it, so a phone row still says a game was recorded. */

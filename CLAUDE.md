@@ -492,12 +492,15 @@ filter rather than none, so it can never become unpickable.
    a row carries a seat and an `ours` flag and nothing else: no name of
    theirs here either. The app reads both collections on
    demand through `services/replay-recording.service.ts` (`getDoc`, never a
-   listener; a picture when its thumbnail is in view or tapped, and at most
-   `EAGER_SHOTS` (4) of them before the reader has touched the strip, since a
-   wide drawer has nine thumbnails on screen the moment a row opens): the
-   Games row gets a Recorded chip and `shared/replay-frames.component.ts`
-   above the review panel, and "How the game went" shows the recorder's own
-   lines when there is no timeline. **No name of theirs anywhere** — every
+   listener; a picture when its thumbnail is in view or tapped): the Games row
+   gets a Recorded chip, and "How the game went" shows the recorder's own
+   lines when there is no timeline. **The frames strip on the Games row is
+   gone** (12 Sep 2026, the lead: "this strip of frames can be removed") and
+   `shared/replay-frames.component.ts` was deleted with it: the film room's
+   own Frames chapter shows the same pictures in order, with the board and
+   the sentence beside each, and plays the clips, which the strip could not.
+   `shared/film/replay-shot-image.component.ts` is the one reader of a
+   picture now. **No name of theirs anywhere** — every
    side is read off a seat, so theirs are champions in seats in the seats,
    the checkpoints and the events, and a killer who is not one of the ten
    becomes "a turret" or "the map". A recording carries **no team gold** (the

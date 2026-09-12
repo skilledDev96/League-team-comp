@@ -5,7 +5,6 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AnalysisGame, LaneRead } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
-import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { TooltipDirective } from '../../shared/tooltip.directive';
@@ -54,18 +53,13 @@ import { PlayerMarkComponent } from '../../shared/player-mark.component';
   templateUrl: './review.component.html'
 })
 export class ReviewComponent {
-  /** Hosted as the Patterns tab of the Games page: no hero, no refresh button of its own. */
-  readonly embedded = input(false);
   protected readonly data = inject(TeamDataService);
   protected readonly auth = inject(AuthService);
   protected readonly ui = inject(UiService);
-  private readonly analysisService = inject(CompAnalysisService);
   protected readonly formatDuration = formatDuration;
   protected readonly factorsOf = factorsOf;
 
   /** Shared with the Analysis page, so a run started on either shows on both. */
-  protected readonly refreshing = this.analysisService.running;
-  protected readonly refreshError = signal('');
 
   protected readonly offBook = OFF_BOOK;
 
@@ -446,27 +440,6 @@ export class ReviewComponent {
     return { games: games.length, wins, losses: games.length - wins };
   });
 
-  /**
-   * Refresh from here rather than sending people to Analysis for it.
-   *
-   * The flag lives on the service, so a run started on either page shows as
-   * running on both, and returning mid-run still says so. Edit-gated to match
-   * the Analysis button — a refresh writes `meta/compAnalysis` and spends Riot
-   * budget, so it is not a viewer's to trigger.
-   */
-  protected async refresh(): Promise<void> {
-    if (this.refreshing()) return;
-    this.refreshError.set('');
-    try {
-      await this.analysisService.refresh(
-        this.data.players(),
-        this.data.comps(),
-        this.data.compOverrideMap()
-      );
-    } catch (err) {
-      this.refreshError.set(err instanceof Error ? err.message : 'Analysis failed.');
-    }
-  }
 
   /**
    * What to say about a game no factor claimed.
@@ -478,11 +451,8 @@ export class ReviewComponent {
    */
   protected noFactorLine(game: AnalysisGame): string {
     const kills = game.kills;
-    if (!kills) {
-      return game.win
-        ? 'No standout factor — the objectives stayed close.'
-        : 'No standout factor — the objectives stayed close.';
-    }
+    // Win or loss, the sentence is the same: the objectives stayed close and nothing else is known.
+    if (!kills) return 'No standout factor — the objectives stayed close.';
     return `Nothing decided it on the map, and the fights were traded — kills ${kills.ours}-${kills.theirs}.`;
   }
 
