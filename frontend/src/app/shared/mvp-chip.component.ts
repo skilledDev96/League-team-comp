@@ -42,6 +42,7 @@ const WORDS: Record<MvpChipKind, string> = { mvp: 'MVP', series: 'Series MVP', s
       }
       <span class="mvp-chip-word">{{ word() }}</span>
       @if (label()) { <span class="mvp-chip-name">{{ label() }}</span> }
+      @if (count(); as c) { <span class="mvp-chip-count" [class.is-partial]="partial()">{{ c }}</span> }
     </span>
   `
 })
@@ -55,6 +56,15 @@ export class MvpChipComponent {
   readonly terms = input<readonly string[]>([]);
   /** A closing sentence: what the average is over, or what the gold curve cannot see. */
   readonly note = input<string>('');
+  /**
+   * For a series mark: how many games carried figures, and how many the series has (12 Sep 2026).
+   *
+   * An average with nothing saying what it averaged is the thing that made this mark look broken —
+   * a Bo3 with one replay imported drew a "Series MVP" indistinguishable from one built out of
+   * three games. Zero means do not print a count, which is what every other kind passes.
+   */
+  readonly read = input<number>(0);
+  readonly of = input<number>(0);
   readonly compact = input<boolean>(false);
 
   protected readonly ui = inject(UiService);
@@ -74,6 +84,17 @@ export class MvpChipComponent {
     if (name && champ) return `${name} on ${champ}`;
     return name || champ || this.seat() || 'this seat';
   });
+
+  /** "3 games" when it read them all, "1 of 3" when it did not, nothing when there is no count. */
+  protected readonly count = computed(() => {
+    const [read, of] = [this.read(), this.of()];
+    if (!of || !read) return '';
+    if (read < of) return `${read} of ${of}`;
+    return `${of} ${of === 1 ? 'game' : 'games'}`;
+  });
+
+  /** The count is worth a second colour only when it is admitting it saw less than the whole series. */
+  protected readonly partial = computed(() => this.of() > 0 && this.read() > 0 && this.read() < this.of());
 
   protected readonly tip = computed(() => {
     const terms = this.terms().filter((t) => t.trim());

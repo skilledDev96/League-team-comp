@@ -53,7 +53,7 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { OpponentScoutService } from '../../../services/opponent-scout.service';
 import { playedElsewhere } from '../../../core/opponent-roles';
 import { TournamentContextService } from '../tournament-context.service';
-import { mvpGameFromScrim, SeriesMvp, SeriesMvpGame, seriesMvpOf } from '../../../core/game-mvp';
+import { GameMvp, MvpGame, mvpGameFromScrim, mvpOf, SeriesMvp, SeriesMvpGame, seriesMvpOf } from '../../../core/game-mvp';
 import { MvpChipComponent } from '../../../shared/mvp-chip.component';
 import { DetailToggleComponent } from '../../../shared/detail-toggle.component';
 import { UserPrefsService } from '../../../services/user-prefs.service';
@@ -135,24 +135,36 @@ export class TournamentPlanComponent {
   private readonly analysisById = computed(() => new Map((this.data.compAnalysis()?.games ?? []).map((g) => [g.matchId, g])));
   private readonly scrimById = computed(() => new Map(this.data.scrims().map((s) => [s.id, s])));
 
+  /**
+   * The figures behind one game of a series, whichever source has them: Riot's analysis when the
+   * match reached it, otherwise the imported replay. Nothing when no `.rofl` has been dropped on
+   * the game yet, which for a tournament custom is the normal state until somebody imports it.
+   */
+  private mvpGameOf(game: SeriesGame): MvpGame | null {
+    if (!game.matchId) return null;
+    const riot = this.analysisById().get(game.matchId);
+    if (riot) return riot;
+    const scrim = this.scrimById().get(game.matchId);
+    return scrim ? mvpGameFromScrim(scrim, game.ourSide) : null;
+  }
+
+  /** Who carried one game of a series — the same mark the Games row draws, on the game it is about. */
+  protected gameMvp(game: SeriesGame): GameMvp | null {
+    return mvpOf(this.mvpGameOf(game));
+  }
+
   private readonly seriesMvps = computed(() => {
-    const analysis = this.analysisById();
-    const scrims = this.scrimById();
     const map = new Map<string, SeriesMvp | null>();
     for (const series of this.seriesList()) {
+      const all = this.gamesFor(series.id);
       const games: SeriesMvpGame[] = [];
-      for (const g of this.gamesFor(series.id)) {
-        const label = `Game ${g.gameNumber}`;
-        const riot = g.matchId ? analysis.get(g.matchId) : undefined;
-        if (riot) {
-          games.push({ label, game: riot });
-          continue;
-        }
-        const scrim = g.matchId ? scrims.get(g.matchId) : undefined;
-        const replay = scrim ? mvpGameFromScrim(scrim, g.ourSide) : null;
-        if (replay) games.push({ label, game: replay });
+      for (const g of all) {
+        const game = this.mvpGameOf(g);
+        if (game) games.push({ label: `Game ${g.gameNumber}`, game });
       }
-      map.set(series.id, seriesMvpOf(games));
+      // The series' own length goes in, so the mark can say "1 of 3" rather than quietly
+      // averaging one game and calling it the series (12 Sep 2026).
+      map.set(series.id, seriesMvpOf(games, all.length));
     }
     return map;
   });

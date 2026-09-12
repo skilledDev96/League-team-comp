@@ -4,7 +4,9 @@ import { recordingStory } from '../core/replay-lines';
 import { AnalysisGame, CompExpectation, MatchTimeline } from '../models/team.models';
 import { MatchTimelineService } from '../services/match-timeline.service';
 import { ReplayRecordingService } from '../services/replay-recording.service';
+import { influenceOf, INFLUENCE_NOTHING, INFLUENCE_TIP } from '../core/influence';
 import { InfoTipComponent } from './info-tip.component';
+import { MvpChipComponent } from './mvp-chip.component';
 import { TooltipDirective } from './tooltip.directive';
 
 /**
@@ -19,10 +21,18 @@ import { TooltipDirective } from './tooltip.directive';
  * a tournament or scrim game, which Riot's API cannot see — shows the
  * recording's own lines instead (`core/replay-lines.ts`). There is no gold
  * in them: the client hands out team gold to nobody.
+ *
+ * **Who swung it most** joined the panel on 12 Sep 2026. `core/influence.ts` had existed since
+ * 11 Sep with exactly one reader — the last chapter of the film room, several clicks in — so the
+ * lead reasonably reported that the most influential player was listed nowhere. This is the
+ * honest second home: the panel already holds the very gold curve the swing is measured off, so
+ * there is no new read and no new card. One chip, one line, and the caveat about Riot keeping the
+ * curve a minute at a time stays in the tip. Only the top seat is drawn; the point is who swung
+ * it, not a leaderboard of five. A replay has no timeline, so this never renders for a scrim.
  */
 @Component({
   selector: 'app-game-story',
-  imports: [TooltipDirective, InfoTipComponent],
+  imports: [TooltipDirective, InfoTipComponent, MvpChipComponent],
   template: `
     <details class="intel-collapse game-story" (toggle)="onToggle($event)">
       <summary>
@@ -65,6 +75,16 @@ import { TooltipDirective } from './tooltip.directive';
             <span>Team gold, ours minus theirs</span>
             @for (tick of sp.ticks; track tick.x) { <span>{{ tick.minute }} min</span> }
           </div>
+        }
+        <!-- Who swung it most: see the note on the class. -->
+        @if (swung(); as s) {
+          <p class="game-story-swing">
+            <app-mvp-chip kind="swing" [champion]="s.champion ?? ''" [name]="s.name ?? ''" [seat]="s.seat" [terms]="s.terms" [note]="influenceTip" />
+            <span class="game-story-swing-line">{{ s.line }}</span>
+            <app-info-tip [text]="influenceTip" label="How the swing is measured" />
+          </p>
+        } @else if (t.deaths?.length || t.theirDeaths?.length) {
+          <p class="muted game-story-swing-none">{{ nothingToPrice }}</p>
         }
         @if (curveLines().length) {
           <div class="callout is-advice">
@@ -129,6 +149,14 @@ export class GameStoryComponent {
    */
   protected readonly storyLines = computed<string[]>(() => recordingStory(this.recordings.recordingFor(this.game()?.matchId)));
   protected readonly facts = computed(() => this.timeline()?.facts ?? null);
+
+  /**
+   * The seat whose fights moved the gold most, off this same timeline. Only the top one is drawn:
+   * the point is "who swung it", not a leaderboard of five.
+   */
+  protected readonly swung = computed(() => influenceOf(this.game() ?? null, this.timeline())[0] ?? null);
+  protected readonly influenceTip = INFLUENCE_TIP;
+  protected readonly nothingToPrice = INFLUENCE_NOTHING;
   protected readonly curveLines = computed(() => {
     const t = this.timeline();
     return t ? compareCurve(this.expect(), t.curve) : [];

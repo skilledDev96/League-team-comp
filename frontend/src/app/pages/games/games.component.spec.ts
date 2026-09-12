@@ -100,8 +100,11 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, the row\'s
    * The game list is open from the start (12 Sep 2026) — it used to be folded, and pressing that
    * fold was this helper's first act. The fold button itself is Full's now.
    *
-   * These tests ask for Full, because the MVP chip is one of the marks that waits for it: it is a
-   * verdict on a game already played, and at Starter it was on nearly every row at once.
+   * These tests ask for Full because the rest of the row's furniture does. The MVP chip itself
+   * does NOT wait for Full any more (12 Sep 2026): who carried a game is a conclusion, and the
+   * rule for what sits at Starter is whether a reader acts on it or checks it. It was the only
+   * mark of its kind the default view hid, and the per-game mark was then unreachable anywhere —
+   * Prep drew none either. `shows the mark at Starter too` below is what pins that.
    */
   async function open(): Promise<{ harness: RouterTestingHarness; root: HTMLElement }> {
     const harness = await RouterTestingHarness.create();
@@ -116,6 +119,17 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, the row\'s
   function tipOf(harness: RouterTestingHarness, selector: string): string {
     return harness.fixture.debugElement.query(By.css(selector)).injector.get(TooltipDirective).appTip();
   }
+
+  it('shows the mark at Starter too, where a reader meets the row by default', async () => {
+    data.compAnalysis.set({ games: [riotGame], comps: [], totalTeamGames: 1, scannedMatches: 1, generatedAt: new Date(TODAY).toISOString() } as CompAnalysis);
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/games', GamesComponent);
+    harness.detectChanges();
+    const root = harness.routeNativeElement as HTMLElement;
+    const comp = harness.routeDebugElement!.componentInstance as { full: () => boolean };
+    expect(comp.full(), 'Starter is the default').toBe(false);
+    expect(root.querySelector(`[data-row="riot-${riotGame.matchId}"] summary .mvp-chip`)).not.toBeNull();
+  });
 
   it('marks who carried the game on the row, compact, with the terms behind it in the tip', async () => {
     data.compAnalysis.set({ games: [riotGame], comps: [], totalTeamGames: 1, scannedMatches: 1, generatedAt: new Date(TODAY).toISOString() } as CompAnalysis);

@@ -344,7 +344,10 @@
               }
               <!-- Who carried it (11 Sep 2026): the row's own figures, whichever source they came from, with the terms behind it in the
                    tooltip so nobody has to trust a mark. A tournament game typed in by hand carries no figures and so carries no chip. -->
-              @if (full() && mvp(g); as m) {
+              <!-- Not behind Full (12 Sep 2026): who carried a game is a conclusion, and the rule for
+                   what sits at Starter is whether a reader acts on it or checks it. It was the only mark
+                   of its kind the default view hid. -->
+              @if (mvp(g); as m) {
                 <app-mvp-chip kind="mvp" [champion]="m.champion" [name]="m.name ?? ''" [seat]="m.seat" [terms]="m.why" [compact]="true" />
               }
               <!-- The recorder walked this game's replay in the League client and kept frames of it (10 Sep 2026). The service only

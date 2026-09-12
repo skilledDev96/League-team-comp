@@ -115,7 +115,9 @@ describe('seriesMvpOf', () => {
     expect(mvp.games).toBe(3);
     // The tile shows the champion of the best of the three, not the last one played.
     expect(mvp.champion).toBe('Jinx');
-    expect(mvp.line).toBe('Best line per game across the 3 games played.');
+    expect(mvp.read).toBe(3);
+    expect(mvp.of).toBe(3);
+    expect(mvp.line).toBe('Best line per game across all 3 games.');
     expect(mvp.why).toEqual([
       'Game 1 on Jinx: on 12 of 14 kills · died once',
       "Game 2 on Kai'Sa: on 12 of 12 kills · died twice",
@@ -127,7 +129,35 @@ describe('seriesMvpOf', () => {
     const mvp = seriesMvpOf([{ label: 'Game 1', game: five('Mid', 'Ahri', 9, 0, 5) }]) as SeriesMvp;
     expect(mvp.seat).toBe('Mid');
     expect(mvp.games).toBe(1);
-    expect(mvp.line).toBe('Best line of the one game played so far.');
+    expect(mvp.read).toBe(1);
+    expect(mvp.of).toBe(1);
+    expect(mvp.line).toBe('The one game of this series so far — the same answer as that game’s own MVP.');
+  });
+
+  /**
+   * The mark is an average, and nothing on screen used to say what it was an average OF
+   * (12 Sep 2026). A tournament game only carries figures once its replay is imported, so a Bo3
+   * with one .rofl dropped in produced a "Series MVP" that was — correctly and invisibly — that
+   * one game's MVP. It read as a bug because the chip could not tell the reader otherwise.
+   */
+  it('says how many of the series’ games it could actually read', () => {
+    const played = [{ label: 'Game 1', game: five('ADC', 'Jinx', 8, 1, 4) }];
+    const mvp = seriesMvpOf(played, 3) as SeriesMvp;
+    expect(mvp.read).toBe(1);
+    expect(mvp.of).toBe(3);
+    expect(mvp.line).toBe('Averaged over the 1 of 3 games that carry figures. 2 games have no replay imported yet, so this may move.');
+  });
+
+  it('counts one missing game in the singular, and never claims fewer games than it read', () => {
+    const two = [
+      { label: 'Game 1', game: five('ADC', 'Jinx', 8, 1, 4) },
+      { label: 'Game 2', game: five('ADC', 'Ashe', 6, 2, 5) }
+    ];
+    expect((seriesMvpOf(two, 3) as SeriesMvp).line).toContain('1 game has no replay imported yet');
+    // A caller that under-reports the series length cannot make the mark lie about what it read.
+    const bad = seriesMvpOf(two, 1) as SeriesMvp;
+    expect(bad.of).toBe(2);
+    expect(bad.read).toBe(2);
   });
 
   it('divides by the games that seat played, so a seat that sat one out is not marked down for it', () => {
@@ -135,7 +165,11 @@ describe('seriesMvpOf', () => {
     const series = seriesMvpOf([{ label: 'Game 1', game: five('ADC', 'Jinx', 9, 1, 5) }, { label: 'Game 2', game: withoutAdc }]) as SeriesMvp;
     expect(series.seat).toBe('ADC');
     expect(series.games).toBe(1);
-    expect(series.line).toBe('Best line of the one game played so far.');
+    // Two games were played and both could be read; the ADC only appeared in one of them. The old
+    // wording said "the one game played so far", which read as if the series had one game.
+    expect(series.read).toBe(2);
+    expect(series.of).toBe(2);
+    expect(series.line).toBe('Best line per game across all 2 games, of which this seat played 1.');
     expect(series.why).toEqual(['Game 1 on Jinx: on 14 of 15 kills · died once']);
   });
 

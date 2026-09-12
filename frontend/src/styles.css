@@ -31,9 +31,6 @@ html {
   --surface-hero-b: rgba(21, 43, 51, 0.9);
   --surface-controls: rgba(15, 34, 41, 0.68);
   --surface-btn: rgba(20, 44, 53, 0.82);
-  /* Opaque surface for popovers (menus, dropdowns) — anything that floats over
-     page content must not let it show through. Follows the active theme via bg-2. */
-  --surface-card: var(--bg-2);
   --shadow-elev: rgba(0, 0, 0, 0.18);
 }
 
@@ -556,6 +553,28 @@ body {
   --bar-ok: color-mix(in oklab, var(--ok) 70%, var(--bg-1));
   --bar-warn: color-mix(in oklab, var(--warn) 70%, var(--bg-1));
   --bar-accent: color-mix(in oklab, var(--accent-2) 70%, var(--bg-1));
+
+  /* Two tokens that were on `:root` and so never reached a theme (12 Sep 2026),
+     which is the mistake the paragraph above exists to warn about.
+
+     --text-2 was worse than wrong: it was used 23 times and DEFINED NOWHERE, so
+     twenty-three declarations that meant "quieter than the body text" resolved to
+     nothing and inherited the body text instead. Measured under two themes before
+     the fix: both rendered at --text-0. It is the third step of one ladder —
+     --text-0 reads, --text-1 supports, --text-2 labels — so it is derived from
+     --text-1 rather than picked, and follows every theme for free. Measured against
+     --bg-1 on all ten themes at 85%: 4.05 (light) to 6.49 (bomb). Every one of the
+     twenty-three is a label, a count, a chevron or an empty-slot placeholder — never
+     body copy — so AA-large is the bar and the worst theme clears it. Do not reach for
+     this token for anything a reader has to read.
+
+     --surface-card sat on `:root` as var(--bg-2) with a comment claiming it
+     "follows the active theme". It did not: :root is the parent of body, so the
+     substitution happened against the default palette and every one of the ten
+     themes drew popovers in the default blue. Measured: under noxus --bg-2 is
+     #2a181c and --surface-card was still rgb(35, 51, 69). */
+  --text-2: color-mix(in oklab, var(--text-1) 85%, var(--bg-1));
+  --surface-card: var(--bg-2);
 }
 
 /* The light theme's --ok/--warn are already dark, low-saturation colours
@@ -690,7 +709,7 @@ body {
 .nav-links a:hover,
 .nav-links a:focus-visible {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(255, 138, 61, 0.22);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
   transform: translateY(-1px);
 }
 
@@ -1010,6 +1029,19 @@ body {
 .view-segment button.active {
   background: color-mix(in srgb, var(--accent) 30%, var(--surface-btn) 70%);
   color: var(--text-0);
+}
+
+/* The two states every other control in the app has and this one did not (12 Sep 2026).
+   It is the switch that decides how much of four pages is drawn, so a reader needs to see
+   that it can be pressed, and a keyboard needs to see where it is. */
+.view-segment button:hover:not(.active) {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-btn));
+  color: var(--text-0);
+}
+
+.view-segment button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 /* ---- Team profiles overview -------------------------------------------- */
@@ -1637,7 +1669,7 @@ a.profiles-row:focus-visible {
 .theme-toggle:hover,
 .theme-toggle:focus-visible {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(255, 138, 61, 0.22);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .theme-select {
@@ -1654,7 +1686,7 @@ a.profiles-row:focus-visible {
 .theme-select:hover,
 .theme-select:focus-visible {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(255, 138, 61, 0.22);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .hero {
@@ -1674,7 +1706,7 @@ a.profiles-row:focus-visible {
   width: 11.25rem;
   height: 11.25rem;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 138, 61, 0.22), transparent 65%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent), transparent 65%);
   pointer-events: none;
 }
 
@@ -1924,8 +1956,12 @@ a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-d
   position: absolute;
   bottom: -2px;
   right: -2px;
-  background: linear-gradient(135deg, #ff8a3d, #ffb56f);
-  color: #1a130c;
+  /* Was a hard-coded orange gradient that matched none of the ten themes (12 Sep 2026):
+     not the :root blue, not bomb's gold. A badge is exactly what the second accent is for. */
+  background: linear-gradient(135deg, var(--accent-2), color-mix(in oklab, var(--accent-2) 60%, white));
+  color: var(--bg-0);
+  /* Light is the one pale theme, so --bg-0 on --accent-2 is pale-on-mid: measured 3.17,
+     under the 4.5 this small bold text needs. Deepened, with white on it: 6.82. */
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -1934,6 +1970,11 @@ a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-d
   border: 1px solid rgba(255, 255, 255, 0.5);
   line-height: 1;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+body[data-theme='light'] .avatar-role {
+  background: linear-gradient(135deg, color-mix(in oklab, var(--accent-2) 75%, black), var(--accent-2));
+  color: #fff;
 }
 
 .card h3 {
@@ -5898,14 +5939,37 @@ body[data-theme='light'] select { color-scheme: light; }
   font-size: 1rem;
 }
 
+/* Unlink, delete the replay, open it on Games: three actions on the replay line of a series
+   game. They were underlined text four lines above a row of pills, against the house rule that
+   an action is a pill and never a link (12 Sep 2026). Kept deliberately small — this is a line
+   of metadata, not a toolbar, and three full-size pills there would be the clutter the rule is
+   meant to prevent. */
 .link-undo {
-  border: none;
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.55rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--surface-btn);
   color: var(--text-1);
   font: inherit;
-  font-size: 0.74rem;
-  text-decoration: underline;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  text-decoration: none;
   cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease;
+}
+
+.link-undo:hover,
+.link-undo:focus-visible {
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+
+.link-undo:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Prep games tagged to a tournament. */
@@ -16401,6 +16465,24 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   color: var(--text-0);
 }
 
+/* What the average was over (12 Sep 2026). "3 games" when it read the whole series; "1 of 3"
+   when it did not, and then in the warning colour, because a mark built from a third of a
+   series is the one thing a reader has to know before arguing with it. */
+.mvp-chip-count {
+  flex: 0 0 auto;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-1) 16%, transparent);
+  color: var(--text-1);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.mvp-chip-count.is-partial {
+  background: color-mix(in srgb, var(--warn) 20%, transparent);
+  color: color-mix(in oklab, var(--warn) 80%, var(--text-0));
+}
+
 /* The series mark carries more behind it, so it reads a shade stronger on a head full of chips. */
 .mvp-chip.is-series {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--card-border));
@@ -16792,3 +16874,9 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
   .games-row-recorded { padding: 0.05rem 0.35rem; gap: 0; }
   .games-row-recorded-word { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 }
+
+/* Who swung it most, in "How the game went" (12 Sep 2026): the chip, the sentence it comes with,
+   and the caveat. One line under the gold curve it is measured off — not a card of its own. */
+.game-story-swing { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; margin: 0.6rem 0 0; }
+.game-story-swing-line { flex: 1 1 16rem; min-width: 0; font-size: 0.88rem; color: var(--text-1); }
+.game-story-swing-none { margin: 0.6rem 0 0; font-size: 0.85rem; }

@@ -73,6 +73,17 @@ export interface SeriesMvp {
   points: number;
   /** How many games of the series this seat played. */
   games: number;
+  /**
+   * How many games of the series carried figures at all, and how many games the series has
+   * (12 Sep 2026).
+   *
+   * The mark is an average, and until now nothing said what it was an average OF. A tournament
+   * game only carries figures once its replay is imported, so a Bo3 with one `.rofl` dropped in
+   * produces a "Series MVP" that is, correctly and invisibly, one game's MVP — which is exactly
+   * what it was read as. `read` is what the average saw; `of` is what was played.
+   */
+  read: number;
+  of: number;
   /** One line a game: "Game 2 on Jinx: 52.5k damage, 38% of ours · on 14 of 20 kills · died twice". */
   why: string[];
   /** The sentence under the chip: what the average is over. */
@@ -212,7 +223,7 @@ export function mvpOf(game: MvpGame | undefined | null): GameMvp | null {
  * games; the chip then shows the seat and the champion of the best game, and
  * the per-game lines say what each was.
  */
-export function seriesMvpOf(games: readonly SeriesMvpGame[]): SeriesMvp | null {
+export function seriesMvpOf(games: readonly SeriesMvpGame[], seriesGames?: number): SeriesMvp | null {
   const running = new Map<Role, { names: Set<string>; champion: string; bestPoints: number; points: number; share: number; games: number; why: string[] }>();
   for (const { label, game } of games) {
     for (const line of linesOf(game)) {
@@ -236,17 +247,37 @@ export function seriesMvpOf(games: readonly SeriesMvpGame[]): SeriesMvp | null {
     .map(([seat, r]) => ({ seat, ...r, average: r.points / r.games, averageShare: r.share / r.games }))
     .sort((a, b) => b.average - a.average || b.averageShare - a.averageShare || seatIndex(a.seat) - seatIndex(b.seat))[0];
   if (!best) return null;
+  const read = games.filter((g) => linesOf(g.game).length > 0).length;
+  const of = Math.max(seriesGames ?? read, read);
   const mvp: SeriesMvp = {
     seat: best.seat,
     champion: best.champion,
     points: best.average,
     games: best.games,
+    read,
+    of,
     why: best.why,
-    line: best.games === 1 ? 'Best line of the one game played so far.' : `Best line per game across the ${best.games} games played.`
+    line: lineFor(read, of, best.games)
   };
   const [only] = [...best.names];
   if (best.names.size === 1 && only) mvp.name = only;
   return mvp;
+}
+
+/**
+ * What the average was actually over, in words (12 Sep 2026).
+ *
+ * Three different sentences, because three different things can be true and the reader acts on
+ * them differently: the series has one game; the series has more games but only some carry
+ * figures, and importing the rest would move the mark; or every game counted.
+ */
+function lineFor(read: number, of: number, seatGames: number): string {
+  if (of <= 1) return 'The one game of this series so far — the same answer as that game’s own MVP.';
+  if (read < of) {
+    const missing = of - read;
+    return `Averaged over the ${read} of ${of} games that carry figures. ${missing} ${missing === 1 ? 'game has' : 'games have'} no replay imported yet, so this may move.`;
+  }
+  return `Best line per game across all ${of} games${seatGames < of ? `, of which this seat played ${seatGames}` : ''}.`;
 }
 
 /** One of our seats on a game row, whichever of the three sources the row came from. Structural, so `pages/games/game-rows.ts` fits without core knowing about it. */
