@@ -49,6 +49,8 @@ function writeStored(key: string, value: string): void {
     <div class="home" [class.is-still]="motion.reduced()">
       <app-home-hero
         [teamName]="h.teamName"
+        [motto]="h.motto"
+        [banner]="h.banner"
         [season]="h.season"
         [seasonWord]="seasonWord()"
         [mode]="mode()"
@@ -113,6 +115,8 @@ export class HomeComponent {
       seat: this.prefs.filmSeat(),
       seatDismissed: this.seatDismissed(),
       teamName: this.data.settings().teamName || 'Bom Squad',
+      motto: this.data.settings().motto,
+      banner: this.data.settings().banner,
       players: this.data.players(),
       comps: this.data.comps(),
       analysis: this.data.compAnalysis()?.games ?? [],

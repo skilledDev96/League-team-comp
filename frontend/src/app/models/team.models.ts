@@ -600,6 +600,19 @@ export interface Settings {
    * with the model. Off by default: each review is a paid call.
    */
   autoReview?: boolean;
+  /** A line under the team's name on Home (13 Sep 2026). */
+  motto?: string;
+  /**
+   * The splash Home opens on (13 Sep 2026): a champion and a skin number, 0 being the base skin. There is
+   * no file storage, so a banner is always one of Riot's splashes and never an upload.
+   */
+  banner?: SettingsBanner;
+}
+
+export interface SettingsBanner {
+  champion: string;
+  /** Riot's skin number; absent or 0 is the base skin. */
+  skin?: number;
 }
 
 /**

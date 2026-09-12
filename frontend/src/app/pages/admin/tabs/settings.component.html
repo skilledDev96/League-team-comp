@@ -4,6 +4,35 @@
     <span>Team name</span>
     <input type="text" [ngModel]="ctx.teamName()" (ngModelChange)="ctx.setTeamName($event)" name="ctx.teamName" />
   </label>
+  <label class="field">
+    <span>Motto <small class="muted">under the team's name on Home</small></span>
+    <input type="text" maxlength="90" [ngModel]="ctx.motto()" (ngModelChange)="ctx.setMotto($event)" name="ctx.motto" placeholder="e.g. Draft it, then play it" />
+  </label>
+  <fieldset class="field admin-banner">
+    <legend>Home banner <small class="muted">the splash Home opens on; empty rotates the five mains</small></legend>
+    <div class="admin-banner-row">
+      <label class="field"><span>Champion</span>
+        <input type="text" list="admin-banner-champions" [ngModel]="ctx.bannerChampion()" (ngModelChange)="ctx.setBannerChampion($event)" name="ctx.bannerChampion" placeholder="e.g. Miss Fortune" /></label>
+      <label class="field admin-banner-skin"><span>Skin number</span>
+        <input type="number" min="0" step="1" [ngModel]="ctx.bannerSkin()" (ngModelChange)="ctx.setBannerSkin($event)" name="ctx.bannerSkin" /></label>
+      @if (ctx.bannerChampion().trim()) {
+        <button type="button" class="view-btn" (click)="ctx.clearBanner()">Clear banner</button>
+      }
+    </div>
+    @if (ctx.bannerChampion().trim(); as champion) {
+      <figure class="admin-banner-preview">
+        <img [src]="ui.championSkinSplashUrl(champion, ctx.bannerSkin())" alt="" (error)="previewFailed.set(true)" (load)="previewFailed.set(false)" />
+        <figcaption class="muted">
+          @if (previewFailed()) { No splash under that name and skin number: Home will show the base splash instead. } @else { 0 is the base skin; Riot numbers the rest in the order they were released. }
+        </figcaption>
+      </figure>
+    }
+    <datalist id="admin-banner-champions">
+      @for (name of championNames(); track name) {
+        <option [value]="name"></option>
+      }
+    </datalist>
+  </fieldset>
   <label data-tour="admin-setting-advisor" class="field field-check">
     <input type="checkbox" [ngModel]="ctx.autoAdvisor()" (ngModelChange)="ctx.setAutoAdvisor($event)" name="ctx.autoAdvisor" />
     <span>

@@ -256,8 +256,11 @@ export function buildHome(i: HomeInput): HomeModel {
     if (name) titlesByName.set(name, n);
   }
 
+  const bannerChampion = i.banner?.champion?.trim();
   return {
     teamName: i.teamName,
+    motto: i.motto?.trim() ?? '',
+    banner: bannerChampion ? { champion: bannerChampion, ...(i.banner?.skin && i.banner.skin > 0 ? { skin: Math.floor(i.banner.skin) } : {}) } : null,
     season,
     slides,
     record: {

@@ -1,4 +1,4 @@
-import { AnalysisGame, Comp, Player, Role, Scrim, SeriesGame, Tournament, TournamentSeries, Trophy } from '../models/team.models';
+import { AnalysisGame, Comp, Player, Role, Scrim, SeriesGame, SettingsBanner, Tournament, TournamentSeries, Trophy } from '../models/team.models';
 import { PatternFilters } from '../pages/review/win-loss-splits';
 import { Achievement } from './achievements';
 import { CompOfTheMonth } from './comp-month';
@@ -26,6 +26,9 @@ export interface HomeInput {
   /** The reader closed "Which seat is yours?". */
   seatDismissed: boolean;
   teamName: string;
+  /** Settings' motto and banner. */
+  motto?: string;
+  banner?: SettingsBanner;
   players: readonly Player[];
   comps: readonly Comp[];
   analysis: readonly AnalysisGame[];
@@ -191,6 +194,9 @@ export interface HomeHandTrophy {
 
 export interface HomeModel {
   teamName: string;
+  motto: string;
+  /** The splash the hero opens on, before it rotates through the mains; null without one. */
+  banner: SettingsBanner | null;
   season: SeasonWindow;
   slides: HomeSlide[];
   record: HomeRecord;

@@ -936,7 +936,8 @@ export class TeamDataService {
   async updateSettings(settings: Settings): Promise<void> {
     if (this.mode === 'firebase') {
       const db = getDb();
-      if (db) await setDoc(doc(db, 'meta', 'settings'), settings);
+      // Stripped first: a blank motto or no banner arrives as undefined, and Firestore refuses the whole write over one.
+      if (db) await setDoc(doc(db, 'meta', 'settings'), stripUndefined(settings as unknown as Record<string, unknown>));
     } else {
       this.settings.set(settings);
       this.persistLocal();

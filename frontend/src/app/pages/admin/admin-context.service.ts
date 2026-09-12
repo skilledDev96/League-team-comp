@@ -45,6 +45,9 @@ export class AdminContextService {
   readonly teamName = signal('');
   readonly autoAdvisor = signal(false);
   readonly autoReview = signal(false);
+  readonly motto = signal('');
+  readonly bannerChampion = signal('');
+  readonly bannerSkin = signal(0);
   readonly fillInDrafts = signal<FillInDraft[]>([]);
   readonly compDrafts = signal<CompDraft[]>([]);
   readonly accessDrafts = signal<AccessDraft[]>([]);
@@ -105,6 +108,9 @@ export class AdminContextService {
       this.teamName.set(this.data.settings().teamName);
       this.autoAdvisor.set(this.data.settings().autoAdvisor === true);
       this.autoReview.set(this.data.settings().autoReview === true);
+      this.motto.set(this.data.settings().motto ?? '');
+      this.bannerChampion.set(this.data.settings().banner?.champion ?? '');
+      this.bannerSkin.set(this.data.settings().banner?.skin ?? 0);
       this.players.load(players);
       this.fillInDrafts.set(fillIns.map((f) => toFillInDraft(f)));
       this.compDrafts.set(comps.map((c) => ({ id: c.id, name: c.name, picks: { ...c.picks } })));
@@ -374,6 +380,33 @@ export class AdminContextService {
     this.settingsTimer = setTimeout(() => void this.saveSettings(), 600);
   }
 
+  setMotto(value: string): void {
+    this.motto.set(value);
+    this.saveSettingsSoon();
+  }
+
+  setBannerChampion(value: string): void {
+    this.bannerChampion.set(value);
+    this.saveSettingsSoon();
+  }
+
+  setBannerSkin(value: number | string): void {
+    const skin = Math.floor(Number(value));
+    this.bannerSkin.set(Number.isFinite(skin) && skin > 0 ? skin : 0);
+    this.saveSettingsSoon();
+  }
+
+  clearBanner(): void {
+    this.bannerChampion.set('');
+    this.bannerSkin.set(0);
+    void this.saveSettings();
+  }
+
+  private saveSettingsSoon(): void {
+    if (this.settingsTimer) clearTimeout(this.settingsTimer);
+    this.settingsTimer = setTimeout(() => void this.saveSettings(), 600);
+  }
+
   setAutoAdvisor(on: boolean): void {
     this.autoAdvisor.set(on);
     void this.saveSettings();
@@ -389,7 +422,16 @@ export class AdminContextService {
       this.flash('Only admins can edit team settings.');
       return;
     }
-    await this.data.updateSettings({ teamName: this.teamName().trim() || 'Bom Squad', autoAdvisor: this.autoAdvisor(), autoReview: this.autoReview() });
+    // Every field the settings document holds, or a save from this form wipes the ones it forgot.
+    const champion = this.bannerChampion().trim();
+    const motto = this.motto().trim();
+    await this.data.updateSettings({
+      teamName: this.teamName().trim() || 'Bom Squad',
+      autoAdvisor: this.autoAdvisor(),
+      autoReview: this.autoReview(),
+      ...(motto ? { motto } : {}),
+      ...(champion ? { banner: { champion, ...(this.bannerSkin() > 0 ? { skin: this.bannerSkin() } : {}) } } : {})
+    });
     this.flash('Settings saved');
   }
 

@@ -130,6 +130,8 @@ test('no console errors while moving around signed in', async ({ page }) => {
   const errors: string[] = [];
   const missingSplashes = new Set<string>();
   const fallbackSplashes = new Set<string>();
+  const missingSkins = new Set<string>();
+  const baseSplashes = new Set<string>();
   page.on('console', (msg) => {
     // Resource-load failures surface here with no usable location; the
     // response listener below reports those with a URL instead.
@@ -156,11 +158,20 @@ test('no console errors while moving around signed in', async ({ page }) => {
       missingSplashes.add(splash[1].toLowerCase());
       return;
     }
+    // Home's banner is a skin chosen by number on Admin, and a number with no
+    // splash behind it falls back to the champion's base splash (13 Sep 2026).
+    const skin = /ddragon\.leagueoflegends\.com\/cdn\/img\/champion\/splash\/([^/]+)_([1-9]\d*)\.jpg/.exec(response.url());
+    if (skin) {
+      missingSkins.add(skin[1].toLowerCase());
+      return;
+    }
     errors.push(`404: ${response.url()}`);
   });
   page.on('request', (request) => {
     const fallback = /ddragon\.leagueoflegends\.com\/cdn\/img\/champion\/splash\/([^/]+)_0\.jpg/.exec(request.url());
     if (fallback) fallbackSplashes.add(fallback[1].toLowerCase());
+    const base = /communitydragon\.org\/.*\/characters\/([^/]+)\/skins\/base\/images\//.exec(request.url());
+    if (base) baseSplashes.add(base[1].toLowerCase());
   });
 
   // Home is where sign-in lands, and Roster is no longer reached by './', so both are named.
@@ -179,5 +190,7 @@ test('no console errors while moving around signed in', async ({ page }) => {
 
   const unanswered = [...missingSplashes].filter((id) => !fallbackSplashes.has(id));
   expect(unanswered, 'a CommunityDragon splash 404 with no Data Dragon fallback asked for').toEqual([]);
+  const skinsUnanswered = [...missingSkins].filter((id) => !baseSplashes.has(id));
+  expect(skinsUnanswered, 'a banner skin 404 with no base splash asked for').toEqual([]);
   expect(errors, `console errors:\n${errors.join('\n')}`).toEqual([]);
 });

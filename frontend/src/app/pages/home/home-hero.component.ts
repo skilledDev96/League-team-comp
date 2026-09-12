@@ -1,5 +1,6 @@
 import { Component, computed, DestroyRef, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { HomeNextSeries, HomeRecord, HomeSlide } from '../../core/home-model';
+import { SettingsBanner } from '../../models/team.models';
 import { prefersSaveData } from '../../core/save-data';
 import { SeasonMode, SeasonWindow } from '../../core/team-season';
 import { InViewDirective } from '../../shared/in-view.directive';
@@ -28,6 +29,15 @@ interface Counter {
 }
 
 const sameChampion = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** Separates the champion from the skin in the banner's slide key; no champion name holds it. */
+const BANNER_MARK = '#skin';
+
+function parseBanner(key: string): { champion: string; skin: number } | null {
+  const at = key.indexOf(BANNER_MARK);
+  if (at < 0) return null;
+  return { champion: key.slice(0, at), skin: Number(key.slice(at + BANNER_MARK.length)) || 0 };
+}
 
 /**
  * The top of the home page (13 Sep 2026): the team's name over our five starters' mains, the season's
@@ -79,6 +89,9 @@ const sameChampion = (a: string, b: string) => a.trim().toLowerCase() === b.trim
 
       <div class="home-hero-body">
         <h1 class="home-title">{{ teamName() }}</h1>
+        @if (motto()) {
+          <p class="home-motto">{{ motto() }}</p>
+        }
         <p class="home-hero-caption">
           @if (caption(); as c) { <span class="material-symbols-rounded" aria-hidden="true">photo_camera</span> {{ c }} }
         </p>
@@ -106,6 +119,9 @@ const sameChampion = (a: string, b: string) => a.trim().toLowerCase() === b.trim
 })
 export class HomeHeroComponent {
   readonly teamName = input.required<string>();
+  readonly motto = input('');
+  /** Settings' banner: the first splash, before the mains. */
+  readonly banner = input<SettingsBanner | null>(null);
   readonly season = input.required<SeasonWindow>();
   /** "This split" while a tournament runs, else "Last 90 days". */
   readonly seasonWord = input.required<string>();
@@ -127,12 +143,17 @@ export class HomeHeroComponent {
 
   /** The day's seed, so the page opens on the same champion all day and on another tomorrow. */
   private readonly daySeed = new Date().toDateString();
-  private readonly rotation = computed(() =>
-    rotationFor(
-      this.slides().map((s) => s.champion),
-      { still: this.motion.reduced(), saveData: prefersSaveData(), daySeed: this.daySeed }
-    )
-  );
+  /** The banner's key: the champion and the skin together, so a banner on a main's skin is not mistaken for the main's own slide. */
+  private readonly bannerKey = computed(() => {
+    const b = this.banner();
+    return b ? `${b.champion}${BANNER_MARK}${b.skin ?? 0}` : '';
+  });
+  private readonly rotation = computed(() => {
+    const keys = [this.bannerKey(), ...this.slides().map((s) => s.champion)];
+    const rotation = rotationFor(keys, { still: this.motion.reduced(), saveData: prefersSaveData(), daySeed: this.daySeed });
+    // A banner is where the page opens, every day, and the day's seed only picks among the mains.
+    return this.bannerKey() ? { ...rotation, start: 0 } : rotation;
+  });
   private readonly failed = signal<ReadonlySet<string>>(new Set());
   private readonly list = computed(() => dropFailed(this.rotation().slides, this.failed()));
   /** Champions whose CommunityDragon splash failed, so they are asked of Data Dragon. */
@@ -145,6 +166,8 @@ export class HomeHeroComponent {
   protected readonly caption = computed(() => {
     const front = this.layers().at(-1);
     if (!front) return '';
+    const banner = parseBanner(front.champion);
+    if (banner) return this.ui.championName(banner.champion);
     const slide = this.slides().find((s) => sameChampion(s.champion, front.champion));
     const champion = this.ui.championName(front.champion);
     return slide ? `${slide.player} on ${champion}` : champion;
@@ -192,8 +215,14 @@ export class HomeHeroComponent {
     inject(DestroyRef).onDestroy(() => (this.destroyed = true));
   }
 
-  protected urlOf(champion: string): string {
-    return this.fallbacks().has(champion) ? this.ui.championSplashFallbackUrl(champion) : this.ui.championArtUrl(champion);
+  /** A main's splash from CommunityDragon, then Data Dragon; the banner's skin from Data Dragon, then the champion's base splash. */
+  protected urlOf(key: string): string {
+    const banner = parseBanner(key);
+    if (banner && banner.skin > 0) {
+      return this.fallbacks().has(key) ? this.ui.championArtUrl(banner.champion) : this.ui.championSkinSplashUrl(banner.champion, banner.skin);
+    }
+    const champion = banner?.champion ?? key;
+    return this.fallbacks().has(key) ? this.ui.championSplashFallbackUrl(champion) : this.ui.championArtUrl(champion);
   }
 
   /** A splash that would not load: Data Dragon next, and out of the rotation when that fails too. */

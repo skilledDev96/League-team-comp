@@ -158,6 +158,14 @@ export class UiService {
     img.src = this.championSplashFallbackUrl(championName);
   }
 
+  /**
+   * One skin's splash from Data Dragon (13 Sep 2026, Home's banner). CommunityDragon names skin files by
+   * a path nobody can derive from the number, so a skin always comes from Data Dragon; 0 is the base skin.
+   */
+  championSkinSplashUrl(championName: string, skin: number): string {
+    return `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${this.championDDragonName(championName)}_${Math.max(0, Math.floor(skin))}.jpg`;
+  }
+
   /** Data Dragon's base splash: the fallback when CommunityDragon's centered one is missing. The home page preloads it the same way. */
   championSplashFallbackUrl(championName: string): string {
     return `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${this.championDDragonName(championName)}_0.jpg`;

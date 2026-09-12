@@ -152,6 +152,13 @@ The season is the running tournament, else the last 90 days (`core/team-season.t
 The other side is a team name and nothing else — the spec serialises a model built
 from replays carrying their Riot ids and checks none survives. No link on Home may
 have a name containing "comps": the e2e sign-in check matches that substring.
+**What the games cannot prove is entered by hand**: trophies and placings on Admin ›
+Trophies (`trophies` collection, the whole new-entity checklist) stand first in the
+cabinet, and `Settings.motto` and `Settings.banner` (a champion and a Riot skin
+number, since there is no file storage) put a line under the name and the splash the
+hero opens on. `AdminContextService.saveSettings` writes **every** field the document
+holds and `updateSettings` strips undefined first — `meta/settings` is written whole,
+so a save that forgot a field would wipe it.
 
 **Prep & Draft holds every opponent** (`/tournaments`, renamed in the nav on
 9 Sep 2026; `/scrims` redirects there). A **group** is a `Tournament` with

@@ -175,6 +175,12 @@ describe('buildHome', () => {
     expect(buildHome(input()).handTrophies).toEqual([]);
   });
 
+  it('carries the motto and the banner, trimmed, with the base skin as no skin at all', () => {
+    expect(buildHome(input({ motto: '  Draft it, then play it ', banner: { champion: ' Jinx ', skin: 3 } }))).toMatchObject({ motto: 'Draft it, then play it', banner: { champion: 'Jinx', skin: 3 } });
+    expect(buildHome(input({ banner: { champion: 'Jinx', skin: 0 } })).banner).toEqual({ champion: 'Jinx' });
+    expect(buildHome(input({ banner: { champion: '  ' } }))).toMatchObject({ motto: '', banner: null });
+  });
+
   it('draws the seed as intentional empties: five mains, no record, nobody crowned, every trophy locked', () => {
     const home = buildHome(input({ analysis: [], seriesGames: [], scrims: [], series: [] }));
     expect(home.slides.map((s) => s.champion)).toEqual(['Aatrox', 'Vi', 'Ahri', 'Jinx', 'Leona']);

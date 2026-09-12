@@ -15528,6 +15528,7 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .home-season button { padding: 0.3rem 0.9rem; font-size: 0.76rem; }
 .home-hero-body { grid-column: 1; align-self: end; min-width: 0; display: grid; justify-items: start; }
 .home-title { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 4.2rem; font-weight: 700; line-height: 0.95; letter-spacing: 0.01em; text-transform: uppercase; color: var(--text-0); text-shadow: 0 0.25rem 1.5rem color-mix(in srgb, var(--bg-0) 75%, transparent); overflow-wrap: anywhere; }
+.home-motto { margin: 0.4rem 0 0; max-width: 40rem; font-size: 1.05rem; font-style: italic; color: var(--text-1); text-shadow: 0 0.15rem 0.8rem color-mix(in srgb, var(--bg-0) 80%, transparent); }
 .home-hero-caption { margin: 0.35rem 0 0; min-height: 1.25rem; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--text-1); }
 .home-hero-caption .material-symbols-rounded { font-size: 0.95rem; color: var(--text-2); }
 .home-counters { margin: 1rem 0 0; display: grid; grid-template-columns: repeat(4, minmax(7rem, 9rem)); gap: 0.6rem; }
@@ -15631,9 +15632,10 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
   .home .card { animation: none; }
   .home:not(.is-still) .home-hero-slide { animation: film-pan 20s ease-in-out 1 forwards; }
   .home:not(.is-still) .home-hero-slide.is-incoming { animation: home-fade-in 1400ms ease backwards, film-pan 20s ease-in-out 1 forwards; }
-  .home:not(.is-still) .home-hero:not(.is-seen) :is(.home-title, .home-counter, .home-hero-next),
+  .home:not(.is-still) .home-hero:not(.is-seen) :is(.home-title, .home-motto, .home-counter, .home-hero-next),
   .home:not(.is-still) .home-spotlight:not(.is-seen) .home-spotlight-body { opacity: 0; }
   .home:not(.is-still) .home-hero.is-seen .home-title { animation: film-word-rise 700ms ease backwards; }
+  .home:not(.is-still) .home-hero.is-seen .home-motto { animation: film-word-rise 700ms ease 160ms backwards; }
   .home:not(.is-still) .home-hero.is-seen .home-counter { animation: film-rise 600ms ease backwards; animation-delay: calc(180ms + var(--home-i, 0) * 70ms); }
   .home-counter:nth-child(2) { --home-i: 1; }
   .home-counter:nth-child(3) { --home-i: 2; }
@@ -15875,3 +15877,12 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
   @keyframes home-ring-draw { from { stroke-dasharray: 0 100; } }
   @keyframes home-stamp { from { opacity: 0; transform: scale(1.5) rotate(-8deg); } }
 }
+
+/* Admin › Settings: Home's banner (13 Sep 2026). */
+.admin-banner { margin: 0.4rem 0 0.8rem; padding: 0.6rem 0.85rem 0.8rem; border: 1px solid var(--card-border); border-radius: 12px; }
+.admin-banner legend { padding: 0 0.3rem; font-weight: 600; }
+.admin-banner-row { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 0.75rem; }
+.admin-banner-row .field { margin: 0; }
+.admin-banner-skin { width: 8rem; }
+.admin-banner-preview { margin: 0.6rem 0 0; display: grid; gap: 0.3rem; max-width: 28rem; }
+.admin-banner-preview img { width: 100%; aspect-ratio: 1215 / 717; object-fit: cover; border-radius: 10px; border: 1px solid var(--card-border); background: var(--bg-1); }
