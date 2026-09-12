@@ -440,15 +440,6 @@ html {
   white-space: nowrap;
 }
 
-.pi-edit-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.8rem;
-  padding: 0.32rem 0.7rem;
-  flex: 0 0 auto;
-}
-
 .pi-edit-btn .material-symbols-rounded {
   font-size: 1rem;
 }
@@ -779,10 +770,6 @@ body {
   color: var(--warn);
 }
 
-.analysis-refresh-all {
-  margin-left: 0.6rem;
-}
-
 .overflow-item:disabled {
   opacity: 0.55;
   cursor: default;
@@ -978,18 +965,6 @@ body {
   }
 }
 
-.edit-advanced {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.125rem;
-  height: 2.125rem;
-  border-radius: 999px;
-  border: 1px solid var(--card-border);
-  background: var(--surface-btn);
-  color: var(--text-1);
-}
-
 .edit-advanced:hover,
 .edit-advanced:focus-visible,
 .edit-advanced.active {
@@ -1062,12 +1037,6 @@ app-detail-toggle { margin-left: auto; }
 
 .profiles-refresh-all .material-symbols-rounded {
   font-size: 1.05rem;
-}
-
-.profiles-refresh-msg {
-  font-size: 0.85rem;
-  color: var(--text-1);
-  margin: 0 0 0.6rem;
 }
 
 .profiles-table {
@@ -1571,18 +1540,6 @@ a.profiles-row:focus-visible {
   padding-inline: 0.9rem;
 }
 
-.learn-champ-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 0.4rem 0.55rem;
-  border-radius: 8px;
-  border: 1px solid var(--card-border);
-  background: var(--surface-btn);
-  color: var(--text-0);
-  font: inherit;
-  font-size: 0.85rem;
-}
-
 /* Per-player "Working On" list on the scouting card. */
 .player-pain-list {
   list-style: none;
@@ -1660,23 +1617,6 @@ a.profiles-row:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.theme-toggle {
-  border: 1px solid var(--card-border);
-  background: var(--surface-nav);
-  color: var(--text-0);
-  border-radius: 999px;
-  padding: 0.5rem 0.8rem;
-  font-family: "Sora", sans-serif;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.theme-toggle:hover,
-.theme-toggle:focus-visible {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .theme-select {
@@ -2345,10 +2285,6 @@ body[data-theme='light'] .avatar-role {
   display: block;
 }
 
-.comp-line {
-  margin: 0.35rem 0;
-}
-
 .comp-panel {
   margin: 0;
 }
@@ -2408,15 +2344,6 @@ body[data-theme='light'] .avatar-role {
 
 .comp-summary-name {
   flex: 1 1 auto;
-}
-
-.comp-edit-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.8rem;
-  padding: 0.32rem 0.7rem;
-  flex: 0 0 auto;
 }
 
 .comp-edit-btn .material-symbols-rounded {
@@ -2720,28 +2647,6 @@ body[data-theme='light'] .avatar-role {
   flex: 0 0 auto;
 }
 
-/* ---- Comp category + notes --------------------------------------------- */
-
-.comp-cat-filter {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-1);
-}
-
-.comp-cat-filter select {
-  padding: 0.4rem 0.55rem;
-  border-radius: 8px;
-  border: 1px solid var(--card-border);
-  background: var(--surface-btn);
-  color: var(--text-0);
-  font: inherit;
-  font-size: 0.85rem;
-}
-
 .comp-cat-chip {
   flex: 0 1 auto;
   min-width: 0;
@@ -3022,24 +2927,6 @@ body[data-theme='light'] .avatar-role {
   margin-top: 1.5rem;
 }
 
-.analysis-head {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-}
-
-.analysis-head h2 {
-  margin: 0;
-}
-
-.analysis-refresh {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
 .analysis-refresh .material-symbols-rounded {
   font-size: 1.05rem;
 }
@@ -3052,77 +2939,9 @@ body[data-theme='light'] .avatar-role {
   padding: 0.5rem 0.7rem;
 }
 
-.analysis-meta {
-  font-size: 0.82rem;
-  color: var(--text-1);
-  font-variant-numeric: tabular-nums;
-}
-
-.analysis-pending {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.85rem;
-  color: var(--text-0);
-  padding: 0.45rem 0.7rem;
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--card-border) 55%);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-}
-
 .analysis-pending .material-symbols-rounded {
   font-size: 1.05rem;
   color: var(--accent-2);
-}
-
-.analysis-list {
-  list-style: none;
-  margin: 0.6rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.analysis-filter {
-  margin: 0.2rem 0 0.6rem;
-}
-
-.analysis-comp {
-  border-radius: 10px;
-  border: 1px solid var(--card-border);
-  background: var(--surface-btn);
-  overflow: hidden;
-}
-
-.analysis-row {
-  display: grid;
-  grid-template-columns: 9rem 4.5rem 1fr 3rem auto 1.4rem;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.45rem 0.7rem;
-  cursor: pointer;
-  list-style: none;
-}
-
-.analysis-row::-webkit-details-marker {
-  display: none;
-}
-
-.analysis-comp-chevron {
-  color: var(--accent-2);
-  font-size: 1.2rem;
-  transition: transform 160ms ease;
-}
-
-.analysis-comp[open] .analysis-comp-chevron {
-  transform: rotate(180deg);
-}
-
-.analysis-comp-games {
-  padding: 0 0.6rem 0.6rem;
-  border-top: 1px solid var(--card-border);
-  margin-top: 0.2rem;
 }
 
 /* ---- Analytics / insights ---------------------------------------------- */
@@ -3134,44 +2953,13 @@ body[data-theme='light'] .avatar-role {
   overflow: hidden;
 }
 
-.insights-head {
-  list-style: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.7rem;
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: var(--text-0);
-  background: var(--surface-btn);
-}
-
-.insights-head::-webkit-details-marker {
-  display: none;
-}
-
 .insights-head > .material-symbols-rounded:first-child {
   color: var(--accent-2);
   font-size: 1.1rem;
 }
 
-.insights-chevron {
-  margin-left: auto;
-  color: var(--accent-2);
-  transition: transform 160ms ease;
-}
-
 .insights[open] .insights-chevron {
   transform: rotate(180deg);
-}
-
-.insights-body {
-  padding: 0.8rem 0.7rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
 }
 
 .insight-tiles {
@@ -3246,47 +3034,6 @@ body[data-theme='light'] .avatar-role {
   background: color-mix(in srgb, var(--warn) 20%, transparent);
 }
 
-.matchup-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 1rem;
-}
-
-.matchup-col {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.matchup-row {
-  display: grid;
-  grid-template-columns: 1.625rem 1fr auto auto;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.matchup-champ {
-  width: 1.625rem;
-  height: 1.625rem;
-  border-radius: 999px;
-  border: 1px solid var(--card-border);
-  object-fit: cover;
-}
-
-.matchup-name {
-  font-size: 0.85rem;
-  color: var(--text-0);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.matchup-rate {
-  font-weight: 700;
-  font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
-}
-
 .matchup-rate.pos {
   color: var(--ok);
 }
@@ -3295,90 +3042,12 @@ body[data-theme='light'] .avatar-role {
   color: var(--warn);
 }
 
-.matchup-games {
-  font-size: 0.78rem;
-  color: var(--text-1);
-  font-variant-numeric: tabular-nums;
-}
-
-.analysis-name-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
-.analysis-name {
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: var(--text-0);
-}
-
-.analysis-record {
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.82rem;
-  color: var(--text-1);
-  font-variant-numeric: tabular-nums;
-}
-
-/* How many of a comp's counted games were 4-stacks (a player subbed). */
-.analysis-subs {
-  flex: 0 0 auto;
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  padding: 0.08rem 0.4rem;
-  border-radius: 999px;
-  color: var(--warn);
-  border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--card-border) 65%);
-  background: color-mix(in srgb, var(--warn) 10%, transparent);
-  white-space: nowrap;
-}
-
-.analysis-bar {
-  position: relative;
-  height: 8px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--warn) 28%, transparent);
-}
-
-.analysis-bar-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 999px;
-  background: var(--bar-accent);
-  transition: width 260ms ease;
-}
-
 .analysis-bar-fill.high {
   background: var(--bar-ok);
 }
 
 .analysis-bar-fill.low {
   background: var(--bar-warn);
-}
-
-.analysis-rate {
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: var(--text-0);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.analysis-verdict {
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.7rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  padding: 0.18rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid var(--card-border);
-  white-space: nowrap;
 }
 
 .analysis-verdict.tone-good {
@@ -3393,57 +3062,6 @@ body[data-theme='light'] .avatar-role {
 
 .analysis-verdict.tone-neutral {
   color: var(--text-1);
-}
-
-/* Pipeline audit (editors only) — stage counts for the last analysis pass. */
-.analysis-funnel {
-  margin: 0.6rem 0 0.3rem;
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-controls) 80%, transparent);
-}
-
-.analysis-funnel > summary {
-  list-style: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.55rem 0.75rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-1);
-}
-
-.analysis-funnel > summary::-webkit-details-marker {
-  display: none;
-}
-
-.analysis-funnel-chevron {
-  margin-left: auto;
-  color: var(--accent-2);
-  transition: transform 150ms ease;
-}
-
-.analysis-funnel[open] .analysis-funnel-chevron {
-  transform: rotate(180deg);
-}
-
-.funnel-drop-flag {
-  font-size: 0.66rem;
-  font-weight: 700;
-  text-transform: none;
-  padding: 0.08rem 0.45rem;
-  border-radius: 999px;
-  color: var(--warn);
-  border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--card-border) 65%);
-  background: color-mix(in srgb, var(--warn) 10%, transparent);
-}
-
-.funnel-body {
-  padding: 0 0.75rem 0.7rem;
 }
 
 .funnel-list {
@@ -3491,63 +3109,6 @@ body[data-theme='light'] .avatar-role {
   font-size: 0.78rem;
 }
 
-/* Comp-match strictness slider in the Match Analysis header. */
-.analysis-strictness {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
-  margin: 0.6rem 0 0.3rem;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-controls) 80%, transparent);
-}
-
-.analysis-strictness label {
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-1);
-}
-
-.analysis-strictness input[type='range'] {
-  flex: 1 1 8rem;
-  min-width: 7rem;
-  max-width: 14rem;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-.strictness-val {
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.8rem;
-  color: var(--accent-2);
-  white-space: nowrap;
-}
-
-.strictness-hint {
-  flex: 1 1 100%;
-  font-size: 0.74rem;
-  color: var(--text-1);
-}
-
-/* Overall W-L pill for all stacked team games, in the meta line. */
-.analysis-total-record {
-  display: inline-block;
-  margin-left: 0.4rem;
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.74rem;
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  border: 1px solid var(--card-border);
-  color: var(--text-1);
-  vertical-align: middle;
-}
-
 .analysis-total-record.is-positive {
   color: var(--ok);
   border-color: color-mix(in srgb, var(--ok) 45%, var(--card-border) 55%);
@@ -3556,34 +3117,6 @@ body[data-theme='light'] .avatar-role {
 .analysis-total-record.is-negative {
   color: var(--warn);
   border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
-}
-
-.offbook-head {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-  margin-top: 0.9rem;
-  padding-top: 0.8rem;
-  border-top: 1px solid var(--card-border);
-}
-
-.offbook-title {
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.85rem;
-  letter-spacing: 0.02em;
-  color: var(--text-0);
-}
-
-.offbook-record {
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.78rem;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid var(--card-border);
-  color: var(--text-1);
 }
 
 .offbook-record.is-positive {
@@ -3596,59 +3129,8 @@ body[data-theme='light'] .avatar-role {
   border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
 }
 
-.offbook-note {
-  font-size: 0.8rem;
-  color: var(--text-1);
-}
-
-.offbook-toggle {
-  margin-left: auto;
-  padding: 0.3rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid var(--card-border);
-  background: var(--surface-btn);
-  color: var(--text-1);
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.offbook-toggle:hover,
-.offbook-toggle:focus-visible {
-  color: var(--text-0);
-  border-color: var(--accent);
-}
-
-/* Per-game breakdown: each game is a collapsible panel. */
-.game-list {
-  list-style: none;
-  margin: 0.6rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
 .game-entry {
   position: relative;
-}
-
-.game-entry-note {
-  position: absolute;
-  top: 0;
-  right: 2.9rem;
-  height: 3.3rem;
-  display: flex;
-  align-items: center;
-}
-
-.game-panel {
-  border-radius: 10px;
-  border: 1px solid var(--card-border);
-  background: var(--surface-btn);
-  border-left-width: 3px;
-  overflow: hidden;
 }
 
 .game-panel.is-win {
@@ -3657,32 +3139,6 @@ body[data-theme='light'] .avatar-role {
 
 .game-panel.is-loss {
   border-left-color: var(--warn);
-}
-
-.game-summary {
-  list-style: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.5rem 0.7rem;
-}
-
-.game-summary::-webkit-details-marker {
-  display: none;
-}
-
-.game-outcome {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.6rem;
-  height: 1.6rem;
-  border-radius: 999px;
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.82rem;
 }
 
 .game-panel.is-win .game-outcome {
@@ -3702,176 +3158,16 @@ body[data-theme='light'] .avatar-role {
   flex-wrap: wrap;
 }
 
-.game-champ-sm {
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 999px;
-  border: 1px solid var(--card-border);
-  object-fit: cover;
-}
-
-/* Roster-stack size tag (e.g. 5/5, 4/5, 3/5) on each analysed game. */
-.game-stack {
-  flex: 0 0 auto;
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.68rem;
-  letter-spacing: 0.02em;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  color: var(--ok);
-  border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--card-border) 60%);
-  background: color-mix(in srgb, var(--ok) 12%, transparent);
-  white-space: nowrap;
-}
-
 .game-stack.is-partial {
   color: var(--warn);
   border-color: color-mix(in srgb, var(--warn) 40%, var(--card-border) 60%);
   background: color-mix(in srgb, var(--warn) 12%, transparent);
 }
 
-/* "What comp is this" tag row shown under a game's summary. */
-.game-comp-tag {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding: 0.5rem 0.2rem 0.2rem;
-}
-
-.game-comp-tag-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: var(--accent-2);
-  margin-right: 0.15rem;
-}
-
-.game-comp-champ {
-  width: 1.875rem;
-  height: 1.875rem;
-  border-radius: 999px;
-  border: 1px solid var(--card-border);
-  object-fit: cover;
-}
-
-.game-near {
-  flex: 0 0 auto;
-  font-size: 0.76rem;
-  color: var(--text-1);
-  white-space: nowrap;
-}
-
-.game-queue {
-  flex: 0 0 auto;
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.68rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--accent-2);
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 20%, transparent);
-}
-
-.game-date {
-  flex: 0 0 auto;
-  font-size: 0.78rem;
-  color: var(--text-1);
-  font-variant-numeric: tabular-nums;
-}
-
-.game-chevron {
-  flex: 0 0 auto;
-  color: var(--accent-2);
-  transition: transform 160ms ease;
-  /* Clears the note control, which sits on this row but outside <summary>. */
-  margin-left: 6.3rem;
-}
-
-.game-panel[open] .game-chevron {
-  transform: rotate(180deg);
-}
-
-/* Expanded detail: one player per line for clean, full-name readability. */
-.game-players {
-  list-style: none;
-  margin: 0;
-  padding: 0.3rem 0.8rem 0.6rem;
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--card-border);
-}
-
-.game-player {
-  display: grid;
-  grid-template-columns: 2.5rem 4.75rem minmax(6rem, 1fr) 4.25rem 3rem 3.5rem 3rem 3.75rem;
-  align-items: center;
-  gap: 0.9rem;
-  padding: 0.32rem 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 45%, transparent);
-}
-
-.game-player:last-child {
-  border-bottom: none;
-}
-
 /* A played champion that's part of the matched/closest comp. */
 .game-player.in-comp .game-champ {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
-}
-
-.game-incomp {
-  font-size: 1rem;
-  color: var(--accent-2);
-  flex: 0 0 auto;
-}
-
-.game-player-head {
-  padding-top: 0.1rem;
-  border-bottom: 1px solid var(--card-border);
-}
-
-.game-col {
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-1);
-  text-align: right;
-}
-
-.game-cs,
-.game-dmg {
-  font-size: 0.8rem;
-  color: var(--text-1);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.game-define {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.8rem 0.65rem;
-  flex-wrap: wrap;
-}
-
-.game-define-input {
-  flex: 0 1 18rem;
-  min-width: 0;
-  padding: 0.42rem 0.6rem;
-  border-radius: 8px;
-  border: 1px solid var(--card-border);
-  background: var(--card);
-  color: var(--text-0);
-  font: inherit;
-  font-size: 0.85rem;
 }
 
 .game-define .view-btn {
@@ -3884,14 +3180,6 @@ body[data-theme='light'] .avatar-role {
   font-size: 1rem;
 }
 
-.game-define-saved {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--ok);
-}
-
 .game-define-saved .material-symbols-rounded {
   font-size: 1.05rem;
 }
@@ -3902,35 +3190,6 @@ body[data-theme='light'] .avatar-role {
   border-radius: 999px;
   border: 1px solid var(--card-border);
   object-fit: cover;
-}
-
-.game-pos {
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.66rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--accent-2);
-}
-
-.game-pname {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  min-width: 0;
-  font-size: 0.9rem;
-  color: var(--text-0);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.game-kda {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-1);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
 }
 
 /* Match-history record shown on each comp panel. */
@@ -3987,10 +3246,6 @@ body[data-theme='light'] .avatar-role {
   color: var(--warn);
 }
 
-.analysis-empty {
-  margin-top: 0.4rem;
-}
-
 @media (max-width: 720px) {
   .analysis-row {
     grid-template-columns: 1fr auto auto;
@@ -4010,27 +3265,6 @@ body[data-theme='light'] .avatar-role {
   margin-top: 1.5rem;
 }
 
-.log-head {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-}
-
-.log-record {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.9rem;
-  padding: 0.25rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid var(--card-border);
-  background: var(--surface-btn);
-  color: var(--text-0);
-}
-
 .log-record.is-positive {
   border-color: color-mix(in srgb, var(--ok) 55%, var(--card-border) 45%);
   color: var(--ok);
@@ -4041,69 +3275,9 @@ body[data-theme='light'] .avatar-role {
   color: var(--warn);
 }
 
-.log-record-rate {
-  font-size: 0.78rem;
-  opacity: 0.85;
-}
-
-.log-filters {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-  margin: 0.9rem 0;
-}
-
-.log-filter {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-1);
-}
-
-.log-filter select {
-  padding: 0.4rem 0.6rem;
-  border-radius: 8px;
-  border: 1px solid var(--card-border);
-  background: var(--surface-btn);
-  color: var(--text-0);
-  font: inherit;
-  font-size: 0.85rem;
-}
-
-.log-result-toggle {
-  display: inline-flex;
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid var(--card-border);
-}
-
-.log-result-toggle button {
-  padding: 0.42rem 0.9rem;
-  border: none;
-  background: var(--surface-btn);
-  color: var(--text-1);
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
 .log-result-toggle button.active {
   background: color-mix(in srgb, var(--accent) 30%, var(--surface-btn) 70%);
   color: var(--text-0);
-}
-
-.log-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
 }
 
 .log-row {
@@ -4148,31 +3322,6 @@ body[data-theme='light'] .avatar-role {
   background: color-mix(in srgb, var(--warn) 20%, transparent);
 }
 
-.log-date {
-  font-variant-numeric: tabular-nums;
-  font-size: 0.82rem;
-  color: var(--text-1);
-}
-
-.log-comp {
-  font-weight: 600;
-  font-size: 0.88rem;
-  color: var(--text-0);
-}
-
-.log-opp {
-  font-size: 0.85rem;
-  color: var(--text-1);
-}
-
-.log-note {
-  font-size: 0.85rem;
-  color: var(--text-1);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .log-del {
   display: inline-flex;
   align-items: center;
@@ -4194,12 +3343,6 @@ body[data-theme='light'] .avatar-role {
 
 .log-del .material-symbols-rounded {
   font-size: 1rem;
-}
-
-.log-empty {
-  color: var(--text-1);
-  font-size: 0.9rem;
-  opacity: 0.85;
 }
 
 @media (max-width: 720px) {
@@ -5024,51 +4167,12 @@ body[data-theme='light'] .avatar-role {
   }
 }
 
-.comp-panel-summary {
-  list-style: none;
-  cursor: pointer;
-  font-family: "Chakra Petch", sans-serif;
-  font-size: 1.1rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.comp-panel-summary::-webkit-details-marker {
-  display: none;
-}
-
-.comp-panel-summary::before {
-  content: ">";
-  display: inline-block;
-  margin-right: 0.45rem;
-  color: var(--accent-2);
-  transition: transform 140ms ease;
-}
-
 .comp-panel[open] .comp-panel-summary::before {
   transform: rotate(90deg);
 }
 
-.comp-panel-body {
-  margin-top: 0.68rem;
-}
-
 body.comps-page .card {
   padding: 1.2rem;
-}
-
-body.comps-page #macroSection {
-  align-items: start;
-}
-
-body.comps-page .comp-panel-summary {
-  font-size: 1.25rem;
-}
-
-body.comps-page .comp-line {
-  font-size: 1.02rem;
-  line-height: 1.7;
-  margin: 0.5rem 0;
 }
 
 body.comps-page .comp-line .role {
@@ -5096,20 +4200,6 @@ body.comps-page[data-comp-view="starter"] .view-controls {
 body.comps-page[data-comp-view="full"] .view-controls {
   border-color: color-mix(in srgb, var(--accent) 58%, var(--card-border) 42%);
   background: color-mix(in srgb, var(--surface-controls) 78%, var(--accent) 22%);
-}
-
-.view-mode-inline {
-  margin-left: 0.45rem;
-  padding: 0.2rem 0.62rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--accent) 72%, var(--card-border) 28%);
-  color: var(--text-0);
-  background: color-mix(in srgb, var(--accent) 24%, var(--surface-btn) 76%);
-  font-size: 0.84rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-2) 26%, transparent);
 }
 
 body.comps-page .hero .view-mode-inline {
@@ -5156,26 +4246,10 @@ body.comps-page .list-clean li {
   font-weight: 700;
 }
 
-.comp-line .champ-link {
-  color: #ffe4cb;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.comp-line .champ-link:hover,
-.comp-line .champ-link:focus-visible {
-  color: #ffd0a2;
-}
-
 .footer-note {
   margin-top: 1rem;
   font-size: 0.82rem;
   color: var(--text-1);
-}
-
-body.intel-page #playerCards {
-  grid-template-columns: 1fr;
-  gap: 1rem;
 }
 
 body.intel-page #playerCards .card {
@@ -5195,10 +4269,6 @@ body.intel-page #playerCards .meta-line {
 
 body.intel-page #playerCards .role-toggle {
   margin-top: 0.6rem;
-}
-
-body.intel-page #fillInSection {
-  margin-bottom: 0.2rem;
 }
 
 @media (max-width: 900px) {
@@ -5342,13 +4412,6 @@ body[data-theme='light'] select { color-scheme: light; }
   display: none;
 }
 
-.comp-rows {
-  margin-top: 0.7rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
 .comp-row {
   display: grid;
   grid-template-columns: 3.4rem auto 1fr;
@@ -5365,12 +4428,6 @@ body[data-theme='light'] select { color-scheme: light; }
 .comp-row .champ-icon {
   width: 2.75rem;
   height: 2.75rem;
-}
-
-.comp-role {
-  color: var(--accent-2);
-  font-weight: 700;
-  font-size: 0.9rem;
 }
 
 .comp-note {
@@ -5414,28 +4471,6 @@ body[data-theme='light'] select { color-scheme: light; }
   color: var(--text-1);
   border-color: color-mix(in srgb, var(--accent) 35%, var(--card-border) 65%);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
-}
-
-.key-health-when {
-  margin-left: auto;
-  font-size: 0.72rem;
-  opacity: 0.8;
-}
-
-/* A game that fits two or more comps equally well — the winner is a tie-break. */
-.game-ambiguous {
-  flex: 0 0 auto;
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.64rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  color: var(--accent-2);
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--card-border) 55%);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  white-space: nowrap;
 }
 
 /* Frontend vs backend build stamp, inside the pipeline audit. */
@@ -5687,71 +4722,12 @@ body[data-theme='light'] select { color-scheme: light; }
   margin-top: 0.5rem;
 }
 
-.fearless-split {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: 1rem;
-  margin-top: 0.9rem;
-}
-
-.fearless-col-head {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0 0 0.4rem;
-  font-size: 0.82rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
 .fearless-col-head.is-ok {
   color: var(--ok);
 }
 
 .fearless-col-head.is-broken {
   color: var(--warn);
-}
-
-.fearless-count {
-  font-size: 0.72rem;
-  padding: 0.05rem 0.45rem;
-  border-radius: 999px;
-  border: 1px solid var(--card-border);
-  color: var(--text-1);
-}
-
-.fearless-comp-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.fearless-comp {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  padding: 0.2rem 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 45%, transparent);
-}
-
-.fearless-comp-name {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--text-0);
-}
-
-.fearless-blocked {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  margin-left: auto;
-}
-
-.fearless-blocked-name {
-  font-size: 0.72rem;
-  color: var(--warn);
-  text-decoration: line-through;
 }
 
 /* Player pool pressure */
@@ -5884,53 +4860,6 @@ body[data-theme='light'] select { color-scheme: light; }
   margin-top: 0.6rem;
   color: var(--warn);
   border-color: color-mix(in srgb, var(--warn) 35%, var(--card-border) 65%);
-}
-
-/* Reconciling a typed-in game against real match history. */
-.reconcile-btn {
-  margin-top: 0.4rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.8rem;
-}
-
-.reconcile-list {
-  margin-top: 0.4rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.reconcile-option {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  text-align: left;
-  padding: 0.4rem 0.55rem;
-  border-radius: 8px;
-  border: 1px solid var(--card-border);
-  background: var(--surface-btn);
-  color: var(--text-0);
-  font: inherit;
-  cursor: pointer;
-}
-
-.reconcile-option:hover,
-.reconcile-option:focus-visible {
-  border-color: var(--accent);
-  outline: none;
-}
-
-.reconcile-label {
-  font-weight: 700;
-  font-size: 0.8rem;
-}
-
-.reconcile-champs {
-  font-size: 0.74rem;
-  color: var(--text-1);
 }
 
 .game-linked {
@@ -6117,42 +5046,6 @@ body[data-theme='light'] input[type='date'],
 body[data-theme='light'] input[type='datetime-local'],
 body[data-theme='light'] input[type='time'] {
   color-scheme: light;
-}
-
-/* Collapsible fearless sections — collapsed by default, with the key counts
-   still readable in the summary so nothing important needs expanding. */
-.fearless-collapse {
-  margin-top: 0.9rem;
-  padding-top: 0.8rem;
-  border-top: 1px solid var(--card-border);
-}
-
-.fearless-collapse > summary {
-  list-style: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-1);
-}
-
-.fearless-collapse > summary::-webkit-details-marker {
-  display: none;
-}
-
-.fearless-collapse-chevron {
-  color: var(--accent-2);
-  transition: transform 150ms ease;
-}
-
-.fearless-collapse[open] .fearless-collapse-chevron {
-  transform: rotate(90deg);
 }
 
 .fearless-count.is-ok {
@@ -6445,10 +5338,6 @@ app-match-note {
   display: block;
 }
 
-.game-panel app-match-note {
-  padding: 0 0.75rem 0.5rem;
-}
-
 /* ---- Comp retro rollup ------------------------------------------------
    Collapsed by default: a comp with fifty games has fifty notes, so the panel
    shows the pattern (which champion keeps getting named in losses) and keeps
@@ -6681,38 +5570,6 @@ app-match-note {
   color: var(--text-0);
 }
 
-.log-source {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.1rem;
-  padding: 0.15rem 0.25rem;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: none;
-  color: var(--text-1);
-  opacity: 0.7;
-  cursor: pointer;
-}
-
-.log-source:hover {
-  opacity: 1;
-  color: var(--accent-2);
-  border-color: var(--card-border);
-  background: var(--surface-btn);
-}
-
-.log-source-open {
-  font-size: 0.95rem !important;
-  opacity: 0;
-  margin-left: -0.15rem;
-  transition: opacity 0.12s ease, margin-left 0.12s ease;
-}
-
-.log-source:hover .log-source-open {
-  opacity: 1;
-  margin-left: 0;
-}
-
 /* The panel we were sent to, so it is obvious which one opened. */
 .analysis-comp.is-focused,
 .game-panel.is-focused {
@@ -6786,29 +5643,9 @@ app-match-note {
   background: var(--bg-1);
 }
 
-.draft-board-summary {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.5rem 0.6rem;
-  cursor: pointer;
-  list-style: none;
-  font-size: 0.82rem;
-  color: var(--text-1);
-}
-
-.draft-board-summary::-webkit-details-marker {
-  display: none;
-}
-
 .draft-board-summary > .material-symbols-rounded {
   font-size: 1.05rem;
   color: var(--accent-2);
-}
-
-.draft-board-label {
-  font-weight: 600;
-  color: var(--text-0);
 }
 
 .draft-board-count {
@@ -6831,12 +5668,6 @@ app-match-note {
 .draft-board-burned {
   color: var(--text-2);
   font-size: 0.74rem;
-}
-
-.draft-board-chevron {
-  margin-left: auto;
-  font-size: 1.1rem;
-  transition: transform 0.15s ease;
 }
 
 .draft-board[open] .draft-board-chevron {
@@ -7490,12 +6321,6 @@ app-match-note {
   justify-content: center;
 }
 
-.draft-static-bans {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-}
-
 /* ---- Section heading with an inline action ---------------------------- */
 
 .head-with-action {
@@ -7574,11 +6399,6 @@ app-match-note {
   color: var(--text-1);
   font-size: 0.78rem;
   white-space: nowrap;
-}
-
-.pattern-pending {
-  margin-top: 0.85rem;
-  font-size: 0.78rem;
 }
 
 .loss-card {
@@ -7735,17 +6555,6 @@ app-match-note {
   color: var(--text-1);
 }
 
-/* Per-game comp override, in the expanded game panel. */
-.game-attribution {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 0.75rem;
-  margin-top: 0.7rem;
-  padding-top: 0.7rem;
-  border-top: 1px solid var(--card-border);
-}
-
 .game-attribution .field-hint {
   flex: 1 1 100%;
   margin: 0;
@@ -7844,15 +6653,6 @@ app-match-note {
   margin: 0;
 }
 
-.review-refresh {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 0.75rem;
-  margin-top: 0.6rem;
-}
-
 /* The fight columns are the first thing to go when there is no room: KDA, CS
    and damage are what people scan for, and an overflowing row helps nobody. */
 @media (max-width: 900px) {
@@ -7892,15 +6692,6 @@ app-match-note {
   gap: 0.4rem;
   flex-wrap: wrap;
   margin-left: 0.5rem;
-}
-
-.matchup-vs {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-1);
-  opacity: 0.75;
 }
 
 /* The enemy side is dimmed so a glance lands on our own draft first. */
@@ -8527,81 +7318,11 @@ body[data-theme="bomb"] {
   opacity: 0.85;
 }
 
-/* ---- Section polish -----------------------------------------------------
-   Off the books is a real slice of the record — 130 of 155 games at one point
-   — and was set smaller than the rows above it. */
-.offbook-title {
-  font-size: 1.02rem;
-}
-
-.offbook-record {
-  font-size: 0.9rem;
-  padding: 0.2rem 0.7rem;
-}
-
-.offbook-note {
-  font-size: 0.85rem;
-}
-
-/* A line under a section heading saying what the section is, where the title
-   alone leaves it to be guessed. */
-.section-blurb {
-  margin: 0.15rem 0 0.9rem;
-  font-size: 0.88rem;
-  color: var(--text-1);
-}
-
-/* The record, given room. The count leads and the scan detail sits under it
-   rather than running on in the same sentence. */
-.stat-callout {
-  align-items: center;
-}
-
-.stat-headline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.5rem;
-  font-size: 1.02rem;
-}
-
-.stat-headline strong {
-  font-family: "Chakra Petch", sans-serif;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-0);
-  line-height: 1.1;
-}
-
-.stat-extra {
-  margin: 0.25rem 0 0;
-  font-size: 0.9rem;
-  color: var(--text-0);
-}
-
-.stat-sub {
-  margin: 0.35rem 0 0;
-  font-size: 0.76rem;
-  color: var(--text-1);
-}
-
 /* Trimmed fearless panel: playable comps as chips rather than two columns. */
 .fearless-playable .chip-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-}
-
-.comp-playable em {
-  font-style: normal;
-  font-size: 0.72rem;
-  opacity: 0.75;
-  margin-left: 0.3rem;
-}
-
-.fearless-broken-note {
-  margin-top: 0.6rem;
-  font-size: 0.82rem;
 }
 
 /* With the duplicate heading gone the row holds only the refresh button, so it
@@ -9929,12 +8650,6 @@ body[data-theme="bomb"] {
   margin-left: 0.15rem;
 }
 
-.draft-slot-more {
-  padding: 0.1rem 0.35rem;
-  border: 1px solid var(--card-border);
-  border-radius: 0.3rem;
-}
-
 /* The burn scrolls inside its own row at every width, not just narrow ones.
    Under fearless every burned champion matters, so none is dropped — but the
    list reaches forty in a Bo5 and the slot height is fixed, so it cannot wrap.
@@ -10723,19 +9438,8 @@ body:has(.draft-stage) .edit-mode-frame {
 
 .advice-champ { font-weight: 700; flex: 0 0 7rem; }
 
-.advice-comps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem 0.6rem;
-  color: var(--text-1);
-  font-size: 0.76rem;
-}
-
-.advice-comp b  { color: var(--text-0); margin-left: 0.2rem; }
 .advice-comp b.is-good { color: var(--ok); }
 .advice-comp b.is-poor { color: var(--warn); }
-/* The sample size rides with every percentage, never separated from it. */
-.advice-comp em { font-style: normal; opacity: 0.65; margin-left: 0.2rem; }
 
 .advice-empty { margin: 0; font-size: 0.8rem; }
 
@@ -11169,30 +9873,6 @@ body:has(.draft-stage) .edit-mode-frame {
   white-space: nowrap;
 }
 
-/* ---- Solo queue rate, beside our own record -----------------------------
-   Deliberately quieter than the projection next to it. Ours is the number
-   that knows our comps and our players; this one knows the game. Showing
-   them at equal weight would suggest they answer the same question. */
-.advice-solo {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.3rem;
-  margin-left: 0.5rem;
-  padding-left: 0.55rem;
-  border-left: 1px solid var(--card-border);
-  font-variant-numeric: tabular-nums;
-}
-
-.advice-solo-label {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--text-1);
-  opacity: 0.7;
-}
-
-.advice-solo b { font-size: 0.85rem; }
-
 /* ---- Matchup chip -------------------------------------------------------
    Their champion in this lane versus ours, from the collected data. Sits
    after SoloQ because it is the more specific claim and the eye should reach
@@ -11211,13 +9891,6 @@ body:has(.draft-stage) .edit-mode-frame {
   font-variant-numeric: tabular-nums;
 }
 
-.advice-matchup-label {
-  font-size: 0.85rem;
-  color: var(--text-1);
-  opacity: 0.7;
-  align-self: center;
-}
-
 .advice-matchup b { font-size: 0.85rem; }
 .advice-matchup em { font-style: normal; font-size: 0.72rem; opacity: 0.65; }
 
@@ -11228,29 +9901,6 @@ body:has(.draft-stage) .edit-mode-frame {
 .advice-matchup.is-thin { opacity: 0.45; }
 .advice-matchup.is-thin b { color: var(--text-1); font-weight: 500; }
 
-/* ---- Comp pills ---------------------------------------------------------
-   Comps have no icon of their own, so the compact form is the number itself
-   with the name on hover. Spelling four names out ran the row past the edge
-   and pushed the win rate — the thing actually being read — out of view. */
-.advice-comp {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.22rem;
-  padding: 0.08rem 0.36rem;
-  border-radius: 0.35rem;
-  background: color-mix(in srgb, var(--surface-btn) 70%, transparent);
-  border: 1px solid var(--card-border);
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  cursor: default;
-}
-
-.advice-comp em {
-  font-style: normal;
-  opacity: 0.65;
-  font-size: 0.66rem;
-}
-
 /* An unplayed comp is a possibility, not a result; it should not read as one. */
 .advice-comp.is-unplayed {
   opacity: 0.6;
@@ -11260,15 +9910,6 @@ body:has(.draft-stage) .edit-mode-frame {
 .advice-comp.is-more {
   opacity: 0.7;
   font-weight: 600;
-}
-
-/* The comp's shape, as a glyph. Derived from its champions, so it says how the
-   comp plays rather than decorating it — two comps that play alike look alike. */
-.advice-comp-icon {
-  font-size: 1.05rem;
-  line-height: 1;
-  opacity: 0.75;
-  transform: translateY(0.1em);
 }
 
 /* Test aids, marked as such. Quieter than Undo and Reset, which are part of
@@ -13145,14 +11786,12 @@ body:has(.draft-stage) .edit-mode-frame {
   margin-left: 0.05rem;
 }
 
-
 /* The picker's "no champion matches" line: a miss is now said, not silent. */
 .champ-picker-none {
   margin: 0.3rem 0 0;
   font-size: 0.78rem;
   color: var(--warn);
 }
-
 
 /* Mastery under a scouted champion: level and points, the all-time signal a
    forty-game scan cannot see. Quiet next to the win rate, which is the number
@@ -13174,7 +11813,6 @@ body:has(.draft-stage) .edit-mode-frame {
   font-weight: 500;
   color: var(--text-1);
 }
-
 
 /* A made ban as a button: no chrome of its own, the icon is the control. Aimed
    at, it takes the accent ring the pick cards use, so "the next click goes
@@ -13199,7 +11837,6 @@ body:has(.draft-stage) .edit-mode-frame {
   padding: 0.1rem 0.55rem;
   font-size: 0.72rem;
 }
-
 
 /* ---- After "Draft complete" -----------------------------------------------
    The bar carries the result and the next game; the wall folds away unless
@@ -13266,7 +11903,6 @@ body:has(.draft-stage) .edit-mode-frame {
   .draft-stage.is-map .draft-board-body { grid-row: 7; }
 }
 
-
 /* The team plan in the advisor block, verbatim, line breaks kept: it is the
    drafter's own text and reads best exactly as they wrote it. */
 .advisor-plan {
@@ -13276,7 +11912,6 @@ body:has(.draft-stage) .edit-mode-frame {
   line-height: 1.4;
   color: var(--text-0);
 }
-
 
 /* Reset keeps its warning colour now that it is a pill like its neighbours. */
 .view-btn.draft-reset {
@@ -13290,7 +11925,6 @@ body:has(.draft-stage) .edit-mode-frame {
   gap: 0.3rem;
   margin-top: 0.6rem;
 }
-
 
 /* Worth-taking, led by the matchup. The rate is the biggest thing on the
    row; the games and the champion it is into sit beside it in small type,
@@ -13332,7 +11966,6 @@ body:has(.draft-stage) .edit-mode-frame {
   color: var(--text-1);
   opacity: 0.7;
 }
-
 
 /* ---- Opponent table, 6 Sep 2026 -------------------------------------------
    Mastery sits above the champion icon, one line for every champion so the
@@ -13378,7 +12011,6 @@ body:has(.draft-stage) .edit-mode-frame {
     minmax(9rem, auto)      /* loses to */
     minmax(11rem, 1.2fr);   /* lately */
 }
-
 
 /* ---- Opponent table, later on 6 Sep 2026 ---------------------------------
    Lately lines up with the champion icons, which now carry a mastery line
@@ -13500,7 +12132,6 @@ button.opp-more.active {
   visibility: hidden;
 }
 
-
 /* ---- Their games together, opened (6 Sep 2026) ---------------------------
    Each game row is a details: the row is the summary, the match underneath —
    scoreline and objectives on one line, then a table of the ten players. The
@@ -13609,7 +12240,6 @@ button.opp-more.active {
 
 .opp-history-nostats { margin: 0.3rem 0 0; font-size: 0.74rem; }
 
-
 /* Ours, both ways: "vs" is our games into their pick, "overall" across
    everyone; the two sit side by side so neither has to be inferred. */
 .advice-row .advice-proj { gap: 0.8rem; }
@@ -13621,7 +12251,6 @@ button.opp-more.active {
 }
 
 .advice-ours.is-none { opacity: 0.55; }
-
 
 /* ---- Draft log on Diagnostics (8 Sep 2026) --------------------------------
    One line per save: when, who, which game, the step it moved, and what
@@ -13679,7 +12308,6 @@ button.opp-more.active {
   .draft-log-row { grid-template-columns: 1fr 1fr; }
   .draft-log-changes { grid-column: 1 / -1; }
 }
-
 
 /* ---- Games (8 Sep 2026) ----------------------------------------------------
    One page for every game we played. The rows are the opponent-history rows;
@@ -13801,7 +12429,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .games-row-actions .field { margin: 0; }
 .games-empty { margin: 0.3rem 0; }
 
-
 /* KDA as three figures with a quiet slash between, instead of one run of
    digits; and the replay import on a series game, which is the Scrims
    file button in a smaller coat. */
@@ -13819,7 +12446,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 
 .game-replay-pick .material-symbols-rounded { font-size: 1.1rem; }
 .game-replay-note { margin: 0.3rem 0 0; font-size: 0.78rem; }
-
 
 /* ---- Patterns v2 (8 Sep 2026) ------------------------------------------
    Work on / Keep doing side by side, then three tables of wins against
@@ -13866,16 +12492,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .split-table tr.is-thin td { opacity: 0.5; }
 .split-note { margin: 0.5rem 0 0; font-size: 0.76rem; }
 
-.split-players > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  list-style: none;
-}
-
-.split-players > summary::-webkit-details-marker { display: none; }
-.split-players > summary h2 { margin: 0; }
 .split-players[open] > summary .material-symbols-rounded { transform: rotate(180deg); }
 .split-players .split-scroll { margin-top: 0.6rem; }
 
@@ -13893,7 +12509,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .draft-lane small { text-transform: none; letter-spacing: 0; margin-left: 0.3rem; }
 .draft-lane.is-won { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
 .draft-lane.is-lost { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
-
 
 /* Patterns: losses beside wins; the toggle sits on the game list now. */
 .pattern-columns {
@@ -13917,15 +12532,12 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .split-table small.wl { margin: 0 0.15rem 0 0.5rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.65; }
 .split-table small.wl:first-child { margin-left: 0; }
 
-
 /* A player's seat rows sit under their overall row, quieter. */
 .split-table tr.is-seat td { padding-top: 0.15rem; padding-bottom: 0.15rem; border-top: 0; font-size: 0.76rem; opacity: 0.85; }
 .split-table tr.is-seat td:first-child { padding-left: 1.4rem; }
 
-
 /* The player's wins-against-losses card spans the profile's two columns. */
 .grid.two > .card-wide { grid-column: 1 / -1; }
-
 
 /* The champion filter on a player's with-the-team card: pills with icons. */
 .team-champ-filter {
@@ -13940,7 +12552,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .team-champ-btn img { width: 1.3rem; height: 1.3rem; border-radius: 0.25rem; }
 .team-champ-btn em { font-style: normal; font-size: 0.7rem; opacity: 0.7; }
 .team-champ-more { font: inherit; font-size: 0.8rem; }
-
 
 /* The player's with-the-team card, tidied (8 Sep 2026): a scope line in
    the header, W and L as two fixed pairs so columns line up, the overall
@@ -13976,7 +12587,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 
 .team-champ-btn.active img { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-
 /* Bench toggle on the Games player table: the opponent tables' quiet word. */
 .games-bench-toggle {
   display: inline-block;
@@ -14001,7 +12611,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 14%, transparent);
 }
-
 
 /* Column picker on the player's with-the-team card. */
 .team-columns { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; margin: 0 0 0.5rem; }
@@ -14033,7 +12642,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .team-column-option input { margin: 0; accent-color: var(--accent); }
 .team-column-option.active { color: var(--text-0); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 
-
 /* ---- Practice tag, the check drawer, data health (8 Sep 2026) ---------- */
 /* The row a link asked for, kept on the list when the window does not hold it (12 Sep 2026). Quiet:
    it explains itself and is not a state the reader chose. */
@@ -14060,7 +12668,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .health-table tr.is-flagged td { background: color-mix(in srgb, var(--warn) 8%, transparent); }
 .health-table .health-flags { white-space: normal; min-width: 14rem; color: var(--warn); font-size: 0.74rem; }
 
-
 /* ---- Patterns overview (8 Sep 2026): the glance line and the chips ------- */
 .patterns-glance { padding: 0.7rem 0.9rem; }
 .patterns-glance-line { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0 0 0.6rem; font-size: 0.82rem; color: var(--text-1); }
@@ -14068,7 +12675,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .patterns-glance-note { margin: 0 0 0.6rem; font-size: 0.78rem; }
 .patterns-glance-note .tag { margin: 0 0.2rem; }
 .patterns-chips { flex-wrap: wrap; }
-
 
 /* The games behind a Work on line, folded under it. */
 .advice-item + .advice-item { margin-top: 0.35rem; }
@@ -14082,7 +12688,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .advice-evidence-list li { display: inline-flex; align-items: center; gap: 0.35rem; }
 .advice-evidence-list .form-pip { width: 1.1rem; height: 1.1rem; font-size: 0.62rem; }
 
-
 /* ---- One figure or wins beside losses, on every stat table (8 Sep 2026) -- */
 .team-card-controls { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.6rem 1rem; margin: 0 0 0.5rem; }
 .team-card-controls .team-columns { margin: 0; }
@@ -14092,7 +12697,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .split-cell .all-n { margin-left: 0.3rem; font-size: 0.66rem; opacity: 0.6; }
 .split-view-toggle { margin: 0; }
 .review-toolbar .split-view-toggle .segment { padding-top: 0.25rem; padding-bottom: 0.25rem; }
-
 
 /* ---- Roster cards: the A team and second seats, set in edit mode --------- */
 .roster-edit {
@@ -14111,7 +12715,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 
 .custom-five .team-champ-filter { margin: 0.2rem 0 0; }
 .custom-five .view-btn em { font-style: normal; font-size: 0.68rem; opacity: 0.7; margin-left: 0.25rem; }
-
 
 /* ---- Comp expectation: four axes, low / mid / high --------------------- */
 .comp-expect-source { margin-left: 0.4rem; font-size: 0.72rem; }
@@ -14136,7 +12739,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .comp-expect-chip.is-low { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
 .comp-expect-chip.is-low b { color: var(--warn); }
 
-
 /* ---- How the game went: the timeline drawer ---------------------------- */
 .game-story summary small { margin-left: 0.4rem; font-weight: 400; }
 .gold-spark { display: block; width: 100%; height: 4rem; margin: 0.5rem 0 0.15rem; }
@@ -14153,7 +12755,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .game-story-lanes td small { margin-left: 0.3rem; }
 .game-story-caveat { font-size: 0.72rem; margin: 0.5rem 0 0; }
 
-
 /* ---- The written review on a game --------------------------------------- */
 .game-review { margin: 0.6rem 0; padding: 0.8rem 0.9rem; border: 1px solid var(--card-border); border-radius: 12px; background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .game-review-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
@@ -14161,15 +12762,11 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .game-review-verdict { margin-left: auto; padding: 0.15rem 0.6rem; border-radius: 999px; border: 1px solid var(--card-border); font-size: 0.74rem; color: var(--text-1); }
 .game-review-verdict.is-good { border-color: color-mix(in srgb, var(--ok) 55%, transparent); color: var(--ok); }
 .game-review-verdict.is-bad { border-color: color-mix(in srgb, var(--warn) 55%, transparent); color: var(--warn); }
-.game-review-summary { margin: 0.2rem 0 0.35rem; font-size: 0.92rem; }
-.game-review-why { margin: 0 0 0.5rem; font-size: 0.8rem; }
 .review-minute { display: inline-block; padding: 0 0.4rem; margin-right: 0.3rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 18%, transparent); font-size: 0.7rem; font-weight: 700; color: var(--text-0); }
-.game-review-players td { vertical-align: top; }
 .game-review-players td small.muted { display: block; }
 .game-review-foot { margin: 0.5rem 0 0; font-size: 0.72rem; }
 .games-review-btn .material-symbols-rounded { font-size: 1.1rem; vertical-align: -0.2rem; }
 .games-review-error { color: var(--warn); font-size: 0.74rem; }
-
 
 /* ---- Reviews tab and coaching notes ------------------------------------- */
 /* One column, because each card now holds the review itself rather than a picture of it: the panel
@@ -14193,7 +12790,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .coaching-line.is-ok b { color: var(--ok); }
 .coaching-line.is-warn b { color: var(--warn); }
 
-
 .comp-played-out { display: flex; align-items: center; gap: 0.35rem; margin: 0.4rem 0; font-size: 0.82rem; color: var(--text-1); }
 .comp-played-out .material-symbols-rounded { font-size: 1.1rem; color: var(--accent); }
 .comp-played-out b.is-warn { color: var(--warn); }
@@ -14201,12 +12797,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 /* The review's player notes are prose, not figures: they wrap, and the
    panel never widens the row (a nowrap table did exactly that on 8 Sep 2026). */
 .game-review { min-width: 0; max-width: 100%; }
-.game-review-players { table-layout: fixed; }
-.game-review-players th,
-.game-review-players td { white-space: normal; overflow-wrap: anywhere; }
-.game-review-players th:first-child,
-.game-review-players td:first-child { width: 11rem; }
-
 
 /* ---- Quick actions on the main page ------------------------------------- */
 .quick-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 0.9rem; padding: 0.7rem 0.9rem; }
@@ -14236,7 +12826,6 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .coaching-theme.is-ok { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
 .coaching-games { margin-top: 0.4rem; }
 .coaching-games > summary small { margin-left: 0.3rem; }
-
 
 /* ---- One bench toggle everywhere: the state on the button, the action in the tip ---- */
 .ateam-toggle {
@@ -14323,11 +12912,9 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .info-tip .material-symbols-rounded { font-size: 1rem; }
 .info-tip:hover, .info-tip:focus-visible { color: var(--accent); border-color: var(--accent); }
 
-
 .quick-actions-also { flex-basis: 100%; margin: 0; font-size: 0.78rem; }
 .quick-actions-also a { color: var(--text-1); }
 .quick-actions-also a:hover { color: var(--accent); }
-
 
 /* ---- Game-day friction (8 Sep 2026) --------------------------------------- */
 .series-bestof button { padding: 0.32rem 0.7rem; }
@@ -14355,7 +12942,6 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
    itself carries the dotted underline that has always meant "there is more here". */
 .tip-term { text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, var(--text-1) 60%, transparent); text-underline-offset: 0.2rem; cursor: help; }
 .tip-term:hover, .tip-term:focus-visible { color: var(--accent); text-decoration-color: var(--accent); }
-
 
 /* ---- Tours: the spotlight and the card ------------------------------------ */
 .tour-layer { position: fixed; inset: 0; z-index: 300; pointer-events: none; }
@@ -14718,10 +13304,6 @@ button .player-mark { vertical-align: -0.3rem; }
 /* ---- Roster cards in three groups (9 Sep 2026) ---- */
 .section-title-note { margin-left: 0.6rem; font-size: 0.78rem; font-weight: 400; letter-spacing: 0; text-transform: none; }
 .fillin-card .title-row { gap: 0.6rem; }
-.fillin-card-text { display: grid; gap: 0.1rem; min-width: 0; }
-.fillin-card-text b { font-size: 1rem; }
-.fillin-status { margin-left: auto; }
-.fillin-note { margin: 0.5rem 0 0; font-size: 0.84rem; }
 .fillin-card .links { margin-top: 0.6rem; }
 
 /* ---- Prep & Draft (9 Sep 2026): the scrims group's head, the Draft pill, the move banner ---- */
@@ -15296,8 +13878,6 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 /* The playhead: a full-width wrapper slid by a percent of itself, so the line moves by a percent of the track without a layout. */
 .film-scrub-hand { position: absolute; inset: 0; width: 100%; transform: translateX(var(--film-hand, 0%)); will-change: transform; pointer-events: none; }
 .film-scrub-hand i { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; margin-left: -1px; background: var(--accent-2); box-shadow: 0 0 0.4rem color-mix(in srgb, var(--accent-2) 60%, transparent); }
-/* A call the tape pauses for: a small mark at the top of the track. */
-.film-scrub-call { position: absolute; top: 0.25rem; width: 0.3rem; height: 0.55rem; border-radius: 2px; background: var(--accent); transform: translateX(-50%); pointer-events: auto; }
 /* A moment: a pin coloured by its swing on a 2.75rem-tall hit box; a tap seeks to it. */
 .film-scrub-moment { position: absolute; top: 50%; z-index: 2; width: 1.5rem; height: 2.75rem; padding: 0; border: 0; background: transparent; transform: translate(-50%, -50%); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .film-scrub-moment::before { content: ""; position: absolute; left: 50%; top: 50%; width: 0.85rem; height: 0.85rem; border-radius: 50% 50% 50% 0; border: 2px solid var(--film-shade, var(--bg-0)); background: var(--film-ink-1, var(--text-1)); box-shadow: 0 1px 4px color-mix(in srgb, var(--bg-0) 60%, transparent); transform: translate(-50%, -60%) rotate(-45deg); transition: transform calc(150ms * var(--film-tempo, 1)) ease; }
