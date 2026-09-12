@@ -11,8 +11,10 @@ import { ChampionPickerComponent } from '../../../shared/champion-picker.compone
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import {
   blockedSet,
+  championFinds,
   CompAvailability,
   compAvailability,
+  compFinds,
   normalizeChampion,
   PoolPressure,
   poolPressure
@@ -49,7 +51,7 @@ import {
 } from '../draft-advice';
 import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
 import { comfortOf, gamePlan, GamePlan, LaneRead, LaneVerdict, readLanes, SeatInput } from '../lane-read';
-import { countersFor, poolFor, starters } from '../../../core/opponent-view';
+import { bandOf, countersFor, poolFor, starters } from '../../../core/opponent-view';
 import { playsRole } from '../../../core/champion-lanes';
 import { MAP_SPOTS } from '../../../core/rift-zones';
 import { DraftAdvisorService } from '../../../services/draft-advisor.service';
@@ -391,6 +393,37 @@ export class TournamentDraftComponent implements OnInit {
     });
     const added = this.gamesFor(series.id).at(-1);
     this.pickedGameId.set(added?.id ?? '');
+  }
+
+  // ---- The comp finder (12 Sep 2026) ------------------------------------------------
+  //
+  // The lead: "can't see which comps have a champion", "the board is too far down the page", "too
+  // many comps to scan". Each comp now wears its five faces, a search narrows by name or champion,
+  // the broken column starts folded, and the board sits straight under the wall in a box whose
+  // height never follows what it shows.
+
+  /** What somebody typed: part of a champion, or of a comp's name. */
+  protected readonly compQuery = signal('');
+  /** Broken comps start folded — by definition they are the ones we cannot play. */
+  protected readonly brokenOpen = signal(false);
+  /** A search opens the fold: a comp with the champion that is broken is still an answer. */
+  protected readonly brokenShown = computed(() => this.brokenOpen() || !!normalizeChampion(this.compQuery()));
+
+  private readonly keyOf = (name: string): string => normalizeChampion(this.champs.resolveId(name) ?? name);
+
+  protected found(rows: CompAvailability[]): CompAvailability[] {
+    const query = this.compQuery();
+    if (!normalizeChampion(query)) return rows;
+    return rows.filter((row) => compFinds(row.name, this.compLineup(row.id).map((l) => l.champion), query, this.keyOf));
+  }
+
+  protected isFound(champion: string): boolean {
+    return championFinds(champion, this.compQuery(), this.keyOf);
+  }
+
+  /** A comp's record on the app's one rate scale, not a hand-coded 50. */
+  protected compBand(row: CompAvailability): string {
+    return bandOf(row.winRate);
   }
 
   /** Comps and pools open on click, so the detail is there when it is wanted. */

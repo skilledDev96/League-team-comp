@@ -243,3 +243,38 @@ describe('the tours on the pages the disclosure batch changed', () => {
     expect(anchors).toContain('games-review-panel');
   });
 });
+
+describe('the tours on Roster and Comps (12 Sep 2026)', () => {
+  const byId = (id: string) => TOURS.find((t) => t.id === id)!;
+
+  it('re-runs the two whose pages changed, and gives a reader of Comps a tour of their own', () => {
+    expect(byId('roster').version).toBeGreaterThan(1);
+    expect(byId('comps').version).toBeGreaterThan(1);
+    const read = byId('comps-read');
+    expect(read.role).toBeUndefined();
+    for (const step of stepsFor(read, 'viewer')) expect(step.editMode, String(step.anchor)).toBeUndefined();
+  });
+
+  it('opens the walked comp before any step whose anchor lives inside a panel', () => {
+    // A panel builds its body only while it is open, so without the action these skip in silence.
+    const inside = ['comp-board', 'comp-category', 'comp-gameplan', 'comp-expect', 'comp-bans', 'comp-slots'];
+    for (const tour of [byId('comps'), byId('comps-read')]) {
+      for (const step of tour.steps.filter((x) => inside.includes(String(x.anchor)))) {
+        expect(step.before, tour.id + ': ' + String(step.anchor)).toBe('openTourComp');
+      }
+    }
+    const countsUnder = byId('comps').steps.find((x) => x.anchor === 'comp-counts-under')!;
+    expect(countsUnder.before).toBe('showFullComps');
+  });
+
+  it('names the Roster switch that now speaks for all four views', () => {
+    expect(byId('roster').steps.some((x) => x.anchor === 'detail-roster')).toBe(true);
+    expect(byId('roster').steps.some((x) => x.anchor === 'roster-detail-level')).toBe(false);
+  });
+
+  it('leaves the editor draft tour on its version, so a new step never opens it over a live draft', () => {
+    expect(byId('draft').autoStart).not.toBe(false);
+    expect(byId('draft').version).toBe(1);
+    expect(byId('draft').steps.some((x) => x.anchor === 'draft-board')).toBe(true);
+  });
+});

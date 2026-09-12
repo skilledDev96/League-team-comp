@@ -5649,11 +5649,101 @@ app-match-note {
   margin-left: auto;
   font-size: 0.76rem;
   font-weight: 600;
-  color: var(--warn);
+  color: var(--text-1);
 }
 
-.draft-comp-rate.is-positive {
-  color: var(--ok);
+/* A comp's record on rateBand's scale, the same one every rate on this page uses (12 Sep 2026). */
+.draft-comp-rate.is-good { color: var(--ok); }
+.draft-comp-rate.is-ok { color: color-mix(in srgb, var(--ok) 75%, var(--text-1)); }
+.draft-comp-rate.is-even { color: var(--text-1); }
+.draft-comp-rate.is-poor { color: var(--warn); }
+
+/* ---- The comp finder (12 Sep 2026) --------------------------------------------------------
+   Straight under the wall. The box is a fixed height and each column scrolls inside it:
+   a search, the broken fold or an opened comp must never change what sits below it, which
+   is read mid-draft. Measure .draft-advice's top across those states, never eyeball it. */
+.draft-finder {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.draft-finder .draft-board-body.is-page {
+  height: 22rem;
+  align-items: stretch;
+}
+
+.draft-finder .draft-col {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.25rem;
+}
+
+/* The column's name stays in view while its comps scroll under it. */
+.draft-finder .draft-col-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.15rem 0 0.25rem;
+  /* --card is translucent in every theme; over --bg-1 it is solid, so rows scroll under it unseen. */
+  background: linear-gradient(var(--card), var(--card)) var(--bg-1);
+}
+
+/* The app's champion box, pill and all; it only has to sit at the end of the counts. */
+.draft-finder-search {
+  margin-left: auto;
+  flex: 0 1 18rem;
+}
+
+/* The broken column's head is its fold: the whole head is the toggle. */
+.draft-col-fold {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.draft-col-fold em {
+  font-style: normal;
+  font-weight: 700;
+}
+
+.draft-col-fold .material-symbols-rounded {
+  margin-left: auto;
+  font-size: 1rem;
+  transition: transform 0.15s ease;
+}
+
+.draft-col-fold[aria-expanded="true"] .material-symbols-rounded { transform: rotate(180deg); }
+.draft-col-fold:hover { color: var(--text-0); }
+.draft-col-fold:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* A comp's five faces, on their own line inside the row's button. */
+.draft-finder .draft-comp { flex-wrap: wrap; }
+
+.draft-comp-faces {
+  flex-basis: 100%;
+  display: flex;
+  gap: 0.2rem;
+}
+
+.draft-comp-face {
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 4px;
+}
+
+.draft-comp-face.is-gone {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+.draft-comp-face.is-found {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* Sits after the win rate, so that keeps the auto margin. */
@@ -7746,7 +7836,6 @@ body[data-theme="bomb"] {
 
 /* Once the sequence is running the seats are a reference, not a workspace —
    the grid below is where the clicking happens — so they give back some room. */
-.draft-grid ~ .draft-status,
 .draft-inputs:has(~ .draft-grid .draft-step-bar) .pick-slots {
   gap: 0.35rem;
 }
@@ -8919,8 +9008,6 @@ body:has(.draft-stage) .edit-mode-frame {
 
 .draft-stage .draft-grid          { grid-column: 2; grid-row: 1; }
 .draft-stage .draft-inputs > .field:nth-child(1) { grid-column: 2; grid-row: 2; }
-.draft-stage .draft-status        { grid-column: 2; grid-row: 3; }
-.draft-stage .draft-board-body    { grid-column: 2; grid-row: 4; }
 
 .draft-stage .draft-inputs > .field:nth-child(2),
 .draft-stage .draft-inputs > .field:nth-child(3) {
@@ -8936,7 +9023,8 @@ body:has(.draft-stage) .edit-mode-frame {
   height: min(30rem, 44vh);
 }
 
-/* The lists are in a narrower column now, so they stack rather than crush. */
+/* The lists are in a narrower column now, so they stack rather than crush. The comp finder
+   overrides this: side by side at the wall's width, in a box of fixed height. */
 .draft-stage .draft-board-body {
   grid-template-columns: 1fr;
   gap: 0.75rem;
@@ -9179,8 +9267,6 @@ body:has(.draft-stage) .edit-mode-frame {
   margin-top: 0.4rem;
 }
 
-.draft-stage .draft-status     { grid-row: 4; }
-.draft-stage .draft-board-body { grid-row: 5; }
 
 .draft-stage .draft-inputs > .field:nth-child(2),
 .draft-stage .draft-inputs > .field:nth-child(3) {
@@ -9579,8 +9665,6 @@ body:has(.draft-stage) .edit-mode-frame {
    advice is the thing being acted on. */
 .draft-stage .draft-advice          { grid-row: 2; }
 .draft-stage .draft-inputs > .field:nth-child(1) { grid-row: 3; }
-.draft-stage .draft-status          { grid-row: 4; }
-.draft-stage .draft-board-body      { grid-row: 5; }
 
 /* What the held champion does, on the confirm row itself. */
 .draft-confirm-read {
@@ -11419,7 +11503,8 @@ body:has(.draft-stage) .edit-mode-frame {
    there put the wall on top of the pick cards, seen 5 Sep 2026. */
 @media (min-width: 1400px) {
   .draft-stage .draft-grid,
-  .draft-stage .draft-advice {
+  .draft-stage .draft-advice,
+  .draft-stage .draft-finder {
     --wall-w: calc(10 * 4.6rem + 9 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
     width: var(--wall-w);
     max-width: 100%;
@@ -11653,8 +11738,35 @@ body:has(.draft-stage) .edit-mode-frame {
 }
 
 .draft-stage .draft-inputs > .field:nth-child(1) { grid-row: 4; }
-.draft-stage .draft-status          { grid-row: 5; }
-.draft-stage .draft-board-body      { grid-row: 6; }
+
+/* ---- The comp finder under the wall (12 Sep 2026) ------------------------------------------
+   The lead: "the board is too far down the page". It was the sixth row of the middle stack,
+   under the wall, the advice, the lane read and the bans, with its three lists stacked. It is
+   the second row now, and everything it passed moves down one fixed box: its height never
+   follows what it shows, so the advice sits a known distance lower and never moves while
+   somebody searches. Desktop only; the single column below 1100px orders it instead. */
+@media (min-width: 1101px) {
+  .draft-stage .draft-finder          { grid-column: 2; grid-row: 2; }
+  .draft-stage .draft-advice          { grid-row: 3; }
+  .draft-stage .draft-lanes           { grid-row: 4; }
+  .draft-stage .draft-inputs > .field:nth-child(1) { grid-row: 5; }
+  .draft-stage .draft-inputs > .field:nth-child(2),
+  .draft-stage .draft-inputs > .field:nth-child(3) { grid-row: 1 / span 5; }
+
+  /* The map view: the wall no longer spans two rows, or it would sit on the finder. */
+  .draft-stage.is-map .draft-map      { grid-row: 1 / span 3; }
+  .draft-stage.is-map .draft-grid     { grid-column: 2; grid-row: 1; }
+  .draft-stage.is-map .draft-finder   { grid-column: 2; grid-row: 2; }
+  .draft-stage.is-map .draft-advice   { grid-column: 2; grid-row: 3; }
+  .draft-stage.is-map .draft-inputs > .field:nth-child(1) { grid-column: 1; grid-row: 4; }
+
+  .draft-finder .draft-board-body.is-page { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 1100px) {
+  .draft-stage .draft-finder,
+  .draft-stage.is-map .draft-finder { order: -1; }
+}
 
 /* With the wall folded away the reserved height is only a gap. */
 .draft-stage .draft-grid.is-done {
@@ -11666,10 +11778,10 @@ body:has(.draft-stage) .edit-mode-frame {
   .draft-stage .draft-lanes { grid-column: 1; grid-row: auto; }
 }
 
-/* Map view: the map spans the stack's three rows plus a flexible spacer, so
+/* Map view: the map spans the stack's four rows plus a flexible spacer, so
    the extra height a tall map brings lands in the spacer under the stack
-   instead of as gaps between the wall, the advice and the lane read. The lane
-   read takes the stack's width like the blocks above it. */
+   instead of as gaps between the wall, the comp finder, the advice and the
+   lane read. The lane read takes the stack's width like the blocks above it. */
 @media (min-width: 1400px) {
   .draft-stage .draft-lanes {
     width: calc(10 * 4.6rem + 9 * 0.3rem + 2 * 0.4rem + 2px + 1rem);
@@ -11678,13 +11790,11 @@ body:has(.draft-stage) .edit-mode-frame {
   }
 
   .draft-stage.is-map {
-    grid-template-rows: auto auto auto 1fr auto auto auto;
+    grid-template-rows: auto auto auto auto 1fr auto;
   }
 
-  .draft-stage.is-map .draft-map { grid-row: 1 / span 4; }
-  .draft-stage.is-map .draft-inputs > .field:nth-child(1) { grid-row: 5; }
-  .draft-stage.is-map .draft-status { grid-row: 6; }
-  .draft-stage.is-map .draft-board-body { grid-row: 7; }
+  .draft-stage.is-map .draft-map { grid-row: 1 / span 5; }
+  .draft-stage.is-map .draft-inputs > .field:nth-child(1) { grid-row: 6; }
 }
 
 /* The team plan in the advisor block, verbatim, line breaks kept: it is the

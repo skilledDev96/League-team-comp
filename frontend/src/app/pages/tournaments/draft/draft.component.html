@@ -641,6 +641,189 @@
         </div>
       }
 
+      <!-- The comp finder (12 Sep 2026, the lead: "can't see which comps have a champion", "the
+           board is too far down the page", "too many comps to scan"). Straight under the wall, not
+           under the advisor and the lane read; each comp wears its five faces; a search narrows by
+           name or champion. Its box is a fixed height that scrolls inside, because searching, folding
+           or opening a comp must never move what sits below it mid-draft. -->
+      <section class="draft-finder" data-tour="draft-board" aria-label="Comps on this board">
+        <div class="draft-status">
+          <span class="draft-board-count is-ok">{{ draftPlayable(game).length }} playable</span>
+          <span class="draft-board-count is-broken">{{ draftBroken(game).length }} broken</span>
+          @if (burnedBeforeCount(game); as burned) {
+            <span class="draft-board-burned"
+                  [appTip]="burned + ' champions burned in earlier games of this series'">{{ burned }} burned</span>
+          }
+          <label class="champ-filter-input draft-finder-search">
+            <span class="material-symbols-rounded" aria-hidden="true">search</span>
+            <input type="search" name="draftCompQuery" autocomplete="off" placeholder="Comps with a champion, or by name"
+                   aria-label="Find a comp by champion or name"
+                   [value]="compQuery()" (input)="compQuery.set($any($event.target).value)" />
+          </label>
+        </div>
+
+        <div class="draft-board-body is-page">
+          <div class="draft-col">
+            <span class="draft-col-head is-ok">Still playable</span>
+            @for (row of found(draftPlayable(game)); track row.id) {
+              <div class="draft-comp-row">
+                <button type="button" class="draft-comp is-ok" [class.open]="isCompOpen(row.id)"
+                        [attr.aria-expanded]="isCompOpen(row.id)" (click)="toggleComp(row.id)">
+                  <span class="draft-comp-name">{{ row.name }}</span>
+                  @if (row.winRate !== undefined) {
+                    <span class="draft-comp-rate" [class]="compBand(row)"
+                          [appTip]="row.games + ' games in match history'">{{ row.winRate }}%</span>
+                  }
+                  <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+                  <span class="draft-comp-faces" aria-hidden="true">
+                    @for (line of compLineup(row.id); track line.role) {
+                      @if (line.champion) {
+                        <img class="draft-comp-face" [class.is-found]="isFound(line.champion)"
+                             [src]="ui.championIconUrl(line.champion)" [alt]="" loading="lazy" />
+                      }
+                    }
+                  </span>
+                </button>
+                @if (isCompOpen(row.id)) {
+                  <ul class="list-clean draft-lineup">
+                    @for (line of compLineup(row.id); track line.role) {
+                      <li class="draft-lineup-row">
+                        <span class="draft-lineup-role">{{ line.role }}</span>
+                        @if (line.champion) {
+                          <button type="button" class="pick-chip"
+                            [class.is-picked]="isPicked(game, line.champion)"
+                            [disabled]="!auth.editing() || pickBlocked(game, line.champion, line.role)"
+                            [appTip]="pickHint(game, line.champion, line.role)"
+                            (click)="togglePick(game, line.champion, line.role)">
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(line.champion)" [alt]="" loading="lazy" />
+                      <span>{{ line.champion }}</span>
+                      @if (isPicked(game, line.champion)) {
+                        <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                      }
+                    </button>
+                        } @else {
+                          <span class="muted">&mdash;</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
+            } @empty {
+              <span class="muted">{{ compQuery().trim() ? 'No playable comp has that.' : 'Nothing survives this board.' }}</span>
+            }
+          </div>
+
+          <div class="draft-col">
+            <button type="button" class="draft-col-head is-broken draft-col-fold" [attr.aria-expanded]="brokenShown()"
+                    (click)="brokenOpen.set(!brokenOpen())"
+                    [appTip]="brokenShown() ? 'Fold the comps we cannot play' : 'Show the comps missing a champion'">
+              Broken <em>{{ found(draftBroken(game)).length }}</em>
+              <span class="material-symbols-rounded" aria-hidden="true">expand_more</span>
+            </button>
+            @if (brokenShown()) {
+            @for (row of found(draftBroken(game)); track row.id) {
+              <div class="draft-comp-row">
+                <button type="button" class="draft-comp is-broken" [class.open]="isCompOpen(row.id)"
+                        [attr.aria-expanded]="isCompOpen(row.id)"
+                        [appTip]="'Gone: ' + row.blocked.join(', ')" (click)="toggleComp(row.id)">
+                  <span class="draft-comp-name">{{ row.name }}</span>
+                  @if (row.winRate !== undefined) {
+                    <span class="draft-comp-rate" [class]="compBand(row)">{{ row.winRate }}%</span>
+                  }
+                  <em>&minus;{{ row.blocked.length }}</em>
+                  <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+                  <span class="draft-comp-faces" aria-hidden="true">
+                    @for (line of compLineup(row.id); track line.role) {
+                      @if (line.champion) {
+                        <img class="draft-comp-face" [class.is-found]="isFound(line.champion)" [class.is-gone]="row.blocked.includes(line.champion)"
+                             [src]="ui.championIconUrl(line.champion)" [alt]="" loading="lazy" />
+                      }
+                    }
+                  </span>
+                </button>
+                @if (isCompOpen(row.id)) {
+                  <ul class="list-clean draft-lineup">
+                    @for (line of compLineup(row.id); track line.role) {
+                      <li class="draft-lineup-row" [class.is-gone]="row.blocked.includes(line.champion)">
+                        <span class="draft-lineup-role">{{ line.role }}</span>
+                        @if (line.champion) {
+                          <button type="button" class="pick-chip"
+                            [class.is-picked]="isPicked(game, line.champion)"
+                            [disabled]="!auth.editing() || pickBlocked(game, line.champion, line.role)"
+                            [appTip]="pickHint(game, line.champion, line.role)"
+                            (click)="togglePick(game, line.champion, line.role)">
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(line.champion)" [alt]="" loading="lazy" />
+                      <span>{{ line.champion }}</span>
+                      @if (isPicked(game, line.champion)) {
+                        <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                      }
+                    </button>
+                        } @else {
+                          <span class="muted">&mdash;</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
+            } @empty {
+              <span class="muted">{{ compQuery().trim() ? 'No broken comp has that.' : 'Every comp is intact.' }}</span>
+            }
+            }
+          </div>
+
+          <div class="draft-col">
+            <span class="draft-col-head">Pool left</span>
+            @for (row of draftPools(game); track row.name) {
+              <div class="draft-comp-row">
+                <button type="button" class="draft-pool" [class.is-critical]="row.critical"
+                        [class.open]="isPoolOpen(row.name)" [attr.aria-expanded]="isPoolOpen(row.name)"
+                        (click)="togglePool(row.name)">
+                  @if (row.role) {
+                    <span class="draft-pool-role">{{ row.role }}</span>
+                  }
+                  <span class="draft-comp-name">{{ row.name }}</span>
+                  <em>{{ row.left.length }}</em>
+                  @if (row.critical) {
+                    <span class="material-symbols-rounded" aria-hidden="true">warning</span>
+                  }
+                  <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+                </button>
+                @if (isPoolOpen(row.name)) {
+                  <div class="draft-pool-champs">
+                    @for (champ of row.left; track champ) {
+                      <button type="button" class="pick-chip"
+                            [class.is-picked]="isPicked(game, champ)"
+                            [disabled]="!auth.editing() || pickBlocked(game, champ, roleOfPlayer(row.name))"
+                            [appTip]="pickHint(game, champ, roleOfPlayer(row.name))"
+                            (click)="togglePick(game, champ, roleOfPlayer(row.name))">
+                      <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                      <span>{{ champ }}</span>
+                      @if (isPicked(game, champ)) {
+                        <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                      }
+                    </button>
+                    } @empty {
+                      <span class="muted">Nothing left in this pool.</span>
+                    }
+                    @if (row.gone.length) {
+                      <span class="draft-pool-gone-label">Gone</span>
+                      @for (champ of row.gone; track champ) {
+                        <span class="draft-pool-gone">
+                          <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                          {{ champ }}
+                        </span>
+                      }
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+
       <!-- What to pick next, answered from our own record. Deliberately not a
            win rate: ours would come from 159 games where a draft tool's comes
            from millions, so every number here carries the games behind it. -->
@@ -895,153 +1078,6 @@
           </section>
         }
       }
-
-      <div class="draft-status">
-        <span class="draft-board-count is-ok">{{ draftPlayable(game).length }} playable</span>
-        <span class="draft-board-count is-broken">{{ draftBroken(game).length }} broken</span>
-        @if (burnedBeforeCount(game); as burned) {
-          <span class="draft-board-burned"
-                [appTip]="burned + ' champions burned in earlier games of this series'">{{ burned }} burned</span>
-        }
-      </div>
-
-      <div class="draft-board-body is-page" data-tour="draft-board">
-        <div class="draft-col">
-          <span class="draft-col-head is-ok">Still playable</span>
-          @for (row of draftPlayable(game); track row.id) {
-            <div class="draft-comp-row">
-              <button type="button" class="draft-comp is-ok" [class.open]="isCompOpen(row.id)"
-                      [attr.aria-expanded]="isCompOpen(row.id)" (click)="toggleComp(row.id)">
-                <span class="draft-comp-name">{{ row.name }}</span>
-                @if (row.winRate !== undefined) {
-                  <span class="draft-comp-rate" [class.is-positive]="row.winRate >= 50"
-                        [appTip]="row.games + ' games in match history'">{{ row.winRate }}%</span>
-                }
-                <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
-              </button>
-              @if (isCompOpen(row.id)) {
-                <ul class="list-clean draft-lineup">
-                  @for (line of compLineup(row.id); track line.role) {
-                    <li class="draft-lineup-row">
-                      <span class="draft-lineup-role">{{ line.role }}</span>
-                      @if (line.champion) {
-                        <button type="button" class="pick-chip"
-                          [class.is-picked]="isPicked(game, line.champion)"
-                          [disabled]="!auth.editing() || pickBlocked(game, line.champion, line.role)"
-                          [appTip]="pickHint(game, line.champion, line.role)"
-                          (click)="togglePick(game, line.champion, line.role)">
-                    <img class="pool-champ-icon" [src]="ui.championIconUrl(line.champion)" [alt]="" loading="lazy" />
-                    <span>{{ line.champion }}</span>
-                    @if (isPicked(game, line.champion)) {
-                      <span class="material-symbols-rounded" aria-hidden="true">check</span>
-                    }
-                  </button>
-                      } @else {
-                        <span class="muted">&mdash;</span>
-                      }
-                    </li>
-                  }
-                </ul>
-              }
-            </div>
-          } @empty {
-            <span class="muted">Nothing survives this board.</span>
-          }
-        </div>
-
-        <div class="draft-col">
-          <span class="draft-col-head is-broken">Broken</span>
-          @for (row of draftBroken(game); track row.id) {
-            <div class="draft-comp-row">
-              <button type="button" class="draft-comp is-broken" [class.open]="isCompOpen(row.id)"
-                      [attr.aria-expanded]="isCompOpen(row.id)"
-                      [appTip]="'Gone: ' + row.blocked.join(', ')" (click)="toggleComp(row.id)">
-                <span class="draft-comp-name">{{ row.name }}</span>
-                @if (row.winRate !== undefined) {
-                  <span class="draft-comp-rate" [class.is-positive]="row.winRate >= 50">{{ row.winRate }}%</span>
-                }
-                <em>&minus;{{ row.blocked.length }}</em>
-                <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
-              </button>
-              @if (isCompOpen(row.id)) {
-                <ul class="list-clean draft-lineup">
-                  @for (line of compLineup(row.id); track line.role) {
-                    <li class="draft-lineup-row" [class.is-gone]="row.blocked.includes(line.champion)">
-                      <span class="draft-lineup-role">{{ line.role }}</span>
-                      @if (line.champion) {
-                        <button type="button" class="pick-chip"
-                          [class.is-picked]="isPicked(game, line.champion)"
-                          [disabled]="!auth.editing() || pickBlocked(game, line.champion, line.role)"
-                          [appTip]="pickHint(game, line.champion, line.role)"
-                          (click)="togglePick(game, line.champion, line.role)">
-                    <img class="pool-champ-icon" [src]="ui.championIconUrl(line.champion)" [alt]="" loading="lazy" />
-                    <span>{{ line.champion }}</span>
-                    @if (isPicked(game, line.champion)) {
-                      <span class="material-symbols-rounded" aria-hidden="true">check</span>
-                    }
-                  </button>
-                      } @else {
-                        <span class="muted">&mdash;</span>
-                      }
-                    </li>
-                  }
-                </ul>
-              }
-            </div>
-          } @empty {
-            <span class="muted">Every comp is intact.</span>
-          }
-        </div>
-
-        <div class="draft-col">
-          <span class="draft-col-head">Pool left</span>
-          @for (row of draftPools(game); track row.name) {
-            <div class="draft-comp-row">
-              <button type="button" class="draft-pool" [class.is-critical]="row.critical"
-                      [class.open]="isPoolOpen(row.name)" [attr.aria-expanded]="isPoolOpen(row.name)"
-                      (click)="togglePool(row.name)">
-                @if (row.role) {
-                  <span class="draft-pool-role">{{ row.role }}</span>
-                }
-                <span class="draft-comp-name">{{ row.name }}</span>
-                <em>{{ row.left.length }}</em>
-                @if (row.critical) {
-                  <span class="material-symbols-rounded" aria-hidden="true">warning</span>
-                }
-                <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
-              </button>
-              @if (isPoolOpen(row.name)) {
-                <div class="draft-pool-champs">
-                  @for (champ of row.left; track champ) {
-                    <button type="button" class="pick-chip"
-                          [class.is-picked]="isPicked(game, champ)"
-                          [disabled]="!auth.editing() || pickBlocked(game, champ, roleOfPlayer(row.name))"
-                          [appTip]="pickHint(game, champ, roleOfPlayer(row.name))"
-                          (click)="togglePick(game, champ, roleOfPlayer(row.name))">
-                    <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
-                    <span>{{ champ }}</span>
-                    @if (isPicked(game, champ)) {
-                      <span class="material-symbols-rounded" aria-hidden="true">check</span>
-                    }
-                  </button>
-                  } @empty {
-                    <span class="muted">Nothing left in this pool.</span>
-                  }
-                  @if (row.gone.length) {
-                    <span class="draft-pool-gone-label">Gone</span>
-                    @for (champ of row.gone; track champ) {
-                      <span class="draft-pool-gone">
-                        <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
-                        {{ champ }}
-                      </span>
-                    }
-                  }
-                </div>
-              }
-            </div>
-          }
-        </div>
-      </div>
       </div>
     } @else {
       <p class="muted">
