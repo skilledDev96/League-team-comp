@@ -6,7 +6,8 @@ import { achievementsOf } from './achievements';
 import { compOfTheMonth } from './comp-month';
 import { mvpGameFromRow, mvpOf } from './game-mvp';
 import { donutSegments } from './home-charts';
-import { HomeAdviceLine, HomeInput, HomeLineupCard, HomeModel, HomeNextSeries, HomeSlide, HomeSpotlight, HomeWelcome } from './home-model';
+import { HomeAdviceLine, HomeHandTrophy, HomeInput, HomeLineupCard, HomeModel, HomeNextSeries, HomeSlide, HomeSpotlight, HomeWelcome } from './home-model';
+import { parseLocalDate } from './local-date';
 import { welcomeFor } from './home-welcome';
 import { lastCrown, mvpRace, podium } from './mvp-race';
 import { crownOf, FinishedSeries, finishedSeries, nextOpenSeries, SeriesCrown } from './series-results';
@@ -86,6 +87,33 @@ function gamesSpotlight(rows: readonly GameRow[], roster: readonly Player[]): Ho
     of,
     terms: best.terms
   };
+}
+
+/**
+ * The trophies entered by hand, newest first. One won inside a tournament season belongs to it; otherwise
+ * its day decides, and a trophy with no day is never called this season's.
+ */
+function handTrophiesOf(i: HomeInput, season: SeasonWindow): HomeHandTrophy[] {
+  const names = new Map(i.tournaments.map((t) => [t.id, t.name]));
+  return [...(i.trophies ?? [])]
+    .map((t) => {
+      const at = parseLocalDate(t.date);
+      const where = (t.tournamentId && names.get(t.tournamentId)) || t.event?.trim() || '';
+      const inWindow = season.mode === 'all' || (season.tournamentId ? t.tournamentId === season.tournamentId : at !== null && at >= season.from && at <= season.to);
+      const trophy: HomeHandTrophy = {
+        id: t.id,
+        title: t.title,
+        ...(t.placement ? { placement: t.placement } : {}),
+        ...(where ? { where } : {}),
+        at,
+        ...(t.champion ? { champion: t.champion } : {}),
+        ...(t.note ? { note: t.note } : {}),
+        thisSeason: inWindow
+      };
+      return { trophy, order: t.order };
+    })
+    .sort((a, b) => (b.trophy.at ?? Number.NEGATIVE_INFINITY) - (a.trophy.at ?? Number.NEGATIVE_INFINITY) || a.order - b.order)
+    .map((x) => x.trophy);
 }
 
 function lineupOf(starters: readonly Player[], seasonLines: readonly PlayerLine[], allLines: readonly PlayerLine[], titles: ReadonlyMap<string, number>): HomeLineupCard[] {
@@ -269,6 +297,7 @@ export function buildHome(i: HomeInput): HomeModel {
       titlesByName,
       longestWinStreak: longest?.length ?? 0,
       window: { from: season.from, to: season.to, mode: season.mode }
-    })
+    }),
+    handTrophies: handTrophiesOf(i, season)
   };
 }

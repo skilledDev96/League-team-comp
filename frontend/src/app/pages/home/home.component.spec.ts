@@ -162,6 +162,7 @@ describe.skipIf(typeof localStorage === 'undefined')('HomeComponent', () => {
         enemies: []
       }) as unknown as AnalysisGame;
     data.comps.set([engage]);
+    data.trophies.set([{ id: 'won-1', title: 'Split 1 champions', placement: 1, date: '2026-06-28', order: 0 }]);
     data.compAnalysis.set({ games: [flex(1, true), flex(2, true), flex(3, false)], comps: [], totalTeamGames: 3, scannedMatches: 3, generatedAt: new Date(NOW).toISOString() } as CompAnalysis);
     const { harness, root } = await open();
     const [bento] = await harness.fixture.getDeferBlocks();
@@ -170,6 +171,10 @@ describe.skipIf(typeof localStorage === 'undefined')('HomeComponent', () => {
     harness.detectChanges();
     const cells = [...root.querySelectorAll('app-home-tiles .home-cell')].map((c) => c.className.replace(/^home-cell home-cell-/, ''));
     expect(cells.at(-1)).toBe('trophies');
+    // What the team entered by hand stands first in the cabinet, with its medal.
+    const cabinet = root.querySelector('.home-trophies')!;
+    expect(cabinet.querySelector('ul')!.classList.contains('home-won')).toBe(true);
+    expect(text(cabinet.querySelector('.home-won-card.is-gold .home-won-text b'))).toBe('Split 1 champions');
     expect(root.querySelectorAll('.home-lineup-card')).toHaveLength(5);
     expect(text(root.querySelector('.home-comp-name'))).toBe('Engage');
     expect(text(root.querySelector('.home-comp-rate'))).toContain('67%');

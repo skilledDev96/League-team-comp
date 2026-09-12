@@ -1,5 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { Achievement } from '../../../core/achievements';
+import { HomeHandTrophy } from '../../../core/home-model';
 import { InViewDirective } from '../../../shared/in-view.directive';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { UiService } from '../../../services/ui.service';
@@ -17,8 +18,28 @@ import { UiService } from '../../../services/ui.service';
     <section class="card home-tile home-trophies" appInView aria-labelledby="home-trophies-title">
       <header class="home-card-head">
         <h2 id="home-trophies-title"><span class="material-symbols-rounded" aria-hidden="true">trophy</span> Trophy cabinet</h2>
-        <span class="home-card-scope">{{ earned() }} of {{ trophies().length }} earned</span>
+        <span class="home-card-scope">@if (won().length) { {{ won().length }} won · }{{ earned() }} of {{ trophies().length }} earned</span>
       </header>
+      @if (won().length) {
+        <ul class="home-won" aria-label="Trophies won">
+          @for (w of won(); track w.id) {
+            <li class="home-won-card" [class]="medalClass(w)" tabindex="0" [appTip]="wonTip(w)">
+              @if (w.champion) {
+                <img class="home-won-art" [src]="ui.championArtUrl(w.champion)" (error)="ui.artFallback($event, w.champion)" alt="" loading="lazy" />
+              }
+              <span class="home-won-shade" aria-hidden="true"></span>
+              <span class="home-won-medal" aria-hidden="true">
+                @if (w.placement) { {{ ordinal(w.placement) }} } @else { <span class="material-symbols-rounded">trophy</span> }
+              </span>
+              <span class="home-won-text">
+                <b>{{ w.title }}</b>
+                <small>{{ wonLine(w) }}</small>
+              </span>
+              <span class="visually-hidden">{{ wonTip(w) }}</span>
+            </li>
+          }
+        </ul>
+      }
       <ul class="home-trophy-grid">
         @for (t of trophies(); track t.id) {
           <li class="home-trophy" [class.is-earned]="t.unlocked" [class.is-season]="t.thisSeason" tabindex="0" [appTip]="tip(t)">
@@ -43,8 +64,10 @@ import { UiService } from '../../../services/ui.service';
 })
 export class HomeTrophiesComponent {
   readonly trophies = input.required<readonly Achievement[]>();
+  /** Trophies entered by hand, which stand first. */
+  readonly won = input<readonly HomeHandTrophy[]>([]);
 
-  private readonly ui = inject(UiService);
+  protected readonly ui = inject(UiService);
 
   protected readonly earned = computed(() => this.trophies().filter((t) => t.unlocked).length);
 
@@ -54,6 +77,23 @@ export class HomeTrophiesComponent {
 
   protected day(at: number): string {
     return new Date(at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  protected ordinal(place: number): string {
+    return place === 5 ? 'Top 8' : `${place}${place === 1 ? 'st' : place === 2 ? 'nd' : place === 3 ? 'rd' : 'th'}`;
+  }
+
+  protected medalClass(w: HomeHandTrophy): string {
+    return w.placement === 1 ? 'is-gold' : w.placement === 2 ? 'is-silver' : w.placement === 3 ? 'is-bronze' : 'is-cup';
+  }
+
+  protected wonLine(w: HomeHandTrophy): string {
+    return [w.where, w.at ? this.day(w.at) : ''].filter(Boolean).join(' · ');
+  }
+
+  protected wonTip(w: HomeHandTrophy): string {
+    const place = w.placement ? `${w.placement === 5 ? 'Top 8' : this.ordinal(w.placement) + ' place'}` : '';
+    return [w.title, place, w.where, w.at ? this.day(w.at) : '', w.note].filter(Boolean).join(' · ');
   }
 
   protected tip(t: Achievement): string {

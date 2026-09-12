@@ -121,7 +121,8 @@ export class HomeComponent {
       seriesGames: this.data.seriesGames(),
       scrims: this.data.scrims(),
       practice: this.data.practiceSet(),
-      compOverride: (id) => this.data.compOverride(id)
+      compOverride: (id) => this.data.compOverride(id),
+      trophies: this.data.trophies()
     });
   });
 

@@ -158,6 +158,23 @@ describe('buildHome', () => {
     expect(home.race.finished).toBe(1);
   });
 
+  it('puts the trophies entered by hand newest first, named by their tournament, and marks the ones this season', () => {
+    const trophies = [
+      { id: 't-old', title: 'Clash cup', event: 'Clash — May', date: '2026-05-10', order: 0 },
+      { id: 't-new', title: 'Split 2 group winners', placement: 1, tournamentId: 'cup', date: '2026-09-07', champion: 'Jinx', order: 1 },
+      { id: 't-undated', title: 'Founders', order: 2 }
+    ];
+    const home = buildHome(input({ trophies }));
+    expect(home.handTrophies.map((t) => [t.id, t.where ?? '', t.thisSeason])).toEqual([
+      ['t-new', 'Oryx Fearless', true],
+      ['t-old', 'Clash — May', false],
+      ['t-undated', '', false]
+    ]);
+    expect(home.handTrophies[0]).toMatchObject({ placement: 1, champion: 'Jinx', at: new Date(2026, 8, 7).getTime() });
+    expect(buildHome(input({ trophies, mode: 'all' })).handTrophies.every((t) => t.thisSeason)).toBe(true);
+    expect(buildHome(input()).handTrophies).toEqual([]);
+  });
+
   it('draws the seed as intentional empties: five mains, no record, nobody crowned, every trophy locked', () => {
     const home = buildHome(input({ analysis: [], seriesGames: [], scrims: [], series: [] }));
     expect(home.slides.map((s) => s.champion)).toEqual(['Aatrox', 'Vi', 'Ahri', 'Jinx', 'Leona']);

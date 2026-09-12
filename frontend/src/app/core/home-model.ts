@@ -1,4 +1,4 @@
-import { AnalysisGame, Comp, Player, Role, Scrim, SeriesGame, Tournament, TournamentSeries } from '../models/team.models';
+import { AnalysisGame, Comp, Player, Role, Scrim, SeriesGame, Tournament, TournamentSeries, Trophy } from '../models/team.models';
 import { PatternFilters } from '../pages/review/win-loss-splits';
 import { Achievement } from './achievements';
 import { CompOfTheMonth } from './comp-month';
@@ -36,6 +36,8 @@ export interface HomeInput {
   /** Match ids tagged practice on the Games page. */
   practice: ReadonlySet<string>;
   compOverride: (matchId: string) => string;
+  /** Trophies entered by hand on Admin; none when absent. */
+  trophies?: readonly Trophy[];
   /** The Patterns selection the advice is read over; the tab's defaults when absent. */
   patternFilters?: PatternFilters;
 }
@@ -171,6 +173,22 @@ export interface HomeObjectives {
   firstTower: { hit: number; of: number };
 }
 
+/** A trophy entered by hand, as the cabinet draws it (13 Sep 2026). */
+export interface HomeHandTrophy {
+  id: string;
+  title: string;
+  /** 1, 2, 3… when it is a placing. */
+  placement?: number;
+  /** Where it was won: the tournament's name, else the event as typed. */
+  where?: string;
+  /** Local midnight of its day; null when it has none. */
+  at: number | null;
+  champion?: string;
+  note?: string;
+  /** Won inside the season the page is reading. */
+  thisSeason: boolean;
+}
+
 export interface HomeModel {
   teamName: string;
   season: SeasonWindow;
@@ -187,4 +205,6 @@ export interface HomeModel {
   lineup: HomeLineupCard[];
   objectives: HomeObjectives;
   trophies: Achievement[];
+  /** Newest first; undated ones after, in the order Admin lists them. */
+  handTrophies: HomeHandTrophy[];
 }

@@ -40,7 +40,7 @@ import { HomeTrophiesComponent } from './tiles/home-trophies.component';
       <app-home-advice class="home-cell home-cell-advice" [advice]="h.advice" />
       <app-home-lineup class="home-cell home-cell-lineup" [lineup]="h.lineup" [scope]="scope()" />
       <app-home-objectives class="home-cell home-cell-objectives" [objectives]="h.objectives" [scope]="scope()" />
-      <app-home-trophies class="home-cell home-cell-trophies" [trophies]="h.trophies" />
+      <app-home-trophies class="home-cell home-cell-trophies" [trophies]="h.trophies" [won]="h.handTrophies" />
     </div>
   `
 })

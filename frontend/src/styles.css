@@ -15818,6 +15818,21 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .home-objectives-firsts dd { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.05rem; }
 
 /* Trophy cabinet */
+/* Trophies won, entered by hand: first in the cabinet, a medal for a placing and the champion behind it. */
+.home-won { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.75rem; }
+.home-won-card { position: relative; overflow: hidden; isolation: isolate; min-height: 6.5rem; display: flex; align-items: flex-end; gap: 0.75rem; padding: 0.75rem 0.9rem; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--home-medal, var(--accent)) 60%, transparent); background: var(--bg-1); cursor: help; }
+.home-won-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.home-won-card.is-gold { --home-medal: var(--accent-2); box-shadow: 0 0 1.4rem color-mix(in srgb, var(--accent) 20%, transparent); }
+.home-won-card.is-silver { --home-medal: color-mix(in srgb, var(--text-0) 70%, var(--text-1)); }
+.home-won-card.is-bronze { --home-medal: color-mix(in srgb, var(--accent) 55%, var(--warn)); }
+.home-won-card.is-cup { --home-medal: var(--accent); }
+.home-won-art { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; filter: saturate(0.9) brightness(0.75); }
+.home-won-shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, color-mix(in srgb, var(--bg-0) 92%, transparent) 20%, color-mix(in srgb, var(--bg-0) 40%, transparent)); }
+.home-won-medal { flex: none; display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%; font-family: "Chakra Petch", sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--bg-0); background: radial-gradient(circle at 35% 30%, var(--home-medal), color-mix(in srgb, var(--home-medal) 70%, var(--bg-0))); box-shadow: 0 0 0 2px color-mix(in srgb, var(--home-medal) 40%, transparent), 0 0.3rem 0.8rem var(--shadow-elev); }
+.home-won-medal .material-symbols-rounded { font-size: 1.5rem; }
+.home-won-text { display: grid; gap: 0.1rem; min-width: 0; }
+.home-won-text b { font-family: "Chakra Petch", sans-serif; font-size: 1.05rem; line-height: 1.15; overflow-wrap: anywhere; }
+.home-won-text small { font-size: 0.74rem; color: var(--text-1); }
 .home-trophy-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.6rem; }
 .home-trophy { display: grid; justify-items: center; align-content: start; gap: 0.25rem; padding: 0.7rem 0.4rem; border-radius: 12px; text-align: center; border: 1px dashed var(--card-border); color: var(--text-2); cursor: help; }
 .home-trophy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -15851,6 +15866,7 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
   .home:not(.is-still) .home-trend.is-seen :is(.home-trend-dot, .home-trend-marker) { animation: home-fade-in 500ms ease 1300ms backwards; }
   .home:not(.is-still) .home-objectives.is-seen .home-objectives-ours,
   .home:not(.is-still) .home-trophies.is-seen .home-trophy-progress span { animation: home-bar-grow 900ms cubic-bezier(0.2, 0.7, 0.2, 1) 250ms backwards; }
+  .home:not(.is-still) .home-trophies.is-seen .home-won-medal { animation: home-stamp 700ms ease 250ms backwards; }
   .home:not(.is-still) .home-trophies.is-seen .home-trophy.is-earned .home-trophy-icon { animation: home-stamp 600ms ease 300ms backwards; }
   .home:not(.is-still) .home-lineup-card { transition: border-color 160ms ease, transform 200ms ease; }
   .home:not(.is-still) .home-lineup-card:hover .home-lineup-art { transform: scale(1.04); }
