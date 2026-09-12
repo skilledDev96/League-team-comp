@@ -316,7 +316,11 @@ export class GamesComponent {
     effect(() => {
       const id = this.focus();
       if (!id || this.revealed === id) return;
-      if (!this.rows().some((r) => r.id === id)) return;
+      // listRows(), not rows() (12 Sep 2026). A followed link PINS its game rather than widening
+      // the window, so the row it is about is the one case that is in the list and NOT in the
+      // window — and this guard, left on rows(), bailed on exactly that row. "Open on Games"
+      // landed on the page with the game sitting there, shut, unscrolled to.
+      if (!this.listRows().some((r) => r.id === id)) return;
       this.revealed = id;
       // A timer, not requestAnimationFrame: a tab opened in the background
       // never gets a frame, and the link would land on a closed row.

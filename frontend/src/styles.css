@@ -16990,3 +16990,14 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
   border-top: 1px solid var(--card-border);
   font-size: 0.86rem;
 }
+
+/* A game that carries no MVP, and why (12 Sep 2026). Four different causes used to look identical
+   on the page — which is to say, they looked like nothing at all. */
+.series-game-nofigures {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  padding: 0.05rem 0.45rem; border-radius: 999px;
+  border: 1px dashed var(--card-border);
+  font-size: 0.7rem; color: var(--text-2); cursor: help; white-space: nowrap;
+}
+.series-game-nofigures .material-symbols-rounded { font-size: 0.85rem; }
+.series-game-nofigures:hover { color: var(--text-1); border-color: var(--accent); }

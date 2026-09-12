@@ -279,6 +279,33 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, a link to 
     expect(text(root.querySelector('.insight-tile.is-lead .insight-value'))).toContain('0L');
   });
 
+  /**
+   * Pinning introduced its own bug, reported the same day: "the open games link does not take me
+   * to the specific game." The row was pinned onto the list correctly, but the effect that opens
+   * and scrolls to it still asked `rows()` — the WINDOW — whether the row existed. A pinned game
+   * is the one case that is in the list and not in the window, so the reveal bailed on exactly
+   * the row the link was about, every time.
+   */
+  it('opens the pinned row, which is the one row the window does not hold', async () => {
+    const harness = await RouterTestingHarness.create();
+    const page = await harness.navigateByUrl('/games?match=EUW1_5000000005', GamesComponent);
+    harness.detectChanges();
+    const root = harness.routeNativeElement as HTMLElement;
+
+    const comp = page as unknown as { focus: () => string | null; rows: () => { id: string }[]; listRows: () => { id: string }[] };
+    expect(comp.focus(), 'the link resolved to the row').toBe('riot-EUW1_5000000005');
+
+    // The shape that broke it: in the list, deliberately not in the window.
+    expect(comp.rows().some((r) => r.id === comp.focus()), 'not in the window — that is what pinning means').toBe(false);
+    expect(comp.listRows().some((r) => r.id === comp.focus()), 'but it is on the list').toBe(true);
+
+    // The reveal runs behind a 50ms timer, so that a background tab still lands on an open row.
+    await new Promise((r) => setTimeout(r, 120));
+    harness.detectChanges();
+    const panel = root.querySelector<HTMLDetailsElement>('[data-row="riot-EUW1_5000000005"]');
+    expect(panel!.open, 'the row the link was about is open').toBe(true);
+  });
+
   it('does not double the row or mark it when the window already holds it', async () => {
     const harness = await RouterTestingHarness.create();
     await harness.navigateByUrl('/games?match=EUW1_7000000001', GamesComponent);

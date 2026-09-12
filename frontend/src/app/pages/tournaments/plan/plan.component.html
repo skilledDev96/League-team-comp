@@ -297,6 +297,10 @@
                        result elements carry margin-left:auto, so this sits left and nothing moves. -->
                   @if (gameMvp(game); as gm) {
                     <app-mvp-chip kind="mvp" [champion]="gm.champion" [name]="gm.name ?? ''" [seat]="gm.seat" [terms]="gm.why" [compact]="true" />
+                  } @else if (mvpGapReason(game); as why) {
+                    <span class="series-game-nofigures" [appTip]="why">
+                      <span class="material-symbols-rounded" aria-hidden="true">help</span> no figures
+                    </span>
                   }
                   @if (auth.editing()) {
                     <div class="view-segment series-result" role="group" aria-label="Result">

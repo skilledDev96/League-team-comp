@@ -153,6 +153,28 @@ export class TournamentPlanComponent {
     return mvpOf(this.mvpGameOf(game));
   }
 
+  /**
+   * Why a game carries no mark (12 Sep 2026).
+   *
+   * A game drops out of the series average for four different reasons, and until now all four
+   * looked identical: nothing. The lead hit the case where two games of a Bo3 had replays, had
+   * sides, and still did not count — and there was nothing on the page to read. A silence with
+   * four possible causes is not a state a reader can act on.
+   *
+   * Empty when the game HAS a mark, and empty for a game nobody has imported a replay for yet —
+   * that one is obvious from the Import replay control sitting right there.
+   */
+  protected mvpGapReason(game: SeriesGame): string {
+    if (this.gameMvp(game)) return '';
+    if (!game.matchId) return '';
+    const analysis = this.analysisById().get(game.matchId);
+    const scrim = this.scrimById().get(game.matchId);
+    if (!analysis && !scrim) return 'No figures: this game is linked to a replay whose record is missing. Re-import the .rofl.';
+    if (!analysis && scrim && !(scrim.ourSide ?? game.ourSide)) return 'No figures: which side we were on was never recorded, so we cannot tell which five were ours.';
+    if (!this.mvpGameOf(game)) return 'No figures: the replay carries no players on our side.';
+    return 'No figures: the replay recorded no seat for anyone, so no line can be read from it.';
+  }
+
   private readonly seriesMvps = computed(() => {
     const map = new Map<string, SeriesMvp | null>();
     for (const series of this.seriesList()) {
