@@ -52,20 +52,28 @@ describe.skipIf(typeof document === 'undefined')('ReviewSeatComponent', () => {
    * where to click"). What matters is that it says what pressing it will show, and that the points
    * are genuinely behind it rather than merely hidden — five open blocks is the wall this replaced.
    */
+  /**
+   * The fold is a <summary>, not a pill (12 Sep 2026). The lead's rule: a thing that collapses is
+   * opened by its whole header, never by a small button sitting in it. Here that makes the entire
+   * "What went well + 1 more" line the hit area instead of a pill at the end of it.
+   */
   it('promises what the fold holds, and holds it until it is pressed', () => {
     const { fixture, root } = mount(player(), true, game());
-    const fold = root.querySelector<HTMLButtonElement>('button.review-seat-fold');
-    expect(fold).not.toBeNull();
+    const fold = root.querySelector<HTMLElement>('summary.review-seat-fold');
+    expect(fold, 'the whole line toggles, not a pill inside it').not.toBeNull();
+    expect(root.querySelector('button.review-seat-fold'), 'and no pill is left behind').toBeNull();
     expect(text(fold)).toContain('What went well + 1 more to work on');
-    expect(fold!.getAttribute('aria-expanded')).toBe('false');
+
+    const panel = fold!.closest('details') as HTMLDetailsElement;
+    expect(panel.open).toBe(false);
 
     // Shut: the ask alone. The ask is the point of the block.
     expect(root.querySelectorAll('app-review-point').length).toBe(1);
 
-    fold!.click();
+    panel.open = true;
+    panel.dispatchEvent(new Event('toggle'));
     fixture.detectChanges();
     expect(root.querySelectorAll('app-review-point').length).toBe(3);
-    expect(fold!.getAttribute('aria-expanded')).toBe('true');
     // And each group says what it is, rather than leaving three rows of chips unlabelled.
     expect([...root.querySelectorAll('.review-group-label')].map((el) => text(el))).toEqual(['Work on', 'What went well', 'More to work on']);
   });

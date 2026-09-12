@@ -54,11 +54,12 @@ type ReviewPlayer = GameReview['players'][number];
         <app-review-point [point]="player().workOn" tone="warn" [timed]="timed()" />
 
         @if (strength() || more().length) {
-          <button type="button" class="view-btn review-seat-fold" (click)="open.set(!open())" [attr.aria-expanded]="open()">
-            <span class="material-symbols-rounded" aria-hidden="true">{{ open() ? 'expand_less' : 'expand_more' }}</span>
-            {{ open() ? 'Hide the rest' : foldLabel() }}
-          </button>
-          @if (open()) {
+          <details class="fold-card review-seat-more" [open]="open()" (toggle)="open.set($any($event.target).open)">
+            <summary class="review-seat-fold">
+              <span>{{ open() ? 'Hide the rest' : foldLabel() }}</span>
+              <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+            </summary>
+            @if (open()) {
             @if (strength(); as s) {
               <h5 class="review-group-label is-ok">What went well</h5>
               <app-review-point [point]="s" tone="ok" [timed]="timed()" />
@@ -69,7 +70,8 @@ type ReviewPlayer = GameReview['players'][number];
                 <app-review-point [point]="m" tone="warn" [timed]="timed()" />
               }
             }
-          }
+            }
+          </details>
         }
       </div>
     } @else {

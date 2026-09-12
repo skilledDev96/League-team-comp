@@ -14550,8 +14550,12 @@ button .player-mark { vertical-align: -0.3rem; }
 .review-seat .review-group-label:first-of-type { margin-top: 0.1rem; }
 /* A pill, because that is what everything clickable in this app is — it was a <summary> in small
    capitals with a disclosure triangle, and nobody could tell it opened. */
-.review-seat-fold { justify-self: start; margin-top: 0.45rem; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.74rem; color: var(--text-1); }
-.review-seat-fold:hover, .review-seat-fold:focus-visible { color: var(--text-0); border-color: var(--accent); }
+/* Was a pill; the whole line is the hit area now (12 Sep 2026), the same rule the cards follow.
+   Deliberately not a pill: this is a show-the-rest line inside an open card, not a page section, so
+   it stays quiet and full width rather than becoming a fourth button on the seat. */
+.review-seat-more { grid-column: 1 / -1; margin-top: 0.45rem; }
+.review-seat-fold { display: flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0; border-top: 1px solid var(--card-border); font-size: 0.74rem; color: var(--text-1); }
+.review-seat-fold:hover { color: var(--text-0); }
 .review-seat-fold .material-symbols-rounded { font-size: 1rem; }
 .review-seat > app-review-point { display: block; }
 .review-seat-pick { display: grid; gap: 0.35rem; padding: 0.55rem 0.7rem; border-radius: 12px; border: 1px dashed var(--card-border); }
@@ -16880,3 +16884,48 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .game-story-swing { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; margin: 0.6rem 0 0; }
 .game-story-swing-line { flex: 1 1 16rem; min-width: 0; font-size: 0.88rem; color: var(--text-1); }
 .game-story-swing-none { margin: 0.6rem 0 0; font-size: 0.85rem; }
+
+/* ---- A panel that collapses, 12 Sep 2026 ----------------------------------------------
+   THE WHOLE HEADER IS THE TOGGLE. The chevron is the affordance, not the hit area.
+
+   The lead, after walking the Starter view: "some panels need to be clicked on a pill button
+   instead of the whole header panel being clickable… I like the panel that is clickable, not
+   only just the button." The app already did it this way in about ten places — a series, a game
+   row, a comp, the practice board — and in five it did not: the Games page's Players and Game
+   list cards, the review seat's fold, and the per-player rows on Player Intel and Admin. Two
+   collapse idioms on one page reads as unfinished.
+
+   Copy this, do not invent a fold button. A control that has to live INSIDE the header needs
+   `$event.preventDefault(); $event.stopPropagation();` — stopping propagation alone is not
+   enough inside a <summary>. */
+.fold-card > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fold-card > summary::-webkit-details-marker { display: none; }
+
+.fold-card > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
+.fold-chevron {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--accent-2);
+  transition: transform 150ms ease, color 140ms ease;
+}
+
+.fold-card > summary:hover .fold-chevron { color: var(--accent); }
+.fold-card[open] > summary .fold-chevron { transform: rotate(180deg); }
+
+/* The header keeps its own margin when the panel is shut, so a row of closed cards is evenly
+   spaced rather than crowding. */
+.fold-card > summary > .section-head,
+.fold-card > summary.section-head { margin-bottom: 0; }
+.fold-card[open] > summary.section-head { margin-bottom: 0.6rem; }

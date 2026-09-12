@@ -322,9 +322,13 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, Starter an
     const { root, comp } = await page();
     expect(comp.full()).toBe(false);
 
-    // The list is the page: rows without pressing anything.
+    // The list is the page: rows without pressing anything. Its header is the toggle at both
+    // depths now (12 Sep 2026) — it used to be a Full-only pill, so a Starter reader could not
+    // shut the list at all.
     expect(root.querySelectorAll('.games-row').length).toBeGreaterThan(0);
-    expect(root.querySelector('[data-tour="games-list-fold"]')).toBeNull();
+    const listFold = root.querySelector<HTMLElement>('[data-tour="games-list-fold"]')!;
+    expect(listFold.tagName, 'the whole header toggles, not a pill inside it').toBe('SUMMARY');
+    expect(listFold.closest('details')!.open).toBe(true);
 
     // What a reader checks rather than acts on is not here.
     expect(root.querySelector('.insight-tile.is-source')).toBeNull();
@@ -341,19 +345,19 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, Starter an
    * completely"). A section that is not there cannot be found; a heading with a Show beside it
    * costs one line and answers "where did the player numbers go".
    */
-  it('collapses the players rather than hiding them, and opens on a press', async () => {
+  it('collapses the players rather than hiding them, and the whole header opens it', async () => {
     const { harness, root } = await page();
-    const card = root.querySelector('.games-players');
+    const card = root.querySelector<HTMLDetailsElement>('details.games-players')!;
     expect(card, 'the card is on the page at Starter').not.toBeNull();
-    expect(card!.querySelector('.games-scroll')!.hasAttribute('hidden')).toBe(true);
-    expect(root.querySelector('.games-toughest'), 'a collapsed card is a heading and a Show').toBeNull();
+    expect(card.open, 'closed at Starter, not absent').toBe(false);
+    expect(card.querySelector('summary'), 'the header is the toggle').not.toBeNull();
+    expect(card.querySelector('.games-fold'), 'and no pill does the job any more').toBeNull();
 
-    const show = [...card!.querySelectorAll<HTMLButtonElement>('.games-fold')][0];
-    expect(show.textContent).toContain('Show');
-    show.click();
+    // A <details> hides its own body, so the table is not reachable until it is opened.
+    card.open = true;
+    card.dispatchEvent(new Event('toggle'));
     harness.detectChanges();
 
-    expect(card!.querySelector('.games-scroll')!.hasAttribute('hidden')).toBe(false);
     expect(root.querySelector('.games-player-table')).not.toBeNull();
   });
 
@@ -364,7 +368,7 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, Starter an
     harness.detectChanges();
 
     // Full opens the players card as well as restoring the rest.
-    expect(root.querySelector('.games-players .games-scroll')!.hasAttribute('hidden')).toBe(false);
+    expect(root.querySelector<HTMLDetailsElement>('details.games-players')!.open).toBe(true);
     expect(root.querySelector('.games-player-table')).not.toBeNull();
     expect(root.querySelector('.insight-tile.is-source')).not.toBeNull();
     expect(root.querySelector('[aria-label="Result"]')).not.toBeNull();
