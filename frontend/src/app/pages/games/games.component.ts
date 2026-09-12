@@ -35,16 +35,13 @@ import { CompExpectation } from '../../models/team.models';
 import { ReviewComponent } from '../review/review.component';
 import { TourPillComponent } from '../../shared/tour-pill.component';
 import {
+  buildGameRows,
   filterRows,
-  fromAnalysis,
-  fromScrim,
-  fromSeriesGame,
   GameRow,
   GameSource,
   meanLength,
   playerLines,
   record,
-  rosterIds,
   toughest, reviewBlockReason } from './game-rows';
 
 type Tab = 'games' | 'patterns' | 'reviews';
@@ -114,36 +111,20 @@ export class GamesComponent {
 
   // ---- Rows -------------------------------------------------------------------
 
-  /** Every game from every source, newest first. */
-  protected readonly allRows = computed<GameRow[]>(() => {
-    const comps = this.data.comps();
-    const ours = rosterIds(this.data.players());
-    const riot = (this.data.compAnalysis()?.games ?? []).map((g) =>
-      fromAnalysis(g, effectiveComp(g.compId, this.data.compOverride(g.matchId), comps))
-    );
-    // A tournament game with a replay imported against it owns that replay:
-    // the same game must not also appear as a scrim, or as the Riot row the
-    // analysis folds the stored scrim into.
-    const seriesById = new Map(this.data.tournamentSeries().map((s) => [s.id, s]));
-    const scrimsGroup = this.data.tournaments().find((t) => t.kind === 'scrims')?.id;
-    const scrimSeries = new Set(this.data.tournamentSeries().filter((s) => s.tournamentId === scrimsGroup).map((s) => s.id));
-    const scrimById = new Map(this.data.scrims().map((s) => [s.id, s]));
-    const seatNames: Record<string, string> = {};
-    for (const p of this.data.starters()) if (p.role && !seatNames[p.role]) seatNames[p.role] = p.name;
-    const tournament = this.data
-      .seriesGames()
-      .map((g) => fromSeriesGame(g, seriesById.get(g.seriesId), seatNames, g.matchId ? scrimById.get(g.matchId) : undefined, ours, scrimSeries.has(g.seriesId)))
-      .filter((r): r is GameRow => r !== null);
-    const claimed = new Set(tournament.map((r) => r.matchId).filter(Boolean));
-    const riotKept = riot.filter((r) => !claimed.has(r.matchId));
-    const riotIds = new Set(riot.map((r) => r.matchId));
-    const scrims = this.data
-      .scrims()
-      .filter((s) => !riotIds.has(s.id) && !claimed.has(s.id))
-      .map((s) => fromScrim(s, ours))
-      .filter((r): r is GameRow => r !== null);
-    return [...riotKept, ...scrims, ...tournament].sort((a, b) => b.date - a.date);
-  });
+  /** Every game from every source, newest first — built in game-rows.ts, which Home reads too. */
+  protected readonly allRows = computed<GameRow[]>(() =>
+    buildGameRows({
+      analysis: this.data.compAnalysis()?.games ?? [],
+      comps: this.data.comps(),
+      compOverride: (id) => this.data.compOverride(id),
+      players: this.data.players(),
+      starters: this.data.starters(),
+      tournaments: this.data.tournaments(),
+      series: this.data.tournamentSeries(),
+      seriesGames: this.data.seriesGames(),
+      scrims: this.data.scrims()
+    })
+  );
 
   /** Everything but the source filter, so the per-source tiles always have their counts. */
   private readonly rowsAnySource = computed<GameRow[]>(() => {

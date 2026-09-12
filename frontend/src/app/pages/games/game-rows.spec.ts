@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AnalysisGame, Player, Scrim, SeriesGame, TournamentSeries } from '../../models/team.models';
-import { filterRows, fromAnalysis, fromScrim, fromSeriesGame, meanLength, playerLines, record, rosterIds, toughest } from './game-rows';
+import { AnalysisGame, Player, Scrim, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
+import { buildGameRows, filterRows, fromAnalysis, fromScrim, fromSeriesGame, meanLength, playerLines, record, rosterIds, toughest } from './game-rows';
 
 const roster = [
   { id: 'p1', name: 'Zac', role: 'Top', profile: { riotTag: '#EUW' } },
@@ -149,5 +149,56 @@ describe('reviewBlockReason', () => {
     expect(reviewBlockReason({ source: 'tournament' })).toMatch(/import its replay/);
     expect(reviewBlockReason({ source: 'tournament', matchId: 'EUW1-1' })).toBeNull();
     expect(reviewBlockReason({ source: 'riot', matchId: 'EUW1_1' })).toBeNull();
+  });
+});
+
+/**
+ * The one row builder the Games page and Home share (13 Sep 2026). Moved out of GamesComponent
+ * verbatim; these pin what it promises, so a second reader cannot count a game a second way.
+ */
+describe('buildGameRows', () => {
+  const tournaments = [
+    { id: 't1', name: 'Oryx', kind: 'tournament', order: 0 },
+    { id: 'scrims', name: 'Scrims', kind: 'scrims', order: 1 }
+  ] as unknown as Tournament[];
+  const cup = { id: 'ser1', tournamentId: 't1', opponent: 'Tidal Wolves', bestOf: 3, order: 0, scheduledAt: '2026-09-05' } as unknown as TournamentSeries;
+  const block = { id: 'ser2', tournamentId: 'scrims', opponent: 'Iron Owls', bestOf: 0, order: 0 } as unknown as TournamentSeries;
+  const base = {
+    analysis: [] as AnalysisGame[],
+    comps: [],
+    compOverride: () => '',
+    players: roster,
+    starters: roster,
+    tournaments,
+    series: [cup, block],
+    seriesGames: [] as SeriesGame[],
+    scrims: [] as Scrim[]
+  };
+
+  it('lets a tournament game own its replay: no Riot row and no scrim row for the same game', () => {
+    const replay = scrim({ id: 'r-9' });
+    const game = { id: 'g1', seriesId: 'ser1', gameNumber: 1, win: true, matchId: 'r-9', ourChampions: [], theirChampions: [] } as unknown as SeriesGame;
+    const rows = buildGameRows({ ...base, analysis: [analysis({ matchId: 'r-9', queue: 'Scrim' })], scrims: [replay], seriesGames: [game] });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].source).toBe('tournament');
+    expect(rows[0].matchId).toBe('r-9');
+  });
+
+  it('reads a game in the scrims group as a scrim, and stamps the series on both kinds', () => {
+    const inCup = { id: 'g1', seriesId: 'ser1', gameNumber: 1, win: true, ourChampions: ['Aatrox'], theirChampions: ['Renekton'] } as unknown as SeriesGame;
+    const inBlock = { id: 'g2', seriesId: 'ser2', gameNumber: 1, win: false, ourChampions: ['Ornn'], theirChampions: ['Ahri'] } as unknown as SeriesGame;
+    const rows = buildGameRows({ ...base, seriesGames: [inCup, inBlock] });
+    const bySeries = Object.fromEntries(rows.map((r) => [r.seriesId, r.source]));
+    expect(bySeries).toEqual({ ser1: 'tournament', ser2: 'scrim' });
+  });
+
+  it('drops a scrim whose side cannot be told, and sorts newest first', () => {
+    const unsided = scrim({ id: 's-x', players: [scrim().players[1]] });
+    const older = scrim({ id: 's-old', playedOn: '2026-08-01T18:00:00.000Z' });
+    const newer = analysis({ matchId: 'm-new', date: Date.parse('2026-09-10T18:00:00.000Z') });
+    const rows = buildGameRows({ ...base, analysis: [newer], scrims: [unsided, older] });
+    expect(rows).toHaveLength(2);
+    expect(rows[0].date).toBeGreaterThan(rows[1].date);
+    expect(rows.some((r) => r.matchId === 's-x' || r.id.includes('s-x'))).toBe(false);
   });
 });

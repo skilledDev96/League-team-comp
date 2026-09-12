@@ -12,7 +12,8 @@
  * Analysis page, which answered "how did this comp do" — the Comps page
  * already does — and never "how are we doing".
  */
-import { AnalysisGame, Player, Scrim, ScrimPlayer, SeriesGame, TeamObjectives, TournamentSeries } from '../../models/team.models';
+import { AnalysisGame, Comp, Player, Scrim, ScrimPlayer, SeriesGame, TeamObjectives, Tournament, TournamentSeries } from '../../models/team.models';
+import { effectiveComp } from '../../core/comp-alias';
 
 export type GameSource = 'tournament' | 'scrim' | 'riot';
 
@@ -61,6 +62,8 @@ export interface GameRow {
   matchId?: string;
   /** How many of the roster were on our side; Riot rows only. */
   rosterCount?: number;
+  /** The series a typed-in or imported tournament game belongs to; absent on Riot rows and loose scrims. */
+  seriesId?: string;
   /** Where to read the game in full. */
   link?: { path: string; query?: Record<string, string> };
 }
@@ -228,8 +231,9 @@ export function fromSeriesGame(
   const link: NonNullable<GameRow['link']> = scrimBlock
     ? { path: '/tournaments', query: { view: 'plan', group: 'scrims', series: game.seriesId } }
     : { path: '/tournaments', query: { view: 'draft', series: game.seriesId, game: game.id } };
-  const base: Pick<GameRow, 'id' | 'source' | 'label' | 'opponent' | 'link'> = {
+  const base: Pick<GameRow, 'id' | 'source' | 'label' | 'opponent' | 'link' | 'seriesId'> = {
     id: `series-${game.id}`,
+    seriesId: game.seriesId,
     source: scrimBlock ? 'scrim' : 'tournament',
     label: scrimBlock ? (replay?.surrendered ? 'Scrim · ff' : 'Scrim') : `Bo${series?.bestOf ?? 3} game ${game.gameNumber}`,
     ...(series?.opponent ? { opponent: series.opponent } : {}),
@@ -259,6 +263,52 @@ export function fromSeriesGame(
     ours: seats(game.ourChampions, true),
     theirs: seats(game.theirChampions, false)
   };
+}
+
+// ---- Every row, from every source -------------------------------------------
+
+/** What the row list is built from: the stored data, as TeamDataService holds it. */
+export interface GameRowSources {
+  analysis: readonly AnalysisGame[];
+  comps: Comp[];
+  /** A game's hand-placed comp id, or '' — `TeamDataService.compOverride`. */
+  compOverride: (matchId: string) => string;
+  players: readonly Player[];
+  starters: readonly Player[];
+  tournaments: readonly Tournament[];
+  series: readonly TournamentSeries[];
+  seriesGames: readonly SeriesGame[];
+  scrims: readonly Scrim[];
+}
+
+/**
+ * Every game from every source, newest first (13 Sep 2026: moved out of the Games page so the home page
+ * reads the same games and the two can never count one game twice in different ways).
+ *
+ * A tournament game with a replay imported against it owns that replay: the same game must not also
+ * appear as a scrim, or as the Riot row the analysis folds the stored scrim into. The concatenation
+ * order before the stable sort is kept exactly — the form strip reads ties in it.
+ */
+export function buildGameRows(src: GameRowSources): GameRow[] {
+  const ours = rosterIds(src.players);
+  const riot = src.analysis.map((g) => fromAnalysis(g, effectiveComp(g.compId, src.compOverride(g.matchId), src.comps)));
+  const seriesById = new Map(src.series.map((s) => [s.id, s]));
+  const scrimsGroup = src.tournaments.find((t) => t.kind === 'scrims')?.id;
+  const scrimSeries = new Set(src.series.filter((s) => s.tournamentId === scrimsGroup).map((s) => s.id));
+  const scrimById = new Map(src.scrims.map((s) => [s.id, s]));
+  const seatNames: Record<string, string> = {};
+  for (const p of src.starters) if (p.role && !seatNames[p.role]) seatNames[p.role] = p.name;
+  const tournament = src.seriesGames
+    .map((g) => fromSeriesGame(g, seriesById.get(g.seriesId), seatNames, g.matchId ? scrimById.get(g.matchId) : undefined, ours, scrimSeries.has(g.seriesId)))
+    .filter((r): r is GameRow => r !== null);
+  const claimed = new Set(tournament.map((r) => r.matchId).filter(Boolean));
+  const riotKept = riot.filter((r) => !claimed.has(r.matchId));
+  const riotIds = new Set(riot.map((r) => r.matchId));
+  const scrims = src.scrims
+    .filter((s) => !riotIds.has(s.id) && !claimed.has(s.id))
+    .map((s) => fromScrim(s, ours))
+    .filter((r): r is GameRow => r !== null);
+  return [...riotKept, ...scrims, ...tournament].sort((a, b) => b.date - a.date);
 }
 
 // ---- Filters and records ---------------------------------------------------
