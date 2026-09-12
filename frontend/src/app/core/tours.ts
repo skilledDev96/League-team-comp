@@ -128,26 +128,33 @@ export function stepAfterSkip(count: number, from: number, dir: 1 | -1, missing:
 
 export const TOURS: readonly Tour[] = [
   {
+    // On Home since 13 Sep 2026, where sign-in lands: on /roster it never ran for anyone who did not
+    // go looking. Version 2 walks everyone through the new landing once.
     id: 'welcome',
     title: 'Welcome',
-    blurb: 'The five pages, edit mode and the quick actions.',
-    version: 1,
-    match: { path: '/roster' },
+    blurb: 'Home, the five pages, edit mode and where the tours live.',
+    version: 2,
+    match: { path: '/home' },
     steps: [
       {
         anchor: 'nav',
-        title: 'Four pages',
-        text: 'Roster is the team, Comps the drafts, Games the history, Prep & Draft opponents.', more: 'Prep & Draft covers every opponent, scrim or tournament: scouting, replays and the live draft. Games also shows what keeps happening across them.'
+        title: 'Five pages',
+        text: 'Home is where you land. Roster is the team, Comps the drafts, Games the history, Prep & Draft opponents.', more: 'Prep & Draft covers every opponent, scrim or tournament: scouting, replays and the live draft. Games also shows what keeps happening across them.'
       },
       {
-        anchor: 'roster-views',
-        title: 'One roster, four depths',
-        text: 'Cards for who plays what, Table for rank and form.', more: 'Scouting holds pools, matchups and the practice board. Scout report shows us the way an opponent scouts us.'
+        anchor: 'home-hero',
+        title: 'The season',
+        text: 'The record this split, the next series and a pill to scout them.', more: 'All time counts every game instead. Motion turns the moving splash and the count-ups off on this screen.'
       },
       {
-        anchor: 'quick-actions',
-        title: 'What you do most',
-        text: 'One press to open the draft room or scout the next opponent.', more: 'Edit mode adds three more: refreshing after practice, adding a comp and importing a replay.'
+        anchor: 'home-spotlight',
+        title: 'The last series MVP',
+        text: 'Whoever carried the last finished series, and the race for the most titles beside it.', more: 'A title counts once most of the series has figures: import the replays on Prep & Draft and the crown lands.'
+      },
+      {
+        anchor: 'home-tiles',
+        title: 'The season at a glance',
+        text: 'The podium, the form, the comp of the month, the records to beat and what to work on.', more: 'Further down: the five, objective control and the trophy cabinet. Every figure is read off the same games the Games page lists.'
       },
       {
         anchor: 'edit-toggle',
@@ -172,6 +179,9 @@ export const TOURS: readonly Tour[] = [
     match: { path: '/roster' },
     needs: 'players',
     steps: [
+      // These two were the welcome tour's until it moved to Home (13 Sep 2026).
+      { anchor: 'roster-views', title: 'One roster, four depths', text: 'Cards for who plays what, Table for rank and form.', more: 'Scouting holds pools, matchups and the practice board. Scout report shows us the way an opponent scouts us.' },
+      { anchor: 'quick-actions', title: 'What you do most', text: 'One press to open the draft room or scout the next opponent.', more: 'Edit mode adds three more: refreshing after practice, adding a comp and importing a replay.' },
       { anchor: 'roster-card', title: 'A player card', text: 'Role, playstyle and main champion at a glance.', more: 'Quick look opens the pool and the links. Profile opens the full page with the stats and the coaching notes.', query: { view: 'cards' } },
       { anchor: 'roster-ateam', title: 'A team for Patterns', text: 'Patterns counts these five by default, and the draft room follows them.', more: 'Bench leaves a player out. Same flag Admin sets, so the five stay one thing everywhere.', editMode: true, query: { view: 'cards' } },
       { anchor: 'roster-main-seat', title: 'Main seat', text: 'The seat in the title, read by Patterns’ Main filter.', more: 'Patterns’ Main counts a game only when all five sat in their main seat, so set these before reading it.', editMode: true, query: { view: 'cards' } },

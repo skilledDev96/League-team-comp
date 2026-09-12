@@ -139,6 +139,15 @@ describe('the film room tour', () => {
 });
 
 describe('the registry', () => {
+  it('opens the welcome on Home, where sign-in lands, and gives Roster its own two steps back', () => {
+    const welcome = TOURS.find((t) => t.id === 'welcome')!;
+    expect(welcome.match.path).toBe('/home');
+    expect(welcome.version).toBeGreaterThanOrEqual(2);
+    expect(welcome.steps.map((s) => s.anchor)).toEqual(['nav', 'home-hero', 'home-spotlight', 'home-tiles', 'edit-toggle', 'user-menu']);
+    const roster = TOURS.find((t) => t.id === 'roster')!;
+    expect(roster.steps.map((s) => s.anchor).slice(0, 2)).toEqual(['roster-views', 'quick-actions']);
+  });
+
   it('has unique ids and unique anchors within a tour, and a welcome tour', () => {
     const ids = TOURS.map((t) => t.id);
     expect(new Set(ids).size).toBe(ids.length);

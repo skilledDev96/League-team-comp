@@ -65,8 +65,17 @@ setup('sign in', async ({ page, context }) => {
   // Scoped to the tour's card (10 Sep 2026): the Before you play reminder and
   // the Games banner each end in a "Got it" of their own, and two matches make
   // the unscoped locator throw in strict mode.
+  //
+  // Waited for rather than checked once (13 Sep 2026): the welcome now starts on
+  // Home, where sign-in lands, and only once the user's prefs have loaded and its
+  // first anchor is on the page — a single look straight after the nav appears
+  // saw no card, and the tour then opened over the first test instead.
   const gotIt = page.locator('.tour-card').getByRole('button', { name: /^(Skip tour|Got it)$/ });
-  if (await gotIt.isVisible().catch(() => false)) {
+  const shown = await gotIt
+    .waitFor({ state: 'visible', timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (shown) {
     await gotIt.click();
     await expect(gotIt).toBeHidden();
   }

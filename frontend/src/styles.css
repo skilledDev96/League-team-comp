@@ -15658,6 +15658,9 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 
 /* Home's bento (13 Sep 2026): twelve columns, every cell the same size as its placeholder shell, so the
    tiles land without moving anything. */
+.home-tiles { display: grid; gap: 0.6rem; margin-top: 0.5rem; }
+.home-tiles-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; padding: 0 0.2rem; }
+.home-tiles-head h2 { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.15rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-1); }
 .home-bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 1rem; }
 .home-cell { display: block; min-width: 0; }
 .home-cell > .home-tile { height: 100%; box-sizing: border-box; }

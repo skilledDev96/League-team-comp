@@ -6,6 +6,7 @@ import { InViewDirective } from '../../shared/in-view.directive';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { MotionService } from '../../services/motion.service';
 import { PageVisibilityService } from '../../services/page-visibility.service';
+import { TourService } from '../../services/tour.service';
 import { UiService } from '../../services/ui.service';
 import { CountUpDirective } from './count-up.directive';
 import { HomeNextSeriesComponent } from './home-next-series.component';
@@ -58,6 +59,11 @@ const sameChampion = (a: string, b: string) => a.trim().toLowerCase() === b.trim
           {{ season().label }}
         </p>
         <div class="home-hero-tools">
+          @if (tour(); as t) {
+            <button type="button" class="view-btn home-pill" [disabled]="!!tours.blocker(t)" [appTip]="tours.blocker(t) || t.blurb" (click)="tours.start(t.id)">
+              <span class="material-symbols-rounded" aria-hidden="true">tour</span> Show me around
+            </button>
+          }
           <div class="view-segment home-season" role="group" aria-label="Which games the page counts">
             <button type="button" [class.active]="mode() === 'season'" [attr.aria-pressed]="mode() === 'season'" (click)="modeChange.emit('season')">{{ seasonWord() }}</button>
             <button type="button" [class.active]="mode() === 'all'" [attr.aria-pressed]="mode() === 'all'" (click)="modeChange.emit('all')">All time</button>
@@ -112,6 +118,9 @@ export class HomeHeroComponent {
   protected readonly motion = inject(MotionService);
   private readonly ui = inject(UiService);
   private readonly visibility = inject(PageVisibilityService);
+  protected readonly tours = inject(TourService);
+  /** The page's own tour, the welcome, offered here rather than through the page toolbar Home does not have. */
+  protected readonly tour = computed(() => (this.tours.active() ? null : this.tours.pillFor(this.tours.url())));
 
   protected readonly seen = signal(false);
   protected readonly visible = signal(false);

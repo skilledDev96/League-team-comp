@@ -62,8 +62,12 @@ function writeStored(key: string, value: string): void {
         <app-home-spotlight [spotlight]="h.spotlight" [scope]="scope()" />
         <app-home-race [race]="h.race" [seasonLabel]="h.season.label" />
       </div>
-      <!-- The tour's anchor stands outside the deferred block, so a step can find it before the chunk arrives. -->
-      <section class="home-tiles" data-tour="home-tiles" aria-label="The season at a glance">
+      <section class="home-tiles" aria-labelledby="home-tiles-title">
+        <!-- The tour's anchor is the heading, outside the deferred block: a step finds it before the chunk arrives, and it is short enough to scroll to with the first tiles still under it. -->
+        <header class="home-tiles-head" data-tour="home-tiles">
+          <h2 id="home-tiles-title">The season at a glance</h2>
+          <span class="home-card-scope">{{ h.season.label }}</span>
+        </header>
         @defer (on viewport; prefetch on idle) {
           <app-home-tiles [home]="h" [scope]="scope()" />
         } @placeholder {

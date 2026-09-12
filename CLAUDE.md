@@ -1169,7 +1169,10 @@ edit-mode surfaces are in scope for the same act-or-check pass and have not had 
 
 Seen state is `userPrefs/{email}.toursSeen` (`services/user-prefs.service.ts`, localStorage
 fallback; the old `tourSeen` flag is still written for the welcome tour). The
-welcome modal in `app.html` is gone; the welcome tour replaced it. Help and
+welcome modal in `app.html` is gone; the welcome tour replaced it, and since 13 Sep 2026
+(version 2) it starts on `/home`, where sign-in lands — on `/roster` it only ever met people who went
+looking; Roster's own tour took its two Roster steps, and `auth.setup.ts` waits for the tour card
+rather than looking once. Help and
 tours in the user menu lists every tour the role can run; the hero pill
 (`shared/tour-pill.component.ts`) offers the page's tour and, for an editor
 with it off, a reminder that the controls live behind Edit mode.
