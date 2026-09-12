@@ -14,12 +14,13 @@
   <button type="button" class="view-btn" [class.active]="view() === 'draft'" (click)="view.set('draft')">
     <span class="material-symbols-rounded" aria-hidden="true">swords</span> Draft
   </button>
-  <!-- Plan only. Hidden, not removed, on Draft: the switch is taller than the pills, and the toolbar
-       over the draft room must not change height when the view does. The draft room is not a depth
-       surface. -->
-  <app-detail-toggle surface="prep" [style.visibility]="view() === 'plan' ? null : 'hidden'"
-                     starterTip="Their five on a line each, the ban board, and the games"
-                     fullTip="The full roster table: both queues, who beats them, what they played lately, and the bench" />
+  <!-- Plan only: the draft room is not a depth surface. Removed rather than hidden on Draft, because
+       the switch is taller than the pills and an invisible one pushed the whole room 35px down. -->
+  @if (view() === 'plan') {
+    <app-detail-toggle surface="prep"
+                       starterTip="Their five on a line each, the ban board, and the games"
+                       fullTip="The full roster table: both queues, who beats them, what they played lately, and the bench" />
+  }
 </section>
 
 @if (view() === 'plan') {

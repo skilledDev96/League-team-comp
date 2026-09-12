@@ -4839,7 +4839,6 @@ a {
   text-decoration-thickness: 1px;
   text-underline-offset: 0.15em;
 }
-a:visited { color: var(--accent-2); }
 a:hover { text-decoration-thickness: 2px; }
 
 .tournament-notes a {
@@ -5610,15 +5609,12 @@ app-match-note {
   white-space: nowrap;
 }
 
+/* Coloured by winRateBand, the room's own scale, so a comp's rate and the advice beside it agree. */
 .draft-comp-rate {
   margin-left: auto;
   font-size: 0.76rem;
   font-weight: 600;
-  color: var(--warn);
-}
-
-.draft-comp-rate.is-positive {
-  color: var(--ok);
+  color: var(--text-1);
 }
 
 /* Sits after the win rate, so that keeps the auto margin. */
@@ -9135,6 +9131,16 @@ body:has(.draft-stage) .edit-mode-frame {
   margin-top: 0.4rem;
 }
 
+/* Map view from 1101px: the wall takes row 1 only, or between 1101 and 1399px (where the >=1400
+   block below does not reach) it spans rows 1-2 over the advice. Found by review, 12 Sep 2026; the
+   wider block later in the file still wins above 1400. */
+@media (min-width: 1101px) {
+  .draft-stage.is-map .draft-grid { grid-row: 1; }
+  .draft-stage.is-map .draft-map { grid-row: 1 / span 3; }
+  .draft-stage.is-map .draft-advice { grid-column: 2; grid-row: 2; }
+  .draft-stage.is-map .draft-inputs > .field:nth-child(1) { grid-column: 1; grid-row: 4; }
+}
+
 /* The two teams run the height of the middle stack: wall, advice, lane read, bans. The comps board
    was a fifth and sixth row until it became a popup (12 Sep 2026). */
 .draft-stage .draft-inputs > .field:nth-child(2),
@@ -10978,7 +10984,7 @@ body:has(.draft-stage) .edit-mode-frame {
      lead on the Scout report: "same as the other page issue"). Fixed rem tracks — a name capped at
      20rem, the champions taking the rest of a 62rem line — scaled with the root font on a wide screen
      and left most of the line empty between the name, the rank and three small icons. */
-  grid-template-columns: max-content minmax(0, max-content) max-content minmax(min-content, max-content) max-content;
+  grid-template-columns: max-content minmax(6rem, max-content) max-content minmax(min-content, max-content) max-content;
   column-gap: 0.9rem;
   row-gap: 0.25rem;
   width: fit-content;
@@ -15437,7 +15443,7 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .roster-card-id { flex: 1 1 auto; min-width: 0; display: grid; gap: 0.3rem; }
 .roster-card .roster-card-id h2 { margin: 0; line-height: 1.2; overflow-wrap: anywhere; }
 .roster-card-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
-.roster-card-tags .sub-badge { margin-left: 0; margin-right: 0.2rem; }
+.roster-card-tags .sub-badge { margin-left: 0; margin-right: 0.2rem; position: relative; z-index: 3; }
 .roster-card-also { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-1); }
 .roster-card .title-row-edit .material-symbols-rounded { font-size: 1rem; }
 .roster-card .roster-edit { margin: 0 0 0.8rem; }

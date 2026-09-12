@@ -105,6 +105,11 @@ export class TourOverlayComponent {
   @HostListener('document:keydown', ['$event'])
   onKey(event: KeyboardEvent): void {
     if (!this.tours.active()) return;
+    // A modal dialog opened from a step (the draft room's Comps popup) makes the tour card inert
+    // behind it. Its keys are its own: taking Escape here skipped the whole tour, marked it seen, and
+    // cancelled the key so the dialog never closed (12 Sep 2026). The film lab opens with show()
+    // while a tour walks, which is not :modal, so its walk is unaffected.
+    if (modalDialogOpen()) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       this.tours.skip();
@@ -115,5 +120,14 @@ export class TourOverlayComponent {
       event.preventDefault();
       void this.tours.back();
     }
+  }
+}
+
+/** True while a <dialog> is open with showModal. jsdom does not know :modal, and says so by throwing. */
+function modalDialogOpen(): boolean {
+  try {
+    return !!document.querySelector('dialog:modal');
+  } catch {
+    return false;
   }
 }

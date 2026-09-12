@@ -995,7 +995,7 @@
                           [attr.aria-expanded]="isCompOpen(row.id)" (click)="toggleComp(row.id)">
                     <span class="draft-comp-name">{{ row.name }}</span>
                     @if (row.winRate !== undefined) {
-                      <span class="draft-comp-rate" [class.is-positive]="row.winRate >= 50"
+                      <span class="draft-comp-rate" [class]="winRateBand(row.winRate)"
                             [appTip]="row.games + ' games in match history'">{{ row.winRate }}%</span>
                     }
                     <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
@@ -1039,7 +1039,7 @@
                           [appTip]="'Gone: ' + row.blocked.join(', ')" (click)="toggleComp(row.id)">
                     <span class="draft-comp-name">{{ row.name }}</span>
                     @if (row.winRate !== undefined) {
-                      <span class="draft-comp-rate" [class.is-positive]="row.winRate >= 50">{{ row.winRate }}%</span>
+                      <span class="draft-comp-rate" [class]="winRateBand(row.winRate)">{{ row.winRate }}%</span>
                     }
                     <em>&minus;{{ row.blocked.length }}</em>
                     <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>

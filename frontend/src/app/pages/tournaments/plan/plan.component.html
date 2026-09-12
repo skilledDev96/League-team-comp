@@ -570,7 +570,7 @@
                     @for (opp of orderedRoster(series); track opp.name + opp.riotTag) {
                       <li class="opp-line">
                         <span class="opp-line-seat">{{ opp.role }}</span>
-                        <span class="opp-line-name">{{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}</span>
+                        <span class="opp-line-name" [appTip]="opp.riotTag ? opp.name + '#' + opp.riotTag : opp.name">{{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}</span>
                         @if (bestRank(opp); as r) {
                           <span class="opp-line-rank" [appTip]="(r.label || 'Ranked') + ' — switch to Full for both queues'">@if (r.label) { <em>{{ r.label }}</em> } {{ r.rank }}</span>
                         } @else {

@@ -475,6 +475,14 @@ export class TournamentDraftComponent implements OnInit {
    */
   protected pickFromComps(game: SeriesGame, champion: string, role?: Role): void {
     if (this.sequenceActive(game)) {
+      // A seat or ban still aimed from earlier would turn the hold into an instant replace of a
+      // confirmed pick, behind a popup that hides the line saying so. From here it always holds.
+      this.cancelReplace();
+      // On our pick, the comp names the seat: aim the wall's lane at it while that seat is open, so
+      // the held pick is proposed into it rather than wherever the champion's lanes point first.
+      const step = this.step(game);
+      const seatOpen = role && !this.pickSlots(this.current(game)).find((s) => s.role === role)?.champion;
+      if (seatOpen && step?.action === 'pick' && this.isOurTurn(game)) this.wall()?.chooseLane(role);
       this.proposeFromSequence(champion);
       this.hideComps();
       return;
@@ -492,7 +500,9 @@ export class TournamentDraftComponent implements OnInit {
   protected compsPickHint(game: SeriesGame, champion: string, role?: Role): string {
     if (!this.sequenceActive(game)) return this.pickHint(game, champion, role);
     if (this.compsPickBlocked(game, champion, role)) return champion + ' cannot be taken on this step';
-    return 'Hold ' + champion + ', then confirm it in the room';
+    const step = this.step(game);
+    const whose = this.isOurTurn(game) ? 'our' : 'their';
+    return 'Hold ' + champion + ' as ' + whose + ' ' + (step?.action ?? 'pick') + ', then confirm it in the room';
   }
 
   /** A comp's picks by role, for the expanded row. */
