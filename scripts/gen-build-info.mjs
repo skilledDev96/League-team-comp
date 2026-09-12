@@ -45,4 +45,16 @@ for (const target of [
   writeFileSync(target, body, 'utf8');
 }
 
+// The same stamp as a static file the deployed site serves (12 Sep 2026).
+//
+// `verify` runs the moment `deploy` returns, but Pages propagates on its own
+// clock, so the checks can run against the PREVIOUS build and pass — which is
+// exactly what happened twice on 12 Sep, letting a broken check reach main. The
+// backend already publishes its SHA and is compared against api/ history; the
+// frontend stamped one too but only ever read it on the Admin page, which the
+// read-only test account cannot open. A flat file anyone can GET closes that.
+const publicDir = resolve(repoRoot, 'frontend/public');
+mkdirSync(publicDir, { recursive: true });
+writeFileSync(resolve(publicDir, 'build.json'), JSON.stringify({ sha, api, builtAt }, null, 2) + '\n', 'utf8');
+
 console.log(`build-info: ${sha} (api ${api}) @ ${builtAt}`);

@@ -31,3 +31,8 @@ replay-shot-*.json
 # the root never had to, so an `npm install` here left several thousand untracked files in
 # front of the next `git add .`.
 /node_modules/
+
+# Stamped at build time by scripts/gen-build-info.mjs so the deployed site can say
+# which commit it is (12 Sep 2026). Unlike build-info.ts nothing imports it, so it
+# does not need a committed placeholder — the prebuild always writes it.
+frontend/public/build.json

@@ -70,3 +70,38 @@ test('the login screen offers a way in', async ({ page }) => {
   await page.goto('./login');
   await expect(page.getByRole('button', { name: /sign in|google/i }).first()).toBeVisible();
 });
+
+/**
+ * Is the site we are testing the one this run just built? (12 Sep 2026.)
+ *
+ * `verify` starts the moment `deploy` returns, and Pages propagates on its own
+ * clock. On 12 Sep two runs went green while testing the previous build, and a
+ * genuinely broken check reached main because of it. A green verify has to mean
+ * THIS build was checked.
+ *
+ * Skipped outside CI, where there is no commit to compare against, and skipped
+ * on a checkout whose HEAD is not the commit being verified.
+ */
+test('the deployed site is the build this run made', async ({ request }) => {
+  const expected = process.env.GITHUB_SHA;
+  test.skip(!expected, 'no GITHUB_SHA: nothing to compare the deployed build against');
+
+  const short = expected!.slice(0, 7);
+  // Pages can take a little while to serve the new build; poll rather than fail
+  // on the first miss, and say plainly what was still being served if it never
+  // arrives — "stale" is a different problem from "broken".
+  const deadline = Date.now() + 90_000;
+  let served = '(no build.json served)';
+  while (Date.now() < deadline) {
+    const res = await request.get('./build.json', { headers: { 'cache-control': 'no-cache' } });
+    if (res.ok()) {
+      const body = (await res.json()) as { sha?: string };
+      served = body.sha ?? '(no sha in build.json)';
+      if (served === short) return;
+    }
+    await new Promise((r) => setTimeout(r, 5_000));
+  }
+  throw new Error(
+    `The site is still serving build ${served}, not ${short}. Everything checked after this ran against the previous deploy, so a green run would not have meant anything.`
+  );
+});
