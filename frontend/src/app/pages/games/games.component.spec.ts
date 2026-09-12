@@ -143,3 +143,71 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, the row\'s
     expect(row.querySelector('.mvp-chip')).toBeNull();
   });
 });
+
+
+/**
+ * The tab named for reviews used to draw a poster per review and send the reader to the Games tab
+ * to read one (12 Sep 2026). Reading the newest review cost about five clicks from login. The panel
+ * is self-contained and was already imported by this page, so the fix was to mount it.
+ */
+describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, the Reviews tab', () => {
+  let data: TeamDataService;
+
+  const review = (matchId: string, headline: string, reviewedAt: string) =>
+    ({
+      matchId,
+      reviewedAt,
+      reviewVersion: 8,
+      tier: 'timeline',
+      trigger: 'manual',
+      models: { team: 'claude-opus-5', players: 'claude-opus-5' },
+      compId: null,
+      compName: null,
+      team: { headline, summary: 's', workOn: [], keepDoing: [], compVerdict: 'unclear', compWhy: '' },
+      players: [],
+      usage: { team: { input: 0, cachedInput: 0, output: 0 }, players: { input: 0, cachedInput: 0, output: 0 }, costUsd: 0.25, tookMs: 1 }
+    }) as unknown as Parameters<TeamDataService['gameReviews']['set']>[0][number];
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'games', component: GamesComponent }])] });
+    data = TestBed.inject(TeamDataService);
+  });
+
+  async function openTab(): Promise<HTMLElement> {
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/games?tab=reviews', GamesComponent);
+    harness.detectChanges();
+    return harness.routeNativeElement as HTMLElement;
+  }
+
+  it('renders the review itself, newest first and open, and the rest collapsed', async () => {
+    data.compAnalysis.set({ games: [riotGame], comps: [], totalTeamGames: 1, scannedMatches: 1, generatedAt: new Date(TODAY).toISOString() } as CompAnalysis);
+    data.gameReviews.set([
+      review('EUW1_7000000001', 'Newest headline', new Date(TODAY).toISOString()),
+      review('EUW1_6000000000', 'Older headline', new Date(TODAY - 86_400_000).toISOString())
+    ]);
+    const root = await openTab();
+
+    // The panel, not a picture of it.
+    const panels = root.querySelectorAll('app-game-review');
+    expect(panels.length).toBe(2);
+
+    // The newest is open and the one below it is not: a reader lands on a review, not on a list.
+    const folds = [...root.querySelectorAll('app-game-review details.game-review')] as HTMLDetailsElement[];
+    expect(folds.map((d) => d.open)).toEqual([true, false]);
+    expect(text(folds[0].querySelector('.game-review-headline'))).toBe('Newest headline');
+
+    // The way back to the row survives, demoted: reading no longer needs it.
+    expect(root.querySelectorAll('.review-card-open').length).toBe(2);
+  });
+
+  it('says so plainly when nothing has been reviewed', async () => {
+    data.gameReviews.set([]);
+    const root = await openTab();
+    expect(root.querySelector('app-game-review')).toBeNull();
+    expect(text(root.querySelector('.review-cards'))).toBe('');
+  });
+});

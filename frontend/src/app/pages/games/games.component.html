@@ -58,8 +58,9 @@
 @if (tab() === 'patterns') {
   <app-review />
 } @else if (tab() === 'reviews') {
-  <!-- Every written review, newest first: its poster into the film room and
-       the comp verdict, with the row it belongs to one click away. -->
+  <!-- Every written review, newest first, and the newest one open. This tab used to draw a poster
+       per review and send the reader to the Games tab to read one — the tab named for reviews did
+       not show a review (12 Sep 2026). The panel is self-contained, so it simply mounts here. -->
   <section class="card games-filters" aria-label="Review filters">
     <label class="field compact-field"><span>Comp</span>
       <select name="reviewComp" [value]="reviewComp()" (change)="reviewComp.set($any($event.target).value)">
@@ -82,16 +83,12 @@
             } @else {
               <span class="muted">Game no longer in the analysis</span>
             }
-            <span class="game-review-verdict" [class.is-good]="r.review.team.compVerdict === 'as drafted'" [class.is-bad]="r.review.team.compVerdict === 'off plan'"
-                  [appTip]="r.review.team.compWhy || ''">
-              {{ r.comp?.name || r.review.compName || 'No comp' }}: {{ r.review.team.compVerdict }}
-            </span>
+            <button type="button" class="view-btn review-card-open" (click)="openMatch(r.review.matchId)"
+                    appTip="The game's own row on the Games tab: the scoreboard, the objectives and how the game went">Open the game</button>
           </div>
-          <app-film-poster [review]="r.review" [game]="r.game" [opponent]="r.opponent" size="card" />
-          <div class="games-row-actions">
-            <button type="button" class="view-btn" (click)="openMatch(r.review.matchId)">Open the game</button>
-            <small class="muted">{{ r.review.reviewedAt | date: 'd MMM, HH:mm' }}{{ r.review.tier === 'endOfGame' ? (r.review.recorded ? ' · recorded' : ' · totals only') : '' }}</small>
-          </div>
+          <!-- The review itself, not a picture of it. The newest opens; the rest are one headline
+               each and expand where they stand, so nothing here navigates to read a review. -->
+          <app-game-review [review]="r.review" [game]="r.game" [opponent]="r.opponent" [open]="$first" />
         </article>
       }
     </section>

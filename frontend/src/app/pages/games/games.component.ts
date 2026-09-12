@@ -24,7 +24,6 @@ import { GameStoryComponent } from '../../shared/game-story.component';
 import { ReplayRecordingService } from '../../services/replay-recording.service';
 import { BeforeYouPlayComponent } from '../../shared/before-you-play.component';
 import { GameReviewComponent } from '../../shared/game-review.component';
-import { FilmPosterComponent } from '../../shared/film/film-poster.component';
 import { GameGraphsComponent } from '../../shared/game-graphs.component';
 import { GameReviewService } from '../../services/game-review.service';
 import { ReviewTakeoverService } from '../../services/review-takeover.service';
@@ -60,7 +59,7 @@ type Tab = 'games' | 'patterns' | 'reviews';
 import { PlayerMarkComponent } from '../../shared/player-mark.component';
 @Component({
   selector: 'app-games',
-  imports: [PlayerMarkComponent, GameGraphsComponent, FilmPosterComponent, DatePipe,
+  imports: [PlayerMarkComponent, GameGraphsComponent, DatePipe,
     FormsModule,
     RouterLink,
     ChampionFilterComponent,

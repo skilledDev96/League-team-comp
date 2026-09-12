@@ -14044,13 +14044,18 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 
 
 /* ---- Reviews tab and coaching notes ------------------------------------- */
-.review-cards { display: grid; gap: 0.75rem; }
+/* One column, because each card now holds the review itself rather than a picture of it: the panel
+   is as wide as it is and two of them side by side would each be half a review (12 Sep 2026). */
+.review-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
 .review-card { padding: 0.9rem 1rem; }
 .review-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; }
 .review-card-date { font-weight: 700; }
 .review-card-vs { font-size: 0.78rem; }
-.review-card-summary { margin: 0.2rem 0 0.35rem; }
-.review-card-workon { margin: 0 0 0.5rem; font-size: 0.86rem; color: var(--text-1); }
+/* The way back to the row, and only that: reading the review no longer needs it. */
+.review-card-open { margin-left: auto; padding: 0.22rem 0.6rem; font-size: 0.72rem; color: var(--text-1); }
+.review-card-open:hover, .review-card-open:focus-visible { color: var(--text-0); border-color: var(--accent); }
+/* The panel carries its own card chrome, so it does not need a second border inside this one. */
+.review-card > app-game-review > .game-review { border: none; padding: 0; background: none; }
 .coaching-head { display: flex; align-items: center; gap: 0.4rem; margin: 1rem 0 0.4rem; }
 .coaching-notes { display: grid; gap: 0.6rem; }
 .coaching-note { padding: 0.6rem 0.75rem; border: 1px solid var(--card-border); border-radius: 10px; }
