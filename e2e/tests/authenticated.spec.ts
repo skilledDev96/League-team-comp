@@ -60,18 +60,25 @@ test('the comps page renders comps', async ({ page }) => {
   await expect(page.locator('.comp-card').first()).toBeVisible({ timeout: 30_000 });
 });
 
-test('the games page renders', async ({ page }) => {
+test('the games page renders, with the list open and its header a toggle', async ({ page }) => {
   await page.goto('./games');
-  // The game list starts folded (8 Sep 2026): its head or the line saying
-  // there are no games means the page worked; Show then opens the rows.
+
+  // The list is OPEN on arrival (12 Sep 2026 — it is the page, so it does not make
+  // you press to see it). Before that it started folded and this test pressed Show.
   await expect(page.locator('.games-list-head, .games-empty').first()).toBeVisible({
     timeout: 30_000
   });
-  const fold = page.locator('[data-tour="games-list-fold"]');
-  if (await fold.count()) {
-    await fold.first().click();
-    await expect(page.locator('.games-list, .games-empty').first()).toBeVisible();
-  }
+  const list = page.locator('.games-list, .games-empty').first();
+  await expect(list).toBeVisible();
+
+  // The whole header is the toggle now, not a pill inside it, and it works both
+  // ways: one click shuts the list, a second opens it again.
+  const header = page.locator('[data-tour="games-list-fold"]');
+  await expect(header).toHaveCount(1);
+  await header.click();
+  await expect(list).toBeHidden();
+  await header.click();
+  await expect(list).toBeVisible();
 });
 
 test('the old analysis path still lands on games', async ({ page }) => {

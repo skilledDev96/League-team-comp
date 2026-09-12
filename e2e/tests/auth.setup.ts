@@ -1,7 +1,24 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { expect, test as setup } from '@playwright/test';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { AUTH_STATE } from '../playwright.config';
+
+/**
+ * The service account, however the machine happens to hold it (12 Sep 2026).
+ *
+ * In CI the secret IS the JSON. On a developer's machine the same variable
+ * conventionally points at the key file instead, and `JSON.parse` then failed on
+ * the first character of a Windows path — so the authenticated half of the suite
+ * could be run only by CI, which is the half most likely to be broken by a change
+ * to the app. Accepting both makes it runnable before a push rather than after.
+ */
+function serviceAccountFromEnv(value: string): Record<string, unknown> {
+  const trimmed = value.trim();
+  if (trimmed.startsWith('{')) return JSON.parse(trimmed);
+  if (existsSync(trimmed)) return JSON.parse(readFileSync(trimmed, 'utf8'));
+  throw new Error('FIREBASE_SERVICE_ACCOUNT is neither JSON nor a path to a file that exists.');
+}
 
 /**
  * Signs in once and saves the session for the authenticated tests to reuse.
@@ -19,7 +36,7 @@ import { AUTH_STATE } from '../playwright.config';
  */
 setup('sign in', async ({ page, context }) => {
   const email = process.env.E2E_EMAIL!;
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
+  const serviceAccount = serviceAccountFromEnv(process.env.FIREBASE_SERVICE_ACCOUNT!);
   const app = getApps()[0] ?? initializeApp({ credential: cert(serviceAccount) });
   const user = await getAuth(app).getUserByEmail(email);
   const token = await getAuth(app).createCustomToken(user.uid);
