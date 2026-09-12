@@ -176,6 +176,8 @@ describe.skipIf(typeof localStorage === 'undefined')('HomeComponent', () => {
     expect(cabinet.querySelector('ul')!.classList.contains('home-won')).toBe(true);
     expect(text(cabinet.querySelector('.home-won-card.is-gold .home-won-text b'))).toBe('Split 1 champions');
     expect(root.querySelectorAll('.home-lineup-card')).toHaveLength(5);
+    // No ranks written down in local mode: the climb says when it will draw rather than drawing a dot.
+    expect(text(root.querySelector('.home-climb .home-tile-empty'))).toContain('two mornings');
     expect(text(root.querySelector('.home-comp-name'))).toBe('Engage');
     expect(text(root.querySelector('.home-comp-rate'))).toContain('67%');
     // The comp opens by a button: a second link named for Comps would make the e2e nav locator ambiguous.

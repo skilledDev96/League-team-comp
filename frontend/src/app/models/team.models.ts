@@ -729,6 +729,28 @@ export interface SavedDraftAdvice extends DraftAdvice {
 }
 
 /** What the last morning refresh did (Firestore `meta/refreshLog`). Mirrors `api/src/daily-refresh.ts`. */
+/** One rank on one morning, as the refresh writes it to rankHistory/{playerId} (13 Sep 2026). Mirrors api/src/rank-history.ts. */
+export type RankQueue = 'solo' | 'flex';
+
+export interface RankPoint {
+  /** YYYY-MM-DD, the run's day in Amsterdam. */
+  day: string;
+  queue: RankQueue;
+  tier: string;
+  /** Empty for the apex tiers. */
+  division: string;
+  lp: number;
+  wins: number;
+  losses: number;
+}
+
+export interface RankHistoryDoc {
+  playerId: string;
+  /** Oldest first, at most 400. */
+  points: RankPoint[];
+  updatedAt: string;
+}
+
 export interface RefreshLog {
   ranAt: string;
   finishedAt: string;

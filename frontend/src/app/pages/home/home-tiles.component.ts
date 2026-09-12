@@ -5,6 +5,7 @@ import { HomeCompMonthComponent } from './tiles/home-comp-month.component';
 import { HomeLineupComponent } from './tiles/home-lineup.component';
 import { HomeObjectivesComponent } from './tiles/home-objectives.component';
 import { HomePodiumComponent } from './tiles/home-podium.component';
+import { HomeRankClimbComponent } from './tiles/home-rank-climb.component';
 import { HomeRecordComponent } from './tiles/home-record.component';
 import { HomeRecordsComponent } from './tiles/home-records.component';
 import { HomeTrendComponent } from './tiles/home-trend.component';
@@ -24,6 +25,7 @@ import { HomeTrophiesComponent } from './tiles/home-trophies.component';
     HomeLineupComponent,
     HomeObjectivesComponent,
     HomePodiumComponent,
+    HomeRankClimbComponent,
     HomeRecordComponent,
     HomeRecordsComponent,
     HomeTrendComponent,
@@ -39,6 +41,7 @@ import { HomeTrophiesComponent } from './tiles/home-trophies.component';
       <app-home-records class="home-cell home-cell-records" [records]="h.records" [scopeLabel]="h.season.label" />
       <app-home-advice class="home-cell home-cell-advice" [advice]="h.advice" />
       <app-home-lineup class="home-cell home-cell-lineup" [lineup]="h.lineup" [scope]="scope()" />
+      <app-home-rank-climb class="home-cell home-cell-climb" [lineup]="h.lineup" />
       <app-home-objectives class="home-cell home-cell-objectives" [objectives]="h.objectives" [scope]="scope()" />
       <app-home-trophies class="home-cell home-cell-trophies" [trophies]="h.trophies" [won]="h.handTrophies" />
     </div>

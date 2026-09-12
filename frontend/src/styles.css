@@ -15672,6 +15672,7 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .home-cell-comp, .home-cell-records { grid-column: span 6; min-height: 16.75rem; }
 .home-cell-advice { grid-column: 1 / -1; min-height: 14.5rem; }
 .home-cell-lineup { grid-column: 1 / -1; min-height: 19rem; }
+.home-cell-climb { grid-column: 1 / -1; min-height: 16rem; }
 .home-cell-objectives { grid-column: 1 / -1; min-height: 12.25rem; }
 .home-cell-trophies { grid-column: 1 / -1; min-height: 19.25rem; }
 .home-tile { display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
@@ -15803,6 +15804,23 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .home-lineup-queue { color: var(--text-2); }
 .home-lineup-foot .home-lineup-games { color: var(--text-2); }
 
+/* Rank climb */
+.home-climb-body { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 16rem; gap: 1.25rem; align-items: stretch; }
+.home-climb-chart { position: relative; margin: 0; min-height: 11rem; }
+.home-climb-chart svg { position: absolute; inset: 0 0 0 4.5rem; width: calc(100% - 4.5rem); height: 100%; overflow: visible; }
+.home-climb-grid { stroke: color-mix(in srgb, var(--text-1) 22%, transparent); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.home-climb-line { fill: none; stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.home-climb-tier { position: absolute; left: 0; width: 4rem; transform: translateY(-50%); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+.home-climb-legend { list-style: none; margin: 0; padding: 0; display: grid; align-content: center; gap: 0.35rem; }
+.home-climb-legend li { display: grid; grid-template-columns: 0.8rem minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 0.5rem; align-items: center; padding: 0.25rem 0.4rem; border-radius: 8px; cursor: help; }
+.home-climb-legend li:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.home-climb-key { grid-row: 1 / span 2; width: 0.8rem; height: 0.25rem; border-radius: 999px; }
+.home-climb-legend b { font-size: 0.84rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-climb-legend small { grid-column: 2; font-size: 0.7rem; color: var(--text-2); }
+.home-climb-delta { grid-column: 3; grid-row: 1 / span 2; font-family: "Chakra Petch", sans-serif; font-variant-numeric: tabular-nums; color: var(--text-1); }
+.home-climb-delta.is-up { color: var(--ok); }
+.home-climb-delta.is-down { color: var(--warn); }
+
 /* Objective control */
 .home-objectives-body { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; gap: 1.25rem; align-items: center; }
 .home-objectives-bars { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem 1.5rem; }
@@ -15848,6 +15866,7 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .home-trophy-progress span { display: block; height: 100%; background: var(--accent); transform-origin: left center; transform: scaleX(var(--home-share, 0)); }
 
 @media (max-width: 62rem) {
+  .home-climb-body { grid-template-columns: minmax(0, 1fr); }
   .home-cell-podium, .home-cell-record, .home-cell-trend, .home-cell-comp, .home-cell-records { grid-column: 1 / -1; }
   .home-lineup-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-objectives-body, .home-objectives-bars, .home-advice-cols { grid-template-columns: minmax(0, 1fr); }
@@ -15864,6 +15883,7 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
   .home:not(.is-still) .home-record.is-seen .home-donut-part { animation: home-ring-draw 1100ms cubic-bezier(0.3, 0.7, 0.2, 1) 200ms backwards; }
   .home:not(.is-still) .home-lineup.is-seen .home-ring-fill { animation: home-ring-draw 1000ms cubic-bezier(0.3, 0.7, 0.2, 1) 300ms backwards; }
   /* A wipe rather than a dash: the chart stretches to its box with non-scaling strokes, and a dash length does not survive that. */
+  .home:not(.is-still) .home-climb.is-seen .home-climb-chart svg { animation: film-wipe 1600ms ease-out 250ms backwards; }
   .home:not(.is-still) .home-trend.is-seen .home-trend-chart svg { animation: film-wipe 1400ms ease-out 200ms backwards; }
   .home:not(.is-still) .home-trend.is-seen :is(.home-trend-dot, .home-trend-marker) { animation: home-fade-in 500ms ease 1300ms backwards; }
   .home:not(.is-still) .home-objectives.is-seen .home-objectives-ours,

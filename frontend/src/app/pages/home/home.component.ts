@@ -100,7 +100,7 @@ export class HomeComponent {
   protected readonly motion = inject(MotionService);
 
   /** The bento's cells, top to bottom: the placeholder draws each as an empty shell of the same size, so nothing moves when the tiles land. */
-  protected readonly cells = ['podium', 'record', 'trend', 'comp', 'records', 'advice', 'lineup', 'objectives', 'trophies'] as const;
+  protected readonly cells = ['podium', 'record', 'trend', 'comp', 'records', 'advice', 'lineup', 'climb', 'objectives', 'trophies'] as const;
 
   protected readonly mode = signal<SeasonMode>(readStored(SEASON_KEY) === 'all' ? 'all' : 'season');
   private readonly seatDismissed = signal(readStored(SEAT_DISMISSED_KEY) === '1');
