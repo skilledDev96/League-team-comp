@@ -108,7 +108,7 @@
         <div class="comp-notes comp-category-edit" data-tour="comp-counts-under">
           <div class="comp-record-head">
             <span class="comp-record-title material-symbols-rounded" aria-hidden="true">merge</span>
-            <span class="comp-record-label" appTip="For the records only: this comp’s games are counted as the comp chosen here. For near-duplicate drafts kept separate to play from.">Counts as part of</span>
+            <span class="comp-record-label" appTip="For the records only: this comp’s games are counted as the comp chosen here, straight away on Games and Patterns. For near-duplicate drafts kept separate to play from.">Counts as part of</span>
           </div>
           <select class="comp-cat-input" [name]="'compunder-' + comp.id"
                   [ngModel]="comp.countsUnder ?? ''"
@@ -118,10 +118,6 @@
               <option [value]="other.id">{{ other.name }}</option>
             }
           </select>
-          <p class="field-hint">
-            Fold this comp's games into another for stats — for near-duplicate drafts you
-            keep separate. Counts straight away on Analysis and Review.
-          </p>
         </div>
       }
 

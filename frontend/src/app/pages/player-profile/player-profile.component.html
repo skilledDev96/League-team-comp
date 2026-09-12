@@ -173,11 +173,11 @@
               </button>
             }
             @if (teamChampions().length > 8) {
-              <select class="team-champ-more" [value]="teamChampions().slice(8).some((c) => c.champion === teamChampion()) ? teamChampion() : ''"
+              <select class="team-champ-more"
                       (change)="teamChampion.set($any($event.target).value)" aria-label="Other champions">
-                <option value="">{{ teamChampions().length - 8 }} more…</option>
+                <option value="" [selected]="!teamChampions().slice(8).some((c) => c.champion === teamChampion())">{{ teamChampions().length - 8 }} more…</option>
                 @for (c of teamChampions().slice(8); track c.champion) {
-                  <option [value]="c.champion">{{ c.champion }} ({{ c.games }})</option>
+                  <option [value]="c.champion" [selected]="c.champion === teamChampion()">{{ c.champion }} ({{ c.games }})</option>
                 }
               </select>
             }

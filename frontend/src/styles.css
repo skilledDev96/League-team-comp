@@ -2095,12 +2095,6 @@ body[data-theme='light'] .avatar-role {
   font-weight: 600;
 }
 
-.role-toggle {
-  margin-top: 0.78rem;
-  margin-left: auto;
-  display: block;
-}
-
 .kv {
   margin: 0;
   display: grid;
@@ -2344,10 +2338,6 @@ body[data-theme='light'] .avatar-role {
 
 .comp-summary-name {
   flex: 1 1 auto;
-}
-
-.comp-edit-btn .material-symbols-rounded {
-  font-size: 1rem;
 }
 
 .comp-chevron {
@@ -2923,25 +2913,12 @@ body[data-theme='light'] .avatar-role {
 
 /* ---- Match analysis panel --------------------------------------------- */
 
-#analysisSection {
-  margin-top: 1.5rem;
-}
-
-.analysis-refresh .material-symbols-rounded {
-  font-size: 1.05rem;
-}
-
 .analysis-error {
   color: var(--warn);
   font-size: 0.88rem;
   border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
   border-radius: 8px;
   padding: 0.5rem 0.7rem;
-}
-
-.analysis-pending .material-symbols-rounded {
-  font-size: 1.05rem;
-  color: var(--accent-2);
 }
 
 /* ---- Analytics / insights ---------------------------------------------- */
@@ -3034,36 +3011,6 @@ body[data-theme='light'] .avatar-role {
   background: color-mix(in srgb, var(--warn) 20%, transparent);
 }
 
-.matchup-rate.pos {
-  color: var(--ok);
-}
-
-.matchup-rate.neg {
-  color: var(--warn);
-}
-
-.analysis-bar-fill.high {
-  background: var(--bar-ok);
-}
-
-.analysis-bar-fill.low {
-  background: var(--bar-warn);
-}
-
-.analysis-verdict.tone-good {
-  color: var(--ok);
-  border-color: color-mix(in srgb, var(--ok) 50%, var(--card-border) 50%);
-}
-
-.analysis-verdict.tone-warn {
-  color: var(--warn);
-  border-color: color-mix(in srgb, var(--warn) 50%, var(--card-border) 50%);
-}
-
-.analysis-verdict.tone-neutral {
-  color: var(--text-1);
-}
-
 .funnel-list {
   margin: 0;
   display: grid;
@@ -3109,46 +3056,8 @@ body[data-theme='light'] .avatar-role {
   font-size: 0.78rem;
 }
 
-.analysis-total-record.is-positive {
-  color: var(--ok);
-  border-color: color-mix(in srgb, var(--ok) 45%, var(--card-border) 55%);
-}
-
-.analysis-total-record.is-negative {
-  color: var(--warn);
-  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
-}
-
-.offbook-record.is-positive {
-  color: var(--ok);
-  border-color: color-mix(in srgb, var(--ok) 45%, var(--card-border) 55%);
-}
-
-.offbook-record.is-negative {
-  color: var(--warn);
-  border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
-}
-
 .game-entry {
   position: relative;
-}
-
-.game-panel.is-win {
-  border-left-color: var(--ok);
-}
-
-.game-panel.is-loss {
-  border-left-color: var(--warn);
-}
-
-.game-panel.is-win .game-outcome {
-  color: var(--ok);
-  background: color-mix(in srgb, var(--ok) 20%, transparent);
-}
-
-.game-panel.is-loss .game-outcome {
-  color: var(--warn);
-  background: color-mix(in srgb, var(--warn) 20%, transparent);
 }
 
 .game-champs {
@@ -3243,35 +3152,6 @@ body[data-theme='light'] .avatar-role {
 }
 
 .comp-ranked-value.is-negative {
-  color: var(--warn);
-}
-
-@media (max-width: 720px) {
-  .analysis-row {
-    grid-template-columns: 1fr auto auto;
-    grid-template-areas:
-      "name record verdict"
-      "bar bar rate";
-    row-gap: 0.3rem;
-  }
-  .analysis-name-cell { grid-area: name; }
-  .analysis-record { grid-area: record; }
-  .analysis-verdict { grid-area: verdict; }
-  .analysis-bar { grid-area: bar; }
-  .analysis-rate { grid-area: rate; }
-}
-
-#logSection {
-  margin-top: 1.5rem;
-}
-
-.log-record.is-positive {
-  border-color: color-mix(in srgb, var(--ok) 55%, var(--card-border) 45%);
-  color: var(--ok);
-}
-
-.log-record.is-negative {
-  border-color: color-mix(in srgb, var(--warn) 55%, var(--card-border) 45%);
   color: var(--warn);
 }
 
@@ -4167,108 +4047,10 @@ body[data-theme='light'] .avatar-role {
   }
 }
 
-.comp-panel[open] .comp-panel-summary::before {
-  transform: rotate(90deg);
-}
-
-body.comps-page .card {
-  padding: 1.2rem;
-}
-
-body.comps-page .comp-line .role {
-  font-size: 1.12rem;
-}
-
-body.comps-page .comp-line .champ-chip {
-  font-size: 0.98rem;
-}
-
-body.comps-page .comp-line .champ-chip .champ-icon {
-  width: 1.5rem;
-  height: 1.5rem;
-}
-
-body.comps-page .view-controls {
-  transition: border-color 170ms ease, background 170ms ease;
-}
-
-body.comps-page[data-comp-view="starter"] .view-controls {
-  border-color: color-mix(in srgb, var(--card-border) 70%, transparent);
-  background: color-mix(in srgb, var(--surface-controls) 86%, transparent);
-}
-
-body.comps-page[data-comp-view="full"] .view-controls {
-  border-color: color-mix(in srgb, var(--accent) 58%, var(--card-border) 42%);
-  background: color-mix(in srgb, var(--surface-controls) 78%, var(--accent) 22%);
-}
-
-body.comps-page .hero .view-mode-inline {
-  margin-left: 0.55rem;
-  vertical-align: middle;
-}
-
-body.comps-page[data-comp-view="starter"] .hero .view-mode-inline {
-  border-color: color-mix(in srgb, var(--warn) 60%, var(--card-border) 40%);
-  background: color-mix(in srgb, var(--warn) 22%, var(--surface-btn) 78%);
-}
-
-body.comps-page[data-comp-view="full"] .hero .view-mode-inline {
-  border-color: color-mix(in srgb, var(--ok) 56%, var(--card-border) 44%);
-  background: color-mix(in srgb, var(--ok) 20%, var(--surface-btn) 80%);
-}
-
-body.comps-page[data-comp-view="starter"] .comp-panel,
-body.comps-page[data-comp-view="full"] .comp-panel,
-body.comps-page #banSection {
-  transition: opacity 170ms ease, transform 170ms ease;
-}
-
-body.comps-page[data-comp-view="starter"] .comp-panel {
-  opacity: 0.92;
-}
-
-body.comps-page[data-comp-view="full"] .comp-panel {
-  opacity: 1;
-}
-
-body.comps-page .kv {
-  font-size: 1.04rem;
-  gap: 0.45rem 1rem;
-}
-
-body.comps-page .list-clean li {
-  font-size: 1rem;
-  margin: 0.38rem 0;
-}
-
-.comp-line .role {
-  color: var(--accent-2);
-  font-weight: 700;
-}
-
 .footer-note {
   margin-top: 1rem;
   font-size: 0.82rem;
   color: var(--text-1);
-}
-
-body.intel-page #playerCards .card {
-  border-left: 4px solid color-mix(in srgb, var(--accent) 72%, var(--card-border) 28%);
-  background:
-    linear-gradient(105deg, color-mix(in srgb, var(--surface-hero-a) 72%, transparent), color-mix(in srgb, var(--surface-hero-b) 46%, transparent));
-  padding: 1.1rem 1.15rem;
-}
-
-body.intel-page #playerCards .title-row {
-  margin-bottom: 0.3rem;
-}
-
-body.intel-page #playerCards .meta-line {
-  margin: 0.2rem 0;
-}
-
-body.intel-page #playerCards .role-toggle {
-  margin-top: 0.6rem;
 }
 
 @media (max-width: 900px) {
@@ -5568,14 +5350,6 @@ app-match-note {
 
 .prep-link:hover .prep-when {
   color: var(--text-0);
-}
-
-/* The panel we were sent to, so it is obvious which one opened. */
-.analysis-comp.is-focused,
-.game-panel.is-focused {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 10px;
 }
 
 /* ---- Tooltips ---------------------------------------------------------
@@ -7323,13 +7097,6 @@ body[data-theme="bomb"] {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-}
-
-/* With the duplicate heading gone the row holds only the refresh button, so it
-   sits to the right rather than floating alone on the left. */
-.analysis-head.is-bare {
-  justify-content: flex-end;
-  margin-bottom: 0.6rem;
 }
 
 /* Padding-top used to come from `+ .loss-card`, which by definition skips the

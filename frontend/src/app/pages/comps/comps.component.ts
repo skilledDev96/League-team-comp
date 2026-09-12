@@ -128,7 +128,7 @@ export class CompsComponent {
       const panel = document.querySelector<HTMLDetailsElement>(`[data-comp="${CSS.escape(id)}"] details.comp-panel`);
       if (!panel) return;
       panel.open = true;
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      panel.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
       panel.querySelector<HTMLElement>('input, .board-slot-main')?.focus();
     }, 80);
   }
@@ -288,10 +288,6 @@ export class CompsComponent {
     this.saveCompMeta(comp);
   }
 
-  protected setBansDraft(comp: Comp, value: string): void {
-    this.banDrafts.update((s) => ({ ...s, [comp.id]: value }));
-  }
-
   protected saveCompMeta(comp: Comp): void {
     const category = this.compCategoryValue(comp).trim();
     const notes = this.compNotesValue(comp).trim();
@@ -401,13 +397,6 @@ export class CompsComponent {
     this.boardPlay.set(null);
   }
 
-
-  // Collapsed-panel badge: prefer the manually logged record, else fall back to
-  // the backend's match-history record. The strictness slider lives on the
-  // Analysis page, so this reads the backend value rather than re-deriving it.
-
-  // Match-history record for a comp, straight from the backend result. The
-  // strictness slider lives on Analysis, so this page shows the stored value.
   // ---- Retro notes ------------------------------------------------------
   //
   // Every note written on a game this comp was played in. Deliberately kept out

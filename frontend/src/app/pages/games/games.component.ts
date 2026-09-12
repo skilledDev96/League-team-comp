@@ -328,7 +328,9 @@ export class GamesComponent {
         const panel = document.querySelector<HTMLDetailsElement>(`[data-row="${CSS.escape(id)}"]`);
         if (!panel) return;
         panel.open = true;
-        panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Opening is the part that matters; jsdom has no scrollIntoView, and a spec's timer firing
+        // after its test ended used to throw here and fail the whole run with every test green.
+        panel.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
       }, 50);
     });
   }
