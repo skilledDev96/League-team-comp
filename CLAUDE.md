@@ -1171,6 +1171,41 @@ table**, because every scouting control lives in its cells. One win-rate scale
 everywhere on the page: `rateBand` (65 / above 50 / 50 / below), never a
 hand-coded 55/45.
 
+**The design system is written down** (12 Sep 2026, `docs/design-system.md`). Read it before
+adding a control or a colour. The three rules that cost the most time before it existed:
+
+- **A derived token goes on `body`, never `:root`.** The theme blocks are `body[data-theme=…]`, so
+  a custom property on `:root` resolves against the default palette and freezes in all ten themes.
+  `--text-2` (used 23 times, defined nowhere) and `--surface-card` both broke this and nobody could
+  see it. Ten themes, nineteen tokens each.
+- **Seven button roles; the codebase currently declares 81.** Reach for `.view-btn` first. If you
+  are about to declare padding, radius, border and background on something clickable, you are
+  drawing it again. Every clickable thing owes a `:hover` and a `:focus-visible`. An action is a
+  pill, never an underlined link — compact is the answer to "it is only metadata".
+- **A collapsible panel's whole header is the toggle**: `<details class="card fold-card">` +
+  `<summary class="section-head">` + `.fold-chevron`. Copy an existing one; do not write a fold
+  button. A control inside a clickable header needs `preventDefault()` **as well as**
+  `stopPropagation()` — inside a `<summary>`, stopping propagation alone is not enough.
+
+**The deployed site says which commit it is** (12 Sep 2026). `scripts/gen-build-info.mjs` writes
+`frontend/public/build.json` alongside the two `build-info.ts` files, and a public e2e check waits
+up to 90 s for its SHA to match `GITHUB_SHA`. Without it `verify` could pass while testing the
+PREVIOUS build — it starts the moment `deploy` returns and Pages propagates on its own clock, which
+is how a broken check reached main twice. `build.json` is gitignored: nothing imports it, so its
+absence cannot break a build.
+
+**Both checkout steps need `fetch-depth: 0`.** `API_SHA` comes from `git log -1 -- api`, the last
+commit that touched the functions, so a frontend-only deploy never reads as a backend behind. In a
+shallow clone the root commit has no parent and git treats every path as changed in it, so that
+command returns HEAD — every build stamped its own SHA as the api one and the Admin page's drift
+warning fired after every frontend-only deploy.
+
+**The authenticated e2e tests run locally.** `auth.setup.ts` takes `FIREBASE_SERVICE_ACCOUNT` as
+inline JSON (how CI holds it) or as a path to the key file (how a developer's machine holds it).
+Run `npx playwright test --project=authenticated` from `e2e/` against the live site before pushing
+a change to a surface they touch — they only ever ran in CI before, which is how a broken check
+shipped twice.
+
 **Native checkboxes and selects are styled once, globally** (`styles.css`, the
 "Native checkboxes and selects" block): `appearance: none` with the app's
 tokens and a neutral chevron forced with `!important`, because older
