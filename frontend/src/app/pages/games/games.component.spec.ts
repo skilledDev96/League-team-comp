@@ -20,7 +20,7 @@ afterAll(() => {
 /** Inside the page's thirty-day window, so the default filter keeps the row. */
 const TODAY = Date.now();
 
-/** The lead's own example line: Jinx on 52.5k damage, 38 percent of ours, on 14 of 20 kills, dead twice. */
+/** The lead's own example line: Jinx on 52.5k damage, 38 percent of ours, in on 70 percent of our kills. */
 const riotGame = {
   matchId: 'EUW1_7000000001',
   compId: null,
@@ -139,7 +139,7 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, the row\'s
     // Compact on a row: the tile and the word, and the name in the tip where there is room for it.
     expect(chip.classList.contains('is-compact')).toBe(true);
     expect(chip.querySelector('.mvp-chip-name')).toBeNull();
-    expect(tipOf(harness, '.mvp-chip')).toBe('MVP: Rhu on Jinx. 52.5k damage, 38% of ours · on 14 of 20 kills · died twice.');
+    expect(tipOf(harness, '.mvp-chip')).toBe('MVP: Rhu on Jinx. 10.4 CS a minute (ADCs usually 6.5) · 38% of our damage (ADCs usually 22%) · in on 70% of our kills (ADCs usually 49%).');
   });
 
   it('reads a replay the same way, off the kills the file does carry rather than a participation it does not', async () => {
@@ -149,7 +149,7 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, the row\'s
     const chip = root.querySelector('[data-row="scrim-EUW1_9000000002"] summary .mvp-chip')!;
     expect(text(chip.querySelector('.mvp-chip-word'))).toBe('MVP');
     // Fifteen kills between our five on the file, and Vi was in on seven of her own and five of theirs.
-    expect(tipOf(harness, '.mvp-chip')).toBe('MVP: Go10x on Vi. 30.0k damage, 29% of ours · on 12 of 15 kills · died twice.');
+    expect(tipOf(harness, '.mvp-chip')).toBe('MVP: Go10x on Vi. in on 80% of our kills (junglers usually 50%) · 29% of our damage (junglers usually 17%) · died twice in 27 min (junglers usually die 5).');
   });
 
   it('draws no chip on a tournament game typed in by hand, because it carries no figures to read', async () => {

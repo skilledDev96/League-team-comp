@@ -140,7 +140,8 @@ It produced every table in the plan, and it is the test for anything added later
   steps anchor on those buttons.
 - **`killParticipation` is absent from a replay-sourced MVP line and present on a Riot-sourced one.**
   This looks like a scoring bug and is not: `ScrimPlayer` has no such field to map. Six findings
-  from the audit came back refuted as deliberate, this among them.
+  from the audit came back refuted as deliberate, this among them. (13 Sep 2026: the role-aware MVP works
+  a replay's participation out from the side's kills instead, and a figure missing for any seat drops for all.)
 
 ---
 

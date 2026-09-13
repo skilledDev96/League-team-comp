@@ -53,7 +53,7 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { OpponentScoutService } from '../../../services/opponent-scout.service';
 import { playedElsewhere, SeatChange, seatOffer, withSeats } from '../../../core/opponent-roles';
 import { TournamentContextService } from '../tournament-context.service';
-import { GameMvp, MvpGame, mvpGameOfSeriesGame, mvpOf, SeriesMvp, seriesMvpOfGames } from '../../../core/game-mvp';
+import { GameMvp, isRemake, MvpGame, mvpGameOfSeriesGame, mvpOf, SeriesMvp, seriesMvpOfGames } from '../../../core/game-mvp';
 import { MvpChipComponent } from '../../../shared/mvp-chip.component';
 import { UserPrefsService } from '../../../services/user-prefs.service';
 
@@ -165,7 +165,9 @@ export class TournamentPlanComponent {
     const scrim = this.scrimById().get(game.matchId);
     if (!analysis && !scrim) return 'No figures: this game is linked to a replay whose record is missing. Re-import the .rofl.';
     if (!analysis && scrim && !(scrim.ourSide ?? game.ourSide)) return 'No figures: which side we were on was never recorded, so we cannot tell which five were ours.';
-    if (!this.mvpGameOf(game)) return 'No figures: the replay carries no players on our side.';
+    const figures = this.mvpGameOf(game);
+    if (!figures) return 'No figures: the replay carries no players on our side.';
+    if (isRemake(figures)) return 'No MVP: under five minutes, a remake.';
     return 'No figures: the replay recorded no seat for anyone, so no line can be read from it.';
   }
 

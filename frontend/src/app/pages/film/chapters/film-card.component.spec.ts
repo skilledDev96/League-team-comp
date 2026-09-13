@@ -266,10 +266,10 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmCardComponent', () => 
     const chips = Array.from(marks.querySelectorAll('.mvp-chip'));
     expect(chips.map((c) => text(c.querySelector('.mvp-chip-word')))).toEqual(['MVP', 'Swung it most']);
     expect(text(chips[0].querySelector('.mvp-chip-name'))).toBe('Rhu');
-    expect(tipOf(fixture, '.mvp-chip.is-mvp')).toBe('MVP: Rhu on Jinx. 52.5k damage, 38% of ours · on 14 of 20 kills · died twice.');
+    expect(tipOf(fixture, '.mvp-chip.is-mvp')).toBe('MVP: Rhu on Jinx. 38% of our damage (ADCs usually 22%) · in on 70% of our kills (ADCs usually 49%).');
     // The terms are printed, not only hovered (11 Sep 2026, second fix pass): on a phone a tap on the chip closes its own tip.
     const terms = Array.from(root.querySelectorAll('.film-card-mark-terms')).map((t) => text(t));
-    expect(terms[0]).toBe('52.5k damage, 38% of ours · on 14 of 20 kills · died twice');
+    expect(terms[0]).toBe('38% of our damage (ADCs usually 22%) · in on 70% of our kills (ADCs usually 49%)');
   });
 
   it('shows who swung it beside the MVP, so the two can disagree', async () => {

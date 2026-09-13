@@ -771,15 +771,31 @@ filter rather than none, so it can never become unpickable.
    45 and every figure still on screen. Anything longer is still the film's.
    **Three marks: who carried it, and who swung it** (11 Sep 2026, the lead:
    "add an MVP for a series, and a game, and then also most influential
-   player"). `core/game-mvp.ts` holds the line the film's poster always
-   picked by — three a kill, one and a half an assist, two off a death,
-   twelve times the share of our damage, six times kill participation, ties
-   to lane order — as `mvpSeatOf` (which `film-build.ts` now imports, so the
-   film's face and the chip can never name two seats), plus `mvpOf` with the
-   two or three terms that carried it, `seriesMvpOf` (the best average per
-   game **that seat played**, so a sub is judged on the game they played;
-   ties to the better average damage share, one line a game) and the two
-   adapters `mvpGameFromScrim` / `mvpGameFromRow`. `core/influence.ts`
+   player"). `core/game-mvp.ts` holds the line — **role-aware since 13 Sep
+   2026** (the lead: "a support player doesn't get so many kills and damage…
+   it should still be possible for each player to become an MVP"; under the old
+   three-a-kill line a support was MVP of 7 of 156 Riot games and of none of our
+   68 wins). Every seat is judged on **four figures its role is meant to
+   produce, counted equally**, each in spreads from that role's usual game
+   (`MVP_TERMS`, `MVP_BASELINES`: the median and IQR/1.349 of 354 real
+   team-sides, both teams, remakes out, **frozen**, since crowns recompute on
+   every render), clamped at 2.5: kill participation and deaths for everyone,
+   plus damage share and damage taken (Top), damage share and vision (Jungle),
+   damage share and CS a minute (Mid, ADC), vision and assists (Support). A
+   figure missing for any of our seats drops out for the whole game; a remake
+   (under five minutes, `isRemake`) has no MVP and no place in a series. One
+   order serves the game, the poster (`mvpSeatOf`, which `film-build.ts`
+   imports, so the film's face and the chip can never name two seats) and the
+   series: value, then participation, fewer deaths, lane order. `mvpOf` says
+   two or three terms, each with the role's usual beside it ("in on 83% of our
+   kills (supports usually 52%)"), deaths only at four or fewer; `seriesMvpOf`
+   is the best average **over the games that seat played**, one line a game;
+   the adapters `mvpGameFromScrim` / `mvpGameFromRow` pass CS, damage taken,
+   vision and the length. Three weight proposals were simulated over 1,840 real
+   seats and judged before this shipped: across both teams the MVPs fall
+   20/21/22/22/16% by role (14/29/19/31/7% before). The api still writes a
+   missing replay or cache figure as 0 (`index.ts` scrimAsMatch and the cache
+   writer), which this rule reads as a real zero — a known follow-up. `core/influence.ts`
    answers the other question — not who played best but who swung the game
    most: for every kill a seat was in on and every death of theirs, the gold
    swing over the two minutes after (`goldDiff[m+2] - goldDiff[m]`, the same
