@@ -68,7 +68,7 @@
           }
           <span class="report-line-shade" aria-hidden="true"></span>
           <span class="opp-line-seat role-pill">{{ opp.role }}</span>
-          <span class="opp-line-name" [appTip]="opp.riotTag ? opp.name + '#' + opp.riotTag : opp.name">{{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}@if (card?.crowned) { <span class="report-crown material-symbols-rounded" aria-hidden="true">workspace_premium</span> }</span>
+          <span class="opp-line-name" [appTip]="opp.riotTag ? opp.name + '#' + opp.riotTag : opp.name">{{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}<app-mvp-banner size="inline" [name]="opp.name" />@if (card?.crowned) { <span class="report-crown material-symbols-rounded" aria-hidden="true">workspace_premium</span> }</span>
           @if (bestRank(opp); as r) {
             <span class="opp-line-rank" [appTip]="(r.label || 'Ranked') + ' — Full shows both queues'">@if (r.label) { <em>{{ r.label }}</em> } {{ r.rank }}</span>
           } @else {
@@ -123,7 +123,7 @@
               <span class="opp-who-text">
                 <span class="opp-name">
                   <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
-                     target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
+                     target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}<app-mvp-banner size="inline" [name]="opp.name" />
                 </span>
                 <span class="opp-sub">
                   @for (p of opp.positions ?? []; track p.role) {
@@ -213,7 +213,7 @@
         @for (opp of subs(); track opp.name + opp.riotTag) {
           <span class="opp-bench-player">
             <em>{{ opp.role }}</em>
-            <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })" target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>
+            <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })" target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a><app-mvp-banner size="inline" [name]="opp.name" />
             @if (queueRows(opp)[0]?.rank; as rank) { <span class="opp-bench-rank">{{ rank }}</span> }
           </span>
         }

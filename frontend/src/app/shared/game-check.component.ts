@@ -1,4 +1,5 @@
 import { Component, computed, input } from '@angular/core';
+import { MvpBannerComponent } from './mvp-banner.component';
 import { playerFigures } from '../core/game-figures';
 import { matchLink } from '../core/match-link';
 import { AnalysisGame } from '../models/team.models';
@@ -14,7 +15,7 @@ import { TooltipDirective } from './tooltip.directive';
 import { PlayerMarkComponent } from './player-mark.component';
 @Component({
   selector: 'app-game-check',
-  imports: [PlayerMarkComponent, TooltipDirective, InfoTipComponent],
+  imports: [MvpBannerComponent, PlayerMarkComponent, TooltipDirective, InfoTipComponent],
   template: `
     @if (game(); as g) {
       <details class="intel-collapse game-check">
@@ -52,7 +53,7 @@ import { PlayerMarkComponent } from './player-mark.component';
               <tbody>
                 @for (r of figures().rows; track r.name) {
                   <tr>
-                    <td><app-player-mark [name]="r.name" />{{ r.name }} <small>{{ r.position }} · {{ r.champion }}</small></td>
+                    <td><app-player-mark [name]="r.name" />{{ r.name }}<app-mvp-banner size="inline" [name]="r.name" /> <small>{{ r.position }} · {{ r.champion }}</small></td>
                     @for (cell of r.cells; track $index) {
                       <td class="num">{{ cell ?? '—' }}</td>
                     }

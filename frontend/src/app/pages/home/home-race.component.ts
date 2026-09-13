@@ -1,4 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
+import { MvpBannerComponent } from '../../shared/mvp-banner.component';
 import { HomeRace } from '../../core/home-model';
 import { RaceEntry } from '../../core/mvp-race';
 import { InViewDirective } from '../../shared/in-view.directive';
@@ -14,7 +15,7 @@ import { UiService } from '../../services/ui.service';
  */
 @Component({
   selector: 'app-home-race',
-  imports: [InViewDirective, PlayerAvatarComponent, TooltipDirective],
+  imports: [MvpBannerComponent, InViewDirective, PlayerAvatarComponent, TooltipDirective],
   template: `
     @let r = race();
     <section class="card home-race" appInView aria-labelledby="home-race-title">
@@ -27,7 +28,7 @@ import { UiService } from '../../services/ui.service';
           <li class="home-race-row" [class.is-leader]="e.titles > 0 && e.titles === most()" [style.--home-share]="share(e)">
             <span class="home-race-rank">{{ rankOf(e) }}</span>
             <app-player-avatar [name]="e.name" [icon]="e.icon" [role]="e.role" />
-            <span class="home-race-who"><b>{{ e.name }}</b><small>{{ e.role }}</small></span>
+            <span class="home-race-who"><b>{{ e.name }}</b><app-mvp-banner size="inline" [playerId]="e.playerId" [name]="e.name" /><small>{{ e.role }}</small></span>
             <span class="home-race-bar" aria-hidden="true"><span class="home-race-fill"></span></span>
             <span class="home-race-titles">
               <b>{{ e.titles }}</b><span class="visually-hidden">{{ e.titles === 1 ? 'title' : 'titles' }}</span>

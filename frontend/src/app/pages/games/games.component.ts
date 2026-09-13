@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { MvpBannerComponent } from '../../shared/mvp-banner.component';
 import { DetailToggleComponent } from '../../shared/detail-toggle.component';
 import { reviewFailure } from '../../core/review-error';
 import { matchLink } from '../../core/match-link';
@@ -58,7 +59,7 @@ type Tab = 'games' | 'patterns' | 'reviews';
 import { PlayerMarkComponent } from '../../shared/player-mark.component';
 @Component({
   selector: 'app-games',
-  imports: [PlayerMarkComponent, GameGraphsComponent, DatePipe,
+  imports: [MvpBannerComponent, PlayerMarkComponent, GameGraphsComponent, DatePipe,
     FormsModule,
     RouterLink,
     ChampionFilterComponent,

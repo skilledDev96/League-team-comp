@@ -58,7 +58,7 @@
               [attr.aria-expanded]="ctx.isPlayerOpen(draft)">
         <app-player-avatar [name]="draft.name" [icon]="draft.icon" [role]="draft.role" />
         <span class="player-panel-title">
-          <span class="pp-name">{{ draft.name || 'New player' }}</span>
+          <span class="pp-name">{{ draft.name || 'New player' }}<app-mvp-banner size="inline" [focusable]="false" [playerId]="draft.id" [name]="draft.name" /></span>
           <span class="pp-role">{{ draft.role }}</span>
           @if (draft.sub) { <span class="pp-role flex">Sub</span> }
           @if (draft.curated) { <span class="pp-role flex" appTip="Saved by hand: the morning refresh keeps this player’s text, pool and bans. Refresh this player from Riot pulls Riot’s again.">Hand-edited</span> }

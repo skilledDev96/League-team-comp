@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
+import { MvpBannerComponent } from '../../shared/mvp-banner.component';
 import { OpponentPlayer } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { ChampionFilterService } from '../../services/champion-filter.service';
@@ -41,7 +42,7 @@ import {
  */
 @Component({
   selector: 'app-scout-report',
-  imports: [TooltipDirective, InfoTipComponent],
+  imports: [MvpBannerComponent, TooltipDirective, InfoTipComponent],
   templateUrl: './scout-report.component.html'
 })
 export class ScoutReportComponent {

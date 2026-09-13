@@ -1,4 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
+import { MvpBannerComponent } from './mvp-banner.component';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { GameSource, RowPlayer } from '../pages/games/game-rows';
 import { UiService } from '../services/ui.service';
@@ -37,7 +38,7 @@ type Metric = 'damage' | 'taken' | 'both' | 'cs' | 'vision' | 'ka' | 'gold';
       <div class="game-graphs-bar" [class.is-theirs]="side === 'theirs'">
         <span class="who">
           <img [src]="ui.championIconUrl(p.champion)" [alt]="" loading="lazy" />
-          <span>{{ p.player ?? p.champion }}</span>
+          <span>{{ p.player ?? p.champion }}@if (p.player) { <app-mvp-banner size="inline" [name]="p.player" /> }</span>
         </span>
         <span class="game-graphs-track">
           @for (v of values(p); track $index) {
@@ -48,7 +49,7 @@ type Metric = 'damage' | 'taken' | 'both' | 'cs' | 'vision' | 'ka' | 'gold';
       </div>
     </ng-template>
   `,
-  imports: [NgTemplateOutlet]
+  imports: [MvpBannerComponent, NgTemplateOutlet]
 })
 export class GameGraphsComponent {
   readonly ours = input.required<RowPlayer[]>();

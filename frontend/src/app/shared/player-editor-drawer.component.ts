@@ -1,4 +1,5 @@
 import { Component, effect, ElementRef, HostListener, inject, viewChild } from '@angular/core';
+import { MvpBannerComponent } from './mvp-banner.component';
 import { PlayerEditorService } from '../services/player-editor.service';
 import { PlayerAvatarComponent } from './player-avatar.component';
 import { PlayerEditorComponent } from './player-editor.component';
@@ -10,7 +11,7 @@ import { PlayerEditorComponent } from './player-editor.component';
  */
 @Component({
   selector: 'app-player-editor-drawer',
-  imports: [PlayerAvatarComponent, PlayerEditorComponent],
+  imports: [MvpBannerComponent, PlayerAvatarComponent, PlayerEditorComponent],
   template: `
     @if (editor.drawerDraft(); as draft) {
       <div class="drawer-scrim" (click)="editor.close()"></div>
@@ -18,7 +19,7 @@ import { PlayerEditorComponent } from './player-editor.component';
         <header class="drawer-head">
           <app-player-avatar [name]="draft.name" [icon]="draft.icon" [role]="draft.role" />
           <div class="drawer-title">
-            <strong>{{ draft.name || 'Player' }}</strong>
+            <strong>{{ draft.name || 'Player' }}<app-mvp-banner [playerId]="draft.id" [name]="draft.name" /></strong>
             <small class="muted">Saves as you type, for everyone.</small>
           </div>
           <button type="button" class="view-btn drawer-close" (click)="editor.close()" aria-label="Close">

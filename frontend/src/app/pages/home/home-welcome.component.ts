@@ -1,4 +1,5 @@
 import { Component, inject, input, output } from '@angular/core';
+import { MvpBannerComponent } from '../../shared/mvp-banner.component';
 import { HomeWelcome } from '../../core/home-model';
 import { Role, ROLES } from '../../models/team.models';
 import { InViewDirective } from '../../shared/in-view.directive';
@@ -19,7 +20,7 @@ import { UserPrefsService } from '../../services/user-prefs.service';
  */
 @Component({
   selector: 'app-home-welcome',
-  imports: [InViewDirective, PlayerAvatarComponent, TooltipDirective],
+  imports: [MvpBannerComponent, InViewDirective, PlayerAvatarComponent, TooltipDirective],
   template: `
     @let w = welcome();
     @if (w.player || w.needsSeat) {
@@ -31,7 +32,7 @@ import { UserPrefsService } from '../../services/user-prefs.service';
             <span class="home-welcome-wave material-symbols-rounded" aria-hidden="true">waving_hand</span>
           }
           <div class="home-welcome-text">
-            <h2 class="home-welcome-greeting">{{ w.greeting }}</h2>
+            <h2 class="home-welcome-greeting">{{ w.greeting }}@if (w.player; as p) { <app-mvp-banner [playerId]="p.id" [name]="p.name" /> }</h2>
             @if (w.player) {
               <p class="home-welcome-line">
                 @if (w.solo; as s) {

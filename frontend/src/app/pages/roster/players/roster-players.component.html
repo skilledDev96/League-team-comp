@@ -66,6 +66,7 @@
                     @if (c.crowned) {
                       <span class="rp-crown material-symbols-rounded" aria-hidden="true" appTip="The most series MVP titles on the team">workspace_premium</span>
                     }
+                    <app-mvp-banner size="inline" [playerId]="c.playerId" [name]="c.name" />
                   </span>
                   @if (c.group !== 'starters' || c.secondaryRoles.length) {
                     <span class="rp-tags pp-flex-roles">

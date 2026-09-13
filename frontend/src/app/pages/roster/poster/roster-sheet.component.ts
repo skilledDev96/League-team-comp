@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, output } from '@angular/core';
+import { MvpBannerComponent } from '../../../shared/mvp-banner.component';
 import { Router, RouterLink } from '@angular/router';
 import { playedAgo } from '../../../core/team-season';
 import { RosterCard } from '../../../core/roster-model';
@@ -25,7 +26,7 @@ const STARTER_WORKING = 3;
  */
 @Component({
   selector: 'app-roster-sheet',
-  imports: [PlayerAvatarComponent, RankSparklineComponent, RateRingComponent, RouterLink, TooltipDirective],
+  imports: [MvpBannerComponent, PlayerAvatarComponent, RankSparklineComponent, RateRingComponent, RouterLink, TooltipDirective],
   template: `
     @for (c of [card()]; track c.id) {
       <section class="gold-frame roster-sheet" id="roster-sheet" data-tour="roster-sheet" role="region" aria-labelledby="roster-sheet-title" (keydown.escape)="close.emit()">
@@ -60,6 +61,7 @@ const STARTER_WORKING = 3;
               <p class="home-kicker">{{ c.group === 'fillIns' ? 'Fill-in' : c.group === 'bench' ? 'On the bench' : 'Player sheet' }}</p>
               <h2 id="roster-sheet-title" tabindex="-1">{{ c.name }}</h2>
               <p class="roster-sheet-sub">
+                <app-mvp-banner [playerId]="c.playerId" [name]="c.name" />
                 <span>{{ c.role }}@if (c.secondaryRoles.length) {, also {{ c.secondaryRoles.join(', ') }}}</span>
                 <span>@if (c.rank; as r) { {{ r.label }} {{ r.queue }} } @else { Unranked }</span>
                 @if (c.playstyle) { <span>{{ c.playstyle }}</span> }

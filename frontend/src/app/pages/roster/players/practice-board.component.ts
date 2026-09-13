@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
+import { MvpBannerComponent } from '../../../shared/mvp-banner.component';
 import { FormsModule } from '@angular/forms';
 import { RosterCard } from '../../../core/roster-model';
 import { PainPoint } from '../../../models/team.models';
@@ -18,7 +19,7 @@ interface PainRow extends PainPoint {
  */
 @Component({
   selector: 'app-practice-board',
-  imports: [FormsModule, NgModelNameDirective],
+  imports: [MvpBannerComponent, FormsModule, NgModelNameDirective],
   template: `
     <details data-tour="players-practice-board" class="card fold-card practice-board" [open]="open()" (toggle)="open.set($any($event.target).open)" aria-label="Team practice board">
       <summary class="practice-head">
@@ -69,7 +70,7 @@ interface PainRow extends PainPoint {
                         [attr.aria-label]="row.resolved ? 'Mark open' : 'Mark resolved'">
                   <span class="material-symbols-rounded" aria-hidden="true">{{ row.resolved ? 'check_circle' : 'radio_button_unchecked' }}</span>
                 </button>
-                <span class="practice-player">{{ row.playerName }}</span>
+                <span class="practice-player">{{ row.playerName }}<app-mvp-banner size="inline" [playerId]="row.playerId" [name]="row.playerName" /></span>
                 <span class="practice-text">{{ row.text }}</span>
                 @if (auth.editing()) {
                   <button type="button" class="practice-del" aria-label="Delete" (click)="remove(row.id)">

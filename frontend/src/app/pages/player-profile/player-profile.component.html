@@ -4,7 +4,7 @@
   <section class="hero is-slim" appInView>
     <div class="hero-id">
       <p class="home-kicker hero-kicker"><span class="material-symbols-rounded" aria-hidden="true">person</span>Player · {{ p.role }}@if (p.top3.length) { · main {{ ui.championName(p.top3[0]) }} }</p>
-      <h1 class="hero-title">{{ p.name }}</h1>
+      <h1 class="hero-title">{{ p.name }}<app-mvp-banner [playerId]="p.id" [name]="p.name" /></h1>
       <p class="hero-blurb">Their ranked queues, their pool and how the team does with them in it.</p>
     </div>
     <div class="hero-actions">
@@ -38,7 +38,7 @@
       }
       <div class="title-row">
         <app-player-avatar [name]="p.name" [icon]="p.icon" [role]="p.role" />
-        <h2>{{ p.role }} - {{ p.name }}</h2>
+        <h2>{{ p.role }} - {{ p.name }}<app-mvp-banner [playerId]="p.id" [name]="p.name" /></h2>
       </div>
 
       <section class="queue-stats" aria-labelledby="queue-stats-title">

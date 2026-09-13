@@ -847,6 +847,24 @@ filter rather than none, so it can never become unpickable.
    draft room) gets no chip rather than an MVP invented from five champion
    names. The honest caveat travels with the swing: Riot keeps the curve a
    minute at a time, so it is approximate, and the tooltip says so.
+   **The MVP banner** (13 Sep 2026, the lead: "add an MVP banner everywhere the MVP's name is
+   shown, so the player feels highlighted until the crown is given to someone else"; asked whose,
+   the lead chose the last series' MVP). `services/last-mvp.service.ts` names the holder — `lastCrown`
+   of `seriesCrowns` over the same inputs Home's spotlight reads, so the two can never disagree —
+   and `isHolder(playerId, name)` matches by id when both sides carry one, else by name, since a
+   scoreboard row or a review seat knows a name and no id. `shared/mvp-banner.component.ts`
+   (`app-mvp-banner`, inputs `playerId`, `name`, `size` chip | inline | tile, `focusable`) renders
+   the gold ribbon beside the holder's name and nothing beside anyone else; the tip names the series,
+   the champion and the date. It stands at every name site outside the draft room and the film
+   room: the Roster poster, sheet, Players rows, practice board and Scout report, Home's welcome,
+   race, lineup, podium and rank climb, the Games player table and scoreboards, the story's lanes,
+   the review seats and the MVP chip's label, Patterns' player buttons, tables and draft rows, the
+   numbers check, the Comps seat covers, the profile's headings, Admin's player header and the
+   editor drawer. Inside a button or a link it is `[focusable]="false"` (the host is the tab stop);
+   it is never inside `#roster-sheet-title`, `#comps-sheet-title` or their opener buttons, whose
+   text the e2e suite compares. The host element is `display: contents`, so a grid or flex parent
+   only ever sees the ribbon when there is one, and a page's own sub-line separators must be
+   scoped to direct children (`.roster-sheet-sub > span + span::before`) or they land inside it.
    **The film room** (`/film/:matchId`, `pages/film/`, 9 Sep 2026) walks a
    review as chapters the reader calls before they are revealed: the title
    card asks what decided the game before the headline lands (only when

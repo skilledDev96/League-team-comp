@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { MvpBannerComponent } from './mvp-banner.component';
 import { compareCurve } from '../core/comp-expectation';
 import { recordingStory } from '../core/replay-lines';
 import { AnalysisGame, CompExpectation, MatchTimeline } from '../models/team.models';
@@ -32,7 +33,7 @@ import { TooltipDirective } from './tooltip.directive';
  */
 @Component({
   selector: 'app-game-story',
-  imports: [TooltipDirective, InfoTipComponent, MvpChipComponent],
+  imports: [MvpBannerComponent, TooltipDirective, InfoTipComponent, MvpChipComponent],
   template: `
     <details class="intel-collapse game-story" (toggle)="onToggle($event)">
       <summary>
@@ -105,7 +106,7 @@ import { TooltipDirective } from './tooltip.directive';
               <tbody>
                 @for (l of t.lanes; track l.seat) {
                   <tr>
-                    <td>{{ l.seat }}@if (l.name) { <small class="muted">{{ l.name }}</small> }</td>
+                    <td>{{ l.seat }}@if (l.name) { <small class="muted">{{ l.name }}</small><app-mvp-banner size="inline" [name]="l.name" /> }</td>
                     <td>{{ l.champion }}</td>
                     <td>{{ l.theirChampion }}</td>
                     <td [class.pos]="(l.at10?.gold ?? 0) > 0" [class.neg]="(l.at10?.gold ?? 0) < 0">{{ l.at10 ? signed(l.at10.gold) : '—' }}</td>

@@ -1,4 +1,5 @@
 import { Component, inject, input } from '@angular/core';
+import { MvpBannerComponent } from '../../../shared/mvp-banner.component';
 import { RouterLink } from '@angular/router';
 import { HomeLineupCard } from '../../../core/home-model';
 import { InViewDirective } from '../../../shared/in-view.directive';
@@ -12,7 +13,7 @@ import { UiService } from '../../../services/ui.service';
  */
 @Component({
   selector: 'app-home-lineup',
-  imports: [InViewDirective, RateRingComponent, RouterLink],
+  imports: [MvpBannerComponent, InViewDirective, RateRingComponent, RouterLink],
   template: `
     <section class="card home-tile home-lineup" appInView aria-labelledby="home-lineup-title">
       <header class="home-card-head">
@@ -35,7 +36,7 @@ import { UiService } from '../../../services/ui.service';
                 <app-rate-ring [rate]="c.ranked?.winRate ?? null" [games]="c.ranked?.games ?? 0" [wins]="c.ranked?.wins ?? 0" [label]="(c.ranked?.queue ?? 'ranked') + ' win rate'" [scope]="c.ranked?.queue === 'Flex' ? 'in ranked flex' : 'in ranked solo/duo'" />
               </span>
               <span class="home-lineup-foot">
-                <b class="home-lineup-name">{{ c.name }}</b>
+                <b class="home-lineup-name">{{ c.name }}<app-mvp-banner size="tile" [focusable]="false" [playerId]="c.playerId" [name]="c.name" /></b>
                 <small>
                   @if (c.rank; as r) { {{ r.label }} <span class="home-lineup-queue">{{ r.queue }}</span> } @else { Unranked }
                   @if (c.champion) { · {{ ui.championName(c.champion) }} }

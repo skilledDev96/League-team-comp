@@ -1,4 +1,5 @@
 import { ChampionFilterService } from '../../services/champion-filter.service';
+import { MvpBannerComponent } from '../../shared/mvp-banner.component';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { Component, computed, inject, signal } from '@angular/core';
@@ -33,7 +34,7 @@ import { InViewDirective } from '../../shared/in-view.directive';
  */
 @Component({
   selector: 'app-roster',
-  imports: [OverviewComponent, RosterPlayersComponent, ScoutReportComponent, ChampionFilterComponent, QuickActionsComponent, TourPillComponent, TooltipDirective, DetailToggleComponent, InViewDirective],
+  imports: [MvpBannerComponent, OverviewComponent, RosterPlayersComponent, ScoutReportComponent, ChampionFilterComponent, QuickActionsComponent, TourPillComponent, TooltipDirective, DetailToggleComponent, InViewDirective],
   templateUrl: './roster.component.html'
 })
 export class RosterComponent {

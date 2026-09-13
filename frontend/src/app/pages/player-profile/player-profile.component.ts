@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { MvpBannerComponent } from '../../shared/mvp-banner.component';
 import { InViewDirective } from '../../shared/in-view.directive';
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -26,7 +27,7 @@ import { digestNotes, touches } from '../../core/coaching-digest';
 
 @Component({
   selector: 'app-player-profile',
-  imports: [InViewDirective, DatePipe, RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, TooltipDirective, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent, InfoTipComponent, TourPillComponent],
+  imports: [MvpBannerComponent, InViewDirective, DatePipe, RouterLink, PlayerAvatarComponent, ChampionChipComponent, ExternalProfilesComponent, TooltipDirective, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent, InfoTipComponent, TourPillComponent],
   templateUrl: './player-profile.component.html'
 })
 export class PlayerProfileComponent {

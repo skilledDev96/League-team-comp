@@ -1,4 +1,5 @@
 import { Component, computed, input } from '@angular/core';
+import { MvpBannerComponent } from '../../../shared/mvp-banner.component';
 import { PodiumPlace } from '../../../core/mvp-race';
 import { InViewDirective } from '../../../shared/in-view.directive';
 import { PlayerAvatarComponent } from '../../../shared/player-avatar.component';
@@ -15,7 +16,7 @@ interface Step {
  */
 @Component({
   selector: 'app-home-podium',
-  imports: [InViewDirective, PlayerAvatarComponent],
+  imports: [MvpBannerComponent, InViewDirective, PlayerAvatarComponent],
   template: `
     <section class="card home-tile home-podium" appInView aria-labelledby="home-podium-title">
       <header class="home-card-head">
@@ -30,6 +31,7 @@ interface Step {
                 <span class="home-podium-person">
                   <app-player-avatar [name]="e.name" [icon]="e.icon" [role]="e.role" />
                   <b>{{ e.name }}</b>
+                  <app-mvp-banner size="inline" [playerId]="e.playerId" [name]="e.name" />
                 </span>
               } @empty {
                 <span class="home-podium-open" aria-hidden="true">?</span>

@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
+import { MvpBannerComponent } from '../mvp-banner.component';
 import { AnalysisGame, GameReview, ReviewPoint } from '../../models/team.models';
 import { gamePlayerFor, playerStatLine } from '../../core/review-view';
 import { UiService } from '../../services/ui.service';
@@ -32,14 +33,14 @@ type ReviewPlayer = GameReview['players'][number];
  */
 @Component({
   selector: 'app-review-seat',
-  imports: [ReviewPointComponent, TooltipDirective],
+  imports: [MvpBannerComponent, ReviewPointComponent, TooltipDirective],
   template: `
     @if (mine()) {
       <div class="review-seat" [class.is-own]="own()">
         <div class="review-seat-head">
           <img class="review-seat-face" [src]="ui.championIconUrl(player().champion)" alt="" loading="lazy" />
           <span class="review-seat-who">
-            <b class="review-seat-name">{{ player().name }}</b>
+            <b class="review-seat-name">{{ player().name }}</b><app-mvp-banner size="inline" [name]="player().name" />
             @if (own()) { <span class="review-seat-you" appTip="The seat you picked in the film room">You</span> }
             <small class="review-seat-role">{{ player().seat }} · {{ ui.championName(player().champion) }}</small>
           </span>
@@ -77,7 +78,7 @@ type ReviewPlayer = GameReview['players'][number];
     } @else {
       <app-review-point [point]="player().workOn" tone="person" [timed]="timed()">
         <img class="player-mark is-champ" [src]="ui.championIconUrl(player().champion)" alt="" loading="lazy" />
-        <b [appTip]="player().seat + ' · ' + ui.championName(player().champion)">{{ player().name }}</b>
+        <b [appTip]="player().seat + ' · ' + ui.championName(player().champion)">{{ player().name }}</b><app-mvp-banner size="inline" [name]="player().name" />
       </app-review-point>
     }
   `

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { MvpBannerComponent } from './mvp-banner.component';
 import { Role } from '../models/team.models';
 import { UiService } from '../services/ui.service';
 import { TooltipDirective } from './tooltip.directive';
@@ -25,7 +26,7 @@ const WORDS: Record<MvpChipKind, string> = { mvp: 'MVP', series: 'Series MVP', s
  */
 @Component({
   selector: 'app-mvp-chip',
-  imports: [TooltipDirective],
+  imports: [MvpBannerComponent, TooltipDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <span
@@ -41,7 +42,7 @@ const WORDS: Record<MvpChipKind, string> = { mvp: 'MVP', series: 'Series MVP', s
         <img class="mvp-chip-icon" [src]="ui.championIconUrl(champion())" alt="" loading="lazy" />
       }
       <span class="mvp-chip-word">{{ word() }}</span>
-      @if (label()) { <span class="mvp-chip-name">{{ label() }}</span> }
+      @if (label()) { <span class="mvp-chip-name">{{ label() }}</span><app-mvp-banner size="inline" [focusable]="false" [name]="name()" /> }
       @if (count(); as c) { <span class="mvp-chip-count" [class.is-partial]="partial()">{{ c }}</span> }
     </span>
   `

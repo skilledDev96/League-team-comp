@@ -1,4 +1,5 @@
 import { DecimalPipe } from '@angular/common';
+import { MvpBannerComponent } from '../../../shared/mvp-banner.component';
 import { afterNextRender, Component, computed, effect, inject, Injector, input, linkedSignal, signal, untracked } from '@angular/core';
 import { fillInAsPlayer } from '../../../core/roster-build';
 import { RosterCard, RosterModel } from '../../../core/roster-model';
@@ -43,7 +44,7 @@ interface PlayersRow {
  */
 @Component({
   selector: 'app-roster-players',
-  imports: [DecimalPipe, InfoTipComponent, PracticeBoardComponent, RosterPlayerDetailComponent, TooltipDirective],
+  imports: [MvpBannerComponent, DecimalPipe, InfoTipComponent, PracticeBoardComponent, RosterPlayerDetailComponent, TooltipDirective],
   templateUrl: './roster-players.component.html'
 })
 export class RosterPlayersComponent {

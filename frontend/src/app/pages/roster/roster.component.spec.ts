@@ -100,7 +100,11 @@ describe.skipIf(typeof localStorage === 'undefined')('RosterComponent, the team 
     expect(root.querySelector('.view-controls-count')).toBeNull();
     TestBed.inject(ChampionFilterService).set('Miss Fortune');
     harness.detectChanges();
-    expect(text(root.querySelector('.champ-filter-answer'))).toBe('Played by SkilledScarecrow — from their team games and the pools listed for them.');
+    // The answer names the last series' MVP, so the banner stands beside the name there too; the sentence is read without it.
+    const answer = root.querySelector('.champ-filter-answer')!.cloneNode(true) as Element;
+    expect(answer.querySelector('.mvp-banner')).not.toBeNull();
+    answer.querySelectorAll('app-mvp-banner').forEach((n) => n.remove());
+    expect(text(answer)).toBe('Played by SkilledScarecrow — from their team games and the pools listed for them.');
     expect(root.querySelector('.champ-filter-count')).toBeNull();
     const panels = [...root.querySelectorAll('.roster-poster .roster-panel')];
     expect(panels[3].classList).toContain('is-match');

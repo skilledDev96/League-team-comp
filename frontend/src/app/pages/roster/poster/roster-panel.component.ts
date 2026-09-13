@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, output } from '@angular/core';
+import { MvpBannerComponent } from '../../../shared/mvp-banner.component';
 import { RankTrend } from '../../../core/rank-ladder';
 import { playedAgo } from '../../../core/team-season';
 import { RosterCard } from '../../../core/roster-model';
@@ -20,7 +21,7 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
  */
 @Component({
   selector: 'app-roster-panel',
-  imports: [RateRingComponent, TooltipDirective],
+  imports: [MvpBannerComponent, RateRingComponent, TooltipDirective],
   template: `
     @let c = card();
     <article class="splash-tile roster-panel" [class.is-tall]="size() === 'tall'" [class.is-tile]="size() === 'tile'"
@@ -63,6 +64,7 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
         <h3 class="roster-panel-name">
           <button type="button" class="roster-panel-open" [id]="'roster-open-' + c.id" [attr.aria-expanded]="selected()" aria-controls="roster-sheet"
                   (click)="open.emit($event.detail === 0)">{{ c.name }}</button>
+          <app-mvp-banner size="tile" [playerId]="c.playerId" [name]="c.name" />
         </h3>
         <p class="roster-panel-meta">
           @if (c.rank; as r) { {{ r.label }} <span class="roster-panel-queue">{{ r.queue }}</span> } @else { Unranked }

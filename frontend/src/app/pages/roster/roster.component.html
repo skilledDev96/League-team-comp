@@ -33,7 +33,7 @@
     @if (playersWith().length) {
       Played by
       @for (c of playersWith(); track c.id; let last = $last) {
-        <b>{{ c.name }}</b>@if (c.group === 'fillIns') { (fill-in)}{{ last ? '' : ',' }}
+        <b>{{ c.name }}</b><app-mvp-banner size="inline" [playerId]="c.playerId" [name]="c.name" />@if (c.group === 'fillIns') { (fill-in)}{{ last ? '' : ',' }}
       }
       — from their team games and the pools listed for them.
     } @else {

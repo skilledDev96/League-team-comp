@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { MvpBannerComponent } from '../../../shared/mvp-banner.component';
 import { HomeLineupCard } from '../../../core/home-model';
 import { amsterdamToday, CLIMB_DAYS, climbLines, dayNumber, tierLines } from '../../../core/rank-ladder';
 import { InViewDirective } from '../../../shared/in-view.directive';
@@ -19,7 +20,7 @@ const STROKES = ['var(--accent-2)', 'var(--ok)', 'var(--text-0)', 'var(--warn)',
  */
 @Component({
   selector: 'app-home-rank-climb',
-  imports: [InViewDirective, TooltipDirective],
+  imports: [MvpBannerComponent, InViewDirective, TooltipDirective],
   template: `
     <section class="card home-tile home-climb" appInView (firstSeen)="seen.set(true)" aria-labelledby="home-climb-title">
       <header class="home-card-head">
@@ -45,7 +46,7 @@ const STROKES = ['var(--accent-2)', 'var(--ok)', 'var(--text-0)', 'var(--warn)',
             @for (l of drawn(); track l.playerId) {
               <li [appTip]="l.tip" tabindex="0">
                 <span class="home-climb-key" [style.background]="l.stroke" aria-hidden="true"></span>
-                <b>{{ l.name }}</b>
+                <span class="home-climb-name"><b>{{ l.name }}</b><app-mvp-banner size="inline" [focusable]="false" [playerId]="l.playerId" [name]="l.name" /></span>
                 <small>{{ l.now }}</small>
                 <span class="home-climb-delta" [class.is-up]="l.delta > 0" [class.is-down]="l.delta < 0">{{ l.delta > 0 ? '+' : '' }}{{ l.delta }}</span>
                 <span class="visually-hidden">{{ l.tip }}</span>

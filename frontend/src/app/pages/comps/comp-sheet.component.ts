@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, linkedSignal, output } from '@angular/core';
+import { MvpBannerComponent } from '../../shared/mvp-banner.component';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EXPECT_AXES, EXPECT_LABEL, ExpectAxis, LEVEL_LABEL, LEVELS } from '../../core/comp-expectation';
@@ -37,7 +38,7 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
  */
 @Component({
   selector: 'app-comp-sheet',
-  imports: [ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, CompRecordComponent, FormsModule, NgModelNameDirective, OverflowMenuComponent, RateRingComponent, RouterLink, TooltipDirective],
+  imports: [MvpBannerComponent, ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, CompRecordComponent, FormsModule, NgModelNameDirective, OverflowMenuComponent, RateRingComponent, RouterLink, TooltipDirective],
   template: `
     @for (c of [card()]; track c.id) {
       <section class="gold-frame comps-sheet" id="comps-sheet" data-tour="comp-sheet" role="region" aria-labelledby="comps-sheet-title" (keydown.escape)="onEscape($event)">
@@ -137,7 +138,7 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
                       @if (s.note) { <span class="comps-seat-note" [appTip]="s.note">{{ s.note }}</span> }
                       @if (s.cover.length) {
                         <span class="comps-seat-cover" [appTip]="'Who can play ' + s.role">
-                          @for (p of s.cover; track p.name) { <span [class.is-flex]="p.flex">{{ p.name }}</span> }
+                          @for (p of s.cover; track p.name) { <span [class.is-flex]="p.flex">{{ p.name }}<app-mvp-banner size="inline" [focusable]="false" [name]="p.name" /></span> }
                         </span>
                       }
                     </div>
