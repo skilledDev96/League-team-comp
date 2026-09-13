@@ -82,6 +82,8 @@ export interface RosterCard {
   stats?: { statGames: number; kda: number; csPerMin?: number; killParticipation?: number; visionPerGame?: number };
   /** Newest first, at most five. */
   form: ('W' | 'L')[];
+  /** When they last played a serious game with the team; null for a fill-in or someone who never has. */
+  lastPlayed: number | null;
   /** Series MVP titles that count. */
   titles: number;
   /** Marks on them too thin to count yet. */

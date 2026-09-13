@@ -41,6 +41,35 @@ export function ladderValue(p: Pick<RankPoint, 'tier' | 'division' | 'lp'>): num
   return t * 400 + d * 100 + Math.min(100, Math.max(0, p.lp));
 }
 
+/** How far back a roster card's rank trend looks: the last week of mornings (13 Sep 2026). */
+export const RANK_TREND_DAYS = 7;
+
+export interface RankTrend {
+  queue: RankQueue;
+  /** Ladder points gained (+) or lost (−) across the window; a hundred is a division. */
+  delta: number;
+  from: { day: string; words: string; lp: number };
+  to: { day: string; words: string; lp: number };
+}
+
+/**
+ * Which way a player's rank went over the last `days` mornings in one queue (13 Sep 2026, the lead picked it for the
+ * roster cards). The newest morning must fall inside the window — a refresh that stopped says nothing rather than an
+ * old trend — and it is compared with the last morning on or before the window opened, else the first one inside it.
+ * Fewer than two mornings, or both on one day, is no trend.
+ */
+export function rankTrendOf(points: readonly RankPoint[], today: string, queue: RankQueue, days = RANK_TREND_DAYS): RankTrend | null {
+  const since = daysBefore(today, days);
+  const inQueue = points.filter((p) => p.queue === queue && p.day <= today && ladderValue(p) !== null).sort((a, b) => a.day.localeCompare(b.day));
+  const to = inQueue[inQueue.length - 1];
+  if (!to || to.day < since) return null;
+  const before = inQueue.filter((p) => p.day <= since);
+  const from = before[before.length - 1] ?? inQueue.find((p) => p.day >= since);
+  if (!from || from.day >= to.day) return null;
+  const at = (p: RankPoint) => ({ day: p.day, words: rankWords(p), lp: p.lp });
+  return { queue, delta: ladderValue(to)! - ladderValue(from)!, from: at(from), to: at(to) };
+}
+
 /** "Gold II", or "Master" for the apex tiers, which have no division. */
 export function rankWords(p: Pick<RankPoint, 'tier' | 'division'>): string {
   const tier = p.tier.trim().toUpperCase();

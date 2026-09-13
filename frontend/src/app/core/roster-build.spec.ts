@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, FillIn, LearnEntry, PainPoint, Player, Scrim, SeriesGame, Tournament, TournamentSeries } from '../models/team.models';
 import { sameChampion } from './champion-key';
-import { buildRoster, cardById, cardByName, poolOf } from './roster-build';
+import { buildRoster, cardById, cardByName, poolOf, rosterCards } from './roster-build';
 import { RosterInput } from './roster-model';
 
 const NOW = new Date(2026, 8, 13, 14, 0).getTime();
@@ -108,6 +108,14 @@ describe('buildRoster', () => {
     expect(adc.form).toEqual(['L', 'W', 'W', 'W', 'W']);
     expect(adc.champion).toBe('Jinx');
     expect(adc.stats?.statGames).toBe(5);
+  });
+
+  it('knows when each of them last played, practice left out, and lists every card in page order', () => {
+    const m = buildRoster(input());
+    expect(cardById(m, 'p-adc')?.lastPlayed).toBe(Date.parse('2026-09-08T20:00:00Z'));
+    expect(cardById(m, 'fill-f1')?.lastPlayed).toBeNull();
+    expect(cardById(buildRoster(input({ practice: new Set(['EUW_2']) })), 'p-adc')?.lastPlayed).toBe(Date.parse('2026-09-06T20:30:00Z'));
+    expect(rosterCards(m).map((c) => c.id)).toEqual([...m.starters, ...m.bench, ...m.fillIns].map((c) => c.id));
   });
 
   it('leaves practice out, and the season scope out of an old game', () => {

@@ -147,6 +147,33 @@ export function formOf(rows: readonly GameRow[], name: string, n = 5): ('W' | 'L
   return out;
 }
 
+/** When they last played a game with the team: the newest dated row with them on our side, or nothing. */
+export function lastPlayedOf(rows: readonly GameRow[], name: string): number | null {
+  let last: number | null = null;
+  for (const r of rows) {
+    if (r.date > 0 && (last === null || r.date > last) && r.ours.some((p) => sameName(p.player, name))) last = r.date;
+  }
+  return last;
+}
+
+/**
+ * "today", "yesterday", "3 days ago", "2 weeks ago", "4 months ago" (13 Sep 2026, the roster cards' last played).
+ * Counted in local calendar days, so an evening game read the next morning is "yesterday", whatever the hours.
+ */
+export function playedAgo(at: number, now: number): string {
+  const midnight = (t: number) => {
+    const d = new Date(t);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  };
+  const days = Math.max(0, Math.round((midnight(now) - midnight(at)) / 86_400_000));
+  if (days === 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 14) return `${days} days ago`;
+  if (days < 60) return `${Math.round(days / 7)} weeks ago`;
+  const months = Math.round(days / 30);
+  return `${months} ${months === 1 ? 'month' : 'months'} ago`;
+}
+
 /** A finished series inside a season: its tournament's, or ended inside the window when the season is a stretch of days. */
 export function finishedInSeason(f: FinishedSeries, w: SeasonWindow): boolean {
   if (w.mode === 'all') return true;

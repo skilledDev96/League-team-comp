@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RankPoint } from '../models/team.models';
-import { amsterdamToday, APEX_BASE, climbLines, dayNumber, ladderValue, rankWords, sparkGeometry, tierLines } from './rank-ladder';
+import { amsterdamToday, APEX_BASE, climbLines, dayNumber, ladderValue, rankTrendOf, rankWords, sparkGeometry, tierLines } from './rank-ladder';
 
 const p = (day: string, tier: string, division: string, lp: number, queue: RankPoint['queue'] = 'solo'): RankPoint => ({ day, queue, tier, division, lp, wins: 0, losses: 0 });
 
@@ -23,6 +23,31 @@ describe('the ladder', () => {
       [1200, 'Gold'],
       [1600, 'Platinum']
     ]);
+  });
+});
+
+describe('rankTrendOf', () => {
+  const at = (day: string, tier: string, division: string, lp: number, queue: RankPoint['queue'] = 'solo'): RankPoint => ({ day, queue, tier, division, lp, wins: 0, losses: 0 });
+
+  it('reads a week of mornings as points up or down, across a division', () => {
+    const up = rankTrendOf([at('2026-09-05', 'GOLD', 'II', 80), at('2026-09-09', 'GOLD', 'II', 95), at('2026-09-13', 'GOLD', 'I', 20)], '2026-09-13', 'solo');
+    expect(up).toEqual({ queue: 'solo', delta: 40, from: { day: '2026-09-05', words: 'Gold II', lp: 80 }, to: { day: '2026-09-13', words: 'Gold I', lp: 20 } });
+    const down = rankTrendOf([at('2026-09-08', 'SILVER', 'I', 10), at('2026-09-12', 'SILVER', 'II', 70)], '2026-09-13', 'solo');
+    expect(down?.delta).toBe(-40);
+    expect(rankTrendOf([at('2026-09-08', 'PLATINUM', 'IV', 50), at('2026-09-12', 'PLATINUM', 'IV', 50)], '2026-09-13', 'solo')?.delta).toBe(0);
+  });
+
+  it('counts apex points on the shared ladder and prints no division there', () => {
+    const apex = rankTrendOf([at('2026-09-07', 'DIAMOND', 'I', 90), at('2026-09-12', 'MASTER', 'I', 30)], '2026-09-13', 'solo');
+    expect(apex?.delta).toBe(40);
+    expect(apex?.to.words).toBe('Master');
+  });
+
+  it('says nothing for one morning, a stale newest morning, or the other queue', () => {
+    expect(rankTrendOf([at('2026-09-12', 'GOLD', 'II', 50)], '2026-09-13', 'solo')).toBeNull();
+    expect(rankTrendOf([at('2026-08-20', 'GOLD', 'II', 50), at('2026-09-02', 'GOLD', 'I', 50)], '2026-09-13', 'solo')).toBeNull();
+    expect(rankTrendOf([at('2026-09-08', 'GOLD', 'II', 50, 'flex'), at('2026-09-12', 'GOLD', 'I', 50, 'flex')], '2026-09-13', 'solo')).toBeNull();
+    expect(rankTrendOf([at('2026-09-08', 'GOLD', 'II', 50, 'flex'), at('2026-09-12', 'GOLD', 'I', 50, 'flex')], '2026-09-13', 'flex')?.delta).toBe(100);
   });
 });
 

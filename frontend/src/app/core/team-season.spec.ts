@@ -8,6 +8,8 @@ import {
   TREND_WINDOW,
   formOf,
   headline,
+  lastPlayedOf,
+  playedAgo,
   sameName,
   seatOrder,
   mainChampionOf,
@@ -390,6 +392,26 @@ describe('rankedRecordOf', () => {
   it('is nothing for an unranked player or a queue with no games', () => {
     expect(rankedRecordOf(player())).toBeNull();
     expect(rankedRecordOf(player({ queueStats: { solo: { rank: rank('GOLD', 0, 0) } } }))).toBeNull();
+  });
+});
+
+describe('lastPlayedOf and playedAgo', () => {
+  const on = (name: string) => ({ ours: [{ role: 'Mid', champion: 'Ahri', player: name }] as RowPlayer[] });
+
+  it('finds the newest dated game with them on our side, under any spelling', () => {
+    const rows = [row('a', sep(4), true, on('Kez')), row('b', sep(9), false, on('kez')), row('c', sep(11), true, on('Rhu')), row('d', 0, true, on('Kez'))];
+    expect(lastPlayedOf(rows, 'KEZ')).toBe(sep(9));
+    expect(lastPlayedOf(rows, 'Nobody')).toBeNull();
+  });
+
+  it('says it in calendar days, then weeks, then months', () => {
+    expect(playedAgo(NOW - 2 * 3600_000, NOW)).toBe('today');
+    expect(playedAgo(sep(12), NOW)).toBe('yesterday');
+    expect(playedAgo(sep(10), NOW)).toBe('3 days ago');
+    expect(playedAgo(NOW - 20 * DAY, NOW)).toBe('3 weeks ago');
+    expect(playedAgo(NOW - 31 * DAY, NOW)).toBe('4 weeks ago');
+    expect(playedAgo(NOW - 75 * DAY, NOW)).toBe('3 months ago');
+    expect(playedAgo(NOW + DAY, NOW)).toBe('today');
   });
 });
 

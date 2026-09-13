@@ -5,7 +5,7 @@ import { mvpRace } from './mvp-race';
 import { rateBand } from './opponent-view';
 import { RosterCard, RosterGroup, RosterInput, RosterModel, RosterPoolEntry } from './roster-model';
 import { seriesCrowns } from './series-results';
-import { finishedInSeason, formOf, mainChampionOf, rankLabelOf, rankedRecordOf, sameName, SeasonMode, seasonRows, seasonWindow, seatOrder } from './team-season';
+import { finishedInSeason, formOf, lastPlayedOf, mainChampionOf, rankLabelOf, rankedRecordOf, sameName, SeasonMode, seasonRows, seasonWindow, seatOrder } from './team-season';
 
 /** How many of the newest results a card's form strip shows. */
 export const ROSTER_FORM_GAMES = 5;
@@ -75,12 +75,17 @@ export function poolOf(p: Pick<Player, 'top3'>, line: PlayerLine | undefined): R
   return [...played, ...unplayed];
 }
 
+/** Every card in the page's order: the A team, the bench, the fill-ins. */
+export function rosterCards(m: RosterModel): RosterCard[] {
+  return [...m.starters, ...m.bench, ...m.fillIns];
+}
+
 export function cardById(m: RosterModel, id: string): RosterCard | undefined {
-  return [...m.starters, ...m.bench, ...m.fillIns].find((c) => c.id === id);
+  return rosterCards(m).find((c) => c.id === id);
 }
 
 export function cardByName(m: RosterModel, name: string): RosterCard | undefined {
-  return [...m.starters, ...m.bench, ...m.fillIns].find((c) => sameName(c.name, name));
+  return rosterCards(m).find((c) => sameName(c.name, name));
 }
 
 /**
@@ -161,6 +166,7 @@ export function buildRoster(i: RosterInput): RosterModel {
           }
         : {}),
       form: fill ? [] : formOf(scoped, p.name, ROSTER_FORM_GAMES),
+      lastPlayed: fill ? null : lastPlayedOf(scoped, p.name),
       titles,
       provisional: entry?.provisional ?? 0,
       crowned: mostTitles > 0 && titles === mostTitles,
