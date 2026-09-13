@@ -100,9 +100,12 @@ own box.** Seven are genuinely different jobs. The rest is drift.
 **Reach for R1 first.** If you are about to write a new class that declares padding, radius, border
 and background on something clickable, you are almost certainly drawing `.view-btn` again.
 
-Known drift to collapse when you are next in the area: three parallel segmented-control systems
-(two in the same toolbar), `.film-beat-chip` and `.film-strip-chip` byte-identical, and `.btn-cta`
-which has no base rule at all — it only exists as `.edit-toolbar .btn-cta`.
+Known drift to collapse when you are next in the area (updated 13 Sep 2026 after the site-wide pass): five segmented
+systems became one plus the two kept on purpose (above); `.btn-cta` is gone; `.film-beat-chip` and `.film-strip-chip`
+are still byte-identical; the media-query units are still mixed (px in the draft room and the older blocks, rem in the
+newer — they no longer move together since the root follows the window, and converting them is a measured job of its
+own); the font-size spread is still 71 values, with a three-step label scale used in new blocks only; and
+`.draft-stage` is reopened 86 times across the draft room's banners.
 
 The film room's stock palette (`--film-ink`, `--film-line`, `--film-panel`) is a **legitimate
 sub-theme**, not drift. It needs those same seven roles retinted, not twenty more `film-*` classes.
@@ -167,7 +170,26 @@ Starter | Full with its "Detail" word kept for screen readers only. Roster and C
 it becomes the bare default as each remaining page's filter moves into its toolbar. **The slim hero goes with it**:
 `section.hero.is-slim` holding `.hero-id` (a `.home-kicker.hero-kicker` with an icon and the page's counts, `h1.hero-title`,
 one-line `p.hero-blurb`) and `.hero-actions` (the tour pill, then the page's own pills in `.hero-pills`) — two columns,
-so a longer sentence never pushes the actions down a line.
+so a longer sentence never pushes the actions down a line. **Every working page wears both since the site-wide pass of
+13 Sep 2026** (Roster, Comps, Games, Prep & Draft, Admin, the profile, Synergy); Home keeps its stage, the film room its
+bar, the draft room its own head. With them came four small shapes, each in `styles.css` beside the toolbar block:
+
+- **`.view-row`** — a row under the toolbar for what belongs to one view (Games' source/window/result, Patterns'
+  filters, Prep's groups, Synergy's controls, the Reviews tab's comp select). Never a card, never in the toolbar.
+- **`.section-line`** — a block's head: `.section-line-icon` (a symbol, `--accent-2`) and `.section-line-label`
+  (Chakra Petch, uppercase). Prep's Games / Scouting & bans / Their roster, Admin's tab heads (`.admin-tab-head`), the
+  profile's build guides. Never two letters in a circle.
+- **`.reveal`** — the one motion gate for working pages: `appInView class="reveal" style="--reveal-i: n"` on a
+  section and it rises in once, behind `.page.is-still` (stamped from `MotionService` in `app.html`). Home, Roster and
+  Comps keep their richer gates; everything else wears this one.
+- **`.view-btn.is-compact`** — the pill for an action that is only metadata (Patterns' "set on Roster", the profile's
+  op.gg and build links). Still a pill.
+
+Also from that pass: geometry tokens on `:root` (`--r-card`, `--r-hero`, `--r-tile`, `--r-frame`, `--r-menu`,
+`--r-sm`, `--r-pill`, `--card-pad`) that the card family reads; a `title` on every route, so the tab says where
+you are; `p.empty-state` as the one empty state; a focus ring on every hover-only clickable; and the theme-wrong
+literal colours retokened. **`.view-segment` is the segmented control** everywhere but two places that keep
+`.segmented` on purpose: the draft room's layout switch (frozen) and `app-split-view-toggle`.
 
 **Home, Roster and Comps are the expressive pages** (13 Sep 2026; Roster joined when the lead asked to "keep the theme
 of the home page rolling", Comps when they said "I love the look we have now, let's bring this over to the comps page"). Home is a landing page with its own stage — a splash hero, a welcome band, a

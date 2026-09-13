@@ -1356,7 +1356,12 @@ adding a control or a colour. The three rules that cost the most time before it 
   the hero, the page's views as `.view-btn` pills on the left, page-wide tools in
   `.view-controls-tools` packed right, `app-detail-toggle` last and only on a depth surface. A control
   one view lacks is removed there, never hidden — Prep's switch hidden on Draft pushed the draft room
-  35px down. See `docs/design-system.md` §3½.
+  35px down. See `docs/design-system.md` §3½. **Since the site-wide pass of 13 Sep 2026** every working page
+  wears the slim hero (`.hero.is-slim`) and the slim toolbar (`.view-controls.is-slim`), what belongs to one view
+  sits in a `.view-row` under the toolbar, a block's head is a `.section-line`, sections rise in behind
+  `.page.is-still` with `appInView class="reveal"`, every route has a tab `title`, and `.view-segment` is the
+  segmented control except in the draft room and the split-view toggle. The draft room's own geometry was measured
+  identical before and after (`scratchpad/comps/draft-measure.cjs`); it sits 42px higher under the slimmer hero.
 
 **The deployed site says which commit it is** (12 Sep 2026). `scripts/gen-build-info.mjs` writes
 `frontend/public/build.json` alongside the two `build-info.ts` files, and a public e2e check waits
