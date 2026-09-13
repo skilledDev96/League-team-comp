@@ -136,9 +136,8 @@ A control that must live *inside* a clickable header needs **`$event.preventDefa
 **Inside a card**, a section folds the same way without a card of its own:
 `<details class="intel-collapse fold-card">` with `<summary class="section-head intel-collapse-head">`
 holding the `h3`, an `.intel-collapse-count` pill and a trailing `.fold-chevron`. A player's champion
-pool uses it everywhere (Cards' Quick look, Scouting, the profile's Declared pool), and so does Working
-On. A card whose whole face is a link (`.card-link-overlay`) needs anything clickable inside it lifted
-above the overlay (`.clickable-card .role-details summary`), or a click on the header opens the page.
+pool uses it on Scouting and the profile's Declared pool, and so does Working On. Do not make a card's
+whole face a link with buttons inside it: a clickable tile is one stretched button (§3½).
 
 ---
 
@@ -171,6 +170,11 @@ animate behind one gate each: motion allowed, `.home` or `.roster` not `.is-stil
 (`shared/in-view.directive.ts`), transform and opacity only. Every splash `<img>` carries `ui.artFallback`. A
 clickable splash tile is one stretched button (the Roster panel's name), never a link overlay plus buttons. Do not
 put a stage in place of a working page's toolbar.
+
+**A restyle never reaches another page through a shared class.** Roster's Scouting header shares
+`.player-panel-header` with Admin › Players, and its Scout report shares every `.opp-*` class with Prep & Draft,
+so the poster's look went in as new markup (`.report-banboard`, `.report-ban.splash-tile`) or as rules scoped under
+the view's own root (`.player-intel-card …`, `.roster-report …`). Check the other page before and after.
 
 **Facts on a card** are a two-column `<dl>` — labels in one column, values in the other, every icon the
 height of a line — so every row starts at the same x. Secondary attributes, like a player's 2nd seat, are small

@@ -128,6 +128,30 @@ and the resource links — nothing in the app edits either, both are the origina
 seed, and the lead: "we are not using those tools" — so they went from the page;
 `teamIdentity` and `resourceLinks` are still in the data.
 
+**Roster is a team poster** (13 Sep 2026, the lead after Home: "I love the look of this instead of the
+summoner icons… keep the theme of the home page rolling"). The shell builds **one model** —
+`core/roster-build.ts` `buildRoster`, pure, all time over serious games (`ROSTER_SCOPE`) — and hands it to
+all four views, so a crown, a form strip or a main champion cannot disagree between them. **Cards** is the A
+team as five tall splash panels in seat order (`pages/roster/poster/roster-panel.component.ts`: the main's
+splash, the role, a win-rate ring, the crown and titles chip, the last five as pips) with the bench and the
+fill-ins as smaller tiles under it. A panel's name is **one stretched button** that opens the player's
+**sheet** (`roster-sheet.component.ts`, gold-framed, `#roster-sheet`) under the group holding that player:
+**one sheet at a time**, a second click or Escape closes it and focus returns to the panel, prev/next walk
+the group. The sheet holds the pool with win rates, how they play, the rank climb
+(`shared/rank-sparkline.component.ts` over `RankHistoryService`), what they are working on, Profile and
+op.gg — **the one-click Profile moved in here**, and Quick look is gone. **Edit mode's A team / Main seat / 2nd
+seat strip lives in the sheet** (anchors `roster-ateam`, `roster-main-seat`, `roster-second-seat`), and a
+player benched there regroups with their sheet following them. **Full** adds a check strip over each panel's
+plate (three pool faces, KDA, working on — the panel's height never changes), opens the first starter's
+sheet on arrival and pins it by id (`openFirst`; following `starters[0]` moved the sheet to the next starter
+when the first was benched), and adds stats, bans, learning and the declared pool to the sheet; changing depth
+resets the choice. **Table** puts each row's main as a splash stripe behind the name, **Scouting** turns each
+card's header into a splash band that is still the card's one toggle (scoped under `.player-intel-card`,
+because Admin › Players draws the same header class), and the **Scout report** draws its ban board as splash
+tiles of its own markup and each of our five on a splash line — every rule under `.roster-report`, because
+Prep & Draft draws the same `.opp-*` classes for an opponent. Motion sits behind the one gate
+(`.roster:not(.is-still) … .is-seen`), and every splash `<img>` carries `ui.artFallback`.
+
 `/players` and `/profiles` **still resolve**, each carrying
 `data: { view }` naming the mode it used to be, so old links and the `e2e`
 suite land where they always did. Do not turn them into redirects without
@@ -1137,8 +1161,8 @@ filter rather than none, so it can never become unpickable.
    `docs/ai-provider-note.md` records what leaves the system. Anything on
    Comps that decides which games count as a comp goes through
    `effectiveComp` — `retro()` and "Played out" both do.
-   **Quick actions** (`shared/quick-actions.component.ts`, on the Roster
-   page under the hero) are links into page states: `/games?refresh=1`
+   **Quick actions** (`shared/quick-actions.component.ts`, compact pills in
+   the Roster hero since 13 Sep 2026) are links into page states: `/games?refresh=1`
    runs the refresh and marks what came in (`justPracticed`, the param is
    dropped afterwards), `/admin?tab=comps&add=comp` opens a blank comp,
    `/tournaments?view=draft` the draft room, `/games?tab=reviews` the

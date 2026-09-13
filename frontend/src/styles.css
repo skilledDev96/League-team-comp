@@ -440,9 +440,6 @@ html {
   white-space: nowrap;
 }
 
-.pi-edit-btn .material-symbols-rounded {
-  font-size: 1rem;
-}
 
 .player-panel-open {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--card-border) 45%);
@@ -1734,42 +1731,10 @@ a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-d
 }
 
 /* Prevent grid siblings from stretching to match an expanded card's height. */
-.clickable-card,
 .player-intel-card,
 .comp-card {
   align-self: start;
   position: relative;
-}
-
-.clickable-card {
-  position: relative;
-  cursor: pointer;
-  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
-}
-
-.card-link-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  border-radius: 14px;
-}
-
-.clickable-card .role-toggle,
-.clickable-card .role-details a,
-.clickable-card .role-details summary {
-  position: relative;
-  z-index: 3;
-}
-
-/* The card is never the thing focused; its overlay link is. A keyboard user gets the same lift
-   and border a pointer does, and the ring follows the card's own corners (12 Sep 2026). */
-.clickable-card:hover,
-.clickable-card:focus-visible,
-.clickable-card:has(> .card-link-overlay:focus-visible) {
-  transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--accent) 70%, var(--card-border) 30%);
-  box-shadow: 0 14px 30px var(--shadow-elev);
-  outline: none;
 }
 
 .card h2,
@@ -2045,34 +2010,6 @@ body[data-theme='light'] .avatar-role {
   letter-spacing: 0.01em;
 }
 
-#strategySection,
-#resourceCards,
-#fillInCards {
-  margin-top: 1.3rem;
-}
-
-#strategySection .card,
-#resourceCards .card,
-#fillInCards .card {
-  padding: 1.2rem;
-}
-
-#strategySection .title-with-icon,
-#resourceCards .title-with-icon,
-#fillInCards .title-with-icon {
-  margin-bottom: 0.8rem;
-}
-
-#strategySection .links,
-#resourceCards .links,
-#fillInCards .links {
-  gap: 0.6rem;
-}
-
-#strategySection .kv {
-  gap: 0.48rem 0.9rem;
-}
-
 .meta-label {
   color: color-mix(in srgb, var(--text-0) 88%, var(--accent-2) 12%);
   font-weight: 700;
@@ -2244,12 +2181,6 @@ body[data-theme='light'] .avatar-role {
 }
 
 .card.expanded .role-details {
-  display: block;
-}
-
-.role-toggle {
-  margin-top: 0.78rem;
-  margin-left: auto;
   display: block;
 }
 
@@ -12603,8 +12534,6 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .roster-edit-field { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.3rem; }
 .roster-edit-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-1); margin-right: 0.15rem; }
 .roster-edit .role-flex-toggle { padding: 0.15rem 0.55rem; font-size: 0.72rem; }
-.roster-edit-open { margin-left: auto; padding: 0.12rem 0.5rem; font-size: 0.72rem; border-color: transparent; background: transparent; color: var(--text-1); }
-.roster-edit-open:hover, .roster-edit-open:focus-visible { border-color: var(--card-border); color: var(--text-0); }
 .roster-profile-chip { display: inline-flex; align-items: center; gap: 0.2rem; text-decoration: none; }
 .roster-profile-chip .material-symbols-rounded { font-size: 1rem; }
 
@@ -12767,7 +12696,6 @@ button.coaching-theme:hover, button.coaching-theme:focus-visible { color: var(--
 .review-card-vs b { color: var(--text-0); }
 
 /* ---- 9 Sep 2026: More at the card's top right; the profile's quick actions in the Roster bar's clothes ---- */
-.title-row-edit { margin-left: auto; align-self: flex-start; position: relative; z-index: 3; }
 
 /* ---- A summoner icon at text size beside a name (9 Sep 2026) ---- */
 .player-mark { width: 1.3rem; height: 1.3rem; border-radius: 50%; object-fit: cover; vertical-align: -0.33rem; margin-right: 0.35rem; border: 1px solid var(--card-border); background: var(--surface-btn); }
@@ -15228,11 +15156,6 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
    that had only the browser's default ring (12 Sep 2026). None was invisible — measured with a real
    Tab — but the design system owes every clickable thing a :focus-visible of its own. An outline
    takes no room, so none of this can move the draft room. */
-.card-link-overlay:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
 .comp-summary:focus-visible,
 .player-panel-header:focus-visible,
 .segment:focus-visible,

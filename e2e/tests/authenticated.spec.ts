@@ -65,6 +65,25 @@ test('the roster page renders players', async ({ page }) => {
   await expect(page.locator('.player-intel-card').first()).toBeVisible({ timeout: 30_000 });
 });
 
+/**
+ * The Cards view is a poster of the five (13 Sep 2026): a panel's name is the one button, and it opens
+ * that player's sheet under the poster. Full opens the first sheet on arrival, so the click goes to a
+ * panel that is not already open.
+ */
+test('the roster opens on the poster, and a player opens their sheet', async ({ page }) => {
+  await page.goto('./roster');
+  const poster = page.locator('.roster-poster');
+  await expect(poster).toBeVisible({ timeout: 30_000 });
+  const closed = poster.locator('.roster-panel-open[aria-expanded="false"]');
+  test.skip((await closed.count()) === 0, 'no starter panel to open');
+  const opener = closed.first();
+  const name = (await opener.innerText()).trim();
+  await opener.click();
+  await expect(page.locator('#roster-sheet')).toBeVisible();
+  await expect(page.locator('#roster-sheet-title')).toHaveText(name);
+  await expect(opener).toHaveAttribute('aria-expanded', 'true');
+});
+
 test('the comps page renders comps', async ({ page }) => {
   await page.goto('./comps');
   await expect(page.locator('.comp-card').first()).toBeVisible({ timeout: 30_000 });
@@ -175,7 +194,10 @@ test('no console errors while moving around signed in', async ({ page }) => {
   });
 
   // Home is where sign-in lands, and Roster is no longer reached by './', so both are named.
-  for (const path of ['./', './home', './roster', './comps', './games', './review', './tournaments', './film/none']) {
+  // Roster's four views each draw splash art since 13 Sep 2026, lazily below the fold, so each is visited
+  // and given a moment for a renamed splash to ask for its fallback before the next page.
+  const rosterViews = ['./roster?view=table', './roster?view=scouting', './roster?view=report'];
+  for (const path of ['./', './home', './roster', ...rosterViews, './comps', './games', './review', './tournaments', './film/none']) {
     await page.goto(path);
     // What proves the app booted at a deep link is a nav link — except on the
     // film, which takes the whole screen and hides the topbar (10 Sep 2026, the
@@ -186,6 +208,7 @@ test('no console errors while moving around signed in', async ({ page }) => {
       ? page.locator('.film-bar')
       : page.getByRole('link', { name: 'Comps' });
     await expect(booted).toBeVisible({ timeout: 30_000 });
+    if (path.startsWith('./roster')) await page.waitForTimeout(1_500);
   }
 
   const unanswered = [...missingSplashes].filter((id) => !fallbackSplashes.has(id));
