@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 import { amsterdamToday } from '../../core/rank-ladder';
 import { FillIn, OpponentPlayer, PainPoint, Player, Scrim, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
+import { ChampionFilterService } from '../../services/champion-filter.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { RosterComponent } from './roster.component';
@@ -87,6 +88,23 @@ describe.skipIf(typeof localStorage === 'undefined')('RosterComponent, the team 
     expect(root.querySelectorAll('.roster-tiles .roster-panel')).toHaveLength(2);
     expect(root.querySelector('.roster-sheet')).toBeNull();
     for (const name of THEIRS) expect(root.innerHTML).not.toContain(name);
+  });
+
+  it('keeps the toolbar one slim row, and answers from the pool the cards light up by', async () => {
+    // SkilledScarecrow lists Jinx and played Miss Fortune for the team; the answer used to read the list alone.
+    localStorage.setItem(
+      'bom-ddragon-v1',
+      JSON.stringify({ version: '15.1.1', champions: [{ id: 'MissFortune', key: '21', name: 'Miss Fortune', title: '', tags: ['Marksman'] }, { id: 'Jinx', key: '222', name: 'Jinx', title: '', tags: ['Marksman'] }] })
+    );
+    const { harness, root } = await open();
+    expect(root.querySelector('.view-controls-count')).toBeNull();
+    TestBed.inject(ChampionFilterService).set('Miss Fortune');
+    harness.detectChanges();
+    expect(text(root.querySelector('.champ-filter-answer'))).toBe('Played by SkilledScarecrow — from their team games and the pools listed for them.');
+    expect(root.querySelector('.champ-filter-count')).toBeNull();
+    const panels = [...root.querySelectorAll('.roster-poster .roster-panel')];
+    expect(panels[3].classList).toContain('is-match');
+    expect(panels[0].classList).toContain('is-dimmed');
   });
 
   it("shows the week's rank change and when they last played on the cards, and nothing where it is not known", async () => {

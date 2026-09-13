@@ -14,7 +14,7 @@ import { TourPillComponent } from '../../shared/tour-pill.component';
 import { DetailToggleComponent } from '../../shared/detail-toggle.component';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { MotionService } from '../../services/motion.service';
-import { buildRoster, ROSTER_SCOPE } from '../../core/roster-build';
+import { rosterCards, buildRoster, ROSTER_SCOPE } from '../../core/roster-build';
 import { InViewDirective } from '../../shared/in-view.directive';
 
 export type RosterView = 'cards' | 'table' | 'scouting' | 'report';
@@ -47,10 +47,12 @@ const VIEWS: RosterView[] = ['cards', 'table', 'scouting', 'report'];
 export class RosterComponent {
   protected readonly filter = inject(ChampionFilterService);
 
-  /** Our players whose listed pool has the champion being asked about. */
-  protected readonly playersWith = computed(() =>
-    this.data.players().filter((p) => this.filter.passes(p.top3 ?? []))
-  );
+  /**
+   * Everyone on the roster who plays or lists the champion being asked about: the same pool the cards light up by,
+   * played for the team and written down (13 Sep 2026; it read the written-down pool alone, so a card could light up
+   * while this line said nobody lists them).
+   */
+  protected readonly playersWith = computed(() => rosterCards(this.model()).filter((c) => this.filter.passes(c.pool.map((e) => e.champion))));
 
   protected readonly data = inject(TeamDataService);
   private readonly route = inject(ActivatedRoute);

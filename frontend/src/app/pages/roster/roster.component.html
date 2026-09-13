@@ -21,9 +21,11 @@
   <button type="button" class="view-btn" [class.active]="view() === 'table'" [attr.aria-pressed]="view() === 'table'" (click)="setView('table')">Table</button>
   <button type="button" class="view-btn" [class.active]="view() === 'scouting'" [attr.aria-pressed]="view() === 'scouting'" (click)="setView('scouting')">Scouting</button>
   <button type="button" class="view-btn" [class.active]="view() === 'report'" [attr.aria-pressed]="view() === 'report'" (click)="setView('report')" appTip="Us, as an opponent would scout us">Scout report</button>
+  <!-- A compact search pill (13 Sep 2026, the lead: "the filter is way too big, it looks out of place"): a view pill's
+       size until it is used, no count beside it (the hero already says how many players) and no "Detail" word over
+       the switch, so the toolbar is one slim row. -->
   <div class="view-controls-tools">
-    <span class="muted view-controls-count">{{ data.players().length }} players</span>
-    <app-champion-filter [count]="playersWith().length" noun="players" placeholder="Who on our side plays a champion — Tristana, Rakan…" />
+    <app-champion-filter [count]="playersWith().length" noun="players" placeholder="Find a champion" [showCount]="false" />
   </div>
   <app-detail-toggle surface="roster" starterTip="The basics, in all four views" fullTip="Everything expanded, in all four views" />
   <!-- The answer belongs to the filter that asked it, so it sits inside the toolbar with it. -->
@@ -31,12 +33,12 @@
     <p class="champ-filter-answer is-inset">
     @if (playersWith().length) {
       Played by
-      @for (p of playersWith(); track p.id; let last = $last) {
-        <b>{{ p.name }}</b>{{ last ? '' : ',' }}
+      @for (c of playersWith(); track c.id; let last = $last) {
+        <b>{{ c.name }}</b>@if (c.group === 'fillIns') { (fill-in)}{{ last ? '' : ',' }}
       }
-      — from the pools listed on their cards.
+      — from their team games and the pools listed for them.
     } @else {
-        Nobody on the roster lists {{ filter.active() }} in their pool.
+        Nobody on the roster plays or lists {{ filter.active() }}.
       }
     </p>
   }

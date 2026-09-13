@@ -51,7 +51,7 @@ const MAX_SUGGESTIONS = 8;
           </ul>
         }
       </div>
-      @if (filter.active()) {
+      @if (filter.active() && showCount()) {
         <span class="champ-filter-count">
           <b>{{ count() }}</b> {{ count() === 1 ? singular() : noun() }} with {{ chosen()?.name || filter.active() }}
         </span>
@@ -72,6 +72,8 @@ export class ChampionFilterComponent {
   /** Plural noun for the count line: games, comps, scrims, players. */
   readonly noun = input<string>('games');
   readonly placeholder = input<string>('One champion — Tristana, Rakan…');
+  /** The "2 comps with Tristana" line beside the box; a page whose own answer names them turns it off. */
+  readonly showCount = input(true);
 
   protected readonly open = signal(false);
   protected readonly highlight = signal(0);

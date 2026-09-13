@@ -15294,6 +15294,22 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .view-controls-tools .view-controls-count { margin-left: 0; white-space: nowrap; }
 .view-controls > .champ-filter-answer.is-inset { flex: 1 0 100%; }
 
+/* Roster's toolbar is one slim row (13 Sep 2026): the champion box is a view pill's size until it is used, and the
+   switch's "Detail" word is kept for screen readers only. Scoped, because Comps, Prep, Review and Games keep theirs. */
+.roster .view-controls-tools app-champion-filter { flex: 0 0 auto; }
+.roster .view-controls .champ-filter-box { flex: 0 0 auto; width: 12rem; max-width: none; }
+.roster .view-controls .champ-filter-box:focus-within,
+.roster .view-controls .champ-filter-box:has(.champ-filter-input.is-set),
+.roster .view-controls .champ-filter-box:has(input:not(:placeholder-shown)) { width: 18rem; }
+.roster .view-controls .champ-filter-input { padding: 0.3rem 0.72rem; gap: 0.3rem; font-size: 0.78rem; }
+.roster .view-controls .champ-filter-input .material-symbols-rounded { font-size: 1rem; }
+.roster .view-controls .champ-filter-pick { width: 1rem; height: 1rem; }
+.roster .view-controls .detail-toggle { margin: 0; }
+.roster .view-controls .detail-toggle > span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .roster:not(.is-still) .view-controls .champ-filter-box { transition: width 160ms ease; }
+}
+
 /* The tools group already sits at the end; the switch follows it rather than splitting the space. */
 .view-controls-tools ~ app-detail-toggle,
 .view-controls app-detail-toggle:not(:last-child) { margin-left: 0; }
