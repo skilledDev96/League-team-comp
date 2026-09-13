@@ -15926,3 +15926,197 @@ app-rate-ring.is-big { --ring-size: 4.6rem; }
   .roster:not(.is-still) .rank-spark svg { animation: film-wipe 1200ms ease-out 250ms backwards; }
   @keyframes roster-ring-draw { from { stroke-dasharray: 0 100; } }
 }
+
+/* ---- Comps, the comp poster (13 Sep 2026) --------------------------------------------------------------------
+   The lead: "I love the look we have now, let's bring this over to the comps page". Every comp is a splash tile over
+   the face of the comp — the champion its name names, else the seat its shape turns on — with its five as icons and
+   its record as a ring; one comp's sheet opens in a gold frame under the row holding its tile. Built from the splash
+   primitives; motion behind the one gate, `.comps:not(.is-still)` and the grid `.is-seen`, transform and opacity only. */
+.comps { display: block; }
+.comps-grid { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(var(--comps-cols, 4), minmax(0, 1fr)); gap: 0.75rem; }
+.comps-grid > li { min-width: 0; }
+.comps-sheet-cell { grid-column: 1 / -1; }
+.comps-sheet-cell .empty-state { margin: 0.5rem 0; }
+app-comp-tile { display: block; height: 100%; }
+
+.comps-tile { height: 100%; min-height: 13.5rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.5rem; padding: 0.7rem; cursor: pointer; }
+.comps-tile .splash-art { object-position: 50% 22%; }
+.comps-tile:hover { border-color: var(--accent); }
+.comps-tile:has(.comps-tile-open:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.comps-tile.is-selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 1.6rem color-mix(in srgb, var(--accent) 24%, transparent); }
+.comps-tile.is-dimmed { opacity: 0.45; }
+.comps-tile.is-match { box-shadow: 0 0 0 2px var(--accent-2); }
+.comps-tile-top { position: relative; z-index: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 0.4rem; pointer-events: none; }
+.comps-tile-identity { display: inline-flex; align-items: center; gap: 0.25rem; }
+.comps-tile-identity .material-symbols-rounded { font-size: 0.95rem; }
+.comps-tile.is-building .comps-tile-identity { color: var(--text-1); }
+.comps-tile-plate { display: grid; gap: 0.25rem; min-width: 0; }
+.comps-tile-expect { list-style: none; margin: 0 0 0.2rem; padding: 0.4rem 0.5rem; display: flex; flex-wrap: wrap; gap: 0.15rem 0.6rem; border-radius: 10px; font-size: 0.66rem; color: var(--text-1); background: color-mix(in srgb, var(--bg-0) 72%, transparent); border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent); }
+.comps-tile-expect b { color: var(--text-0); }
+.comps-tile-expect li.is-high b { color: var(--ok); }
+.comps-tile-expect li.is-low b { color: var(--warn); }
+.comps-tile-name { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.2rem; line-height: 1.15; min-width: 0; }
+.comps-tile-open { all: unset; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; color: var(--text-0); }
+.comps-tile-open::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.comps-tile-open:focus-visible { outline: none; }
+.comps-tile-meta { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.1rem 0.45rem; font-size: 0.72rem; color: var(--text-1); }
+.comps-tile-meta > span + span::before { content: "·"; margin-right: 0.45rem; color: var(--text-2); }
+.comps-tile-meta .splash-chip { font-size: 0.62rem; }
+.comps-tile-five { list-style: none; margin: 0.1rem 0 0; padding: 0; display: flex; gap: 0.3rem; }
+.comps-tile-five li { position: relative; z-index: 2; width: 1.9rem; height: 1.9rem; border-radius: 6px; border: 1px solid var(--card-border); background: color-mix(in srgb, var(--bg-0) 60%, transparent); overflow: hidden; }
+.comps-tile-five img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.comps-tile-five li.is-empty { border-style: dashed; }
+.comps-tile-five li.is-match { border-color: var(--accent-2); box-shadow: 0 0 0 1px var(--accent-2); }
+.comps-tile-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.5rem; min-height: 1rem; }
+.comps-tile-plays { display: inline-flex; align-items: center; gap: 0.15rem; font-size: 0.68rem; color: var(--text-2); }
+.comps-tile-plays .material-symbols-rounded { font-size: 0.9rem; }
+
+/* The New comp tile, for editors: the same box, dashed, one button. */
+.comps-new { width: 100%; justify-content: center; align-items: center; gap: 0.35rem; border-style: dashed; border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border)); background: color-mix(in srgb, var(--accent) 6%, var(--bg-1)); color: var(--text-0); font: inherit; text-align: center; }
+.comps-new .material-symbols-rounded { font-size: 2rem; color: var(--accent-2); }
+.comps-new b { font-family: "Chakra Petch", sans-serif; font-size: 1.1rem; }
+.comps-new small { font-size: 0.72rem; color: var(--text-1); }
+.comps-new:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg-1)); }
+.comps-new:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The comp's sheet */
+.comps-sheet { display: grid; grid-template-columns: minmax(12rem, 17rem) minmax(0, 1fr); min-height: 21rem; overflow: hidden; background: color-mix(in srgb, var(--card) 92%, var(--bg-0)); scroll-margin: 5rem 0 1rem; }
+.comps-sheet-art { position: relative; overflow: hidden; isolation: isolate; display: flex; flex-direction: column; justify-content: space-between; padding: 1rem; min-height: 14rem; }
+.comps-sheet-art .splash-art { object-position: 50% 18%; }
+.comps-sheet-art .splash-shade { background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 90%, transparent) 0%, color-mix(in srgb, var(--bg-0) 30%, transparent) 55%, transparent 100%), linear-gradient(270deg, color-mix(in srgb, var(--card) 85%, transparent), transparent 40%); }
+.comps-sheet-art-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.comps-sheet-art-foot { display: grid; justify-items: start; gap: 0.4rem; }
+.comps-sheet-art-foot small { font-size: 0.72rem; color: var(--text-1); }
+.comps-sheet-main { position: relative; z-index: 2; display: grid; align-content: start; gap: 0.8rem; padding: 1rem 1.25rem 1.2rem; min-width: 0; }
+.comps-sheet-head { display: flex; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap; }
+.comps-sheet-id { flex: 1 1 16rem; min-width: 0; display: grid; gap: 0.15rem; }
+.comps-sheet-id h2 { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.7rem; line-height: 1.05; overflow-wrap: anywhere; }
+.comps-sheet-id h2:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+/* Renaming in place (13 Sep 2026): the field is the title, dashed under until it is saved. */
+.comps-sheet-rename { width: 100%; min-width: 0; margin: 0; padding: 0 0 0.1rem; border: 0; border-bottom: 1px dashed color-mix(in srgb, var(--accent) 60%, transparent); border-radius: 0; background: transparent; font: inherit; color: var(--text-0); }
+.comps-sheet-rename:focus-visible { outline: none; border-bottom-color: var(--accent); }
+.comps-sheet-category { width: min(100%, 18rem); margin: 0; padding: 0.15rem 0.6rem; border: 1px solid var(--card-border); border-radius: 999px; background: var(--surface-btn); font-family: "Chakra Petch", sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-2); }
+.comps-sheet-category::placeholder { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--text-2); }
+.comps-sheet-category:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.comps-sheet-sub { margin: 0; display: flex; flex-wrap: wrap; gap: 0.1rem 0.5rem; font-size: 0.8rem; color: var(--text-1); }
+.comps-sheet-sub span + span::before { content: "·"; margin-right: 0.5rem; color: var(--text-2); }
+.comps-sheet-sub b { color: var(--text-0); }
+.comps-sheet-sub b.is-good, .comps-sheet-sub b.is-ok { color: var(--ok); }
+.comps-sheet-sub b.is-poor { color: var(--warn); }
+.comps-sheet-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.35rem; }
+
+/* The five, read: five faces across, the seat and who covers it. */
+.comps-seats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.5rem; }
+.comps-seat { min-height: 9.5rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.3rem; padding: 0.55rem 0.6rem; }
+.comps-seat .splash-art { object-position: 50% 15%; }
+.comps-seat.is-match { border-color: var(--accent-2); box-shadow: 0 0 0 1px var(--accent-2); }
+.comps-seat.is-empty { border-style: dashed; justify-content: center; align-items: center; color: var(--text-2); }
+.comps-seat-top { display: flex; justify-content: space-between; align-items: center; gap: 0.3rem; }
+.comps-seat-plate { display: grid; gap: 0.1rem; min-width: 0; }
+.comps-seat-champ { font-family: "Chakra Petch", sans-serif; font-weight: 700; font-size: 1rem; line-height: 1.15; color: var(--text-0); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comps-seat-note { font-size: 0.7rem; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comps-seat-cover { display: flex; flex-wrap: wrap; gap: 0.2rem; font-size: 0.64rem; color: var(--text-1); }
+.comps-seat-cover span { padding: 0.05rem 0.4rem; border-radius: 999px; background: color-mix(in srgb, var(--bg-0) 65%, transparent); border: 1px solid var(--card-border); white-space: nowrap; }
+.comps-seat-cover span.is-flex { color: var(--text-2); border-style: dashed; }
+
+/* The blocks under the five */
+.comps-sheet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem 1.25rem; }
+.comps-sheet-block { display: grid; align-content: start; gap: 0.45rem; min-width: 0; }
+.comps-sheet-block h3 { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 0.45rem; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-2); }
+.comps-sheet-block h3 small { font-size: 0.68rem; letter-spacing: 0; text-transform: none; color: var(--text-2); }
+.comps-sheet-block h3 .view-btn { margin-left: auto; font-size: 0.72rem; letter-spacing: 0; text-transform: none; }
+.comps-sheet-empty { margin: 0; font-size: 0.8rem; color: var(--text-1); }
+.comps-sheet-line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; font-size: 0.8rem; color: var(--text-1); }
+.comps-sheet-line b { color: var(--text-0); }
+.comps-sheet-line .material-symbols-rounded { font-size: 1rem; color: var(--text-2); }
+.comps-plan { margin: 0; display: grid; gap: 0.3rem; }
+.comps-plan > div { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr); gap: 0.5rem; font-size: 0.82rem; }
+.comps-plan dt { padding-top: 0.15rem; font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+.comps-plan dd { margin: 0; color: var(--text-0); }
+.comps-plan-edit { display: grid; gap: 0.35rem; }
+.comps-plan-edit label { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr); align-items: center; gap: 0.5rem; font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+.comps-field { width: 100%; min-width: 0; margin: 0; padding: 0.4rem 0.6rem; border: 1px solid var(--card-border); border-radius: 8px; background: var(--surface-btn); font: inherit; font-size: 0.82rem; color: var(--text-0); }
+.comps-field:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+textarea.comps-field { resize: vertical; min-height: 3.6rem; }
+.comps-notes { margin: 0; font-size: 0.85rem; white-space: pre-wrap; color: var(--text-0); }
+.comps-expect { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.comps-expect-chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.6rem; border-radius: 999px; border: 1px solid var(--card-border); background: color-mix(in srgb, var(--bg-0) 55%, transparent); font-size: 0.72rem; color: var(--text-1); }
+.comps-expect-chip b { color: var(--text-0); }
+.comps-expect-chip.is-high b { color: var(--ok); }
+.comps-expect-chip.is-low b { color: var(--warn); }
+.comps-expect-edit { display: grid; gap: 0.3rem; }
+.comps-expect-row { display: grid; grid-template-columns: 5.5rem auto; align-items: center; gap: 0.5rem; font-size: 0.72rem; color: var(--text-1); }
+.comps-plays { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.comps-plays .view-btn { gap: 0.35rem; }
+.comps-plays .material-symbols-rounded { font-size: 0.95rem; }
+.comps-play-phase { font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+
+/* The record block */
+.comps-record-line { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.5rem; font-size: 0.85rem; color: var(--text-1); }
+.comps-record-line b { font-family: "Chakra Petch", sans-serif; font-size: 1.15rem; color: var(--text-0); }
+.comps-record-line b.is-good, .comps-record-line b.is-ok { color: var(--ok); }
+.comps-record-line b.is-poor { color: var(--warn); }
+.comps-record-line small { font-size: 0.72rem; color: var(--text-2); }
+.comps-record-bar { height: 0.35rem; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--warn) 35%, var(--bg-0)); }
+.comps-record-bar span { display: block; height: 100%; border-radius: inherit; background: var(--ok); }
+.comps-played-out { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem; font-size: 0.76rem; color: var(--text-1); }
+.comps-played-out .material-symbols-rounded { font-size: 1rem; color: var(--accent-2); }
+.comps-played-out b { color: var(--text-0); }
+.comps-played-out b.is-warn { color: var(--warn); }
+.comps-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
+.comps-result { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.5rem; border-radius: 8px; border: 1px solid var(--card-border); background: color-mix(in srgb, var(--bg-0) 45%, transparent); font-size: 0.78rem; }
+.comps-result-outcome { min-width: 2.6rem; font-family: "Chakra Petch", sans-serif; font-weight: 700; }
+.comps-result.is-win .comps-result-outcome { color: var(--ok); }
+.comps-result.is-loss .comps-result-outcome { color: var(--warn); }
+.comps-result-meta { display: flex; flex-wrap: wrap; gap: 0.1rem 0.5rem; min-width: 0; color: var(--text-1); }
+.comps-result-meta .is-note { color: var(--text-0); }
+.comps-result .icon-pill { margin-left: auto; width: 1.6rem; height: 1.6rem; }
+.comps-log { display: grid; grid-template-columns: auto minmax(8rem, 1fr) auto minmax(10rem, 2fr) auto; align-items: end; gap: 0.5rem; padding: 0.6rem; border-radius: 10px; border: 1px dashed color-mix(in srgb, var(--accent) 50%, var(--card-border)); }
+.comps-log label { display: grid; gap: 0.2rem; font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+.comps-retro { margin-top: 0.2rem; }
+.comps-retro summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: var(--text-1); }
+.comps-retro summary::-webkit-details-marker { display: none; }
+.comps-retro summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.comps-retro summary .fold-chevron { margin-left: auto; }
+.comps-retro-mentions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin: 0.4rem 0; font-size: 0.72rem; color: var(--text-1); }
+.comps-retro-mention { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.1rem 0.45rem 0.1rem 0.15rem; border-radius: 999px; border: 1px solid var(--card-border); }
+.comps-retro-mention img { width: 1.2rem; height: 1.2rem; border-radius: 50%; }
+.comps-retro-mention em { font-style: normal; color: var(--text-2); }
+.comps-retro-mention.is-negative { border-color: color-mix(in srgb, var(--warn) 60%, transparent); }
+.comps-retro-notes { list-style: none; margin: 0 0 0.4rem; padding: 0; display: grid; gap: 0.25rem; }
+.comps-retro-note { display: grid; grid-template-columns: 1.4rem auto minmax(0, 1fr); align-items: baseline; gap: 0.4rem; font-size: 0.78rem; }
+.comps-retro-note-outcome { font-family: "Chakra Petch", sans-serif; font-weight: 700; }
+.comps-retro-note.is-win .comps-retro-note-outcome { color: var(--ok); }
+.comps-retro-note.is-loss .comps-retro-note-outcome { color: var(--warn); }
+.comps-retro-note-date { font-size: 0.68rem; color: var(--text-2); white-space: nowrap; }
+.comps-retro-note a { color: var(--text-0); text-decoration: none; }
+.comps-retro-note a:hover, .comps-retro-note a:focus-visible { text-decoration: underline; }
+
+@media (max-width: 62rem) {
+  .comps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .comps-sheet { grid-template-columns: minmax(0, 1fr); }
+  .comps-sheet-art { min-height: 10rem; }
+  .comps-sheet-grid { grid-template-columns: minmax(0, 1fr); }
+  .comps-seats { grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); }
+  .comps-log { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .comps:not(.is-still) .comps-grid:not(.is-seen) .comps-tile { opacity: 0; }
+  .comps:not(.is-still) .comps-grid.is-seen .comps-tile { animation: film-rise 650ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: min(calc(var(--comps-i, 0) * 60ms), 660ms); }
+  .comps:not(.is-still) .comps-grid.is-seen .comps-tile .rate-ring-fill { animation: comps-ring-draw 1000ms cubic-bezier(0.3, 0.7, 0.2, 1) backwards; animation-delay: min(calc(300ms + var(--comps-i, 0) * 60ms), 960ms); }
+  .comps:not(.is-still) .comps-grid.is-seen .comps-tile-five li { animation: film-pip-drop 300ms ease backwards; animation-delay: min(calc(600ms + var(--comps-i, 0) * 60ms + var(--seat-i, 0) * 40ms), 1500ms); }
+  .comps:not(.is-still) .comps-tile .splash-art { transition: transform 600ms ease; }
+  .comps:not(.is-still) .comps-tile:hover .splash-art { transform: scale(1.04); }
+  /* The open comp breathes: its tile's and its sheet's picture drift, one moving picture at a time. */
+  .comps:not(.is-still) .comps-tile.is-selected .splash-art, .comps:not(.is-still) .comps-sheet-art .splash-art { animation: comps-pan 14s ease-in-out infinite alternate; }
+  .comps:not(.is-still) .comps-tile { transition: border-color 160ms ease, box-shadow 200ms ease, opacity 200ms ease; }
+  .comps:not(.is-still) .comps-new .material-symbols-rounded { transition: transform 200ms ease; }
+  .comps:not(.is-still) .comps-new:hover .material-symbols-rounded { transform: scale(1.12); }
+  .comps:not(.is-still) .comps-sheet { animation: film-drop 420ms ease backwards; }
+  .comps:not(.is-still) .comps-sheet-block { animation: film-rise 450ms ease backwards; animation-delay: calc(90ms + var(--block-i, 0) * 60ms); }
+  .comps:not(.is-still) .comps-seat { animation: film-rise 450ms ease backwards; animation-delay: calc(60ms + var(--seat-i, 0) * 70ms); }
+  .comps:not(.is-still) .comps-sheet .rate-ring-fill { animation: comps-ring-draw 900ms cubic-bezier(0.3, 0.7, 0.2, 1) 150ms backwards; }
+  @keyframes comps-ring-draw { from { stroke-dasharray: 0 100; } }
+  @keyframes comps-pan { from { transform: scale(1); } to { transform: scale(1.06) translate(-1.5%, -1%); } }
+}

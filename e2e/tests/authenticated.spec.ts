@@ -93,9 +93,16 @@ test('the roster opens on the poster, and a player opens their sheet', async ({ 
   await expect(opener).toHaveAttribute('aria-expanded', 'true');
 });
 
-test('the comps page renders comps', async ({ page }) => {
+test('the comps page renders comps, and a comp opens its sheet', async ({ page }) => {
   await page.goto('./comps');
-  await expect(page.locator('.comp-card').first()).toBeVisible({ timeout: 30_000 });
+  const opener = page.locator('.comps-tile-open[aria-expanded="false"]').first();
+  await expect(opener).toBeVisible({ timeout: 30_000 });
+  const name = await opener.textContent();
+  const id = await opener.getAttribute('id');
+  await opener.click();
+  await expect(page.locator('#comps-sheet')).toBeVisible();
+  await expect(page.locator('#comps-sheet-title')).toHaveText((name ?? '').trim());
+  await expect(page.locator(`#${id}`)).toHaveAttribute('aria-expanded', 'true');
 });
 
 test('the games page renders, with the list open and its header a toggle', async ({ page }) => {
