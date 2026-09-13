@@ -210,7 +210,7 @@ export function costLine(cost: number | undefined): string {
                     </thead>
                     <tbody>
                       @for (d of walk(); track d.key) {
-                        <tr [class.is-selected]="d.key === selectedKey()" [appTip]="d.readLine" (click)="jumpTo(d.key)">
+                        <tr [class.is-selected]="d.key === selectedKey()" tabindex="0" [appTip]="d.readLine" (click)="jumpTo(d.key)" (keydown.enter)="jumpTo(d.key)" (keydown.space)="$event.preventDefault(); jumpTo(d.key)">
                           <td class="num">{{ d.minute }}</td>
                           <td>@if (d.champion) { <img class="player-mark" [src]="ui.championIconUrl(d.champion)" alt="" loading="lazy" /> }{{ d.name || d.seat }} @if (d.name) { <small class="muted">{{ d.seat }}</small> }</td>
                           <td>{{ zone(d.zone) }}</td>

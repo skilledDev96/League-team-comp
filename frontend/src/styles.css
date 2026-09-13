@@ -604,7 +604,7 @@ body:has(.page.is-film)::before { content: none; }
   box-shadow: 0 0 0 1px var(--card-border), 0 0 2.2rem var(--glow-a);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 40rem) {
   .login-hero {
     flex-direction: column;
     text-align: center;
@@ -912,7 +912,7 @@ body:has(.page.is-film)::before { content: none; }
   font-size: 0.76rem;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 35rem) {
   .edit-mode-banner-hint {
     display: none;
   }
@@ -1441,7 +1441,7 @@ app-detail-toggle { margin-left: auto; }
 
 /* Per-player "Working On" list on the scouting card. */
 
-@media (max-width: 640px) {
+@media (max-width: 40rem) {
   .practice-item {
     flex-wrap: wrap;
   }
@@ -2307,17 +2307,6 @@ body[data-theme='light'] .avatar-role {
   border-left-color: var(--warn);
 }
 
-.log-outcome {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: var(--r-pill);
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: var(--fs-meta);
-}
 
 .log-row.is-win .log-outcome {
   color: var(--ok);
@@ -2352,7 +2341,7 @@ body[data-theme='light'] .avatar-role {
   font-size: 1rem;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 45rem) {
   .log-row {
     grid-template-columns: 1.6rem 1fr auto;
     grid-template-areas:
@@ -2625,6 +2614,8 @@ body[data-theme='light'] .avatar-role {
   z-index: 3;
 }
 
+.tb-arrow-del:hover { border-color: var(--warn); }
+
 .tb-arrow-del .material-symbols-rounded {
   font-size: 0.9rem;
 }
@@ -2659,6 +2650,8 @@ body[data-theme='light'] .avatar-role {
   font-size: 0.95rem;
 }
 
+.tb-mode-btn:hover:not(.active) { color: var(--text-0); background: color-mix(in srgb, var(--accent) 14%, var(--surface-btn)); }
+
 .tb-mode-btn.active {
   background: color-mix(in srgb, var(--accent) 30%, var(--surface-btn) 70%);
   color: var(--text-0);
@@ -2680,6 +2673,8 @@ body[data-theme='light'] .avatar-role {
   font-weight: 600;
   cursor: pointer;
 }
+
+.tb-kind-btn:hover:not(.active) { border-color: var(--accent); }
 
 .tb-kind-btn.is-dive.active {
   border-color: var(--warn);
@@ -3158,7 +3153,7 @@ body[data-theme='light'] .avatar-role {
   border-color: color-mix(in srgb, var(--warn) 45%, var(--card-border) 55%);
 }
 
-@media (max-width: 760px) {
+@media (max-width: 47.5rem) {
   .tb-body {
     flex-direction: column;
     display: flex;
@@ -3180,7 +3175,7 @@ body[data-theme='light'] .avatar-role {
   color: var(--text-1);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 56.25rem) {
   .grid.two,
   .grid.three {
     grid-template-columns: 1fr;
@@ -3304,6 +3299,7 @@ select {
   color-scheme: dark;
 }
 select:hover { border-color: var(--accent); }
+select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 body[data-theme='light'] select { color-scheme: light; }
 /* Riot API key status from the daily health probe. */
 .key-health {
@@ -3882,6 +3878,8 @@ body[data-theme='light'] select { color-scheme: light; }
   cursor: pointer;
 }
 
+.prep-toggle:hover { border-color: var(--accent); }
+
 .prep-toggle.on {
   color: var(--accent-2);
   border-color: var(--accent);
@@ -3943,7 +3941,7 @@ a {
   text-decoration-thickness: 1px;
   text-underline-offset: 0.15em;
 }
-a:hover { text-decoration-thickness: 2px; }
+a:hover, a:focus-visible { text-decoration-thickness: 2px; }
 
 .tournament-notes a {
   color: var(--accent-2);
@@ -5268,7 +5266,7 @@ h2.section-line { margin: 0; }
 
 /* The fight columns are the first thing to go when there is no room: KDA, CS
    and damage are what people scan for, and an overflowing row helps nobody. */
-@media (max-width: 900px) {
+@media (max-width: 56.25rem) {
   .game-player {
     grid-template-columns: 2.5rem 4.75rem minmax(6rem, 1fr) 4.25rem 3rem 3.5rem;
   }
@@ -6086,6 +6084,8 @@ body[data-theme="bomb"] {
   font-size: 0.76rem;
 }
 
+.board-tag:hover:not(.active), .board-tag:focus-visible { border-color: var(--accent); color: var(--text-0); }
+
 .board-tag.active {
   color: var(--text-0);
   border-color: var(--accent);
@@ -6335,6 +6335,8 @@ body[data-theme="bomb"] {
   text-decoration: underline;
   cursor: pointer;
 }
+
+.link-btn:hover, .link-btn:focus-visible { color: var(--accent); }
 
 /* ---- Draft sequence ------------------------------------------------------
    With a side chosen the draft has exactly one legal move at a time, so the
@@ -8911,6 +8913,7 @@ body:has(.draft-stage) .edit-mode-frame {
 .opp-roster-head > .tag:first-of-type { margin-left: auto; }
 
 .opp-head-btn { cursor: pointer; }
+.opp-head-btn:hover { border-color: var(--accent); }
 .opp-head-btn.active {
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   color: var(--accent);
@@ -9185,6 +9188,8 @@ body:has(.draft-stage) .edit-mode-frame {
   justify-self: end;
   margin-top: 0.1rem;
 }
+
+.opp-ban-add:hover { border-color: var(--accent); }
 
 /* Refresh is an action, not a word in a sentence: a button at the end of the
    hint row, so it is found without reading. */
@@ -10713,7 +10718,7 @@ button.opp-more.active {
   padding: 0;
 }
 
-.opp-history-head {
+summary.opp-history-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -10723,18 +10728,15 @@ button.opp-more.active {
   list-style: none;
 }
 
-.opp-history-head::-webkit-details-marker { display: none; }
+summary.opp-history-head::-webkit-details-marker { display: none; }
 
-.opp-history-head:hover { background: color-mix(in srgb, var(--card-border) 25%, transparent); }
+summary.opp-history-head:hover { background: color-mix(in srgb, var(--card-border) 25%, transparent); }
+summary.opp-history-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
 
-.opp-history-chevron {
-  margin-left: auto;
-  font-size: 1.1rem;
-  color: var(--text-1);
-  transition: transform 0.15s ease;
-}
-
-.opp-history-game[open] .opp-history-chevron { transform: rotate(180deg); }
+/* The row wears the house fold-chevron (13 Sep 2026); the rotate is the fold-card's, re-keyed to this details. */
+.opp-history-game > summary .fold-chevron { font-size: 1.1rem; }
+summary.opp-history-head:hover .fold-chevron { color: var(--accent); }
+.opp-history-game[open] > summary .fold-chevron { transform: rotate(180deg); }
 
 .opp-history-detail {
   padding: 0.25rem 0.55rem 0.55rem;
@@ -10875,7 +10877,7 @@ button.opp-more.active {
 .field-check input { margin-top: 0.25rem; }
 .field-check small { display: block; margin-top: 0.15rem; }
 
-@media (max-width: 900px) {
+@media (max-width: 56.25rem) {
   .draft-log-row { grid-template-columns: 1fr 1fr; }
   .draft-log-changes { grid-column: 1 / -1; }
 }
@@ -11325,7 +11327,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .games-fresh { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.7rem 0.9rem; border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border)); }
 .games-fresh .material-symbols-rounded { color: var(--accent); }
 .games-fresh > span:not(.material-symbols-rounded) { flex: 1 1 20rem; }
-.opp-history-row.is-new > summary::after,
 details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 0.05rem 0.45rem; border-radius: var(--r-pill); background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text-0); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 
 /* The coaching digest. */
@@ -11424,7 +11425,7 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 
 .quick-actions-also { flex-basis: 100%; margin: 0; font-size: var(--fs-meta); }
 .quick-actions-also a { color: var(--text-1); }
-.quick-actions-also a:hover { color: var(--accent); }
+.quick-actions-also a:hover, .quick-actions-also a:focus-visible { color: var(--accent); }
 
 /* ---- Game-day friction (8 Sep 2026) --------------------------------------- */
 .series-bestof button { padding: 0.32rem 0.7rem; }
@@ -11444,8 +11445,6 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .games-fold .material-symbols-rounded { font-size: 1.1rem; vertical-align: -0.25rem; }
 .games-list-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
 .games-list-head h2 { margin: 0; }
-.field-help { margin-left: 0.4rem; font-size: 0.68rem; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-1); text-decoration: underline dotted; }
-.field-help:hover { color: var(--accent); }
 
 /* A term with a definition behind it. Nineteen rows of the team table are named
    and not explained; an info icon on each would be nineteen icons, so the label
@@ -11500,7 +11499,7 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .hero-pill { display: inline-flex; align-items: center; gap: 0.3rem; font-size: var(--fs-meta); padding: 0.3rem 0.7rem; }
 .hero-pill .material-symbols-rounded { font-size: 1.05rem; }
 .hero-pill-edit { border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border)); }
-@media (max-width: 720px) { .hero-tools { position: static; margin-top: 0.6rem; justify-content: flex-start; } }
+@media (max-width: 45rem) { .hero-tools { position: static; margin-top: 0.6rem; justify-content: flex-start; } }
 
 app-tour-pill.is-inline .hero-tools { position: static; margin: 0.2rem 0 0.6rem; justify-content: flex-start; }
 
@@ -12662,7 +12661,8 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
 .film-stage .game-review-ledger-table th, .film-stage .game-review-ledger-table td { border-color: var(--film-line); color: var(--film-ink); }
 .film-stage .game-review-ledger-table th { color: var(--film-ink-1); }
 .film-stage .game-review-ledger-table tbody tr { cursor: pointer; }
-.film-stage .game-review-ledger-table tbody tr:hover td { background: color-mix(in srgb, var(--film-ink) 6%, transparent); }
+.film-stage .game-review-ledger-table tbody tr:hover td, .film-stage .game-review-ledger-table tbody tr:focus-visible td { background: color-mix(in srgb, var(--film-ink) 6%, transparent); }
+.film-stage .game-review-ledger-table tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .film-stage .game-review-ledger-table tr.is-selected td { background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .film-stage .could-chip { color: var(--film-ink); border-color: var(--film-line); }
 .film-stage .could-chip.is-jungle { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
@@ -12730,12 +12730,12 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   .film-tape-map, .film-board-map, .film-map-stage { width: min(100vw - 2rem, 58dvh); justify-self: center; }
   .film-tape-sheet { min-height: 0; }
   .film-beat-actions .view-btn, .film-tape-steps .view-btn { min-height: 2.75rem; }
-  .film-beat-chip { min-height: 2.75rem; padding-inline: 0.75rem 0.6rem; }
+  .film-rail .film-beat-chip { min-height: 2.75rem; padding-inline: 0.75rem 0.6rem; }
   .film-board-rail { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }
   /* The frames go one column: the picture, then the board, then the rail; the picture keeps its shape against the page's width. */
   .film-strip { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "side" "rail"; }
   .film-strip-shots { width: 100%; }
-  .film-strip-steps .view-btn, .film-strip-steps .film-beat-chip { min-height: 2.75rem; }
+  .film-strip-steps .view-btn, .film-strip-rail .film-beat-chip { min-height: 2.75rem; }
   /* The three pills stand together on their own line: with the label beside them the last one wrapped alone. */
   .film-strip-steps-label { flex-basis: 100%; }
   .film-legend .view-btn { min-height: 2.75rem; }
@@ -15089,6 +15089,26 @@ textarea.comps-field { resize: vertical; min-height: 3.6rem; }
 .objective-row:focus-visible,
 .review-seat-fold:focus-visible,
 .report-ban:has(:focus-visible),
+.champ-picker-remove:focus-visible,
+.board-champ:focus-visible,
+.moment-minute:focus-visible,
+.link-btn:focus-visible,
+.prep-toggle:focus-visible,
+.opp-head-btn:focus-visible,
+.opp-ban-add:focus-visible,
+.series-game-nofigures:focus-visible,
+.tb-mode-btn:focus-visible,
+.tb-kind-btn:focus-visible,
+.tb-handle:focus-visible,
+.tb-marker:focus-visible,
+.tb-token:focus-visible,
+.tb-arrow-del:focus-visible,
+.tb-note-add-btn:focus-visible,
+.draft-ban-idea:focus-visible,
+.draft-comp:focus-visible,
+.draft-pool:focus-visible,
+.film-flip-face:focus-visible,
+.film-rest-card:focus-visible,
 .rp-row:has(.rp-open:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* A row under the toolbar (design system §3½): what belongs to one view sits here, not in the toolbar and not in a card. */

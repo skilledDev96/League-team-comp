@@ -299,7 +299,7 @@
                   @if (gameMvp(game); as gm) {
                     <app-mvp-chip kind="mvp" [champion]="gm.champion" [name]="gm.name ?? ''" [seat]="gm.seat" [terms]="gm.why" [compact]="true" />
                   } @else if (mvpGapReason(game); as why) {
-                    <span class="series-game-nofigures" [appTip]="why">
+                    <span class="series-game-nofigures" tabindex="0" [appTip]="why">
                       <span class="material-symbols-rounded" aria-hidden="true">help</span> no figures
                     </span>
                   }
@@ -915,7 +915,7 @@
                                    [appTip]="pk.champion + (pk.role ? ' (' + pk.role + ')' : '')" />
                             }
                           </span>
-                          <span class="opp-history-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+                          <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
                         </summary>
                         <div class="opp-history-detail">
                           @if (g.kills || g.objectives || g.durationSec) {
