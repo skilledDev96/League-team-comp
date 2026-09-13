@@ -160,6 +160,12 @@ all pills on the left. Something that belongs to one view goes in a row under th
 A control present on one view and not another is **removed**, not hidden: Prep's switch hidden on
 Draft pushed the whole draft room 35px down.
 
+**The slim toolbar is the default page header panel** (13 Sep 2026, the lead on Roster's: "I like the look of this
+panel… a default for page header panels"). One row: the view pills, a compact search pill (a view pill's size, a short
+placeholder, widening while focused or set, no count beside it — `app-champion-filter` `placeholder` and `showCount`),
+and Starter | Full with its "Detail" word kept for screen readers only. Roster has it today, scoped under
+`.roster .view-controls`; Comps takes it in its redesign, and the rules move to a shared default as each page adopts it.
+
 **Home and Roster are the expressive pages** (13 Sep 2026; Roster joined when the lead asked to "keep the theme
 of the home page rolling"). Home is a landing page with its own stage — a splash hero, a welcome band, a
 gold-framed spotlight — and no toolbar. Roster keeps the one toolbar and the Starter | Full switch, and draws the
