@@ -8,6 +8,8 @@ import { UiService } from '../../services/ui.service';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { InfoTipComponent } from '../../shared/info-tip.component';
 import { playedElsewhere } from '../../core/opponent-roles';
+import { cardByName } from '../../core/roster-build';
+import { RosterCard, RosterModel } from '../../core/roster-model';
 import {
   banCandidates,
   bench,
@@ -52,6 +54,13 @@ export class ScoutReportComponent {
   protected readonly SELF_ID = 'us';
   /** Set by the Roster shell's one switch. */
   readonly full = input(false);
+  /** The Roster's model, for each line's splash and the crown; the scout's own figures still come from Riot. */
+  readonly model = input<RosterModel | null>(null);
+
+  protected cardOf(name: string): RosterCard | undefined {
+    const m = this.model();
+    return m ? cardByName(m, name) : undefined;
+  }
 
   protected readonly report = this.data.selfScout;
   protected readonly players = computed<OpponentPlayer[]>(() => this.report()?.players ?? []);

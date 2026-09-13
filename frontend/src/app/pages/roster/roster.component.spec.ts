@@ -3,7 +3,7 @@ import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { environment } from '../../../environments/environment';
-import { FillIn, PainPoint, Player, Scrim, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
+import { FillIn, OpponentPlayer, PainPoint, Player, Scrim, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
@@ -166,6 +166,28 @@ describe.skipIf(typeof localStorage === 'undefined')('RosterComponent, the team 
     harness.detectChanges();
     expect(header.getAttribute('aria-expanded')).toBe('true');
     expect(adc.classList).toContain('expanded');
+  });
+
+  it('draws the scout report ban board as splash tiles and each of our five on a splash line', async () => {
+    const scouted = players.slice(0, 5).map(
+      (p, k) =>
+        ({
+          role: p.role,
+          name: p.name,
+          riotTag: 'EUW',
+          byQueue: { flex: { championRecords: [{ champion: ['Aatrox', 'Vi', 'Ahri', 'MissFortune', 'Leona'][k], games: 20 - k, wins: 12 }] } }
+        }) as unknown as OpponentPlayer
+    );
+    data.selfScout.set({ players: scouted, scoutedAt: '2026-09-12T08:00:00Z' });
+    const { root } = await open('/roster?view=report');
+    const tiles = [...root.querySelectorAll('.report-banboard .report-ban')];
+    expect(tiles).toHaveLength(5);
+    expect(tiles.every((t) => t.querySelector('img.splash-art'))).toBe(true);
+    expect(text(tiles[0].querySelector('.report-ban-champ'))).toBe('Aatrox');
+    expect(root.querySelector('.opp-banboard')).toBeNull();
+    const five = root.querySelector('[data-tour="roster-report-five"]')!;
+    expect(five.querySelectorAll('.opp-line img.report-line-art')).toHaveLength(5);
+    expect(text(five.querySelector('.opp-line.is-crowned .opp-line-name'))).toContain('SkilledScarecrow');
   });
 
   it('keeps its tour anchors, and no link whose name holds "comps" (the e2e sign-in check matches substrings)', async () => {

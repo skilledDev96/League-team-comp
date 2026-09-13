@@ -1,4 +1,4 @@
-<section class="card scout-report" aria-label="Scout report">
+<section class="card scout-report roster-report" aria-label="Scout report">
   <div class="scout-report-head">
     <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">query_stats</span>Us, as a scout sees us
       <app-info-tip text="What an opponent sees when they scout us, straight from Riot: rank, what we play, what beats us, and what they would ban." label="What this is" /></h2>
@@ -36,33 +36,39 @@
 
   @if (board().length) {
     <p class="advice-head scout-report-label" appTip="The champions across our five that a ban would actually hurt: most games in the seat first, win rate beside it">What they would ban against us</p>
-    <div class="opp-banboard" aria-label="What a ban would take from us">
+    <!-- The ban board as splash tiles (13 Sep 2026): its own markup, so Prep's .opp-ban never changes. -->
+    <ul class="list-clean report-banboard" aria-label="What a ban would take from us">
       @for (c of board(); track c.player + c.champion) {
-        <div class="opp-ban" [class.is-match]="filter.matches(c.champion)">
-          <img class="opp-ban-art" [src]="ui.championIconUrl(c.champion)" [alt]="c.champion" loading="lazy" />
-          <div class="opp-ban-body">
-            <span class="opp-ban-champ">{{ c.champion }}</span>
-            <span class="opp-ban-who"><em>{{ c.role }}</em> {{ c.player }}</span>
-          </div>
-          <span class="opp-ban-stat" [appTip]="c.games ? c.wins + ' of ' + c.games + ' won at ' + c.role + ', solo and flex together' : 'Scouted by name only — no games recorded'">
-            <b>{{ c.games }}g</b>
-            @if (c.games) {
-              <small [class]="rateBand(c)">{{ c.winRate }}%</small>
-            } @else {
-              <small>no record</small>
-            }
+        <li class="splash-tile report-ban" [class.is-match]="filter.matches(c.champion)">
+          <img class="splash-art" [src]="ui.championArtUrl(c.champion)" (error)="ui.artFallback($event, c.champion)" alt="" loading="lazy" />
+          <span class="splash-shade" aria-hidden="true"></span>
+          <span class="report-ban-top">
+            <span class="role-pill">{{ c.role }}</span>
+            <span class="report-ban-stat" [appTip]="c.games ? c.wins + ' of ' + c.games + ' won at ' + c.role + ', solo and flex together' : 'Scouted by name only — no games recorded'">
+              @if (c.games) { <b [class]="rateBand(c)">{{ c.winRate }}%</b> } @else { <b>no record</b> }
+            </span>
           </span>
-        </div>
+          <span class="report-ban-plate">
+            <span class="report-ban-champ">{{ ui.championName(c.champion) }}</span>
+            <span class="report-ban-who">{{ c.player }} · {{ c.games }} {{ c.games === 1 ? 'game' : 'games' }}</span>
+          </span>
+        </li>
       }
-    </div>
+    </ul>
   }
 
   @if (five().length && !full()) {
     <ul class="list-clean opp-lines" data-tour="roster-report-five" aria-label="Our five, as scouted">
       @for (opp of five(); track opp.name + opp.riotTag) {
-        <li class="opp-line">
-          <span class="opp-line-seat">{{ opp.role }}</span>
-          <span class="opp-line-name" [appTip]="opp.riotTag ? opp.name + '#' + opp.riotTag : opp.name">{{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}</span>
+        @let card = cardOf(opp.name);
+        <li class="opp-line" [class.is-crowned]="card?.crowned">
+          <!-- Their main's splash behind the seat and the name, as on the Table (13 Sep 2026). -->
+          @if (card?.champion ?? topPlays(opp)[0]?.champion; as art) {
+            <img class="report-line-art" [src]="ui.championArtUrl(art)" (error)="ui.artFallback($event, art)" alt="" loading="lazy" />
+          }
+          <span class="report-line-shade" aria-hidden="true"></span>
+          <span class="opp-line-seat role-pill">{{ opp.role }}</span>
+          <span class="opp-line-name" [appTip]="opp.riotTag ? opp.name + '#' + opp.riotTag : opp.name">{{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}@if (card?.crowned) { <span class="report-crown material-symbols-rounded" aria-hidden="true">workspace_premium</span> }</span>
           @if (bestRank(opp); as r) {
             <span class="opp-line-rank" [appTip]="(r.label || 'Ranked') + ' — Full shows both queues'">@if (r.label) { <em>{{ r.label }}</em> } {{ r.rank }}</span>
           } @else {
