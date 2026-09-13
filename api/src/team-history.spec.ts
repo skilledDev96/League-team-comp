@@ -40,7 +40,7 @@ describe('parseTeamHistoryRequest', () => {
     expect(parseTeamHistoryRequest({ players, days: '30' }).days).toBe(DEFAULT_DAYS);
   });
 
-  it('still validates the players like a synergy request', () => {
+  it('still validates the players like a roster request', () => {
     expect(() => parseTeamHistoryRequest({ players: [] })).toThrow();
   });
 });

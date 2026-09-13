@@ -10,7 +10,7 @@
  * Pure: the handler in index.ts resolves accounts, pages match ids and reads
  * the cache; everything here is decided from data it is handed.
  */
-import { SynergyPlayerInput, parseSynergyRequest } from './parse-request';
+import { RosterPlayerInput, parseRosterRequest } from './parse-request';
 
 /**
  * Queues a five plays as a five. Flex and Clash are the team queues; draft is
@@ -41,12 +41,12 @@ export const MAX_HISTORY_CANDIDATES = 60;
 export const MAX_HISTORY_FETCHES = 40;
 
 export interface TeamHistoryRequest {
-  players: SynergyPlayerInput[];
+  players: RosterPlayerInput[];
   days: number;
 }
 
 export function parseTeamHistoryRequest(body: unknown): TeamHistoryRequest {
-  const { players } = parseSynergyRequest(body);
+  const { players } = parseRosterRequest(body);
   const raw = (body as { days?: unknown }).days;
   const days =
     typeof raw === 'number' && Number.isFinite(raw)

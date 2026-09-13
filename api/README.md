@@ -5,7 +5,6 @@ This folder contains Firebase Cloud Functions for future player data enrichment.
 ## Endpoint
 
 - Function name: enrichPlayer
-- Function name: getTeamSynergy
 - Trigger type: HTTPS request
 - Method: POST
 - Auth: Firebase ID token required in Authorization header
@@ -49,7 +48,6 @@ The client profile defaults to Flex and can switch to Solo/Duo or a Combined vie
 
 The newer weekend-only 5v5 mode is not included until Riot publishes a stable queue identifier and API contract for it.
 
-`getTeamSynergy` accepts the current roster and resolves each Riot ID to a PUUID. It fetches recent queue `420` and `440` match IDs, deduplicates match details, and returns pairs, trios, four-player groups, and full five-player groups found on the same team. It stores no raw match history.
 
 ## Local build
 

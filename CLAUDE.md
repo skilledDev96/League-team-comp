@@ -88,14 +88,15 @@ In Firebase mode the signals are kept live by `onSnapshot` listeners set up in `
 
 **Firestore security** (`firestore.rules`, at the repo root): public read on everything; writes require `canEdit()` via the catch-all `match /{document=**}`, so a new collection is automatically covered (public read, editor write) — no rules change needed. `access` and `meta/settings` have their own stricter rules.
 
-**Cloud Functions** (`api/src/`): `enrichPlayer`, `getTeamSynergy`, `getCompAnalysis`, `riotKeyHealth` and `draftAdvice` are `onRequest` with `cors: true` (`draftAdvice` asks Claude — `claude-opus-5` through `@anthropic-ai/sdk` — for ranked picks or bans from a candidate list the draft room builds; needs the `ANTHROPIC_API_KEY` secret and refuses clearly without it; the prompt, schema and validation are pure in `draft-advice.ts`); `checkRiotKey` is a scheduled probe, and `refreshTeamData` (06:30 Europe/Amsterdam; `refreshTeamDataOnce` for an editor to run it by hand) re-reads every player and re-runs the analysis each morning, writing what it did to `meta/refreshLog` — the pure parts are in `daily-refresh.ts`. All use the `RIOT_API_KEY` secret and deploy to region `europe-west1` (see `SynergyService.functionUrl()`). `index.ts` holds the handlers and the Riot I/O; the logic they call sits in tested modules beside it (`parse-request`, `riot-errors`, `match-stats`, `insights`, `analysis-cache`, `comp-match`). Deploy **all** of them with `npm run deploy:functions` from the repo root.
+**Cloud Functions** (`api/src/`): `enrichPlayer`, `getCompAnalysis`, `riotKeyHealth` and `draftAdvice` are `onRequest` with `cors: true` (`draftAdvice` asks Claude — `claude-opus-5` through `@anthropic-ai/sdk` — for ranked picks or bans from a candidate list the draft room builds; needs the `ANTHROPIC_API_KEY` secret and refuses clearly without it; the prompt, schema and validation are pure in `draft-advice.ts`); `checkRiotKey` is a scheduled probe, and `refreshTeamData` (06:30 Europe/Amsterdam; `refreshTeamDataOnce` for an editor to run it by hand) re-reads every player and re-runs the analysis each morning, writing what it did to `meta/refreshLog` — the pure parts are in `daily-refresh.ts`. All use the `RIOT_API_KEY` secret and deploy to region `europe-west1` (see the `functionUrl` helpers in the services that call them). `index.ts` holds the handlers and the Riot I/O; the logic they call sits in tested modules beside it (`parse-request`, `riot-errors`, `match-stats`, `insights`, `analysis-cache`, `comp-match`). Deploy **all** of them with `npm run deploy:functions` from the repo root.
 
 **Pages and routes** (`frontend/src/app/app.routes.ts`, nav in `app/app.html`): every
 route is lazy via `loadComponent`, and every content route is behind `viewerGuard`
 (`/admin` uses `authGuard`). `/` and `/login` are the login page; the rest are
 `/home` (where sign-in lands), `/roster`, `/player/:id`, `/comps`, `/games` (with `/analysis` and `/review`
 still resolving to it), `/tournaments`,
-`/synergy`, `/admin`. Adding a page means touching both files — the route alone
+`/admin`. **`/synergy` was retired on 13 Sep 2026** (the lead: "retire it"): the page was linked from nowhere and its data
+empty; the Roster's Players view and Patterns' Starters filter answer what it did, and `getTeamSynergy` went with it. Adding a page means touching both files — the route alone
 leaves it unreachable.
 
 **`/roster` has a third mode, Scout report** (9 Sep 2026): our own five through

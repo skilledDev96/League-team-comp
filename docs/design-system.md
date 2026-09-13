@@ -171,11 +171,11 @@ it becomes the bare default as each remaining page's filter moves into its toolb
 `section.hero.is-slim` holding `.hero-id` (a `.home-kicker.hero-kicker` with an icon and the page's counts, `h1.hero-title`,
 one-line `p.hero-blurb`) and `.hero-actions` (the tour pill, then the page's own pills in `.hero-pills`) — two columns,
 so a longer sentence never pushes the actions down a line. **Every working page wears both since the site-wide pass of
-13 Sep 2026** (Roster, Comps, Games, Prep & Draft, Admin, the profile, Synergy); Home keeps its stage, the film room its
+13 Sep 2026** (Roster, Comps, Games, Prep & Draft, Admin, the profile); Home keeps its stage, the film room its
 bar, the draft room its own head. With them came four small shapes, each in `styles.css` beside the toolbar block:
 
 - **`.view-row`** — a row under the toolbar for what belongs to one view (Games' source/window/result, Patterns'
-  filters, Prep's groups, Synergy's controls, the Reviews tab's comp select). Never a card, never in the toolbar.
+  filters, Prep's groups, the Reviews tab's comp select). Never a card, never in the toolbar.
 - **`.section-line`** — a block's head: `.section-line-icon` (a symbol, `--accent-2`) and `.section-line-label`
   (Chakra Petch, uppercase). Prep's Games / Scouting & bans / Their roster, Admin's tab heads (`.admin-tab-head`), the
   profile's build guides. Never two letters in a circle.

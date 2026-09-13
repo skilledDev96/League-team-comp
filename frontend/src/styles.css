@@ -139,35 +139,8 @@ html:has(.page.is-film) {
   z-index: 5;
 }
 
-.synergy-toolbar {
-  margin-bottom: 1rem;
-}
-
-.synergy-toolbar .view-controls {
-  align-items: end;
-}
-
 .compact-field {
   min-width: 9rem;
-}
-
-.synergy-grid {
-  align-items: start;
-}
-
-.synergy-card h2 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.synergy-card .title-row {
-  align-items: start;
-  justify-content: space-between;
-  gap: 0.65rem;
-}
-
-.synergy-empty {
-  margin-top: 1rem;
 }
 
 .queue-stats {

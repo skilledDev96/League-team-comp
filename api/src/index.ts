@@ -4,7 +4,7 @@ import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { retryDelayMs, riotError } from './riot-errors';
-import { combinations, normalizeEmail, parseBearerToken, parseEnrichRequest, parseSynergyRequest } from './parse-request';
+import { normalizeEmail, parseBearerToken, parseEnrichRequest } from './parse-request';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
@@ -116,15 +116,12 @@ interface EnrichRequest {
   mobalyticsSlug?: string;
 }
 
-interface SynergyPlayerRequest {
+/** One roster player as the functions receive them: an id, a name, and where Riot knows them. */
+interface RosterPlayerRequest {
   id: string;
   name: string;
   riotTag?: string;
   region?: string;
-}
-
-interface SynergyRequest {
-  players: SynergyPlayerRequest[];
 }
 
 /**
@@ -466,30 +463,6 @@ interface MatchStats {
 interface QueueStats {
   rank?: RankedStats;
   matches?: MatchStats;
-}
-
-type SynergyQueueResponse = 'RANKED_SOLO_5x5' | 'RANKED_FLEX_SR';
-
-interface PremadeGroupResponse {
-  playerIds: string[];
-  playerNames: string[];
-  queueType: SynergyQueueResponse;
-  games: number;
-  wins: number;
-  losses: number;
-  winRate: number;
-  averageKda: number;
-  topChampions: string[];
-}
-
-interface PremadeAccumulator {
-  playerIds: string[];
-  playerNames: string[];
-  queueType: SynergyQueueResponse;
-  games: number;
-  wins: number;
-  kdaTotal: number;
-  champions: Map<string, number>;
 }
 
 interface RiotMatchParticipant {
@@ -959,128 +932,6 @@ export const enrichPlayer = onRequest({ cors: true, secrets: [RIOT_API_KEY], tim
   }
 });
 
-async function getSynergyGroups(payload: SynergyRequest, apiKey: string): Promise<PremadeGroupResponse[]> {
-  const firstRegion = payload.players[0].region ?? 'euw';
-  const routing = REGION_ROUTING[firstRegion] ?? REGION_ROUTING.euw;
-  const identities = await Promise.all(payload.players.map(async (player) => {
-    const tagLine = (player.riotTag || firstRegion.toUpperCase()).replace(/^#/, '');
-    const account = await riotFetch<RiotAccount>(
-      `https://${routing.regional}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(player.name)}/${encodeURIComponent(tagLine)}`,
-      apiKey
-    );
-    return { ...player, puuid: account.puuid };
-  }));
-  const byPuuid = new Map(identities.map((player) => [player.puuid, player]));
-  const matchIdsByQueue = new Map<SynergyQueueResponse, Set<string>>();
-
-  for (const [queueType, queueId] of [['RANKED_FLEX_SR', 440], ['RANKED_SOLO_5x5', 420] ] as const) {
-    const ids = new Set<string>();
-    for (const player of identities) {
-      const matchIds = await riotFetch<string[]>(
-        `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/by-puuid/${player.puuid}/ids?queue=${queueId}&start=0&count=20`,
-        apiKey
-      );
-      matchIds.forEach((matchId) => ids.add(matchId));
-    }
-    matchIdsByQueue.set(queueType, ids);
-  }
-
-  const groups = new Map<string, PremadeAccumulator>();
-  for (const [queueType, matchIds] of matchIdsByQueue) {
-    for (const matchId of matchIds) {
-      let match: RiotMatch;
-      try {
-        match = await riotFetch<RiotMatch>(
-          `https://${routing.regional}.api.riotgames.com/lol/match/v5/matches/${matchId}`,
-          apiKey
-        );
-      } catch {
-        continue;
-      }
-      const rosterParticipants = match.info.participants.filter((participant) => byPuuid.has(participant.puuid));
-      const teamGroups = new Map<number, RiotMatchParticipant[]>();
-      for (const participant of rosterParticipants) {
-        const members = teamGroups.get(participant.teamId) ?? [];
-        members.push(participant);
-        teamGroups.set(participant.teamId, members);
-      }
-      for (const members of teamGroups.values()) {
-        if (members.length < 2) continue;
-        for (let size = 2; size <= members.length; size += 1) {
-          for (const subset of combinations(members, size)) {
-            const playerIds = subset.map((member) => byPuuid.get(member.puuid)!.id).sort();
-            const key = `${queueType}:${playerIds.join('|')}`;
-            const accumulator = groups.get(key) ?? {
-              playerIds,
-              playerNames: playerIds.map((id) => identities.find((player) => player.id === id)!.name),
-              queueType,
-              games: 0,
-              wins: 0,
-              kdaTotal: 0,
-              champions: new Map<string, number>()
-            };
-            accumulator.games += 1;
-            if (subset[0].win) accumulator.wins += 1;
-            for (const member of subset) {
-              accumulator.kdaTotal += member.deaths > 0 ? (member.kills + member.assists) / member.deaths : member.kills + member.assists;
-              accumulator.champions.set(member.championName, (accumulator.champions.get(member.championName) ?? 0) + 1);
-            }
-            groups.set(key, accumulator);
-          }
-        }
-      }
-    }
-  }
-  return [...groups.values()]
-    .filter((group) => group.games > 0)
-    .map((group) => ({
-      playerIds: group.playerIds,
-      playerNames: group.playerNames,
-      queueType: group.queueType,
-      games: group.games,
-      wins: group.wins,
-      losses: group.games - group.wins,
-      winRate: Math.round((group.wins / group.games) * 100),
-      averageKda: group.kdaTotal / group.games / group.playerIds.length,
-      topChampions: [...group.champions.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([champion]) => displayChampionName(champion))
-    }))
-    .sort((a, b) => b.games - a.games);
-}
-
-export const getTeamSynergy = onRequest({ cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 300 }, async (req, res) => {
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed. Use POST.' });
-    return;
-  }
-  try {
-    const idToken = parseBearerToken(req.headers.authorization);
-    if (!idToken) {
-      res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
-      return;
-    }
-    const decoded = await getAuth().verifyIdToken(idToken);
-    const email = normalizeEmail(decoded.email);
-    const role = await getAccessRoleByEmail(email);
-    if (!role) {
-      res.status(403).json({ error: 'Insufficient role. Viewer access required.' });
-      return;
-    }
-    const payload = parseSynergyRequest(req.body);
-    const groups = await getSynergyGroups(payload, RIOT_API_KEY.value());
-    res.status(200).json({ groups, generatedAt: new Date().toISOString(), provider: 'riot-api' });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected error.';
-    res.status(400).json({ error: message });
-  }
-});
-
 // ---- Opponent team history (their five together, lately) ---------------------
 
 /**
@@ -1143,7 +994,7 @@ async function computeOpponentHistory(payload: TeamHistoryRequest, apiKey: strin
         }
       })
     )
-  ).filter((i): i is SynergyPlayerRequest & { puuid: string } => i !== null);
+  ).filter((i): i is RosterPlayerRequest & { puuid: string } => i !== null);
 
   const minTogether = Math.min(MIN_TOGETHER, identities.length);
   if (identities.length < 2) {
@@ -1226,7 +1077,7 @@ interface CompInput {
 }
 
 interface CompAnalysisRequest {
-  players: SynergyPlayerRequest[];
+  players: RosterPlayerRequest[];
   comps: CompInput[];
   /** matchId -> compId, for games a person has placed by hand. */
   overrides: Record<string, string>;
@@ -1649,12 +1500,12 @@ interface CompAnalysisResponse {
 interface ResolvedRoster {
   firstRegion: string;
   routing: { platform: string; regional: string };
-  identities: (SynergyPlayerRequest & { puuid: string })[];
+  identities: (RosterPlayerRequest & { puuid: string })[];
   rosterPuuids: Set<string>;
   nameByPuuid: Map<string, string>;
 }
 
-async function resolveRoster(players: SynergyPlayerRequest[], apiKey: string): Promise<ResolvedRoster> {
+async function resolveRoster(players: RosterPlayerRequest[], apiKey: string): Promise<ResolvedRoster> {
   const firstRegion = players[0]?.region ?? 'euw';
   const routing = REGION_ROUTING[firstRegion] ?? REGION_ROUTING.euw;
   const identities = await Promise.all(

@@ -88,12 +88,6 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/tournaments/tournaments.component').then((m) => m.TournamentsComponent)
   },
   {
-    path: 'synergy',
-    title: 'Synergy · Bom Squad',
-    canActivate: [viewerGuard],
-    loadComponent: () => import('./pages/synergy/synergy.component').then((m) => m.SynergyComponent)
-  },
-  {
     path: 'login',
     title: 'Sign in · Bom Squad',
     loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent)

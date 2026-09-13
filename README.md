@@ -30,7 +30,7 @@ required). To develop offline, blank `apiKey` in `src/environments/environment.t
 
 See [`CLAUDE.md`](CLAUDE.md) for the full architecture notes — the `TeamDataService`
 single source of truth, the local/Firebase dual mode, Firestore layout, and the
-Cloud Functions (`enrichPlayer`, `getTeamSynergy`, `getCompAnalysis`).
+Cloud Functions (`enrichPlayer`, `getCompAnalysis`, `draftAdvice` and the rest).
 
 Deployment is automatic: pushing to `main` with changes under `frontend/**` publishes
 the app to GitHub Pages via the workflow in `.github/workflows/deploy.yml`.

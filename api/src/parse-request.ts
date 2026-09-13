@@ -18,15 +18,15 @@ export interface EnrichRequestInput {
   mobalyticsSlug?: string;
 }
 
-export interface SynergyPlayerInput {
+export interface RosterPlayerInput {
   id: string;
   name: string;
   riotTag?: string;
   region?: string;
 }
 
-export interface SynergyRequestInput {
-  players: SynergyPlayerInput[];
+export interface RosterRequestInput {
+  players: RosterPlayerInput[];
 }
 
 export function normalizeEmail(value: string | undefined | null): string {
@@ -74,10 +74,11 @@ export function parseEnrichRequest(body: unknown): EnrichRequestInput {
 }
 
 /**
- * Synergy needs at least a duo and at most a full team — a single player has no
- * synergy to measure, and more than five is not a League team.
+ * A roster request needs at least a duo and at most a full team — one player is
+ * not a roster to read together, and more than five is not a League team.
+ * (Written for the retired synergy endpoint; the opponent history reads the same shape.)
  */
-export function parseSynergyRequest(body: unknown): SynergyRequestInput {
+export function parseRosterRequest(body: unknown): RosterRequestInput {
   if (!body || typeof body !== 'object') {
     throw new Error('Invalid payload. Expected a JSON object.');
   }
@@ -92,7 +93,7 @@ export function parseSynergyRequest(body: unknown): SynergyRequestInput {
     const id = typeof player.id === 'string' ? player.id.trim() : '';
     const name = typeof player.name === 'string' ? player.name.trim() : '';
     if (!id || !name) {
-      throw new Error('Each synergy player requires an id and name.');
+      throw new Error('Each roster player requires an id and name.');
     }
     return {
       id,
@@ -105,18 +106,3 @@ export function parseSynergyRequest(body: unknown): SynergyRequestInput {
   return { players };
 }
 
-/**
- * Every way to choose `size` items, order ignored. Used to score each subset of
- * the roster that might have queued together.
- */
-export function combinations<T>(items: T[], size: number): T[][] {
-  if (size === 0) return [[]];
-  if (items.length < size) return [];
-  const result: T[][] = [];
-  for (let index = 0; index <= items.length - size; index += 1) {
-    for (const rest of combinations(items.slice(index + 1), size - 1)) {
-      result.push([items[index], ...rest]);
-    }
-  }
-  return result;
-}

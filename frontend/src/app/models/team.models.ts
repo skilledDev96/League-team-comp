@@ -62,20 +62,6 @@ export interface PlayerQueueStats {
   matches?: QueueMatchStats;
 }
 
-export type SynergyQueue = 'RANKED_SOLO_5x5' | 'RANKED_FLEX_SR';
-
-export interface PremadeGroupStats {
-  playerIds: string[];
-  playerNames: string[];
-  queueType: SynergyQueue;
-  games: number;
-  wins: number;
-  losses: number;
-  winRate: number;
-  averageKda: number;
-  topChampions: string[];
-}
-
 export interface Player {
   id: string;
   name: string;
