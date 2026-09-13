@@ -27,13 +27,13 @@ export const routes: Routes = [
   {
     path: 'players',
     canActivate: [viewerGuard],
-    data: { view: 'scouting' },
+    data: { view: 'players' },
     loadComponent: () => import('./pages/roster/roster.component').then((m) => m.RosterComponent)
   },
   {
     path: 'profiles',
     canActivate: [viewerGuard],
-    data: { view: 'table' },
+    data: { view: 'players' },
     loadComponent: () => import('./pages/roster/roster.component').then((m) => m.RosterComponent)
   },
   {

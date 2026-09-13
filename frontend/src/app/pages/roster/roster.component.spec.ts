@@ -175,32 +175,90 @@ describe.skipIf(typeof localStorage === 'undefined')('RosterComponent, the team 
     expect(text(root.querySelector('.roster-sheet')!.closest('.roster-group')!.querySelector('h2'))).toBe('Bench');
   });
 
-  it('draws the table with a splash stripe a row and the crown on the series MVP', async () => {
+  const rowButton = (root: HTMLElement, id: string) => root.querySelector<HTMLButtonElement>(`#rp-open-${id}`)!;
+
+  it('lists every player in the Cards order with one queue\'s numbers, lands the old Table link there, and names nobody of theirs', async () => {
     const { root } = await open('/roster?view=table');
-    const rows = [...root.querySelectorAll('a.profiles-row')];
-    expect(rows.length).toBe(6);
-    expect(root.querySelectorAll('a.profiles-row img.profiles-row-art').length).toBe(6);
-    const crowned = root.querySelectorAll('a.profiles-row.is-crowned');
+    expect(text(root.querySelector('.view-controls .view-btn.active'))).toBe('Players');
+    expect([...root.querySelectorAll('.rp-open')].map((b) => text(b))).toEqual(['Zac', 'Go10x', 'Mido', 'SkilledScarecrow', 'Suppy', 'Benchy', 'Ringer']);
+    expect(root.querySelectorAll('.rp-row img.rp-row-art')).toHaveLength(6);
+    const crowned = root.querySelectorAll('.rp-row.is-crowned');
     expect(crowned).toHaveLength(1);
-    expect(text(crowned[0].querySelector('.pp-name'))).toContain('SkilledScarecrow');
+    expect(text(crowned[0].querySelector('.rp-open'))).toBe('SkilledScarecrow');
+    // Zac is ranked in solo, so the table opens on solo, and his rank reads in words.
+    expect(text(root.querySelector('[data-tour="players-queue"] button.active'))).toBe('Solo/Duo');
+    expect(text(root.querySelector('#rp-row-p-top .rp-rank'))).toContain('Gold I');
+    expect(text(root.querySelector('#rp-row-p-adc .rp-work'))).toContain('1 open');
     for (const name of THEIRS) expect(root.innerHTML).not.toContain(name);
   });
 
-  it('gives every scouting card a splash band header that is still its one toggle', async () => {
-    const { harness, root } = await open('/roster?view=scouting');
-    const cards = [...root.querySelectorAll('article.player-intel-card')];
-    expect(cards.length).toBe(6);
-    const adc = cards.find((c) => text(c.querySelector('.pp-name')).includes('SkilledScarecrow'))!;
-    expect(adc.classList).toContain('is-crowned');
-    expect(adc.querySelector('.player-panel-header img.splash-art')).not.toBeNull();
-    expect(text(adc.querySelector('.role-pill'))).toBe('ADC');
-    expect(text(adc.querySelector('.intel-working'))).toBe('1 working on');
-    const header = adc.querySelector<HTMLButtonElement>('.player-panel-header')!;
-    expect(header.getAttribute('aria-expanded')).toBe('false');
-    header.click();
+  it('opens rows by click, several at once, and closes one on a second click or Escape', async () => {
+    const { harness, root } = await open('/roster?view=players');
+    expect(root.querySelector('.rp-detail')).toBeNull();
+    rowButton(root, 'p-jg').click();
     harness.detectChanges();
-    expect(header.getAttribute('aria-expanded')).toBe('true');
-    expect(adc.classList).toContain('expanded');
+    rowButton(root, 'p-adc').click();
+    harness.detectChanges();
+    expect(rowButton(root, 'p-jg').getAttribute('aria-expanded')).toBe('true');
+    expect(rowButton(root, 'p-adc').getAttribute('aria-controls')).toBe('rp-detail-p-adc');
+    expect(root.querySelectorAll('.rp-detail')).toHaveLength(2);
+    expect(text(root.querySelector('#rp-detail-p-adc'))).toContain('Wave before roam');
+    rowButton(root, 'p-jg').click();
+    harness.detectChanges();
+    expect(root.querySelector('#rp-detail-p-jg')).toBeNull();
+    root.querySelector('#rp-detail-p-adc')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    harness.detectChanges();
+    expect(root.querySelector('.rp-detail')).toBeNull();
+  });
+
+  it('at Full adds the columns a reader compares and opens the practice board, and keeps the rows shut', async () => {
+    const { harness, root } = await open('/roster?view=players');
+    const board = () => root.querySelector<HTMLDetailsElement>('[data-tour="players-practice-board"]')!;
+    expect(board().open).toBe(false);
+    expect(root.querySelector('.practice-filters')).toBeNull();
+    TestBed.inject(UserPrefsService).prefs.set({ depth: { roster: 'full' } });
+    harness.detectChanges();
+    expect(text(root.querySelector('.rp-head-row'))).toContain('CS/min');
+    expect(root.querySelector('.rp-detail')).toBeNull();
+    expect(board().open).toBe(true);
+    expect(root.querySelector('.practice-filters')).not.toBeNull();
+  });
+
+  it('remembers the queue, and opens the row a link names', async () => {
+    const first = await open('/roster?view=players');
+    [...first.root.querySelectorAll<HTMLButtonElement>('[data-tour="players-queue"] button')].find((b) => text(b) === 'Flex')!.click();
+    first.harness.detectChanges();
+    expect(localStorage.getItem('bom-roster-queue')).toBe('flex');
+    const { harness, root } = first;
+    await harness.navigateByUrl('/roster?view=players&player=p-mid');
+    harness.detectChanges();
+    expect(text(root.querySelector('[data-tour="players-queue"] button.active'))).toBe('Flex');
+    expect(rowButton(root, 'p-mid').getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('lands the old /players link on Players', async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: 'players', component: RosterComponent, data: { view: 'players' } }])] });
+    TestBed.inject(TeamDataService).players.set(players);
+    const { root } = await open('/players');
+    expect(root.querySelector('.roster-players')).not.toBeNull();
+  });
+
+  it('edits what they are working on in the row, in edit mode only', async () => {
+    const { harness, root } = await open('/roster?view=players');
+    rowButton(root, 'p-adc').click();
+    harness.detectChanges();
+    const check = () => root.querySelector<HTMLButtonElement>('#rp-detail-p-adc .practice-check')!;
+    expect(check().disabled).toBe(true);
+    TestBed.inject(AuthService).editMode.set(true);
+    harness.detectChanges();
+    check().click();
+    await harness.fixture.whenStable();
+    expect(data.painPoints().find((x) => x.id === 'pp1')?.resolved).toBe(true);
+    const add = [...root.querySelectorAll<HTMLButtonElement>('#rp-detail-p-adc .rp-mini')].find((b) => text(b).includes('Add'))!;
+    add.click();
+    harness.detectChanges();
+    expect(root.querySelector('#rp-detail-p-adc .rp-add input')).not.toBeNull();
   });
 
   it('draws the scout report ban board as splash tiles and each of our five on a splash line', async () => {
@@ -233,6 +291,19 @@ describe.skipIf(typeof localStorage === 'undefined')('RosterComponent, the team 
     opener(root, 0).click();
     harness.detectChanges();
     expect(root.querySelector('[data-tour="roster-sheet"]')).not.toBeNull();
+    const names = [...root.querySelectorAll('a')].map((a) => text(a).toLowerCase());
+    expect(names.filter((n) => n.includes('comps'))).toEqual([]);
+  });
+
+  it('keeps the Players tour anchors, the row\'s work only once a row is open', async () => {
+    const { harness, root } = await open('/roster?view=players');
+    for (const anchor of ['roster-views', 'players-queue', 'players-row', 'players-practice-board']) {
+      expect(root.querySelector(`[data-tour="${anchor}"]`), anchor).not.toBeNull();
+    }
+    expect(root.querySelector('[data-tour="players-detail"]')).toBeNull();
+    root.querySelector<HTMLButtonElement>('[data-tour="players-row"]')!.click();
+    harness.detectChanges();
+    expect(root.querySelector('[data-tour="players-detail"]')).not.toBeNull();
     const names = [...root.querySelectorAll('a')].map((a) => text(a).toLowerCase());
     expect(names.filter((n) => n.includes('comps'))).toEqual([]);
   });

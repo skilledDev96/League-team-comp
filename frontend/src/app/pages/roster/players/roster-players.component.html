@@ -1,0 +1,140 @@
+<app-practice-board [full]="full()" [cards]="boardCards()" />
+
+<section class="card roster-players" aria-labelledby="rp-title">
+  <header class="rp-head">
+    <h2 id="rp-title" class="rp-title">Players</h2>
+    <div class="view-segment" role="group" aria-label="Queue" data-tour="players-queue">
+      @for (q of queues; track q) {
+        <button type="button" [class.active]="queue() === q" [attr.aria-pressed]="queue() === q" (click)="setQueue(q)">{{ queueLabel(q) }}</button>
+      }
+    </div>
+    <app-info-tip label="Where these numbers come from"
+                  text="Rank, win rate, KDA, CS a minute, kill participation, damage share and vision are each player's own games in this queue from Riot's last read (up to 500), not team games and not the ladder record. Main and Working on are the team's." />
+    @if (auth.editing()) {
+      <button type="button" class="view-btn rp-refresh" [class.is-busy]="refreshingAll()" [disabled]="refresh.anyRunning()" (click)="refreshAll()">
+        @if (refreshingAll()) {
+          <span class="btn-spinner" aria-hidden="true"></span>
+        } @else {
+          <span class="material-symbols-rounded" aria-hidden="true">sync</span>
+        }
+        {{ refreshingAll() ? 'Refreshing ' + refreshProgress() + '…' : 'Refresh every player from Riot' }}
+      </button>
+    }
+  </header>
+
+  <div class="rp-scroll">
+    <div class="rp-table" role="table" [class.is-full]="full()" [attr.aria-label]="'Players, ' + queueLabel(queue())">
+      <div role="rowgroup">
+        <div class="rp-row rp-head-row" role="row">
+          <span role="columnheader">Player</span>
+          <span role="columnheader">Rank</span>
+          <span role="columnheader" class="num" appTip="Their own games in this queue from Riot's last read — not team games, not the ladder record">Win rate</span>
+          <span role="columnheader" class="num" appTip="Kills plus assists over deaths, same games">KDA</span>
+          @if (full()) {
+            <span role="columnheader" class="num" appTip="Minions and monsters a minute, same games">CS/min</span>
+            <span role="columnheader" class="num" appTip="Share of their team's kills they were in on, same games">KP</span>
+            <span role="columnheader" class="num" appTip="Share of their team's damage to champions, same games">Dmg</span>
+            <span role="columnheader" class="num" appTip="Average vision score, same games">Vision</span>
+          }
+          <span role="columnheader" appTip="Most played for the team; Riot's most played when they have no team games">Main</span>
+          <span role="columnheader" appTip="Open points on the practice board">Working on</span>
+          <span role="columnheader"><span class="visually-hidden">Open</span></span>
+        </div>
+      </div>
+
+      @for (g of groups(); track g.key) {
+        <div role="rowgroup" [attr.aria-label]="g.label" class="rp-group">
+          @if (g.key !== 'starters') {
+            <div class="rp-group-label" aria-hidden="true">{{ g.label }}</div>
+          }
+          @for (r of g.rows; track r.card.id) {
+            @let c = r.card;
+            @let f = r.figures;
+            @let open = isOpen(c.id);
+            <div class="rp-row" role="row" [id]="'rp-row-' + c.id" [class.is-open]="open" [class.is-crowned]="c.crowned"
+                 [class.is-match]="match(c) === true" [class.is-dimmed]="match(c) === false" (click)="rowClick(c.id, $event)">
+              @if (c.champion) {
+                <img class="rp-row-art" [src]="ui.championArtUrl(c.champion)" (error)="ui.artFallback($event, c.champion)" alt="" loading="lazy" />
+              }
+              <span class="rp-row-shade" aria-hidden="true"></span>
+              <span class="rp-cell rp-player" role="cell">
+                <span class="role-pill">{{ c.role }}</span>
+                <span class="rp-who">
+                  <span class="rp-name">
+                    <button type="button" class="rp-open" [id]="'rp-open-' + c.id" [attr.aria-expanded]="open" [attr.aria-controls]="open ? 'rp-detail-' + c.id : null"
+                            [attr.data-tour]="c.id === firstId() ? 'players-row' : null" (click)="toggle(c.id)">{{ c.name }}</button>
+                    @if (c.crowned) {
+                      <span class="rp-crown material-symbols-rounded" aria-hidden="true" appTip="The most series MVP titles on the team">workspace_premium</span>
+                    }
+                  </span>
+                  @if (c.group !== 'starters' || c.secondaryRoles.length) {
+                    <span class="rp-tags pp-flex-roles">
+                      @if (c.group === 'bench') { <span class="sub-badge">Sub</span> }
+                      @if (c.group === 'fillIns') { <span class="sub-badge">Fill-in</span> }
+                      @if (c.secondaryRoles.length) {
+                        <span class="pp-flex-label">Also plays</span>
+                        @for (role of c.secondaryRoles; track role) { <span class="pp-role flex">{{ role }}</span> }
+                      }
+                    </span>
+                  }
+                </span>
+              </span>
+
+              @if (f.sample || f.rank) {
+                <span class="rp-cell rp-rank" role="cell" [appTip]="f.season ? 'Season: ' + f.season.wins + 'W-' + f.season.losses + 'L' : queue() === 'clash' ? 'Clash has no ladder' : 'Unranked in ' + queueLabel(queue())">
+                  {{ f.rank ?? (queue() === 'clash' ? '—' : 'Unranked') }}
+                  @if (full() && f.lp !== null) { <small>{{ f.lp }} LP</small> }
+                </span>
+                @if (f.sample; as s) {
+                  <span class="rp-cell num" role="cell" [appTip]="s.wins + 'W-' + s.losses + 'L over ' + s.games + ' games'">
+                    <b [class]="s.band">{{ s.winRate }}%</b><small>{{ s.games }}g</small>
+                  </span>
+                  <span class="rp-cell num" role="cell">{{ f.kda === null ? '—' : (f.kda | number: '1.1-1') }}</span>
+                  @if (full()) {
+                    <span class="rp-cell num" role="cell">{{ f.csPerMin === null ? '—' : (f.csPerMin | number: '1.1-1') }}</span>
+                    <span class="rp-cell num" role="cell">{{ f.kp === null ? '—' : (f.kp * 100 | number: '1.0-0') + '%' }}</span>
+                    <span class="rp-cell num" role="cell">{{ f.dmgShare === null ? '—' : (f.dmgShare * 100 | number: '1.0-0') + '%' }}</span>
+                    <span class="rp-cell num" role="cell" [appTip]="visionNote(f)">
+                      @if (f.vision; as v) {
+                        {{ v.value | number: '1.0-0' }}@if (v.samples < v.of) { <small>{{ v.samples }}g</small> }
+                      } @else { — }
+                    </span>
+                  }
+                } @else {
+                  <span class="rp-cell rp-none muted" role="cell" [class.is-full]="full()">No {{ queueLabel(queue()) }} games read</span>
+                }
+              } @else {
+                <span class="rp-cell rp-none rp-none-wide muted" role="cell" [class.is-full]="full()">No {{ queueLabel(queue()) }} games read</span>
+              }
+
+              <span class="rp-cell rp-main" role="cell">
+                @if (c.champion) {
+                  <img class="rp-champ" [src]="ui.championIconUrl(c.champion)" [alt]="" loading="lazy" />
+                  <span>{{ ui.championName(c.champion) }}</span>
+                } @else { — }
+              </span>
+              <span class="rp-cell rp-work" role="cell">
+                @if (c.group === 'fillIns') {
+                  <span class="muted">—</span>
+                } @else if (c.working.length) {
+                  <span class="splash-chip is-quiet">{{ c.working.length }} open</span>
+                } @else {
+                  <span class="muted">—</span>
+                }
+                @if (full() && c.resolved) { <small class="muted">· {{ c.resolved }} resolved</small> }
+              </span>
+              <span class="rp-cell rp-chevron material-symbols-rounded" aria-hidden="true">{{ open ? 'expand_less' : 'expand_more' }}</span>
+            </div>
+            @if (open) {
+              <div class="rp-detail-row" role="row">
+                <div class="rp-detail" role="cell" [id]="'rp-detail-' + c.id" [attr.data-tour]="c.id === firstOpen() ? 'players-detail' : null" (keydown.escape)="close(c.id)">
+                  <app-roster-player-detail [card]="c" [player]="r.player" [fill]="r.fill" [full]="full()" />
+                </div>
+              </div>
+            }
+          }
+        </div>
+      }
+    </div>
+  </div>
+</section>

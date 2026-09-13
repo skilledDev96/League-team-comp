@@ -60,9 +60,16 @@ test('the account is a viewer, so the tests cannot change anything', async ({ pa
   ).toHaveCount(0);
 });
 
-test('the roster page renders players', async ({ page }) => {
+/**
+ * The old /players link lands on Players (13 Sep 2026: Table and Scouting became one view). A row is one button that
+ * opens what the player is working on; opening one reads, it changes nothing, so the viewer account can do it.
+ */
+test('the roster page renders players, and a row opens onto their work', async ({ page }) => {
   await page.goto('./players');
-  await expect(page.locator('.player-intel-card').first()).toBeVisible({ timeout: 30_000 });
+  const row = page.locator('[data-tour="players-row"]');
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await row.click();
+  await expect(page.locator('.rp-detail').first()).toBeVisible();
 });
 
 /**
@@ -196,9 +203,9 @@ test('no console errors while moving around signed in', async ({ page }) => {
   });
 
   // Home is where sign-in lands, and Roster is no longer reached by './', so both are named.
-  // Roster's four views each draw splash art since 13 Sep 2026, lazily below the fold, so each is visited
+  // Roster's three views each draw splash art since 13 Sep 2026, lazily below the fold, so each is visited
   // and given a moment for a renamed splash to ask for its fallback before the next page.
-  const rosterViews = ['./roster?view=table', './roster?view=scouting', './roster?view=report'];
+  const rosterViews = ['./roster?view=players', './roster?view=report'];
   for (const path of ['./', './home', './roster', ...rosterViews, './comps', './games', './review', './tournaments', './film/none']) {
     await page.goto(path);
     // What proves the app booted at a deep link is a nav link — except on the

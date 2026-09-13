@@ -188,11 +188,16 @@ const STARTER_WORKING = 3;
                 <ul class="roster-work">
                   @for (w of working(); track w.id) { <li>{{ w.text }}</li> }
                 </ul>
-                @if (hiddenWorking()) {
-                  <button type="button" class="view-btn home-pill" (click)="openScouting()">{{ hiddenWorking() }} more on Scouting</button>
-                }
               } @else if (c.playerId) {
-                <p class="roster-sheet-empty">Nothing open. The practice board on Scouting holds what they are working on.</p>
+                <p class="roster-sheet-empty">Nothing open. Add what they are working on in Players.</p>
+              }
+              @if (c.playerId) {
+                <p class="roster-sheet-more">
+                  @if (hiddenWorking()) { <span class="muted">{{ hiddenWorking() }} more</span> }
+                  <button type="button" class="view-btn home-pill" (click)="openInPlayers()">
+                    <span class="material-symbols-rounded" aria-hidden="true">table_rows</span>Open in Players
+                  </button>
+                </p>
               }
               @if (full() && c.learning.length) {
                 <p class="roster-sheet-line"><span class="roster-sheet-label">Learning</span>
@@ -258,8 +263,9 @@ export class RosterSheetComponent {
     return this.neighbour(dir)?.id ?? this.card().id;
   }
 
-  protected openScouting(): void {
-    void this.router.navigate(['/roster'], { queryParams: { view: 'scouting' } });
+  /** Their row on Players, open: working on, learning and the pool, edited there. */
+  protected openInPlayers(): void {
+    void this.router.navigate(['/roster'], { queryParams: { view: 'players', player: this.card().id } });
   }
 
   // ---- The A team and the seats (moved from the cards, same writes) ------------------------------------

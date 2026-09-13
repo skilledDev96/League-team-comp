@@ -311,6 +311,15 @@ export class TourService {
         await this.pause(250);
         return !!document.querySelector('[data-tour="roster-sheet"]');
       }
+      case 'openPlayersRow': {
+        // A row's work exists only while it is open (13 Sep 2026): open the first player's, or say there is nobody.
+        if (document.querySelector('[data-tour="players-detail"]')) return true;
+        const row = document.querySelector<HTMLElement>('.rp-open[aria-expanded="false"]');
+        if (!row) return false;
+        row.click();
+        await this.pause(200);
+        return !!document.querySelector('[data-tour="players-detail"]');
+      }
       case 'openGameList': {
         // The list opens by default, but a reader who shut it would otherwise be walked to rows
         // that are not drawn. Its header is a <summary> since 12 Sep 2026, so the open state is

@@ -18,8 +18,7 @@
      pills on the left, anything that belongs to the whole page pushed right, Detail last. -->
 <section class="view-controls" data-tour="roster-views" aria-label="Roster views">
   <button type="button" class="view-btn" [class.active]="view() === 'cards'" [attr.aria-pressed]="view() === 'cards'" (click)="setView('cards')">Cards</button>
-  <button type="button" class="view-btn" [class.active]="view() === 'table'" [attr.aria-pressed]="view() === 'table'" (click)="setView('table')">Table</button>
-  <button type="button" class="view-btn" [class.active]="view() === 'scouting'" [attr.aria-pressed]="view() === 'scouting'" (click)="setView('scouting')">Scouting</button>
+  <button type="button" class="view-btn" [class.active]="view() === 'players'" [attr.aria-pressed]="view() === 'players'" (click)="setView('players')" appTip="Everyone's numbers side by side, and what each is working on">Players</button>
   <button type="button" class="view-btn" [class.active]="view() === 'report'" [attr.aria-pressed]="view() === 'report'" (click)="setView('report')" appTip="Us, as an opponent would scout us">Scout report</button>
   <!-- A compact search pill (13 Sep 2026, the lead: "the filter is way too big, it looks out of place"): a view pill's
        size until it is used, no count beside it (the hero already says how many players) and no "Detail" word over
@@ -27,7 +26,7 @@
   <div class="view-controls-tools">
     <app-champion-filter [count]="playersWith().length" noun="players" placeholder="Find a champion" [showCount]="false" />
   </div>
-  <app-detail-toggle surface="roster" starterTip="The basics, in all four views" fullTip="Everything expanded, in all four views" />
+  <app-detail-toggle surface="roster" starterTip="The basics, in all three views" fullTip="Everything, in all three views" />
   <!-- The answer belongs to the filter that asked it, so it sits inside the toolbar with it. -->
   @if (filter.active()) {
     <p class="champ-filter-answer is-inset">
@@ -44,15 +43,10 @@
   }
 </section>
 
-<!-- Only the selected mode is rendered. Each brings its own controls and its
-     own state; keeping all three alive would run three sets of computeds over
-     the same roster for no benefit. -->
+<!-- Only the selected mode is rendered. Each brings its own controls and its own state over the one roster model. -->
 @switch (view()) {
-  @case ('table') {
-    <app-team-profiles [embedded]="true" [full]="full()" [model]="model()" />
-  }
-  @case ('scouting') {
-    <app-player-intel [embedded]="true" [full]="full()" [model]="model()" />
+  @case ('players') {
+    <app-roster-players [full]="full()" [model]="model()" [focus]="focusPlayer()" />
   }
   @case ('report') {
     <app-scout-report [full]="full()" [model]="model()" />

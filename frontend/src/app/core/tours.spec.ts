@@ -299,4 +299,13 @@ describe('the roster tour and the team poster', () => {
       expect(step.before, step.anchor as string).toBe('openRosterSheet');
     }
   });
+
+  it('walks Players instead of the old Table and Scouting, and opens a row before the step inside it (13 Sep 2026)', () => {
+    expect(roster.version).toBeGreaterThanOrEqual(4);
+    const anchors = roster.steps.map((s) => s.anchor as string);
+    expect(anchors.filter((a) => a === 'table-queue' || a.startsWith('scouting-'))).toEqual([]);
+    expect(anchors).toEqual(expect.arrayContaining(['players-queue', 'players-row', 'players-detail', 'players-practice-board']));
+    expect(roster.steps.find((s) => s.anchor === 'players-detail')?.before).toBe('openPlayersRow');
+    for (const step of roster.steps.filter((s) => (s.anchor as string).startsWith('players-'))) expect(step.query, step.anchor as string).toEqual({ view: 'players' });
+  });
 });
