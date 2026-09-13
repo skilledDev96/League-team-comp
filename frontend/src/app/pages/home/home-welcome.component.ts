@@ -2,6 +2,7 @@ import { Component, inject, input, output } from '@angular/core';
 import { HomeWelcome } from '../../core/home-model';
 import { Role, ROLES } from '../../models/team.models';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
+import { TooltipDirective } from '../../shared/tooltip.directive';
 import { UserPrefsService } from '../../services/user-prefs.service';
 
 /**
@@ -13,7 +14,7 @@ import { UserPrefsService } from '../../services/user-prefs.service';
  */
 @Component({
   selector: 'app-home-welcome',
-  imports: [PlayerAvatarComponent],
+  imports: [PlayerAvatarComponent, TooltipDirective],
   template: `
     @let w = welcome();
     @if (w.player || w.needsSeat) {
@@ -28,12 +29,12 @@ import { UserPrefsService } from '../../services/user-prefs.service';
             <h2 class="home-welcome-greeting">{{ w.greeting }}</h2>
             @if (w.player) {
               <p class="home-welcome-line">
-                @if (w.line; as l) {
-                  <span><b>{{ l.games }}</b> {{ l.games === 1 ? 'game' : 'games' }} {{ scope() }}</span>
-                  <span><b>{{ l.winRate }}%</b> won</span>
-                  <span><b>{{ kda(l.kda) }}</b> KDA</span>
+                @if (w.solo; as s) {
+                  <span [appTip]="s.from === 'season' ? 'Ranked solo/duo this season, from Riot: ' + s.wins + 'W-' + (s.games - s.wins) + 'L' : 'The ranked solo/duo games Riot last read for you'"><b>{{ s.games }}</b> solo {{ s.games === 1 ? 'game' : 'games' }}</span>
+                  <span><b>{{ s.winRate }}%</b> won</span>
+                  @if (s.kda !== null) { <span appTip="Over the solo games Riot last read for you"><b>{{ kda(s.kda) }}</b> KDA</span> }
                 } @else {
-                  <span>No games for you {{ scope() }} yet</span>
+                  <span>No ranked solo games read from Riot yet</span>
                 }
                 @if (w.titles) {
                   <span class="home-welcome-titles"><span class="material-symbols-rounded" aria-hidden="true">workspace_premium</span>
@@ -46,14 +47,10 @@ import { UserPrefsService } from '../../services/user-prefs.service';
           </div>
         </div>
 
-        @if (w.form.length) {
-          <ol class="home-form" aria-label="Your last games, newest first">
-            @for (r of w.form; track $index) {
-              <li class="home-form-pip" [class.is-win]="r === 'W'" [class.is-loss]="r === 'L'">
-                <span aria-hidden="true">{{ r }}</span><span class="visually-hidden">{{ r === 'W' ? 'Win' : 'Loss' }}</span>
-              </li>
-            }
-          </ol>
+        @if (w.player && w.solo?.rank; as rank) {
+          <span class="home-welcome-rank" appTip="Your ranked solo/duo rank, from Riot">
+            <span class="home-welcome-rank-queue">Solo</span>{{ rank }}@if (w.solo?.lp !== null && w.solo?.lp !== undefined) { <small>{{ w.solo!.lp }} LP</small> }
+          </span>
         }
 
         @if (w.needsSeat) {
@@ -71,8 +68,6 @@ import { UserPrefsService } from '../../services/user-prefs.service';
 })
 export class HomeWelcomeComponent {
   readonly welcome = input.required<HomeWelcome>();
-  /** "this season", "in the last 90 days" or "all time". */
-  readonly scope = input.required<string>();
   readonly dismiss = output<void>();
 
   private readonly prefs = inject(UserPrefsService);

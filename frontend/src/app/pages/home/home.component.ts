@@ -60,7 +60,7 @@ function writeStored(key: string, value: string): void {
         [next]="h.next"
         (modeChange)="setMode($event)"
       />
-      <app-home-welcome [welcome]="h.welcome" [scope]="scope()" (dismiss)="dismissSeat()" />
+      <app-home-welcome [welcome]="h.welcome" (dismiss)="dismissSeat()" />
       <div class="home-duo">
         <app-home-spotlight [spotlight]="h.spotlight" [scope]="scope()" />
         <app-home-race [race]="h.race" [seasonLabel]="h.season.label" />

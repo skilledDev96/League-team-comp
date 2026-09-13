@@ -183,7 +183,6 @@ export function buildHome(i: HomeInput): HomeModel {
 
   const starters = i.players.filter((p) => !p.sub).sort((a, b) => seatOrder(a) - seatOrder(b));
   const allLines = playerLines(serious);
-  const seasonLines = playerLines(seasonGames);
 
   const slides: HomeSlide[] = starters.flatMap((p) => {
     const champion = mainChampionOf(p, allLines);
@@ -207,9 +206,7 @@ export function buildHome(i: HomeInput): HomeModel {
   const greeting = welcomeFor({
     seat: i.seat,
     starters,
-    lines: seasonLines,
     titlesByPlayerId: seasonTitles,
-    rows: serious,
     hour: i.hour,
     dismissed: i.seatDismissed
   });
@@ -220,8 +217,7 @@ export function buildHome(i: HomeInput): HomeModel {
       ? { player: { id: greeting.player.id, name: greeting.player.name, role: greeting.player.role, ...(greeting.player.icon ? { icon: greeting.player.icon } : {}) } }
       : {}),
     titles: greeting.titles,
-    form: greeting.form,
-    ...(greeting.line ? { line: { games: greeting.line.games, wins: greeting.line.wins, winRate: greeting.line.winRate, kda: greeting.line.kda } } : {})
+    ...(greeting.solo ? { solo: greeting.solo } : {})
   };
 
   const last = lastCrown(crowns);

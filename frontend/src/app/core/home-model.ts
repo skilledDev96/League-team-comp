@@ -1,6 +1,7 @@
 import { AnalysisGame, Comp, Player, Role, Scrim, SeriesGame, SettingsBanner, Tournament, TournamentSeries, Trophy } from '../models/team.models';
 import { PatternFilters } from '../pages/review/win-loss-splits';
 import { Achievement } from './achievements';
+import { WelcomeSolo } from './home-welcome';
 import { CompOfTheMonth } from './comp-month';
 import { DonutSegment } from './home-charts';
 import { LastCrown, PodiumPlace, RaceEntry } from './mvp-race';
@@ -68,10 +69,8 @@ export interface HomeWelcome {
   needsSeat: boolean;
   player?: { id: string; name: string; role: Role; icon?: string };
   titles: number;
-  /** Newest first. */
-  form: ('W' | 'L')[];
-  /** Their line over the season: absent when they played none of it. */
-  line?: { games: number; wins: number; winRate: number; kda: number };
+  /** Their own ranked solo queue (13 Sep 2026); absent when Riot has read nothing of it. */
+  solo?: WelcomeSolo;
 }
 
 /**

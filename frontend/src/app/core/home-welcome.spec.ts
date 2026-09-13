@@ -1,32 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { Player } from '../models/team.models';
-import { GameRow, PlayerLine } from '../pages/games/game-rows';
-import { dayPart, welcomeFor } from './home-welcome';
+import { dayPart, soloOf, welcomeFor } from './home-welcome';
 
 const player = (id: string, name: string, role: string, order: number, over: Partial<Player> = {}) =>
   ({ id, name, role, order, strengths: [], weaknesses: [], top3: [], bans: [], ...over }) as unknown as Player;
 
-const starters = [player('p-top', 'Zac', 'Top', 0), player('p-jg', 'Go10x', 'Jungle', 1), player('p-adc', 'SkilledScarecrow', 'ADC', 3)];
+const ranked = (tier: string, division: string, wins: number, losses: number) => ({ queueType: 'RANKED_SOLO_5x5', tier, rank: division, leaguePoints: 64, wins, losses, winRate: 0 });
+const sample = (games: number, wins: number, avgKda: number) => ({ games, wins, losses: games - wins, winRate: Math.round((wins / games) * 100), avgKda });
 
-const line = (name: string, games: number) => ({ name, role: 'Jungle', games, wins: 1, winRate: 50, statGames: 0, kills: 0, deaths: 0, assists: 0, kda: 0, champions: [] }) as unknown as PlayerLine;
-
-const row = (id: string, date: number, win: boolean, ourNames: (string | null)[], over: Partial<GameRow> = {}) =>
-  ({
-    id,
-    source: 'riot',
-    label: 'Flex',
-    date,
-    win,
-    ours: ourNames.map((name, i) => ({ role: ['Top', 'Jungle', 'Mid', 'ADC', 'Support'][i] ?? '', champion: `Champ${i}`, player: name })),
-    theirs: [],
-    ...over
-  }) as unknown as GameRow;
+const starters = [
+  player('p-top', 'Zac', 'Top', 0),
+  player('p-jg', 'Go10x', 'Jungle', 1, { queueStats: { solo: { rank: ranked('GOLD', 'I', 80, 70), matches: sample(155, 82, 2.9) } } } as never),
+  player('p-adc', 'SkilledScarecrow', 'ADC', 3)
+];
 
 const base = {
   starters,
-  lines: [line('Zac', 4), line('Go10x', 6)],
   titlesByPlayerId: new Map([['p-jg', 2]]),
-  rows: [] as GameRow[],
   hour: 9,
   dismissed: false
 };
@@ -38,12 +28,12 @@ describe('dayPart', () => {
 });
 
 describe('welcomeFor', () => {
-  it('greets the starter in the seat by name, with their line and their titles', () => {
+  it('greets the starter in the seat by name, with their own solo queue and their titles', () => {
     const w = welcomeFor({ ...base, seat: 'Jungle', hour: 14 });
     expect(w.greeting).toBe('Afternoon, Go10x');
     expect(w.player?.id).toBe('p-jg');
     expect(w.needsSeat).toBe(false);
-    expect(w.line?.games).toBe(6);
+    expect(w.solo).toEqual({ rank: 'Gold I', lp: 64, games: 150, wins: 80, winRate: 53, kda: 2.9, from: 'season' });
     expect(w.titles).toBe(2);
   });
 
@@ -56,39 +46,22 @@ describe('welcomeFor', () => {
     expect(shared.map((p) => p.id)).toEqual(['p-late', 'p-early']);
   });
 
-  it('reads the form from the five newest rows our player was in, newest first', () => {
-    const t = 1_788_000_000_000;
-    const rows = [
-      row('r1', t, true, ['Zac', 'Go10x']),
-      row('r2', t - 1, false, ['Zac', null]),
-      row('r3', t - 2, false, ['Zac', 'Go10x']),
-      row('r4', t - 3, true, ['Zac', 'Go10x']),
-      row('r5', t - 4, true, ['Zac', 'Go10x']),
-      row('r6', t - 5, false, ['Zac', 'Go10x']),
-      row('r7', t - 6, true, ['Zac', 'Go10x'])
-    ];
-    const w = welcomeFor({ ...base, rows, seat: 'Jungle' });
-    expect(w.form).toEqual(['W', 'L', 'W', 'W', 'L']);
-    expect(welcomeFor({ ...base, rows: rows.slice(0, 2), seat: 'Top' }).form).toEqual(['W', 'L']);
+  it('reads the season ladder when ranked, the games Riot read when not, and nothing when it read none', () => {
+    expect(soloOf(player('a', 'A', 'Mid', 0, { queueStats: { solo: { matches: sample(40, 22, 3.1) } } } as never))).toEqual({ rank: null, lp: null, games: 40, wins: 22, winRate: 55, kda: 3.1, from: 'sample' });
+    expect(soloOf(player('b', 'B', 'Mid', 0, { queueStats: { solo: { rank: ranked('MASTER', 'I', 10, 10) } } } as never))).toMatchObject({ rank: 'Master', games: 20, winRate: 50, kda: null });
+    expect(soloOf(player('c', 'C', 'Mid', 0, { queueStats: { flex: { rank: ranked('GOLD', 'I', 10, 10) } } } as never))).toBeNull();
   });
 
-  it("never reads the other side's seats, even if one somehow carried a name", () => {
-    // By construction the other side is champions only; this row breaks that on purpose to prove it is not read.
-    const stray = row('r1', 1_788_000_000_000, true, [null], { theirs: [{ role: 'Jungle', champion: 'Vi', player: 'Go10x' }] });
-    expect(welcomeFor({ ...base, rows: [stray], seat: 'Jungle' }).form).toEqual([]);
-  });
-
-  it('leaves the line out and counts no titles when the reader has neither', () => {
+  it('says nothing of solo and counts no titles when the reader has neither', () => {
     const w = welcomeFor({ ...base, seat: 'ADC', hour: 20 });
     expect(w.greeting).toBe('Evening, SkilledScarecrow');
-    expect('line' in w).toBe(false);
+    expect(w.solo).toBeNull();
     expect(w.titles).toBe(0);
-    expect(w.form).toEqual([]);
   });
 
   it('greets with the part of the day alone and asks for a seat when nobody is named, unless waved away', () => {
     const noSeat = welcomeFor({ ...base, hour: 6 });
-    expect(noSeat).toEqual({ greeting: 'Morning', player: null, needsSeat: true, titles: 0, form: [] });
+    expect(noSeat).toEqual({ greeting: 'Morning', player: null, needsSeat: true, titles: 0, solo: null });
     const empty = welcomeFor({ ...base, seat: 'Support', hour: 23 });
     expect(empty.greeting).toBe('Evening');
     expect(empty.player).toBeNull();

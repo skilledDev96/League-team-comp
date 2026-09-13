@@ -15354,12 +15354,12 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .home-welcome-greeting { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.2rem; line-height: 1.2; }
 .home-welcome-line { margin: 0.1rem 0 0; display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.82rem; color: var(--text-1); }
 .home-welcome-line b { color: var(--text-0); }
+/* Their solo rank where the team's last five used to be (13 Sep 2026): the band is about the reader, the team is further down. */
+.home-welcome-rank { margin-left: auto; display: inline-flex; align-items: baseline; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 999px; border: 1px solid var(--card-border); background: var(--surface-btn); font-family: "Chakra Petch", sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--text-0); white-space: nowrap; }
+.home-welcome-rank small { font-family: inherit; font-size: 0.72rem; font-weight: 600; color: var(--text-1); }
+.home-welcome-rank-queue { font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
 .home-welcome-titles { display: inline-flex; align-items: center; gap: 0.2rem; color: var(--accent-2); }
 .home-welcome-titles .material-symbols-rounded { font-size: 1rem; }
-.home-form { list-style: none; margin: 0 0 0 auto; padding: 0; display: flex; gap: 0.3rem; }
-.home-form-pip { width: 1.6rem; height: 1.6rem; display: grid; place-items: center; border-radius: 6px; font-family: "Chakra Petch", sans-serif; font-size: 0.78rem; font-weight: 700; border: 1px solid var(--card-border); }
-.home-form-pip.is-win { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
-.home-form-pip.is-loss { color: var(--warn); background: color-mix(in srgb, var(--warn) 13%, transparent); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
 .home-seat-ask { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; }
 .home-seat-q { margin-right: 0.2rem; font-size: 0.85rem; font-weight: 600; color: var(--text-0); }
 .home-seat-later { border-color: var(--card-border); color: var(--text-1); }
