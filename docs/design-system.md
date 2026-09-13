@@ -136,7 +136,7 @@ A control that must live *inside* a clickable header needs **`$event.preventDefa
 **Inside a card**, a section folds the same way without a card of its own:
 `<details class="intel-collapse fold-card">` with `<summary class="section-head intel-collapse-head">`
 holding the `h3`, an `.intel-collapse-count` pill and a trailing `.fold-chevron`. A player's champion
-pool uses it on Scouting and the profile's Declared pool, and so does Working On. Do not make a card's
+pool uses it on the profile's Declared pool. Do not make a card's
 whole face a link with buttons inside it: a clickable tile is one stretched button (§3½).
 
 ---
@@ -155,7 +155,7 @@ make this consistent across all pages."* Games' anatomy, copied everywhere:
 </section>
 ```
 
-Roster's four views, Comps' categories, Prep's Plan | Draft, the profile's links and Admin's tabs are
+Roster's three views, Comps' categories, Prep's Plan | Draft, the profile's links and Admin's tabs are
 all pills on the left. Something that belongs to one view goes in a row under the toolbar, not in it.
 A control present on one view and not another is **removed**, not hidden: Prep's switch hidden on
 Draft pushed the whole draft room 35px down.
@@ -171,7 +171,7 @@ animate behind one gate each: motion allowed, `.home` or `.roster` not `.is-stil
 clickable splash tile is one stretched button (the Roster panel's name), never a link overlay plus buttons. Do not
 put a stage in place of a working page's toolbar.
 
-**A restyle never reaches another page through a shared class.** Roster's Scouting header shares
+**A restyle never reaches another page through a shared class.** Roster's old Scouting header shared
 `.player-panel-header` with Admin › Players, and its Scout report shares every `.opp-*` class with Prep & Draft,
 so the poster's look went in as new markup (`.report-banboard`, `.report-ban.splash-tile`) or as rules scoped under
 the view's own root (`.player-intel-card …`, `.roster-report …`). Check the other page before and after.
@@ -201,9 +201,14 @@ Two rules learned the hard way:
 
 Three more, from Roster and Comps (12 Sep 2026):
 
-- **One switch per page, not per mode.** Roster's four views share `roster`. A page with modes that
+- **One switch per page, not per mode.** Roster's three views share `roster`. A page with modes that
   each carried their own Starter | Full had three of them, none remembered, and none on the densest
   view.
+- **A table a reader compares stays shut at Full** (13 Sep 2026, Roster's Players): Full adds the columns a reader
+  checks, and rows open by click at both depths. Opening every row would push the rows apart, which defeats the
+  comparison the extra columns are for, and build every row's pickers.
+- **A compact search pill** is a view pill's size until it is used (Roster's toolbar): it widens while focused or set,
+  and a count the page already says elsewhere is left off.
 - **Build heavy content only while it is shown.** A shut `<details>` still renders its body. A
   panel holding a wall, a board or a long table gates its body on its open state — Comps built
   seven boards and seven 173-champion walls nobody could see.

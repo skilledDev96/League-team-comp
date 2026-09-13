@@ -98,7 +98,7 @@ still resolving to it), `/tournaments`,
 `/synergy`, `/admin`. Adding a page means touching both files — the route alone
 leaves it unreachable.
 
-**`/roster` has a fourth mode, Scout report** (9 Sep 2026): our own five through
+**`/roster` has a third mode, Scout report** (9 Sep 2026): our own five through
 `OpponentScoutService.scoutOurselves` (the same scout an opponent gets, seat =
 main role, bench flag along), stored once at `meta/selfScout` as
 `OpponentPlayer[]` so `pages/roster/scout-report.component` renders the same
@@ -106,24 +106,41 @@ table and ban board with the `core/opponent-view` helpers. Read-only there;
 seats and the bench are set on the cards.
 
 **`/roster` is one page with three modes**, in `pages/roster/`: Cards
-(`OverviewComponent`), Table (`TeamProfilesComponent`) and Scouting
-(`PlayerIntelComponent`). They were three nav entries answering the same
-question at different depths. The shell hosts the three existing components
-rather than replacing them — each keeps its own state and controls, and passes
-`embedded` so only the shell renders a heading. `@switch` means only the
-selected one is alive.
+(`OverviewComponent`), **Players** (`players/roster-players.component`) and the
+Scout report (`@switch`, only the selected one alive; the names in `roster-view.ts`).
+**Players replaced the Table and Scouting views on 13 Sep 2026** (the lead: "the
+table and scouting feel like they can be merged… not sure what they actually show
+or bring to the table"): measured, the Table's only unique job was Riot's per-queue
+figures side by side and Scouting's the practice board and the learn list, and the
+rest of both repeated the Cards sheet. Players is one row a player in the Cards
+order — A team, bench, fill-ins — over their main's splash: role, name (one
+stretched button, `#rp-open-<id>`, `aria-expanded`), crown, Sub or Fill-in, Also
+plays, then **their own games in one queue from Riot's last read** (rank in words
+via `rankWords`, win rate with its games, KDA; `player-rows.ts` `playerRow`, which
+says so in the header tip — not team games, not the ladder record), the Cards main
+and how many points are open. The queue defaults to Solo when anyone is ranked
+there and is remembered in `localStorage['bom-roster-queue']`. A row opens by click,
+**several at once, at both depths**, onto `roster-player-detail.component`, built
+only while open: working on (resolve, add, delete in edit mode), the learn list, the
+pool — **edited through `editor.patch`**, so the player is marked hand-edited (Scouting
+wrote straight to the store and the morning refresh put Riot's champions back) — and
+Profile, op.gg, Edit player. `?view=players&player=<id>` opens and scrolls to a row;
+the Cards sheet's **Open in Players** links there. `practice-board.component` above it
+is the team board, shut at Starter and open at Full (`linkedSignal` on the depth, its
+list built only while open). Editors get **Refresh every player from Riot** in the
+table head. `?view=table`, `?view=scouting`, `/players` and `/profiles` all land on
+Players (`rosterViewOf`).
 
-**One Starter | Full speaks for all four views** (12 Sep 2026, the lead: "one
+**One Starter | Full speaks for all three views** (12 Sep 2026, the lead: "one
 switch all four"). The shell reads `UserPrefs.depth.roster` and passes `full` to
-each mode; there used to be one on Cards only, another unrelated one on
-Scouting, neither remembered, and none on the Scout report — measured at ~370
-marks in one card on seeded data, the densest thing the app draws. Starter:
-the Scout report is its ban board and one line a player (`topPlays`,
-`bestRank`, the line Prep draws); the Table is who, rank, recent form and main;
-Scouting keeps its practice board folded to its counts (13 Sep 2026; Full opens it) and a card holds the pool, what they are
-working on and learning. Full is everything expanded, and on Cards and Scouting
-it opens every card (a click turns one card against the depth, and changing the
-depth resets them). Cards' Full used to add Team Identity, a Quick Access card
+each mode. Starter: the Scout report is its ban board and one line a player
+(`topPlays`, `bestRank`, the line Prep draws); Players is who, rank, win rate, KDA,
+main and working on, with the board folded to its counts. Full adds the check
+columns on Players (CS a minute, kill participation, damage share, vision, LP,
+resolved) and opens the practice board, **but opens no rows**: the extra columns are
+for reading across rows, and every row open would push them apart and build every
+row's pickers. On Cards Full opens the first sheet (a click turns the choice against
+the depth, and changing the depth resets it). Cards' Full used to add Team Identity, a Quick Access card
 and the resource links — nothing in the app edits either, both are the original
 seed, and the lead: "we are not using those tools" — so they went from the page;
 `teamIdentity` and `resourceLinks` are still in the data.
@@ -131,7 +148,7 @@ seed, and the lead: "we are not using those tools" — so they went from the pag
 **Roster is a team poster** (13 Sep 2026, the lead after Home: "I love the look of this instead of the
 summoner icons… keep the theme of the home page rolling"). The shell builds **one model** —
 `core/roster-build.ts` `buildRoster`, pure, all time over serious games (`ROSTER_SCOPE`) — and hands it to
-all four views, so a crown, a form strip or a main champion cannot disagree between them. **Cards** is the A
+all three views, so a crown, a form strip or a main champion cannot disagree between them. **Cards** is the A
 team as five tall splash panels in seat order (`pages/roster/poster/roster-panel.component.ts`: the main's
 splash, the role, a win-rate ring, the crown and titles chip, the last five as pips) with the bench and the
 fill-ins as smaller tiles under it. A panel's name is **one stretched button** that opens the player's
@@ -145,17 +162,21 @@ player benched there regroups with their sheet following them. **Full** adds a c
 plate (three pool faces, KDA, working on — the panel's height never changes), opens the first starter's
 sheet on arrival and pins it by id (`openFirst`; following `starters[0]` moved the sheet to the next starter
 when the first was benched), and adds stats, bans, learning and the declared pool to the sheet; changing depth
-resets the choice. **Table** puts each row's main as a splash stripe behind the name, **Scouting** turns each
-card's header into a splash band that is still the card's one toggle (scoped under `.player-intel-card`,
-because Admin › Players draws the same header class), and the **Scout report** draws its ban board as splash
-tiles of its own markup and each of our five on a splash line — every rule under `.roster-report`, because
-Prep & Draft draws the same `.opp-*` classes for an opponent. Motion sits behind the one gate
+resets the choice. Each panel also says **which way their rank went this week** (`rank-ladder.ts`
+`rankTrendOf`, from the morning ranks in the card's queue; nothing until two mornings fall inside the week) and
+**when they last played** a serious team game (`RosterCard.lastPlayed`, `team-season.ts` `playedAgo`). **Players**
+rows use the same splash stripe (`.rp-*`, new markup rather than Admin's `.player-panel-header`), and the **Scout
+report** draws its ban board as splash tiles of its own markup and each of our five on a splash line — every
+rule under `.roster-report`, because Prep & Draft draws the same `.opp-*` classes for an opponent. The toolbar is
+**one slim row** (13 Sep 2026, the lead: "the filter is way too big"): the champion box is a view pill's size until
+used (`showCount` off, scoped under `.roster`), no player count beside it, and the switch's "Detail" word visually
+hidden. The filter's answer reads the same pool the panels light up by (played and listed, `rosterCards`). Motion sits behind the one gate
 (`.roster:not(.is-still) … .is-seen`), and every splash `<img>` carries `ui.artFallback`.
 
-`/players` and `/profiles` **still resolve**, each carrying
-`data: { view }` naming the mode it used to be, so old links and the `e2e`
-suite land where they always did. Do not turn them into redirects without
-checking `e2e/tests/authenticated.spec.ts`, which navigates to `./players`.
+`/players` and `/profiles` **still resolve**, both carrying
+`data: { view: 'players' }`, so old links and the `e2e` suite land on Players. Do not
+turn them into redirects without checking `e2e/tests/authenticated.spec.ts`, which
+navigates to `./players` and opens a row.
 `/overview` was the landing page and **redirects to `/home`** since 13 Sep 2026.
 
 **`/home` is the landing page** (13 Sep 2026, the lead: "a welcoming page for our
