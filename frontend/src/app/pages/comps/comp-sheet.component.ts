@@ -77,8 +77,10 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
               }
               <h2 id="comps-sheet-title" tabindex="-1">
                 @if (auth.editing()) {
-                  <input id="comps-sheet-rename" class="comps-sheet-rename" [ngModel]="nameDraft() ?? c.name" (ngModelChange)="nameDraft.set($event)"
-                         (blur)="commitName()" (keydown.enter)="blurTarget($event)" (keydown.escape)="revertField($event, nameDraft)" name="comp-name"
+                  <!-- A plain value binding, not ngModel: the page selects the placeholder name right after the sheet renders so
+                       typing replaces it, and ngModel writes its value a tick later, after the selection. -->
+                  <input id="comps-sheet-rename" class="comps-sheet-rename" [value]="nameDraft() ?? c.name" (input)="nameDraft.set($any($event.target).value)"
+                         (blur)="commitName()" (keydown.enter)="blurTarget($event)" (keydown.escape)="revertField($event, nameDraft)"
                          aria-label="Comp name" data-tour="comp-name" autocomplete="off" />
                 } @else {
                   {{ c.name }}
