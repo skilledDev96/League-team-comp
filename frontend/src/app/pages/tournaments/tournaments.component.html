@@ -1,13 +1,19 @@
-<section class="hero">
-  <h1>Prep &amp; Draft</h1>
-  <p>Every opponent we prep for and draft against, scrim or tournament.</p>
-  <app-tour-pill />
+<!-- The slim hero (13 Sep 2026): what the page holds, the title, one line, the tour pill. -->
+<section class="hero is-slim" appInView>
+  <div class="hero-id">
+    <p class="home-kicker hero-kicker"><span class="material-symbols-rounded" aria-hidden="true">swords</span>{{ heading() }}</p>
+    <h1 class="hero-title">Prep &amp; Draft</h1>
+    <p class="hero-blurb">Every opponent we prep for and draft against, scrim or tournament.</p>
+  </div>
+  <div class="hero-actions">
+    <app-tour-pill />
+  </div>
 </section>
 
 <!-- One toolbar on every page, the Games one (12 Sep 2026, the lead: "I like how the games top page
      looks, with the detail option on the right — make this consistent across all pages"). The views as
      pills on the left, anything that belongs to the whole page pushed right, Detail last. -->
-<section class="view-controls" aria-label="View">
+<section class="view-controls is-slim" aria-label="View">
   <button type="button" class="view-btn" [class.active]="view() === 'plan'" (click)="view.set('plan')">
     <span class="material-symbols-rounded" aria-hidden="true">calendar_month</span> Plan
   </button>

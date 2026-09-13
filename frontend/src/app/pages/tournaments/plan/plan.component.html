@@ -1,5 +1,6 @@
-<!-- The groups and the opponent filter in one row, the toolbar's shape (12 Sep 2026). -->
-<section class="view-controls" aria-label="Groups" [attr.data-tour]="tournaments().length > 1 ? 'prep-groups' : null">
+<!-- The groups and the opponent filter in one row under the page's toolbar (design system §3½): what belongs to this
+     view sits here, since the draft view has neither. -->
+<section class="view-row plan-groups" aria-label="Groups" [attr.data-tour]="tournaments().length > 1 ? 'prep-groups' : null">
   @if (tournaments().length > 1) {
     @for (t of tournaments(); track t.id) {
       <button type="button" class="view-btn" [class.active]="currentTournament()?.id === t.id"
@@ -11,7 +12,7 @@
     }
   }
   <div class="view-controls-tools">
-    <app-champion-filter [count]="holders().length" noun="opponents" placeholder="Who on their side plays a champion — Tristana, Rakan…" />
+    <app-champion-filter [count]="holders().length" noun="opponents" placeholder="Find a champion" [showCount]="false" />
   </div>
   @if (filter.active()) {
     <p class="champ-filter-answer is-inset">
@@ -164,7 +165,7 @@
         <span class="section-divider-count">{{ seriesList().length }}</span>
       </h3>
       @for (series of seriesList(); track series.id; let i = $index) {
-        <details class="card series-panel" data-tour="prep-series" [open]="isSeriesOpen(series.id)">
+        <details class="card series-panel reveal" appInView [style.--reveal-i]="i" data-tour="prep-series" [open]="isSeriesOpen(series.id)">
           <summary class="series-summary" (click)="$event.preventDefault(); toggleSeries(series.id)">
             <span class="series-index">{{ i + 1 }}</span>
             <span class="series-opponent">vs {{ series.opponent }}</span>
@@ -253,9 +254,9 @@
 
           <!-- Games: typed in live, reconciled against match history later. -->
           <div class="series-games">
-            <div class="comp-record-head">
-              <span class="comp-record-title material-symbols-rounded" aria-hidden="true">stadium</span>
-              <span class="comp-record-label">Games</span>
+            <div class="section-line">
+              <span class="section-line-icon material-symbols-rounded" aria-hidden="true">stadium</span>
+              <span class="section-line-label">Games</span>
               @if (auth.editing() && !isScrims()) {
                 <span class="view-segment series-bestof is-small" role="group" aria-label="Best of" data-tour="plan-bestof">
                   @for (n of bestOfOptions; track n) {
@@ -264,7 +265,7 @@
                 </span>
               }
               @if (auth.editing() && canAddGame(series)) {
-                <button type="button" class="comp-log-trigger" aria-label="Add game" appTip="Add game"
+                <button type="button" class="view-btn icon-pill" aria-label="Add game" appTip="Add game"
                         (click)="addGame(series)">
                   <span class="material-symbols-rounded" aria-hidden="true">add</span>
                 </button>
@@ -403,10 +404,10 @@
           @if (auth.editing() || series.notes || series.bans?.length || series.opponentPlayers?.length) {
             <details class="series-prep" [attr.data-prep]="series.id"
                      [open]="isPrepPanelOpen(series.id)">
-              <summary class="comp-record-head series-prep-head"
+              <summary class="section-line series-prep-head"
                        (click)="$event.preventDefault(); togglePrepPanel(series.id)">
-                <span class="comp-record-title material-symbols-rounded" aria-hidden="true">description</span>
-                <span class="comp-record-label">Scouting &amp; bans</span>
+                <span class="section-line-icon material-symbols-rounded" aria-hidden="true">description</span>
+                <span class="section-line-label">Scouting &amp; bans</span>
                 <span class="series-prep-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
               </summary>
               <!-- Their five. The rulebook makes every team publish an op.gg
@@ -414,8 +415,8 @@
                    text of that URL is read, never the site itself. -->
               <div class="opp-roster">
                 <div class="opp-roster-head">
-                  <span class="comp-record-title material-symbols-rounded" aria-hidden="true">groups</span>
-                  <span class="comp-record-label">Their roster</span>
+                  <span class="section-line-icon material-symbols-rounded" aria-hidden="true">groups</span>
+                  <span class="section-line-label">Their roster</span>
                   @if (scoutedAt(series); as when) {
                     <span class="muted opp-scouted">scouted {{ when }}</span>
                   }
@@ -1045,7 +1046,7 @@
       }
     </section>
   } @else {
-    <p class="muted">
+    <p class="empty-state">
       No series yet.
       @if (auth.editing()) { Add your first opponent above. }
       @else { An editor can add one in edit mode. }

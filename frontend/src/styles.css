@@ -4746,6 +4746,13 @@ app-match-note {
   border-left-color: var(--accent);
 }
 
+/* A block's head, an icon and a label (13 Sep 2026): what the comp panels' record heads were, shared with Prep, which
+   still draws its Games, Scouting & bans and Their roster heads this way. */
+.section-line { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.section-line-icon { font-size: 1.15rem; color: var(--accent-2); }
+.section-line-label { font-family: "Chakra Petch", sans-serif; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; font-size: 0.85rem; color: var(--text-0); }
+.section-line .icon-pill { width: 1.7rem; height: 1.7rem; }
+
 /* Prep is preparation, not live state, so it folds away by default. */
 .series-prep-head {
   display: flex;
@@ -14115,18 +14122,21 @@ so none of this can move the draft room. */
 /* The slim toolbar (13 Sep 2026, Roster first, Comps second): one row, the champion box a view pill's size until it
    is used, and the switch's "Detail" word kept for screen readers only. A class while Games, Prep and Patterns keep
    the wide box; the default once every page's filter sits in its toolbar. */
-.view-controls.is-slim .view-controls-tools app-champion-filter { flex: 0 0 auto; }
-.view-controls.is-slim .champ-filter-box { flex: 0 0 auto; width: 12rem; max-width: none; }
-.view-controls.is-slim .champ-filter-box:focus-within,
-.view-controls.is-slim .champ-filter-box:has(.champ-filter-input.is-set),
-.view-controls.is-slim .champ-filter-box:has(input:not(:placeholder-shown)) { width: 18rem; }
-.view-controls.is-slim .champ-filter-input { padding: 0.3rem 0.72rem; gap: 0.3rem; font-size: 0.78rem; }
-.view-controls.is-slim .champ-filter-input .material-symbols-rounded { font-size: 1rem; }
-.view-controls.is-slim .champ-filter-pick { width: 1rem; height: 1rem; }
+:is(.view-controls.is-slim, .view-row) .view-controls-tools app-champion-filter { flex: 0 0 auto; }
+:is(.view-controls.is-slim, .view-row) .champ-filter-box { flex: 0 0 auto; width: 12rem; max-width: none; }
+:is(.view-controls.is-slim, .view-row) .champ-filter-box:focus-within,
+:is(.view-controls.is-slim, .view-row) .champ-filter-box:has(.champ-filter-input.is-set),
+:is(.view-controls.is-slim, .view-row) .champ-filter-box:has(input:not(:placeholder-shown)) { width: 18rem; }
+:is(.view-controls.is-slim, .view-row) .champ-filter-input { padding: 0.3rem 0.72rem; gap: 0.3rem; font-size: 0.78rem; }
+:is(.view-controls.is-slim, .view-row) .champ-filter-input .material-symbols-rounded { font-size: 1rem; }
+:is(.view-controls.is-slim, .view-row) .champ-filter-pick { width: 1rem; height: 1rem; }
+:is(.view-controls.is-slim, .view-row) .champ-filter { margin: 0; }
+.view-row .view-controls-tools { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+.view-row .champ-filter-answer.is-inset { flex-basis: 100%; margin: 0; }
 .view-controls.is-slim .detail-toggle { margin: 0; }
 .view-controls.is-slim .detail-toggle > span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 @media (prefers-reduced-motion: no-preference) {
-  .page:not(.is-still) .view-controls.is-slim .champ-filter-box { transition: width 160ms ease; }
+  .page:not(.is-still) :is(.view-controls.is-slim, .view-row) .champ-filter-box { transition: width 160ms ease; }
 }
 
 /* The slim hero (13 Sep 2026, Roster's, now every poster page's): a kicker, the title and one line in the left column,

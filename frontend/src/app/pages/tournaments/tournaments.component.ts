@@ -1,4 +1,6 @@
-import { Component, effect, inject, untracked } from '@angular/core';
+import { Component, computed, effect, inject, untracked } from '@angular/core';
+import { InViewDirective } from '../../shared/in-view.directive';
+import { TeamDataService } from '../../services/team-data.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TournamentDraftComponent } from './draft/draft.component';
@@ -15,12 +17,20 @@ import { ChampionDataService } from '../../services/champion-data.service';
  */
 @Component({
   selector: 'app-tournaments',
-  imports: [DetailToggleComponent, TournamentPlanComponent, TournamentDraftComponent, TourPillComponent],
+  imports: [DetailToggleComponent, InViewDirective, TournamentPlanComponent, TournamentDraftComponent, TourPillComponent],
   templateUrl: './tournaments.component.html'
 })
 export class TournamentsComponent {
   protected readonly ctx = inject(TournamentContextService);
   protected readonly champData = inject(ChampionDataService);
+  private readonly data = inject(TeamDataService);
+
+  /** The slim hero's kicker: how many opponents, in how many groups. */
+  protected readonly heading = computed(() => {
+    const series = this.data.tournamentSeries().length;
+    const groups = this.data.tournaments().length;
+    return `${series} ${series === 1 ? 'opponent' : 'opponents'}${groups ? ` · ${groups} ${groups === 1 ? 'group' : 'groups'}` : ''}`;
+  });
 
   /**
    * Held on the context service, not here.

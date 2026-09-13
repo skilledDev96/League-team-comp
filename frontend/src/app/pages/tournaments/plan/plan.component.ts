@@ -1,4 +1,5 @@
 import { ChampionFilterService } from '../../../services/champion-filter.service';
+import { InViewDirective } from '../../../shared/in-view.directive';
 import { ChampionFilterComponent } from '../../../shared/champion-filter.component';
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -63,7 +64,7 @@ import { UserPrefsService } from '../../../services/user-prefs.service';
  */
 @Component({
   selector: 'app-tournament-plan',
-  imports: [
+  imports: [InViewDirective, 
     ChampionFilterComponent,
     FormsModule,
     RouterLink,
