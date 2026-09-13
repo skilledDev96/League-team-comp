@@ -33,7 +33,7 @@ describe('welcomeFor', () => {
     expect(w.greeting).toBe('Afternoon, Go10x');
     expect(w.player?.id).toBe('p-jg');
     expect(w.needsSeat).toBe(false);
-    expect(w.solo).toEqual({ rank: 'Gold I', lp: 64, games: 150, wins: 80, winRate: 53, kda: 2.9, from: 'season' });
+    expect(w.solo).toEqual({ rank: 'Gold I', tier: 'gold', lp: 64, games: 150, wins: 80, winRate: 53, kda: 2.9, from: 'season' });
     expect(w.titles).toBe(2);
   });
 
@@ -47,8 +47,8 @@ describe('welcomeFor', () => {
   });
 
   it('reads the season ladder when ranked, the games Riot read when not, and nothing when it read none', () => {
-    expect(soloOf(player('a', 'A', 'Mid', 0, { queueStats: { solo: { matches: sample(40, 22, 3.1) } } } as never))).toEqual({ rank: null, lp: null, games: 40, wins: 22, winRate: 55, kda: 3.1, from: 'sample' });
-    expect(soloOf(player('b', 'B', 'Mid', 0, { queueStats: { solo: { rank: ranked('MASTER', 'I', 10, 10) } } } as never))).toMatchObject({ rank: 'Master', games: 20, winRate: 50, kda: null });
+    expect(soloOf(player('a', 'A', 'Mid', 0, { queueStats: { solo: { matches: sample(40, 22, 3.1) } } } as never))).toEqual({ rank: null, tier: null, lp: null, games: 40, wins: 22, winRate: 55, kda: 3.1, from: 'sample' });
+    expect(soloOf(player('b', 'B', 'Mid', 0, { queueStats: { solo: { rank: ranked('MASTER', 'I', 10, 10) } } } as never))).toMatchObject({ rank: 'Master', tier: 'master', games: 20, winRate: 50, kda: null });
     expect(soloOf(player('c', 'C', 'Mid', 0, { queueStats: { flex: { rank: ranked('GOLD', 'I', 10, 10) } } } as never))).toBeNull();
   });
 

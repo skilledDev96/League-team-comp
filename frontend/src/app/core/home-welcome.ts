@@ -28,6 +28,8 @@ export function dayPart(hour: number): 'Morning' | 'Afternoon' | 'Evening' {
 export interface WelcomeSolo {
   /** "Gold II", or "Master"; null when they have played solo but hold no rank there. */
   rank: string | null;
+  /** Riot's tier in lower case ("gold"), for the crest and the tint; null with no rank. */
+  tier: string | null;
   lp: number | null;
   /** The season's ladder games when ranked, else the games Riot's last read holds. */
   games: number;
@@ -60,10 +62,10 @@ export function soloOf(p: Player): WelcomeSolo | null {
   const kda = sample && Number.isFinite(sample.avgKda) ? sample.avgKda : null;
   const seasonGames = rank ? rank.wins + rank.losses : 0;
   if (rank && seasonGames > 0) {
-    return { rank: rankWords({ tier: rank.tier, division: rank.rank }), lp: rank.leaguePoints, games: seasonGames, wins: rank.wins, winRate: Math.round((rank.wins / seasonGames) * 100), kda, from: 'season' };
+    return { rank: rankWords({ tier: rank.tier, division: rank.rank }), tier: rank.tier.toLowerCase(), lp: rank.leaguePoints, games: seasonGames, wins: rank.wins, winRate: Math.round((rank.wins / seasonGames) * 100), kda, from: 'season' };
   }
   if (sample) {
-    return { rank: rank ? rankWords({ tier: rank.tier, division: rank.rank }) : null, lp: rank ? rank.leaguePoints : null, games: sample.games, wins: sample.wins, winRate: sample.winRate, kda, from: 'sample' };
+    return { rank: rank ? rankWords({ tier: rank.tier, division: rank.rank }) : null, tier: rank ? rank.tier.toLowerCase() : null, lp: rank ? rank.leaguePoints : null, games: sample.games, wins: sample.wins, winRate: sample.winRate, kda, from: 'sample' };
   }
   return null;
 }

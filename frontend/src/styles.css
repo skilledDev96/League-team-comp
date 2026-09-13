@@ -15355,7 +15355,28 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .home-welcome-line { margin: 0.1rem 0 0; display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.82rem; color: var(--text-1); }
 .home-welcome-line b { color: var(--text-0); }
 /* Their solo rank where the team's last five used to be (13 Sep 2026): the band is about the reader, the team is further down. */
-.home-welcome-rank { margin-left: auto; display: inline-flex; align-items: baseline; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 999px; border: 1px solid var(--card-border); background: var(--surface-btn); font-family: "Chakra Petch", sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--text-0); white-space: nowrap; }
+/* The reader's rank frames the band (13 Sep 2026, the lead: "add the ranked banner around this as well"): the tier's
+   emblem in the pill and the tier's colour as a tint on the card's edge and left. The tier colours are Riot's own
+   ladder, one fixed set like the map markers; they sit on body with the other derived tokens. */
+body { --tier-iron: #8b8e94; --tier-bronze: #b0743f; --tier-silver: #aeb8c6; --tier-gold: #dba63f; --tier-platinum: #3fb8a8; --tier-emerald: #34a96a; --tier-diamond: #5fa9ea; --tier-master: #a95fd8; --tier-grandmaster: #d9463f; --tier-challenger: #62c8f3; }
+.home-welcome[data-tier] { --tier: var(--text-1); border-color: color-mix(in srgb, var(--tier) 55%, var(--card-border)); background: linear-gradient(100deg, color-mix(in srgb, var(--tier) 16%, var(--card)), var(--card) 58%); box-shadow: 0 0 1.6rem color-mix(in srgb, var(--tier) 14%, transparent); }
+.home-welcome[data-tier="iron"] { --tier: var(--tier-iron); }
+.home-welcome[data-tier="bronze"] { --tier: var(--tier-bronze); }
+.home-welcome[data-tier="silver"] { --tier: var(--tier-silver); }
+.home-welcome[data-tier="gold"] { --tier: var(--tier-gold); }
+.home-welcome[data-tier="platinum"] { --tier: var(--tier-platinum); }
+.home-welcome[data-tier="emerald"] { --tier: var(--tier-emerald); }
+.home-welcome[data-tier="diamond"] { --tier: var(--tier-diamond); }
+.home-welcome[data-tier="master"] { --tier: var(--tier-master); }
+.home-welcome[data-tier="grandmaster"] { --tier: var(--tier-grandmaster); }
+.home-welcome[data-tier="challenger"] { --tier: var(--tier-challenger); }
+.home-welcome-rank { margin-left: auto; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.9rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--tier, var(--card-border)) 60%, var(--card-border)); background: var(--surface-btn); font-family: "Chakra Petch", sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--text-0); white-space: nowrap; }
+.home-welcome-rank:has(.home-welcome-crest) { padding-left: 0.35rem; }
+/* Riot's emblem is a 1280×720 canvas with the crest a fifth of it: cover crops the middle square and the scale brings
+   the crest up to the box, the rest of the canvas being transparent. The wrapper is what the stamp animates. */
+.home-welcome-crest { display: inline-grid; place-items: center; width: 3rem; height: 3rem; }
+.home-welcome-crest img { width: 3rem; height: 3rem; object-fit: cover; object-position: center; transform: scale(2.6); filter: drop-shadow(0 0.1rem 0.35rem color-mix(in srgb, var(--bg-0) 85%, transparent)); }
+.home-welcome-rank-text { display: inline-flex; align-items: baseline; gap: 0.4rem; }
 .home-welcome-rank small { font-family: inherit; font-size: 0.72rem; font-weight: 600; color: var(--text-1); }
 .home-welcome-rank-queue { font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
 .home-welcome-titles { display: inline-flex; align-items: center; gap: 0.2rem; color: var(--accent-2); }
@@ -15690,6 +15711,7 @@ span.home-records-open { width: 4.1rem; }
   @keyframes home-step-rise { from { transform: scaleY(0); } }
   @keyframes home-ring-draw { from { stroke-dasharray: 0 100; } }
   @keyframes home-stamp { from { opacity: 0; transform: scale(1.5) rotate(-8deg); } }
+  .home:not(.is-still) .home-welcome.is-seen .home-welcome-crest { animation: home-stamp 700ms ease 250ms backwards; }
 }
 
 /* Admin › Settings: Home's banner (13 Sep 2026). */
