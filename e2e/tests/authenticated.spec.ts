@@ -157,7 +157,7 @@ test('the review path opens the patterns tab', async ({ page }) => {
   // shows is not this test's business. Deliberately not asserting on loss
   // cards: a week with no losses is a real outcome, not a broken page.
   await expect(
-    page.locator('.review-toolbar').or(page.getByText(/No match data yet/i)).first()
+    page.locator('.patterns-filters').or(page.getByText(/No match data yet/i)).first()
   ).toBeVisible({ timeout: 30_000 });
 });
 
