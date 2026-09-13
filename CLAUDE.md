@@ -120,7 +120,7 @@ Scouting, neither remembered, and none on the Scout report — measured at ~370
 marks in one card on seeded data, the densest thing the app draws. Starter:
 the Scout report is its ban board and one line a player (`topPlays`,
 `bestRank`, the line Prep draws); the Table is who, rank, recent form and main;
-Scouting opens its practice board and a card holds the pool, what they are
+Scouting keeps its practice board folded to its counts (13 Sep 2026; Full opens it) and a card holds the pool, what they are
 working on and learning. Full is everything expanded, and on Cards and Scouting
 it opens every card (a click turns one card against the depth, and changing the
 depth resets them). Cards' Full used to add Team Identity, a Quick Access card

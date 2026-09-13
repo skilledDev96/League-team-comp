@@ -30,7 +30,7 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
       <span class="splash-shade" aria-hidden="true"></span>
       <div class="roster-panel-top">
         <span class="role-pill">{{ c.role }}</span>
-        <app-rate-ring [rate]="c.winRate" [games]="c.games" [wins]="c.wins" scope="all time" [label]="size() === 'tall' ? 'win rate' : ''" [countUp]="true" [go]="go()" />
+        <app-rate-ring [rate]="c.ranked?.winRate ?? null" [games]="c.ranked?.games ?? 0" [wins]="c.ranked?.wins ?? 0" [scope]="c.ranked?.queue === 'Flex' ? 'in ranked flex' : 'in ranked solo/duo'" [label]="size() === 'tall' ? (c.ranked?.queue ?? 'ranked') + ' win rate' : ''" [countUp]="true" [go]="go()" />
       </div>
       @if (c.crowned) {
         <span class="roster-panel-crown" [appTip]="crownTip()">
@@ -72,7 +72,7 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
             </ol>
           }
           <small class="roster-panel-games">
-            @if (c.group === 'fillIns') { Fill-in } @else { {{ c.games }} {{ c.games === 1 ? 'game' : 'games' }} }
+            @if (c.group === 'fillIns') { Fill-in } @else { {{ c.games }} team {{ c.games === 1 ? 'game' : 'games' }} }
           </small>
           @if (c.group === 'bench') { <span class="sub-badge">Sub</span> }
           @if (!c.crowned && c.titles) { <span class="splash-chip is-quiet">{{ c.titles }} MVP {{ c.titles === 1 ? 'title' : 'titles' }}</span> }

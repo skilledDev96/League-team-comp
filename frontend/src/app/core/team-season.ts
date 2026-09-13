@@ -389,6 +389,29 @@ const APEX_TIERS = new Set(['MASTER', 'GRANDMASTER', 'CHALLENGER']);
  * player is measured on, else flex. Riot's "GOLD" and "II" read as "Gold II"; the three apex tiers
  * have no division, so they read as the tier alone.
  */
+/** A player's own ranked record, as Riot keeps it: the season's wins and losses in one queue. */
+export interface RankedRecord {
+  queue: 'Solo' | 'Flex';
+  games: number;
+  wins: number;
+  /** Rounded percent. */
+  winRate: number;
+}
+
+/**
+ * Their own win rate, not the team's (13 Sep 2026, the lead on Home's lineup: "these win rates should be our own
+ * winrates, not based on the team"). Read from the same queue as `rankLabelOf`, so the ring and the rank beside it
+ * describe one ladder; nothing when that queue has no games.
+ */
+export function rankedRecordOf(p: Player): RankedRecord | null {
+  const label = rankLabelOf(p);
+  if (!label) return null;
+  const rank = (label.queue === 'Solo' ? p.queueStats?.solo : p.queueStats?.flex)?.rank;
+  const wins = rank?.wins ?? 0;
+  const games = wins + (rank?.losses ?? 0);
+  return games > 0 ? { queue: label.queue, games, wins, winRate: Math.round((wins / games) * 100) } : null;
+}
+
 export function rankLabelOf(p: Player): { label: string; queue: 'Solo' | 'Flex' } | null {
   const solo = p.queueStats?.solo?.rank;
   const flex = p.queueStats?.flex?.rank;

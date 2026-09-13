@@ -7,8 +7,8 @@ import { UiService } from '../../../services/ui.service';
 
 /**
  * The five (13 Sep 2026): each starter over their main's splash, with the seat, the rank, a ring for
- * their win rate this season and a crown on whoever holds the most series MVP titles. A card opens the
- * player's profile.
+ * their own ranked win rate in the queue of that rank (the lead: "our own winrates, not based on the team")
+ * and a crown on whoever holds the most series MVP titles. A card opens the player's profile.
  */
 @Component({
   selector: 'app-home-lineup',
@@ -17,7 +17,7 @@ import { UiService } from '../../../services/ui.service';
     <section class="card home-tile home-lineup" appInView aria-labelledby="home-lineup-title">
       <header class="home-card-head">
         <h2 id="home-lineup-title"><span class="material-symbols-rounded" aria-hidden="true">groups</span> The lineup</h2>
-        <span class="home-card-scope">Win rates {{ scope() }}</span>
+        <span class="home-card-scope">Own ranked win rates, from Riot</span>
       </header>
       <ul class="home-lineup-cards">
         @for (c of lineup(); track c.playerId) {
@@ -32,7 +32,7 @@ import { UiService } from '../../../services/ui.service';
               }
               <span class="home-lineup-top">
                 <span class="role-pill">{{ c.role }}</span>
-                <app-rate-ring [rate]="c.winRate" [games]="c.games" [wins]="c.wins" [scope]="scope()" />
+                <app-rate-ring [rate]="c.ranked?.winRate ?? null" [games]="c.ranked?.games ?? 0" [wins]="c.ranked?.wins ?? 0" [label]="(c.ranked?.queue ?? 'ranked') + ' win rate'" [scope]="c.ranked?.queue === 'Flex' ? 'in ranked flex' : 'in ranked solo/duo'" />
               </span>
               <span class="home-lineup-foot">
                 <b class="home-lineup-name">{{ c.name }}</b>
@@ -40,7 +40,7 @@ import { UiService } from '../../../services/ui.service';
                   @if (c.rank; as r) { {{ r.label }} <span class="home-lineup-queue">{{ r.queue }}</span> } @else { Unranked }
                   @if (c.champion) { · {{ ui.championName(c.champion) }} }
                 </small>
-                <small class="home-lineup-games">{{ c.games }} {{ c.games === 1 ? 'game' : 'games' }}</small>
+                <small class="home-lineup-games">@if (c.ranked; as r) { {{ r.games }} ranked {{ r.games === 1 ? 'game' : 'games' }} } @else { No ranked games }</small>
               </span>
             </a>
           </li>

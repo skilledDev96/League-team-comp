@@ -5,7 +5,7 @@
 <section class="roster-group" aria-labelledby="roster-five-title">
   <header class="roster-group-head">
     <h2 id="roster-five-title" class="roster-group-title">A team</h2>
-    <span class="roster-scope">Win rates and form over {{ m.games }} team {{ m.games === 1 ? 'game' : 'games' }}, all time · the crown is the most series MVP titles</span>
+    <span class="roster-scope">Rings are each player's own ranked win rate · form over {{ m.games }} team {{ m.games === 1 ? 'game' : 'games' }}, all time · the crown is the most series MVP titles</span>
   </header>
   @if (m.starters.length) {
     <ul class="roster-poster" appInView (firstSeen)="seen.set(true)" [style.--roster-cols]="posterCols()">

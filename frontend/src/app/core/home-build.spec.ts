@@ -207,7 +207,7 @@ describe('buildHome', () => {
     expect(home.record.segments).toEqual([]);
     expect(home.spotlight).toBeNull();
     expect(home.next).toBeNull();
-    expect(home.lineup.map((c) => [c.name, c.winRate])).toEqual([
+    expect(home.lineup.map((c) => [c.name, c.ranked])).toEqual([
       ['Zac', null],
       ['Go10x', null],
       ['Mido', null],

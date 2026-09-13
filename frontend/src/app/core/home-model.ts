@@ -4,7 +4,7 @@ import { Achievement } from './achievements';
 import { CompOfTheMonth } from './comp-month';
 import { DonutSegment } from './home-charts';
 import { LastCrown, PodiumPlace, RaceEntry } from './mvp-race';
-import { GameRecord, HeadlineCounters, ObjectiveShare, SeasonMode, SeasonWindow, Streak, TrendMarker, TrendPoint } from './team-season';
+import { GameRecord, HeadlineCounters, ObjectiveShare, RankedRecord, SeasonMode, SeasonWindow, Streak, TrendMarker, TrendPoint } from './team-season';
 
 /**
  * The home page as one record (13 Sep 2026), built once by `buildHome` the way the film room is built by
@@ -168,9 +168,8 @@ export interface HomeLineupCard {
   icon?: string;
   champion: string | null;
   rank: { label: string; queue: 'Solo' | 'Flex' } | null;
-  games: number;
-  wins: number;
-  winRate: number | null;
+  /** Their own ranked record in the queue of `rank`, not the team's games (13 Sep 2026). */
+  ranked: RankedRecord | null;
   /** Holds the most series MVP titles this season. */
   crowned: boolean;
 }

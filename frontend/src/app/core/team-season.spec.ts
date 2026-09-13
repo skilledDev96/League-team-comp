@@ -13,6 +13,7 @@ import {
   mainChampionOf,
   objectiveControl,
   rankLabelOf,
+  rankedRecordOf,
   recordsToBeat,
   seasonRows,
   seasonWindow,
@@ -375,6 +376,20 @@ describe('mainChampionOf', () => {
     expect(mainChampionOf(player({ queueStats: { solo: { matches: { top3: ['Azir'] } } }, top3: ['Galio'] }), other)).toBe('Azir');
     expect(mainChampionOf(player({ top3: ['Galio'] }), other)).toBe('Galio');
     expect(mainChampionOf(player(), [])).toBeNull();
+  });
+});
+
+describe('rankedRecordOf', () => {
+  const rank = (tier: string, wins: number, losses: number) => ({ tier, rank: 'II', leaguePoints: 50, wins, losses, winRate: 0 });
+
+  it('reads the wins and losses of the queue the rank comes from', () => {
+    expect(rankedRecordOf(player({ queueStats: { solo: { rank: rank('GOLD', 120, 92) }, flex: { rank: rank('SILVER', 3, 9) } } }))).toEqual({ queue: 'Solo', games: 212, wins: 120, winRate: 57 });
+    expect(rankedRecordOf(player({ queueStats: { flex: { rank: rank('SILVER', 3, 9) } } }))).toEqual({ queue: 'Flex', games: 12, wins: 3, winRate: 25 });
+  });
+
+  it('is nothing for an unranked player or a queue with no games', () => {
+    expect(rankedRecordOf(player())).toBeNull();
+    expect(rankedRecordOf(player({ queueStats: { solo: { rank: rank('GOLD', 0, 0) } } }))).toBeNull();
   });
 });
 

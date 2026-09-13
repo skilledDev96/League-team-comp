@@ -13,7 +13,7 @@ import {
   Tournament,
   TournamentSeries
 } from '../models/team.models';
-import { SeasonMode, SeasonWindow } from './team-season';
+import { RankedRecord, SeasonMode, SeasonWindow } from './team-season';
 
 /**
  * The Roster page as one record (13 Sep 2026, the lead: "keep the theme of the home page rolling"),
@@ -71,6 +71,8 @@ export interface RosterCard {
   /** The splash behind them: what they play most for the team, else what Riot or the roster says. */
   champion: string | null;
   rank: { label: string; queue: 'Solo' | 'Flex' } | null;
+  /** Their own ranked record in the queue of `rank`, which the ring shows (13 Sep 2026); `games` and `form` stay the team's. */
+  ranked: RankedRecord | null;
   games: number;
   wins: number;
   /** Rounded percent over the team games read; null with none. */

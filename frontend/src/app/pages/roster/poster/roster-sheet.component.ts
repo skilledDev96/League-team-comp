@@ -35,7 +35,7 @@ const STARTER_WORKING = 3;
           <span class="splash-shade" aria-hidden="true"></span>
           <div class="roster-sheet-art-top">
             <span class="role-pill">{{ c.role }}</span>
-            <app-rate-ring class="is-big" [rate]="c.winRate" [games]="c.games" [wins]="c.wins" scope="all time" [countUp]="true" />
+            <app-rate-ring class="is-big" [rate]="c.ranked?.winRate ?? null" [games]="c.ranked?.games ?? 0" [wins]="c.ranked?.wins ?? 0" [label]="(c.ranked?.queue ?? 'ranked') + ' win rate'" [scope]="c.ranked?.queue === 'Flex' ? 'in ranked flex' : 'in ranked solo/duo'" [countUp]="true" />
           </div>
           <div class="roster-sheet-art-foot">
             @if (c.titles) {

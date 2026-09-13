@@ -17,6 +17,7 @@ import {
   mainChampionOf,
   objectiveControl,
   rankLabelOf,
+  rankedRecordOf,
   recordsToBeat,
   sameName,
   SeasonWindow,
@@ -125,23 +126,18 @@ function multikillsOf(games: readonly AnalysisGame[]): Pick<HomeRecords, 'bigges
   return { biggestMultikill: best ? { ...best, pentas } : null, multikillCoverage: { read: read.length, of: riot.length } };
 }
 
-function lineupOf(starters: readonly Player[], seasonLines: readonly PlayerLine[], allLines: readonly PlayerLine[], titles: ReadonlyMap<string, number>): HomeLineupCard[] {
+function lineupOf(starters: readonly Player[], allLines: readonly PlayerLine[], titles: ReadonlyMap<string, number>): HomeLineupCard[] {
   const most = Math.max(0, ...titles.values());
-  return starters.map((p) => {
-    const line = seasonLines.find((l) => sameName(l.name, p.name));
-    return {
-      playerId: p.id,
-      name: p.name,
-      role: p.role,
-      ...(p.icon ? { icon: p.icon } : {}),
-      champion: mainChampionOf(p, allLines),
-      rank: rankLabelOf(p),
-      games: line?.games ?? 0,
-      wins: line?.wins ?? 0,
-      winRate: line ? line.winRate : null,
-      crowned: most > 0 && titles.get(p.id) === most
-    };
-  });
+  return starters.map((p) => ({
+    playerId: p.id,
+    name: p.name,
+    role: p.role,
+    ...(p.icon ? { icon: p.icon } : {}),
+    champion: mainChampionOf(p, allLines),
+    rank: rankLabelOf(p),
+    ranked: rankedRecordOf(p),
+    crowned: most > 0 && titles.get(p.id) === most
+  }));
 }
 
 /**
@@ -305,7 +301,7 @@ export function buildHome(i: HomeInput): HomeModel {
       losses: inputs.games.length - wins,
       needs: MIN_FOR_A_CLAIM
     },
-    lineup: lineupOf(starters, seasonLines, allLines, seasonTitles),
+    lineup: lineupOf(starters, allLines, seasonTitles),
     objectives: objectiveControl(seasonGames),
     trophies: achievementsOf({
       rows: serious,

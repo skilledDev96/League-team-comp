@@ -5,7 +5,7 @@ import { mvpRace } from './mvp-race';
 import { rateBand } from './opponent-view';
 import { RosterCard, RosterGroup, RosterInput, RosterModel, RosterPoolEntry } from './roster-model';
 import { seriesCrowns } from './series-results';
-import { finishedInSeason, formOf, mainChampionOf, rankLabelOf, sameName, SeasonMode, seasonRows, seasonWindow, seatOrder } from './team-season';
+import { finishedInSeason, formOf, mainChampionOf, rankLabelOf, rankedRecordOf, sameName, SeasonMode, seasonRows, seasonWindow, seatOrder } from './team-season';
 
 /** How many of the newest results a card's form strip shows. */
 export const ROSTER_FORM_GAMES = 5;
@@ -144,6 +144,7 @@ export function buildRoster(i: RosterInput): RosterModel {
       ...(p.profile ? { profile: p.profile } : {}),
       champion: mainChampionOf(p, lines),
       rank: rankLabelOf(p),
+      ranked: rankedRecordOf(p),
       games,
       wins,
       winRate: games ? Math.round((wins / games) * 100) : null,
