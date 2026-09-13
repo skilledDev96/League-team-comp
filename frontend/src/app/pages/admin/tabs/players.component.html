@@ -2,7 +2,7 @@
 @if (ctx.showAddPlayerDialog()) {
   <dialog appModal class="modal-card" aria-label="Add player" (closed)="ctx.closeAddPlayerDialog()">
     @if (ctx.addPlayerMode() === 'choose') {
-      <h2 class="title-with-icon"><span class="section-icon">PL</span>Add player</h2>
+      <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded" aria-hidden="true">person_add</span>Add player</h2>
       <p class="muted">How do you want to add this player?</p>
       <div class="links">
         <button class="view-btn active" type="button" (click)="ctx.chooseAutofillAdd()">Autofill with Summoner name</button>
@@ -12,7 +12,7 @@
         <button class="view-btn" type="button" (click)="ctx.closeAddPlayerDialog()">Cancel</button>
       </div>
     } @else {
-      <h2 class="title-with-icon"><span class="section-icon">PL</span>Autofill with Summoner name</h2>
+      <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded" aria-hidden="true">travel_explore</span>Autofill with Summoner name</h2>
       <label class="field"><span>Summoner name</span>
         <input type="text" [ngModel]="ctx.newPlayerSummoner()" (ngModelChange)="ctx.newPlayerSummoner.set($event)" name="ctx.newPlayerSummoner" placeholder="e.g. DaWhiteHammer" /></label>
       <div class="grid two">

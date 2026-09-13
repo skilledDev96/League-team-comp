@@ -95,7 +95,7 @@ own box.** Seven are genuinely different jobs. The rest is drift.
 | **R4** | icon-only ghost | delete, close, confirm — no text |
 | **R5** | `.overflow-item` | a row in a menu |
 | **R6** | chromeless surface | a whole row, card or tile that is clickable |
-| **R7** | `.info-tip` · `.field-help` · `.tip-term` | help. **Not an action** — `cursor: help` |
+| **R7** | `.info-tip` · `.tip-term` · `.mvp-banner` | help. **Not an action** — `cursor: help` |
 
 **Reach for R1 first.** If you are about to write a new class that declares padding, radius, border
 and background on something clickable, you are almost certainly drawing `.view-btn` again.
@@ -106,12 +106,38 @@ an icon inside it is `1.05rem` (`0.9rem` in `.is-compact`) unless a context rule
 `:where()` so any named size wins. Do not add a modifier to give the button form what the anchor had:
 `.home-pill`, `.hero-pill`, `.quick-action` and `.roster-profile-chip` were exactly that and are gone.
 
-Known drift to collapse when you are next in the area (updated 13 Sep 2026 after the site-wide pass): five segmented
-systems became one plus the two kept on purpose (above); `.btn-cta` is gone; `.film-beat-chip` and `.film-strip-chip`
-are still byte-identical; the media-query units are still mixed (px in the draft room and the older blocks, rem in the
-newer — they no longer move together since the root follows the window, and converting them is a measured job of its
-own); the font-size spread is still 71 values, with a three-step label scale used in new blocks only; and
-`.draft-stage` is reopened 86 times across the draft room's banners.
+**Passive chips wear `.chip`** (13 Sep 2026, the drift pass): the one badge box (`0.15rem 0.55rem`, pill, card-border,
+a 55% bg-0 fill, text-1, `--fs-label`) with tints `.is-accent`, `.is-good`, `.is-bad`, `.is-warn`, `.is-gold`, the small
+form `.is-compact` (uppercase, `0.66rem`) and `.chip-count` for a number beside a word. Seventeen families were folded
+into it — the Comps expectation chips, the splash and Home chips, Prep's Bo3 and date pills and sub tag, the Games
+source, practice and lane badges, Sub and Also-plays, six count badges — and a page class that survives is a
+placement hook only (`margin`, `grid-column`, a tint), never a second box. Still their own: `.tag` (worn in the
+film room and by three action buttons), `.win-tag` / `.loss-tag`, `.score-chip`, `.evidence-chip`, `.champ-chip`,
+`.icon-pill`, and every chip inside the draft and film rooms (`.pick-chip`, `.film-chip`, `.draft-board-count`,
+`.film-beat-count`) — those are measured before they move.
+
+**A modal is a native `<dialog appModal>`** (13 Sep 2026): `shared/modal.directive.ts` calls `showModal()` after
+render, turns Escape (`cancel`) and a click on the backdrop into a `closed` output the host's `@if` answers, and
+closes on destroy; the page behind is inert, focus is held inside, and the top layer puts it over the edit-mode
+banner and the toasts. Add player, the Fill-in, Help and tours and the tactical board wear it (`dialog.modal-card`,
+`dialog.tb-modal`); the draft room's comps dialog is the older hand-wired twin. No `.modal-backdrop` div, no
+z-index ladder, no inner `stopPropagation`. The player editor drawer stays a side sheet.
+
+**One empty state**: every guarded empty paragraph outside the draft and film rooms is `<p class="empty-state">`
+(43 of them since 13 Sep 2026), with a page class beside it only for what differs — size, margin, `grid-column`,
+and `padding: 0` where half a rem of air would move a sheet block, a grid row or a card foot. Inline dashes and
+placeholders in cells stay what they are; Home's composed empties (icon + line) are a design, not a class.
+
+Known drift, measured and left on purpose (updated 13 Sep 2026 after the drift pass): the draft room's nineteen
+`px` media queries — the other nine became `rem` — and note the fact the earlier text got wrong: a `rem` in an
+`@media` resolves against the browser's initial font size (Media Queries 4 §1.3), not the app's scaled root, so px
+and rem breakpoints fire at the same window widths for everyone at the default 16px and the swap is a unit tidy,
+allowed in the draft room only with the four tops measured before and after; the font-size spread is 50 literal
+values (down from 71) with the three label tokens in ~200 places, and the `0.8rem`/`0.82rem` and
+`0.68rem`/`0.7rem` clusters would each need a size decision, not a swap; `.draft-stage` is reopened 86 times
+across the draft room's banners; `.game-define .view-btn` and `.scrim-refresh-hint > .view-btn` restate R1's
+layout with the same values; and the strip's chips wear `.film-beat-chip` since the chip merge (`.film-strip-item`
+is a passive label, not a twin), with the tape's narrow-width padding scoped to `.film-rail`.
 
 The film room's stock palette (`--film-ink`, `--film-line`, `--film-panel`) is a **legitimate
 sub-theme**, not drift. It needs those same seven roles retinted, not twenty more `film-*` classes.
@@ -201,7 +227,7 @@ literal colours retokened. **`.view-segment` is the segmented control** everywhe
 of the home page rolling", Comps when they said "I love the look we have now, let's bring this over to the comps page"). Home is a landing page with its own stage — a splash hero, a welcome band, a
 gold-framed spotlight — and no toolbar. Roster keeps the one toolbar and the Starter | Full switch, and draws the
 team as a poster of splash panels with a gold-framed player sheet. Both build from the **splash primitives** in
-`styles.css` (`.splash-tile`, `.splash-art` + `.splash-shade`, `.role-pill`, `.splash-crown` / `.splash-chip`,
+`styles.css` (`.splash-tile`, `.splash-art` + `.splash-shade`, `.role-pill`, `.splash-crown` / `.chip.is-gold`,
 `app-rate-ring` / `.rate-ring`, `.form-pips`, `.gold-frame`), stay on the theme tokens, use `.view-btn` pills, and
 animate behind one gate each: motion allowed, `.home` or `.roster` not `.is-still`, the section `.is-seen`
 (`shared/in-view.directive.ts`), transform and opacity only. Every splash `<img>` carries `ui.artFallback`. A
@@ -285,5 +311,6 @@ from contributors as well as viewers.
 3. Does it have **hover and focus-visible**?
 4. Act or check — does it belong at **Starter or Full**?
 5. If it collapses, is the **whole header** the toggle?
-6. If it is a new class, does it **redraw `.view-btn`**? Use `.view-btn`.
+6. If it is a new class, does it **redraw `.view-btn`**? Use `.view-btn`. A badge is `.chip` with a tint, an empty
+   line is `p.empty-state`, a modal is `<dialog appModal>`.
 7. Is every size in **rem**, and does it fit a **94 x 47rem** window? Since 13 Sep 2026 the root is a 94th of the window, so every wide screen gets those rems; a px size stays small while its neighbours grow (a native button with no font-size is 13.33px forever), and an auto-fill grid measured against the old 82.5rem column may gain an empty track in the 85rem one.
