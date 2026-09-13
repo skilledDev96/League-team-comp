@@ -135,7 +135,11 @@ export interface HomeTrend {
 
 export interface HomeRecords {
   mostKills: GameRecord | null;
-  fastestWin: GameRecord | null;
+  mostAssists: GameRecord | null;
+  mostDamage: GameRecord | null;
+  mostCsPerMin: GameRecord | null;
+  /** No deaths, the most kills and assists together; `detail` carries the line. */
+  perfectGame: GameRecord | null;
   longestWinStreak: Streak | null;
   mostVision: GameRecord | null;
   /** The biggest multikill one of ours took, 2 for a double to 5 for a penta; null with none. */

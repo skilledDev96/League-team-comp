@@ -1,6 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { Router } from '@angular/router';
 import { HomeRecords } from '../../../core/home-model';
+import { GameRecord } from '../../../core/team-season';
 import { InViewDirective } from '../../../shared/in-view.directive';
 import { UiService } from '../../../services/ui.service';
 
@@ -20,9 +21,9 @@ interface Line {
 const DAY = (at: number) => (at > 0 ? new Date(at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '');
 
 /**
- * Records to beat (13 Sep 2026): the most kills and the most vision one of ours put up in a game, the
- * fastest win and the longest run of wins, all ours, over the season the page is reading. A record
- * nobody has set is an invitation, not a zero.
+ * Records to beat (13 Sep 2026): the most kills, assists, damage, CS a minute and vision one of ours put up in a
+ * game, the perfect game, the biggest multikill and the longest run of wins, all ours, over the season the page is
+ * reading. A record nobody has set is an invitation, not a zero. The fastest win went the same evening.
  */
 @Component({
   selector: 'app-home-records',
@@ -73,25 +74,22 @@ export class HomeRecordsComponent {
     const r = this.records();
     const on = (player?: string, champion?: string) => [player, champion ? `on ${this.ui.championName(champion)}` : ''].filter(Boolean).join(' ');
     const vs = (opponent?: string) => (opponent ? `vs ${opponent}` : '');
+    /** A player's record row: the figure as given, who set it and against whom, and the game to open. */
+    const line = (key: string, icon: string, label: string, rec: GameRecord | null, value: (v: GameRecord) => string): Line => ({
+      key,
+      icon,
+      label,
+      value: rec ? value(rec) : '',
+      who: rec ? [on(rec.player, rec.champion), vs(rec.opponent)].filter(Boolean).join(' ') : '',
+      when: rec ? DAY(rec.date) : '',
+      ...(rec?.matchId ? { matchId: rec.matchId } : {})
+    });
     return [
-      {
-        key: 'kills',
-        icon: 'swords',
-        label: 'Most kills',
-        value: r.mostKills ? String(r.mostKills.value) : '',
-        who: r.mostKills ? [on(r.mostKills.player, r.mostKills.champion), vs(r.mostKills.opponent)].filter(Boolean).join(' ') : '',
-        when: r.mostKills ? DAY(r.mostKills.date) : '',
-        ...(r.mostKills?.matchId ? { matchId: r.mostKills.matchId } : {})
-      },
-      {
-        key: 'fastest',
-        icon: 'timer',
-        label: 'Fastest win',
-        value: r.fastestWin ? clock(r.fastestWin.value) : '',
-        who: r.fastestWin ? vs(r.fastestWin.opponent) || r.fastestWin.label : '',
-        when: r.fastestWin ? DAY(r.fastestWin.date) : '',
-        ...(r.fastestWin?.matchId ? { matchId: r.fastestWin.matchId } : {})
-      },
+      line('kills', 'swords', 'Most kills', r.mostKills, (v) => String(v.value)),
+      line('assists', 'handshake', 'Most assists', r.mostAssists, (v) => String(v.value)),
+      line('damage', 'bolt', 'Most damage', r.mostDamage, (v) => thousands(v.value)),
+      line('cs', 'agriculture', 'Most CS/min', r.mostCsPerMin, (v) => v.value.toFixed(1)),
+      line('perfect', 'verified', 'Perfect game', r.perfectGame, (v) => v.detail ?? String(v.value)),
       {
         key: 'streak',
         icon: 'local_fire_department',
@@ -114,23 +112,14 @@ export class HomeRecordsComponent {
         when: r.biggestMultikill ? DAY(r.biggestMultikill.date) : '',
         ...(r.biggestMultikill?.matchId ? { matchId: r.biggestMultikill.matchId } : {})
       },
-      {
-        key: 'vision',
-        icon: 'visibility',
-        label: 'Most vision',
-        value: r.mostVision ? String(r.mostVision.value) : '',
-        who: r.mostVision ? [on(r.mostVision.player, r.mostVision.champion), vs(r.mostVision.opponent)].filter(Boolean).join(' ') : '',
-        when: r.mostVision ? DAY(r.mostVision.date) : '',
-        ...(r.mostVision?.matchId ? { matchId: r.mostVision.matchId } : {})
-      }
+      line('vision', 'visibility', 'Most vision', r.mostVision, (v) => String(v.value))
     ];
   });
 }
 
 const MULTIKILL_WORDS: Record<number, string> = { 2: 'Double', 3: 'Triple', 4: 'Quadra', 5: 'Penta' };
 
-function clock(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = Math.round(sec % 60);
-  return `${m}:${String(s).padStart(2, '0')}`;
+/** 52,480 reads as 52.5k: the record is the size, not the last digit. */
+function thousands(v: number): string {
+  return v >= 1000 ? `${(v / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(v);
 }

@@ -341,6 +341,8 @@ export interface GameRecord {
   champion?: string;
   /** The match, for a link to the game on the Games page; absent on a game with no Riot or replay id. */
   matchId?: string;
+  /** The line behind the figure, where one number does not say it: "12 / 0 / 8" for a perfect game. */
+  detail?: string;
 }
 
 /** Ten minutes: anything shorter is a remake or a surrender vote, never a record. */
@@ -356,39 +358,50 @@ function beats(value: number, date: number, best: GameRecord | null, higher: boo
 }
 
 /**
- * The records to beat, all ours (13 Sep 2026): the most kills and the most vision one of the roster
- * put up in a game, the fastest win, and the longest run of wins. A seat nobody on the roster held
- * does not set a record, a figure a game did not carry is not a zero that loses one, and a tie stays
- * with whoever set it first. The other side's seats are never read.
+ * The records to beat, all ours (13 Sep 2026; the set the lead chose that evening): the most kills, assists, damage
+ * and vision one of the roster put up in a game, the most CS a minute over a game of ten minutes or more, the
+ * perfect game — no deaths, the most kills and assists together — and the longest run of wins. A seat nobody on
+ * the roster held does not set a record, a figure a game did not carry is not a zero that loses one, a zero is not
+ * a record of anything but kills, and a tie stays with whoever set it first. The other side's seats are never read.
+ * The fastest win went on 13 Sep 2026 ("can be removed").
  */
 export function recordsToBeat(rows: readonly GameRow[]): {
   mostKills: GameRecord | null;
-  fastestWin: GameRecord | null;
+  mostAssists: GameRecord | null;
+  mostDamage: GameRecord | null;
+  mostCsPerMin: GameRecord | null;
+  perfectGame: GameRecord | null;
   longestWinStreak: Streak | null;
   mostVision: GameRecord | null;
 } {
   let mostKills: GameRecord | null = null;
+  let mostAssists: GameRecord | null = null;
+  let mostDamage: GameRecord | null = null;
+  let mostCsPerMin: GameRecord | null = null;
+  let perfectGame: GameRecord | null = null;
   let mostVision: GameRecord | null = null;
-  let fastestWin: GameRecord | null = null;
+  const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
   for (const r of rows) {
     const game = { rowId: r.id, date: r.date, label: r.label, ...(r.opponent ? { opponent: r.opponent } : {}), ...(r.matchId ? { matchId: r.matchId } : {}) };
+    const minutes = num(r.durationSec) && r.durationSec >= MIN_GAME_SEC ? r.durationSec / 60 : null;
     for (const p of r.ours) {
       if (!p.player || !p.stats) continue;
       const who = { player: p.player, ...(p.champion ? { champion: p.champion } : {}) };
-      if (typeof p.stats.kills === 'number' && beats(p.stats.kills, r.date, mostKills, true)) {
-        mostKills = { value: p.stats.kills, ...game, ...who };
+      const s = p.stats;
+      if (num(s.kills) && beats(s.kills, r.date, mostKills, true)) mostKills = { value: s.kills, ...game, ...who };
+      if (num(s.assists) && s.assists > 0 && beats(s.assists, r.date, mostAssists, true)) mostAssists = { value: s.assists, ...game, ...who };
+      if (num(s.damage) && s.damage > 0 && beats(s.damage, r.date, mostDamage, true)) mostDamage = { value: s.damage, ...game, ...who };
+      if (minutes && num(s.cs) && s.cs > 0) {
+        const perMin = Math.round((s.cs / minutes) * 10) / 10;
+        if (beats(perMin, r.date, mostCsPerMin, true)) mostCsPerMin = { value: perMin, ...game, ...who };
       }
-      const vision = p.stats.vision;
-      if (typeof vision === 'number' && beats(vision, r.date, mostVision, true)) {
-        mostVision = { value: vision, ...game, ...who };
+      if (num(s.deaths) && s.deaths === 0 && num(s.kills) && num(s.assists) && s.kills + s.assists > 0 && beats(s.kills + s.assists, r.date, perfectGame, true)) {
+        perfectGame = { value: s.kills + s.assists, detail: `${s.kills}/0/${s.assists}`, ...game, ...who };
       }
-    }
-    const length = r.durationSec;
-    if (r.win && typeof length === 'number' && length >= MIN_GAME_SEC && beats(length, r.date, fastestWin, false)) {
-      fastestWin = { value: length, ...game };
+      if (num(s.vision) && beats(s.vision, r.date, mostVision, true)) mostVision = { value: s.vision, ...game, ...who };
     }
   }
-  return { mostKills, fastestWin, longestWinStreak: streaks(rows).longestWin, mostVision };
+  return { mostKills, mostAssists, mostDamage, mostCsPerMin, perfectGame, longestWinStreak: streaks(rows).longestWin, mostVision };
 }
 
 /**

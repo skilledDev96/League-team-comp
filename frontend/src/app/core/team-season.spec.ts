@@ -332,10 +332,29 @@ describe('recordsToBeat', () => {
     expect(recordsToBeat(rows).mostKills).toEqual({ value: 12, rowId: 'early-tie', date: sep(5), label: 'Clash', opponent: 'Team Early', player: 'Kai', champion: 'Orianna' });
   });
 
-  it('takes the fastest win of ten minutes or more, so a remake is not a record and a loss never is', () => {
-    expect(recordsToBeat(rows).fastestWin).toEqual({ value: 1320, rowId: 'early-tie', date: sep(5), label: 'Clash', opponent: 'Team Early' });
+  it('reads assists, damage and the perfect game off the seats, and a zero is a record of none of them', () => {
+    const figured = [
+      row('a', sep(1), true, { opponent: 'Team A', ours: [seat('Zed', 'Ahri', { kills: 4, deaths: 0, assists: 9, damage: 22_000 }), seat('Kai', 'Orianna', { kills: 1, deaths: 2, assists: 18, damage: 40_500 })] }),
+      row('b', sep(2), true, { ours: [seat('Zed', 'Ahri', { kills: 7, deaths: 0, assists: 6, damage: 31_000 })] }),
+      row('zero', sep(3), false, { ours: [seat('Kai', 'Orianna', { kills: 0, deaths: 0, assists: 0, damage: 0 })] })
+    ];
+    const out = recordsToBeat(figured);
+    expect(out.mostAssists).toMatchObject({ value: 18, rowId: 'a', player: 'Kai', champion: 'Orianna', opponent: 'Team A' });
+    expect(out.mostDamage).toMatchObject({ value: 40_500, rowId: 'a', player: 'Kai' });
+    // Zed's 4/0/9 (13) beats their 7/0/6 (13) on the earlier date; Kai's zero game is no record at all.
+    expect(out.perfectGame).toMatchObject({ value: 13, detail: '4/0/9', rowId: 'a', player: 'Zed' });
+    expect(recordsToBeat([figured[2]])).toMatchObject({ mostAssists: null, mostDamage: null, perfectGame: null, mostKills: { value: 0 } });
+  });
+
+  it('reads CS a minute over a game of ten minutes or more, so a remake sets no pace and a game with no length none', () => {
     expect(MIN_GAME_SEC).toBe(600);
-    expect(recordsToBeat([row('ten', sep(1), true, { durationSec: MIN_GAME_SEC }), row('remake', sep(2), true, { durationSec: 300 })]).fastestWin?.rowId).toBe('ten');
+    const paced = [
+      row('remake', sep(1), true, { durationSec: 300, ours: [seat('Zed', 'Ahri', { cs: 90 })] }),
+      row('slow', sep(2), true, { durationSec: 2400, ours: [seat('Zed', 'Ahri', { cs: 300 })] }),
+      row('quick', sep(3), true, { durationSec: 1200, opponent: 'Team Quick', ours: [seat('Kai', 'Orianna', { cs: 190 })] }),
+      row('no-length', sep(4), true, { ours: [seat('Kai', 'Orianna', { cs: 400 })] })
+    ];
+    expect(recordsToBeat(paced).mostCsPerMin).toEqual({ value: 9.5, rowId: 'quick', date: sep(3), label: 'Flex', opponent: 'Team Quick', player: 'Kai', champion: 'Orianna' });
   });
 
   it('reads the vision record only where the game carried a vision score', () => {
@@ -355,7 +374,7 @@ describe('recordsToBeat', () => {
   });
 
   it('holds no record over no games', () => {
-    expect(recordsToBeat([])).toEqual({ mostKills: null, fastestWin: null, longestWinStreak: null, mostVision: null });
+    expect(recordsToBeat([])).toEqual({ mostKills: null, mostAssists: null, mostDamage: null, mostCsPerMin: null, perfectGame: null, longestWinStreak: null, mostVision: null });
   });
 });
 
