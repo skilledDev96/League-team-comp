@@ -71,9 +71,11 @@ test('the deployed backend is running the current api code', async ({ request })
   let apiDiff = '';
   try {
     // build-info.ts is stamped at build time and differs by design, so it is
-    // not evidence that the backend code moved.
+    // not evidence that the backend code moved; nor is documentation under api/
+    // (13 Sep 2026: a README edit failed three deploys in a row until the
+    // functions were redeployed for a change that never ran in them).
     apiDiff = execSync(
-      `git diff --name-only ${deployed} ${head} -- ../api ":(exclude)../api/src/build-info.ts"`,
+      `git diff --name-only ${deployed} ${head} -- ../api ":(exclude)../api/src/build-info.ts" ":(exclude,glob)../api/**/*.md"`,
       { encoding: 'utf8' }
     ).trim();
   } catch {

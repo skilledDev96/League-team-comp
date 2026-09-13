@@ -1372,8 +1372,9 @@ PREVIOUS build — it starts the moment `deploy` returns and Pages propagates on
 is how a broken check reached main twice. `build.json` is gitignored: nothing imports it, so its
 absence cannot break a build.
 
-**Both checkout steps need `fetch-depth: 0`.** `API_SHA` comes from `git log -1 -- api`, the last
-commit that touched the functions, so a frontend-only deploy never reads as a backend behind. In a
+**Both checkout steps need `fetch-depth: 0`.** `API_SHA` comes from `git log -1 -- api` with the
+Markdown under `api/` excluded (a README edit is not a backend change; the e2e drift check excludes it
+the same way), the last commit that touched the functions, so a frontend-only deploy never reads as a backend behind. In a
 shallow clone the root commit has no parent and git treats every path as changed in it, so that
 command returns HEAD — every build stamped its own SHA as the api one and the Admin page's drift
 warning fired after every frontend-only deploy.

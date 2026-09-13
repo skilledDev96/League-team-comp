@@ -20,10 +20,14 @@ function gitSha() {
   }
 }
 
-/** The last commit that touched the functions: drift is measured against this, not HEAD, so a frontend-only commit never reads as a backend behind. */
+/**
+ * The last commit that touched the functions: drift is measured against this, not HEAD, so a frontend-only commit
+ * never reads as a backend behind. Documentation under api/ does not count either (13 Sep 2026): the e2e drift check
+ * ignores it the same way, so a README edit cannot demand a functions deploy.
+ */
 function apiSha() {
   try {
-    return execSync('git log -1 --format=%h -- api', { encoding: 'utf8', cwd: repoRoot }).trim() || 'unknown';
+    return execSync('git log -1 --format=%h -- api ":(exclude,glob)api/**/*.md"', { encoding: 'utf8', cwd: repoRoot }).trim() || 'unknown';
   } catch {
     return 'unknown';
   }
