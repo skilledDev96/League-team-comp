@@ -15707,13 +15707,17 @@ span.home-records-open { width: 4.1rem; }
    in a gold frame under the group they stand in. Built from the splash primitives; motion behind the one gate:
    `.roster:not(.is-still)` and the section `.is-seen`, transform and opacity only. */
 .roster { display: block; }
-.roster-hero { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem 1.5rem; padding: 0.4rem 0.2rem 0.2rem; background: none; border: 0; box-shadow: none; overflow: visible; }
+/* Two columns, not a wrapping row (13 Sep 2026): each view has its own sentence under the title, and in a row a longer one
+   pushed the action pills down a line when switching to Players or the Scout report. The sentence wraps in its own
+   column; the pills keep the same width and place on every view. */
+.roster-hero { display: grid; grid-template-columns: minmax(16rem, 1fr) auto; align-items: end; gap: 0.75rem 1.5rem; padding: 0.4rem 0.2rem 0.2rem; background: none; border: 0; box-shadow: none; overflow: visible; }
 .roster-hero::after { display: none; }
 .roster-hero-id { display: grid; gap: 0.15rem; min-width: 0; }
 .roster-kicker { gap: 0.3rem; }
 .roster-title { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 2.3rem; font-weight: 700; line-height: 1; letter-spacing: 0.01em; text-transform: uppercase; color: var(--text-0); }
-.roster-hero-blurb { margin: 0; font-size: 0.85rem; color: var(--text-1); }
-.roster-hero-tools { display: grid; justify-items: end; gap: 0.45rem; min-width: 0; }
+/* One line on every view, so switching views never changes the header's height and moves the toolbar under it. */
+.roster-hero-blurb { margin: 0; overflow: hidden; font-size: 0.85rem; color: var(--text-1); white-space: nowrap; text-overflow: ellipsis; }
+.roster-hero-tools { display: grid; justify-items: end; gap: 0.45rem; min-width: 0; max-width: 56rem; }
 .roster-hero .hero-tools { position: static; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; }
 .quick-actions.is-compact { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; margin: 0; padding: 0; background: none; border: 0; box-shadow: none; }
 .quick-action-count { margin-left: 0.15rem; padding: 0 0.35rem; border-radius: 999px; font-size: 0.66rem; background: color-mix(in srgb, var(--accent) 25%, transparent); }
@@ -15865,7 +15869,8 @@ app-rate-ring.is-big { --ring-size: 4.6rem; }
   .roster-sheet { grid-template-columns: minmax(0, 1fr); }
   .roster-sheet-art { min-height: 10rem; }
   .roster-sheet-grid { grid-template-columns: minmax(0, 1fr); }
-  .roster-hero-tools { justify-items: start; }
+  .roster-hero { grid-template-columns: minmax(0, 1fr); }
+  .roster-hero-tools { justify-items: start; max-width: none; }
   .quick-actions.is-compact, .roster-hero .hero-tools { justify-content: flex-start; }
 }
 

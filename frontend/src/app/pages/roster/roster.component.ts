@@ -89,9 +89,9 @@ export class RosterComponent {
     const kicker = `${count} ${count === 1 ? 'player' : 'players'}${m.fillIns.length ? ` · ${m.fillIns.length} ${m.fillIns.length === 1 ? 'fill-in' : 'fill-ins'}` : ''} · ${m.games} team games`;
     switch (this.view()) {
       case 'players':
-        return { title: `${team} Roster`, kicker, blurb: 'Every player’s numbers side by side — open a row for what they are working on and learning.' };
+        return { title: `${team} Roster`, kicker, blurb: 'Numbers side by side; open a row for their work.' };
       case 'report':
-        return { title: `${team} Roster`, kicker, blurb: 'Us, the way an opponent scouts us: ranks, pools, what beats us, and what they would ban.' };
+        return { title: `${team} Roster`, kicker, blurb: 'Us, the way an opponent would scout us.' };
       default:
         return { title: `${team} Roster`, kicker, blurb: 'Click a player for their sheet.' };
     }
