@@ -17,7 +17,7 @@
       }
     </ul>
   } @else {
-    <p class="roster-empty">Everyone is on the bench. Put five in the A team from a player's sheet in edit mode.</p>
+    <p class="empty-state">Everyone is on the bench. Put five in the A team from a player's sheet in edit mode.</p>
   }
   @if (selectedGroup() === 'starters' && selected(); as s) {
     <app-roster-sheet [card]="s" [player]="selectedPlayer()" [full]="full()" [siblings]="siblings()" (close)="close()" (go)="show($event)" />

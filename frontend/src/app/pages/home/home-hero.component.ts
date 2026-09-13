@@ -109,7 +109,7 @@ function parseBanner(key: string): { champion: string; skin: number } | null {
           }
         </dl>
         @if (!record().counters.games) {
-          <p class="home-hero-empty">The record starts with the first game on the Games page.</p>
+          <p class="empty-state home-hero-empty">The record starts with the first game on the Games page.</p>
         }
       </div>
 

@@ -91,6 +91,8 @@ describe.skipIf(typeof localStorage === 'undefined')('HomeComponent', () => {
     const { root } = await open();
     expect(text(root.querySelector('.home-hero h1'))).toBe(data.settings().teamName || 'Bom Squad');
     expect(text(root.querySelector('.home-hero-empty'))).toContain('The record starts');
+    // The one empty state (13 Sep 2026): the hero's line is the shared paragraph, its own class only sizes it.
+    expect(root.querySelector('.home-hero-empty')?.classList.contains('empty-state')).toBe(true);
     expect(text(root.querySelector('.home-spotlight'))).toContain('The first finished series crowns the first MVP');
     expect(root.querySelectorAll('.home-race-row')).toHaveLength(5);
     expect(text(root.querySelector('.home-race-foot'))).toContain('The first finished series crowns the first MVP');

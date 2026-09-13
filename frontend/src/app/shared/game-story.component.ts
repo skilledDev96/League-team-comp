@@ -43,7 +43,7 @@ import { TooltipDirective } from './tooltip.directive';
         @else if (storyLines().length) { <small class="muted">from the replay recorder</small> }
       </summary>
       @if (!game()) {
-        <p class="muted">This game is not in the analysis yet.</p>
+        <p class="empty-state">This game is not in the analysis yet.</p>
       } @else if (loading() && !timeline() && !storyLines().length) {
         <!-- Only when there is genuinely nothing to draw yet (11 Sep 2026).
              The recording is read for every opened drawer, Riot game or not,
@@ -60,7 +60,7 @@ import { TooltipDirective } from './tooltip.directive';
       } @else if (game()!.queue === 'Scrim') {
         <p class="muted">End-of-game totals only: a replay carries no minute-by-minute data. The lane reads and objectives above are what it knows. Run the replay recorder beside the League client and this fills in.</p>
       } @else if (!timeline()) {
-        <p class="muted">No timeline yet. Twenty are fetched each morning, newest prep game first, or one is fetched the moment the game is reviewed.</p>
+        <p class="empty-state">No timeline yet. Twenty are fetched each morning, newest prep game first, or one is fetched the moment the game is reviewed.</p>
       } @else {
         @let t = timeline()!;
         @if (sparkline(); as sp) {

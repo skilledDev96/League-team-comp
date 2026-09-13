@@ -158,7 +158,7 @@ import { TooltipDirective } from './tooltip.directive';
               </div>
             }
           } @else {
-            <p class="muted review-seat-none">No {{ seat() }} in this review — it is not a game you played. <button type="button" class="view-btn" (click)="clearSeat()">Pick another seat</button></p>
+            <p class="empty-state review-seat-none">No {{ seat() }} in this review — it is not a game you played. <button type="button" class="view-btn" (click)="clearSeat()">Pick another seat</button></p>
             @if (asks().length) {
               <div class="review-points" role="group" aria-label="One ask each">
                 @for (o of asks(); track o.name) {

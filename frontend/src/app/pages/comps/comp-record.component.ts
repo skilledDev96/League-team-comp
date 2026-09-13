@@ -33,7 +33,7 @@ const NOTES_PREVIEW = 3;
         @if (h.source === 'logged' && c.played; as p) { <small>· match history {{ p.wins }}W&#8211;{{ p.losses }}L</small> }
       </p>
     } @else {
-      <p class="comps-sheet-empty">No games yet — play it, or log one.</p>
+      <p class="empty-state comps-sheet-empty">No games yet — play it, or log one.</p>
     }
 
     @if (full() && c.headline; as h) {

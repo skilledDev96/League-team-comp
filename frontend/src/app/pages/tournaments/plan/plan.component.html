@@ -248,7 +248,7 @@
                 }
               </div>
             } @else {
-              <p class="muted">Nothing burned yet — every comp is on the table.</p>
+              <p class="empty-state">Nothing burned yet — every comp is on the table.</p>
             }
           </div>
 
@@ -387,7 +387,7 @@
                 }
               </div>
             } @empty {
-              <p class="muted">
+              <p class="empty-state">
                 No games yet.
                 @if (auth.editing()) { Add game 1 when the series starts. }
               </p>
@@ -764,7 +764,7 @@
                     <!-- Six column headers over nothing read as a broken table rather than
                          an empty one. Everyone on the roster is on the bench, or the five
                          pasted in were all marked as subs. -->
-                    <p class="muted opp-empty" role="row"><span role="cell">
+                    <p class="empty-state opp-empty" role="row"><span role="cell">
                       Nobody in their five yet.
                       @if (bench(series).length) {
                         Their whole roster is on the bench &mdash; put someone back in the five below.
@@ -981,7 +981,7 @@
                               </table>
                             </div>
                           } @else {
-                            <p class="muted opp-history-nostats">Read before the numbers were kept. Refresh fills them from the cache; games already read cost no Riot call.</p>
+                            <p class="empty-state opp-history-nostats">Read before the numbers were kept. Refresh fills them from the cache; games already read cost no Riot call.</p>
                           }
                         </div>
                       </details>
@@ -1097,10 +1097,10 @@
         }
       </ul>
     } @else {
-      <p class="muted">No analysed games yet. Press Refresh matches from Riot on the Games tab.</p>
+      <p class="empty-state">No analysed games yet. Press Refresh matches from Riot on the Games tab.</p>
     }
   </details>
   }
 } @else {
-  <p class="muted">No tournaments yet.</p>
+  <p class="empty-state">No tournaments yet.</p>
 }

@@ -27,7 +27,7 @@ import { InViewDirective } from '../../../shared/in-view.directive';
             @for (l of a.keepDoing; track l.key) {
               <p class="home-advice-line"><strong>{{ l.strong }}</strong> {{ l.rest }} <small>{{ l.n }}</small></p>
             } @empty {
-              <p class="home-tile-note">Nothing stands out in the wins yet.</p>
+              <p class="empty-state home-tile-note">Nothing stands out in the wins yet.</p>
             }
           </div>
           <div class="home-advice-col is-work">
@@ -35,7 +35,7 @@ import { InViewDirective } from '../../../shared/in-view.directive';
             @for (l of a.workOn; track l.key) {
               <p class="home-advice-line"><strong>{{ l.strong }}</strong> {{ l.rest }} <small>{{ l.n }}</small></p>
             } @empty {
-              <p class="home-tile-note">Nothing stands out in the losses yet.</p>
+              <p class="empty-state home-tile-note">Nothing stands out in the losses yet.</p>
             }
           </div>
         </div>

@@ -31,7 +31,7 @@ const H = 70;
         </figcaption>
       </figure>
     } @else {
-      <p class="rank-spark-empty">
+      <p class="empty-state rank-spark-empty">
         @if (now()) { <b>{{ now() }}</b> now. }
         Fills from tomorrow: the morning refresh writes the rank down each day and the line draws from the second.
       </p>

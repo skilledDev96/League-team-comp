@@ -120,7 +120,7 @@
               <ng-container *ngTemplateOutlet="evidence; context: { $implicit: a }"></ng-container>
             </div>
           } @empty {
-            <p class="muted">Nothing clears the floor yet — it takes {{ claimFloor }} wins and {{ claimFloor }} losses with the numbers behind them.</p>
+            <p class="empty-state">Nothing clears the floor yet — it takes {{ claimFloor }} wins and {{ claimFloor }} losses with the numbers behind them.</p>
           }
         </div>
       </aside>
@@ -134,7 +134,7 @@
               <ng-container *ngTemplateOutlet="evidence; context: { $implicit: a }"></ng-container>
             </div>
           } @empty {
-            <p class="muted">Nothing clears the floor yet.</p>
+            <p class="empty-state">Nothing clears the floor yet.</p>
           }
         </div>
       </aside>
@@ -423,7 +423,7 @@
         </summary>
 
         @if (group.losses.length === 0) {
-          <p class="muted">
+          <p class="empty-state">
             No objective data for {{ group.pending === 1 ? 'this game' : 'these games' }} yet — they fill
             in over the next few refreshes.
 

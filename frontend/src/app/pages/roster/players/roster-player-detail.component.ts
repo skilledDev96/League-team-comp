@@ -60,7 +60,7 @@ const PRIORITY_RANK: Record<LearnPriority, number> = { high: 0, med: 1, low: 2 }
               }
             </ul>
           } @else {
-            <p class="muted rp-empty">Nothing open.</p>
+            <p class="empty-state rp-empty">Nothing open.</p>
           }
         </section>
 
@@ -90,7 +90,7 @@ const PRIORITY_RANK: Record<LearnPriority, number> = { high: 0, med: 1, low: 2 }
               }
             </ul>
           } @else if (!auth.editing()) {
-            <p class="muted rp-empty">Nothing on the list.</p>
+            <p class="empty-state rp-empty">Nothing on the list.</p>
           }
           @if (auth.editing()) {
             <form class="learn-add" (ngSubmit)="addLearn(p)">
@@ -127,7 +127,7 @@ const PRIORITY_RANK: Record<LearnPriority, number> = { high: 0, med: 1, low: 2 }
               }
             </ul>
           } @else {
-            <p class="muted rp-empty">No pool written down.</p>
+            <p class="empty-state rp-empty">No pool written down.</p>
           }
         } @else if (fill(); as f) {
           @if (f.riot?.top3?.length) {
@@ -139,7 +139,7 @@ const PRIORITY_RANK: Record<LearnPriority, number> = { high: 0, med: 1, low: 2 }
               }
             </ul>
           } @else {
-            <p class="muted rp-empty">No games read from Riot yet.</p>
+            <p class="empty-state rp-empty">No games read from Riot yet.</p>
           }
         }
         @if (full() && played().length) {

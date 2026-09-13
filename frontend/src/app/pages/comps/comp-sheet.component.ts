@@ -168,7 +168,7 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
                   }
                 </dl>
               } @else {
-                <p class="comps-sheet-empty">No plan written yet.</p>
+                <p class="empty-state comps-sheet-empty">No plan written yet.</p>
               }
             </section>
 
@@ -203,7 +203,7 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
                   </div>
                 }
               } @else {
-                <p class="comps-sheet-empty">Fill the five and the four axes read themselves off the champions.</p>
+                <p class="empty-state comps-sheet-empty">Fill the five and the four axes read themselves off the champions.</p>
               }
             </section>
 
@@ -216,7 +216,7 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
                   @for (ban of c.bans; track ban) { <app-champion-chip [champion]="ban" /> }
                 </div>
               } @else {
-                <p class="comps-sheet-empty">No bans noted.</p>
+                <p class="empty-state comps-sheet-empty">No bans noted.</p>
               }
             </section>
 
@@ -227,7 +227,7 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
               } @else if (c.notes) {
                 <p class="comps-notes">{{ c.notes }}</p>
               } @else {
-                <p class="comps-sheet-empty">Nothing written yet.</p>
+                <p class="empty-state comps-sheet-empty">Nothing written yet.</p>
               }
             </section>
 
@@ -249,7 +249,7 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
                   }
                 </ul>
               } @else {
-                <p class="comps-sheet-empty">No plays drawn yet.</p>
+                <p class="empty-state comps-sheet-empty">No plays drawn yet.</p>
               }
             </section>
           </div>

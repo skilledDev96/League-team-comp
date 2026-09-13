@@ -47,7 +47,7 @@ interface Step {
         }
       </ol>
       @if (!podium().length) {
-        <p class="home-tile-note">Nobody on it yet: each finished series puts its MVP a step up.</p>
+        <p class="empty-state home-tile-note">Nobody on it yet: each finished series puts its MVP a step up.</p>
       }
     </section>
   `

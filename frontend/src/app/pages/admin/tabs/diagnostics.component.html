@@ -51,10 +51,10 @@
         }
       </dl>
     } @else {
-      <p class="muted funnel-clean">No games dropped on the last pass.</p>
+      <p class="empty-state funnel-clean">No games dropped on the last pass.</p>
     }
   } @else {
-    <p class="muted">No analysis has run yet. Press Refresh matches from Riot on the Games tab.</p>
+    <p class="empty-state">No analysis has run yet. Press Refresh matches from Riot on the Games tab.</p>
   }
 </section>
 
@@ -109,7 +109,7 @@
       </table>
     </div>
   } @else {
-    <p class="muted">No analysis yet.</p>
+    <p class="empty-state">No analysis yet.</p>
   }
 </section>
 
@@ -144,7 +144,7 @@
       }
     </ul>
   } @else if (!logsLoading()) {
-    <p class="muted">Nothing logged yet. The log starts with the first save after 8 Sep 2026.</p>
+    <p class="empty-state">Nothing logged yet. The log starts with the first save after 8 Sep 2026.</p>
   }
 
   <h3>Browser errors</h3>
@@ -160,6 +160,6 @@
       }
     </ul>
   } @else if (!logsLoading()) {
-    <p class="muted">No browser errors reported.</p>
+    <p class="empty-state">No browser errors reported.</p>
   }
 </section>

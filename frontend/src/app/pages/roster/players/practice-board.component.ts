@@ -81,7 +81,7 @@ interface PainRow extends PainPoint {
             }
           </ul>
         } @else {
-          <p class="muted">No pain points{{ statusFilter() !== 'all' ? ' (' + statusFilter() + ')' : '' }}{{ playerFilter() !== 'all' ? ' for this player' : '' }}.</p>
+          <p class="empty-state">No pain points{{ statusFilter() !== 'all' ? ' (' + statusFilter() + ')' : '' }}{{ playerFilter() !== 'all' ? ' for this player' : '' }}.</p>
         }
       }
     </details>

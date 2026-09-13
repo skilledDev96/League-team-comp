@@ -193,7 +193,9 @@ html:has(.page.is-film) {
 .queue-stat-grid { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin-bottom: 0.6rem; }
 .profile-links-head { margin-top: 0.9rem; }
 
-/* The one empty state (13 Sep 2026): a quiet line where the content would be, never a bare paragraph per page. */
+/* The one empty state (13 Sep 2026): a quiet line where the content would be, never a bare paragraph per page.
+   A page class may ride beside it (`empty-state comps-sheet-empty`) for a size or margin of its own, and carries
+   padding: 0 where the half-rem of air would move a sheet block, a table's neighbour or a card foot. */
 .empty-state {
   margin: 0;
   padding: 0.5rem 0;
@@ -1055,7 +1057,7 @@ app-detail-toggle { margin-left: auto; }
 .rp-mini .material-symbols-rounded { font-size: 0.95rem; }
 .rp-add { display: flex; gap: 0.4rem; margin-bottom: 0.5rem; }
 .rp-add input { flex: 1 1 auto; min-width: 0; padding: 0.45rem 0.6rem; border-radius: var(--r-sm); border: 1px solid var(--card-border); background: var(--surface-btn); color: var(--text-0); font: inherit; font-size: var(--fs-body); }
-.rp-empty, .rp-hint { margin: 0.2rem 0; font-size: 0.8rem; }
+.rp-empty, .rp-hint { margin: 0.2rem 0; padding: 0; font-size: 0.8rem; }
 .rp-detail .practice-list, .rp-detail .learn-list { margin: 0; }
 .rp-faces { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .rp-faces img { display: block; width: 2rem; height: 2rem; border-radius: var(--r-xs); border: 1px solid var(--card-border); object-fit: cover; }
@@ -2221,6 +2223,7 @@ body[data-theme='light'] .avatar-role {
 
 .funnel-clean {
   margin: 0.6rem 0 0;
+  padding: 0;
   font-size: var(--fs-meta);
 }
 
@@ -9771,7 +9774,7 @@ body:has(.draft-stage) .edit-mode-frame {
 .opp-history-pick small.is-even { color: var(--text-1); }
 
 /* Six column headers over nothing read as a broken table rather than an empty one. */
-.opp-empty { grid-column: 1 / -1; margin: 0.6rem 0 0.2rem; }
+.opp-empty { grid-column: 1 / -1; margin: 0.6rem 0 0.2rem; padding: 0; }
 
 /* Starter: their five on a line each. The table says the same thing across six columns
    and up to nine cells a player; this is the part a reader acts on before a series. */
@@ -10777,7 +10780,7 @@ summary.opp-history-head:hover .fold-chevron { color: var(--accent); }
   color: var(--text-1);
 }
 
-.opp-history-nostats { margin: 0.3rem 0 0; font-size: 0.74rem; }
+.opp-history-nostats { margin: 0.3rem 0 0; padding: 0; font-size: 0.74rem; }
 
 /* Ours, both ways: "vs" is our games into their pick, "overall" across
    everyone; the two sit side by side so neither has to be inferred. */
@@ -14218,7 +14221,7 @@ so none of this can move the draft room. */
 .home-counter dd { margin: 0; }
 .home-counter-figure { display: block; min-height: 2.3rem; font-family: "Chakra Petch", sans-serif; font-size: 2rem; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; color: var(--text-0); }
 .home-counter-sub { display: block; min-height: 1.05rem; font-size: var(--fs-label); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.home-hero-empty { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--text-1); }
+.home-hero-empty { margin: 0.6rem 0 0; padding: 0; font-size: 0.8rem; }
 
 /* The next series, in the hero's corner */
 .home-hero-next { grid-column: 2; align-self: end; display: block; min-width: 0; }
@@ -14381,7 +14384,7 @@ body { --tier-iron: #8b8e94; --tier-bronze: #b0743f; --tier-silver: #aeb8c6; --t
 .home-cell-trophies { grid-column: 1 / -1; min-height: 19.25rem; }
 .home-tile { display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
 .home-tile-shell { background: color-mix(in srgb, var(--card) 60%, transparent); box-shadow: none; }
-.home-tile-note { margin: 0; font-size: 0.76rem; color: var(--text-2); }
+.home-tile-note { margin: 0; padding: 0; font-size: 0.76rem; color: var(--text-2); }
 .home-tile-empty { flex: 1; display: grid; place-items: center; align-content: center; gap: 0.35rem; text-align: center; color: var(--text-1); font-size: 0.86rem; }
 .home-tile-empty p { margin: 0; max-width: 28rem; }
 .home-tile-empty .material-symbols-rounded { font-size: 2rem; color: color-mix(in srgb, var(--accent-2) 70%, transparent); }
@@ -14630,7 +14633,6 @@ span.home-records-open { width: 4.1rem; }
 .roster-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; padding: 0 0.2rem; }
 .roster-group-title { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.15rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-1); }
 .roster-scope { font-size: 0.74rem; color: var(--text-2); }
-.roster-empty { margin: 0; color: var(--text-1); }
 
 .roster-poster { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(var(--roster-cols, 5), minmax(0, 1fr)); gap: 0.75rem; }
 .roster-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.75rem; }
@@ -14733,7 +14735,7 @@ app-rate-ring.is-big { --ring-size: 4.6rem; }
 .roster-sheet-block { display: grid; align-content: start; gap: 0.45rem; min-width: 0; }
 .roster-sheet-block h3 { margin: 0; display: flex; align-items: baseline; gap: 0.45rem; font-size: var(--fs-meta); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-2); }
 .roster-sheet-block h3 small { font-size: 0.68rem; letter-spacing: 0; text-transform: none; color: var(--text-2); }
-.roster-sheet-empty { margin: 0; font-size: 0.8rem; color: var(--text-1); }
+.roster-sheet-empty { padding: 0; font-size: 0.8rem; }
 .roster-sheet-more { margin: 0; font-size: var(--fs-label); color: var(--text-2); }
 .roster-pool { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.35rem 0.6rem; }
 .roster-pool-item { display: grid; grid-template-columns: 2.3rem minmax(0, 1fr); align-items: center; gap: 0.45rem; }
@@ -14766,7 +14768,7 @@ app-rate-ring.is-big { --ring-size: 4.6rem; }
 .rank-spark-delta { font-family: "Chakra Petch", sans-serif; font-variant-numeric: tabular-nums; }
 .rank-spark-delta.is-up { color: var(--ok); }
 .rank-spark-delta.is-down { color: var(--warn); }
-.rank-spark-empty { margin: 0; font-size: 0.8rem; color: var(--text-1); }
+.rank-spark-empty { padding: 0; font-size: 0.8rem; }
 .rank-spark-empty b { color: var(--text-0); }
 
 @media (max-width: 62rem) {
@@ -14896,7 +14898,7 @@ app-comp-tile { display: block; height: 100%; }
 .comps-sheet-block h3 { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 0.45rem; font-size: var(--fs-meta); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-2); }
 .comps-sheet-block h3 small { font-size: 0.68rem; letter-spacing: 0; text-transform: none; color: var(--text-2); }
 .comps-sheet-block h3 .view-btn { margin-left: auto; font-size: var(--fs-label); letter-spacing: 0; text-transform: none; }
-.comps-sheet-empty { margin: 0; font-size: 0.8rem; color: var(--text-1); }
+.comps-sheet-empty { padding: 0; font-size: 0.8rem; }
 .comps-sheet-line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; font-size: 0.8rem; color: var(--text-1); }
 .comps-sheet-line b { color: var(--text-0); }
 .comps-sheet-line .material-symbols-rounded { font-size: 1rem; color: var(--text-2); }

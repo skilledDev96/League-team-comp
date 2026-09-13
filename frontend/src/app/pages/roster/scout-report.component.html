@@ -29,7 +29,7 @@
   }
 
   @if (!players().length && !busy()) {
-    <p class="muted scout-report-empty">
+    <p class="empty-state scout-report-empty">
       Nothing scouted yet. @if (auth.editing()) { Press "Scout us from Riot" and the table an opponent would build against us appears here. } @else { An editor can run the scout; the table then appears here for everyone. }
     </p>
   }

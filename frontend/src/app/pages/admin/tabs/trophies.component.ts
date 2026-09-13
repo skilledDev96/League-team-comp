@@ -93,7 +93,7 @@ function toDraft(t: Trophy): TrophyDraft {
             </div>
           </article>
         } @empty {
-          <p class="muted">No trophies yet. Add one above.</p>
+          <p class="empty-state">No trophies yet. Add one above.</p>
         }
       </div>
       <datalist id="admin-trophy-champions">

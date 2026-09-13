@@ -145,7 +145,7 @@ const STARTER_WORKING = 3;
                 </ul>
                 @if (hiddenPool()) { <p class="roster-sheet-more">{{ hiddenPool() }} more at Full</p> }
               } @else {
-                <p class="roster-sheet-empty">No champions yet: the pool fills from their team games and the morning refresh.</p>
+                <p class="empty-state roster-sheet-empty">No champions yet: the pool fills from their team games and the morning refresh.</p>
               }
             </section>
 
@@ -157,7 +157,7 @@ const STARTER_WORKING = 3;
                   @for (w of weaknesses(); track w) { <span class="tag bad">{{ w }}</span> }
                 </div>
               } @else {
-                <p class="roster-sheet-empty">Strengths and weaknesses come in with the next refresh from Riot.</p>
+                <p class="empty-state roster-sheet-empty">Strengths and weaknesses come in with the next refresh from Riot.</p>
               }
               @if (full() && c.bans.length) {
                 <p class="roster-sheet-line"><span class="roster-sheet-label">Suggested bans</span>
@@ -180,7 +180,7 @@ const STARTER_WORKING = 3;
               @if (c.playerId) {
                 <app-rank-sparkline [playerId]="c.playerId" [name]="c.name" [now]="c.rank ? c.rank.label + ' ' + c.rank.queue : ''" />
               } @else {
-                <p class="roster-sheet-empty">@if (c.rank) { <b>{{ c.rank.label }} {{ c.rank.queue }}</b>. } The morning refresh follows the roster, not fill-ins.</p>
+                <p class="empty-state roster-sheet-empty">@if (c.rank) { <b>{{ c.rank.label }} {{ c.rank.queue }}</b>. } The morning refresh follows the roster, not fill-ins.</p>
               }
             </section>
 
@@ -191,7 +191,7 @@ const STARTER_WORKING = 3;
                   @for (w of working(); track w.id) { <li>{{ w.text }}</li> }
                 </ul>
               } @else if (c.playerId) {
-                <p class="roster-sheet-empty">Nothing open. Add what they are working on in Players.</p>
+                <p class="empty-state roster-sheet-empty">Nothing open. Add what they are working on in Players.</p>
               }
               @if (c.playerId) {
                 <p class="roster-sheet-more">
