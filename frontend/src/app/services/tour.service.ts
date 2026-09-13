@@ -345,15 +345,21 @@ export class TourService {
       case 'showFullComps':
         return this.raiseDepth('comps');
       case 'openTourComp': {
-        // The comp the tour walks is marked by the page; a panel builds its body only while open,
-        // so its anchors do not exist until it is. Setting `open` fires the page's own toggle.
-        const panel = document.querySelector<HTMLDetailsElement>('[data-tour-comp] details.comp-panel');
-        if (!panel) return false;
-        if (!panel.open) {
-          panel.open = true;
-          await this.pause(150);
-        }
-        return true;
+        // The sheet exists only while a comp is chosen (13 Sep 2026): open the walked comp's, or say there is
+        // none, so the steps inside it skip at once instead of waiting.
+        if (document.querySelector('[data-tour-comp] .comps-tile-open[aria-expanded="true"]')) return true;
+        const opener = document.querySelector<HTMLElement>('[data-tour-comp] .comps-tile-open');
+        if (!opener) return false;
+        opener.click();
+        await this.pause(250);
+        return !!document.querySelector('[data-tour="comp-sheet"]');
+      }
+      case 'openTourCompFull': {
+        // Counts-under lives at Full: raise the depth, then make sure the walked comp's sheet is the open one,
+        // since a change of depth starts from the first comp.
+        if (!(await this.raiseDepth('comps'))) return false;
+        await this.pause(150);
+        return this.action('openTourComp');
       }
       case 'openPlayerEditor': {
         // The profile's player, from the URL; the drawer is the editor.

@@ -216,20 +216,25 @@ export const TOURS: readonly Tour[] = [
   {
     id: 'comps',
     title: 'Adding a comp',
-    blurb: 'The board, the plan, what the comp expects, and its record.',
-    version: 2,
+    blurb: 'The sheet, the board, the plan, what the comp expects, and its record.',
+    // Version 3 (13 Sep 2026): the poster, one sheet at a time, the name and the ⋯ menu edited in place.
+    version: 3,
     match: { path: '/comps' },
     role: 'editor',
     needs: 'comps',
     steps: [
-      { anchor: 'comps-add', title: 'Add a comp', text: 'Creates a blank comp and opens its board, right here.', more: 'Admin only keeps the names and picks as text.', editMode: true },
+      { anchor: 'comps-add', title: 'Add a comp', text: 'A blank comp, its sheet open on the name.', more: 'Anyone who can edit sees it; pressing it turns edit mode on. Admin keeps names and picks as text.', editMode: true },
+      { anchor: 'comp-tile', title: 'A comp', text: 'Its five, its shape and its record. Click to open.' },
+      { anchor: 'comp-sheet', title: 'The sheet', text: 'One comp at a time, under its tile.', more: 'Escape or the tile closes it; the arrows walk the comps.', before: 'openTourComp' },
       { anchor: 'comp-board', title: 'The board', text: 'Click a seat, then a champion.', more: 'Every pick saves as it lands. A finished comp hides the champions until you press a seat or Change picks.', editMode: true, before: 'openTourComp' },
+      { anchor: 'comp-name', title: 'The name', text: 'Type over the name; Enter saves.', more: 'Escape puts the stored name back.', editMode: true, before: 'openTourComp' },
       { anchor: 'comp-category', title: 'Category', text: 'A short label to filter by: Meta, Comfort, For fun.', editMode: true, before: 'openTourComp' },
       { anchor: 'comp-gameplan', title: 'Game plan', text: 'Early, mid and late, in your own words.', more: 'The draft advisor and the post-game review both read it.', editMode: true, before: 'openTourComp' },
       { anchor: 'comp-expect', title: 'What we expect', text: 'Four axes read off the champions.', more: 'Overrule them and the review checks the game against your version instead.', editMode: true, before: 'openTourComp' },
-      { anchor: 'comp-bans', title: 'Ban recommendations', text: 'Champions to take away when we run this comp.', more: 'They come up on our ban steps in the draft room.', editMode: true, before: 'openTourComp' },
-      { anchor: 'comp-counts-under', title: 'Counts as part of', text: 'Fold this comp’s games into another comp’s record.', more: 'For the records only, so it lives in Full. Use it for near-duplicate drafts you keep separate to play from.', editMode: true, before: 'showFullComps' },
-      { anchor: 'comp-record', title: 'Track record', text: 'Wins and losses from match history, or logged by hand.', more: 'Full adds each result and the notes from the games that count as this comp.' }
+      { anchor: 'comp-bans', title: 'Bans', text: 'Champions to take away when we run this comp.', more: 'They come up on our ban steps in the draft room.', editMode: true, before: 'openTourComp' },
+      { anchor: 'comp-counts-under', title: 'Counts as part of', text: 'Fold this comp’s games into another comp’s record.', more: 'For the records only, so it lives in Full. Use it for near-duplicate drafts you keep separate to play from.', editMode: true, before: 'openTourCompFull' },
+      { anchor: 'comp-record', title: 'Track record', text: 'Wins and losses from match history, or logged by hand.', more: 'Full adds each result and the notes from the games that count as this comp.', before: 'openTourComp' },
+      { anchor: 'comp-more', title: 'More', text: 'Log a game, edit as text on Admin, or delete the comp.', more: 'Deleting asks first and says what goes with it.', editMode: true, before: 'openTourComp' }
     ]
   },
   {
@@ -238,15 +243,18 @@ export const TOURS: readonly Tour[] = [
     id: 'comps-read',
     title: 'Reading a comp',
     blurb: 'What a comp holds and how much of it to show.',
-    version: 1,
+    // Version 2 (13 Sep 2026): the poster and the sheet.
+    version: 2,
     match: { path: '/comps' },
     needs: 'comps',
     steps: [
-      { anchor: 'detail-comps', title: 'Starter or Full', text: 'Starter is the basics, Full is everything expanded.', more: 'Full opens every comp with each result and the notes from its games. Remembered for you.' },
-      { anchor: 'comp-summary', title: 'A comp', text: 'Its name and record. Click it to open.' },
-      { anchor: 'comp-slots', title: 'The five', text: 'Each seat’s champion, and who on our side can play it.', before: 'openTourComp' },
+      { anchor: 'detail-comps', title: 'Starter or Full', text: 'Starter is the basics, Full is everything.', more: 'Full opens the first comp with each result and the notes from its games. Remembered for you.' },
+      { anchor: 'comp-tile', title: 'A comp', text: 'Its five, its shape and its record. Click to open.' },
+      { anchor: 'comp-sheet', title: 'The sheet', text: 'One comp at a time, under its tile.', more: 'Escape or the tile closes it; the arrows walk the comps.', before: 'openTourComp' },
+      { anchor: 'comp-seats', title: 'The five', text: 'Each seat’s champion, and who on our side can play it.', before: 'openTourComp' },
       { anchor: 'comp-gameplan', title: 'Game plan', text: 'How the comp wants to play, early to late.', before: 'openTourComp' },
-      { anchor: 'comp-bans', title: 'Bans', text: 'What to take away when we run it.', before: 'openTourComp' }
+      { anchor: 'comp-bans', title: 'Bans', text: 'What to take away when we run it.', before: 'openTourComp' },
+      { anchor: 'comp-record', title: 'Track record', text: 'Wins and losses, from match history or logged by hand.', before: 'openTourComp' }
     ]
   },
   {

@@ -265,15 +265,19 @@ describe('the tours on Roster and Comps (12 Sep 2026)', () => {
   });
 
   it('opens the walked comp before any step whose anchor lives inside a panel', () => {
-    // A panel builds its body only while it is open, so without the action these skip in silence.
-    const inside = ['comp-board', 'comp-category', 'comp-gameplan', 'comp-expect', 'comp-bans', 'comp-slots'];
+    // The sheet is built only while a comp is open, so without the action these skip in silence.
+    const inside = ['comp-sheet', 'comp-board', 'comp-name', 'comp-category', 'comp-gameplan', 'comp-expect', 'comp-bans', 'comp-seats', 'comp-record', 'comp-more'];
     for (const tour of [byId('comps'), byId('comps-read')]) {
       for (const step of tour.steps.filter((x) => inside.includes(String(x.anchor)))) {
         expect(step.before, tour.id + ': ' + String(step.anchor)).toBe('openTourComp');
       }
+      // The tile comes before the sheet, so a reader sees what opens what.
+      const anchors = tour.steps.map((x) => String(x.anchor));
+      expect(anchors.indexOf('comp-tile')).toBeLessThan(anchors.indexOf('comp-sheet'));
     }
+    // Counts-under lives at Full: the depth is raised and the walked comp's sheet opened in one action.
     const countsUnder = byId('comps').steps.find((x) => x.anchor === 'comp-counts-under')!;
-    expect(countsUnder.before).toBe('showFullComps');
+    expect(countsUnder.before).toBe('openTourCompFull');
   });
 
   it('names the Roster switch that now speaks for all four views', () => {
