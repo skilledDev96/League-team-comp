@@ -46,23 +46,32 @@ export interface CardPlacement {
   side: 'bottom' | 'top' | 'right' | 'left' | 'center';
 }
 
-/** A tour card beside its anchor: below, else above, else beside, else centred. */
+/**
+ * A tour card beside its anchor: below, else above, else beside, else in the corner farthest from it.
+ *
+ * `rem` is the root size in px, so the gap and the edge margin grow with the interface (13 Sep 2026: the
+ * root follows the window, and a 12px gap beside a card of 27px text read as touching). When nothing fits,
+ * the card used to sit in the middle of the screen, which on a tall anchor is on top of the thing the step
+ * describes; the corner diagonally away from the anchor's centre keeps it clear wherever it can be.
+ */
 export function placeCard(
   anchor: TipBox,
   card: { width: number; height: number },
   viewport: { width: number; height: number },
-  prefer: 'auto' | 'top' | 'bottom' | 'left' | 'right' = 'auto'
+  prefer: 'auto' | 'top' | 'bottom' | 'left' | 'right' = 'auto',
+  rem = 16
 ): CardPlacement {
-  const gap = 12;
-  const clampX = (x: number) => Math.max(MARGIN, Math.min(x, viewport.width - card.width - MARGIN));
-  const clampY = (y: number) => Math.max(MARGIN, Math.min(y, viewport.height - card.height - MARGIN));
+  const gap = 0.75 * rem;
+  const margin = 0.5 * rem;
+  const clampX = (x: number) => Math.max(margin, Math.min(x, viewport.width - card.width - margin));
+  const clampY = (y: number) => Math.max(margin, Math.min(y, viewport.height - card.height - margin));
   const centreX = anchor.left + anchor.width / 2 - card.width / 2;
   const centreY = anchor.top + anchor.height / 2 - card.height / 2;
   const fits = {
-    bottom: anchor.top + anchor.height + gap + card.height <= viewport.height - MARGIN,
-    top: anchor.top - gap - card.height >= MARGIN,
-    right: anchor.left + anchor.width + gap + card.width <= viewport.width - MARGIN,
-    left: anchor.left - gap - card.width >= MARGIN
+    bottom: anchor.top + anchor.height + gap + card.height <= viewport.height - margin,
+    top: anchor.top - gap - card.height >= margin,
+    right: anchor.left + anchor.width + gap + card.width <= viewport.width - margin,
+    left: anchor.left - gap - card.width >= margin
   };
   const order: ('bottom' | 'top' | 'right' | 'left')[] = prefer === 'auto' ? ['bottom', 'top', 'right', 'left'] : [prefer, 'bottom', 'top', 'right', 'left'];
   for (const side of order) {
@@ -78,5 +87,7 @@ export function placeCard(
         return { top: clampY(centreY), left: anchor.left - gap - card.width, side };
     }
   }
-  return { top: clampY((viewport.height - card.height) / 2), left: clampX((viewport.width - card.width) / 2), side: 'center' };
+  const awayRight = anchor.left + anchor.width / 2 < viewport.width / 2;
+  const awayDown = anchor.top + anchor.height / 2 < viewport.height / 2;
+  return { top: clampY(awayDown ? viewport.height : 0), left: clampX(awayRight ? viewport.width : 0), side: 'center' };
 }

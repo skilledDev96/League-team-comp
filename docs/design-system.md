@@ -244,3 +244,4 @@ from contributors as well as viewers.
 4. Act or check — does it belong at **Starter or Full**?
 5. If it collapses, is the **whole header** the toggle?
 6. If it is a new class, does it **redraw `.view-btn`**? Use `.view-btn`.
+7. Is every size in **rem**, and does it fit a **94 x 47rem** window? Since 13 Sep 2026 the root is a 94th of the window, so every wide screen gets those rems; a px size stays small while its neighbours grow (a native button with no font-size is 13.33px forever), and an auto-fill grid measured against the old 82.5rem column may gain an empty track in the 85rem one.

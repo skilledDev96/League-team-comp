@@ -58,10 +58,16 @@ import { TourService } from '../services/tour.service';
 })
 export class TourOverlayComponent {
   protected readonly tours = inject(TourService);
-  protected readonly pad = 6;
+  /** The root size in px, read with the viewport: the interface scales with the window (13 Sep 2026). */
+  private readonly rem = signal(16);
+  /** The spotlight's breathing room around the anchor, 6px at a 16px root. */
+  protected get pad(): number {
+    return 0.375 * this.rem();
+  }
   private readonly card = viewChild<ElementRef<HTMLElement>>('card');
   /** The detail behind the card's ⓘ, shut again on every step so it never follows you. */
   protected readonly more = signal(false);
+  /** A first guess until the card is measured: 22rem wide, about 12.5rem tall. */
   private readonly cardSize = signal({ width: 352, height: 200 });
   private readonly viewport = signal({ width: 1200, height: 800 });
 
@@ -71,7 +77,7 @@ export class TourOverlayComponent {
     const card = this.cardSize();
     const vp = this.viewport();
     if (!rect) return { top: Math.max(16, (vp.height - card.height) / 2), left: Math.max(16, (vp.width - card.width) / 2), side: 'center' as const };
-    return placeCard({ top: rect.top, left: rect.left, width: rect.width, height: rect.height }, card, vp, this.tours.step()?.placement ?? 'auto');
+    return placeCard({ top: rect.top, left: rect.left, width: rect.width, height: rect.height }, card, vp, this.tours.step()?.placement ?? 'auto', this.rem());
   });
 
   constructor() {
@@ -81,7 +87,14 @@ export class TourOverlayComponent {
       untracked(() => this.more.set(false));
     });
     if (typeof window !== 'undefined') {
-      const read = () => this.viewport.set({ width: window.innerWidth, height: window.innerHeight });
+      const read = () => {
+        const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+        this.viewport.set({ width: window.innerWidth, height: window.innerHeight });
+        if (rem !== this.rem()) {
+          this.rem.set(rem);
+          this.cardSize.update((size) => (size.width === 352 ? { width: 22 * rem, height: 12.5 * rem } : size));
+        }
+      };
       read();
       window.addEventListener('resize', read);
     }

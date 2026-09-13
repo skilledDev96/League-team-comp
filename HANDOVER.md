@@ -100,6 +100,8 @@ committed.
 
 - **The whole interface scales with the monitor.** Root font is a `clamp()`;
   laptops unchanged, ~31% larger at 2560px. Every `font-size` was already rem.
+  (Superseded 13 Sep 2026: the root is now a 94th of the window, 27px at 2560; see
+  CLAUDE.md's Conventions and the top of `styles.css`.)
 - **Hextech is the default theme**; progress-bar fills softened via
   `--bar-ok`/`--bar-warn`/`--bar-accent`, declared on `body` so they resolve per
   theme.

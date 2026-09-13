@@ -5,7 +5,7 @@
   <header class="topbar">
     @if (auth.isAuthed()) {
       <a class="brand brand-link" routerLink="/home">
-        <img class="brand-mark" src="assets/brand/bomb-128.png" alt="" width="128" height="128" />
+        <img class="brand-mark" src="assets/brand/bomb-128.png" srcset="assets/brand/bomb-128.png 128w, assets/brand/bomb-512.png 512w" sizes="3.6rem" alt="" width="128" height="128" />
         <span class="brand-text">
           {{ data.settings().teamName || 'Bom Squad' }}
           <small>Draft Hub</small>
@@ -13,7 +13,7 @@
       </a>
     } @else {
       <div class="brand">
-        <img class="brand-mark" src="assets/brand/bomb-128.png" alt="" width="128" height="128" />
+        <img class="brand-mark" src="assets/brand/bomb-128.png" srcset="assets/brand/bomb-128.png 128w, assets/brand/bomb-512.png 512w" sizes="3.6rem" alt="" width="128" height="128" />
         <span class="brand-text">
           {{ data.settings().teamName || 'Bom Squad' }}
           <small>Draft Hub</small>
@@ -90,7 +90,7 @@
   </header>
 
   @if (data.mode === 'local') {
-    <p class="footer-note" style="margin: 0 0 12px;">
+    <p class="footer-note" style="margin: 0 0 0.75rem;">
       Local preview mode — edits save in this browser only. Add Firebase config in
       environment.ts to enable shared data.
     </p>
