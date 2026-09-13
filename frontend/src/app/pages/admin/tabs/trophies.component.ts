@@ -50,10 +50,10 @@ function toDraft(t: Trophy): TrophyDraft {
   imports: [FormsModule, NgModelNameDirective],
   template: `
     <section aria-label="Trophies">
-      <div class="view-controls edit-toolbar">
-        <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">emoji_events</span>Trophies</h2>
+      <div class="admin-tab-head">
+        <h2 class="section-line"><span class="section-line-icon material-symbols-rounded" aria-hidden="true">emoji_events</span><span class="section-line-label">Trophies</span></h2>
         <p class="muted edit-hint">What the games cannot prove on their own: a final placing, a cup, a split won before the app kept games. They stand first in the trophy cabinet on Home.</p>
-        <button class="view-btn active btn-cta" type="button" (click)="add()">+ Add trophy</button>
+        <button class="view-btn active" type="button" (click)="add()">+ Add trophy</button>
       </div>
 
       <div class="grid">

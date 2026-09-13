@@ -31,10 +31,10 @@
 }
 
 <section aria-label="Players">
-<div class="view-controls edit-toolbar">
-  <h2 class="title-with-icon"><span class="section-icon">PL</span>Players</h2>
+<div class="admin-tab-head">
+  <h2 class="section-line"><span class="section-line-icon material-symbols-rounded" aria-hidden="true">groups</span><span class="section-line-label">Players</span></h2>
   <p class="muted edit-hint">Add a player from a Riot summoner name, or by hand. Everything else about a player is edited on their card, here or from their profile.</p>
-  <button class="view-btn active btn-cta" type="button" (click)="ctx.openAddPlayerDialog()">+ Add player</button>
+  <button class="view-btn active" type="button" (click)="ctx.openAddPlayerDialog()">+ Add player</button>
 </div>
 
 @for (group of ctx.playersByRole(); track group.role) {

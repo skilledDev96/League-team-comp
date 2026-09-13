@@ -211,9 +211,9 @@ html:has(.page.is-film) {
   gap: 0.3rem;
 }
 
-.queue-stat-grid {
-  margin-bottom: 0.6rem;
-}
+/* Games, win rate, KDA and CS a minute on one line, each its own word (they ran together without the gap). */
+.queue-stat-grid { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin-bottom: 0.6rem; }
+.profile-links-head { margin-top: 0.9rem; }
 
 /* The one empty state (13 Sep 2026): a quiet line where the content would be, never a bare paragraph per page. */
 .empty-state {
@@ -349,21 +349,11 @@ html:has(.page.is-film) {
   border-width: 3px;
 }
 
-.edit-toolbar {
-  gap: 0.75rem;
-}
-
-.edit-toolbar .edit-hint {
-  flex: 1 1 auto;
-  min-width: 11.25rem;
-}
-
-.edit-toolbar .btn-cta {
-  margin-left: auto;
-  font-size: 0.9rem;
-  padding: 0.5rem 1.1rem;
-  font-weight: 700;
-}
+/* An Admin tab's head (13 Sep 2026): the block-head line, the hint, and the tab's one action pushed right. */
+.admin-tab-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin: 0.2rem 0 0.7rem; padding: 0 0.35rem; }
+.admin-tab-head h2 { margin: 0; }
+.admin-tab-head .edit-hint { flex: 1 1 14rem; min-width: 0; margin: 0; font-size: 0.78rem; }
+.admin-tab-head > .view-btn { margin-left: auto; }
 
 .player-panel {
   padding: 0.6rem 0.75rem;
@@ -4752,6 +4742,7 @@ app-match-note {
 .section-line-icon { font-size: 1.15rem; color: var(--accent-2); }
 .section-line-label { font-family: "Chakra Petch", sans-serif; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; font-size: 0.85rem; color: var(--text-0); }
 .section-line .icon-pill { width: 1.7rem; height: 1.7rem; }
+h2.section-line { margin: 0; }
 
 /* Prep is preparation, not live state, so it folds away by default. */
 .series-prep-head {

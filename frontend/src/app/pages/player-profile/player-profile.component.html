@@ -1,34 +1,35 @@
 @if (player(); as p) {
-  <section class="hero">
-    <h1>{{ p.role }} - {{ p.name }}</h1>
-    <p>Single-player prep view for {{ p.name }}.</p>
-    <app-tour-pill />
-</section>
-
-    <!-- One toolbar on every page, the Games one (12 Sep 2026, the lead: "I like how the games top page
-         looks, with the detail option on the right — make this consistent across all pages"). The views as
-         pills on the left, anything that belongs to the whole page pushed right, Detail last. -->
-    <section class="view-controls" aria-label="Player">
-      <a class="view-btn quick-action" routerLink="/roster"><span class="material-symbols-rounded" aria-hidden="true">groups</span>Back to Roster</a>
-      <a class="view-btn quick-action" routerLink="/comps"><span class="material-symbols-rounded" aria-hidden="true">dashboard</span>Team comps</a>
-      <a class="view-btn quick-action" [routerLink]="['/games']" [queryParams]="{ tab: 'reviews' }"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Reviews</a>
-      @if (auth.editing()) {
-        <div class="view-controls-tools">
+  <!-- The slim hero (13 Sep 2026): who, the seat, one line, and the doors out beside the tour pill — a toolbar of
+       links is not a toolbar, so the page has none. -->
+  <section class="hero is-slim" appInView>
+    <div class="hero-id">
+      <p class="home-kicker hero-kicker"><span class="material-symbols-rounded" aria-hidden="true">person</span>Player · {{ p.role }}@if (p.top3.length) { · main {{ ui.championName(p.top3[0]) }} }</p>
+      <h1 class="hero-title">{{ p.name }}</h1>
+      <p class="hero-blurb">Their ranked queues, their pool and how the team does with them in it.</p>
+    </div>
+    <div class="hero-actions">
+      <app-tour-pill />
+      <div class="hero-pills">
+        <a class="view-btn quick-action" routerLink="/roster"><span class="material-symbols-rounded" aria-hidden="true">groups</span>Back to Roster</a>
+        <a class="view-btn quick-action" routerLink="/comps"><span class="material-symbols-rounded" aria-hidden="true">dashboard_customize</span>Team comps</a>
+        <a class="view-btn quick-action" [routerLink]="['/games']" [queryParams]="{ tab: 'reviews' }"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Reviews</a>
+        @if (auth.editing()) {
           <button class="view-btn quick-action" type="button" data-tour="player-edit" (click)="editor.open(p.id)" appTip="Name, tag, seats, pool, bans, playstyle and links, in a drawer">
             <span class="material-symbols-rounded" aria-hidden="true">edit</span>Edit this player
           </button>
           <button class="view-btn active quick-action" type="button" [disabled]="refreshing()" (click)="refreshData()" appTip="Re-reads rank, recent champions and the observed playstyle. Anything typed by hand is kept.">
             @if (refreshing()) { <span class="btn-spinner" aria-hidden="true"></span> Refreshing… } @else { <span class="material-symbols-rounded" aria-hidden="true">sync</span>Refresh from Riot }
           </button>
-        </div>
-      }
-    </section>
+        }
+      </div>
+    </div>
+  </section>
     @if (refreshStatus()) {
       <p class="tag good profile-refresh-status" role="status">{{ refreshStatus() }}</p>
     }
 
   <section class="grid two">
-    <article class="card card-loadable">
+    <article class="card card-loadable reveal" appInView style="--reveal-i: 0">
       @if (refreshing()) {
         <div class="card-loading-overlay" role="status" aria-live="polite">
           <span class="app-loading-spinner" aria-hidden="true"></span>
@@ -144,14 +145,14 @@
 
       <app-external-profiles [name]="p.name" [profile]="p.profile" />
 
-      <details class="link-dropdown">
-        <summary>Build Guides ({{ buildCount() }})</summary>
-        <div class="links compact">
+      @if (buildCount()) {
+        <div class="section-line profile-links-head"><span class="section-line-icon material-symbols-rounded" aria-hidden="true">menu_book</span><span class="section-line-label">Build guides</span></div>
+        <div class="tag-row">
           @for (champ of p.top3; track champ) {
-            <a [href]="ui.championBuildUrl(champ)" target="_blank" rel="noopener noreferrer">Build guide: {{ champ }}</a>
+            <a class="view-btn is-compact" [href]="ui.championBuildUrl(champ)" target="_blank" rel="noopener noreferrer">{{ ui.championName(champ) }} <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
           }
         </div>
-      </details>
+      }
 
       <h3>Suggested Bans</h3>
       <ul class="list-clean">
@@ -162,7 +163,7 @@
     </article>
 
     @if (withTeam(); as w) {
-      <article class="card card-wide team-card">
+      <article class="card card-wide team-card reveal" appInView style="--reveal-i: 1">
         <div class="team-card-head">
           <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>With the team</h2>
           <span class="team-card-scope" [appTip]="'Games where ' + p.name + ' played with the other four starters, in the queue picked above. Wins against losses.'">
@@ -302,7 +303,7 @@
     } @else if (data.compAnalysis()) {
       <!-- No games in this queue with the main five: say so rather than
            letting the card vanish when a tab changes (8 Sep 2026). -->
-      <article class="card card-wide team-card">
+      <article class="card card-wide team-card reveal" appInView style="--reveal-i: 1">
         <div class="team-card-head">
           <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>With the team</h2>
           <span class="team-card-scope">{{ teamQueueLabel() }} · <b>0</b> games with the main five</span>
@@ -313,8 +314,11 @@
 
   </section>
 } @else {
-  <section class="hero">
-    <h1>Player not found</h1>
-    <p><a routerLink="/roster">Back to Roster</a></p>
+  <section class="hero is-slim">
+    <div class="hero-id">
+      <h1 class="hero-title">Player not found</h1>
+      <p class="hero-blurb">Nobody on the roster has this id.</p>
+    </div>
+    <div class="hero-actions"><div class="hero-pills"><a class="view-btn quick-action" routerLink="/roster"><span class="material-symbols-rounded" aria-hidden="true">groups</span>Back to Roster</a></div></div>
   </section>
 }

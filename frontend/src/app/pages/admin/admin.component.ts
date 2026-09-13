@@ -1,4 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
+import { InViewDirective } from '../../shared/in-view.directive';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { AdminContextService } from './admin-context.service';
@@ -23,7 +24,7 @@ import { AdminTrophiesComponent } from './tabs/trophies.component';
 @Component({
   selector: 'app-admin',
   providers: [AdminShellService, AdminPlayersService, AdminContextService],
-  imports: [AdminSettingsComponent,
+  imports: [InViewDirective, AdminSettingsComponent,
     AdminPlayersComponent,
     AdminFillInsComponent,
     AdminCompsComponent,

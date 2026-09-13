@@ -1,11 +1,16 @@
-<section class="hero">
-  <h1>Edit Team Data</h1>
-  <p>Create, update, and delete roster, fill-ins, comps, and settings. Changes save to
-    {{ data.mode === 'firebase' ? 'the shared database' : 'this browser' }}.</p>
-  <app-tour-pill />
+<!-- The slim hero (13 Sep 2026): what this is, where it saves, the tour pill. -->
+<section class="hero is-slim" appInView>
+  <div class="hero-id">
+    <p class="home-kicker hero-kicker"><span class="material-symbols-rounded" aria-hidden="true">tune</span>Edit team data · saves to {{ data.mode === 'firebase' ? 'the shared database' : 'this browser' }}</p>
+    <h1 class="hero-title">Admin</h1>
+    <p class="hero-blurb">Create, update and delete the roster, fill-ins, comps, tournaments, trophies and settings.</p>
+  </div>
+  <div class="hero-actions">
+    <app-tour-pill />
+  </div>
 </section>
 
-<section data-tour="admin-tabs" class="view-controls" aria-label="Editor tabs">
+<section data-tour="admin-tabs" class="view-controls is-slim" aria-label="Editor tabs">
   @if (auth.canManageUsers()) {
     <button class="view-btn" [class.active]="ctx.activeTab() === 'settings'" type="button" (click)="ctx.openTab('settings')">Settings</button>
   }

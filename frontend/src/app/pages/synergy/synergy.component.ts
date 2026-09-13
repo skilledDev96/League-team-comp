@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { InViewDirective } from '../../shared/in-view.directive';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { SynergyService } from '../../services/synergy.service';
@@ -12,7 +13,7 @@ type ViewMode = 'groups' | 'individual';
 
 @Component({
   selector: 'app-synergy',
-  imports: [RouterLink, PlayerAvatarComponent],
+  imports: [InViewDirective, RouterLink, PlayerAvatarComponent],
   templateUrl: './synergy.component.html'
 })
 export class SynergyComponent {

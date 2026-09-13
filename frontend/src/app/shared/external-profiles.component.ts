@@ -8,9 +8,9 @@ import { UiService } from '../services/ui.service';
     <details class="link-dropdown external-profiles">
       <summary>{{ label() }}</summary>
       <div class="links compact">
-        <a [href]="opggUrl()" target="_blank" rel="noopener noreferrer">OP.GG</a>
+        <a class="view-btn is-compact" [href]="opggUrl()" target="_blank" rel="noopener noreferrer">OP.GG <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
         @if (mobalyticsUrl(); as moba) {
-          <a [href]="moba" target="_blank" rel="noopener noreferrer">Mobalytics</a>
+          <a class="view-btn is-compact" [href]="moba" target="_blank" rel="noopener noreferrer">Mobalytics <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
         }
       </div>
     </details>

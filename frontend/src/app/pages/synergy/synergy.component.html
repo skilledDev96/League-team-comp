@@ -1,10 +1,12 @@
-<section class="hero">
-  <h1>Team Synergy</h1>
-  <p>Compare roster combinations that played ranked together, or each player's own ranked and flex stats.</p>
+<section class="hero is-slim" appInView>
+  <div class="hero-id">
+    <p class="home-kicker hero-kicker"><span class="material-symbols-rounded" aria-hidden="true">hub</span>Ranked flex and solo, together and apart</p>
+    <h1 class="hero-title">Team Synergy</h1>
+    <p class="hero-blurb">Compare roster combinations that played ranked together, or each player's own ranked and flex stats.</p>
+  </div>
 </section>
 
-<section class="card synergy-toolbar" aria-label="Team synergy controls">
-  <div class="view-controls">
+<section class="view-row synergy-toolbar" aria-label="Team synergy controls">
     <div class="view-segment" role="group" aria-label="View">
       <button type="button" [class.active]="viewMode() === 'groups'" (click)="viewMode.set('groups')">Groups</button>
       <button type="button" [class.active]="viewMode() === 'individual'" (click)="viewMode.set('individual')">Individual</button>
@@ -28,7 +30,6 @@
         @if (loading()) { <span class="btn-spinner" aria-hidden="true"></span>Refreshing… } @else { Refresh synergy }
       </button>
     }
-  </div>
   @if (status()) { <p class="meta-line" role="status">{{ status() }}</p> }
 </section>
 
