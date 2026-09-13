@@ -298,9 +298,16 @@ export function buildGameRows(src: GameRowSources): GameRow[] {
   const scrimById = new Map(src.scrims.map((s) => [s.id, s]));
   const seatNames: Record<string, string> = {};
   for (const p of src.starters) if (p.role && !seatNames[p.role]) seatNames[p.role] = p.name;
+  // A tournament game that owns a Riot row is the same game the analysis placed under a comp (13 Sep 2026): the comp
+  // travels with it, or every league game played with a comp fell off that comp's record on Games, Home and Comps.
+  const riotByMatch = new Map(riot.filter((r) => r.matchId).map((r) => [r.matchId!, r]));
   const tournament = src.seriesGames
     .map((g) => fromSeriesGame(g, seriesById.get(g.seriesId), seatNames, g.matchId ? scrimById.get(g.matchId) : undefined, ours, scrimSeries.has(g.seriesId)))
-    .filter((r): r is GameRow => r !== null);
+    .filter((r): r is GameRow => r !== null)
+    .map((r) => {
+      const twin = r.matchId ? riotByMatch.get(r.matchId) : undefined;
+      return twin?.compId && !r.compId ? { ...r, compId: twin.compId, compName: twin.compName } : r;
+    });
   const claimed = new Set(tournament.map((r) => r.matchId).filter(Boolean));
   const riotKept = riot.filter((r) => !claimed.has(r.matchId));
   const riotIds = new Set(riot.map((r) => r.matchId));

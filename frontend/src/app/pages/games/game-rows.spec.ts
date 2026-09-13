@@ -175,13 +175,17 @@ describe('buildGameRows', () => {
     scrims: [] as Scrim[]
   };
 
-  it('lets a tournament game own its replay: no Riot row and no scrim row for the same game', () => {
+  it('lets a tournament game own its replay: no Riot row and no scrim row for the same game, and the comp the Riot row carried stays', () => {
     const replay = scrim({ id: 'r-9' });
     const game = { id: 'g1', seriesId: 'ser1', gameNumber: 1, win: true, matchId: 'r-9', ourChampions: [], theirChampions: [] } as unknown as SeriesGame;
-    const rows = buildGameRows({ ...base, analysis: [analysis({ matchId: 'r-9', queue: 'Scrim' })], scrims: [replay], seriesGames: [game] });
+    const dive = { id: 'dive', name: 'Dive', picks: { Top: '', Jungle: '', Mid: '', ADC: '', Support: '' }, order: 0 };
+    const rows = buildGameRows({ ...base, comps: [dive], analysis: [analysis({ matchId: 'r-9', queue: 'Scrim', compId: 'dive', compName: 'Dive' })], scrims: [replay], seriesGames: [game] });
     expect(rows).toHaveLength(1);
     expect(rows[0].source).toBe('tournament');
     expect(rows[0].matchId).toBe('r-9');
+    // The comp the analysis placed the game under travels with it (13 Sep 2026): a league game played with a comp is
+    // that comp's game, and dropping it here took five of Dive's six games off its record on Games, Home and Comps.
+    expect(rows[0]).toMatchObject({ compId: 'dive', compName: 'Dive' });
   });
 
   it('reads a game in the scrims group as a scrim, and stamps the series on both kinds', () => {
