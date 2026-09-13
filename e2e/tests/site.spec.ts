@@ -25,7 +25,10 @@ test('a deep link resolves to the app rather than a dead page', async ({ page })
   // Pages answers 404 here and serves 404.html, which is a copy of index.html.
   // The status is expected; what matters is that the app boots and routes.
   await page.goto('./comps');
-  await page.waitForURL(/\/(login|comps)$/, { timeout: 30_000 });
+  // The guard sends a visitor to /login?returnUrl=%2Fcomps. The pattern used to end at "login", so
+  // it only passed when the page's load event beat that redirect — and a heavier stylesheet on
+  // 13 Sep 2026 made the redirect win three runs in four.
+  await page.waitForURL(/\/(login(\?returnUrl=[^#]*)?|comps)$/, { timeout: 30_000 });
   await expect(page.locator('app-root')).toBeAttached();
 });
 
