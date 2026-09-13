@@ -10,14 +10,14 @@
     <div class="hero-actions">
       <app-tour-pill />
       <div class="hero-pills">
-        <a class="view-btn quick-action" routerLink="/roster"><span class="material-symbols-rounded" aria-hidden="true">groups</span>Back to Roster</a>
-        <a class="view-btn quick-action" routerLink="/comps"><span class="material-symbols-rounded" aria-hidden="true">dashboard_customize</span>Team comps</a>
-        <a class="view-btn quick-action" [routerLink]="['/games']" [queryParams]="{ tab: 'reviews' }"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Reviews</a>
+        <a class="view-btn" routerLink="/roster"><span class="material-symbols-rounded" aria-hidden="true">groups</span>Back to Roster</a>
+        <a class="view-btn" routerLink="/comps"><span class="material-symbols-rounded" aria-hidden="true">dashboard_customize</span>Team comps</a>
+        <a class="view-btn" [routerLink]="['/games']" [queryParams]="{ tab: 'reviews' }"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>Reviews</a>
         @if (auth.editing()) {
-          <button class="view-btn quick-action" type="button" data-tour="player-edit" (click)="editor.open(p.id)" appTip="Name, tag, seats, pool, bans, playstyle and links, in a drawer">
+          <button class="view-btn" type="button" data-tour="player-edit" (click)="editor.open(p.id)" appTip="Name, tag, seats, pool, bans, playstyle and links, in a drawer">
             <span class="material-symbols-rounded" aria-hidden="true">edit</span>Edit this player
           </button>
-          <button class="view-btn active quick-action" type="button" [disabled]="refreshing()" (click)="refreshData()" appTip="Re-reads rank, recent champions and the observed playstyle. Anything typed by hand is kept.">
+          <button class="view-btn active" type="button" [disabled]="refreshing()" (click)="refreshData()" appTip="Re-reads rank, recent champions and the observed playstyle. Anything typed by hand is kept.">
             @if (refreshing()) { <span class="btn-spinner" aria-hidden="true"></span> Refreshing… } @else { <span class="material-symbols-rounded" aria-hidden="true">sync</span>Refresh from Riot }
           </button>
         }
@@ -319,6 +319,6 @@
       <h1 class="hero-title">Player not found</h1>
       <p class="hero-blurb">Nobody on the roster has this id.</p>
     </div>
-    <div class="hero-actions"><div class="hero-pills"><a class="view-btn quick-action" routerLink="/roster"><span class="material-symbols-rounded" aria-hidden="true">groups</span>Back to Roster</a></div></div>
+    <div class="hero-actions"><div class="hero-pills"><a class="view-btn" routerLink="/roster"><span class="material-symbols-rounded" aria-hidden="true">groups</span>Back to Roster</a></div></div>
   </section>
 }

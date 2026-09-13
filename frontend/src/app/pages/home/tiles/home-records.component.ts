@@ -42,7 +42,7 @@ const DAY = (at: number) => (at > 0 ? new Date(at).toLocaleDateString(undefined,
             <b class="home-records-value">{{ l.value || '—' }}</b>
             <span class="home-records-who">{{ l.value ? l.who : l.empty || 'Set the first one' }}@if (l.when) { <small>{{ l.when }}</small> }</span>
             @if (l.value && l.matchId) {
-              <button type="button" class="view-btn home-pill home-records-open" [attr.aria-label]="'Open the game: ' + l.label" (click)="openGame(l.matchId)">
+              <button type="button" class="view-btn home-records-open" [attr.aria-label]="'Open the game: ' + l.label" (click)="openGame(l.matchId)">
                 <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span> Game
               </button>
             } @else {

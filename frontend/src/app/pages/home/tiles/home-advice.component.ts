@@ -16,7 +16,7 @@ import { InViewDirective } from '../../../shared/in-view.directive';
     <section class="card home-tile home-advice" appInView aria-labelledby="home-advice-title">
       <header class="home-card-head">
         <h2 id="home-advice-title"><span class="material-symbols-rounded" aria-hidden="true">psychology</span> What we do well, and what to work on</h2>
-        <button type="button" class="view-btn home-pill" (click)="openPatterns()">
+        <button type="button" class="view-btn" (click)="openPatterns()">
           <span class="material-symbols-rounded" aria-hidden="true">insights</span> Open Patterns
         </button>
       </header>

@@ -70,7 +70,7 @@ function parseBanner(key: string): { champion: string; skin: number } | null {
         </p>
         <div class="home-hero-tools">
           @if (tour(); as t) {
-            <button type="button" class="view-btn home-pill" [disabled]="!!tours.blocker(t)" [appTip]="tours.blocker(t) || t.blurb" (click)="tours.start(t.id)">
+            <button type="button" class="view-btn" [disabled]="!!tours.blocker(t)" [appTip]="tours.blocker(t) || t.blurb" (click)="tours.start(t.id)">
               <span class="material-symbols-rounded" aria-hidden="true">tour</span> Show me around
             </button>
           }
@@ -78,7 +78,7 @@ function parseBanner(key: string): { champion: string; skin: number } | null {
             <button type="button" [class.active]="mode() === 'all'" [attr.aria-pressed]="mode() === 'all'" (click)="modeChange.emit('all')">All time</button>
             <button type="button" [class.active]="mode() === 'season'" [attr.aria-pressed]="mode() === 'season'" [appTip]="seasonTip()" (click)="modeChange.emit('season')">{{ seasonWord() }}</button>
           </div>
-          <button type="button" class="view-btn home-pill home-motion" [class.active]="motion.reduced()" [attr.aria-pressed]="motion.reduced()"
+          <button type="button" class="view-btn home-motion" [class.active]="motion.reduced()" [attr.aria-pressed]="motion.reduced()"
                   [appTip]="motion.reduced() ? 'Motion is off on this screen: the splash holds still and the figures stand' : 'Turn the motion off on this screen'"
                   (click)="motion.setStill(!motion.reduced())">
             <span class="material-symbols-rounded" aria-hidden="true">{{ motion.reduced() ? 'motion_photos_off' : 'motion_photos_on' }}</span>

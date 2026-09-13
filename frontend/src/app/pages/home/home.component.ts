@@ -88,7 +88,7 @@ function writeStored(key: string, value: string): void {
         } @error {
           <div class="card home-tile-error" role="alert">
             <p><b>A newer version is live.</b> This tab was open while the site was updated, so this part of the page could not load.</p>
-            <button type="button" class="view-btn home-pill" (click)="reload()"><span class="material-symbols-rounded" aria-hidden="true">refresh</span> Reload</button>
+            <button type="button" class="view-btn" (click)="reload()"><span class="material-symbols-rounded" aria-hidden="true">refresh</span> Reload</button>
           </div>
         }
       </section>

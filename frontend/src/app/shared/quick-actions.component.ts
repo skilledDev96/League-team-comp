@@ -19,25 +19,25 @@ import { TooltipDirective } from './tooltip.directive';
       <!-- In the Roster's slim title (13 Sep 2026): the same doors as pills, no card around them. -->
       <nav class="quick-actions is-compact" aria-label="Quick actions" data-tour="quick-actions">
         @if (auth.canEdit()) {
-          <a class="view-btn hero-pill quick-action" [routerLink]="['/games']" [queryParams]="{ refresh: 1 }" appTip="Fetch the games we just played from Riot, then open the new ones to look at">
+          <a class="view-btn" [routerLink]="['/games']" [queryParams]="{ refresh: 1 }" appTip="Fetch the games we just played from Riot, then open the new ones to look at">
             <span class="material-symbols-rounded" aria-hidden="true">sync</span>We just practiced
           </a>
         }
-        <a class="view-btn hero-pill quick-action" [routerLink]="['/tournaments']" [queryParams]="{ view: 'draft' }" appTip="The draft room on Prep &amp; Draft, on the next open game">
+        <a class="view-btn" [routerLink]="['/tournaments']" [queryParams]="{ view: 'draft' }" appTip="The draft room on Prep &amp; Draft, on the next open game">
           <span class="material-symbols-rounded" aria-hidden="true">swords</span>Ready to draft
         </a>
-        <a class="view-btn hero-pill quick-action" [routerLink]="['/tournaments']" [queryParams]="{ view: 'plan' }" appTip="Scout the next opponent and plan the bans">
+        <a class="view-btn" [routerLink]="['/tournaments']" [queryParams]="{ view: 'plan' }" appTip="Scout the next opponent and plan the bans">
           <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>Scout the opponent
         </a>
         @if (auth.canEdit()) {
-          <a class="view-btn hero-pill quick-action" [routerLink]="['/comps']" [queryParams]="{ add: 'comp' }" appTip="A blank comp on the Comps page, opened with its board">
+          <a class="view-btn" [routerLink]="['/comps']" [queryParams]="{ add: 'comp' }" appTip="A blank comp on the Comps page, opened with its board">
             <span class="material-symbols-rounded" aria-hidden="true">add_circle</span>Add a comp
           </a>
-          <a class="view-btn hero-pill quick-action" [routerLink]="['/tournaments']" [queryParams]="{ view: 'plan', group: 'scrims' }" appTip="Drop a .rofl replay on Prep &amp; Draft; it becomes a game against that team">
+          <a class="view-btn" [routerLink]="['/tournaments']" [queryParams]="{ view: 'plan', group: 'scrims' }" appTip="Drop a .rofl replay on Prep &amp; Draft; it becomes a game against that team">
             <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>Import a replay
           </a>
         }
-        <a class="view-btn hero-pill quick-action" [routerLink]="['/games']" [queryParams]="{ tab: 'reviews' }" appTip="The newest post-game review, open in full">
+        <a class="view-btn" [routerLink]="['/games']" [queryParams]="{ tab: 'reviews' }" appTip="The newest post-game review, open in full">
           <span class="material-symbols-rounded" aria-hidden="true">rate_review</span>Reviews@if (data.gameReviews().length) { <span class="chip-count quick-action-count">{{ data.gameReviews().length }}</span>}
         </a>
       </nav>
@@ -46,27 +46,27 @@ import { TooltipDirective } from './tooltip.directive';
       <span class="quick-actions-label"><span class="material-symbols-rounded" aria-hidden="true">bolt</span>Quick actions</span>
       <div class="quick-actions-row">
         @if (auth.canEdit()) {
-          <a class="view-btn active quick-action" [routerLink]="['/games']" [queryParams]="{ refresh: 1 }"
+          <a class="view-btn active" [routerLink]="['/games']" [queryParams]="{ refresh: 1 }"
              appTip="Fetch the games we just played from Riot, then open the new ones to look at">
             <span class="material-symbols-rounded" aria-hidden="true">sync</span>We just practiced
           </a>
         }
-        <a class="view-btn quick-action" [routerLink]="['/tournaments']" [queryParams]="{ view: 'draft' }"
+        <a class="view-btn" [routerLink]="['/tournaments']" [queryParams]="{ view: 'draft' }"
            appTip="The draft room on Prep &amp; Draft, on the next open game">
           <span class="material-symbols-rounded" aria-hidden="true">swords</span>Ready to draft
         </a>
         @if (auth.canEdit()) {
-          <a class="view-btn quick-action" [routerLink]="['/comps']" [queryParams]="{ add: 'comp' }"
+          <a class="view-btn" [routerLink]="['/comps']" [queryParams]="{ add: 'comp' }"
              appTip="A blank comp on the Comps page, opened with its board">
             <span class="material-symbols-rounded" aria-hidden="true">add_circle</span>Add a comp
           </a>
         }
-        <a class="view-btn quick-action" [routerLink]="['/tournaments']" [queryParams]="{ view: 'plan' }"
+        <a class="view-btn" [routerLink]="['/tournaments']" [queryParams]="{ view: 'plan' }"
            appTip="Scout the next opponent and plan the bans">
           <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span>Scout the opponent
         </a>
         @if (auth.canEdit()) {
-          <a class="view-btn quick-action" [routerLink]="['/tournaments']" [queryParams]="{ view: 'plan', group: 'scrims' }"
+          <a class="view-btn" [routerLink]="['/tournaments']" [queryParams]="{ view: 'plan', group: 'scrims' }"
              appTip="Drop a .rofl replay on Prep &amp; Draft; it becomes a game against that team">
             <span class="material-symbols-rounded" aria-hidden="true">upload_file</span>Import a replay
           </a>

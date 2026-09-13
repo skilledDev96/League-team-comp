@@ -78,15 +78,15 @@ const STARTER_WORKING = 3;
                 </button>
               }
               @if (c.playerId) {
-                <a class="view-btn home-pill" [routerLink]="['/player', c.playerId]"><span class="material-symbols-rounded" aria-hidden="true">person</span> Profile</a>
+                <a class="view-btn" [routerLink]="['/player', c.playerId]"><span class="material-symbols-rounded" aria-hidden="true">person</span> Profile</a>
               }
-              <a class="view-btn home-pill" [href]="ui.summonerSearchUrl(c.name, c.profile)" target="_blank" rel="noopener noreferrer">op.gg <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
+              <a class="view-btn" [href]="ui.summonerSearchUrl(c.name, c.profile)" target="_blank" rel="noopener noreferrer">op.gg <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
               @if (auth.editing() && c.playerId) {
-                <button type="button" class="view-btn home-pill" (click)="editor.open(c.playerId)" appTip="Name, tag, pool, bans, playstyle and links, in a drawer">
+                <button type="button" class="view-btn" (click)="editor.open(c.playerId)" appTip="Name, tag, pool, bans, playstyle and links, in a drawer">
                   <span class="material-symbols-rounded" aria-hidden="true">edit</span> Edit player
                 </button>
               } @else if (auth.editing() && c.fillInId) {
-                <a class="view-btn home-pill" [routerLink]="['/admin']" [queryParams]="{ tab: 'fillins' }" appTip="Fill-ins are edited on Admin › Fill-ins, where Fill from Riot lives">
+                <a class="view-btn" [routerLink]="['/admin']" [queryParams]="{ tab: 'fillins' }" appTip="Fill-ins are edited on Admin › Fill-ins, where Fill from Riot lives">
                   <span class="material-symbols-rounded" aria-hidden="true">edit</span> Edit on Admin
                 </a>
               }
@@ -196,7 +196,7 @@ const STARTER_WORKING = 3;
               @if (c.playerId) {
                 <p class="roster-sheet-more">
                   @if (hiddenWorking()) { <span class="muted">{{ hiddenWorking() }} more</span> }
-                  <button type="button" class="view-btn home-pill" (click)="openInPlayers()">
+                  <button type="button" class="view-btn" (click)="openInPlayers()">
                     <span class="material-symbols-rounded" aria-hidden="true">table_rows</span>Open in Players
                   </button>
                 </p>

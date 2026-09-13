@@ -1559,13 +1559,22 @@ app-detail-toggle { margin-left: auto; }
   font-size: var(--fs-meta);
   text-decoration: none;
   cursor: pointer;
+  /* Both forms lay out the same (13 Sep 2026): an icon and a word sit on one axis with one gap,
+     whether the pill is an <a> or a <button>. This used to be on a.view-btn only, and four
+     modifiers — .home-pill, .hero-pill, .quick-action, .roster-profile-chip — existed to give
+     the button form the same three declarations. They are gone; this is the one place. */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
-a.view-btn { display: inline-flex; align-items: center; gap: 0.3rem; }
-a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-decoration: none; }
+/* A button centres its content by default and a flex container does not, so a button wider than
+   its words (a min-width, a stretched grid cell) keeps them in the middle where they were. */
+button.view-btn { justify-content: center; }
 
 .view-btn:hover,
 .view-btn:focus-visible {
   border-color: var(--accent);
+  text-decoration: none;
 }
 
 .view-btn.active {
@@ -1646,6 +1655,13 @@ a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-d
   direction: ltr;
   font-feature-settings: "liga";
   -webkit-font-smoothing: antialiased;
+}
+/* An icon inside a .view-btn is pill-sized (13 Sep 2026; the four retired modifiers each set
+   this by hand at 1 to 1.1rem). :where() keeps the selector at one class, so any context rule
+   that names an icon size still wins whatever its position in the sheet. The draft room and the
+   review takeover's gate are frozen and keep the size they were measured with. */
+.view-btn :where(.material-symbols-rounded:not(.draft-page *, .draft-side-modal *, .rt-gate *)) {
+  font-size: 1.05rem;
 }
 
 .section-icon {
@@ -9815,9 +9831,6 @@ body:has(.draft-stage) .edit-mode-frame {
 .opp-line .opp-champ { width: 1.9rem; height: 1.9rem; }
 .opp-line .opp-champ-stat { flex-direction: column; align-items: flex-start; gap: 0.1rem; font-size: 0.74rem; }
 .opp-line .opp-champ-stat em { font-size: 0.62rem; }
-/* op.gg as a small pill, never an underlined name. */
-.opp-line .opp-line-opgg { padding: 0.15rem 0.55rem; font-size: var(--fs-label); }
-.opp-line .opp-line-opgg .material-symbols-rounded { font-size: 0.9rem; }
 .opp-lines-more { margin: 0.45rem 0 0; font-size: var(--fs-meta); }
 .opp-history-folded { margin: 0.5rem 0 0; font-size: var(--fs-meta); }
 
@@ -11260,9 +11273,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .quick-actions-label { display: inline-flex; align-items: center; gap: 0.3rem; font-size: var(--fs-label); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--text-1); }
 .quick-actions-label .material-symbols-rounded { font-size: 1.1rem; color: var(--accent); }
 .quick-actions-row { display: flex; flex-wrap: wrap; gap: 0.45rem; }
-.quick-action { display: inline-flex; align-items: center; gap: 0.35rem; text-decoration: none; }
-.quick-action .material-symbols-rounded { font-size: 1.1rem; }
-.quick-action small { opacity: 0.75; }
 
 /* What "We just practiced" brought in. */
 .games-fresh { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; padding: 0.7rem 0.9rem; border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border)); }
@@ -11318,8 +11328,6 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .roster-edit-field { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.3rem; }
 .roster-edit-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-1); margin-right: 0.15rem; }
 .roster-edit .role-flex-toggle { padding: 0.15rem 0.55rem; font-size: var(--fs-label); }
-.roster-profile-chip { display: inline-flex; align-items: center; gap: 0.2rem; text-decoration: none; }
-.roster-profile-chip .material-symbols-rounded { font-size: 1rem; }
 
 /* The player editor, in Admin and in the drawer. */
 .player-editor .field-hint { display: block; margin-top: 0.25rem; }
@@ -11437,8 +11445,6 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 /* The hero's quiet pills: a tour, and the reminder that editing lives behind Edit mode. */
 .hero { position: relative; }
 .hero-tools { position: absolute; top: 1rem; right: 1rem; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; }
-.hero-pill { display: inline-flex; align-items: center; gap: 0.3rem; font-size: var(--fs-meta); padding: 0.3rem 0.7rem; }
-.hero-pill .material-symbols-rounded { font-size: 1.05rem; }
 .hero-pill-edit { border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border)); }
 @media (max-width: 45rem) { .hero-tools { position: static; margin-top: 0.6rem; justify-content: flex-start; } }
 
@@ -14195,9 +14201,6 @@ so none of this can move the draft room. */
 .home { display: grid; gap: 1rem; }
 .home-kicker { margin: 0; display: inline-flex; align-items: center; gap: 0.35rem; font-family: "Chakra Petch", sans-serif; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-2); }
 .home-kicker .material-symbols-rounded { font-size: 1.05rem; }
-.home-pill { display: inline-flex; align-items: center; gap: 0.3rem; }
-.home-pill .material-symbols-rounded { font-size: 1.05rem; }
-.home-pill.active { background: color-mix(in srgb, var(--accent) 22%, var(--surface-btn)); }
 
 /* The hero */
 .home-hero { position: relative; overflow: hidden; isolation: isolate; min-height: 26rem; display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, 21rem); grid-template-rows: auto 1fr; gap: 1rem 1.5rem; padding: 1.25rem 1.6rem 1.5rem; border-radius: var(--r-hero); border: 1px solid var(--card-border); background: var(--bg-0); box-shadow: 0 18px 40px var(--shadow-elev); }
@@ -14358,7 +14361,7 @@ body { --tier-iron: #8b8e94; --tier-bronze: #b0743f; --tier-silver: #aeb8c6; --t
   .home-race-row:nth-child(3) { --home-i: 2; }
   .home-race-row:nth-child(4) { --home-i: 3; }
   .home-race-row:nth-child(n + 5) { --home-i: 4; }
-  .home:not(.is-still) :is(.home-pill, .home-season button) { transition: background-color 160ms ease, border-color 160ms ease; }
+  .home:not(.is-still) :is(.view-btn, .home-season button) { transition: background-color 160ms ease, border-color 160ms ease; }
   @keyframes home-fade-in { from { opacity: 0; } }
   @keyframes home-bar-grow { from { transform: scaleX(0); } }
   @keyframes home-sheen { from { opacity: 1; transform: translateX(-110%); } to { opacity: 1; transform: translateX(110%); } }
@@ -14390,7 +14393,7 @@ body { --tier-iron: #8b8e94; --tier-bronze: #b0743f; --tier-silver: #aeb8c6; --t
 .home-tile-empty .material-symbols-rounded { font-size: 2rem; color: color-mix(in srgb, var(--accent-2) 70%, transparent); }
 .home-tile-error { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .home-tile-error p { margin: 0; color: var(--text-1); }
-.home-card-head .home-pill { font-size: 0.74rem; }
+.home-card-head .view-btn { font-size: 0.74rem; }
 
 /* Podium */
 .home-podium-steps { list-style: none; margin: auto 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 0.5rem; }
@@ -15047,6 +15050,7 @@ textarea.comps-field { resize: vertical; min-height: 3.6rem; }
 .view-row > .muted { font-size: var(--fs-meta); }
 /* A compact pill, for an action that is only metadata: still a pill, never an underlined word (design system §2). */
 .view-btn.is-compact { padding: 0.1rem 0.55rem; font-size: 0.7rem; font-weight: 600; vertical-align: 0.1rem; }
+.view-btn.is-compact .material-symbols-rounded { font-size: 0.9rem; }
 /* A count inside a segment's button (a .chip-count on the <em>), the way Patterns' filters say how many games each choice keeps. */
 .view-segment button em { margin-left: 0.3rem; font-style: normal; color: inherit; }
 .view-segment button.is-loss.active { background: color-mix(in srgb, var(--warn) 24%, var(--surface-btn)); }

@@ -14,12 +14,12 @@ import { TooltipDirective } from './tooltip.directive';
   template: `
     <span class="hero-tools">
       @if (tour(); as t) {
-        <button type="button" class="view-btn hero-pill" [disabled]="!!tours.blocker(t)" [appTip]="tours.blocker(t) || t.blurb" (click)="tours.start(t.id)">
+        <button type="button" class="view-btn" [disabled]="!!tours.blocker(t)" [appTip]="tours.blocker(t) || t.blurb" (click)="tours.start(t.id)">
           <span class="material-symbols-rounded" aria-hidden="true">tour</span> Show me around
         </button>
       }
       @if (auth.canEdit() && !auth.editMode() && !tours.active()) {
-        <button type="button" class="view-btn hero-pill hero-pill-edit" (click)="auth.editMode.set(true)" appTip="The editing controls on this page live behind Edit mode; click to turn it on">
+        <button type="button" class="view-btn hero-pill-edit" (click)="auth.editMode.set(true)" appTip="The editing controls on this page live behind Edit mode; click to turn it on">
           <span class="material-symbols-rounded" aria-hidden="true">edit</span> Changing something? Turn on Edit mode
         </button>
       }

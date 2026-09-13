@@ -41,7 +41,7 @@ import { UiService } from '../../../services/ui.service';
               </li>
             }
           </ul>
-          <button type="button" class="view-btn home-pill home-comp-open" (click)="open(b.compId)">
+          <button type="button" class="view-btn home-comp-open" (click)="open(b.compId)">
             <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span> Open {{ b.name }}
           </button>
         </div>

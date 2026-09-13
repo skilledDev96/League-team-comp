@@ -38,14 +38,14 @@ import { TournamentContextService } from '../tournaments/tournament-context.serv
             </div>
           }
         }
-        <button type="button" class="view-btn home-pill home-next-pill" (click)="scout(n.seriesId)">
+        <button type="button" class="view-btn home-next-pill" (click)="scout(n.seriesId)">
           <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span> Scout them
         </button>
       } @else {
         <p class="home-kicker">Next series</p>
         <p class="home-next-vs">No series scheduled yet</p>
         <p class="home-next-meta">Add the next opponent on Prep &amp; Draft and it counts down here.</p>
-        <button type="button" class="view-btn home-pill home-next-pill" (click)="openPlan()">
+        <button type="button" class="view-btn home-next-pill" (click)="openPlan()">
           <span class="material-symbols-rounded" aria-hidden="true">event</span> Open Prep &amp; Draft
         </button>
       }

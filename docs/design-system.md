@@ -100,6 +100,12 @@ own box.** Seven are genuinely different jobs. The rest is drift.
 **Reach for R1 first.** If you are about to write a new class that declares padding, radius, border
 and background on something clickable, you are almost certainly drawing `.view-btn` again.
 
+**Both forms of R1 lay out the same** (13 Sep 2026): `.view-btn` itself is `inline-flex`, centred, with a
+`0.3rem` gap, whether it is an `<a>` or a `<button>` (a button also centres its content, as the browser did), and
+an icon inside it is `1.05rem` (`0.9rem` in `.is-compact`) unless a context rule says otherwise — the rule is a
+`:where()` so any named size wins. Do not add a modifier to give the button form what the anchor had:
+`.home-pill`, `.hero-pill`, `.quick-action` and `.roster-profile-chip` were exactly that and are gone.
+
 Known drift to collapse when you are next in the area (updated 13 Sep 2026 after the site-wide pass): five segmented
 systems became one plus the two kept on purpose (above); `.btn-cta` is gone; `.film-beat-chip` and `.film-strip-chip`
 are still byte-identical; the media-query units are still mixed (px in the draft room and the older blocks, rem in the

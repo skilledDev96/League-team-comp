@@ -105,10 +105,10 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
                 </button>
               }
               @if (c.played) {
-                <a class="view-btn home-pill" [routerLink]="['/games']" [queryParams]="{ comp: c.id }" appTip="This comp’s games on the Games page"><span class="material-symbols-rounded" aria-hidden="true">query_stats</span> Match history</a>
+                <a class="view-btn" [routerLink]="['/games']" [queryParams]="{ comp: c.id }" appTip="This comp’s games on the Games page"><span class="material-symbols-rounded" aria-hidden="true">query_stats</span> Match history</a>
               }
               @if (auth.editing()) {
-                <button type="button" class="view-btn home-pill" [class.active]="logging()" [attr.aria-pressed]="logging()" (click)="logging.set(!logging())" appTip="Log a win or a loss by hand">
+                <button type="button" class="view-btn" [class.active]="logging()" [attr.aria-pressed]="logging()" (click)="logging.set(!logging())" appTip="Log a win or a loss by hand">
                   <span class="material-symbols-rounded" aria-hidden="true">{{ logging() ? 'close' : 'add' }}</span> Log a game
                 </button>
                 <app-overflow-menu data-tour="comp-more">

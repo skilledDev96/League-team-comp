@@ -68,9 +68,9 @@ import { UserPrefsService } from '../../services/user-prefs.service';
           <div class="home-seat-ask" role="group" aria-label="Which seat is yours?">
             <span class="home-seat-q">Which seat is yours?</span>
             @for (role of roles; track role) {
-              <button type="button" class="view-btn home-pill home-seat-btn" (click)="pick(role)">{{ role }}</button>
+              <button type="button" class="view-btn home-seat-btn" (click)="pick(role)">{{ role }}</button>
             }
-            <button type="button" class="view-btn home-pill home-seat-later" (click)="dismiss.emit()">Not now</button>
+            <button type="button" class="view-btn home-seat-later" (click)="dismiss.emit()">Not now</button>
           </div>
         }
       </section>
