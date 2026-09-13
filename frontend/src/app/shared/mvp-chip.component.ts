@@ -43,7 +43,7 @@ const WORDS: Record<MvpChipKind, string> = { mvp: 'MVP', series: 'Series MVP', s
       }
       <span class="mvp-chip-word">{{ word() }}</span>
       @if (label()) { <span class="mvp-chip-name">{{ label() }}</span><app-mvp-banner size="inline" [focusable]="false" [name]="name()" /> }
-      @if (count(); as c) { <span class="mvp-chip-count" [class.is-partial]="partial()">{{ c }}</span> }
+      @if (count(); as c) { <span class="chip-count mvp-chip-count" [class.is-partial]="partial()">{{ c }}</span> }
     </span>
   `
 })

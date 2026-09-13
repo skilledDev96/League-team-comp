@@ -45,7 +45,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
                   (click)="open.emit($event.detail === 0)">{{ c.name }}</button>
         </h3>
         <p class="comps-tile-meta">
-          @if (c.category) { <span class="splash-chip is-quiet">{{ c.category }}</span> }
+          @if (c.category) { <span class="chip">{{ c.category }}</span> }
           @if (c.headline; as h) { <span>{{ h.games }} {{ h.games === 1 ? 'game' : 'games' }}</span> } @else { <span>No games yet</span> }
           @if (ago(); as a) { <span>played {{ a }}</span> }
         </p>

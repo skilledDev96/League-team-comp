@@ -70,11 +70,11 @@
                   </span>
                   @if (c.group !== 'starters' || c.secondaryRoles.length) {
                     <span class="rp-tags pp-flex-roles">
-                      @if (c.group === 'bench') { <span class="sub-badge">Sub</span> }
-                      @if (c.group === 'fillIns') { <span class="sub-badge">Fill-in</span> }
+                      @if (c.group === 'bench') { <span class="chip is-compact sub-badge">Sub</span> }
+                      @if (c.group === 'fillIns') { <span class="chip is-compact sub-badge">Fill-in</span> }
                       @if (c.secondaryRoles.length) {
                         <span class="pp-flex-label">Also plays</span>
-                        @for (role of c.secondaryRoles; track role) { <span class="pp-role flex">{{ role }}</span> }
+                        @for (role of c.secondaryRoles; track role) { <span class="chip is-compact pp-role">{{ role }}</span> }
                       }
                     </span>
                   }
@@ -118,7 +118,7 @@
                 @if (c.group === 'fillIns') {
                   <span class="muted">—</span>
                 } @else if (c.working.length) {
-                  <span class="splash-chip is-quiet">{{ c.working.length }} open</span>
+                  <span class="chip">{{ c.working.length }} open</span>
                 } @else {
                   <span class="muted">—</span>
                 }

@@ -83,7 +83,7 @@ describe.skipIf(typeof localStorage === 'undefined')('RosterComponent, the team 
     expect([...root.querySelectorAll('.roster-poster .roster-panel-open')].map((b) => text(b))).toEqual(['Zac', 'Go10x', 'Mido', 'SkilledScarecrow', 'Suppy']);
     const crowned = root.querySelector('.roster-poster .roster-panel.is-crowned')!;
     expect(text(crowned.querySelector('.roster-panel-open'))).toBe('SkilledScarecrow');
-    expect(text(crowned.querySelector('.splash-chip'))).toBe('1 MVP title');
+    expect(text(crowned.querySelector('.chip.is-gold'))).toBe('1 MVP title');
     expect(crowned.querySelectorAll('.form-pip.is-win')).toHaveLength(2);
     expect(root.querySelectorAll('.roster-tiles .roster-panel')).toHaveLength(2);
     expect(root.querySelector('.roster-sheet')).toBeNull();

@@ -162,7 +162,7 @@
     <section aria-label="Series">
       <h3 class="section-divider">
         Series
-        <span class="section-divider-count">{{ seriesList().length }}</span>
+        <span class="chip-count section-divider-count">{{ seriesList().length }}</span>
       </h3>
       @for (series of seriesList(); track series.id; let i = $index) {
         <details class="card series-panel reveal" appInView [style.--reveal-i]="i" data-tour="prep-series" [open]="isSeriesOpen(series.id)">
@@ -170,9 +170,9 @@
             <span class="series-index">{{ i + 1 }}</span>
             <span class="series-opponent">vs {{ series.opponent }}</span>
             @if (series.scheduledAt) {
-              <span class="series-when">{{ ui.formatDayTime(series.scheduledAt) }}</span>
+              <span class="chip">{{ ui.formatDayTime(series.scheduledAt) }}</span>
             }
-            @if (series.bestOf) { <span class="series-bo">Bo{{ series.bestOf }}</span> }
+            @if (series.bestOf) { <span class="chip">Bo{{ series.bestOf }}</span> }
             @if (seriesScore(series.id); as sc) {
               @if (sc.wins + sc.losses) {
                 <span class="series-score" [class.is-positive]="sc.wins > sc.losses"
@@ -631,7 +631,7 @@
                           </select>
                         } @else {
                           <span class="opp-role">{{ opp.role }}</span>
-                          @if (opp.sub) { <span class="opp-sub-tag">sub</span> }
+                          @if (opp.sub) { <span class="chip is-compact is-accent opp-sub-tag">sub</span> }
                         }
                       </span>
 

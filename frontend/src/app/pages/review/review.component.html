@@ -14,7 +14,7 @@
           @for (step of sourceSteps; track step.source) {
             <button type="button" [class.active]="sourceMode() === step.source" [attr.aria-pressed]="sourceMode() === step.source"
                     (click)="sourceMode.set(step.source)" [appTip]="step.tip">
-              {{ step.label }} <em>{{ gamesAtSource(step.source) }}</em>
+              {{ step.label }} <em class="chip-count">{{ gamesAtSource(step.source) }}</em>
             </button>
           }
         </div>
@@ -26,7 +26,7 @@
         <div class="view-segment" role="group" aria-labelledby="reviewSerious">
           <button type="button" [class.active]="!seriousOnly()" [attr.aria-pressed]="!seriousOnly()"
                   (click)="seriousOnly.set(false)" appTip="Every game, the messing-around ones included">
-            All @if (practiceCount()) { <em>+{{ practiceCount() }}</em> }
+            All @if (practiceCount()) { <em class="chip-count">+{{ practiceCount() }}</em> }
           </button>
           <button type="button" [class.active]="seriousOnly()" [attr.aria-pressed]="seriousOnly()"
                   (click)="seriousOnly.set(true)" appTip="Games played to win; anything tagged as practice on the Games page is left out">
@@ -39,11 +39,11 @@
         <div class="view-segment" role="group" aria-labelledby="reviewStack">
           <button type="button" [class.active]="starterMode() === 'team'" [attr.aria-pressed]="starterMode() === 'team'"
                   (click)="starterMode.set('team')" appTip="Every A-team player was on our side — the A team is whoever is not on the bench on the Roster page">
-            A team <em>{{ gamesAtStarters('team') }}</em>
+            A team <em class="chip-count">{{ gamesAtStarters('team') }}</em>
           </button>
           <button type="button" [class.active]="starterMode() === 'custom'" [attr.aria-pressed]="starterMode() === 'custom'"
                   (click)="starterMode.set('custom')" appTip="Pick the players; a game counts when everyone picked was on our side">
-            Custom <em>{{ gamesAtStarters('custom') }}</em>
+            Custom <em class="chip-count">{{ gamesAtStarters('custom') }}</em>
           </button>
         </div>
       </div>
@@ -53,7 +53,7 @@
           @for (step of roleSteps; track step.mode) {
             <button type="button" [class.active]="roleMode() === step.mode" [attr.aria-pressed]="roleMode() === step.mode"
                     (click)="roleMode.set(step.mode)" [appTip]="step.tip">
-              {{ step.label }} <em>{{ gamesAtRole(step.mode) }}</em>
+              {{ step.label }} <em class="chip-count">{{ gamesAtRole(step.mode) }}</em>
             </button>
           }
         </div>
@@ -383,11 +383,11 @@
         <div class="view-segment" role="group" aria-labelledby="reviewShowing">
           <button type="button" class="is-loss" [class.active]="outcome() === 'loss'"
                   [attr.aria-pressed]="outcome() === 'loss'" (click)="outcome.set('loss')">
-            Losses <em>{{ record().losses }}</em>
+            Losses <em class="chip-count">{{ record().losses }}</em>
           </button>
           <button type="button" class="is-win" [class.active]="outcome() === 'win'"
                   [attr.aria-pressed]="outcome() === 'win'" (click)="outcome.set('win')">
-            Wins <em>{{ record().wins }}</em>
+            Wins <em class="chip-count">{{ record().wins }}</em>
           </button>
         </div>
       </div>
@@ -481,7 +481,7 @@
                          [title]="row.champion" loading="lazy" />
                     <span class="draft-name">{{ row.player }}<app-mvp-banner size="inline" [name]="row.player" /></span>
                     @if (row.lane && row.lane.verdict !== 'unknown') {
-                      <span [class]="'draft-lane is-' + row.lane.verdict" [appTip]="'Lane read: ' + row.lane.verdict + (laneNote(row.lane) ? ' · ' + laneNote(row.lane) : '')">
+                      <span [class]="'chip is-compact draft-lane is-' + row.lane.verdict" [appTip]="'Lane read: ' + row.lane.verdict + (laneNote(row.lane) ? ' · ' + laneNote(row.lane) : '')">
                         {{ row.lane.verdict }}@if (laneNote(row.lane)) { <small>{{ laneNote(row.lane) }}</small> }
                       </span>
                     }

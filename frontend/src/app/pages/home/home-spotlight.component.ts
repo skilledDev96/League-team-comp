@@ -45,7 +45,7 @@ import { UiService } from '../../services/ui.service';
             @if (s.kind === 'series') {
               <app-mvp-chip kind="series" [compact]="true" [champion]="s.champion" [name]="s.name" [seat]="s.seat" [terms]="s.terms" [read]="s.read" [of]="s.of" />
               @if (s.titles) {
-                <span class="home-chip"><span class="material-symbols-rounded" aria-hidden="true">military_tech</span>{{ s.titles }} {{ s.titles === 1 ? 'title' : 'titles' }} {{ scope() }}</span>
+                <span class="chip is-accent"><span class="material-symbols-rounded" aria-hidden="true">military_tech</span>{{ s.titles }} {{ s.titles === 1 ? 'title' : 'titles' }} {{ scope() }}</span>
               }
             } @else {
               <app-mvp-chip kind="mvp" [compact]="true" [champion]="s.champion" [name]="s.name" [seat]="s.seat" [terms]="s.terms" />

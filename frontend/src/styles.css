@@ -697,14 +697,6 @@ body:has(.page.is-film)::before { content: none; }
   text-overflow: ellipsis;
 }
 
-.activity-more {
-  padding: 0 0.4rem;
-  border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--accent) 30%, transparent);
-  font-weight: 700;
-  font-size: var(--fs-label);
-}
-
 .refresh-log {
   display: flex;
   align-items: flex-start;
@@ -1579,6 +1571,21 @@ a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-d
   border-color: color-mix(in srgb, var(--accent) 72%, #ffffff 10%);
 }
 
+/* ---- The passive chip (design system §2, 13 Sep 2026) ------------------------------------------------------------
+   One box for every label that is read and never pressed: the quiet form is the default, a tint says what kind of
+   label it is, .is-compact is the uppercase badge size and .chip-count the number beside a word. Measured off
+   .comps-expect-chip and .splash-chip.is-quiet, which drew this box almost verbatim; a chip is never a control,
+   so it owes no :hover — an action is a .view-btn. */
+.chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.55rem; border-radius: var(--r-pill); border: 1px solid var(--card-border); background: color-mix(in srgb, var(--bg-0) 55%, transparent); color: var(--text-1); font-size: var(--fs-label); white-space: nowrap; }
+.chip .material-symbols-rounded { font-size: 0.95rem; }
+.chip.is-accent { background: color-mix(in srgb, var(--accent) 16%, transparent); border-color: color-mix(in srgb, var(--accent) 38%, transparent); color: var(--text-0); }
+.chip.is-good { background: color-mix(in srgb, var(--ok) 14%, transparent); border-color: color-mix(in srgb, var(--ok) 38%, transparent); color: color-mix(in srgb, var(--ok) 55%, var(--text-0)); }
+.chip.is-bad { background: color-mix(in srgb, var(--warn) 14%, transparent); border-color: color-mix(in srgb, var(--warn) 40%, transparent); color: color-mix(in srgb, var(--warn) 55%, var(--text-0)); }
+.chip.is-warn { background: color-mix(in srgb, var(--warn) 18%, transparent); border-color: color-mix(in srgb, var(--warn) 40%, transparent); color: var(--warn); }
+.chip.is-gold { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent-2); }
+.chip.is-compact { padding: 0.05rem 0.45rem; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.chip-count { padding: 0 0.35rem; border-radius: var(--r-pill); font-size: 0.66rem; font-weight: 700; background: color-mix(in srgb, var(--accent) 25%, transparent); }
+
 .grid {
   display: grid;
   gap: 1.05rem;
@@ -1804,16 +1811,6 @@ body[data-theme='light'] .avatar-role {
 
 .intel-collapse[open] .intel-collapse-chevron {
   transform: rotate(90deg);
-}
-
-.intel-collapse-count {
-  font-size: var(--fs-label);
-  font-weight: 700;
-  color: var(--text-1);
-  background: var(--surface-btn);
-  border: 1px solid var(--card-border);
-  border-radius: var(--r-pill);
-  padding: 0.05rem 0.5rem;
 }
 
 /* Game Log: marker for a game auto-detected from Riot match history. */
@@ -2064,18 +2061,7 @@ body[data-theme='light'] .avatar-role {
   font-weight: 700;
 }
 
-/* A flex-role chip shown alongside a player's main role. */
-
-.pp-role.flex {
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 0.05rem 0.4rem;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--card-border);
-  color: var(--text-1);
-  background: var(--surface-btn);
-}
+/* A flex role beside a player's main role is a `.chip.is-compact` wearing `.pp-role` as its hook (see the poster's override). */
 
 .pp-flex-roles {
   display: inline-flex;
@@ -3494,15 +3480,6 @@ body[data-theme='light'] select { color-scheme: light; }
   color: var(--text-0);
 }
 
-.series-when,
-.series-bo {
-  font-size: 0.74rem;
-  color: var(--text-1);
-  padding: 0.1rem 0.45rem;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--card-border);
-}
-
 .series-score {
   font-family: "Chakra Petch", sans-serif;
   font-weight: 700;
@@ -4681,13 +4658,8 @@ app-match-note {
   background: var(--card-border);
 }
 
-.section-divider-count {
-  padding: 0.05rem 0.4rem;
-  border-radius: var(--r-pill);
-  background: var(--surface-btn);
-  color: var(--text-1);
-  letter-spacing: 0;
-}
+/* The count is a .chip-count; only the divider's own letter-spacing is undone here. */
+.section-divider-count { letter-spacing: 0; }
 
 /* Numbered, so one series card is distinguishable from the next. */
 .series-index {
@@ -9669,17 +9641,8 @@ body:has(.draft-stage) .edit-mode-frame {
   color: var(--text-0);
 }
 
-.opp-sub-tag {
-  display: inline-block;
-  margin-top: 0.3rem;
-  padding: 0.05rem 0.45rem;
-  font-size: 0.6rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--accent);
-  color: var(--accent);
-}
+/* The sub tag is a .chip.is-compact.is-accent; this is only where it sits under the role. */
+.opp-sub-tag { margin-top: 0.3rem; }
 
 /* The bench: one line under the table, so the five above read as five. */
 .opp-bench {
@@ -10163,18 +10126,11 @@ body:has(.draft-stage) .edit-mode-frame {
   }
 }
 
-/* On the bench. The same pill as the flex roles in the editor, so it reads as
-   a status rather than a warning. */
+/* On the bench. The same .chip.is-compact as the flex roles in the editor, so it reads as
+   a status rather than a warning; only its seat beside the name is set here. */
 .sub-badge {
   align-self: center;
   margin-left: 0.4rem;
-  padding: 0.05rem 0.45rem;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--card-border);
-  color: var(--text-1);
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
 /* ---- Burned, laid out like the bans -------------------------------------
@@ -10944,16 +10900,7 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .games-tough { display: inline-flex; align-items: center; gap: 0.3rem; }
 .games-tough small { color: var(--text-1); }
 
-.games-source {
-  padding: 0.05rem 0.45rem;
-  border-radius: var(--r-pill);
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: color-mix(in srgb, var(--card-border) 60%, transparent);
-  color: var(--text-1);
-}
-
+/* Where a game came from: a .chip.is-compact, tinted by its source; Flex & Clash wears the plain chip. */
 .games-source.is-tournament { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text-0); }
 .games-source.is-scrim { background: color-mix(in srgb, var(--accent-2) 20%, transparent); color: var(--text-0); }
 
@@ -11055,17 +11002,8 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .split-players[open] > summary .material-symbols-rounded { transform: rotate(180deg); }
 .split-players .split-scroll { margin-top: 0.6rem; }
 
-.draft-lane {
-  margin-left: 0.4rem;
-  padding: 0.05rem 0.45rem;
-  border-radius: var(--r-pill);
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: color-mix(in srgb, var(--card-border) 60%, transparent);
-  color: var(--text-1);
-}
-
+/* The lane read on a Patterns draft row: a .chip.is-compact bound through [class], tinted by its verdict. */
+.draft-lane { margin-left: 0.4rem; }
 .draft-lane small { text-transform: none; letter-spacing: 0; margin-left: 0.3rem; }
 .draft-lane.is-won { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
 .draft-lane.is-lost { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
@@ -11206,16 +11144,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 /* The row a link asked for, kept on the list when the window does not hold it (12 Sep 2026). Quiet:
    it explains itself and is not a state the reader chose. */
 .games-pinned { display: inline-flex; align-items: center; padding: 0.05rem 0.45rem; border-radius: var(--r-pill); border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent); font-size: 0.68rem; color: var(--text-1); white-space: nowrap; cursor: help; }
-.games-practice {
-  padding: 0.05rem 0.45rem;
-  border-radius: var(--r-pill);
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: color-mix(in srgb, var(--warn) 18%, transparent);
-  color: var(--warn);
-}
-
 .game-check { margin-top: 0.6rem; }
 .game-check > summary { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-1); }
 .game-check > summary .game-check-chevron { margin-left: auto; transition: transform 0.15s ease; }
@@ -13558,12 +13486,6 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
    series is the one thing a reader has to know before arguing with it. */
 .mvp-chip-count {
   flex: 0 0 auto;
-  padding: 0 0.3rem;
-  border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--text-1) 16%, transparent);
-  color: var(--text-1);
-  font-size: 0.68rem;
-  font-weight: 600;
 }
 
 .mvp-chip-count.is-partial {
@@ -14232,9 +14154,7 @@ so none of this can move the draft room. */
 .splash-art { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; filter: saturate(0.9) brightness(0.8); }
 .splash-shade { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 94%, transparent) 0%, color-mix(in srgb, var(--bg-0) 40%, transparent) 50%, color-mix(in srgb, var(--bg-0) 20%, transparent) 100%); }
 .splash-crown { font-size: 1.5rem; color: var(--accent-2); filter: drop-shadow(0 0.1rem 0.4rem color-mix(in srgb, var(--bg-0) 80%, transparent)); }
-.splash-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.14rem 0.55rem; border-radius: var(--r-pill); font-size: 0.7rem; font-weight: 600; color: var(--accent-2); background: color-mix(in srgb, var(--bg-0) 55%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); white-space: nowrap; }
-.splash-chip .material-symbols-rounded { font-size: 0.95rem; }
-.splash-chip.is-quiet { color: var(--text-1); border-color: var(--card-border); }
+/* The titles chip is the shared .chip (.is-gold on the crowned panel; see the shared block by .view-btn). */
 .role-pill { padding: 0.12rem 0.5rem; border-radius: var(--r-pill); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-0); background: color-mix(in srgb, var(--bg-0) 70%, transparent); border: 1px solid var(--card-border); }
 .rate-ring-wrap { display: grid; justify-items: center; gap: 0.15rem; }
 .rate-ring-label { font-size: 0.56rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-0); text-shadow: 0 0.1rem 0.4rem color-mix(in srgb, var(--bg-0) 90%, transparent); }
@@ -14265,8 +14185,6 @@ so none of this can move the draft room. */
 .home-pill { display: inline-flex; align-items: center; gap: 0.3rem; }
 .home-pill .material-symbols-rounded { font-size: 1.05rem; }
 .home-pill.active { background: color-mix(in srgb, var(--accent) 22%, var(--surface-btn)); }
-.home-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.18rem 0.6rem; border-radius: var(--r-pill); font-size: 0.76rem; font-weight: 600; color: var(--accent-2); background: color-mix(in srgb, var(--accent) 16%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
-.home-chip .material-symbols-rounded { font-size: 0.95rem; }
 
 /* The hero */
 .home-hero { position: relative; overflow: hidden; isolation: isolate; min-height: 26rem; display: grid; grid-template-columns: minmax(0, 1fr) minmax(17rem, 21rem); grid-template-rows: auto 1fr; gap: 1rem 1.5rem; padding: 1.25rem 1.6rem 1.5rem; border-radius: var(--r-hero); border: 1px solid var(--card-border); background: var(--bg-0); box-shadow: 0 18px 40px var(--shadow-elev); }
@@ -14696,7 +14614,7 @@ span.home-records-open { width: 4.1rem; }
 .roster { display: block; }
 /* The hero is the shared slim one (see "The slim hero" above); only the quick actions are Roster's. */
 .quick-actions.is-compact { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; margin: 0; padding: 0; background: none; border: 0; box-shadow: none; }
-.quick-action-count { margin-left: 0.15rem; padding: 0 0.35rem; border-radius: var(--r-pill); font-size: 0.66rem; background: color-mix(in srgb, var(--accent) 25%, transparent); }
+.quick-action-count { margin-left: 0.15rem; }
 
 .roster-group { display: grid; gap: 0.6rem; margin: 1rem 0 0.4rem; }
 .roster-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; padding: 0 0.2rem; }
@@ -14728,7 +14646,7 @@ app-roster-panel { display: block; height: 100%; }
 
 .roster-panel-crown { position: absolute; top: 3.9rem; left: 0; right: 0; z-index: 2; display: grid; justify-items: center; gap: 0.1rem; }
 .roster-panel.is-tile .roster-panel-crown { top: 0.5rem; }
-.roster-panel.is-tile .roster-panel-crown .splash-chip { display: none; }
+.roster-panel.is-tile .roster-panel-crown .chip { display: none; }
 .roster-panel-plate { display: grid; gap: 0.2rem; min-width: 0; }
 .roster-panel-name { margin: 0; display: flex; align-items: center; gap: 0.35rem; font-family: "Chakra Petch", sans-serif; font-size: 1.2rem; line-height: 1.15; min-width: 0; }
 .roster-panel-name .mvp-banner { z-index: 2; margin-left: 0; }
@@ -14904,7 +14822,7 @@ app-comp-tile { display: block; height: 100%; }
 .comps-tile-open:focus-visible { outline: none; }
 .comps-tile-meta { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.1rem 0.45rem; font-size: var(--fs-label); color: var(--text-1); }
 .comps-tile-meta > span + span::before { content: "·"; margin-right: 0.45rem; color: var(--text-2); }
-.comps-tile-meta .splash-chip { font-size: 0.62rem; }
+.comps-tile-meta .chip { font-size: 0.62rem; }
 .comps-tile-five { list-style: none; margin: 0.1rem 0 0; padding: 0; display: flex; gap: 0.3rem; }
 .comps-tile-five li { position: relative; z-index: 2; width: 1.9rem; height: 1.9rem; border-radius: var(--r-xs); border: 1px solid var(--card-border); background: color-mix(in srgb, var(--bg-0) 60%, transparent); overflow: hidden; }
 .comps-tile-five img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -14983,7 +14901,7 @@ app-comp-tile { display: block; height: 100%; }
 textarea.comps-field { resize: vertical; min-height: 3.6rem; }
 .comps-notes { margin: 0; font-size: var(--fs-body); white-space: pre-wrap; color: var(--text-0); }
 .comps-expect { display: flex; flex-wrap: wrap; gap: 0.3rem; }
-.comps-expect-chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.6rem; border-radius: var(--r-pill); border: 1px solid var(--card-border); background: color-mix(in srgb, var(--bg-0) 55%, transparent); font-size: var(--fs-label); color: var(--text-1); }
+/* Each expectation is a .chip; only the level word's colour is the comp's own. */
 .comps-expect-chip b { color: var(--text-0); }
 .comps-expect-chip.is-high b { color: var(--ok); }
 .comps-expect-chip.is-low b { color: var(--warn); }
@@ -15117,8 +15035,8 @@ textarea.comps-field { resize: vertical; min-height: 3.6rem; }
 .view-row > .muted { font-size: var(--fs-meta); }
 /* A compact pill, for an action that is only metadata: still a pill, never an underlined word (design system §2). */
 .view-btn.is-compact { padding: 0.1rem 0.55rem; font-size: 0.7rem; font-weight: 600; vertical-align: 0.1rem; }
-/* A count inside a segment's button, the way Patterns' filters say how many games each choice keeps. */
-.view-segment button em { margin-left: 0.3rem; padding: 0.05rem 0.4rem; border-radius: var(--r-pill); font-style: normal; font-size: var(--fs-label); font-weight: 700; background: color-mix(in srgb, var(--text-1) 18%, transparent); color: inherit; }
+/* A count inside a segment's button (a .chip-count on the <em>), the way Patterns' filters say how many games each choice keeps. */
+.view-segment button em { margin-left: 0.3rem; font-style: normal; color: inherit; }
 .view-segment button.is-loss.active { background: color-mix(in srgb, var(--warn) 24%, var(--surface-btn)); }
 .view-segment button.is-win.active { background: color-mix(in srgb, var(--ok) 24%, var(--surface-btn)); }
 

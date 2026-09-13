@@ -198,7 +198,7 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
                 } @else {
                   <div class="comps-expect">
                     @for (axis of axes; track axis) {
-                      <span class="comps-expect-chip" [class.is-high]="ex.expect[axis] === 'high'" [class.is-low]="ex.expect[axis] === 'low'">{{ axisLabel[axis] }} <b>{{ levelLabel[ex.expect[axis]] }}</b></span>
+                      <span class="chip comps-expect-chip" [class.is-high]="ex.expect[axis] === 'high'" [class.is-low]="ex.expect[axis] === 'low'">{{ axisLabel[axis] }} <b>{{ levelLabel[ex.expect[axis]] }}</b></span>
                     }
                   </div>
                 }

@@ -34,14 +34,14 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
       <div class="roster-panel-top">
         <span class="roster-panel-seat">
           <span class="role-pill">{{ c.role }}</span>
-          @if (c.group === 'bench') { <span class="sub-badge">Sub</span> }
+          @if (c.group === 'bench') { <span class="chip is-compact sub-badge">Sub</span> }
         </span>
         <app-rate-ring [rate]="c.ranked?.winRate ?? null" [games]="c.ranked?.games ?? 0" [wins]="c.ranked?.wins ?? 0" [scope]="c.ranked?.queue === 'Flex' ? 'in ranked flex' : 'in ranked solo/duo'" [label]="size() === 'tall' ? (c.ranked?.queue ?? 'ranked') + ' win rate' : ''" [countUp]="true" [go]="go()" />
       </div>
       @if (c.crowned) {
         <span class="roster-panel-crown" [appTip]="crownTip()">
           <span class="splash-crown material-symbols-rounded" aria-hidden="true">workspace_premium</span>
-          <span class="splash-chip">{{ c.titles }} MVP {{ c.titles === 1 ? 'title' : 'titles' }}</span>
+          <span class="chip is-gold">{{ c.titles }} MVP {{ c.titles === 1 ? 'title' : 'titles' }}</span>
         </span>
       }
       <div class="roster-panel-plate">
@@ -80,7 +80,7 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
         @if (c.secondaryRoles.length) {
           <p class="roster-panel-also pp-flex-roles">
             <span class="pp-flex-label">Also plays</span>
-            @for (r of c.secondaryRoles; track r) { <span class="pp-role flex">{{ r }}</span> }
+            @for (r of c.secondaryRoles; track r) { <span class="chip is-compact pp-role">{{ r }}</span> }
           </p>
         }
         <div class="roster-panel-foot">
@@ -94,7 +94,7 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
           <small class="roster-panel-games">
             @if (c.group === 'fillIns') { Fill-in } @else { {{ c.games }} team {{ c.games === 1 ? 'game' : 'games' }}@if (ago(); as a) { <span class="roster-panel-ago" [appTip]="agoTip()">· played {{ a }}</span> } }
           </small>
-          @if (!c.crowned && c.titles) { <span class="splash-chip is-quiet">{{ c.titles }} MVP {{ c.titles === 1 ? 'title' : 'titles' }}</span> }
+          @if (!c.crowned && c.titles) { <span class="chip">{{ c.titles }} MVP {{ c.titles === 1 ? 'title' : 'titles' }}</span> }
         </div>
       </div>
     </article>

@@ -90,7 +90,7 @@ import { TooltipDirective } from './tooltip.directive';
           }
         </button>
         @if (draft.curated) {
-          <span data-tour="pe-hand-edited" class="pp-role flex" appTip="Saved by hand: the morning refresh keeps this player’s text, pool and bans. Refresh this player from Riot pulls Riot’s again.">Hand-edited</span>
+          <span data-tour="pe-hand-edited" class="chip is-compact pp-role" appTip="Saved by hand: the morning refresh keeps this player’s text, pool and bans. Refresh this player from Riot pulls Riot’s again.">Hand-edited</span>
         }
         @if (note()) { <span class="tag good" role="status">{{ note() }}</span> }
       </div>

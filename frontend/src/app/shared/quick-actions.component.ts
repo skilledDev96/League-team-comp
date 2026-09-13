@@ -38,7 +38,7 @@ import { TooltipDirective } from './tooltip.directive';
           </a>
         }
         <a class="view-btn hero-pill quick-action" [routerLink]="['/games']" [queryParams]="{ tab: 'reviews' }" appTip="The newest post-game review, open in full">
-          <span class="material-symbols-rounded" aria-hidden="true">rate_review</span>Reviews@if (data.gameReviews().length) { <span class="quick-action-count">{{ data.gameReviews().length }}</span>}
+          <span class="material-symbols-rounded" aria-hidden="true">rate_review</span>Reviews@if (data.gameReviews().length) { <span class="chip-count quick-action-count">{{ data.gameReviews().length }}</span>}
         </a>
       </nav>
     } @else {

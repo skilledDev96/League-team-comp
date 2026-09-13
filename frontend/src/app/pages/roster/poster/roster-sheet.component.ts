@@ -41,7 +41,7 @@ const STARTER_WORKING = 3;
           </div>
           <div class="roster-sheet-art-foot">
             @if (c.titles) {
-              <span class="splash-chip" [appTip]="titleTip()"><span class="material-symbols-rounded" aria-hidden="true">workspace_premium</span>{{ c.titles }} MVP {{ c.titles === 1 ? 'title' : 'titles' }}</span>
+              <span class="chip is-gold" [appTip]="titleTip()"><span class="material-symbols-rounded" aria-hidden="true">workspace_premium</span>{{ c.titles }} MVP {{ c.titles === 1 ? 'title' : 'titles' }}</span>
             }
             @if (c.form.length) {
               <ol class="form-pips is-big" aria-label="Last results, newest first">

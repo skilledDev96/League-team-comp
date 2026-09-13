@@ -72,7 +72,7 @@ const NOTES_PREVIEW = 3;
         <summary>
           <span class="material-symbols-rounded" aria-hidden="true">sticky_note_2</span>
           <span appTip="The match notes written on the games that count as this comp">Notes from its games</span>
-          <span class="splash-chip is-quiet">{{ c.gameNotes.length }}</span>
+          <span class="chip">{{ c.gameNotes.length }}</span>
           <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
         </summary>
         @if (rollup(); as r) {

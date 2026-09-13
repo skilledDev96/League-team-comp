@@ -40,7 +40,7 @@
             <span class="btn-spinner" aria-hidden="true"></span>
             <span class="activity-label">{{ job.label }}</span>
             @if (job.detail) { <span class="activity-detail">{{ job.detail }}</span> }
-            @if (activity.others(); as n) { <span class="activity-more">+{{ n }}</span> }
+            @if (activity.others(); as n) { <span class="chip-count">+{{ n }}</span> }
           </span>
         }
         @if (auth.canEdit()) {
