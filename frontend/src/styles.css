@@ -12735,7 +12735,7 @@ body[data-theme="light"] .film-poster { --film-ink: var(--bg-0); --film-ink-1: v
   /* The frames go one column: the picture, then the board, then the rail; the picture keeps its shape against the page's width. */
   .film-strip { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "side" "rail"; }
   .film-strip-shots { width: 100%; }
-  .film-strip-steps .view-btn, .film-strip-chip { min-height: 2.75rem; }
+  .film-strip-steps .view-btn, .film-strip-steps .film-beat-chip { min-height: 2.75rem; }
   /* The three pills stand together on their own line: with the label beside them the last one wrapped alone. */
   .film-strip-steps-label { flex-basis: 100%; }
   .film-legend .view-btn { min-height: 2.75rem; }
