@@ -167,7 +167,7 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmStripComponent', () =>
 
   const asked = (): string[] => loadShot.mock.calls.map((c) => String(c[0]));
   const steps = (root: HTMLElement) => Array.from(root.querySelectorAll<HTMLButtonElement>('.film-strip-steps .view-btn'));
-  const chips = (root: HTMLElement) => Array.from(root.querySelectorAll<HTMLButtonElement>('.film-strip-chip'));
+  const chips = (root: HTMLElement) => Array.from(root.querySelectorAll<HTMLButtonElement>('.film-beat-chip'));
 
   it('reads nothing at all while the chapter is off stage', () => {
     const { root } = mount(false);

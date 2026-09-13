@@ -200,14 +200,14 @@ export function downLine(row: FilmStripRow): string {
                 <li [style.--i]="$index">
                   <button
                     type="button"
-                    class="film-strip-chip"
+                    class="film-beat-chip"
                     [class.is-current]="x.index === cursor()"
                     [attr.aria-current]="x.index === cursor() ? 'true' : null"
                     [appTip]="x.moment.label"
                     (click)="pick(x.index)"
                   >
                     <app-film-glyph [name]="glyph(x.moment)" />
-                    <span class="film-strip-chip-clock">{{ x.moment.clock }}</span>
+                    <span class="film-beat-chip-clock">{{ x.moment.clock }}</span>
                   </button>
                 </li>
               }
