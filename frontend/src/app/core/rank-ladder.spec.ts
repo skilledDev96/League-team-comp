@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RankPoint } from '../models/team.models';
-import { APEX_BASE, climbLines, ladderValue, rankWords, tierLines } from './rank-ladder';
+import { amsterdamToday, APEX_BASE, climbLines, dayNumber, ladderValue, rankWords, sparkGeometry, tierLines } from './rank-ladder';
 
 const p = (day: string, tier: string, division: string, lp: number, queue: RankPoint['queue'] = 'solo'): RankPoint => ({ day, queue, tier, division, lp, wins: 0, losses: 0 });
 
@@ -47,5 +47,26 @@ describe('climbLines', () => {
     const lines = climbLines([{ playerId: 'a', name: 'Zac', points: [p('2026-06-01', 'GOLD', 'II', 0), p('2026-09-12', 'GOLD', 'II', 10), p('2026-09-13', 'GOLD', 'II', 30)] }], '2026-09-13', 60);
     expect(lines[0].points.map((x) => x.day)).toEqual(['2026-09-12', '2026-09-13']);
     expect(lines[0].delta).toBe(20);
+  });
+});
+
+describe('one player in a small box', () => {
+  it('draws nothing under two points, and a flat line through the middle of the box', () => {
+    expect(sparkGeometry([{ day: '2026-09-13', value: 1250 }], 100, 40).d).toBe('');
+    const flat = sparkGeometry([{ day: '2026-09-12', value: 1250 }, { day: '2026-09-13', value: 1250 }], 100, 40);
+    expect(flat.first).toEqual({ x: 6, y: 20 });
+    expect(flat.last).toEqual({ x: 94, y: 20 });
+    expect(flat.d).toBe('M 6 20 L 94 20');
+  });
+
+  it('spaces the points by day and draws the tier lines inside the range', () => {
+    const g = sparkGeometry([{ day: '2026-09-01', value: 1150 }, { day: '2026-09-03', value: 1180 }, { day: '2026-09-11', value: 1260 }], 100, 40);
+    expect(g.grid.map((l) => l.label)).toEqual(['Gold']);
+    expect(g.last!.y).toBeLessThan(g.first!.y);
+    expect(dayNumber('2026-09-11') - dayNumber('2026-09-01')).toBe(10);
+  });
+
+  it('names the day in Amsterdam', () => {
+    expect(amsterdamToday(new Date('2026-09-12T22:30:00Z'))).toBe('2026-09-13');
   });
 });

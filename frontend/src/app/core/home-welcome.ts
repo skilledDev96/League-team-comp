@@ -1,5 +1,6 @@
 import { Player, Role } from '../models/team.models';
 import { GameRow, PlayerLine } from '../pages/games/game-rows';
+import { formOf, sameName } from './team-season';
 
 /**
  * The line at the top of the home page: who is reading, and how their last few games went (13 Sep 2026).
@@ -56,11 +57,8 @@ export function welcomeFor(i: {
   const part = dayPart(i.hour);
   const player = i.seat ? ([...i.starters].sort((a, b) => a.order - b.order).find((p) => p.role === i.seat) ?? null) : null;
   if (!player) return { greeting: part, player: null, needsSeat: !i.dismissed, titles: 0, form: [] };
-  const line = i.lines.find((l) => l.name === player.name);
-  const form = i.rows
-    .filter((r) => r.ours.some((p) => p.player === player.name))
-    .slice(0, WELCOME_FORM_GAMES)
-    .map((r): 'W' | 'L' => (r.win ? 'W' : 'L'));
+  const line = i.lines.find((l) => sameName(l.name, player.name));
+  const form = formOf(i.rows, player.name, WELCOME_FORM_GAMES);
   return {
     greeting: `${part}, ${player.name}`,
     player,

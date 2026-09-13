@@ -1,8 +1,8 @@
 import { DestroyRef, Directive, ElementRef, effect, inject, input, untracked } from '@angular/core';
-import { MotionService } from '../../services/motion.service';
+import { MotionService } from '../services/motion.service';
 
 /**
- * A figure that counts up to its value (13 Sep 2026, the home page's counters).
+ * A figure that counts up to its value (13 Sep 2026, the home page's counters; shared with the Roster's rings).
  *
  * The directive owns the host's text, so the template binds the number to it and never prints it: a
  * text binding and a counter writing the same node would fight, and Angular would lose the node. It

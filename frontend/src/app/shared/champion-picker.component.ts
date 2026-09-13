@@ -3,6 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { ChampionDataService, ChampionInfo } from '../services/champion-data.service';
 import { UiService } from '../services/ui.service';
 import { NgModelNameDirective } from './ng-model-name.directive';
+import { championKey } from '../core/champion-key';
+
+export { championKey };
 
 /**
  * Pick champions by name instead of typing a comma-separated list. Used
@@ -10,10 +13,6 @@ import { NgModelNameDirective } from './ng-model-name.directive';
  * spelling always matches Data Dragon and nothing depends on the user
  * remembering punctuation like "Kai'Sa".
  */
-/** Letters and digits only, lower case — the same key the champion data uses. */
-export function championKey(value: string): string {
-  return (value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
 
 /**
  * Does a typed query find this champion? A substring of the key, or of the

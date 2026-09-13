@@ -1,4 +1,4 @@
-import { Player, Tournament } from '../models/team.models';
+import { Player, ROLES, Tournament } from '../models/team.models';
 import { GameRow, PlayerLine, record } from '../pages/games/game-rows';
 import { parseLocalDate } from './local-date';
 import { FinishedSeries } from './series-results';
@@ -16,6 +16,16 @@ import { FinishedSeries } from './series-results';
  * missing, never a zero. And the other team is a team name and five champions: nothing here reads a
  * player of theirs, and every record is ours.
  */
+
+/** One of ours by name, however a replay spelled it: trimmed and without regard to case. */
+export function sameName(a: string | null | undefined, b: string | null | undefined): boolean {
+  return !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/** Lane order first (Top to Support), then the roster's own order inside a seat. */
+export function seatOrder(p: Pick<Player, 'role' | 'order'>): number {
+  return ROLES.indexOf(p.role) * 1000 + (p.order ?? 0);
+}
 
 export type SeasonMode = 'season' | 'all';
 
@@ -121,6 +131,27 @@ export interface HeadlineCounters {
   winRate: number;
   seriesWon: number;
   seriesPlayed: number;
+}
+
+/**
+ * A player's last results, newest first, at most `n` (13 Sep 2026, lifted from Home's welcome for the
+ * Roster poster). Rows arrive newest first from `buildGameRows`; a game counts when the player sat on our
+ * side under any spelling of their name. The other side is never read.
+ */
+export function formOf(rows: readonly GameRow[], name: string, n = 5): ('W' | 'L')[] {
+  const out: ('W' | 'L')[] = [];
+  for (const r of rows) {
+    if (out.length >= n) break;
+    if (r.ours.some((p) => sameName(p.player, name))) out.push(r.win ? 'W' : 'L');
+  }
+  return out;
+}
+
+/** A finished series inside a season: its tournament's, or ended inside the window when the season is a stretch of days. */
+export function finishedInSeason(f: FinishedSeries, w: SeasonWindow): boolean {
+  if (w.mode === 'all') return true;
+  if (w.tournamentId) return f.tournament.id === w.tournamentId;
+  return f.endedAt !== null && f.endedAt >= w.from && f.endedAt <= w.to;
 }
 
 /** The counters across the top of the page: games and series, counted the way the Games page and Prep count them. */

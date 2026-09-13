@@ -6,7 +6,10 @@ import {
   MIN_GAME_SEC,
   ROLLING_SEASON_DAYS,
   TREND_WINDOW,
+  formOf,
   headline,
+  sameName,
+  seatOrder,
   mainChampionOf,
   objectiveControl,
   rankLabelOf,
@@ -395,5 +398,28 @@ describe('rankLabelOf', () => {
   it('is null when neither queue has a rank', () => {
     expect(rankLabelOf(player())).toBeNull();
     expect(rankLabelOf(player({ queueStats: { flex: { matches: { top3: ['Ahri'] } } } }))).toBeNull();
+  });
+});
+
+describe('names, seats and form', () => {
+  const row = (id: string, win: boolean, names: (string | null)[]) => ({ id, source: 'riot', label: 'Flex', date: 1, win, ours: names.map((player) => ({ role: 'Top', champion: 'X', player })), theirs: [{ role: 'Top', champion: 'Y', player: null }] }) as unknown as GameRow;
+
+  it('matches a name however it was typed, and never a blank one', () => {
+    expect(sameName(' Go10x ', 'go10x')).toBe(true);
+    expect(sameName('Go10x', 'Go10')).toBe(false);
+    expect(sameName('', '')).toBe(false);
+    expect(sameName(null, 'Zac')).toBe(false);
+  });
+
+  it('orders by lane, then by the roster order inside a seat', () => {
+    const seats = [{ role: 'Support', order: 0 }, { role: 'Top', order: 3 }, { role: 'Top', order: 1 }] as Pick<Player, 'role' | 'order'>[];
+    expect([...seats].sort((a, b) => seatOrder(a) - seatOrder(b)).map((p) => p.role + p.order)).toEqual(['Top1', 'Top3', 'Support0']);
+  });
+
+  it('reads the form newest first, capped, under any spelling, and only on our side', () => {
+    const rows = [row('a', false, ['zac']), row('b', true, ['Go10x']), row('c', true, ['Zac ']), row('d', true, ['ZAC']), row('e', false, ['Zac'])];
+    expect(formOf(rows, 'Zac')).toEqual(['L', 'W', 'W', 'L']);
+    expect(formOf(rows, 'Zac', 2)).toEqual(['L', 'W']);
+    expect(formOf(rows, 'Nobody')).toEqual([]);
   });
 });

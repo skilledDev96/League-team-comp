@@ -1,6 +1,6 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { HomeLineupCard } from '../../../core/home-model';
-import { CLIMB_DAYS, climbLines, tierLines } from '../../../core/rank-ladder';
+import { amsterdamToday, CLIMB_DAYS, climbLines, dayNumber, tierLines } from '../../../core/rank-ladder';
 import { InViewDirective } from '../../../shared/in-view.directive';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { RankHistoryService } from '../../../services/rank-history.service';
@@ -10,16 +10,6 @@ const H = 180;
 const PAD = 10;
 /** One colour a line, from the theme, in lineup order. */
 const STROKES = ['var(--accent-2)', 'var(--ok)', 'var(--text-0)', 'var(--warn)', 'var(--accent)'];
-
-/** Today in Amsterdam, where the refresh names its days. */
-function amsterdamToday(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Amsterdam', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-}
-
-function dayNumber(day: string): number {
-  const [y, m, d] = day.split('-').map(Number);
-  return Date.UTC(y, m - 1, d) / 86_400_000;
-}
 
 /**
  * The rank climb (13 Sep 2026): each starter's rank over the last sixty mornings on one ladder, solo

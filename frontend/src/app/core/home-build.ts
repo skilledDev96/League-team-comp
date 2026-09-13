@@ -1,4 +1,4 @@
-import { AnalysisGame, Player, ROLES } from '../models/team.models';
+import { AnalysisGame, Player } from '../models/team.models';
 import { buildGameRows, GameRow, PlayerLine, playerLines } from '../pages/games/game-rows';
 import { MIN_FOR_A_CLAIM } from '../pages/review/loss-patterns.util';
 import { Advice, DEFAULT_PATTERN_FILTERS, keepDoing, patternInputs, tournamentMatchIds, workOn } from '../pages/review/win-loss-splits';
@@ -9,34 +9,26 @@ import { donutSegments } from './home-charts';
 import { HomeAdviceLine, HomeHandTrophy, HomeInput, HomeLineupCard, HomeModel, HomeNextSeries, HomeRecords, HomeSlide, HomeSpotlight, HomeWelcome } from './home-model';
 import { parseLocalDate } from './local-date';
 import { welcomeFor } from './home-welcome';
-import { lastCrown, mvpRace, podium } from './mvp-race';
-import { crownOf, FinishedSeries, finishedSeries, nextOpenSeries, SeriesCrown } from './series-results';
+import { lastCrown, mvpRace, podium, titlesById } from './mvp-race';
+import { nextOpenSeries, seriesCrowns } from './series-results';
 import {
+  finishedInSeason,
   headline,
   mainChampionOf,
   objectiveControl,
   rankLabelOf,
   recordsToBeat,
+  sameName,
   SeasonWindow,
   seasonRows,
   seasonWindow,
+  seatOrder,
   streaks,
   winRateTrend
 } from './team-season';
 
 /** How many lines of Work on and Keep doing the home page prints; the rest are on Patterns. */
 export const HOME_ADVICE_LINES = 2;
-
-const seatOrder = (p: Pick<Player, 'role' | 'order'>) => ROLES.indexOf(p.role) * 1000 + (p.order ?? 0);
-const sameName = (a: string | null | undefined, b: string | null | undefined) =>
-  !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
-
-/** A series finished inside the season: its tournament's, or ended inside the window when the season is a stretch of days. */
-function inSeason(f: FinishedSeries, w: SeasonWindow): boolean {
-  if (w.mode === 'all') return true;
-  if (w.tournamentId) return f.tournament.id === w.tournamentId;
-  return f.endedAt !== null && f.endedAt >= w.from && f.endedAt <= w.to;
-}
 
 /** A kick-off with a time of day in it, as the Plan view's date-and-time field writes it. A bare day or free text counts nothing down. */
 function kickOffOf(scheduledAt: string | undefined): number | null {
@@ -48,12 +40,6 @@ function kickOffOf(scheduledAt: string | undefined): number | null {
 function adviceLines(list: readonly Advice[]): HomeAdviceLine[] {
   // The evidence stays on Patterns: the page prints the sentence and what it was counted over.
   return list.slice(0, HOME_ADVICE_LINES).map((a) => ({ key: a.key, strong: a.strong, rest: a.rest, n: a.n }));
-}
-
-function titlesById(crowns: readonly SeriesCrown[]): Map<string, number> {
-  const out = new Map<string, number>();
-  for (const c of crowns) if (c.counts && c.playerId) out.set(c.playerId, (out.get(c.playerId) ?? 0) + 1);
-  return out;
 }
 
 /**
@@ -186,13 +172,16 @@ export function buildHome(i: HomeInput): HomeModel {
   const seasonGames = seasonRows(rows, season, { practice: i.practice, seriesTournament });
   const seasonMatchIds = new Set(seasonGames.flatMap((r) => (r.matchId ? [r.matchId] : [])));
 
-  const analysisById = new Map(i.analysis.map((g) => [g.matchId, g]));
-  const scrimById = new Map(i.scrims.map((s) => [s.id, s]));
-  const finished = finishedSeries({ tournaments: i.tournaments, series: i.series, seriesGames: i.seriesGames, analysisById, scrimById });
-  const seasonFinished = finished.filter((f) => inSeason(f, season));
-  const crownBySeries = new Map<string, SeriesCrown | null>(finished.map((f) => [f.series.id, crownOf(f, analysisById, scrimById, i.players)]));
-  const crowns = [...crownBySeries.values()].filter((c): c is SeriesCrown => !!c);
-  const seasonCrowns = crowns.filter((c) => inSeason(c.finished, season));
+  const { finished, crowns, crownBySeries } = seriesCrowns({
+    tournaments: i.tournaments,
+    series: i.series,
+    seriesGames: i.seriesGames,
+    analysis: i.analysis,
+    scrims: i.scrims,
+    players: i.players
+  });
+  const seasonFinished = finished.filter((f) => finishedInSeason(f, season));
+  const seasonCrowns = crowns.filter((c) => finishedInSeason(c.finished, season));
   const seasonTitles = titlesById(seasonCrowns);
 
   const starters = i.players.filter((p) => !p.sub).sort((a, b) => seatOrder(a) - seatOrder(b));

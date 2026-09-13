@@ -20,6 +20,17 @@ export const CLIMB_DAYS = 60;
 /** A line needs two mornings to be a line. */
 export const CLIMB_MIN_POINTS = 2;
 
+/** Today in Amsterdam, where the morning refresh names its days, as YYYY-MM-DD. */
+export function amsterdamToday(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Amsterdam', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+}
+
+/** A YYYY-MM-DD day as a count of days, so two days subtract. */
+export function dayNumber(day: string): number {
+  const [y, m, d] = day.split('-').map(Number);
+  return Date.UTC(y, m - 1, d) / 86_400_000;
+}
+
 /** One rank as a number on the shared ladder; null for a tier this app does not know. */
 export function ladderValue(p: Pick<RankPoint, 'tier' | 'division' | 'lp'>): number | null {
   const tier = p.tier.trim().toUpperCase();
@@ -98,4 +109,38 @@ export function tierLines(min: number, max: number): { value: number; label: str
   const lines: { value: number; label: string }[] = [];
   for (let v = Math.ceil(min / 400) * 400; v <= Math.min(max, APEX_BASE); v += 400) lines.push({ value: v, label: tierAt(v) });
   return lines;
+}
+
+/**
+ * One player's climb in a small box (13 Sep 2026, the Roster sheet): the path across the days it covers,
+ * the tier lines inside its range, and where it starts and ends. A flat line gets room around it, so it
+ * sits mid-box as Home's chart has it; fewer than two points draw no path.
+ */
+export function sparkGeometry(
+  points: readonly { day: string; value: number }[],
+  w: number,
+  h: number,
+  pad = 6
+): { d: string; grid: { value: number; label: string; y: number }[]; first: { x: number; y: number } | null; last: { x: number; y: number } | null } {
+  if (points.length < 2) return { d: '', grid: [], first: null, last: null };
+  const values = points.map((p) => p.value);
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  const spread = Math.max(100, hi - lo);
+  const mid = (lo + hi) / 2;
+  const min = mid - spread * 0.6;
+  const max = mid + spread * 0.6;
+  const days = points.map((p) => dayNumber(p.day));
+  const firstDay = Math.min(...days);
+  const lastDay = Math.max(...days);
+  const round = (n: number) => Math.round(n * 10) / 10;
+  const x = (day: string) => round(lastDay > firstDay ? pad + ((dayNumber(day) - firstDay) / (lastDay - firstDay)) * (w - 2 * pad) : w / 2);
+  const y = (value: number) => round(pad + (1 - (value - min) / (max - min)) * (h - 2 * pad));
+  const at = points.map((p) => ({ x: x(p.day), y: y(p.value) }));
+  return {
+    d: at.map((p, k) => `${k ? 'L' : 'M'} ${p.x} ${p.y}`).join(' '),
+    grid: tierLines(min, max).map((t) => ({ ...t, y: y(t.value) })),
+    first: at[0],
+    last: at[at.length - 1]
+  };
 }

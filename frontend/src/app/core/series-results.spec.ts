@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, Scrim, SeriesGame, Tournament, TournamentSeries } from '../models/team.models';
 import { MvpGame } from './game-mvp';
-import { crownOf, finishedSeries, isDecided, nextOpenSeries, seriesScoreOf, winsToTake } from './series-results';
+import { crownOf, finishedSeries, isDecided, nextOpenSeries, seriesCrowns, seriesScoreOf, winsToTake } from './series-results';
 
 const tournament = (id: string, over: Partial<Tournament> = {}) => ({ id, name: id, kind: 'tournament', order: 0, ...over }) as unknown as Tournament;
 const series = (id: string, tournamentId: string, bestOf: number, order: number, over: Partial<TournamentSeries> = {}) =>
@@ -115,5 +115,18 @@ describe('crownOf', () => {
   it('crowns nobody when no game carries figures', () => {
     const { f, analysisById } = finishedOf([game('a', 1, true), game('a', 2, true)], []);
     expect(crownOf(f, analysisById, noScrims, roster)).toBeNull();
+  });
+});
+
+describe('seriesCrowns', () => {
+  it('finds the finished series and what each crowns in one call, keeping an uncrowned one as null', () => {
+    const tournaments = [tournament('cup')];
+    const all = [series('a', 'cup', 1, 0), series('b', 'cup', 1, 1)];
+    const players = [{ id: 'p-adc', name: 'SkilledScarecrow' }];
+    const analysis = [{ matchId: 'm1', date: 5, players: [{ name: 'SkilledScarecrow', position: 'BOTTOM', champion: 'Jinx', kills: 9, deaths: 1, assists: 3, damage: 20_000, killParticipation: 0.7 }], kills: { ours: 12, theirs: 4 } }] as unknown as AnalysisGame[];
+    const out = seriesCrowns({ tournaments, series: all, seriesGames: [game('a', 1, true, { matchId: 'm1' }), game('b', 1, false)], analysis, scrims: [], players });
+    expect(out.finished.map((f) => f.series.id)).toEqual(['a', 'b']);
+    expect(out.crowns.map((c) => c.playerId)).toEqual(['p-adc']);
+    expect(out.crownBySeries.get('b')).toBeNull();
   });
 });

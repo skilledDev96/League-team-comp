@@ -131,6 +131,22 @@ export function nextOpenSeries(i: SeriesSources): TournamentSeries | null {
   return series && !played(series.id) ? series : null;
 }
 
+/**
+ * Every finished series and what each crowns, from the team's data as it is stored (13 Sep 2026, lifted
+ * from Home's build so the Roster poster crowns the same people). `crowns` leaves out a series nobody
+ * could be crowned for; `crownBySeries` keeps it as null, which is how Home tells "waiting on replays".
+ */
+export function seriesCrowns(
+  i: SeriesSources & { analysis: readonly AnalysisGame[]; scrims: readonly Scrim[]; players: readonly Pick<Player, 'id' | 'name'>[] }
+): { finished: FinishedSeries[]; crowns: SeriesCrown[]; crownBySeries: Map<string, SeriesCrown | null> } {
+  const analysisById = new Map(i.analysis.map((g) => [g.matchId, g]));
+  const scrimById = new Map(i.scrims.map((s) => [s.id, s]));
+  const finished = finishedSeries({ tournaments: i.tournaments, series: i.series, seriesGames: i.seriesGames, analysisById, scrimById });
+  const crownBySeries = new Map<string, SeriesCrown | null>(finished.map((f) => [f.series.id, crownOf(f, analysisById, scrimById, i.players)]));
+  const crowns = [...crownBySeries.values()].filter((c): c is SeriesCrown => !!c);
+  return { finished, crowns, crownBySeries };
+}
+
 /** A crown needs figures from more than half of the series' recorded games. */
 export const CROWN_MIN_READ_SHARE = 0.5;
 

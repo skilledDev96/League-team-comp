@@ -13,6 +13,13 @@ import { SeriesCrown } from './series-results';
  * that series' name and nothing more.
  */
 
+/** Series MVP titles that count, by roster player id (moved from Home's build, 13 Sep 2026). */
+export function titlesById(crowns: readonly SeriesCrown[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const c of crowns) if (c.counts && c.playerId) out.set(c.playerId, (out.get(c.playerId) ?? 0) + 1);
+  return out;
+}
+
 export interface RaceEntry {
   playerId: string;
   name: string;

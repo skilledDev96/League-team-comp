@@ -9,7 +9,7 @@ import { MotionService } from '../../services/motion.service';
 import { PageVisibilityService } from '../../services/page-visibility.service';
 import { TourService } from '../../services/tour.service';
 import { UiService } from '../../services/ui.service';
-import { CountUpDirective } from './count-up.directive';
+import { CountUpDirective } from '../../shared/count-up.directive';
 import { HomeNextSeriesComponent } from './home-next-series.component';
 import { CROSSFADE_MS, dropFailed, nextIndex, ROTATE_MS, rotationFor } from './splash-rotation';
 
