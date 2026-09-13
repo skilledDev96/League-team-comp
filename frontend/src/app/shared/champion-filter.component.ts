@@ -57,7 +57,9 @@ const MAX_SUGGESTIONS = 8;
         </span>
       }
       @if (filter.value().trim()) {
-        <button type="button" class="link-btn" (click)="filter.clear()">Clear</button>
+        <button type="button" class="view-btn icon-pill champ-filter-clear" (click)="filter.clear()" aria-label="Clear the champion filter">
+          <span class="material-symbols-rounded" aria-hidden="true">close</span>
+        </button>
       }
     </div>
   `

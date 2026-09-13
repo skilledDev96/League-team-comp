@@ -47,6 +47,15 @@ html:has(.page.is-film) {
   --surface-controls: rgba(15, 34, 41, 0.68);
   --surface-btn: rgba(20, 44, 53, 0.82);
   --shadow-elev: rgba(0, 0, 0, 0.18);
+  /* Geometry (13 Sep 2026): the card family's radii and padding, so eight radii become five names. */
+  --r-card: 14px;
+  --r-hero: 18px;
+  --r-tile: 12px;
+  --r-frame: 16px;
+  --r-menu: 10px;
+  --r-sm: 8px;
+  --r-pill: 999px;
+  --card-pad: 1.05rem;
 }
 
 .view-btn:disabled {
@@ -95,7 +104,7 @@ html:has(.page.is-film) {
   gap: 0.15rem;
   padding: 0.35rem;
   border: 1px solid var(--card-border);
-  border-radius: 10px;
+  border-radius: var(--r-menu);
   background: var(--card);
   box-shadow: 0 14px 32px var(--shadow-elev);
 }
@@ -138,29 +147,6 @@ html:has(.page.is-film) {
   align-items: end;
 }
 
-.segmented-control {
-  display: flex;
-  gap: 0.35rem;
-}
-
-.segmented-control button {
-  border: 1px solid var(--card-border);
-  border-radius: 6px;
-  padding: 0.5rem 0.75rem;
-  /* The browser default for a button (13.33px at a 16px root), written in rem so it grows with the interface. */
-  font-size: 0.8333rem;
-  color: var(--text-1);
-  background: transparent;
-  cursor: pointer;
-}
-
-.segmented-control button.active,
-.segmented-control button:hover {
-  color: var(--text-0);
-  border-color: var(--accent);
-  background: var(--surface-btn);
-}
-
 .compact-field {
   min-width: 9rem;
 }
@@ -201,29 +187,9 @@ html:has(.page.is-film) {
   margin: 0;
 }
 
+/* The profile's queue switch is the shared .view-segment (13 Sep 2026); only its spacing is its own. */
 .queue-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
   margin: 0.85rem 0;
-}
-
-.queue-selector button {
-  border: 1px solid var(--card-border);
-  border-radius: 6px;
-  padding: 0.45rem 0.7rem;
-  /* The browser default for a button (13.33px at a 16px root), written in rem so it grows with the interface. */
-  font-size: 0.8333rem;
-  color: var(--text-1);
-  background: transparent;
-  cursor: pointer;
-}
-
-.queue-selector button.active,
-.queue-selector button:hover {
-  color: var(--text-0);
-  border-color: var(--accent);
-  background: var(--surface-btn);
 }
 
 .rank-summary {
@@ -249,8 +215,11 @@ html:has(.page.is-film) {
   margin-bottom: 0.6rem;
 }
 
+/* The one empty state (13 Sep 2026): a quiet line where the content would be, never a bare paragraph per page. */
 .empty-state {
   margin: 0;
+  padding: 0.5rem 0;
+  font-size: 0.85rem;
   color: var(--text-1);
 }
 
@@ -1534,8 +1503,8 @@ app-detail-toggle { margin-left: auto; }
   font-family: "Chakra Petch", sans-serif;
   font-weight: 700;
   font-size: 0.85rem;
-  color: #072028;
-  background: linear-gradient(135deg, #9be7f5, #4fd0e8);
+  color: var(--bg-0);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-2) 75%, white), var(--accent));
   flex: 0 0 auto;
 }
 
@@ -1567,7 +1536,7 @@ app-detail-toggle { margin-left: auto; }
 
 .hero {
   border: 1px solid var(--card-border);
-  border-radius: 18px;
+  border-radius: var(--r-hero);
   padding: 1.1rem;
   background: linear-gradient(135deg, var(--surface-hero-a), var(--surface-hero-b));
   position: relative;
@@ -1605,7 +1574,7 @@ app-detail-toggle { margin-left: auto; }
   gap: 0.55rem;
   margin-top: 0.85rem;
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: var(--r-tile);
   padding: 0.65rem 0.75rem;
   background: var(--surface-controls);
 }
@@ -1659,8 +1628,8 @@ a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-d
 .card {
   border: 1px solid var(--card-border);
   background: var(--card);
-  border-radius: 14px;
-  padding: 1.05rem;
+  border-radius: var(--r-card);
+  padding: var(--card-pad);
   box-shadow: 0 12px 30px var(--shadow-elev);
 }
 
@@ -1754,7 +1723,7 @@ a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-d
   border-radius: 50%;
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(79, 208, 232, 0.45);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
   flex: 0 0 auto;
   display: inline-block;
 }
@@ -1772,8 +1741,8 @@ a.view-btn:hover, a.view-btn:focus-visible { border-color: var(--accent); text-d
   place-items: center;
   font-family: "Chakra Petch", sans-serif;
   font-weight: 700;
-  color: #072028;
-  background: linear-gradient(135deg, #9be7f5, #4fd0e8);
+  color: var(--bg-0);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-2) 75%, white), var(--accent));
 }
 
 .avatar-img {
@@ -1978,15 +1947,15 @@ body[data-theme='light'] .avatar-role {
 }
 
 .tag.bad {
-  background: rgba(255, 110, 89, 0.14);
-  border-color: rgba(255, 110, 89, 0.4);
-  color: #ffd3cc;
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+  color: color-mix(in srgb, var(--warn) 55%, var(--text-0));
 }
 
 .tag.good {
-  background: rgba(140, 226, 111, 0.14);
-  border-color: rgba(140, 226, 111, 0.38);
-  color: #d6f6c9;
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  border-color: color-mix(in srgb, var(--ok) 38%, transparent);
+  color: color-mix(in srgb, var(--ok) 55%, var(--text-0));
 }
 
 .list-clean {
@@ -5105,8 +5074,8 @@ app-match-note {
 
 /* The factor is the claim, the detail is the evidence for it. */
 .loss-tag {
-  background: rgba(255, 110, 89, 0.14);
-  border-color: rgba(255, 110, 89, 0.4);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
   color: var(--text-0);
   gap: 0.4rem;
 }
@@ -5231,8 +5200,8 @@ app-match-note {
 /* Wins read in the positive colour; the same bar in loss-red would say the
    opposite of what it means. */
 .win-tag {
-  background: rgba(126, 217, 87, 0.14);
-  border-color: rgba(126, 217, 87, 0.4);
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
   color: var(--text-0);
   gap: 0.4rem;
 }
@@ -5304,13 +5273,13 @@ app-match-note {
 }
 
 .segment.is-loss.active {
-  background: rgba(255, 110, 89, 0.2);
-  box-shadow: inset 0 0 0 1px rgba(255, 110, 89, 0.45);
+  background: color-mix(in srgb, var(--warn) 20%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 45%, transparent);
 }
 
 .segment.is-win.active {
-  background: rgba(126, 217, 87, 0.2);
-  box-shadow: inset 0 0 0 1px rgba(126, 217, 87, 0.45);
+  background: color-mix(in srgb, var(--ok) 20%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 45%, transparent);
 }
 
 .segment.active em {
@@ -7315,16 +7284,6 @@ body[data-theme="bomb"] {
    on insert without anything having to trigger it. Deliberately brief: this
    fires up to ten times a draft, and anything longer would be in the way by
    the third. */
-
-@keyframes pick-land {
-  from { opacity: 0; transform: scale(1.14); }
-  to   { opacity: 1; transform: none; }
-}
-
-@keyframes pick-name-rise {
-  from { opacity: 0; transform: translateY(0.5rem); }
-  to   { opacity: 1; transform: none; }
-}
 
 /* A sweep of light across the art, as the champion locks in. */
 @keyframes pick-sheen {
@@ -14307,7 +14266,7 @@ so none of this can move the draft room. */
    The pieces the two expressive pages share: a champion's splash behind a tile with a shade under its words,
    the seat as a pill, a win-rate ring, a crown and its chip, a strip of results, and the gold frame. Tokens
    only, so every theme draws its own version; motion lives with each page's gate. */
-.splash-tile { position: relative; overflow: hidden; isolation: isolate; border-radius: 12px; border: 1px solid var(--card-border); background: var(--bg-1); color: var(--text-0); }
+.splash-tile { position: relative; overflow: hidden; isolation: isolate; border-radius: var(--r-tile); border: 1px solid var(--card-border); background: var(--bg-1); color: var(--text-0); }
 .splash-art { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; filter: saturate(0.9) brightness(0.8); }
 .splash-shade { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 94%, transparent) 0%, color-mix(in srgb, var(--bg-0) 40%, transparent) 50%, color-mix(in srgb, var(--bg-0) 20%, transparent) 100%); }
 .splash-crown { font-size: 1.5rem; color: var(--accent-2); filter: drop-shadow(0 0.1rem 0.4rem color-mix(in srgb, var(--bg-0) 80%, transparent)); }
@@ -14330,7 +14289,7 @@ so none of this can move the draft room. */
 .form-pip.is-win { background: var(--ok); }
 .form-pip.is-loss { background: var(--warn); }
 .form-pips.is-big .form-pip { width: 0.7rem; height: 1.15rem; border-radius: 3px; }
-.gold-frame { position: relative; isolation: isolate; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: 0 14px 34px var(--shadow-elev), 0 0 2.5rem color-mix(in srgb, var(--accent) 16%, transparent); }
+.gold-frame { position: relative; isolation: isolate; border-radius: var(--r-frame); border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: 0 14px 34px var(--shadow-elev), 0 0 2.5rem color-mix(in srgb, var(--accent) 16%, transparent); }
 .gold-frame::before { content: ""; position: absolute; inset: 0.45rem; z-index: 1; border-radius: 11px; border: 1px solid color-mix(in srgb, var(--accent-2) 38%, transparent); pointer-events: none; }
 
 /* ---- Home, the landing page (13 Sep 2026) -------------------------------------------------------
@@ -15137,3 +15096,34 @@ textarea.comps-field { resize: vertical; min-height: 3.6rem; }
   @keyframes comps-ring-draw { from { stroke-dasharray: 0 100; } }
   @keyframes comps-pan { from { transform: scale(1); } to { transform: scale(1.06) translate(-1.5%, -1%); } }
 }
+
+/* ---- One motion gate for the working pages (13 Sep 2026) -----------------------------------------------------
+   A section wearing appInView and .reveal rises in once when it comes on screen (stagger with --reveal-i), and nothing
+   is held back when the reader or the OS asked for still: the page root carries .is-still from MotionService. */
+@media (prefers-reduced-motion: no-preference) {
+  .page:not(.is-still) .reveal:not(.is-seen) { opacity: 0; }
+  .page:not(.is-still) .reveal.is-seen { animation: film-rise 650ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: min(calc(var(--reveal-i, 0) * 60ms), 600ms); }
+}
+
+/* Every clickable thing owes a focus ring (design system §2); these carried a hover and no ring (13 Sep 2026). */
+.overflow-trigger:focus-visible,
+.role-flex-toggle:focus-visible,
+.pick-chip:focus-visible,
+.prep-link:focus-visible,
+.series-scout:focus-visible,
+.opp-read-cta:focus-visible,
+.opp-scout-cta:focus-visible,
+.note-btn:focus-visible,
+.comp-group-summary:focus-visible,
+.draft-add-game:focus-visible,
+.draft-remove-game:focus-visible,
+.draft-side-choice:focus-visible,
+.insight-tile:focus-visible,
+.objective-row:focus-visible,
+.review-seat-fold:focus-visible,
+.report-ban:has(:focus-visible),
+.rp-row:has(.rp-open:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The champion filter's Clear is a pill, not an underlined word (design system §2). */
+.champ-filter-clear { width: 1.7rem; height: 1.7rem; }
+.champ-filter-clear .material-symbols-rounded { font-size: 1rem; }

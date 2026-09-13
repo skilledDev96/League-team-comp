@@ -22,6 +22,7 @@ import { TourOverlayComponent } from './shared/tour-overlay.component';
 import { TourHelpComponent } from './shared/tour-help.component';
 import { ReviewTakeoverComponent } from './shared/review-takeover.component';
 import { TourService } from './services/tour.service';
+import { MotionService } from './services/motion.service';
 import { TooltipDirective } from './shared/tooltip.directive';
 
 @Component({
@@ -32,6 +33,8 @@ import { TooltipDirective } from './shared/tooltip.directive';
 })
 export class App {
   protected readonly tours = inject(TourService);
+  /** Stamps .is-still on the page root, the one gate every working page's motion sits behind. */
+  protected readonly motion = inject(MotionService);
   protected readonly theme = inject(ThemeService);
   protected readonly auth = inject(AuthService);
   protected readonly data = inject(TeamDataService);

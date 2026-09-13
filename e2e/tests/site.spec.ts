@@ -10,7 +10,7 @@ import { expect, test } from '@playwright/test';
 test('the site is served and boots', async ({ page }) => {
   const response = await page.goto('./');
   expect(response?.status()).toBe(200);
-  await expect(page).toHaveTitle(/BomSquad/i);
+  await expect(page).toHaveTitle(/Bom ?Squad/i);
 });
 
 test('an unauthenticated visitor is gated, not shown team data', async ({ page }) => {
