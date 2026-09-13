@@ -134,6 +134,8 @@ export interface Streak {
   from: number;
   /** The date of the run's last game, epoch ms. */
   to: number;
+  /** The run's last game, for a link to it; absent when that game has no match id. */
+  matchId?: string;
 }
 
 /** Dated games oldest first. A stable sort of a copy: whatever order the list arrived in, ties keep it. */
@@ -165,7 +167,7 @@ export function streaks(rows: readonly GameRow[]): { current: { result: 'win' | 
     if (start < 0) start = i;
     const length = i - start + 1;
     // At least as long takes it, so a tie goes to the later run.
-    if (!longestWin || length >= longestWin.length) longestWin = { length, from: games[start].date, to: games[i].date };
+    if (!longestWin || length >= longestWin.length) longestWin = { length, from: games[start].date, to: games[i].date, ...(games[i].matchId ? { matchId: games[i].matchId } : {}) };
   }
   return { current, longestWin };
 }
@@ -279,6 +281,8 @@ export interface GameRecord {
   /** Our roster member who set it; absent on a team record. */
   player?: string;
   champion?: string;
+  /** The match, for a link to the game on the Games page; absent on a game with no Riot or replay id. */
+  matchId?: string;
 }
 
 /** Ten minutes: anything shorter is a remake or a surrender vote, never a record. */
@@ -309,7 +313,7 @@ export function recordsToBeat(rows: readonly GameRow[]): {
   let mostVision: GameRecord | null = null;
   let fastestWin: GameRecord | null = null;
   for (const r of rows) {
-    const game = { rowId: r.id, date: r.date, label: r.label, ...(r.opponent ? { opponent: r.opponent } : {}) };
+    const game = { rowId: r.id, date: r.date, label: r.label, ...(r.opponent ? { opponent: r.opponent } : {}), ...(r.matchId ? { matchId: r.matchId } : {}) };
     for (const p of r.ours) {
       if (!p.player || !p.stats) continue;
       const who = { player: p.player, ...(p.champion ? { champion: p.champion } : {}) };

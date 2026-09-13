@@ -25,26 +25,25 @@ import { UiService } from '../../../services/ui.service';
       </header>
       @if (best(); as b) {
         <div class="home-comp-body">
+          <div class="home-comp-top">
+            <p class="home-comp-name">{{ b.name }}</p>
+            <p class="home-comp-rate" [class]="band()"><b>{{ b.winRate }}%</b> won <span>{{ b.wins }}–{{ b.losses }} over {{ b.games }} games</span></p>
+          </div>
           <ul class="home-comp-faces" aria-label="Its five picks">
             @for (face of faces(); track face.role) {
               <li class="home-comp-face">
                 @if (face.champion) {
-                  <img [src]="ui.championIconUrl(face.champion)" [alt]="ui.championName(face.champion)" loading="lazy" />
+                  <img [src]="ui.championArtUrl(face.champion)" (error)="ui.artFallback($event, face.champion)" [alt]="ui.championName(face.champion)" loading="lazy" />
                 } @else {
                   <span class="home-comp-face-empty" aria-hidden="true"></span>
                 }
-                <small>{{ face.role }}</small>
+                <span class="home-comp-face-label"><small>{{ face.role }}</small>@if (face.champion) { <b>{{ ui.championName(face.champion) }}</b> }</span>
               </li>
             }
           </ul>
-          <div class="home-comp-stats">
-            <p class="home-comp-name">{{ b.name }}</p>
-            <p class="home-comp-rate" [class]="band()"><b>{{ b.winRate }}%</b> won</p>
-            <p class="home-tile-note">{{ b.wins }}–{{ b.losses }} over {{ b.games }} games</p>
-            <button type="button" class="view-btn home-pill" (click)="open(b.compId)">
-              <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span> Open {{ b.name }}
-            </button>
-          </div>
+          <button type="button" class="view-btn home-pill home-comp-open" (click)="open(b.compId)">
+            <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span> Open {{ b.name }}
+          </button>
         </div>
       } @else {
         <div class="home-tile-empty">

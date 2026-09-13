@@ -71,7 +71,7 @@ import { UserPrefsService } from '../../services/user-prefs.service';
 })
 export class HomeWelcomeComponent {
   readonly welcome = input.required<HomeWelcome>();
-  /** "this split", "in the last 90 days" or "all time". */
+  /** "this season", "in the last 90 days" or "all time". */
   readonly scope = input.required<string>();
   readonly dismiss = output<void>();
 

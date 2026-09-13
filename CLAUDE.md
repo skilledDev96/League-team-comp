@@ -139,7 +139,7 @@ team with animations, stats with graphs, splash art… highlight a team member w
 been the MVP of the previous series"). `core/home-build.ts` `buildHome` builds the
 whole page as one pure `HomeModel` (the `buildFilm` pattern) from the same
 `buildGameRows` the Games page lists, and `pages/home/` draws slices of it: the hero
-(our five starters' mains rotating, the season's counters, the This split | All time
+(our five starters' mains rotating, the counters, the All time | This season
 switch, a Motion pill, the next series with a countdown and **Scout them**, which
 opens that series' prep through `TournamentContextService.openPrep` and never the
 draft room), the welcome band (the reader is the starter in `UserPrefs.film.seat`),

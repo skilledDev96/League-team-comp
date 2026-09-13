@@ -53,6 +53,7 @@ function writeStored(key: string, value: string): void {
         [banner]="h.banner"
         [season]="h.season"
         [seasonWord]="seasonWord()"
+        [seasonName]="seasonName()"
         [mode]="mode()"
         [slides]="h.slides"
         [record]="h.record"
@@ -102,7 +103,8 @@ export class HomeComponent {
   /** The bento's cells, top to bottom: the placeholder draws each as an empty shell of the same size, so nothing moves when the tiles land. */
   protected readonly cells = ['podium', 'record', 'trend', 'comp', 'records', 'advice', 'lineup', 'climb', 'objectives', 'trophies'] as const;
 
-  protected readonly mode = signal<SeasonMode>(readStored(SEASON_KEY) === 'all' ? 'all' : 'season');
+  // All time unless this browser chose the season (13 Sep 2026, the lead: "keep the default on all time").
+  protected readonly mode = signal<SeasonMode>(readStored(SEASON_KEY) === 'season' ? 'season' : 'all');
   private readonly seatDismissed = signal(readStored(SEAT_DISMISSED_KEY) === '1');
   private readonly now = signal(Date.now());
 
@@ -131,13 +133,19 @@ export class HomeComponent {
   });
 
   /** What the season switch calls the season, whichever side of it is showing. */
-  protected readonly seasonWord = computed(() => (seasonWindow(this.data.tournaments(), this.now(), 'season').tournamentId ? 'This split' : 'Last 90 days'));
+  protected readonly seasonWord = computed(() => (seasonWindow(this.data.tournaments(), this.now(), 'season').tournamentId ? 'This season' : 'Last 90 days'));
 
-  /** The season in words that sit after a count: "3 games this split". */
+  /** The running tournament's name, whichever side of the switch is showing. */
+  protected readonly seasonName = computed(() => {
+    const w = seasonWindow(this.data.tournaments(), this.now(), 'season');
+    return w.tournamentId ? w.label : '';
+  });
+
+  /** The season in words that sit after a count: "3 games this season". */
   protected readonly scope = computed(() => {
     const season = this.home().season;
     if (season.mode === 'all') return 'all time';
-    return season.tournamentId ? 'this split' : 'in the last 90 days';
+    return season.tournamentId ? 'this season' : 'in the last 90 days';
   });
 
   constructor() {

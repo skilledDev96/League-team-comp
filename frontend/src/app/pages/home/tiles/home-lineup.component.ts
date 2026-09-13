@@ -5,6 +5,7 @@ import { HomeLineupCard } from '../../../core/home-model';
 import { rateBand } from '../../../core/opponent-view';
 import { ChampionRecord } from '../../../models/team.models';
 import { InViewDirective } from '../../../shared/in-view.directive';
+import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { UiService } from '../../../services/ui.service';
 
 /**
@@ -14,12 +15,12 @@ import { UiService } from '../../../services/ui.service';
  */
 @Component({
   selector: 'app-home-lineup',
-  imports: [InViewDirective, RouterLink],
+  imports: [InViewDirective, RouterLink, TooltipDirective],
   template: `
     <section class="card home-tile home-lineup" appInView aria-labelledby="home-lineup-title">
       <header class="home-card-head">
         <h2 id="home-lineup-title"><span class="material-symbols-rounded" aria-hidden="true">groups</span> The lineup</h2>
-        <span class="home-card-scope">Win rate {{ scope() }}</span>
+        <span class="home-card-scope">Win rates {{ scope() }}</span>
       </header>
       <ul class="home-lineup-cards">
         @for (c of lineup(); track c.playerId) {
@@ -34,6 +35,7 @@ import { UiService } from '../../../services/ui.service';
               }
               <span class="home-lineup-top">
                 <span class="home-lineup-role">{{ c.role }}</span>
+                <span class="home-lineup-rate" [appTip]="c.winRate === null ? 'No games ' + scope() : c.winRate + '% of ' + c.games + ' games won, ' + scope()">
                 <span class="home-ring" [class]="band(c)" [attr.aria-label]="c.winRate === null ? 'No games ' + scope() : c.winRate + '% won over ' + c.games + ' games'">
                   <svg viewBox="0 0 36 36" aria-hidden="true">
                     <circle class="home-ring-track" cx="18" cy="18" r="15.915" pathLength="100" />
@@ -41,7 +43,9 @@ import { UiService } from '../../../services/ui.service';
                       <circle class="home-ring-fill" cx="18" cy="18" r="15.915" pathLength="100" [attr.stroke-dasharray]="dash(c.winRate)" />
                     }
                   </svg>
-                  <b aria-hidden="true">{{ c.winRate === null ? '—' : c.winRate }}</b>
+                  <b aria-hidden="true">{{ c.winRate === null ? '—' : c.winRate + '%' }}</b>
+                </span>
+                <small class="home-ring-label" aria-hidden="true">win rate</small>
                 </span>
               </span>
               <span class="home-lineup-foot">

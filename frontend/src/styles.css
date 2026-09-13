@@ -15723,16 +15723,24 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .home-key.is-loss { background: var(--warn); }
 
 /* Form trend */
-.home-trend-chart { position: relative; flex: 1; min-height: 9rem; margin: 0; }
+.home-form-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.home-form-figure { margin: 0; display: flex; align-items: baseline; gap: 0.4rem; }
+.home-form-figure b { font-family: "Chakra Petch", sans-serif; font-size: 1.8rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.home-form-figure span { font-size: 0.8rem; color: var(--text-1); }
+.home-form-strip { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.2rem; }
+.home-form-strip li { width: 0.7rem; height: 1.1rem; border-radius: 3px; background: color-mix(in srgb, var(--text-1) 20%, transparent); }
+.home-form-strip li.is-win { background: var(--ok); }
+.home-form-strip li.is-loss { background: var(--warn); }
+.home-trend-chart { position: relative; flex: 1; min-height: 7rem; margin: 0.3rem 0 0.4rem; }
+.home-trend-plot { position: absolute; inset: 0 0 0 2.6rem; }
+.home-trend-axis { position: absolute; left: 0; width: 2.2rem; transform: translateY(-50%); font-size: 0.62rem; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.home-trend-now { position: absolute; width: 0.7rem; height: 0.7rem; margin: -0.35rem 0 0 -0.35rem; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-2) 30%, transparent); }
 .home-trend-chart svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .home-trend-even { stroke: color-mix(in srgb, var(--text-1) 35%, transparent); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
 .home-trend-line { fill: none; stroke: var(--accent-2); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .home-trend-flag { stroke: color-mix(in srgb, var(--text-1) 30%, transparent); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
 .home-trend-flag.is-win { stroke: color-mix(in srgb, var(--ok) 55%, transparent); }
 .home-trend-flag.is-loss { stroke: color-mix(in srgb, var(--warn) 55%, transparent); }
-.home-trend-dot { position: absolute; width: 0.5rem; height: 0.5rem; margin: -0.25rem 0 0 -0.25rem; border-radius: 50%; border: 1px solid var(--bg-1); }
-.home-trend-dot.is-win { background: var(--ok); }
-.home-trend-dot.is-loss { background: var(--warn); }
 .home-trend-marker { position: absolute; top: -0.2rem; margin-left: -0.55rem; display: grid; place-items: center; width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--card); color: var(--text-1); cursor: help; }
 .home-trend-marker .material-symbols-rounded { font-size: 0.85rem; }
 .home-trend-marker.is-win { color: var(--ok); }
@@ -15741,24 +15749,29 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .home-trend-wait { position: absolute; inset: auto 0 0.3rem; margin: 0; text-align: center; font-size: 0.8rem; color: var(--text-1); }
 
 /* Comp of the month */
-.home-comp-body { flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 1.1rem; }
-.home-comp-faces { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 3.2rem); gap: 0.4rem; }
-.home-comp-face { display: grid; justify-items: center; gap: 0.2rem; }
-.home-comp-face img, .home-comp-face-empty { width: 3.2rem; height: 3.2rem; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); object-fit: cover; }
-.home-comp-face-empty { border-style: dashed; }
-.home-comp-face small { font-size: 0.62rem; color: var(--text-2); }
-.home-comp-stats { display: grid; justify-items: start; gap: 0.2rem; min-width: 0; }
-.home-comp-stats p { margin: 0; }
+.home-comp-body { flex: 1; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0.7rem; }
+.home-comp-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.home-comp-top p { margin: 0; }
+.home-comp-faces { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.5rem; }
+.home-comp-face { position: relative; overflow: hidden; min-height: 8rem; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); background: var(--bg-1); }
+.home-comp-face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; filter: saturate(0.95) brightness(0.85); }
+.home-comp-face-empty { position: absolute; inset: 0; border: 1px dashed var(--card-border); border-radius: inherit; }
+.home-comp-face-label { position: absolute; inset: auto 0 0; display: grid; padding: 1.4rem 0.45rem 0.35rem; background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 92%, transparent), transparent); }
+.home-comp-face-label small { font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-1); }
+.home-comp-face-label b { font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-comp-open { justify-self: start; }
 .home-comp-name { font-family: "Chakra Petch", sans-serif; font-size: 1.35rem; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
-.home-comp-rate { font-size: 0.85rem; color: var(--text-1); }
+.home-comp-rate { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 0.35rem; font-size: 0.85rem; color: var(--text-1); }
+.home-comp-rate span { color: var(--text-2); font-size: 0.78rem; }
 .home-comp-rate b { font-family: "Chakra Petch", sans-serif; font-size: 1.6rem; color: var(--text-0); }
 .home-comp-rate.is-good b, .home-comp-rate.is-ok b { color: var(--ok); }
 .home-comp-rate.is-poor b { color: var(--warn); }
-.home-comp-stats .home-pill { margin-top: 0.35rem; }
 
 /* Records to beat */
 .home-records-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
-.home-records-row { display: grid; grid-template-columns: 2rem 8.5rem 4.75rem minmax(0, 1fr); align-items: center; gap: 0.6rem; padding: 0.35rem 0.5rem; border-radius: 10px; background: color-mix(in srgb, var(--text-1) 5%, transparent); }
+.home-records-open { font-size: 0.72rem; padding: 0.2rem 0.55rem; }
+span.home-records-open { width: 4.1rem; }
+.home-records-row { display: grid; grid-template-columns: 2rem 8.5rem 4.75rem minmax(0, 1fr) auto; align-items: center; gap: 0.6rem; padding: 0.35rem 0.5rem; border-radius: 10px; background: color-mix(in srgb, var(--text-1) 5%, transparent); }
 .home-records-icon { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 8px; font-size: 1.15rem; color: var(--accent-2); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .home-records-label { font-size: 0.8rem; color: var(--text-1); }
 .home-records-value { font-family: "Chakra Petch", sans-serif; font-size: 1.25rem; font-variant-numeric: tabular-nums; text-align: right; }
@@ -15790,14 +15803,16 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .home-lineup-crown { position: absolute; top: 0.55rem; left: 50%; margin-left: -0.75rem; font-size: 1.5rem; color: var(--accent-2); filter: drop-shadow(0 0.1rem 0.4rem color-mix(in srgb, var(--bg-0) 80%, transparent)); }
 .home-lineup-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.4rem; }
 .home-lineup-role { padding: 0.12rem 0.5rem; border-radius: 999px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: color-mix(in srgb, var(--bg-0) 70%, transparent); border: 1px solid var(--card-border); }
-.home-ring { position: relative; display: grid; place-items: center; width: 2.9rem; height: 2.9rem; }
+.home-lineup-rate { display: grid; justify-items: center; gap: 0.15rem; }
+.home-ring-label { font-size: 0.56rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-0); text-shadow: 0 0.1rem 0.4rem color-mix(in srgb, var(--bg-0) 90%, transparent); }
+.home-ring { position: relative; display: grid; place-items: center; width: 3.2rem; height: 3.2rem; }
 .home-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
 .home-ring circle { fill: none; stroke-width: 3.4; }
 .home-ring-track { stroke: color-mix(in srgb, var(--bg-0) 60%, transparent); }
 .home-ring-fill { stroke: var(--text-1); stroke-linecap: round; }
 .home-ring.is-good .home-ring-fill, .home-ring.is-ok .home-ring-fill { stroke: var(--ok); }
 .home-ring.is-poor .home-ring-fill { stroke: var(--warn); }
-.home-ring b { position: relative; font-family: "Chakra Petch", sans-serif; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.home-ring b { position: relative; font-family: "Chakra Petch", sans-serif; font-size: 0.76rem; font-variant-numeric: tabular-nums; }
 .home-lineup-foot { display: grid; gap: 0.1rem; min-width: 0; }
 .home-lineup-name { font-family: "Chakra Petch", sans-serif; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-lineup-foot small { font-size: 0.72rem; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -15853,7 +15868,7 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .home-won-text { display: grid; gap: 0.1rem; min-width: 0; }
 .home-won-text b { font-family: "Chakra Petch", sans-serif; font-size: 1.05rem; line-height: 1.15; overflow-wrap: anywhere; }
 .home-won-text small { font-size: 0.74rem; color: var(--text-1); }
-.home-trophy-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.6rem; }
+.home-trophy-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 0.6rem; }
 .home-trophy { display: grid; justify-items: center; align-content: start; gap: 0.25rem; padding: 0.7rem 0.4rem; border-radius: 12px; text-align: center; border: 1px dashed var(--card-border); color: var(--text-2); cursor: help; }
 .home-trophy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .home-trophy-icon { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; font-size: 1.4rem; background: color-mix(in srgb, var(--text-1) 8%, transparent); }
@@ -15885,7 +15900,8 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
   /* A wipe rather than a dash: the chart stretches to its box with non-scaling strokes, and a dash length does not survive that. */
   .home:not(.is-still) .home-climb.is-seen .home-climb-chart svg { animation: film-wipe 1600ms ease-out 250ms backwards; }
   .home:not(.is-still) .home-trend.is-seen .home-trend-chart svg { animation: film-wipe 1400ms ease-out 200ms backwards; }
-  .home:not(.is-still) .home-trend.is-seen :is(.home-trend-dot, .home-trend-marker) { animation: home-fade-in 500ms ease 1300ms backwards; }
+  .home:not(.is-still) .home-trend.is-seen :is(.home-trend-now, .home-trend-marker) { animation: home-fade-in 500ms ease 1300ms backwards; }
+  .home:not(.is-still) .home-trend.is-seen .home-form-strip li { animation: film-pip-drop 300ms ease backwards; animation-delay: calc(150ms + var(--home-i, 0) * 40ms); }
   .home:not(.is-still) .home-objectives.is-seen .home-objectives-ours,
   .home:not(.is-still) .home-trophies.is-seen .home-trophy-progress span { animation: home-bar-grow 900ms cubic-bezier(0.2, 0.7, 0.2, 1) 250ms backwards; }
   .home:not(.is-still) .home-trophies.is-seen .home-won-medal { animation: home-stamp 700ms ease 250ms backwards; }

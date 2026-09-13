@@ -75,8 +75,8 @@ function parseBanner(key: string): { champion: string; skin: number } | null {
             </button>
           }
           <div class="view-segment home-season" role="group" aria-label="Which games the page counts">
-            <button type="button" [class.active]="mode() === 'season'" [attr.aria-pressed]="mode() === 'season'" (click)="modeChange.emit('season')">{{ seasonWord() }}</button>
             <button type="button" [class.active]="mode() === 'all'" [attr.aria-pressed]="mode() === 'all'" (click)="modeChange.emit('all')">All time</button>
+            <button type="button" [class.active]="mode() === 'season'" [attr.aria-pressed]="mode() === 'season'" [appTip]="seasonTip()" (click)="modeChange.emit('season')">{{ seasonWord() }}</button>
           </div>
           <button type="button" class="view-btn home-pill home-motion" [class.active]="motion.reduced()" [attr.aria-pressed]="motion.reduced()"
                   [appTip]="motion.reduced() ? 'Motion is off on this screen: the splash holds still and the figures stand' : 'Turn the motion off on this screen'"
@@ -123,13 +123,17 @@ export class HomeHeroComponent {
   /** Settings' banner: the first splash, before the mains. */
   readonly banner = input<SettingsBanner | null>(null);
   readonly season = input.required<SeasonWindow>();
-  /** "This split" while a tournament runs, else "Last 90 days". */
+  /** "This season" while a tournament runs, else "Last 90 days". */
   readonly seasonWord = input.required<string>();
   readonly mode = input.required<SeasonMode>();
   readonly slides = input.required<readonly HomeSlide[]>();
   readonly record = input.required<HomeRecord>();
   readonly next = input<HomeNextSeries | null>(null);
   readonly modeChange = output<SeasonMode>();
+  /** The running tournament's name, for the season button's tip. */
+  readonly seasonName = input('');
+
+  protected readonly seasonTip = computed(() => (this.seasonName() ? `Only the games of ${this.seasonName()}` : 'Only the games of the last 90 days'));
 
   protected readonly motion = inject(MotionService);
   private readonly ui = inject(UiService);

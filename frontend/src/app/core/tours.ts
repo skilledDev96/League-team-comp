@@ -144,7 +144,7 @@ export const TOURS: readonly Tour[] = [
       {
         anchor: 'home-hero',
         title: 'The season',
-        text: 'The record this split, the next series and a pill to scout them.', more: 'All time counts every game instead. Motion turns the moving splash and the count-ups off on this screen.'
+        text: 'The record, the next series and a pill to scout them.', more: 'All time counts every game; This season only the running tournament. Motion turns the moving splash and the count-ups off on this screen.'
       },
       {
         anchor: 'home-spotlight',

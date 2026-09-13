@@ -140,7 +140,7 @@ export interface HomeRecords {
   longestWinStreak: Streak | null;
   mostVision: GameRecord | null;
   /** The biggest multikill one of ours took, 2 for a double to 5 for a penta; null with none. */
-  biggestMultikill: { value: number; player: string; champion: string; date: number; pentas: number } | null;
+  biggestMultikill: { value: number; player: string; champion: string; date: number; pentas: number; matchId: string } | null;
   /** The Riot games this season that carry multikills, out of all of them (cache v6 backfills forty a run). */
   multikillCoverage: { read: number; of: number };
 }

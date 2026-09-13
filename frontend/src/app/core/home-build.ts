@@ -132,7 +132,7 @@ function multikillsOf(games: readonly AnalysisGame[]): Pick<HomeRecords, 'bigges
       const value = p.facts?.largestMultiKill ?? 0;
       // A tie stays with whoever set it first, as every other record does.
       if (value >= 2 && (!best || value > best.value || (value === best.value && g.date > 0 && g.date < best.date))) {
-        best = { value, player: p.name, champion: p.champion, date: g.date, pentas: 0 };
+        best = { value, player: p.name, champion: p.champion, date: g.date, pentas: 0, matchId: g.matchId };
       }
     }
   }

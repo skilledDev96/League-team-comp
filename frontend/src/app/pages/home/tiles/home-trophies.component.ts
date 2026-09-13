@@ -1,6 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { Achievement } from '../../../core/achievements';
 import { HomeHandTrophy } from '../../../core/home-model';
+import { InfoTipComponent } from '../../../shared/info-tip.component';
 import { InViewDirective } from '../../../shared/in-view.directive';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { UiService } from '../../../services/ui.service';
@@ -13,11 +14,12 @@ import { UiService } from '../../../services/ui.service';
  */
 @Component({
   selector: 'app-home-trophies',
-  imports: [InViewDirective, TooltipDirective],
+  imports: [InfoTipComponent, InViewDirective, TooltipDirective],
   template: `
     <section class="card home-tile home-trophies" appInView aria-labelledby="home-trophies-title">
       <header class="home-card-head">
-        <h2 id="home-trophies-title"><span class="material-symbols-rounded" aria-hidden="true">trophy</span> Trophy cabinet</h2>
+        <h2 id="home-trophies-title"><span class="material-symbols-rounded" aria-hidden="true">trophy</span> Trophy cabinet
+          <app-info-tip text="Nobody awards these. Each one is read off the games and series the app already holds — a series won, a win under 25 minutes, a soul, a streak and so on — and lights up with the game that first earned it; hover one for its rule. The medals at the top are the ones entered by hand on Admin › Trophies, for what the games cannot show: a final placing, a cup." label="How the trophies are decided" /></h2>
         <span class="home-card-scope">@if (won().length) { {{ won().length }} won · }{{ earned() }} of {{ trophies().length }} earned</span>
       </header>
       @if (won().length) {
