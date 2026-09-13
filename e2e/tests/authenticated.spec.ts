@@ -76,7 +76,9 @@ test('the roster opens on the poster, and a player opens their sheet', async ({ 
   await expect(poster).toBeVisible({ timeout: 30_000 });
   const closed = poster.locator('.roster-panel-open[aria-expanded="false"]');
   test.skip((await closed.count()) === 0, 'no starter panel to open');
-  const opener = closed.first();
+  // Pinned by id: the closed-panel locator would move on to the next closed panel once this one opens.
+  const id = await closed.first().getAttribute('id');
+  const opener = page.locator(`#${id}`);
   const name = (await opener.innerText()).trim();
   await opener.click();
   await expect(page.locator('#roster-sheet')).toBeVisible();
