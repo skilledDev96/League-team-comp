@@ -53,6 +53,8 @@ export interface MvpPlayer {
   cs?: number;
   damageTaken?: number;
   visionScore?: number;
+  /** Riot's own figures on an analysed game; `damageShare` there is of the whole team, whoever of it we passed. */
+  facts?: { damageShare?: number };
 }
 
 /** A game as this module needs it: our five, the team's kills when the source counted them, and how long it ran. */
@@ -192,7 +194,12 @@ export function isRemake(game: Pick<MvpGame, 'durationSec'>): boolean {
 
 /**
  * Every seat's figures, game-wide. A figure missing for any one of our seats is missing for all of them, so no seat
- * is compared on something another seat was not; shares are over the seats present, and a zero total claims nothing.
+ * is compared on something another seat was not, and a zero total claims nothing.
+ *
+ * A share is only a share of the whole team (13 Sep 2026, found in review): an analysed game carries our roster
+ * members only, so a game with a sub arrives with four seats, and damage summed over four inflated every share
+ * against usuals taken from five. Riot's own whole-team damage share is used when every seat carries it; otherwise
+ * both shares are claimed only with all five of our seats present.
  */
 function figuresOf(game: MvpGame, players: readonly MvpPlayer[]): Figures[] {
   const minutes = game.durationSec && game.durationSec > 0 ? game.durationSec / 60 : null;
@@ -200,15 +207,18 @@ function figuresOf(game: MvpGame, players: readonly MvpPlayer[]): Figures[] {
   const sum = (key: 'damage' | 'damageTaken') => players.reduce((n, p) => n + (p[key] ?? 0), 0);
   const teamKills = game.kills?.ours ?? players.reduce((n, p) => n + p.kills, 0);
   const riotKp = all('killParticipation');
-  const damage = all('damage') ? sum('damage') : 0;
-  const taken = all('damageTaken') ? sum('damageTaken') : 0;
+  const wholeTeam = new Set(players.map((p) => seatOfPosition(p.position))).size >= 5;
+  const riotShare = players.every((p) => typeof p.facts?.damageShare === 'number');
+  const damage = !riotShare && wholeTeam && all('damage') ? sum('damage') : 0;
+  const taken = wholeTeam && all('damageTaken') ? sum('damageTaken') : 0;
   const vision = all('visionScore');
   const cs = all('cs');
   return players.map((p) => {
     const f: Figures = {};
     if (riotKp) f.kp = p.killParticipation;
     else if (teamKills > 0) f.kp = Math.min(1, (p.kills + p.assists) / teamKills);
-    if (damage > 0) f.damageShare = (p.damage ?? 0) / damage;
+    if (riotShare) f.damageShare = p.facts!.damageShare;
+    else if (damage > 0) f.damageShare = (p.damage ?? 0) / damage;
     if (taken > 0) f.damageTakenShare = (p.damageTaken ?? 0) / taken;
     if (minutes) {
       if (vision) f.visionPerMin = (p.visionScore ?? 0) / minutes;

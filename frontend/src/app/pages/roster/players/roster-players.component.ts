@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { afterNextRender, Component, computed, effect, inject, Injector, input, signal, untracked } from '@angular/core';
+import { afterNextRender, Component, computed, effect, inject, Injector, input, linkedSignal, signal, untracked } from '@angular/core';
 import { fillInAsPlayer } from '../../../core/roster-build';
 import { RosterCard, RosterModel } from '../../../core/roster-model';
 import { FillIn, Player } from '../../../models/team.models';
@@ -64,7 +64,8 @@ export class RosterPlayersComponent {
   protected readonly queueLabel = queueLabel;
   protected readonly visionNote = visionNote;
 
-  protected readonly queue = signal<PlayersQueue>(readQueue() ?? defaultQueue(this.data.players()));
+  /** The stored choice, else the default for the roster as it loads: a direct load starts before the players arrive. */
+  protected readonly queue = linkedSignal<PlayersQueue>(() => readQueue() ?? defaultQueue(this.data.players()));
 
   protected setQueue(queue: PlayersQueue): void {
     this.queue.set(queue);
@@ -123,6 +124,16 @@ export class RosterPlayersComponent {
     const target = event.target as HTMLElement | null;
     if (target?.closest('button, a, input, select, textarea')) return;
     this.toggle(id);
+  }
+
+  /**
+   * Escape closes the row, unless it was pressed in one of the row's own fields (found in review, 13 Sep 2026): a
+   * champion picker uses Escape to shut its menu, and closing the row as well threw the half-typed edit away.
+   */
+  protected closeOnEscape(id: string, event: Event): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('input, select, textarea, app-champion-picker')) return;
+    this.close(id);
   }
 
   protected close(id: string): void {

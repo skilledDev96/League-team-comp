@@ -147,7 +147,7 @@ const PRIORITY_RANK: Record<LearnPriority, number> = { high: 0, med: 1, low: 2 }
           <ul class="rp-played">
             @for (e of played(); track e.champion) {
               <li [class.is-match]="filter.matches(e.champion)">
-                <img [src]="ui.championIconUrl(e.champion)" [alt]="" loading="lazy" />
+                <img [src]="ui.championIconUrl(e.champion)" alt="" loading="lazy" />
                 <span>{{ ui.championName(e.champion) }}</span>
                 <b [class]="e.band">{{ e.winRate }}%</b><small>{{ e.games }}g</small>
               </li>

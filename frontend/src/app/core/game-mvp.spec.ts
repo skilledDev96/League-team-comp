@@ -85,6 +85,15 @@ describe('the role-aware model', () => {
     expect(mvp.why.join(' ')).not.toMatch(/minute| min /);
   });
 
+  it('claims no share of the team from part of it, and takes Riot\'s own whole-team share when every seat has it', () => {
+    // A sub outside the roster played mid: the analysis hands over four seats, so a share summed over them is not ours.
+    const four: MvpGame = { ...SUPPORT_CARRY, players: SUPPORT_CARRY.players.filter((p) => p.position !== 'MIDDLE') };
+    expect(mvpOf(four)?.why.join(' ')).not.toMatch(/of our damage|damage we took/);
+    const withRiot: MvpGame = { ...four, players: four.players.map((p) => ({ ...p, facts: { damageShare: p.position === 'BOTTOM' ? 0.36 : 0.15 } })) };
+    const adcLine = seriesMvpOf([{ label: 'Game 1', game: { ...withRiot, players: withRiot.players.filter((p) => p.position === 'BOTTOM' || p.position === 'TOP') } }]);
+    expect(adcLine?.why[0]).toContain('36% of our damage (ADCs usually 22%)');
+  });
+
   it('drops a figure for every seat when any one seat lacks it', () => {
     // Leona's vision would be her best figure; with the jungler's missing, nobody is judged on vision.
     const blind: MvpGame = { ...SUPPORT_CARRY, players: SUPPORT_CARRY.players.map((p) => (p.position === 'JUNGLE' ? { ...p, visionScore: undefined } : p)) };
@@ -257,7 +266,7 @@ describe('seriesMvpOf', () => {
 
 describe('mvpGameFromScrim', () => {
   const player = (team: number, position: string, champion: string, name: string, kills: number, deaths: number, assists: number, damage: number) =>
-    ({ team, position, champion, name, tag: 'EUW', win: team === 100, kills, deaths, assists, damage, gold: 0, damageToBuildings: 0, damageTaken: 0, visionScore: 0, cs: 0 }) as Scrim['players'][number];
+    ({ team, position, champion, name, tag: 'EUW', win: team === 100, kills, deaths, assists, damage, gold: 0, damageToBuildings: 0, damageTaken: 0, visionScore: 20, cs: position === 'BOTTOM' ? 250 : 180 }) as Scrim['players'][number];
 
   const scrim = (ourSide?: 'blue' | 'red'): Scrim =>
     ({
@@ -280,7 +289,7 @@ describe('mvpGameFromScrim', () => {
     expect(game.players.map((p) => p.champion)).toEqual(['Jinx', 'Aatrox']);
     expect(game.kills).toEqual({ ours: 11, theirs: 5 });
     expect(game.durationSec).toBe(1800);
-    expect(game.players[0]).toMatchObject({ cs: 0, damageTaken: 0, visionScore: 0 });
+    expect(game.players[0]).toMatchObject({ cs: 250, damageTaken: 0, visionScore: 20 });
     expect(mvpOf(game)?.champion).toBe('Jinx');
   });
 

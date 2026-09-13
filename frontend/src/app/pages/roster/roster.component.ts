@@ -100,13 +100,15 @@ export class RosterComponent {
   constructor() {
     // The old routes still resolve here and each names its own mode, so a bookmark to /players or /profiles lands on
     // Players rather than the default; so does a link that still says table or scouting.
+    // A URL with no view is the route's own (Cards, or Players for the old links), so Back from a link that opened
+    // Players lands on the view the address names rather than staying where it was.
+    let routeView: RosterView = 'cards';
     this.route.data.pipe(takeUntilDestroyed()).subscribe((data) => {
-      const fromRoute = rosterViewOf(data['view'] as string | undefined);
-      if (fromRoute) this.view.set(fromRoute);
+      routeView = rosterViewOf(data['view'] as string | undefined) ?? 'cards';
+      this.view.set(rosterViewOf(this.route.snapshot.queryParamMap.get('view')) ?? routeView);
     });
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
-      const requested = rosterViewOf(params.get('view'));
-      if (requested) this.view.set(requested);
+      this.view.set(rosterViewOf(params.get('view')) ?? routeView);
       this.focusPlayer.set(params.get('player'));
     });
   }

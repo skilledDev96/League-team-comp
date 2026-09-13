@@ -43,6 +43,13 @@ describe('rankTrendOf', () => {
     expect(apex?.to.words).toBe('Master');
   });
 
+  it('never reads a month-old morning as the start of this week', () => {
+    // A refresh gap: mid-August, then nothing until two mornings this week. The change is over those two.
+    const gap = rankTrendOf([at('2026-08-10', 'SILVER', 'I', 0), at('2026-09-10', 'GOLD', 'II', 50), at('2026-09-13', 'GOLD', 'II', 90)], '2026-09-13', 'solo');
+    expect(gap).toMatchObject({ delta: 40, from: { day: '2026-09-10' } });
+    expect(rankTrendOf([at('2026-08-10', 'SILVER', 'I', 0), at('2026-09-13', 'GOLD', 'II', 90)], '2026-09-13', 'solo')).toBeNull();
+  });
+
   it('says nothing for one morning, a stale newest morning, or the other queue', () => {
     expect(rankTrendOf([at('2026-09-12', 'GOLD', 'II', 50)], '2026-09-13', 'solo')).toBeNull();
     expect(rankTrendOf([at('2026-08-20', 'GOLD', 'II', 50), at('2026-09-02', 'GOLD', 'I', 50)], '2026-09-13', 'solo')).toBeNull();

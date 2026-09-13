@@ -101,15 +101,15 @@
                     </span>
                   }
                 } @else {
-                  <span class="rp-cell rp-none muted" role="cell" [class.is-full]="full()">No {{ queueLabel(queue()) }} games read</span>
+                  <span class="rp-cell rp-none muted" role="cell" [class.is-full]="full()" [attr.aria-colspan]="full() ? 6 : 2">No {{ queueLabel(queue()) }} games read</span>
                 }
               } @else {
-                <span class="rp-cell rp-none rp-none-wide muted" role="cell" [class.is-full]="full()">No {{ queueLabel(queue()) }} games read</span>
+                <span class="rp-cell rp-none rp-none-wide muted" role="cell" [class.is-full]="full()" [attr.aria-colspan]="full() ? 7 : 3">No {{ queueLabel(queue()) }} games read</span>
               }
 
               <span class="rp-cell rp-main" role="cell">
                 @if (c.champion) {
-                  <img class="rp-champ" [src]="ui.championIconUrl(c.champion)" [alt]="" loading="lazy" />
+                  <img class="rp-champ" [src]="ui.championIconUrl(c.champion)" alt="" loading="lazy" />
                   <span>{{ ui.championName(c.champion) }}</span>
                 } @else { — }
               </span>
@@ -127,7 +127,7 @@
             </div>
             @if (open) {
               <div class="rp-detail-row" role="row">
-                <div class="rp-detail" role="cell" [id]="'rp-detail-' + c.id" [attr.data-tour]="c.id === firstOpen() ? 'players-detail' : null" (keydown.escape)="close(c.id)">
+                <div class="rp-detail" role="cell" [attr.aria-colspan]="full() ? 11 : 7" [id]="'rp-detail-' + c.id" [attr.data-tour]="c.id === firstOpen() ? 'players-detail' : null" (keydown.escape)="closeOnEscape(c.id, $event)">
                   <app-roster-player-detail [card]="c" [player]="r.player" [fill]="r.fill" [full]="full()" />
                 </div>
               </div>

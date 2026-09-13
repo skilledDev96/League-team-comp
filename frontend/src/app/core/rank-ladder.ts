@@ -43,6 +43,8 @@ export function ladderValue(p: Pick<RankPoint, 'tier' | 'division' | 'lp'>): num
 
 /** How far back a roster card's rank trend looks: the last week of mornings (13 Sep 2026). */
 export const RANK_TREND_DAYS = 7;
+/** How far past the week's start an earlier morning may sit and still stand for it. */
+export const RANK_TREND_SLACK_DAYS = 3;
 
 export interface RankTrend {
   queue: RankQueue;
@@ -60,10 +62,13 @@ export interface RankTrend {
  */
 export function rankTrendOf(points: readonly RankPoint[], today: string, queue: RankQueue, days = RANK_TREND_DAYS): RankTrend | null {
   const since = daysBefore(today, days);
+  // A morning before the window counts only while it is a few days from its edge: after a gap in the history the last
+  // one could be a month old, and a month's change would be printed as this week's.
+  const oldest = daysBefore(today, days + RANK_TREND_SLACK_DAYS);
   const inQueue = points.filter((p) => p.queue === queue && p.day <= today && ladderValue(p) !== null).sort((a, b) => a.day.localeCompare(b.day));
   const to = inQueue[inQueue.length - 1];
   if (!to || to.day < since) return null;
-  const before = inQueue.filter((p) => p.day <= since);
+  const before = inQueue.filter((p) => p.day <= since && p.day >= oldest);
   const from = before[before.length - 1] ?? inQueue.find((p) => p.day >= since);
   if (!from || from.day >= to.day) return null;
   const at = (p: RankPoint) => ({ day: p.day, words: rankWords(p), lp: p.lp });
