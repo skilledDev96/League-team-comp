@@ -1,8 +1,10 @@
-# Cloud Functions Scaffold
+# Cloud Functions
 
-This folder contains Firebase Cloud Functions for future player data enrichment.
+The Firebase Cloud Functions behind Bom Squad Draft Hub — fifteen of them; `CLAUDE.md` at the repo root is the
+authoritative list of what each one does and how they fit together. This file keeps the `enrichPlayer` request
+contract and the local build and deploy notes.
 
-## Endpoint
+## Endpoint (enrichPlayer)
 
 - Function name: enrichPlayer
 - Trigger type: HTTPS request

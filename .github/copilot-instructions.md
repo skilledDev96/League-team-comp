@@ -16,7 +16,7 @@ The canonical, fuller guide is [`CLAUDE.md`](../CLAUDE.md) at the repo root. Rea
 - **Dual mode** via `isFirebaseConfigured()` (`core/firebase.ts`): Firebase (Firestore + Google auth) when `apiKey`+`projectId` are set, else **local mode** (localStorage seeded from `SEED_DATA`, "Enter local preview" = admin). `environment.ts` ships real Firebase web config, so `npm start` hits real Firebase; to work offline, blank `apiKey` locally and **don't commit it**.
 - Adding a persisted entity means touching all of: `team.models.ts` + `TeamData`, a signal, an `onSnapshot` listener, `EntityKey`, `pushLocalToSignals`/`persistLocal`, `seedFirestore`, CRUD — mirror `compResults`.
 - Firestore: list collections (`players`, `fillIns`, `comps`, `compResults`, `access`) + `meta/*` singletons. Rules: public read, `canEdit()` write via catch-all, so new collections need no rules change.
-- Cloud Functions (`api/src/index.ts`): `enrichPlayer`, `getCompAnalysis`, `riotKeyHealth`, and the scheduled `checkRiotKey` — `onRequest`, `RIOT_API_KEY` secret, region `europe-west1`.
+- Cloud Functions (`api/src/index.ts`): `enrichPlayer`, `getOpponentHistory`, `getCompAnalysis`, `refreshTeamDataOnce`, `draftAdvice`, `gameReview`, `riotKeyHealth`, `syncChampionTraits`, `crawlOnce` and `buildMatchupIndexOnce` are `onRequest` with `cors: true`, and `refreshTeamData`, `checkRiotKey`, `refreshChampionTraits`, `crawlChampionStats` and `buildMatchupIndex` are scheduled — fifteen in all; `RIOT_API_KEY` secret on the Riot ones, `ANTHROPIC_API_KEY` on `draftAdvice`, `gameReview` and the morning `refreshTeamData`, region `europe-west1`. `CLAUDE.md` says what each does.
 
 ## Conventions
 - Angular 22, **standalone components + signals** (no NgModules, minimal RxJS for view state).

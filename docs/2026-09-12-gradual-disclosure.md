@@ -323,6 +323,6 @@ lands on looked nearly the same. What the lead asked for next, and what shipped:
   sandbox, so no comp has traits. It should land on the live site; check it there.
 - Three of the five pill-only collapse panels are converted; Player Intel and Admin › Players still
   use a chevron button.
-- Synergy (`/synergy`, linked from nowhere) still uses its own toolbar and segmented control.
+- Synergy (`/synergy`, linked from nowhere) still uses its own toolbar and segmented control. *(Retired on 13 Sep 2026 instead.)*
 - Picking a comp's champion from the draft popup in a live draft: check the hold lands in the comp's
   seat, on the live site, in edit mode.
