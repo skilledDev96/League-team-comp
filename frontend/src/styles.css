@@ -15149,20 +15149,44 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
 .view-controls-tools .view-controls-count { margin-left: 0; white-space: nowrap; }
 .view-controls > .champ-filter-answer.is-inset { flex: 1 0 100%; }
 
-/* Roster's toolbar is one slim row (13 Sep 2026): the champion box is a view pill's size until it is used, and the
-   switch's "Detail" word is kept for screen readers only. Scoped, because Comps, Prep, Review and Games keep theirs. */
-.roster .view-controls-tools app-champion-filter { flex: 0 0 auto; }
-.roster .view-controls .champ-filter-box { flex: 0 0 auto; width: 12rem; max-width: none; }
-.roster .view-controls .champ-filter-box:focus-within,
-.roster .view-controls .champ-filter-box:has(.champ-filter-input.is-set),
-.roster .view-controls .champ-filter-box:has(input:not(:placeholder-shown)) { width: 18rem; }
-.roster .view-controls .champ-filter-input { padding: 0.3rem 0.72rem; gap: 0.3rem; font-size: 0.78rem; }
-.roster .view-controls .champ-filter-input .material-symbols-rounded { font-size: 1rem; }
-.roster .view-controls .champ-filter-pick { width: 1rem; height: 1rem; }
-.roster .view-controls .detail-toggle { margin: 0; }
-.roster .view-controls .detail-toggle > span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+/* The slim toolbar (13 Sep 2026, Roster first, Comps second): one row, the champion box a view pill's size until it
+   is used, and the switch's "Detail" word kept for screen readers only. A class while Games, Prep and Patterns keep
+   the wide box; the default once every page's filter sits in its toolbar. */
+.view-controls.is-slim .view-controls-tools app-champion-filter { flex: 0 0 auto; }
+.view-controls.is-slim .champ-filter-box { flex: 0 0 auto; width: 12rem; max-width: none; }
+.view-controls.is-slim .champ-filter-box:focus-within,
+.view-controls.is-slim .champ-filter-box:has(.champ-filter-input.is-set),
+.view-controls.is-slim .champ-filter-box:has(input:not(:placeholder-shown)) { width: 18rem; }
+.view-controls.is-slim .champ-filter-input { padding: 0.3rem 0.72rem; gap: 0.3rem; font-size: 0.78rem; }
+.view-controls.is-slim .champ-filter-input .material-symbols-rounded { font-size: 1rem; }
+.view-controls.is-slim .champ-filter-pick { width: 1rem; height: 1rem; }
+.view-controls.is-slim .detail-toggle { margin: 0; }
+.view-controls.is-slim .detail-toggle > span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 @media (prefers-reduced-motion: no-preference) {
-  .roster:not(.is-still) .view-controls .champ-filter-box { transition: width 160ms ease; }
+  :is(.roster, .comps):not(.is-still) .view-controls.is-slim .champ-filter-box { transition: width 160ms ease; }
+}
+
+/* The slim hero (13 Sep 2026, Roster's, now every poster page's): a kicker, the title and one line in the left column,
+   the tour pill and the page's actions in the right, no card around it. Two columns rather than a wrapping row, so a
+   longer sentence never pushes the actions down a line and the toolbar with them. */
+.hero.is-slim { display: grid; grid-template-columns: minmax(16rem, 1fr) auto; align-items: end; gap: 0.75rem 1.5rem; padding: 0.4rem 0.2rem 0.2rem; background: none; border: 0; box-shadow: none; overflow: visible; }
+.hero.is-slim::after { display: none; }
+.hero-id { display: grid; gap: 0.15rem; min-width: 0; }
+.hero-kicker { gap: 0.3rem; }
+.hero-title { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 2.3rem; font-weight: 700; line-height: 1; letter-spacing: 0.01em; text-transform: uppercase; color: var(--text-0); }
+/* One line whatever the view says, so switching views never changes the header's height and moves the toolbar under it. */
+.hero-blurb { margin: 0; overflow: hidden; font-size: 0.85rem; color: var(--text-1); white-space: nowrap; text-overflow: ellipsis; }
+.hero-actions { display: grid; justify-items: end; gap: 0.45rem; min-width: 0; max-width: 56rem; }
+.hero.is-slim .hero-tools { position: static; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; }
+.hero-actions .hero-pills { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; }
+@media (max-width: 62rem) {
+  .hero.is-slim { grid-template-columns: minmax(0, 1fr); }
+  .hero-actions { justify-items: start; max-width: none; }
+  .hero.is-slim .hero-tools, .hero-actions .hero-pills { justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero.is-slim { animation: none; }
+  :is(.roster, .comps):not(.is-still) .hero.is-slim.is-seen .hero-title { animation: film-word-rise 700ms ease backwards; }
 }
 
 /* The tools group already sits at the end; the switch follows it rather than splitting the space. */
@@ -15729,18 +15753,7 @@ span.home-records-open { width: 4.1rem; }
    in a gold frame under the group they stand in. Built from the splash primitives; motion behind the one gate:
    `.roster:not(.is-still)` and the section `.is-seen`, transform and opacity only. */
 .roster { display: block; }
-/* Two columns, not a wrapping row (13 Sep 2026): each view has its own sentence under the title, and in a row a longer one
-   pushed the action pills down a line when switching to Players or the Scout report. The sentence wraps in its own
-   column; the pills keep the same width and place on every view. */
-.roster-hero { display: grid; grid-template-columns: minmax(16rem, 1fr) auto; align-items: end; gap: 0.75rem 1.5rem; padding: 0.4rem 0.2rem 0.2rem; background: none; border: 0; box-shadow: none; overflow: visible; }
-.roster-hero::after { display: none; }
-.roster-hero-id { display: grid; gap: 0.15rem; min-width: 0; }
-.roster-kicker { gap: 0.3rem; }
-.roster-title { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 2.3rem; font-weight: 700; line-height: 1; letter-spacing: 0.01em; text-transform: uppercase; color: var(--text-0); }
-/* One line on every view, so switching views never changes the header's height and moves the toolbar under it. */
-.roster-hero-blurb { margin: 0; overflow: hidden; font-size: 0.85rem; color: var(--text-1); white-space: nowrap; text-overflow: ellipsis; }
-.roster-hero-tools { display: grid; justify-items: end; gap: 0.45rem; min-width: 0; max-width: 56rem; }
-.roster-hero .hero-tools { position: static; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; }
+/* The hero is the shared slim one (see "The slim hero" above); only the quick actions are Roster's. */
 .quick-actions.is-compact { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; margin: 0; padding: 0; background: none; border: 0; box-shadow: none; }
 .quick-action-count { margin-left: 0.15rem; padding: 0 0.35rem; border-radius: 999px; font-size: 0.66rem; background: color-mix(in srgb, var(--accent) 25%, transparent); }
 
@@ -15891,14 +15904,10 @@ app-rate-ring.is-big { --ring-size: 4.6rem; }
   .roster-sheet { grid-template-columns: minmax(0, 1fr); }
   .roster-sheet-art { min-height: 10rem; }
   .roster-sheet-grid { grid-template-columns: minmax(0, 1fr); }
-  .roster-hero { grid-template-columns: minmax(0, 1fr); }
-  .roster-hero-tools { justify-items: start; max-width: none; }
-  .quick-actions.is-compact, .roster-hero .hero-tools { justify-content: flex-start; }
+  .quick-actions.is-compact { justify-content: flex-start; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .roster .roster-hero { animation: none; }
-  .roster:not(.is-still) .roster-hero.is-seen .roster-title { animation: film-word-rise 700ms ease backwards; }
   .roster:not(.is-still) :is(.roster-poster, .roster-tiles):not(.is-seen) .roster-panel { opacity: 0; }
   .roster:not(.is-still) :is(.roster-poster, .roster-tiles).is-seen .roster-panel { animation: film-rise 650ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: calc(var(--roster-i, 0) * 70ms); }
   .roster:not(.is-still) .roster-poster.is-seen .rate-ring-fill { animation: roster-ring-draw 1000ms cubic-bezier(0.3, 0.7, 0.2, 1) backwards; animation-delay: calc(300ms + var(--roster-i, 0) * 70ms); }

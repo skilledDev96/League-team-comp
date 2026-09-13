@@ -28,6 +28,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
 import { TourPillComponent } from '../../shared/tour-pill.component';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 import { DetailToggleComponent } from '../../shared/detail-toggle.component';
+import { InViewDirective } from '../../shared/in-view.directive';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { rateBand } from '../../core/opponent-view';
 
@@ -38,10 +39,9 @@ interface ResultDraft {
   playedOn: string;
 }
 
-import { PlayerMarkComponent } from '../../shared/player-mark.component';
 @Component({
   selector: 'app-comps',
-  imports: [PlayerMarkComponent, DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective, NgModelNameDirective, ChampionFilterComponent, TourPillComponent, DetailToggleComponent],
+  imports: [DatePipe, FormsModule, RouterLink, ChampionChipComponent, ChampionPickerComponent, CompBoardComponent, OverflowMenuComponent, TacticalBoardComponent, TooltipDirective, NgModelNameDirective, ChampionFilterComponent, TourPillComponent, DetailToggleComponent, InViewDirective],
   templateUrl: './comps.component.html'
 })
 export class CompsComponent {
@@ -54,7 +54,16 @@ export class CompsComponent {
   private readonly toast = inject(ToastService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly motion = inject(MotionService);
+  protected readonly motion = inject(MotionService);
+
+  /** The slim hero's words: what the page holds, and one line that says what to do. */
+  protected readonly heading = computed(() => {
+    const team = this.data.settings().teamName || 'Bom Squad';
+    const n = this.data.comps().length;
+    const cats = this.compCategories().length;
+    const kicker = `${n} ${n === 1 ? 'comp' : 'comps'}${cats ? ` · ${cats} ${cats === 1 ? 'category' : 'categories'}` : ''}`;
+    return { title: `${team} Comps`, kicker, blurb: 'Click a comp for its five, its plan and what to ban.' };
+  });
 
   // ---- How much to draw (12 Sep 2026) ------------------------------------------
   //
@@ -185,6 +194,8 @@ export class CompsComponent {
   }
 
   protected async addComp(): Promise<void> {
+    // The pill shows to anyone who can edit; pressing it is the intent, so edit mode follows.
+    if (!this.auth.editMode()) this.auth.editMode.set(true);
     const n = this.data.comps().length + 1;
     const picks = Object.fromEntries(this.roles.map((r) => [r, ''])) as CompPicks;
     const id = await this.data.createComp({ name: `New comp ${n}`, picks });
@@ -539,9 +550,6 @@ export class CompsComponent {
     }
     return null;
   }
-  protected readonly banRows = computed(() =>
-    this.data.players().map((p) => ({ role: p.role, name: p.name, bans: p.bans }))
-  );
 
   protected isLogging(compId: string): boolean {
     return !!this.logging()[compId];

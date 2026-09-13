@@ -1,14 +1,29 @@
-<section class="hero">
-  <h1>{{ data.settings().teamName || 'Bom Squad' }} Comps</h1>
-  <p>Team compositions, how they want to play, and what to ban.</p>
-  <app-tour-pill />
+<!-- Home's theme on Comps (13 Sep 2026, the lead: "I love the look we have now, let's bring this over to the comps page").
+     The slim hero: what the page holds, the title, one line, and the page's actions beside the tour pill. -->
+<div class="comps" [class.is-still]="motion.reduced()">
+<section class="hero is-slim" appInView>
+  <div class="hero-id">
+    <p class="home-kicker hero-kicker"><span class="material-symbols-rounded" aria-hidden="true">dashboard_customize</span>{{ heading().kicker }}</p>
+    <h1 class="hero-title">{{ heading().title }}</h1>
+    <p class="hero-blurb">{{ heading().blurb }}</p>
+  </div>
+  <div class="hero-actions">
+    <app-tour-pill />
+    <!-- For anyone who can edit, edit mode on or off (13 Sep 2026, the lead: "overwhelming complaints to just add and
+         edit comps"): pressing it turns edit mode on, so the button is never hidden behind the switch it needs. -->
+    @if (auth.canEdit()) {
+      <div class="hero-pills">
+        <button data-tour="comps-add" type="button" class="view-btn active" (click)="addComp()" appTip="A blank comp, opened with its board so the picks go straight in">
+          <span class="material-symbols-rounded" aria-hidden="true">add_circle</span> Add a comp
+        </button>
+      </div>
+    }
+  </div>
 </section>
 
-<!-- One toolbar on every page, the Games one (12 Sep 2026, the lead: "I like how the games top page
-     looks, with the detail option on the right — make this consistent across all pages"). The views as
-     pills on the left, anything that belongs to the whole page pushed right, Detail last. -->
-<!-- Comps has no views, so its categories are the pills: they were a select, which read as a form. -->
-<section class="view-controls" aria-label="Comps views">
+<!-- One toolbar on every page (12 Sep 2026), the slim one (13 Sep 2026): the categories as the view pills — Comps has no
+     views of its own — a compact champion pill, and Detail last. -->
+<section class="view-controls is-slim" aria-label="Comps views">
   @if (compCategories().length) {
     <button type="button" class="view-btn" [class.active]="compCategoryFilter() === 'all'" [attr.aria-pressed]="compCategoryFilter() === 'all'" (click)="compCategoryFilter.set('all')">All</button>
     @for (cat of compCategories(); track cat) {
@@ -16,14 +31,22 @@
     }
   }
   <div class="view-controls-tools">
-    <app-champion-filter [count]="visibleComps().length" noun="comps" placeholder="Comps with a champion — Tristana, Rakan…" />
-    @if (auth.editing()) {
-      <button data-tour="comps-add" type="button" class="view-btn active view-controls-cta" (click)="addComp()" appTip="A blank comp, opened with its board so the picks go straight in">
-        <span class="material-symbols-rounded" aria-hidden="true">add_circle</span> Add a comp
-      </button>
-    }
+    <app-champion-filter [count]="visibleComps().length" noun="comps" placeholder="Find a champion" [showCount]="false" />
   </div>
   <app-detail-toggle surface="comps" starterTip="Open a comp for its picks, plan and bans" fullTip="Every comp open, with its record and the games behind it" />
+  <!-- The answer belongs to the filter that asked it, so it sits inside the toolbar with it. -->
+  @if (filter.active()) {
+    <p class="champ-filter-answer is-inset">
+      @if (visibleComps().length) {
+        Drafted in
+        @for (c of visibleComps(); track c.id; let last = $last) {
+          <b>{{ c.name }}</b>{{ last ? '.' : ',' }}
+        }
+      } @else {
+        No saved comp drafts {{ filter.active() }}.
+      }
+    </p>
+  }
 </section>
 
 <datalist id="compcatlist">
@@ -416,21 +439,5 @@
   <app-tactical-board [comp]="comp" [play]="boardPlay()" [canEdit]="auth.editing()" (close)="closeBoard()" />
 }
 
-@if (full()) {
-  <section id="banSection" aria-label="Ban recommendations">
-    <h2 class="title-with-icon"><span class="section-icon">BN</span>Ban Recommendations</h2>
-    <div class="grid three">
-      @for (row of banRows(); track row.name) {
-        <article class="card">
-          <h3><app-player-mark [name]="row.name" />{{ row.role }} - {{ row.name }}</h3>
-          <div class="tag-row">
-            @for (ban of row.bans; track ban) {
-              <app-champion-chip [champion]="ban" />
-            }
-          </div>
-        </article>
-      }
-    </div>
-  </section>
-}
+</div>
 

@@ -1,13 +1,13 @@
 <!-- Home's theme on the Roster (13 Sep 2026, the lead: "keep the theme of the home page rolling"). The poster is
      the showpiece, so the top is a slim title with the quick actions beside it, then the one toolbar. -->
 <div class="roster" [class.is-still]="motion.reduced()">
-<section class="hero roster-hero" appInView>
-  <div class="roster-hero-id">
-    <p class="home-kicker roster-kicker"><span class="material-symbols-rounded" aria-hidden="true">groups</span>{{ heading().kicker }}</p>
-    <h1 class="roster-title">{{ heading().title }}</h1>
-    <p class="roster-hero-blurb">{{ heading().blurb }}</p>
+<section class="hero is-slim" appInView>
+  <div class="hero-id">
+    <p class="home-kicker hero-kicker"><span class="material-symbols-rounded" aria-hidden="true">groups</span>{{ heading().kicker }}</p>
+    <h1 class="hero-title">{{ heading().title }}</h1>
+    <p class="hero-blurb">{{ heading().blurb }}</p>
   </div>
-  <div class="roster-hero-tools">
+  <div class="hero-actions">
     <app-tour-pill />
     <app-quick-actions [compact]="true" />
   </div>
@@ -16,7 +16,7 @@
 <!-- One toolbar on every page, the Games one (12 Sep 2026, the lead: "I like how the games top page
      looks, with the detail option on the right — make this consistent across all pages"). The views as
      pills on the left, anything that belongs to the whole page pushed right, Detail last. -->
-<section class="view-controls" data-tour="roster-views" aria-label="Roster views">
+<section class="view-controls is-slim" data-tour="roster-views" aria-label="Roster views">
   <button type="button" class="view-btn" [class.active]="view() === 'cards'" [attr.aria-pressed]="view() === 'cards'" (click)="setView('cards')">Cards</button>
   <button type="button" class="view-btn" [class.active]="view() === 'players'" [attr.aria-pressed]="view() === 'players'" (click)="setView('players')" appTip="Everyone's numbers side by side, and what each is working on">Players</button>
   <button type="button" class="view-btn" [class.active]="view() === 'report'" [attr.aria-pressed]="view() === 'report'" (click)="setView('report')" appTip="Us, as an opponent would scout us">Scout report</button>
