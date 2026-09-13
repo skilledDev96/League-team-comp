@@ -1,30 +1,65 @@
-<section class="hero">
-  <h1>Games</h1>
-  <p>Every game we played — tournament, scrims, flex and Clash — and what keeps happening in them.</p>
-  <app-tour-pill />
+<!-- The slim hero (13 Sep 2026): the counts, the title, one line, and the editor's refresh pills beside the tour pill. -->
+<section class="hero is-slim" appInView>
+  <div class="hero-id">
+    <p class="home-kicker hero-kicker"><span class="material-symbols-rounded" aria-hidden="true">history</span>{{ heading() }}</p>
+    <h1 class="hero-title">Games</h1>
+    <p class="hero-blurb">Every game we played — tournament, scrims, flex and Clash — and what keeps happening in them.</p>
+  </div>
+  <div class="hero-actions">
+    <app-tour-pill />
+    @if (auth.editing()) {
+      <div class="hero-pills">
+        <button data-tour="games-refresh" type="button" class="view-btn active" [disabled]="refresh.anyRunning()" (click)="refreshAnalysis()">
+          @if (analysisLoading()) { <span class="btn-spinner" aria-hidden="true"></span> } @else { <span class="material-symbols-rounded" aria-hidden="true">sync</span> }
+          {{ analysisLoading() ? 'Analyzing…' : 'Refresh matches from Riot' }}
+        </button>
+        <button type="button" class="view-btn" [disabled]="refresh.anyRunning()"
+                appTip="Re-read every player from Riot, then re-run the match analysis. Takes a few minutes."
+                (click)="refresh.refreshAll()">
+          <span class="material-symbols-rounded" aria-hidden="true">cloud_sync</span>
+          {{ refresh.allRunning() ? 'Refreshing everything…' : 'Refresh everything from Riot' }}
+        </button>
+      </div>
+    }
+  </div>
 </section>
 
-<section data-tour="games-tabs" class="view-controls" aria-label="Games views">
+<!-- One toolbar on every page, the slim one (13 Sep 2026): the three views, the champion pill, a comp chip when a link
+     narrowed the list to one comp, and Detail last. -->
+<section data-tour="games-tabs" class="view-controls is-slim" aria-label="Games views">
   <button class="view-btn" type="button" [class.active]="tab() === 'games'" (click)="tab.set('games')">Games</button>
   <button class="view-btn" type="button" [class.active]="tab() === 'patterns'" (click)="tab.set('patterns')">Patterns</button>
   <button class="view-btn" type="button" [class.active]="tab() === 'reviews'" (click)="tab.set('reviews')">Reviews @if (data.gameReviews().length) { <small>{{ data.gameReviews().length }}</small> }</button>
+  <div class="view-controls-tools">
+    @if (comp()) {
+      <button type="button" class="view-btn active" (click)="clearComp()" appTip="Showing only the games under this comp — click to show every game">
+        {{ compName() || 'comp' }} <span class="material-symbols-rounded" aria-hidden="true">close</span>
+      </button>
+    }
+    <app-champion-filter [count]="rows().length" noun="games" placeholder="Find a champion" [showCount]="false" />
+  </div>
   <app-detail-toggle [surface]="tab() === 'patterns' ? 'patterns' : tab() === 'reviews' ? 'reviews' : 'games'"
                      [starterTip]="detailStarterTip()" [fullTip]="detailFullTip()" />
+  @if (filter.active() && tab() === 'games') {
+    <p class="champ-filter-answer is-inset">
+      @if (rows().length) { <b>{{ rows().length }}</b> {{ rows().length === 1 ? 'game' : 'games' }} with {{ filter.active() }}, on either side. }
+      @else { No game in this window had {{ filter.active() }} on either side. }
+    </p>
+  }
 </section>
 
 <!-- The one thing to do next: an unwatched review, a due film reminder, a game nobody has
      reviewed, or the next opponent. Nothing when there is nothing. -->
-<app-next-up data-tour="games-next-up" />
+<app-next-up data-tour="games-next-up" class="reveal" appInView />
 
 <!-- The Riot data line: who refreshed what, and the button to do it again.
      Small on purpose — it used to be the top third of the Analysis page. -->
 <!-- The Riot data line. The three telemetry sentences — stacked games, the morning log, key
      health — are things a reader CHECKS rather than acts on, so they wait for Full; the refresh
      buttons are the page's main editor action and stay at both depths (12 Sep 2026). -->
-@if (full() || auth.editing()) {
+@if (full()) {
 <section class="card games-data" aria-label="Riot match data">
   <div class="games-data-line">
-    @if (full()) {
     @if (data.compAnalysis(); as a) {
       <span class="muted">
         Riot: <b>{{ a.totalTeamGames }}</b> stacked games, updated {{ a.generatedAt | date: 'MMM d, HH:mm' }}
@@ -45,21 +80,6 @@
         <span class="key-health is-bad"><span class="material-symbols-rounded" aria-hidden="true">key_off</span>{{ k.message }}</span>
       }
     }
-    }
-    @if (auth.editing()) {
-      <span class="games-data-actions">
-        <button data-tour="games-refresh" type="button" class="view-btn" [disabled]="refresh.anyRunning()" (click)="refreshAnalysis()">
-          @if (analysisLoading()) { <span class="btn-spinner" aria-hidden="true"></span> } @else { <span class="material-symbols-rounded" aria-hidden="true">sync</span> }
-          {{ analysisLoading() ? 'Analyzing…' : 'Refresh matches from Riot' }}
-        </button>
-        <button type="button" class="view-btn" [disabled]="refresh.anyRunning()"
-                appTip="Re-read every player from Riot, then re-run the match analysis. Takes a few minutes."
-                (click)="refresh.refreshAll()">
-          <span class="material-symbols-rounded" aria-hidden="true">cloud_sync</span>
-          {{ refresh.allRunning() ? 'Refreshing everything…' : 'Refresh everything from Riot' }}
-        </button>
-      </span>
-    }
   </div>
   @if (analysisError()) { <p class="analysis-error">{{ analysisError() }}</p> }
 </section>
@@ -71,7 +91,7 @@
   <!-- Every written review, newest first, and the newest one open. This tab used to draw a poster
        per review and send the reader to the Games tab to read one — the tab named for reviews did
        not show a review (12 Sep 2026). The panel is self-contained, so it simply mounts here. -->
-  <section class="card games-filters" aria-label="Review filters">
+  <div class="view-row" aria-label="Review filters">
     <label class="field compact-field"><span>Comp</span>
       <select name="reviewComp" [value]="reviewComp()" (change)="reviewComp.set($any($event.target).value)">
         <option value="all">All comps</option>
@@ -79,7 +99,7 @@
       </select>
     </label>
     <span class="muted">{{ reviewRows().length }} {{ reviewRows().length === 1 ? 'review' : 'reviews' }}</span>
-  </section>
+  </div>
   @if (reviewRows().length) {
     <section class="review-cards" aria-label="Reviews">
       @for (r of reviewRows(); track r.review.matchId) {
@@ -103,7 +123,7 @@
       }
     </section>
   } @else {
-    <section class="card"><p class="muted">No reviews yet. Open a game on the Games tab and press "Review this game", or switch on the morning reviews under Admin → Settings.</p></section>
+    <section class="card"><p class="empty-state">No reviews yet. Open a game on the Games tab and press "Review this game", or switch on the morning reviews under Admin → Settings.</p></section>
   }
 } @else {
   <!-- One filter row. Source, window, result, opponent; the champion box is
@@ -120,7 +140,8 @@
       <button type="button" class="view-btn" (click)="dismissNew()">Got it</button>
     </section>
   }
-  <section data-tour="games-filters" class="card games-filters" aria-label="Filters">
+  <!-- What belongs to this view goes in a row under the toolbar, not in it (design system §3½). -->
+  <div data-tour="games-filters" class="view-row games-filter-row" aria-label="Filters">
     @if (full()) {
     <div class="view-segment" role="group" aria-label="Source">
       <button type="button" [class.active]="source() === 'all'" (click)="source.set('all')">All</button>
@@ -141,13 +162,6 @@
       <button type="button" [class.active]="result() === 'loss'" (click)="result.set('loss')">Losses</button>
     </div>
     }
-    @if (comp()) {
-      <button type="button" class="view-btn active" (click)="clearComp()" appTip="Showing only the games under this comp — click to show every game">
-        {{ compName() || 'comp' }} <span class="material-symbols-rounded" aria-hidden="true">close</span>
-      </button>
-    }
-    <div class="games-filters-row">
-    <app-champion-filter [count]="rows().length" noun="games" placeholder="Games with a champion, either side — Tristana, Rakan…" />
     @if (full() && opponents().length) {
       <label class="field games-opponent"><span>Opponent</span>
         <select [ngModel]="opponent()" (ngModelChange)="opponent.set($event)" name="gamesOpponent">
@@ -156,11 +170,10 @@
         </select>
       </label>
     }
-    </div>
-  </section>
+  </div>
 
   <!-- The record, then where it comes from. -->
-  <section class="card games-record" aria-label="Record">
+  <section class="card games-record reveal" appInView style="--reveal-i: 0" aria-label="Record">
     <div data-tour="games-record" class="insight-tiles games-tiles">
       <div class="insight-tile is-lead">
         <span class="insight-label">Record</span>
@@ -209,7 +222,7 @@
        not there cannot be found, and a heading with a Show beside it costs one line. Full
        opens it; a press either way is remembered for the visit. -->
   @if (players().length) {
-    <details class="card fold-card games-players" [open]="playersShown()" (toggle)="playersOpen.set($any($event.target).open)">
+    <details class="card fold-card games-players reveal" appInView style="--reveal-i: 1" [open]="playersShown()" (toggle)="playersOpen.set($any($event.target).open)">
       <summary class="section-head" aria-label="Player lines">
         <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>Players <small class="muted">{{ players().length }}</small></h2>
         <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
@@ -296,7 +309,7 @@
   <!-- The fold is the header itself at both depths (12 Sep 2026). It used to be a pill, and a
        Full-only one, so a Starter reader could not shut the list at all. Still open by default —
        the list is the page — but shutting it is now the same gesture as shutting anything else. -->
-  <details class="card fold-card" [open]="listOpen()" (toggle)="listOpen.set($any($event.target).open)">
+  <details class="card fold-card reveal" appInView style="--reveal-i: 2" [open]="listOpen()" (toggle)="listOpen.set($any($event.target).open)">
     <summary class="section-head games-list-head" data-tour="games-list-fold" aria-label="Games">
       <p class="title-with-icon games-list-title"><span class="section-icon material-symbols-rounded">sports_esports</span>Game list <small class="muted">{{ rows().length }}</small></p>
       <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
@@ -511,7 +524,7 @@
         }
       </div>
     } @else if (!rows().length) {
-      <p class="muted games-empty">
+      <p class="empty-state games-empty">
         No games for this filter.
         @if (!allRows().length) {
           Tournament games appear once a result is set on Prep & Draft, scrims once a replay is dropped there, and flex or Clash games after Refresh match data.

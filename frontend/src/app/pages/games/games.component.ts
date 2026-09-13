@@ -17,6 +17,7 @@ import { RefreshService } from '../../services/refresh.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
+import { InViewDirective } from '../../shared/in-view.directive';
 import { MatchNoteButtonComponent } from '../../shared/match-note-button.component';
 import { MatchNoteComponent } from '../../shared/match-note.component';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
@@ -61,6 +62,7 @@ import { PlayerMarkComponent } from '../../shared/player-mark.component';
     FormsModule,
     RouterLink,
     ChampionFilterComponent,
+    InViewDirective,
     MatchNoteComponent,
     MatchNoteButtonComponent,
     NgModelNameDirective,
@@ -224,6 +226,13 @@ export class GamesComponent {
   // ---- Records ----------------------------------------------------------------
 
   protected readonly overall = computed(() => record(this.rows()));
+
+  /** The slim hero's kicker: what is in view, and how many reviews have been written. */
+  protected readonly heading = computed(() => {
+    const n = this.rows().length;
+    const reviews = this.data.gameReviews().length;
+    return `${n} ${n === 1 ? 'game' : 'games'} in view${reviews ? ` · ${reviews} ${reviews === 1 ? 'review' : 'reviews'} written` : ''}`;
+  });
   protected readonly bySource = computed(() =>
     (['tournament', 'scrim', 'riot'] as const).map((source) => ({
       source,

@@ -1,6 +1,6 @@
 import { ChampionFilterService } from '../../services/champion-filter.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
-import { ChampionFilterComponent } from '../../shared/champion-filter.component';
+import { InViewDirective } from '../../shared/in-view.directive';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -50,7 +50,7 @@ type SectionKey = 'lanes' | 'changes' | 'recurring' | 'games';
 import { PlayerMarkComponent } from '../../shared/player-mark.component';
 @Component({
   selector: 'app-review',
-  imports: [PlayerMarkComponent, DatePipe, NgTemplateOutlet, RouterLink, TooltipDirective, ChampionFilterComponent, GameCheckComponent, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent, InfoTipComponent],
+  imports: [PlayerMarkComponent, DatePipe, NgTemplateOutlet, RouterLink, TooltipDirective, InViewDirective, GameCheckComponent, ColumnPickerComponent, SplitCellComponent, SplitViewToggleComponent, InfoTipComponent],
   templateUrl: './review.component.html'
 })
 export class ReviewComponent {

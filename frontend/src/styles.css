@@ -5286,7 +5286,7 @@ app-match-note {
   background: rgba(0, 0, 0, 0.25);
 }
 
-.review-toolbar .field {
+.patterns-filters .field {
   margin: 0;
 }
 
@@ -5542,11 +5542,11 @@ app-match-note {
 /* A labelled control is taller than a bare meta line, and centring the row
    left the count floating between the label and the control it belongs
    beside. Align to the bottom so they share a baseline. */
-.review-toolbar .view-controls {
+.patterns-filters {
   align-items: flex-end;
 }
 
-.review-toolbar .view-controls > .meta-line {
+.patterns-filters > .meta-line {
   margin: 0 0 0.4rem;
 }
 
@@ -10920,19 +10920,6 @@ button.opp-more.active {
 .games-data-line b { color: var(--text-0); }
 .games-refresh-log .material-symbols-rounded { font-size: 1rem; vertical-align: -0.2rem; margin-right: 0.2rem; }
 .games-refresh-log.is-bad { color: var(--warn); }
-.games-data-actions { margin-left: auto; display: inline-flex; gap: 0.5rem; }
-
-.games-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem 0.9rem;
-  padding: 0.7rem 0.9rem;
-}
-
-.games-filters .champ-filter { margin: 0; flex: 1 1 18rem; }
-.games-filters-row { flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 0.9rem; }
-.games-filters-row .champ-filter { margin: 0; flex: 1 1 18rem; }
 .games-opponent { margin: 0 0 0 auto; flex-direction: row; align-items: center; gap: 0.45rem; }
 .games-opponent > span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .games-opponent select { padding-block: 0.32rem; min-width: 9rem; }
@@ -11291,7 +11278,7 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .split-cell.neg { color: var(--warn); }
 .split-cell .all-n { margin-left: 0.3rem; font-size: 0.66rem; opacity: 0.6; }
 .split-view-toggle { margin: 0; }
-.review-toolbar .split-view-toggle .segment { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.patterns-filters .split-view-toggle .segment { padding-top: 0.25rem; padding-bottom: 0.25rem; }
 
 .custom-five .team-champ-filter { margin: 0.2rem 0 0; }
 .custom-five .view-btn em { font-style: normal; font-size: 0.68rem; opacity: 0.7; margin-left: 0.25rem; }
@@ -14139,7 +14126,7 @@ so none of this can move the draft room. */
 .view-controls.is-slim .detail-toggle { margin: 0; }
 .view-controls.is-slim .detail-toggle > span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 @media (prefers-reduced-motion: no-preference) {
-  :is(.roster, .comps):not(.is-still) .view-controls.is-slim .champ-filter-box { transition: width 160ms ease; }
+  .page:not(.is-still) .view-controls.is-slim .champ-filter-box { transition: width 160ms ease; }
 }
 
 /* The slim hero (13 Sep 2026, Roster's, now every poster page's): a kicker, the title and one line in the left column,
@@ -14162,7 +14149,7 @@ so none of this can move the draft room. */
 }
 @media (prefers-reduced-motion: no-preference) {
   .hero.is-slim { animation: none; }
-  :is(.roster, .comps):not(.is-still) .hero.is-slim.is-seen .hero-title { animation: film-word-rise 700ms ease backwards; }
+  .page:not(.is-still) .hero.is-slim.is-seen .hero-title { animation: film-word-rise 700ms ease backwards; }
 }
 
 /* The tools group already sits at the end; the switch follows it rather than splitting the space. */
@@ -15123,6 +15110,17 @@ textarea.comps-field { resize: vertical; min-height: 3.6rem; }
 .review-seat-fold:focus-visible,
 .report-ban:has(:focus-visible),
 .rp-row:has(.rp-open:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* A row under the toolbar (design system §3½): what belongs to one view sits here, not in the toolbar and not in a card. */
+.view-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; margin: 0.15rem 0; padding: 0.35rem 0.35rem; }
+.view-row .field { margin: 0; }
+.view-row > .muted { font-size: 0.78rem; }
+/* A compact pill, for an action that is only metadata: still a pill, never an underlined word (design system §2). */
+.view-btn.is-compact { padding: 0.1rem 0.55rem; font-size: 0.7rem; font-weight: 600; vertical-align: 0.1rem; }
+/* A count inside a segment's button, the way Patterns' filters say how many games each choice keeps. */
+.view-segment button em { margin-left: 0.3rem; padding: 0.05rem 0.4rem; border-radius: 999px; font-style: normal; font-size: 0.72rem; font-weight: 700; background: color-mix(in srgb, var(--text-1) 18%, transparent); color: inherit; }
+.view-segment button.is-loss.active { background: color-mix(in srgb, var(--warn) 24%, var(--surface-btn)); }
+.view-segment button.is-win.active { background: color-mix(in srgb, var(--ok) 24%, var(--surface-btn)); }
 
 /* The champion filter's Clear is a pill, not an underlined word (design system §2). */
 .champ-filter-clear { width: 1.7rem; height: 1.7rem; }
