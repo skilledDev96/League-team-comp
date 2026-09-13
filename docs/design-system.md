@@ -177,8 +177,8 @@ so the poster's look went in as new markup (`.report-banboard`, `.report-ban.spl
 the view's own root (`.player-intel-card …`, `.roster-report …`). Check the other page before and after.
 
 **Facts on a card** are a two-column `<dl>` — labels in one column, values in the other, every icon the
-height of a line — so every row starts at the same x. Secondary attributes, like a player's 2nd seat, are small
-muted pills under the name, not a labelled line.
+height of a line — so every row starts at the same x. Secondary attributes, like a player's other roles, are small muted pills under the name on a line of their own, with a
+label saying what they are: "Also plays" (13 Sep 2026; unlabelled beside a game count, the lead read them as part of it).
 
 ---
 

@@ -121,7 +121,7 @@
           <span class="pp-role">{{ player.playstyle || 'Unknown' }}</span>
           @if (player.secondaryRoles?.length) {
             <span class="pp-flex-roles">
-              <span class="pp-flex-label">Flex</span>
+              <span class="pp-flex-label">Also plays</span>
               @for (r of player.secondaryRoles ?? []; track r) {
                 <span class="pp-role flex">{{ r }}</span>
               }

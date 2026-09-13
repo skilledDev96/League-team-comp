@@ -15870,6 +15870,12 @@ app-roster-panel { display: block; height: 100%; }
 .roster-panel.is-dimmed { opacity: 0.45; }
 .roster-panel.is-match { box-shadow: 0 0 0 2px var(--accent-2); }
 .roster-panel-top { position: relative; z-index: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 0.4rem; pointer-events: none; }
+.roster-panel-seat { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
+.roster-panel-seat .sub-badge { margin: 0; background: color-mix(in srgb, var(--bg-0) 70%, transparent); color: var(--text-0); }
+.roster-panel-also { position: relative; z-index: 2; margin: 0; }
+/* A label over splash art keeps a shadow under it, as the names do. */
+.roster-panel-also .pp-flex-label, .profiles-name .pp-flex-label { text-shadow: 0 0.05rem 0.35rem color-mix(in srgb, var(--bg-0) 95%, transparent); }
+.profiles-name .pp-roles .sub-badge { margin-right: 0.35rem; }
 .roster-panel-crown { position: absolute; top: 3.9rem; left: 0; right: 0; z-index: 2; display: grid; justify-items: center; gap: 0.1rem; }
 .roster-panel.is-tile .roster-panel-crown { top: 0.5rem; }
 .roster-panel.is-tile .roster-panel-crown .splash-chip { display: none; }
@@ -15883,7 +15889,7 @@ app-roster-panel { display: block; height: 100%; }
 .roster-panel-queue { color: var(--text-2); }
 .roster-panel-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.45rem; margin-top: 0.15rem; }
 .roster-panel-games { font-size: 0.7rem; color: var(--text-2); }
-.roster-panel-foot .sub-badge, .roster-panel-foot .pp-role { position: relative; z-index: 2; }
+.roster-panel-also .pp-role { background: color-mix(in srgb, var(--bg-0) 60%, transparent); }
 .roster-panel-check { display: grid; gap: 0.35rem; padding: 0.45rem 0.5rem; margin-bottom: 0.3rem; border-radius: 10px; background: color-mix(in srgb, var(--bg-0) 72%, transparent); border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent); }
 .roster-panel-faces { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.35rem; }
 .roster-panel-faces li { position: relative; z-index: 2; display: grid; justify-items: center; gap: 0.05rem; }

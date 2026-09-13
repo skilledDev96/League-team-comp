@@ -29,7 +29,10 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
       }
       <span class="splash-shade" aria-hidden="true"></span>
       <div class="roster-panel-top">
-        <span class="role-pill">{{ c.role }}</span>
+        <span class="roster-panel-seat">
+          <span class="role-pill">{{ c.role }}</span>
+          @if (c.group === 'bench') { <span class="sub-badge">Sub</span> }
+        </span>
         <app-rate-ring [rate]="c.ranked?.winRate ?? null" [games]="c.ranked?.games ?? 0" [wins]="c.ranked?.wins ?? 0" [scope]="c.ranked?.queue === 'Flex' ? 'in ranked flex' : 'in ranked solo/duo'" [label]="size() === 'tall' ? (c.ranked?.queue ?? 'ranked') + ' win rate' : ''" [countUp]="true" [go]="go()" />
       </div>
       @if (c.crowned) {
@@ -63,6 +66,14 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
           @if (c.rank; as r) { {{ r.label }} <span class="roster-panel-queue">{{ r.queue }}</span> } @else { Unranked }
           @if (c.champion) { · {{ ui.championName(c.champion) }} }
         </p>
+        <!-- Their other roles, said as such (13 Sep 2026, the lead: "state that these are non primary roles"): beside the
+             game count they read as part of it. -->
+        @if (c.secondaryRoles.length) {
+          <p class="roster-panel-also pp-flex-roles">
+            <span class="pp-flex-label">Also plays</span>
+            @for (r of c.secondaryRoles; track r) { <span class="pp-role flex">{{ r }}</span> }
+          </p>
+        }
         <div class="roster-panel-foot">
           @if (c.form.length) {
             <ol class="form-pips" aria-label="Last results, newest first">
@@ -74,9 +85,7 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
           <small class="roster-panel-games">
             @if (c.group === 'fillIns') { Fill-in } @else { {{ c.games }} team {{ c.games === 1 ? 'game' : 'games' }} }
           </small>
-          @if (c.group === 'bench') { <span class="sub-badge">Sub</span> }
           @if (!c.crowned && c.titles) { <span class="splash-chip is-quiet">{{ c.titles }} MVP {{ c.titles === 1 ? 'title' : 'titles' }}</span> }
-          @for (r of c.secondaryRoles; track r) { <span class="pp-role flex">{{ r }}</span> }
         </div>
       </div>
     </article>
