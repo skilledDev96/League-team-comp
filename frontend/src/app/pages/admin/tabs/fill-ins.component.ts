@@ -4,12 +4,13 @@ import { AuthService } from '../../../services/auth.service';
 import { NgModelNameDirective } from '../../../shared/ng-model-name.directive';
 import { OverflowMenuComponent } from '../../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../../shared/player-avatar.component';
+import { ModalDirective } from '../../../shared/modal.directive';
 import { AdminContextService } from '../admin-context.service';
 
 /** Stand-ins available when the roster is short. */
 @Component({
   selector: 'app-admin-fill-ins',
-  imports: [OverflowMenuComponent, PlayerAvatarComponent, NgModelNameDirective, FormsModule],
+  imports: [OverflowMenuComponent, PlayerAvatarComponent, NgModelNameDirective, FormsModule, ModalDirective],
   templateUrl: './fill-ins.component.html'
 })
 export class AdminFillInsComponent {

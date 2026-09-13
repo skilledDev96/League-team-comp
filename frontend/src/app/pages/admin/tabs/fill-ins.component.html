@@ -1,42 +1,41 @@
+<!-- A native dialog: modal, in the top layer, Escape and a backdrop click close it (see appModal). -->
 @if (ctx.openFillIn(); as draft) {
-  <div class="modal-backdrop" (click)="ctx.closeFillIn()">
-    <div class="modal-card is-wide" role="dialog" aria-modal="true" [attr.aria-label]="draft.summoner || 'New fill-in'" (click)="$event.stopPropagation()">
-      <h2 class="title-with-icon">@if (draft.icon) { <app-player-avatar [name]="draft.summoner" [icon]="draft.icon" /> } @else { <span class="section-icon">FI</span> }{{ draft.summoner || 'New fill-in' }}</h2>
-      <p class="muted">A stand-in for when the roster is short. Saves as you type, for everyone.</p>
-      <label class="field"><span>Summoner</span>
-        <input type="text" [ngModel]="draft.summoner" (ngModelChange)="draft.summoner = $event; ctx.touchFillIn(draft)" name="fname" placeholder="Name#TAG" /></label>
-      <div class="grid two">
-        <label class="field"><span>Status</span>
-          <select [ngModel]="draft.status || 'provisional'" (ngModelChange)="draft.status = $event; ctx.touchFillIn(draft)" name="fstatus">
-            @for (st of ctx.fillInStatusOptions(draft); track st) { <option [value]="st">{{ st }}</option> }
-          </select></label>
-        <label class="field"><span>Preferred roles (comma separated)</span>
-          <input type="text" [ngModel]="draft.preferredRoles" (ngModelChange)="draft.preferredRoles = $event; ctx.touchFillIn(draft)" name="froles" placeholder="Top, Jungle" /></label>
-      </div>
-      <label class="field"><span>Note</span>
-        <input type="text" [ngModel]="draft.note" (ngModelChange)="draft.note = $event; ctx.touchFillIn(draft)" name="fnote" placeholder="Availability, what they play…" /></label>
-      <div class="grid two">
-        <label class="field"><span>Region</span>
-          <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event; ctx.touchFillIn(draft)" name="freg" /></label>
-        <label class="field"><span>Mobalytics slug <small class="muted">from Name#TAG when blank</small></span>
-          <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event; ctx.touchFillIn(draft)" name="fmoba" placeholder="name-tag" /></label>
-      </div>
-      <label class="field"><span>Icon URL <small class="muted">filled from Riot</small></span>
-        <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event; ctx.touchFillIn(draft)" name="ficon" /></label>
-      <div class="links action-row">
-        <button class="view-btn active" type="button" (click)="ctx.closeFillIn()">Done</button>
-        <button class="view-btn" type="button" [disabled]="ctx.fillInBusy() || !draft.summoner.trim()" (click)="ctx.fillFromRiot(draft)"
-                appTip="Reads their icon and the seats they play lately. Name#TAG in the summoner box.">
-          @if (ctx.fillInBusy()) { <span class="btn-spinner" aria-hidden="true"></span> Reading… } @else { Fill from Riot }
-        </button>
-        @if (auth.canManageUsers() && draft.id) {
-          <app-overflow-menu>
-            <button class="overflow-item danger" type="button" (click)="ctx.closeFillIn(); ctx.deleteFillIn(draft)">Delete fill-in</button>
-          </app-overflow-menu>
-        }
-      </div>
+  <dialog appModal class="modal-card is-wide" [attr.aria-label]="draft.summoner || 'New fill-in'" (closed)="ctx.closeFillIn()">
+    <h2 class="title-with-icon">@if (draft.icon) { <app-player-avatar [name]="draft.summoner" [icon]="draft.icon" /> } @else { <span class="section-icon">FI</span> }{{ draft.summoner || 'New fill-in' }}</h2>
+    <p class="muted">A stand-in for when the roster is short. Saves as you type, for everyone.</p>
+    <label class="field"><span>Summoner</span>
+      <input type="text" [ngModel]="draft.summoner" (ngModelChange)="draft.summoner = $event; ctx.touchFillIn(draft)" name="fname" placeholder="Name#TAG" /></label>
+    <div class="grid two">
+      <label class="field"><span>Status</span>
+        <select [ngModel]="draft.status || 'provisional'" (ngModelChange)="draft.status = $event; ctx.touchFillIn(draft)" name="fstatus">
+          @for (st of ctx.fillInStatusOptions(draft); track st) { <option [value]="st">{{ st }}</option> }
+        </select></label>
+      <label class="field"><span>Preferred roles (comma separated)</span>
+        <input type="text" [ngModel]="draft.preferredRoles" (ngModelChange)="draft.preferredRoles = $event; ctx.touchFillIn(draft)" name="froles" placeholder="Top, Jungle" /></label>
     </div>
-  </div>
+    <label class="field"><span>Note</span>
+      <input type="text" [ngModel]="draft.note" (ngModelChange)="draft.note = $event; ctx.touchFillIn(draft)" name="fnote" placeholder="Availability, what they play…" /></label>
+    <div class="grid two">
+      <label class="field"><span>Region</span>
+        <input type="text" [ngModel]="draft.region" (ngModelChange)="draft.region = $event; ctx.touchFillIn(draft)" name="freg" /></label>
+      <label class="field"><span>Mobalytics slug <small class="muted">from Name#TAG when blank</small></span>
+        <input type="text" [ngModel]="draft.mobalyticsSlug" (ngModelChange)="draft.mobalyticsSlug = $event; ctx.touchFillIn(draft)" name="fmoba" placeholder="name-tag" /></label>
+    </div>
+    <label class="field"><span>Icon URL <small class="muted">filled from Riot</small></span>
+      <input type="text" [ngModel]="draft.icon" (ngModelChange)="draft.icon = $event; ctx.touchFillIn(draft)" name="ficon" /></label>
+    <div class="links action-row">
+      <button class="view-btn active" type="button" (click)="ctx.closeFillIn()">Done</button>
+      <button class="view-btn" type="button" [disabled]="ctx.fillInBusy() || !draft.summoner.trim()" (click)="ctx.fillFromRiot(draft)"
+              appTip="Reads their icon and the seats they play lately. Name#TAG in the summoner box.">
+        @if (ctx.fillInBusy()) { <span class="btn-spinner" aria-hidden="true"></span> Reading… } @else { Fill from Riot }
+      </button>
+      @if (auth.canManageUsers() && draft.id) {
+        <app-overflow-menu>
+          <button class="overflow-item danger" type="button" (click)="ctx.closeFillIn(); ctx.deleteFillIn(draft)">Delete fill-in</button>
+        </app-overflow-menu>
+      }
+    </div>
+  </dialog>
 }
 
 <section aria-label="Fill-ins">

@@ -201,26 +201,26 @@ html:has(.page.is-film) {
   color: var(--text-1);
 }
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: rgba(6, 10, 14, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
+/* The small modal card. A native <dialog> opened with showModal (appModal), so it sits in the top
+   layer with the page inert behind it; the review takeover paints the same card as a div under its
+   own .rt-backdrop. margin: auto centres the dialog, and the browser's own dialog max-width and
+   text colour are overruled by the card's. */
 .modal-card {
   width: min(26.25rem, 100%);
+  max-width: none;
   max-height: calc(100vh - 2rem);
+  margin: auto;
   overflow: auto;
   border: 1px solid var(--card-border);
   background: var(--card);
+  color: var(--text-0);
   border-radius: var(--r-card);
   padding: 1.1rem;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+dialog.modal-card::backdrop {
+  background: color-mix(in srgb, var(--bg-0) 78%, transparent);
 }
 
 @keyframes spin {
@@ -2350,25 +2350,35 @@ body[data-theme='light'] .avatar-role {
 
 /* ---- Tactical board overlay -------------------------------------------- */
 
-.tb-scrim {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(2px);
-  z-index: 40;
-}
-
+/* A native <dialog> opened with showModal (appModal): the top layer replaces the scrim and the
+   z-index pair it used to need. The inset still sizes it, so the browser's fit-content width and
+   height and its dialog max-width and max-height are set aside. */
 .tb-modal {
   position: fixed;
   inset: 0.75vh 1.25vw;
-  z-index: 41;
-  display: flex;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
   flex-direction: column;
   background: var(--card);
+  color: var(--text-0);
   border: 1px solid var(--card-border);
   border-radius: var(--r-frame);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
   overflow: hidden;
+}
+
+.tb-modal[open] {
+  display: flex;
+}
+
+.tb-modal::backdrop {
+  background: color-mix(in srgb, var(--bg-0) 78%, transparent);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
 }
 
 .tb-head {
@@ -11312,7 +11322,7 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .player-editor .field-hint { display: block; margin-top: 0.25rem; }
 .player-editor-more { margin: 0.4rem 0; }
 .player-editor-actions { align-items: center; gap: 0.6rem; }
-.drawer-scrim { position: fixed; inset: 0; z-index: 79; background: rgba(6, 10, 14, 0.45); }
+.drawer-scrim { position: fixed; inset: 0; z-index: 79; background: color-mix(in srgb, var(--bg-0) 45%, transparent); }
 .drawer {
   position: fixed;
   top: 0;
@@ -11382,7 +11392,7 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 
 /* ---- Tours: the spotlight and the card ------------------------------------ */
 .tour-layer { position: fixed; inset: 0; z-index: 300; pointer-events: none; }
-.tour-dim { position: fixed; background: rgba(6, 10, 14, 0.55); transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease; }
+.tour-dim { position: fixed; background: color-mix(in srgb, var(--bg-0) 55%, transparent); transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease; }
 .tour-dim-all { inset: 0; }
 .tour-ring {
   position: fixed;

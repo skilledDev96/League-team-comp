@@ -16,6 +16,7 @@ import {
 import { BARON_PIT, DRAGON_PIT, MAP_SPOTS } from '../../core/rift-zones';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
+import { ModalDirective } from '../../shared/modal.directive';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 
 const PHASES: PlayPhase[] = ['Early', 'Mid', 'Late'];
@@ -57,7 +58,7 @@ const MARKER_KINDS: MarkerKind[] = ['ward', 'minion', 'dragon', 'grubs', 'herald
 
 @Component({
   selector: 'app-tactical-board',
-  imports: [FormsModule, NgModelNameDirective],
+  imports: [FormsModule, NgModelNameDirective, ModalDirective],
   templateUrl: './tactical-board.component.html'
 })
 export class TacticalBoardComponent {
@@ -384,6 +385,7 @@ export class TacticalBoardComponent {
     this.close.emit();
   }
 
+  /** Cancel, Escape, or a click on the backdrop: the host takes the board off the page. */
   protected dismiss(): void {
     this.close.emit();
   }

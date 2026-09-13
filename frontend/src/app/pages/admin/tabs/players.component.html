@@ -1,33 +1,32 @@
+<!-- A native dialog: modal, in the top layer, Escape and a backdrop click close it (see appModal). -->
 @if (ctx.showAddPlayerDialog()) {
-  <div class="modal-backdrop" (click)="ctx.closeAddPlayerDialog()">
-    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Add player" (click)="$event.stopPropagation()">
-      @if (ctx.addPlayerMode() === 'choose') {
-        <h2 class="title-with-icon"><span class="section-icon">PL</span>Add player</h2>
-        <p class="muted">How do you want to add this player?</p>
-        <div class="links">
-          <button class="view-btn active" type="button" (click)="ctx.chooseAutofillAdd()">Autofill with Summoner name</button>
-          <button class="view-btn" type="button" (click)="ctx.addPlayerManually()">Add manually</button>
-        </div>
-        <div class="links" style="margin-top: 0.75rem;">
-          <button class="view-btn" type="button" (click)="ctx.closeAddPlayerDialog()">Cancel</button>
-        </div>
-      } @else {
-        <h2 class="title-with-icon"><span class="section-icon">PL</span>Autofill with Summoner name</h2>
-        <label class="field"><span>Summoner name</span>
-          <input type="text" [ngModel]="ctx.newPlayerSummoner()" (ngModelChange)="ctx.newPlayerSummoner.set($event)" name="ctx.newPlayerSummoner" placeholder="e.g. DaWhiteHammer" /></label>
-        <div class="grid two">
-          <label class="field"><span>Riot tag</span>
-            <input type="text" [ngModel]="ctx.newPlayerTag()" (ngModelChange)="ctx.newPlayerTag.set($event)" name="ctx.newPlayerTag" /></label>
-          <label class="field"><span>Region</span>
-            <input type="text" [ngModel]="ctx.newPlayerRegion()" (ngModelChange)="ctx.newPlayerRegion.set($event)" name="ctx.newPlayerRegion" /></label>
-        </div>
-        <div class="links">
-          <button class="view-btn active" type="button" (click)="ctx.confirmAutofillAdd()">Add and autofill</button>
-          <button class="view-btn" type="button" (click)="ctx.closeAddPlayerDialog()">Cancel</button>
-        </div>
-      }
-    </div>
-  </div>
+  <dialog appModal class="modal-card" aria-label="Add player" (closed)="ctx.closeAddPlayerDialog()">
+    @if (ctx.addPlayerMode() === 'choose') {
+      <h2 class="title-with-icon"><span class="section-icon">PL</span>Add player</h2>
+      <p class="muted">How do you want to add this player?</p>
+      <div class="links">
+        <button class="view-btn active" type="button" (click)="ctx.chooseAutofillAdd()">Autofill with Summoner name</button>
+        <button class="view-btn" type="button" (click)="ctx.addPlayerManually()">Add manually</button>
+      </div>
+      <div class="links" style="margin-top: 0.75rem;">
+        <button class="view-btn" type="button" (click)="ctx.closeAddPlayerDialog()">Cancel</button>
+      </div>
+    } @else {
+      <h2 class="title-with-icon"><span class="section-icon">PL</span>Autofill with Summoner name</h2>
+      <label class="field"><span>Summoner name</span>
+        <input type="text" [ngModel]="ctx.newPlayerSummoner()" (ngModelChange)="ctx.newPlayerSummoner.set($event)" name="ctx.newPlayerSummoner" placeholder="e.g. DaWhiteHammer" /></label>
+      <div class="grid two">
+        <label class="field"><span>Riot tag</span>
+          <input type="text" [ngModel]="ctx.newPlayerTag()" (ngModelChange)="ctx.newPlayerTag.set($event)" name="ctx.newPlayerTag" /></label>
+        <label class="field"><span>Region</span>
+          <input type="text" [ngModel]="ctx.newPlayerRegion()" (ngModelChange)="ctx.newPlayerRegion.set($event)" name="ctx.newPlayerRegion" /></label>
+      </div>
+      <div class="links">
+        <button class="view-btn active" type="button" (click)="ctx.confirmAutofillAdd()">Add and autofill</button>
+        <button class="view-btn" type="button" (click)="ctx.closeAddPlayerDialog()">Cancel</button>
+      </div>
+    }
+  </dialog>
 }
 
 <section aria-label="Players">
@@ -48,7 +47,7 @@
       [class.player-panel-highlight]="ctx.isPlayerHighlighted(draft)"
       [id]="'player-' + draft.uid">
       @if (ctx.enrichingPlayerId() === ctx.enrichmentKey(draft)) {
-        <div class="card-loading-overlay" role="ctx.status" aria-live="polite">
+        <div class="card-loading-overlay" role="status" aria-live="polite">
           <span class="app-loading-spinner" aria-hidden="true"></span>
           <p>Fetching Riot data…</p>
         </div>

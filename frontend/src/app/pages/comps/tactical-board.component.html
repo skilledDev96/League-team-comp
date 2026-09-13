@@ -1,6 +1,5 @@
-<div class="tb-scrim" (click)="dismiss()"></div>
-
-<div class="tb-modal" role="dialog" aria-modal="true" aria-label="Tactical board">
+<!-- A native dialog: modal, in the top layer; Escape and a click on the backdrop dismiss it (see appModal). -->
+<dialog appModal class="tb-modal" aria-label="Tactical board" (closed)="dismiss()">
   <header class="tb-head">
     <div class="tb-head-main">
       @if (canEdit()) {
@@ -259,4 +258,4 @@
       </button>
     </footer>
   }
-</div>
+</dialog>
