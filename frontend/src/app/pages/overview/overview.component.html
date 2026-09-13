@@ -11,7 +11,7 @@
     <ul class="roster-poster" appInView (firstSeen)="seen.set(true)" [style.--roster-cols]="posterCols()">
       @for (c of m.starters; track c.id; let i = $index) {
         <li [style.--roster-i]="i">
-          <app-roster-panel data-tour="roster-card" [card]="c" size="tall" [full]="full()" [go]="seen()"
+          <app-roster-panel data-tour="roster-card" [card]="c" size="tall" [full]="full()" [go]="seen()" [trend]="trends().get(c.id) ?? null"
                             [selected]="selectedId() === c.id" (open)="toggle(c.id, $event)" />
         </li>
       }
@@ -33,7 +33,7 @@
     <ul class="roster-tiles" appInView>
       @for (c of m.bench; track c.id; let i = $index) {
         <li [style.--roster-i]="i">
-          <app-roster-panel [card]="c" size="tile" [full]="full()" [selected]="selectedId() === c.id" (open)="toggle(c.id, $event)" />
+          <app-roster-panel [card]="c" size="tile" [full]="full()" [trend]="trends().get(c.id) ?? null" [selected]="selectedId() === c.id" (open)="toggle(c.id, $event)" />
         </li>
       }
     </ul>
@@ -52,7 +52,7 @@
     <ul class="roster-tiles" appInView>
       @for (c of m.fillIns; track c.id; let i = $index) {
         <li [style.--roster-i]="i">
-          <app-roster-panel [card]="c" size="tile" [full]="full()" [selected]="selectedId() === c.id" (open)="toggle(c.id, $event)" />
+          <app-roster-panel [card]="c" size="tile" [full]="full()" [trend]="trends().get(c.id) ?? null" [selected]="selectedId() === c.id" (open)="toggle(c.id, $event)" />
         </li>
       }
     </ul>

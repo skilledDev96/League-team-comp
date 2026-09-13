@@ -1,5 +1,7 @@
 import { afterNextRender, Component, computed, effect, inject, Injector, input, signal, untracked } from '@angular/core';
+import { amsterdamToday, RankTrend, rankTrendOf } from '../../core/rank-ladder';
 import { RosterCard, RosterGroup, RosterModel } from '../../core/roster-model';
+import { RankHistoryService } from '../../services/rank-history.service';
 import { MotionService } from '../../services/motion.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { InViewDirective } from '../../shared/in-view.directive';
@@ -29,6 +31,29 @@ export class OverviewComponent {
   private readonly data = inject(TeamDataService);
   private readonly motion = inject(MotionService);
   private readonly injector = inject(Injector);
+  private readonly history = inject(RankHistoryService);
+
+  /**
+   * Which way each player's rank went this week (13 Sep 2026, the lead picked it for the cards): read off the ranks
+   * the morning refresh writes down, in the queue the card's rank comes from. Loaded for the A team and the bench
+   * only, since a fill-in has no history; a player with fewer than two mornings shows nothing.
+   */
+  private readonly loadRanks = effect(() => {
+    const m = this.model();
+    const ids = [...m.starters, ...m.bench].flatMap((c) => (c.playerId ? [c.playerId] : []));
+    untracked(() => void this.history.loadAll(ids));
+  });
+  protected readonly trends = computed(() => {
+    const known = this.history.known();
+    const today = amsterdamToday();
+    const m = this.model();
+    const out = new Map<string, RankTrend | null>();
+    for (const c of [...m.starters, ...m.bench]) {
+      const doc = c.playerId ? known.get(c.playerId) : null;
+      out.set(c.id, doc && c.rank ? rankTrendOf(doc.points, today, c.rank.queue === 'Solo' ? 'solo' : 'flex') : null);
+    }
+    return out;
+  });
 
   /** The poster has come on screen: the rings count from here. */
   protected readonly seen = signal(false);

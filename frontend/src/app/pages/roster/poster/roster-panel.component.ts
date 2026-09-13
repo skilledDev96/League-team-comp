@@ -1,4 +1,6 @@
 import { Component, computed, inject, input, output } from '@angular/core';
+import { RankTrend } from '../../../core/rank-ladder';
+import { playedAgo } from '../../../core/team-season';
 import { RosterCard } from '../../../core/roster-model';
 import { ChampionFilterService } from '../../../services/champion-filter.service';
 import { UiService } from '../../../services/ui.service';
@@ -64,6 +66,11 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
         </h3>
         <p class="roster-panel-meta">
           @if (c.rank; as r) { {{ r.label }} <span class="roster-panel-queue">{{ r.queue }}</span> } @else { Unranked }
+          @if (trend(); as t) {
+            <span class="roster-panel-trend" [class.is-up]="t.delta > 0" [class.is-down]="t.delta < 0" [appTip]="trendTip()">
+              <span class="material-symbols-rounded" aria-hidden="true">{{ t.delta > 0 ? 'trending_up' : t.delta < 0 ? 'trending_down' : 'trending_flat' }}</span>{{ t.delta > 0 ? '+' + t.delta : t.delta < 0 ? '−' + -t.delta : '±0' }}<span class="visually-hidden"> {{ trendWords() }}</span>
+            </span>
+          }
           @if (c.champion) { · {{ ui.championName(c.champion) }} }
         </p>
         <!-- Their other roles, said as such (13 Sep 2026, the lead: "state that these are non primary roles"): beside the
@@ -83,7 +90,7 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
             </ol>
           }
           <small class="roster-panel-games">
-            @if (c.group === 'fillIns') { Fill-in } @else { {{ c.games }} team {{ c.games === 1 ? 'game' : 'games' }} }
+            @if (c.group === 'fillIns') { Fill-in } @else { {{ c.games }} team {{ c.games === 1 ? 'game' : 'games' }}@if (ago(); as a) { <span class="roster-panel-ago" [appTip]="agoTip()">· played {{ a }}</span> } }
           </small>
           @if (!c.crowned && c.titles) { <span class="splash-chip is-quiet">{{ c.titles }} MVP {{ c.titles === 1 ? 'title' : 'titles' }}</span> }
         </div>
@@ -98,6 +105,8 @@ export class RosterPanelComponent {
   readonly full = input(false);
   /** Start the ring's count: the poster has come on screen. */
   readonly go = input(true);
+  /** Which way their rank went this week; nothing until two mornings are known. */
+  readonly trend = input<RankTrend | null>(null);
   /** True when opened from the keyboard, so the sheet can take focus. */
   readonly open = output<boolean>();
 
@@ -107,6 +116,27 @@ export class RosterPanelComponent {
   /** Highlighted when the champion being asked about is in their pool, dimmed when it is not, neither without a question. */
   protected readonly match = computed(() => (this.filter.active() ? this.filter.passes(this.card().pool.map((e) => e.champion)) : null));
   protected readonly topPool = computed(() => this.card().pool.slice(0, 3));
+  protected readonly trendWords = computed(() => {
+    const t = this.trend();
+    if (!t) return '';
+    return t.delta === 0 ? 'no change this week' : `${t.delta > 0 ? 'up' : 'down'} ${Math.abs(t.delta)} points this week`;
+  });
+  protected readonly trendTip = computed(() => {
+    const t = this.trend();
+    if (!t) return '';
+    const queue = t.queue === 'solo' ? 'Solo' : 'Flex';
+    const since = new Date(`${t.from.day}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    return `${queue}: ${t.from.words} ${t.from.lp} LP → ${t.to.words} ${t.to.lp} LP since ${since}, from the morning ranks`;
+  });
+  /** "2 days ago": when they last played a serious game with the team. */
+  protected readonly ago = computed(() => {
+    const at = this.card().lastPlayed;
+    return at ? playedAgo(at, Date.now()) : '';
+  });
+  protected readonly agoTip = computed(() => {
+    const at = this.card().lastPlayed;
+    return at ? `Last team game ${new Date(at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}` : '';
+  });
   protected readonly crownTip = computed(() => {
     const c = this.card();
     const last = c.lastTitle ? ` Last: vs ${c.lastTitle.opponent} on ${this.ui.championName(c.lastTitle.champion)}.` : '';

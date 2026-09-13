@@ -15887,6 +15887,13 @@ app-roster-panel { display: block; height: 100%; }
 .roster-panel-open:focus-visible { outline: none; }
 .roster-panel-meta { margin: 0; font-size: 0.74rem; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .roster-panel-queue { color: var(--text-2); }
+/* The week's rank change beside the rank, and when they last played beside the team games (13 Sep 2026). Lifted over the
+   panel's stretched name button so their tips answer a hover. */
+.roster-panel-trend { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 0.1rem; margin-left: 0.3rem; font-weight: 700; color: var(--text-2); }
+.roster-panel-trend .material-symbols-rounded { font-size: 0.95rem; }
+.roster-panel-trend.is-up { color: var(--ok); }
+.roster-panel-trend.is-down { color: var(--warn); }
+.roster-panel-ago { position: relative; z-index: 2; margin-left: 0.25rem; }
 .roster-panel-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.45rem; margin-top: 0.15rem; }
 .roster-panel-games { font-size: 0.7rem; color: var(--text-2); }
 .roster-panel-also .pp-role { background: color-mix(in srgb, var(--bg-0) 60%, transparent); }

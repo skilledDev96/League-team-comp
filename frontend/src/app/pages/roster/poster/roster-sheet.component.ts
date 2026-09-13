@@ -1,5 +1,6 @@
 import { Component, computed, inject, input, output } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { playedAgo } from '../../../core/team-season';
 import { RosterCard } from '../../../core/roster-model';
 import { Player, Role, ROLES } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
@@ -48,7 +49,7 @@ const STARTER_WORKING = 3;
                 }
               </ol>
             }
-            <small>{{ c.games ? c.games + ' team ' + (c.games === 1 ? 'game' : 'games') + ', all time' : 'No team games yet' }}</small>
+            <small>{{ c.games ? c.games + ' team ' + (c.games === 1 ? 'game' : 'games') + ', all time' : 'No team games yet' }}@if (lastPlayed(); as a) { · last played {{ a }} }</small>
           </div>
         </div>
 
@@ -210,6 +211,11 @@ const STARTER_WORKING = 3;
 })
 export class RosterSheetComponent {
   readonly card = input.required<RosterCard>();
+  /** "2 days ago": when they last played a serious game with the team. */
+  protected readonly lastPlayed = computed(() => {
+    const at = this.card().lastPlayed;
+    return at ? playedAgo(at, Date.now()) : '';
+  });
   /** The stored player, for the edit controls; absent for a fill-in. */
   readonly player = input<Player | undefined>(undefined);
   readonly full = input(false);

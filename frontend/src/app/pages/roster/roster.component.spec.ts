@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { environment } from '../../../environments/environment';
+import { amsterdamToday } from '../../core/rank-ladder';
 import { FillIn, OpponentPlayer, PainPoint, Player, Scrim, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -25,7 +26,7 @@ const players = (
     ['p-sup', 'Suppy', 'Support', 'Leona']
   ] as const
 )
-  .map(([id, name, role, main], order) => ({ id, name, role, order, top3: [main], strengths: ['Teamfights'], weaknesses: ['Early deaths'], bans: [], profile: { riotTag: 'EUW' } }) as unknown as Player)
+  .map(([id, name, role, main], order) => ({ id, name, role, order, top3: [main], strengths: ['Teamfights'], weaknesses: ['Early deaths'], bans: [], profile: { riotTag: 'EUW' }, ...(id === 'p-top' ? { queueStats: { solo: { rank: { queueType: 'RANKED_SOLO_5x5', tier: 'GOLD', rank: 'I', leaguePoints: 20, wins: 30, losses: 25, winRate: 55 } } } } : {}) }) as unknown as Player)
   .concat([{ id: 'p-sub', name: 'Benchy', role: 'Top', order: 9, sub: true, top3: ['Ornn'], strengths: [], weaknesses: [], bans: [] } as unknown as Player]);
 
 const tournaments = [{ id: 'cup', name: 'Oryx Fearless', kind: 'tournament', order: 0, startDate: '2026-09-01', active: true }] as unknown as Tournament[];
@@ -86,6 +87,22 @@ describe.skipIf(typeof localStorage === 'undefined')('RosterComponent, the team 
     expect(root.querySelectorAll('.roster-tiles .roster-panel')).toHaveLength(2);
     expect(root.querySelector('.roster-sheet')).toBeNull();
     for (const name of THEIRS) expect(root.innerHTML).not.toContain(name);
+  });
+
+  it("shows the week's rank change and when they last played on the cards, and nothing where it is not known", async () => {
+    const today = amsterdamToday();
+    const daysAgo = (n: number) => new Date(Date.parse(today + 'T12:00:00Z') - n * 86_400_000).toISOString().slice(0, 10);
+    const point = (day: string, division: string, lp: number) => ({ day, queue: 'solo', tier: 'GOLD', division, lp, wins: 0, losses: 0 });
+    localStorage.setItem('bom-dev-rank-history:p-top', JSON.stringify({ playerId: 'p-top', updatedAt: today, points: [point(daysAgo(6), 'II', 80), point(today, 'I', 20)] }));
+    const { harness, root } = await open();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    const zac = root.querySelectorAll('.roster-poster .roster-panel')[0];
+    expect(text(zac.querySelector('.roster-panel-trend.is-up'))).toContain('+40');
+    expect(root.querySelectorAll('.roster-panel-trend')).toHaveLength(1);
+    expect(text(zac.querySelector('.roster-panel-ago'))).toMatch(/^· played (today|yesterday|\d+ (days|weeks|months) ago)$/);
+    // Benchy has played no team game: no "played" at all rather than a guess.
+    expect(root.querySelector('.roster-tiles .roster-panel .roster-panel-ago')).toBeNull();
   });
 
   it('opens one sheet at a time, switches between players, and closes on a second click or Escape', async () => {
