@@ -1201,7 +1201,7 @@ filter rather than none, so it can never become unpickable.
    **Quick actions** (`shared/quick-actions.component.ts`, compact pills in
    the Roster hero since 13 Sep 2026) are links into page states: `/games?refresh=1`
    runs the refresh and marks what came in (`justPracticed`, the param is
-   dropped afterwards), `/admin?tab=comps&add=comp` opens a blank comp,
+   dropped afterwards), `/comps?add=comp` opens a blank comp in its sheet,
    `/tournaments?view=draft` the draft room, `/games?tab=reviews` the
    Reviews tab. The profile's Coaching notes open on a rule-based digest
    (`core/coaching-digest.ts`: which themes the notes keep touching) with
@@ -1273,20 +1273,38 @@ signal of its own, and do not invent a second vocabulary for the same idea.
 `UserPrefsService.load()` puts the local copy into the signal **before**
 awaiting Firestore, or a stored Full renders Starter and flips.
 
-**A comp panel builds only while it is open** (12 Sep 2026). A shut `<details>`
-still renders everything inside it, so edit mode built every comp's board and a
-173-champion wall nobody could see. `CompsComponent.isOpen` is
-`full() !== flipped.has(id)`: Starter opens nothing, Full opens every comp, a
-click turns one against the depth, and a change of depth resets them — only a
-change, or the first run would undo a `?comp=` reveal. Starter keeps the five,
-the notes, the plan, the expectation, the bans and the record's headline; Full
-adds how it played out, each result, the notes from its games and Counts as
-part of. `app-comp-board` draws its wall only while a seat is empty or after a
-seat or **Change picks** is pressed, and closes it once all five are in — the
-same clicks a swap always took. The tours walk one comp, `tourCompId` (a
-finished comp with a record, else a finished comp, else the first), because the
-anchors used to repeat on every card and each step landed on whichever came
-first; `openTourComp` opens it and `comps-read` is the tour a viewer gets.
+**Comps is a poster with one sheet** (13 Sep 2026, the lead: "overwhelming complaints to just add
+and edit comps… I love the look we have now, let's bring this over to the comps page").
+`core/comps-build.ts` `buildComps` builds the whole page as one pure model — every comp's five with
+who covers each seat, its shape (`classifyComp`, "Building" until five), its face (`faceOf`: the
+champion the name names, else the seat the shape turns on, else the first filled), its expectation,
+its record, its plays, its variants, what the reviews said of its games and the notes on them — and
+`pages/comps/` draws it: `comp-tile.component` (a `.splash-tile` over the face, a ring, the five as
+icons, the form; **one stretched button** `#comps-open-<id>` with `aria-expanded`), `comp-sheet.component`
+(`.gold-frame#comps-sheet`, built only while a comp is picked, placed in a full-width cell after
+`sheetAfterIndex(i, cols, cells)` so it sits under the row holding its tile; the five as faces, then
+six blocks: game plan, what we expect, bans, notes, the record (`comp-record.component`) and the
+plays) and the shell, which keeps `picked` the way the Roster poster does (`null` follows the depth,
+`'none'` is closed by hand; Full opens the first comp and pins it by id; a change of depth resets).
+**A comp's record is counted from the game rows** (`buildGameRows`, `row.compId`) — the same games
+Home's comp of the month and `/games?comp=` count — not the backend's `CompPerformance`, so no two
+surfaces can disagree; logged results head the played ones. The row builder keeps the comp on a
+tournament game that owns a Riot row, which it used to drop (five of Dive's six games).
+**Every write goes through `comp-writes.service.ts`** (provided on the page): each stamps the
+expectation and shares one "Saved <name>" every couple of seconds. **Add a comp shows to anyone who
+`canEdit()`** — the hero pill, the New comp tile, `?add=comp` — and turns edit mode on, opening the
+sheet with "New comp N" selected in the rename field (a `[value]` binding, since ngModel writes a tick
+after the selection); Enter saves, an empty name reverts with a toast, Escape in a field reverts and
+keeps the sheet, Escape elsewhere closes it and focus returns to the tile. **Delete comp** sits in the
+sheet's ⋯ menu for any editor, behind a confirm that names what goes (results, plays, and comps that
+counted under it stand on their own). Admin › Comps stays as the text fallback. `?comp=<id>` opens
+and scrolls to a tile (`compToOpen`), clearing the category and, only when it would hide the comp,
+the champion filter. The tours walk one comp, `tourCompId`; `openTourComp` clicks its tile and
+`openTourCompFull` raises the depth first. The toolbar is the slim one (`.view-controls.is-slim`,
+shared with Roster) and the hero the shared slim hero (`.hero.is-slim`, `.hero-id`, `.hero-title`,
+`.hero-blurb`, `.hero-actions`). Motion sits behind `.comps:not(.is-still) … .is-seen`. The old
+`.comp-*` rules are gone; `.board-*` (the board, shared with the draft room's dialog) and Review's
+`.comp-group*` stay.
 
 **A deep link pins a game, it does not widen the list** (12 Sep 2026).
 `?match=` on `/games` sets `pinnedMatch` and `listRows` prepends that row only
