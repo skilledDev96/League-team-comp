@@ -12465,20 +12465,6 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .split-view-toggle { margin: 0; }
 .review-toolbar .split-view-toggle .segment { padding-top: 0.25rem; padding-bottom: 0.25rem; }
 
-/* ---- Roster cards: the A team and second seats, set in edit mode --------- */
-.roster-edit {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem;
-  margin: 0.2rem 0 0.4rem;
-}
-
-.roster-edit .games-bench-toggle { margin-left: 0; }
-.roster-edit .games-bench-toggle.active:not(:first-child) { border-color: var(--accent); color: var(--text-0); background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.roster-edit-label { margin-left: 0.5rem; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-1); }
 
 .custom-five .team-champ-filter { margin: 0.2rem 0 0; }
 .custom-five .view-btn em { font-style: normal; font-size: 0.68rem; opacity: 0.7; margin-left: 0.25rem; }
@@ -12612,7 +12598,7 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .ateam-toggle:hover, .ateam-toggle:focus-visible { border-color: var(--accent); }
 .ateam-toggle.is-small { padding: 0.08rem 0.5rem; font-size: 0.68rem; margin-left: 0.5rem; }
 
-/* The roster card's controls row. */
+/* The A team and seat controls, in the Roster sheet (13 Sep 2026). */
 .roster-edit {
   position: relative;
   z-index: 3;
@@ -12631,8 +12617,6 @@ details.is-new > summary::after { content: 'New'; margin-left: 0.5rem; padding: 
 .roster-edit .role-flex-toggle { padding: 0.15rem 0.55rem; font-size: 0.72rem; }
 .roster-edit-open { margin-left: auto; padding: 0.12rem 0.5rem; font-size: 0.72rem; border-color: transparent; background: transparent; color: var(--text-1); }
 .roster-edit-open:hover, .roster-edit-open:focus-visible { border-color: var(--card-border); color: var(--text-0); }
-.roster-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.78rem; position: relative; z-index: 3; }
-.roster-card-foot .role-toggle { margin: 0; }
 .roster-profile-chip { display: inline-flex; align-items: center; gap: 0.2rem; text-decoration: none; }
 .roster-profile-chip .material-symbols-rounded { font-size: 1rem; }
 
@@ -15447,59 +15431,36 @@ body[data-theme="light"] .rt-stage { --film-ink: var(--bg-0); --film-ink-1: var(
   padding-right: 0.25rem;
 }
 
-/* ---- Roster cards (12 Sep 2026) ---------------------------------------------------------------------
-   The lead: "the styling looks misaligned in the cards itself … 2nd seat should be a pill or something".
-   Three rows each started at their own x: the playstyle line carried its own padding, the main champion
-   put a 2.9rem portrait ahead of its label, and every label had its own width. Now one left edge, the
-   facts in two columns with both icons the size of a line, and the 2nd seat as the muted role pills
-   the table already uses. Scoped to .roster-card: the meta-line family is shared with the profile,
-   Scouting and Synergy. */
-.roster-card .title-row { gap: 0.75rem; margin-bottom: 0.8rem; align-items: center; }
-.roster-card .avatar { width: 3.25rem; height: 3.25rem; }
-.roster-card-id { flex: 1 1 auto; min-width: 0; display: grid; gap: 0.3rem; }
-.roster-card .roster-card-id h2 { margin: 0; line-height: 1.2; overflow-wrap: anywhere; }
-.roster-card-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
-.roster-card-tags .sub-badge { margin-left: 0; margin-right: 0.2rem; position: relative; z-index: 3; }
-.roster-card-also { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-1); }
-.roster-card .title-row-edit .material-symbols-rounded { font-size: 1rem; }
-.roster-card .roster-edit { margin: 0 0 0.8rem; }
-.roster-card .roster-edit-label { margin-left: 0; }
 
-.roster-card-facts {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  align-items: center;
-  gap: 0.45rem 1rem;
-  margin: 0;
-}
-
-.roster-card-facts dt {
-  margin: 0;
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-1);
-}
-
-.roster-card-facts dd {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-width: 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--text-0);
-}
-
-.roster-card-facts .playstyle-icon,
-.roster-card-champ { flex: none; width: 1.35rem; height: 1.35rem; }
-.roster-card-champ { border-radius: 50%; object-fit: cover; border: 1px solid var(--card-border); }
-.roster-card-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.roster-card .roster-card-foot { margin-top: 0.9rem; padding-top: 0.75rem; border-top: 1px solid var(--card-border); }
-.roster-card.expanded .role-details { display: grid; gap: 0.5rem; }
+/* ---- Splash primitives: Home and Roster (13 Sep 2026) ----------------------------------------------
+   The pieces the two expressive pages share: a champion's splash behind a tile with a shade under its words,
+   the seat as a pill, a win-rate ring, a crown and its chip, a strip of results, and the gold frame. Tokens
+   only, so every theme draws its own version; motion lives with each page's gate. */
+.splash-tile { position: relative; overflow: hidden; isolation: isolate; border-radius: 12px; border: 1px solid var(--card-border); background: var(--bg-1); color: var(--text-0); }
+.splash-art { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; filter: saturate(0.9) brightness(0.8); }
+.splash-shade { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 94%, transparent) 0%, color-mix(in srgb, var(--bg-0) 40%, transparent) 50%, color-mix(in srgb, var(--bg-0) 20%, transparent) 100%); }
+.splash-crown { font-size: 1.5rem; color: var(--accent-2); filter: drop-shadow(0 0.1rem 0.4rem color-mix(in srgb, var(--bg-0) 80%, transparent)); }
+.splash-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.14rem 0.55rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; color: var(--accent-2); background: color-mix(in srgb, var(--bg-0) 55%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); white-space: nowrap; }
+.splash-chip .material-symbols-rounded { font-size: 0.95rem; }
+.splash-chip.is-quiet { color: var(--text-1); border-color: var(--card-border); }
+.role-pill { padding: 0.12rem 0.5rem; border-radius: 999px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-0); background: color-mix(in srgb, var(--bg-0) 70%, transparent); border: 1px solid var(--card-border); }
+.rate-ring-wrap { display: grid; justify-items: center; gap: 0.15rem; }
+.rate-ring-label { font-size: 0.56rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-0); text-shadow: 0 0.1rem 0.4rem color-mix(in srgb, var(--bg-0) 90%, transparent); }
+.rate-ring { position: relative; display: grid; place-items: center; width: var(--ring-size, 3.2rem); height: var(--ring-size, 3.2rem); }
+.rate-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.rate-ring circle { fill: none; stroke-width: 3.4; }
+.rate-ring-track { stroke: color-mix(in srgb, var(--bg-0) 60%, transparent); }
+.rate-ring-fill { stroke: var(--text-1); stroke-linecap: round; }
+.rate-ring.is-good .rate-ring-fill, .rate-ring.is-ok .rate-ring-fill { stroke: var(--ok); }
+.rate-ring.is-poor .rate-ring-fill { stroke: var(--warn); }
+.rate-ring b { position: relative; font-family: "Chakra Petch", sans-serif; font-size: calc(var(--ring-size, 3.2rem) * 0.24); font-variant-numeric: tabular-nums; }
+.form-pips { list-style: none; margin: 0; padding: 0; display: inline-flex; gap: 0.18rem; }
+.form-pip { width: 0.5rem; height: 0.85rem; border-radius: 2px; background: color-mix(in srgb, var(--text-1) 25%, transparent); }
+.form-pip.is-win { background: var(--ok); }
+.form-pip.is-loss { background: var(--warn); }
+.form-pips.is-big .form-pip { width: 0.7rem; height: 1.15rem; border-radius: 3px; }
+.gold-frame { position: relative; isolation: isolate; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: 0 14px 34px var(--shadow-elev), 0 0 2.5rem color-mix(in srgb, var(--accent) 16%, transparent); }
+.gold-frame::before { content: ""; position: absolute; inset: 0.45rem; z-index: 1; border-radius: 11px; border: 1px solid color-mix(in srgb, var(--accent-2) 38%, transparent); pointer-events: none; }
 
 /* ---- Home, the landing page (13 Sep 2026) -------------------------------------------------------
    The one expressive page: its own stage instead of the page toolbar, drawn from the theme tokens only,
@@ -15798,21 +15759,8 @@ span.home-records-open { width: 4.1rem; }
 .home-lineup-card:hover, .home-lineup-card:focus-visible { border-color: var(--accent); text-decoration: none; }
 .home-lineup-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .home-lineup-card.is-crowned { border-color: color-mix(in srgb, var(--accent) 75%, transparent); box-shadow: 0 0 1.4rem color-mix(in srgb, var(--accent) 18%, transparent); }
-.home-lineup-art { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; filter: saturate(0.9) brightness(0.8); }
-.home-lineup-shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 94%, transparent) 0%, color-mix(in srgb, var(--bg-0) 40%, transparent) 50%, color-mix(in srgb, var(--bg-0) 20%, transparent) 100%); }
-.home-lineup-crown { position: absolute; top: 0.55rem; left: 50%; margin-left: -0.75rem; font-size: 1.5rem; color: var(--accent-2); filter: drop-shadow(0 0.1rem 0.4rem color-mix(in srgb, var(--bg-0) 80%, transparent)); }
+.home-lineup-crown { position: absolute; top: 0.55rem; left: 50%; margin-left: -0.75rem; }
 .home-lineup-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.4rem; }
-.home-lineup-role { padding: 0.12rem 0.5rem; border-radius: 999px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; background: color-mix(in srgb, var(--bg-0) 70%, transparent); border: 1px solid var(--card-border); }
-.home-lineup-rate { display: grid; justify-items: center; gap: 0.15rem; }
-.home-ring-label { font-size: 0.56rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-0); text-shadow: 0 0.1rem 0.4rem color-mix(in srgb, var(--bg-0) 90%, transparent); }
-.home-ring { position: relative; display: grid; place-items: center; width: 3.2rem; height: 3.2rem; }
-.home-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
-.home-ring circle { fill: none; stroke-width: 3.4; }
-.home-ring-track { stroke: color-mix(in srgb, var(--bg-0) 60%, transparent); }
-.home-ring-fill { stroke: var(--text-1); stroke-linecap: round; }
-.home-ring.is-good .home-ring-fill, .home-ring.is-ok .home-ring-fill { stroke: var(--ok); }
-.home-ring.is-poor .home-ring-fill { stroke: var(--warn); }
-.home-ring b { position: relative; font-family: "Chakra Petch", sans-serif; font-size: 0.76rem; font-variant-numeric: tabular-nums; }
 .home-lineup-foot { display: grid; gap: 0.1rem; min-width: 0; }
 .home-lineup-name { font-family: "Chakra Petch", sans-serif; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-lineup-foot small { font-size: 0.72rem; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -15896,7 +15844,7 @@ span.home-records-open { width: 4.1rem; }
   .home-podium-step:nth-child(3) { --home-i: 2; }
   .home:not(.is-still) .home-podium.is-seen .home-podium-who { animation: film-drop 500ms ease backwards; animation-delay: calc(700ms + var(--home-i, 0) * 120ms); }
   .home:not(.is-still) .home-record.is-seen .home-donut-part { animation: home-ring-draw 1100ms cubic-bezier(0.3, 0.7, 0.2, 1) 200ms backwards; }
-  .home:not(.is-still) .home-lineup.is-seen .home-ring-fill { animation: home-ring-draw 1000ms cubic-bezier(0.3, 0.7, 0.2, 1) 300ms backwards; }
+  .home:not(.is-still) .home-lineup.is-seen .rate-ring-fill { animation: home-ring-draw 1000ms cubic-bezier(0.3, 0.7, 0.2, 1) 300ms backwards; }
   /* A wipe rather than a dash: the chart stretches to its box with non-scaling strokes, and a dash length does not survive that. */
   .home:not(.is-still) .home-climb.is-seen .home-climb-chart svg { animation: film-wipe 1600ms ease-out 250ms backwards; }
   .home:not(.is-still) .home-trend.is-seen .home-trend-chart svg { animation: film-wipe 1400ms ease-out 200ms backwards; }
@@ -15907,8 +15855,8 @@ span.home-records-open { width: 4.1rem; }
   .home:not(.is-still) .home-trophies.is-seen .home-won-medal { animation: home-stamp 700ms ease 250ms backwards; }
   .home:not(.is-still) .home-trophies.is-seen .home-trophy.is-earned .home-trophy-icon { animation: home-stamp 600ms ease 300ms backwards; }
   .home:not(.is-still) .home-lineup-card { transition: border-color 160ms ease, transform 200ms ease; }
-  .home:not(.is-still) .home-lineup-card:hover .home-lineup-art { transform: scale(1.04); }
-  .home:not(.is-still) .home-lineup-art { transition: transform 600ms ease; }
+  .home:not(.is-still) .home-lineup-card:hover .splash-art { transform: scale(1.04); }
+  .home:not(.is-still) .home-lineup-card .splash-art { transition: transform 600ms ease; }
   @keyframes home-step-rise { from { transform: scaleY(0); } }
   @keyframes home-ring-draw { from { stroke-dasharray: 0 100; } }
   @keyframes home-stamp { from { opacity: 0; transform: scale(1.5) rotate(-8deg); } }
@@ -15922,3 +15870,155 @@ span.home-records-open { width: 4.1rem; }
 .admin-banner-skin { width: 8rem; }
 .admin-banner-preview { margin: 0.6rem 0 0; display: grid; gap: 0.3rem; max-width: 28rem; }
 .admin-banner-preview img { width: 100%; aspect-ratio: 1215 / 717; object-fit: cover; border-radius: 10px; border: 1px solid var(--card-border); background: var(--bg-1); }
+
+/* ---- Roster, the team poster (13 Sep 2026) --------------------------------------------------------------
+   The lead: "I love the look of this instead of the summoner icons … keep the theme of the home page rolling".
+   The A team stands five across over their mains, the bench and fill-ins as shorter tiles, one player's sheet
+   in a gold frame under the group they stand in. Built from the splash primitives; motion behind the one gate:
+   `.roster:not(.is-still)` and the section `.is-seen`, transform and opacity only. */
+.roster { display: block; }
+.roster-hero { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem 1.5rem; padding: 0.4rem 0.2rem 0.2rem; background: none; border: 0; box-shadow: none; overflow: visible; }
+.roster-hero::after { display: none; }
+.roster-hero-id { display: grid; gap: 0.15rem; min-width: 0; }
+.roster-kicker { gap: 0.3rem; }
+.roster-title { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 2.3rem; font-weight: 700; line-height: 1; letter-spacing: 0.01em; text-transform: uppercase; color: var(--text-0); }
+.roster-hero-blurb { margin: 0; font-size: 0.85rem; color: var(--text-1); }
+.roster-hero-tools { display: grid; justify-items: end; gap: 0.45rem; min-width: 0; }
+.roster-hero .hero-tools { position: static; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; }
+.quick-actions.is-compact { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; margin: 0; padding: 0; background: none; border: 0; box-shadow: none; }
+.quick-action-count { margin-left: 0.15rem; padding: 0 0.35rem; border-radius: 999px; font-size: 0.66rem; background: color-mix(in srgb, var(--accent) 25%, transparent); }
+
+.roster-group { display: grid; gap: 0.6rem; margin: 1rem 0 0.4rem; }
+.roster-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; padding: 0 0.2rem; }
+.roster-group-title { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.15rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-1); }
+.roster-scope { font-size: 0.74rem; color: var(--text-2); }
+.roster-empty { margin: 0; color: var(--text-1); }
+
+.roster-poster { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(var(--roster-cols, 5), minmax(0, 1fr)); gap: 0.75rem; }
+.roster-tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.75rem; }
+.roster-poster > li, .roster-tiles > li { min-width: 0; }
+app-roster-panel { display: block; height: 100%; }
+
+.roster-panel { height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding: 0.7rem; cursor: pointer; }
+.roster-panel.is-tall { min-height: 23rem; }
+.roster-panel.is-tile { min-height: 10.5rem; }
+.roster-panel.is-tile .splash-art { object-position: 50% 25%; }
+.roster-panel:hover { border-color: var(--accent); }
+.roster-panel:has(.roster-panel-open:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.roster-panel.is-crowned { border-color: color-mix(in srgb, var(--accent) 75%, transparent); box-shadow: 0 0 1.4rem color-mix(in srgb, var(--accent) 18%, transparent); }
+.roster-panel.is-selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 1.6rem color-mix(in srgb, var(--accent) 24%, transparent); }
+.roster-panel.is-dimmed { opacity: 0.45; }
+.roster-panel.is-match { box-shadow: 0 0 0 2px var(--accent-2); }
+.roster-panel-top { position: relative; z-index: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 0.4rem; pointer-events: none; }
+.roster-panel-crown { position: absolute; top: 3.9rem; left: 0; right: 0; z-index: 2; display: grid; justify-items: center; gap: 0.1rem; }
+.roster-panel.is-tile .roster-panel-crown { top: 0.5rem; }
+.roster-panel.is-tile .roster-panel-crown .splash-chip { display: none; }
+.roster-panel-plate { display: grid; gap: 0.2rem; min-width: 0; }
+.roster-panel-name { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.2rem; line-height: 1.15; min-width: 0; }
+.roster-panel.is-tile .roster-panel-name { font-size: 1.02rem; }
+.roster-panel-open { all: unset; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; color: var(--text-0); }
+.roster-panel-open::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.roster-panel-open:focus-visible { outline: none; }
+.roster-panel-meta { margin: 0; font-size: 0.74rem; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.roster-panel-queue { color: var(--text-2); }
+.roster-panel-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.45rem; margin-top: 0.15rem; }
+.roster-panel-games { font-size: 0.7rem; color: var(--text-2); }
+.roster-panel-foot .sub-badge, .roster-panel-foot .pp-role { position: relative; z-index: 2; }
+.roster-panel-check { display: grid; gap: 0.35rem; padding: 0.45rem 0.5rem; margin-bottom: 0.3rem; border-radius: 10px; background: color-mix(in srgb, var(--bg-0) 72%, transparent); border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent); }
+.roster-panel-faces { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.35rem; }
+.roster-panel-faces li { position: relative; z-index: 2; display: grid; justify-items: center; gap: 0.05rem; }
+.roster-panel-faces img { width: 1.9rem; height: 1.9rem; border-radius: 6px; border: 1px solid var(--card-border); object-fit: cover; }
+.roster-panel-faces b { font-size: 0.66rem; font-variant-numeric: tabular-nums; color: var(--text-1); }
+.roster-panel-numbers { margin: 0; display: flex; flex-wrap: wrap; gap: 0.1rem 0.7rem; font-size: 0.7rem; color: var(--text-1); }
+.roster-panel-numbers b { color: var(--text-0); }
+:is(.roster-panel-faces, .roster-pool) b.is-good, :is(.roster-panel-faces, .roster-pool) b.is-ok { color: var(--ok); }
+:is(.roster-panel-faces, .roster-pool) b.is-poor { color: var(--warn); }
+
+/* The player's sheet */
+.roster-sheet { display: grid; grid-template-columns: minmax(12rem, 17rem) minmax(0, 1fr); min-height: 21rem; overflow: hidden; background: color-mix(in srgb, var(--card) 92%, var(--bg-0)); scroll-margin: 5rem 0 1rem; }
+.roster-sheet-art { position: relative; overflow: hidden; isolation: isolate; display: flex; flex-direction: column; justify-content: space-between; padding: 1rem; min-height: 14rem; }
+.roster-sheet-art .splash-art { object-position: 50% 18%; }
+.roster-sheet-art .splash-shade { background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 90%, transparent) 0%, color-mix(in srgb, var(--bg-0) 30%, transparent) 55%, transparent 100%), linear-gradient(270deg, color-mix(in srgb, var(--card) 85%, transparent), transparent 40%); }
+.roster-sheet-art-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.roster-sheet-art-foot { display: grid; justify-items: start; gap: 0.4rem; }
+.roster-sheet-art-foot small { font-size: 0.72rem; color: var(--text-1); }
+app-rate-ring.is-big { --ring-size: 4.6rem; }
+.roster-sheet-main { position: relative; z-index: 2; display: grid; align-content: start; gap: 0.8rem; padding: 1rem 1.25rem 1.2rem; min-width: 0; }
+.roster-sheet-head { display: flex; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap; }
+.roster-sheet-head .avatar { width: 3.25rem; height: 3.25rem; }
+.roster-sheet-id { flex: 1 1 14rem; min-width: 0; display: grid; gap: 0.1rem; }
+.roster-sheet-id h2 { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.7rem; line-height: 1.05; overflow-wrap: anywhere; }
+.roster-sheet-id h2:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.roster-sheet-sub { margin: 0; display: flex; flex-wrap: wrap; gap: 0.1rem 0.5rem; font-size: 0.8rem; color: var(--text-1); }
+.roster-sheet-sub span + span::before { content: "·"; margin-right: 0.5rem; color: var(--text-2); }
+.roster-sheet-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.35rem; }
+.icon-pill { display: inline-grid; place-items: center; width: 2rem; height: 2rem; padding: 0; }
+.icon-pill .material-symbols-rounded { font-size: 1.15rem; }
+.roster-sheet .roster-edit { margin: 0; }
+.roster-sheet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem 1.25rem; }
+.roster-sheet-block { display: grid; align-content: start; gap: 0.45rem; min-width: 0; }
+.roster-sheet-block h3 { margin: 0; display: flex; align-items: baseline; gap: 0.45rem; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-2); }
+.roster-sheet-block h3 small { font-size: 0.68rem; letter-spacing: 0; text-transform: none; color: var(--text-2); }
+.roster-sheet-empty { margin: 0; font-size: 0.8rem; color: var(--text-1); }
+.roster-sheet-more { margin: 0; font-size: 0.72rem; color: var(--text-2); }
+.roster-pool { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.35rem 0.6rem; }
+.roster-pool-item { display: grid; grid-template-columns: 2.3rem minmax(0, 1fr); align-items: center; gap: 0.45rem; }
+.roster-pool-item img { width: 2.3rem; height: 2.3rem; border-radius: 8px; border: 1px solid var(--card-border); object-fit: cover; }
+.roster-pool-item.is-unplayed img { opacity: 0.55; filter: saturate(0.4); }
+.roster-pool-text { display: grid; min-width: 0; line-height: 1.2; }
+.roster-pool-name { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.roster-pool-text b { font-family: "Chakra Petch", sans-serif; font-variant-numeric: tabular-nums; }
+.roster-pool-text > span:not(.roster-pool-name) { display: inline-flex; align-items: baseline; gap: 0.3rem; }
+.roster-pool-text small { font-size: 0.68rem; color: var(--text-2); }
+.roster-sheet-line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; font-size: 0.78rem; color: var(--text-1); }
+.roster-sheet-line b { color: var(--text-0); }
+.roster-sheet-label { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+.roster-sheet-icon { width: 1.8rem; height: 1.8rem; border-radius: 6px; border: 1px solid var(--card-border); object-fit: cover; }
+.roster-sheet-icon.is-ready { border-color: var(--ok); }
+.roster-work { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; font-size: 0.82rem; }
+.roster-work li::marker { color: var(--warn); }
+
+/* The rank climb in a sheet */
+.rank-spark { position: relative; margin: 0; display: grid; gap: 0.35rem; }
+.rank-spark svg { width: 100%; height: 4.4rem; overflow: visible; }
+.rank-spark-grid { stroke: color-mix(in srgb, var(--text-1) 22%, transparent); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.rank-spark-line { fill: none; stroke: var(--accent-2); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.rank-spark-now { position: absolute; width: 0.6rem; height: 0.6rem; margin: -0.3rem 0 0 -0.3rem; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-2) 30%, transparent); }
+.rank-spark-caption { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.6rem; font-size: 0.8rem; color: var(--text-1); }
+.rank-spark-caption b { color: var(--text-0); }
+.rank-spark-caption small { flex-basis: 100%; font-size: 0.68rem; color: var(--text-2); }
+.rank-spark-caption > span:first-child { display: inline-flex; align-items: baseline; gap: 0.3rem; }
+.rank-spark-arrow { color: var(--text-2); }
+.rank-spark-delta { font-family: "Chakra Petch", sans-serif; font-variant-numeric: tabular-nums; }
+.rank-spark-delta.is-up { color: var(--ok); }
+.rank-spark-delta.is-down { color: var(--warn); }
+.rank-spark-empty { margin: 0; font-size: 0.8rem; color: var(--text-1); }
+.rank-spark-empty b { color: var(--text-0); }
+
+@media (max-width: 62rem) {
+  .roster-poster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .roster-panel.is-tall { min-height: 19rem; }
+  .roster-sheet { grid-template-columns: minmax(0, 1fr); }
+  .roster-sheet-art { min-height: 10rem; }
+  .roster-sheet-grid { grid-template-columns: minmax(0, 1fr); }
+  .roster-hero-tools { justify-items: start; }
+  .quick-actions.is-compact, .roster-hero .hero-tools { justify-content: flex-start; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .roster .roster-hero { animation: none; }
+  .roster:not(.is-still) .roster-hero.is-seen .roster-title { animation: film-word-rise 700ms ease backwards; }
+  .roster:not(.is-still) :is(.roster-poster, .roster-tiles):not(.is-seen) .roster-panel { opacity: 0; }
+  .roster:not(.is-still) :is(.roster-poster, .roster-tiles).is-seen .roster-panel { animation: film-rise 650ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: calc(var(--roster-i, 0) * 70ms); }
+  .roster:not(.is-still) .roster-poster.is-seen .rate-ring-fill { animation: roster-ring-draw 1000ms cubic-bezier(0.3, 0.7, 0.2, 1) backwards; animation-delay: calc(300ms + var(--roster-i, 0) * 70ms); }
+  .roster:not(.is-still) .roster-poster.is-seen .form-pip { animation: film-pip-drop 300ms ease backwards; animation-delay: calc(600ms + var(--roster-i, 0) * 70ms + var(--pip-i, 0) * 40ms); }
+  .roster:not(.is-still) .roster-poster.is-seen .splash-crown { animation: home-stamp 700ms ease backwards; animation-delay: calc(800ms + var(--roster-i, 0) * 70ms); }
+  .roster:not(.is-still) .roster-panel .splash-art { transition: transform 600ms ease; }
+  .roster:not(.is-still) .roster-panel:hover .splash-art { transform: scale(1.04); }
+  .roster:not(.is-still) .roster-panel { transition: border-color 160ms ease, box-shadow 200ms ease, opacity 200ms ease; }
+  .roster:not(.is-still) .roster-sheet { animation: film-drop 420ms ease backwards; }
+  .roster:not(.is-still) .roster-sheet-block { animation: film-rise 450ms ease backwards; animation-delay: calc(90ms + var(--block-i, 0) * 60ms); }
+  .roster:not(.is-still) .roster-sheet .rate-ring-fill { animation: roster-ring-draw 900ms cubic-bezier(0.3, 0.7, 0.2, 1) 150ms backwards; }
+  .roster:not(.is-still) .rank-spark svg { animation: film-wipe 1200ms ease-out 250ms backwards; }
+  @keyframes roster-ring-draw { from { stroke-dasharray: 0 100; } }
+}

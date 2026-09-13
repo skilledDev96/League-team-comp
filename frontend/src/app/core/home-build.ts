@@ -137,6 +137,7 @@ function lineupOf(starters: readonly Player[], seasonLines: readonly PlayerLine[
       champion: mainChampionOf(p, allLines),
       rank: rankLabelOf(p),
       games: line?.games ?? 0,
+      wins: line?.wins ?? 0,
       winRate: line ? line.winRate : null,
       crowned: most > 0 && titles.get(p.id) === most
     };

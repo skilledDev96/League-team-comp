@@ -1,11 +1,8 @@
 import { Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ringDash } from '../../../core/home-charts';
 import { HomeLineupCard } from '../../../core/home-model';
-import { rateBand } from '../../../core/opponent-view';
-import { ChampionRecord } from '../../../models/team.models';
 import { InViewDirective } from '../../../shared/in-view.directive';
-import { TooltipDirective } from '../../../shared/tooltip.directive';
+import { RateRingComponent } from '../../../shared/rate-ring.component';
 import { UiService } from '../../../services/ui.service';
 
 /**
@@ -15,7 +12,7 @@ import { UiService } from '../../../services/ui.service';
  */
 @Component({
   selector: 'app-home-lineup',
-  imports: [InViewDirective, RouterLink, TooltipDirective],
+  imports: [InViewDirective, RateRingComponent, RouterLink],
   template: `
     <section class="card home-tile home-lineup" appInView aria-labelledby="home-lineup-title">
       <header class="home-card-head">
@@ -27,26 +24,15 @@ import { UiService } from '../../../services/ui.service';
           <li>
             <a class="home-lineup-card" [routerLink]="['/player', c.playerId]" [class.is-crowned]="c.crowned">
               @if (c.champion) {
-                <img class="home-lineup-art" [src]="ui.championArtUrl(c.champion)" (error)="ui.artFallback($event, c.champion)" alt="" loading="lazy" />
+                <img class="splash-art" [src]="ui.championArtUrl(c.champion)" (error)="ui.artFallback($event, c.champion)" alt="" loading="lazy" />
               }
-              <span class="home-lineup-shade" aria-hidden="true"></span>
+              <span class="splash-shade" aria-hidden="true"></span>
               @if (c.crowned) {
-                <span class="home-lineup-crown material-symbols-rounded" aria-hidden="true">workspace_premium</span>
+                <span class="home-lineup-crown splash-crown material-symbols-rounded" aria-hidden="true">workspace_premium</span>
               }
               <span class="home-lineup-top">
-                <span class="home-lineup-role">{{ c.role }}</span>
-                <span class="home-lineup-rate" [appTip]="c.winRate === null ? 'No games ' + scope() : c.winRate + '% of ' + c.games + ' games won, ' + scope()">
-                <span class="home-ring" [class]="band(c)" [attr.aria-label]="c.winRate === null ? 'No games ' + scope() : c.winRate + '% won over ' + c.games + ' games'">
-                  <svg viewBox="0 0 36 36" aria-hidden="true">
-                    <circle class="home-ring-track" cx="18" cy="18" r="15.915" pathLength="100" />
-                    @if (c.winRate !== null) {
-                      <circle class="home-ring-fill" cx="18" cy="18" r="15.915" pathLength="100" [attr.stroke-dasharray]="dash(c.winRate)" />
-                    }
-                  </svg>
-                  <b aria-hidden="true">{{ c.winRate === null ? '—' : c.winRate + '%' }}</b>
-                </span>
-                <small class="home-ring-label" aria-hidden="true">win rate</small>
-                </span>
+                <span class="role-pill">{{ c.role }}</span>
+                <app-rate-ring [rate]="c.winRate" [games]="c.games" [wins]="c.wins" [scope]="scope()" />
               </span>
               <span class="home-lineup-foot">
                 <b class="home-lineup-name">{{ c.name }}</b>
@@ -69,11 +55,4 @@ export class HomeLineupComponent {
 
   protected readonly ui = inject(UiService);
 
-  protected dash(rate: number): string {
-    return ringDash(rate);
-  }
-
-  protected band(c: HomeLineupCard): string {
-    return c.winRate === null ? '' : rateBand({ games: c.games, wins: Math.round((c.winRate / 100) * c.games) } as ChampionRecord);
-  }
 }

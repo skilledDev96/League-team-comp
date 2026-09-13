@@ -301,6 +301,16 @@ export class TourService {
         await this.pause(60);
         return true;
       }
+      case 'openRosterSheet': {
+        // The sheet exists only while a player is chosen (13 Sep 2026): open the first starter's, or say
+        // there is nobody to open, so the steps inside it skip at once instead of waiting.
+        if (document.querySelector('[data-tour="roster-sheet"]')) return true;
+        const panel = document.querySelector<HTMLElement>('.roster-poster .roster-panel-open');
+        if (!panel) return false;
+        panel.click();
+        await this.pause(250);
+        return !!document.querySelector('[data-tour="roster-sheet"]');
+      }
       case 'openGameList': {
         // The list opens by default, but a reader who shut it would otherwise be walked to rows
         // that are not drawn. Its header is a <summary> since 12 Sep 2026, so the open state is

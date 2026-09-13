@@ -1,156 +1,63 @@
-@if (!embedded()) {
-  <section class="hero">
-    <h1>{{ data.settings().teamName || 'Bom Squad' }} Ready Room</h1>
-    <p>Everything in one place: team identity, role ownership, champ pools, and game plan links.</p>
-  </section>
-}
+<!-- The team poster (13 Sep 2026): the A team five across over their mains, the bench and the fill-ins as
+     shorter tiles, and one player's sheet under whichever group they stand in. -->
+@let m = model();
 
-<!-- One card template, three groups: the A team in seat order, the bench,
-     then the fill-ins (9 Sep 2026). The A team is everyone without the bench flag. -->
-<ng-template #playerCard let-player let-fill="fill">
-      <!-- One left edge for every row, the facts in two columns, the 2nd seat as quiet pills under the
-           name (12 Sep 2026, the lead: "the styling looks misaligned in the cards itself … 2nd seat should
-           be a pill or something, not needing to be so visible"). -->
-      <article data-tour="roster-card" class="card clickable-card roster-card" [class.expanded]="isExpanded(player.id)">
-        <div class="title-row">
-          <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
-          <div class="roster-card-id">
-            <h2>{{ player.role }} - {{ player.name }}</h2>
-            @if (fill || player.sub || player.secondaryRoles?.length) {
-              <div class="roster-card-tags">
-                @if (fill) { <span class="sub-badge" [appTip]="'A fill-in outside the roster — ' + (fill.status || 'provisional')">Fill-in</span> }
-                @else if (player.sub) { <span class="sub-badge" title="On the bench: the draft room follows the starter in this seat.">Sub</span> }
-                @if (player.secondaryRoles?.length) {
-                  <span class="roster-card-also">Also</span>
-                  @for (r of player.secondaryRoles ?? []; track r) { <span class="pp-role flex">{{ r }}</span> }
-                }
-              </div>
-            }
-          </div>
-          @if (auth.editing() && fill) {
-            <a class="view-btn roster-edit-open title-row-edit" [routerLink]="['/admin']" [queryParams]="{ tab: 'fillins' }" appTip="Fill-ins are edited on Admin › Fill-ins, where Fill from Riot lives">
-              <span class="material-symbols-rounded" aria-hidden="true">edit</span> Edit
-            </a>
-          } @else if (auth.editing()) {
-            <button type="button" class="view-btn roster-edit-open title-row-edit" (click)="editor.open(player.id)" appTip="Name, tag, pool, bans, playstyle and links, in a drawer">
-              <span class="material-symbols-rounded" aria-hidden="true">edit</span> More
-            </button>
-          }
-        </div>
-        @if (auth.editing() && !fill) {
-          <!-- A solid row above the card's link overlay: these are controls, not a way in. -->
-          <div class="roster-edit">
-            <span class="roster-edit-field">
-              <span class="roster-edit-label" appTip="The A team is the five Patterns counts by default and the five the draft room follows. Same flag Admin sets.">A team for Patterns</span>
-              <button data-tour="roster-ateam" type="button" class="ateam-toggle" [class.is-bench]="!!player.sub" [attr.aria-pressed]="!!player.sub"
-                      [appTip]="player.sub ? 'On the bench — click to put them in the A team' : 'In the A team — click to bench them'"
-                      (click)="setBench(player, !player.sub)">{{ player.sub ? 'Bench' : 'A team' }}</button>
-            </span>
-            <span class="roster-edit-field">
-              <span data-tour="roster-main-seat" class="roster-edit-label" appTip="The seat in their title: Patterns’ Main counts them here and the draft room seats them here">Main seat</span>
-              @for (r of roles; track r) {
-                <button type="button" class="role-flex-toggle" [class.on]="r === player.role" [attr.aria-pressed]="r === player.role"
-                        [appTip]="r === player.role ? 'Their main seat' : 'Make ' + r + ' their main seat'"
-                        (click)="setMain(player, r)">{{ r }}</button>
-              }
-            </span>
-            <span class="roster-edit-field">
-              <span data-tour="roster-second-seat" class="roster-edit-label" appTip="The seats they also cover; Patterns’ Roles filter and the draft room read these">2nd seat</span>
-              @for (r of roles; track r) {
-                @if (r !== player.role) {
-                  <button type="button" class="role-flex-toggle" [class.on]="hasSecondary(player, r)" [attr.aria-pressed]="hasSecondary(player, r)"
-                          (click)="toggleSecondary(player, r)">{{ r }}</button>
-                }
-              }
-            </span>
-          </div>
-        }
-        <dl class="roster-card-facts">
-          <dt>Playstyle</dt>
-          <dd>
-            <span class="playstyle-icon material-symbols-rounded" aria-hidden="true">{{ ui.playstyleIcon(player.playstyle) }}</span>
-            <span class="roster-card-value">{{ player.playstyle || (fill ? 'Not read from Riot yet' : 'Unknown') }}</span>
-          </dd>
-          @if (player.top3.length) {
-            <dt>Main Champion</dt>
-            <dd>
-              <img class="roster-card-champ" [src]="ui.championIconUrl(player.top3[0])" alt="" />
-              <span class="roster-card-value">{{ player.top3[0] }}</span>
-            </dd>
-          }
-        </dl>
-        <div class="roster-card-foot">
-          @if (fill) {
-            <a class="view-btn roster-profile-chip" [href]="ui.summonerSearchUrl(player.name, player.profile)" target="_blank" rel="noopener noreferrer">op.gg <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
-          } @else {
-            <a class="view-btn roster-profile-chip" [routerLink]="['/player', player.id]">Profile <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></a>
-          }
-          <button type="button" class="view-btn role-toggle" (click)="toggle(player.id)">
-            {{ isExpanded(player.id) ? 'Hide' : 'Quick look' }}
-          </button>
-        </div>
-
-        @if (!fill) {
-          <a class="card-link-overlay" [routerLink]="['/player', player.id]"
-             [attr.aria-label]="'Open ' + player.name + '’s profile'"></a>
-        }
-
-        <div class="role-details">
-          <!-- A player's pool reaches eighteen once the refreshes have added what they play, so it folds
-               (12 Sep 2026, the lead: "put these under a collapsable panel, champion pool"). Shut at
-               Starter, open at Full; the whole header is the toggle. -->
-          @if (player.top3.length) {
-            <details class="intel-collapse fold-card pool-fold" [open]="full()">
-              <summary class="section-head intel-collapse-head">
-                <h3>Champion pool</h3>
-                <span class="intel-collapse-count">{{ player.top3.length }}</span>
-                <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
-              </summary>
-              <div class="champ-chip-row">
-                @for (champ of player.top3; track champ) {
-                  <app-champion-chip [champion]="champ" />
-                }
-              </div>
-            </details>
-          }
-          <div class="tag-row">
-            @for (s of player.strengths.slice(0, 2); track s) {
-              <span class="tag good">{{ s }}</span>
-            }
-            @for (w of player.weaknesses.slice(0, 1); track w) {
-              <span class="tag bad">{{ w }}</span>
-            }
-          </div>
-          <app-external-profiles [name]="player.name" [profile]="player.profile" />
-        </div>
-      </article>
-</ng-template>
-
-<section aria-label="A team">
-  <h2 class="section-title"><span class="section-icon material-symbols-rounded">group</span>A team
-    <small class="muted section-title-note">{{ starters().length }} in seat order</small></h2>
-  <div class="grid three">
-    @for (player of starters(); track player.id) { <ng-container *ngTemplateOutlet="playerCard; context: { $implicit: player }" /> }
-    @if (!starters().length) { <p class="muted">Everyone is on the bench. Put five in the A team in edit mode.</p> }
-  </div>
+<section class="roster-group" aria-labelledby="roster-five-title">
+  <header class="roster-group-head">
+    <h2 id="roster-five-title" class="roster-group-title">A team</h2>
+    <span class="roster-scope">Win rates and form over {{ m.games }} team {{ m.games === 1 ? 'game' : 'games' }}, all time · the crown is the most series MVP titles</span>
+  </header>
+  @if (m.starters.length) {
+    <ul class="roster-poster" appInView (firstSeen)="seen.set(true)" [style.--roster-cols]="posterCols()">
+      @for (c of m.starters; track c.id; let i = $index) {
+        <li [style.--roster-i]="i">
+          <app-roster-panel data-tour="roster-card" [card]="c" size="tall" [full]="full()" [go]="seen()"
+                            [selected]="selectedId() === c.id" (open)="toggle(c.id, $event)" />
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="roster-empty">Everyone is on the bench. Put five in the A team from a player's sheet in edit mode.</p>
+  }
+  @if (selectedGroup() === 'starters' && selected(); as s) {
+    <app-roster-sheet [card]="s" [player]="selectedPlayer()" [full]="full()" [siblings]="siblings()" (close)="close()" (go)="show($event)" />
+  }
 </section>
 
-@if (subs().length) {
-  <section aria-label="Bench">
-    <h2 class="section-title"><span class="section-icon material-symbols-rounded">airline_seat_recline_normal</span>Bench
-      <small class="muted section-title-note">step in when someone cannot make it</small></h2>
-    <div class="grid three">
-      @for (player of subs(); track player.id) { <ng-container *ngTemplateOutlet="playerCard; context: { $implicit: player }" /> }
-    </div>
+@if (m.bench.length) {
+  <section class="roster-group" aria-labelledby="roster-bench-title">
+    <header class="roster-group-head">
+      <h2 id="roster-bench-title" class="roster-group-title">Bench</h2>
+      <span class="roster-scope">Step in when someone cannot make it</span>
+    </header>
+    <ul class="roster-tiles" appInView>
+      @for (c of m.bench; track c.id; let i = $index) {
+        <li [style.--roster-i]="i">
+          <app-roster-panel [card]="c" size="tile" [full]="full()" [selected]="selectedId() === c.id" (open)="toggle(c.id, $event)" />
+        </li>
+      }
+    </ul>
+    @if (selectedGroup() === 'bench' && selected(); as s) {
+      <app-roster-sheet [card]="s" [player]="selectedPlayer()" [full]="full()" [siblings]="siblings()" (close)="close()" (go)="show($event)" />
+    }
   </section>
 }
 
-@if (data.fillIns().length) {
-  <section aria-label="Fill-ins">
-    <h2 class="section-title"><span class="section-icon material-symbols-rounded">person_add</span>Fill-ins
-      <small class="muted section-title-note">outside the roster, pencilled in when the bench is short</small></h2>
-    <div class="grid three">
-      @for (card of fillInCards(); track card.id) { <ng-container *ngTemplateOutlet="playerCard; context: { $implicit: card, fill: card.fillIn }" /> }
-    </div>
+@if (m.fillIns.length) {
+  <section class="roster-group" aria-labelledby="roster-fill-title">
+    <header class="roster-group-head">
+      <h2 id="roster-fill-title" class="roster-group-title">Fill-ins</h2>
+      <span class="roster-scope">Outside the roster, pencilled in when the bench is short</span>
+    </header>
+    <ul class="roster-tiles" appInView>
+      @for (c of m.fillIns; track c.id; let i = $index) {
+        <li [style.--roster-i]="i">
+          <app-roster-panel [card]="c" size="tile" [full]="full()" [selected]="selectedId() === c.id" (open)="toggle(c.id, $event)" />
+        </li>
+      }
+    </ul>
+    @if (selectedGroup() === 'fillIns' && selected(); as s) {
+      <app-roster-sheet [card]="s" [full]="full()" [siblings]="siblings()" (close)="close()" (go)="show($event)" />
+    }
   </section>
 }

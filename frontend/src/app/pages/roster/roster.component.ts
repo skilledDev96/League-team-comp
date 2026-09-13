@@ -13,6 +13,9 @@ import { QuickActionsComponent } from '../../shared/quick-actions.component';
 import { TourPillComponent } from '../../shared/tour-pill.component';
 import { DetailToggleComponent } from '../../shared/detail-toggle.component';
 import { UserPrefsService } from '../../services/user-prefs.service';
+import { MotionService } from '../../services/motion.service';
+import { buildRoster, ROSTER_SCOPE } from '../../core/roster-build';
+import { InViewDirective } from '../../shared/in-view.directive';
 
 export type RosterView = 'cards' | 'table' | 'scouting' | 'report';
 
@@ -38,7 +41,7 @@ const VIEWS: RosterView[] = ['cards', 'table', 'scouting', 'report'];
  */
 @Component({
   selector: 'app-roster',
-  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ScoutReportComponent, ChampionFilterComponent, QuickActionsComponent, TourPillComponent, TooltipDirective, DetailToggleComponent],
+  imports: [OverviewComponent, TeamProfilesComponent, PlayerIntelComponent, ScoutReportComponent, ChampionFilterComponent, QuickActionsComponent, TourPillComponent, TooltipDirective, DetailToggleComponent, InViewDirective],
   templateUrl: './roster.component.html'
 })
 export class RosterComponent {
@@ -54,6 +57,30 @@ export class RosterComponent {
   private readonly router = inject(Router);
 
   private readonly prefs = inject(UserPrefsService);
+  protected readonly motion = inject(MotionService);
+
+  /**
+   * The whole roster, built once for all four views (13 Sep 2026): every player's record, form, crown,
+   * pool and practice over all time, the way Home reads them. Rebuilt when the team's data moves.
+   */
+  protected readonly model = computed(() =>
+    buildRoster({
+      now: Date.now(),
+      mode: ROSTER_SCOPE,
+      players: this.data.players(),
+      fillIns: this.data.fillIns(),
+      painPoints: this.data.painPoints(),
+      learnEntries: this.data.learnEntries(),
+      comps: this.data.comps(),
+      analysis: this.data.compAnalysis()?.games ?? [],
+      tournaments: this.data.tournaments(),
+      series: this.data.tournamentSeries(),
+      seriesGames: this.data.seriesGames(),
+      scrims: this.data.scrims(),
+      practice: this.data.practiceSet(),
+      compOverride: (id) => this.data.compOverride(id)
+    })
+  );
 
   protected readonly view = signal<RosterView>('cards');
   /** Every view reads the one preference: Starter is what a reader acts on, Full everything expanded. */
@@ -61,15 +88,18 @@ export class RosterComponent {
 
   protected readonly heading = computed(() => {
     const team = this.data.settings().teamName || 'Bom Squad';
+    const m = this.model();
+    const count = m.starters.length + m.bench.length;
+    const kicker = `${count} ${count === 1 ? 'player' : 'players'}${m.fillIns.length ? ` · ${m.fillIns.length} ${m.fillIns.length === 1 ? 'fill-in' : 'fill-ins'}` : ''} · ${m.games} team games`;
     switch (this.view()) {
       case 'table':
-        return { title: `${team} Roster`, blurb: 'Rank, form and champion by player — click a row for the full profile.' };
+        return { title: `${team} Roster`, kicker, blurb: 'Rank, form and champion by player — click a row for the full profile.' };
       case 'scouting':
-        return { title: `${team} Roster`, blurb: 'Scouting cards, champion pools, matchup links and the practice board.' };
+        return { title: `${team} Roster`, kicker, blurb: 'Pools, what each player is working on, and the practice board.' };
       case 'report':
-        return { title: `${team} Roster`, blurb: 'Us, the way an opponent scouts us: ranks, pools, what beats us, and what they would ban.' };
+        return { title: `${team} Roster`, kicker, blurb: 'Us, the way an opponent scouts us: ranks, pools, what beats us, and what they would ban.' };
       default:
-        return { title: `${team} Roster`, blurb: 'Who plays what, and how they are playing right now.' };
+        return { title: `${team} Roster`, kicker, blurb: 'Click a player for their sheet.' };
     }
   });
 

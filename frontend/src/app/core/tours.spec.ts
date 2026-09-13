@@ -287,3 +287,16 @@ describe('the tours on Roster and Comps (12 Sep 2026)', () => {
     expect(byId('draft').steps.some((x) => x.anchor === 'draft-board')).toBe(true);
   });
 });
+
+describe('the roster tour and the team poster', () => {
+  const roster = TOURS.find((t) => t.id === 'roster')!;
+
+  it('walks the poster, then the sheet, and opens the sheet before every step inside it', () => {
+    expect(roster.version).toBeGreaterThanOrEqual(3);
+    const anchors = roster.steps.map((s) => s.anchor);
+    expect(anchors.indexOf('roster-sheet')).toBe(anchors.indexOf('roster-card') + 1);
+    for (const step of roster.steps.filter((s) => ['roster-sheet', 'roster-ateam', 'roster-main-seat', 'roster-second-seat'].includes(s.anchor as string))) {
+      expect(step.before, step.anchor as string).toBe('openRosterSheet');
+    }
+  });
+});

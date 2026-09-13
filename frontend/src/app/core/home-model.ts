@@ -169,6 +169,7 @@ export interface HomeLineupCard {
   champion: string | null;
   rank: { label: string; queue: 'Solo' | 'Flex' } | null;
   games: number;
+  wins: number;
   winRate: number | null;
   /** Holds the most series MVP titles this season. */
   crowned: boolean;

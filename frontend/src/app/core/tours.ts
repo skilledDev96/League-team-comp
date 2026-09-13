@@ -175,18 +175,20 @@ export const TOURS: readonly Tour[] = [
     id: 'roster',
     title: 'Roster',
     blurb: 'Cards, the A team, second seats, the table and the scouting view.',
-    version: 2,
+    // Version 3 (13 Sep 2026): Cards became the team poster with a sheet per player, and the edit controls moved into the sheet.
+    version: 3,
     match: { path: '/roster' },
     needs: 'players',
     steps: [
       // These two were the welcome tour's until it moved to Home (13 Sep 2026).
-      { anchor: 'roster-views', title: 'One roster, four depths', text: 'Cards for who plays what, Table for rank and form.', more: 'Scouting holds pools, matchups and the practice board. Scout report shows us the way an opponent scouts us.' },
-      { anchor: 'quick-actions', title: 'What you do most', text: 'One press to open the draft room or scout the next opponent.', more: 'Edit mode adds three more: refreshing after practice, adding a comp and importing a replay.' },
-      { anchor: 'roster-card', title: 'A player card', text: 'Role, playstyle and main champion at a glance.', more: 'Quick look opens the pool and the links. Profile opens the full page with the stats and the coaching notes.', query: { view: 'cards' } },
-      { anchor: 'roster-ateam', title: 'A team for Patterns', text: 'Patterns counts these five by default, and the draft room follows them.', more: 'Bench leaves a player out. Same flag Admin sets, so the five stay one thing everywhere.', editMode: true, query: { view: 'cards' } },
-      { anchor: 'roster-main-seat', title: 'Main seat', text: 'The seat in the title, read by Patterns’ Main filter.', more: 'Patterns’ Main counts a game only when all five sat in their main seat, so set these before reading it.', editMode: true, query: { view: 'cards' } },
-      { anchor: 'roster-second-seat', title: 'Second seat', text: 'Other roles this player can cover.', more: 'Patterns’ Roles filter and the draft room’s seat proposals read this.', editMode: true, query: { view: 'cards' } },
-      { anchor: 'detail-roster', title: 'Starter or Full', text: 'Starter is the basics, Full is everything expanded.', more: 'One switch for all four views, remembered for you.' },
+      { anchor: 'roster-views', title: 'One roster, four views', text: 'Cards is the team poster, Table rank and form.', more: 'Scouting holds pools, what each player is working on and the practice board. Scout report shows us the way an opponent scouts us.' },
+      { anchor: 'quick-actions', title: 'What you do most', text: 'One press to open the draft room or scout the next opponent.', more: 'Editors also get refreshing after practice, adding a comp and importing a replay.' },
+      { anchor: 'roster-card', title: 'The team poster', text: 'Each starter over their main: win rate, rank, form and titles.', more: 'The crown is the most series MVP titles. Click a player to open their sheet.', query: { view: 'cards' } },
+      { anchor: 'roster-sheet', title: 'Their sheet', text: 'Pool with win rates, how they play, rank climb and what they are working on.', more: 'Profile opens the full page. Escape or the panel again closes the sheet.', query: { view: 'cards' }, before: 'openRosterSheet' },
+      { anchor: 'roster-ateam', title: 'A team for Patterns', text: 'Patterns counts these five by default, and the draft room follows them.', more: 'Bench moves them under the poster. Same flag Admin sets, so the five stay one thing everywhere.', editMode: true, query: { view: 'cards' }, before: 'openRosterSheet' },
+      { anchor: 'roster-main-seat', title: 'Main seat', text: 'The seat in the title, read by Patterns’ Main filter.', more: 'Patterns’ Main counts a game only when all five sat in their main seat, so set these before reading it.', editMode: true, query: { view: 'cards' }, before: 'openRosterSheet' },
+      { anchor: 'roster-second-seat', title: 'Second seat', text: 'Other roles this player can cover.', more: 'Patterns’ Roles filter and the draft room’s seat proposals read this.', editMode: true, query: { view: 'cards' }, before: 'openRosterSheet' },
+      { anchor: 'detail-roster', title: 'Starter or Full', text: 'Starter is the poster; Full adds each player’s numbers and opens a sheet.', more: 'One switch for all four views, remembered for you.' },
       { anchor: 'table-queue', title: 'The table', text: 'Rank and recent form per queue, one row per player.', more: 'Recent is the last games scanned, not the ladder record beside it.', query: { view: 'table' } },
       { anchor: 'scouting-card', title: 'Scouting', text: 'Each player’s pool, and what they are working on and learning.', more: 'Full opens every card and adds strengths, weaknesses and suggested bans.', query: { view: 'scouting' } },
       { anchor: 'scouting-practice-board', title: 'Practice board', text: 'Pain points per player, open until someone resolves them.', query: { view: 'scouting' } }

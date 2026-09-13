@@ -1,7 +1,16 @@
-<section class="hero">
-  <h1>{{ heading().title }}</h1>
-  <p>{{ heading().blurb }}</p>
-  <app-tour-pill />
+<!-- Home's theme on the Roster (13 Sep 2026, the lead: "keep the theme of the home page rolling"). The poster is
+     the showpiece, so the top is a slim title with the quick actions beside it, then the one toolbar. -->
+<div class="roster" [class.is-still]="motion.reduced()">
+<section class="hero roster-hero" appInView>
+  <div class="roster-hero-id">
+    <p class="home-kicker roster-kicker"><span class="material-symbols-rounded" aria-hidden="true">groups</span>{{ heading().kicker }}</p>
+    <h1 class="roster-title">{{ heading().title }}</h1>
+    <p class="roster-hero-blurb">{{ heading().blurb }}</p>
+  </div>
+  <div class="roster-hero-tools">
+    <app-tour-pill />
+    <app-quick-actions [compact]="true" />
+  </div>
 </section>
 
 <!-- One toolbar on every page, the Games one (12 Sep 2026, the lead: "I like how the games top page
@@ -33,8 +42,6 @@
   }
 </section>
 
-<app-quick-actions />
-
 <!-- Only the selected mode is rendered. Each brings its own controls and its
      own state; keeping all three alive would run three sets of computeds over
      the same roster for no benefit. -->
@@ -49,6 +56,7 @@
     <app-scout-report [full]="full()" />
   }
   @default {
-    <app-overview [embedded]="true" [full]="full()" />
+    <app-overview [embedded]="true" [full]="full()" [model]="model()" />
   }
 }
+</div>

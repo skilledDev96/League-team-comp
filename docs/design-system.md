@@ -161,16 +161,20 @@ all pills on the left. Something that belongs to one view goes in a row under th
 A control present on one view and not another is **removed**, not hidden: Prep's switch hidden on
 Draft pushed the whole draft room 35px down.
 
-**Home is the one exception** (13 Sep 2026). It is a landing page rather than a tool, so it has its own
-stage — a hero with the team's splash art, a welcome band, a gold-framed spotlight — and no toolbar.
-Everything on it is still drawn from the theme tokens, its pills are `.view-btn`, and its season switch is
-a `.view-segment`. Its animations sit behind one gate: motion allowed, `.home` not `.is-still`, the section
-`.is-seen` (`shared/in-view.directive.ts`), transform and opacity only. Do not copy its stage onto a
-working page.
+**Home and Roster are the expressive pages** (13 Sep 2026; Roster joined when the lead asked to "keep the theme
+of the home page rolling"). Home is a landing page with its own stage — a splash hero, a welcome band, a
+gold-framed spotlight — and no toolbar. Roster keeps the one toolbar and the Starter | Full switch, and draws the
+team as a poster of splash panels with a gold-framed player sheet. Both build from the **splash primitives** in
+`styles.css` (`.splash-tile`, `.splash-art` + `.splash-shade`, `.role-pill`, `.splash-crown` / `.splash-chip`,
+`app-rate-ring` / `.rate-ring`, `.form-pips`, `.gold-frame`), stay on the theme tokens, use `.view-btn` pills, and
+animate behind one gate each: motion allowed, `.home` or `.roster` not `.is-still`, the section `.is-seen`
+(`shared/in-view.directive.ts`), transform and opacity only. Every splash `<img>` carries `ui.artFallback`. A
+clickable splash tile is one stretched button (the Roster panel's name), never a link overlay plus buttons. Do not
+put a stage in place of a working page's toolbar.
 
 **Facts on a card** are a two-column `<dl>` — labels in one column, values in the other, every icon the
-height of a line — so every row starts at the same x (`.roster-card-facts`). Secondary attributes,
-like a player's 2nd seat, are small muted pills under the name, not a labelled line.
+height of a line — so every row starts at the same x. Secondary attributes, like a player's 2nd seat, are small
+muted pills under the name, not a labelled line.
 
 ---
 
