@@ -28,7 +28,7 @@
         }
       </select>
     </label>
-    <div class="practice-status" role="group" aria-label="Status filter">
+    <div class="view-segment practice-status" role="group" aria-label="Status filter">
       <button type="button" [class.active]="ppStatusFilter() === 'open'" (click)="ppStatusFilter.set('open')">Open</button>
       <button type="button" [class.active]="ppStatusFilter() === 'resolved'" (click)="ppStatusFilter.set('resolved')">Resolved</button>
       <button type="button" [class.active]="ppStatusFilter() === 'all'" (click)="ppStatusFilter.set('all')">All</button>
@@ -84,10 +84,10 @@
         <p class="muted">Status: {{ player.status }}</p>
         <p class="muted">Likely roles: {{ player.preferredRoles.join(', ') }}</p>
         <p class="muted">{{ player.note }}</p>
-        <div class="links">
-          <a [href]="ui.summonerSearchUrl(player.summoner, player.profile)" target="_blank" rel="noopener noreferrer">OP.GG player search</a>
+        <div class="action-row fillin-pills">
+          <a class="view-btn" [href]="ui.summonerSearchUrl(player.summoner, player.profile)" target="_blank" rel="noopener noreferrer">op.gg <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
           @if (ui.summonerMobalyticsUrl(player.profile); as mobaUrl) {
-            <a [href]="mobaUrl" target="_blank" rel="noopener noreferrer">Mobalytics player profile</a>
+            <a class="view-btn" [href]="mobaUrl" target="_blank" rel="noopener noreferrer">Mobalytics <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
           }
           @if (auth.editing()) {
             <a class="view-btn" [routerLink]="['/admin']" [queryParams]="{ tab: 'fillins', fillInId: player.id }">Edit fill-in</a>
@@ -100,17 +100,23 @@
 
 <section class="grid two" aria-label="Player intel">
   @for (player of data.players(); track player.id) {
-    <article data-tour="scouting-card" class="card player-intel-card" [class.expanded]="isExpanded(player.id)" [id]="ui.playerAnchorId(player.name)">
+    @let card = cardOf(player.id);
+    <article data-tour="scouting-card" class="card player-intel-card" [class.expanded]="isExpanded(player.id)" [class.is-crowned]="card?.crowned" [id]="ui.playerAnchorId(player.name)">
       @if (auth.editing()) {
         <app-overflow-menu class="card-overflow">
           <button type="button" class="overflow-item" (click)="editor.open(player.id)">Edit player</button>
         </app-overflow-menu>
       }
+      <!-- A splash band over the header (13 Sep 2026): the poster's look, and still the whole header is the toggle. -->
       <button type="button" class="player-panel-header" (click)="toggle(player.id)"
               [attr.aria-expanded]="isExpanded(player.id)">
-        <app-player-avatar [name]="player.name" [icon]="player.icon" [role]="player.role" />
+        @if (card?.champion; as art) {
+          <img class="splash-art" [src]="ui.championArtUrl(art)" (error)="ui.artFallback($event, art)" alt="" loading="lazy" />
+        }
+        <span class="splash-shade" aria-hidden="true"></span>
+        <span class="role-pill">{{ player.role }}</span>
         <span class="player-panel-title">
-          <span class="pp-name">{{ player.role }} - {{ player.name }}</span>
+          <span class="pp-name">{{ player.name }}@if (card?.crowned) { <span class="intel-crown material-symbols-rounded" aria-hidden="true">workspace_premium</span> }</span>
           <span class="pp-role">{{ player.playstyle || 'Unknown' }}</span>
           @if (player.secondaryRoles?.length) {
             <span class="pp-flex-roles">
@@ -121,6 +127,9 @@
             </span>
           }
         </span>
+        @if (card?.working?.length) {
+          <span class="splash-chip is-quiet intel-working">{{ card!.working.length }} working on</span>
+        }
         <span class="player-panel-chevron material-symbols-rounded" aria-hidden="true">
           {{ isExpanded(player.id) ? 'expand_less' : 'expand_more' }}
         </span>

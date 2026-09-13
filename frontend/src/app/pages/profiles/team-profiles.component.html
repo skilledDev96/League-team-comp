@@ -52,13 +52,19 @@
     </div>
 
     @for (row of rows(); track row.player.id) {
-      <a class="profiles-row" role="row" [routerLink]="['/player', row.player.id]">
+      @let card = cardOf(row.player.id);
+      <a class="profiles-row" role="row" [routerLink]="['/player', row.player.id]" [class.is-crowned]="card?.crowned">
+        <!-- Their main's splash as a stripe behind the name (13 Sep 2026): the poster's look, one row a player. -->
+        @if (card?.champion; as art) {
+          <img class="profiles-row-art" [src]="ui.championArtUrl(art)" (error)="ui.artFallback($event, art)" alt="" loading="lazy" />
+        }
+        <span class="profiles-row-shade" aria-hidden="true"></span>
         <span class="profiles-player" role="cell">
-          <app-player-avatar [name]="row.player.name" [icon]="row.player.icon" [role]="row.player.role" />
+          <span class="role-pill">{{ row.player.role }}</span>
           <span class="profiles-name">
-            <span class="pp-name">{{ row.player.name }}</span>
+            <span class="pp-name">{{ row.player.name }}@if (card?.crowned) { <span class="profiles-crown material-symbols-rounded" aria-hidden="true" appTip="The most series MVP titles on the team">workspace_premium</span> }</span>
             <span class="pp-roles">
-              <span class="pp-role">{{ row.player.role }}</span>
+              @if (row.player.sub) { <span class="sub-badge">Sub</span> }
               @for (r of row.player.secondaryRoles ?? []; track r) {
                 <span class="pp-role flex">{{ r }}</span>
               }
@@ -83,9 +89,9 @@
             </span>
           }
           <span class="profiles-main" role="cell">
-            @if (row.player.top3[0]; as champ) {
-              <img class="profiles-champ" [src]="ui.championIconUrl(champ)" [alt]="champ" [appTip]="champ" loading="lazy" />
-              {{ champ }}
+            @if (card?.champion ?? row.player.top3[0]; as champ) {
+              <img class="profiles-champ" [src]="ui.championIconUrl(champ)" [alt]="ui.championName(champ)" [appTip]="ui.championName(champ)" loading="lazy" />
+              {{ ui.championName(champ) }}
             } @else { — }
           </span>
         } @else {

@@ -14,6 +14,8 @@ import { ExternalProfilesComponent } from '../../shared/external-profiles.compon
 import { OverflowMenuComponent } from '../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
+import { cardById } from '../../core/roster-build';
+import { RosterCard, RosterModel } from '../../core/roster-model';
 
 interface PainRow extends PainPoint {
   playerName: string;
@@ -47,6 +49,13 @@ export class PlayerIntelComponent {
    * bans. The Roster shell's one switch sets it (12 Sep 2026); this view had a switch of its own.
    */
   readonly full = input(false);
+  /** The Roster's model, for each card's splash band, the crown and what they are working on. */
+  readonly model = input<RosterModel | null>(null);
+
+  protected cardOf(id: string): RosterCard | undefined {
+    const m = this.model();
+    return m ? cardById(m, id) : undefined;
+  }
 
   /** Cards turned against the depth: the open ones at Starter, the shut ones at Full. */
   private readonly flipped = signal<ReadonlySet<string>>(new Set());

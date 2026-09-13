@@ -47,10 +47,10 @@
      the same roster for no benefit. -->
 @switch (view()) {
   @case ('table') {
-    <app-team-profiles [embedded]="true" [full]="full()" />
+    <app-team-profiles [embedded]="true" [full]="full()" [model]="model()" />
   }
   @case ('scouting') {
-    <app-player-intel [embedded]="true" [full]="full()" />
+    <app-player-intel [embedded]="true" [full]="full()" [model]="model()" />
   }
   @case ('report') {
     <app-scout-report [full]="full()" />

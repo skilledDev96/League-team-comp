@@ -140,6 +140,34 @@ describe.skipIf(typeof localStorage === 'undefined')('RosterComponent, the team 
     expect(text(root.querySelector('.roster-sheet')!.closest('.roster-group')!.querySelector('h2'))).toBe('Bench');
   });
 
+  it('draws the table with a splash stripe a row and the crown on the series MVP', async () => {
+    const { root } = await open('/roster?view=table');
+    const rows = [...root.querySelectorAll('a.profiles-row')];
+    expect(rows.length).toBe(6);
+    expect(root.querySelectorAll('a.profiles-row img.profiles-row-art').length).toBe(6);
+    const crowned = root.querySelectorAll('a.profiles-row.is-crowned');
+    expect(crowned).toHaveLength(1);
+    expect(text(crowned[0].querySelector('.pp-name'))).toContain('SkilledScarecrow');
+    for (const name of THEIRS) expect(root.innerHTML).not.toContain(name);
+  });
+
+  it('gives every scouting card a splash band header that is still its one toggle', async () => {
+    const { harness, root } = await open('/roster?view=scouting');
+    const cards = [...root.querySelectorAll('article.player-intel-card')];
+    expect(cards.length).toBe(6);
+    const adc = cards.find((c) => text(c.querySelector('.pp-name')).includes('SkilledScarecrow'))!;
+    expect(adc.classList).toContain('is-crowned');
+    expect(adc.querySelector('.player-panel-header img.splash-art')).not.toBeNull();
+    expect(text(adc.querySelector('.role-pill'))).toBe('ADC');
+    expect(text(adc.querySelector('.intel-working'))).toBe('1 working on');
+    const header = adc.querySelector<HTMLButtonElement>('.player-panel-header')!;
+    expect(header.getAttribute('aria-expanded')).toBe('false');
+    header.click();
+    harness.detectChanges();
+    expect(header.getAttribute('aria-expanded')).toBe('true');
+    expect(adc.classList).toContain('expanded');
+  });
+
   it('keeps its tour anchors, and no link whose name holds "comps" (the e2e sign-in check matches substrings)', async () => {
     const { harness, root } = await open();
     for (const anchor of ['roster-views', 'quick-actions', 'roster-card', 'detail-roster']) {

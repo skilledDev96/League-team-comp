@@ -6,9 +6,10 @@ import { AuthService } from '../../services/auth.service';
 import { RefreshService } from '../../services/refresh.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
-import { PlayerAvatarComponent } from '../../shared/player-avatar.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { rateBand } from '../../core/opponent-view';
+import { cardById } from '../../core/roster-build';
+import { RosterCard, RosterModel } from '../../core/roster-model';
 
 type QueueKey = 'solo' | 'flex' | 'clash';
 
@@ -20,7 +21,7 @@ interface ProfileRow {
 
 @Component({
   selector: 'app-team-profiles',
-  imports: [DecimalPipe, RouterLink, PlayerAvatarComponent, TooltipDirective],
+  imports: [DecimalPipe, RouterLink, TooltipDirective],
   templateUrl: './team-profiles.component.html'
 })
 export class TeamProfilesComponent {
@@ -31,6 +32,13 @@ export class TeamProfilesComponent {
    * vision and the roster totals are what a reader checks, so they wait for Full (12 Sep 2026).
    */
   readonly full = input(false);
+  /** The Roster's model, for each row's splash and the crown; the table still reads its queue from Riot's stats. */
+  readonly model = input<RosterModel | null>(null);
+
+  protected cardOf(id: string): RosterCard | undefined {
+    const m = this.model();
+    return m ? cardById(m, id) : undefined;
+  }
 
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);

@@ -1077,6 +1077,17 @@ app-detail-toggle { margin-left: auto; }
   border-bottom: none;
 }
 
+/* The poster's look on the table (13 Sep 2026): each row's main as a splash stripe behind the name, fading into the card. */
+a.profiles-row { position: relative; isolation: isolate; overflow: hidden; min-height: 3.7rem; border-radius: 10px; }
+.profiles-row-art { position: absolute; inset: 0 auto 0 0; z-index: -2; width: 22rem; height: 100%; object-fit: cover; object-position: 50% 22%; filter: saturate(0.9) brightness(0.8); -webkit-mask-image: linear-gradient(90deg, #000 30%, transparent); mask-image: linear-gradient(90deg, #000 30%, transparent); }
+.profiles-row-shade { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(90deg, color-mix(in srgb, var(--bg-0) 55%, transparent), transparent 22rem); }
+a.profiles-row.is-crowned { box-shadow: inset 3px 0 0 var(--accent); }
+.profiles-player .role-pill { flex: none; min-width: 4.4rem; text-align: center; }
+.profiles-crown { margin-left: 0.3rem; font-size: 1rem; vertical-align: -0.15rem; color: var(--accent-2); }
+.profiles-name .pp-roles { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
+.profiles-name .sub-badge { margin: 0; }
+.view-controls.profiles-controls { background: none; border: 0; box-shadow: none; padding: 0.1rem 0.2rem 0.4rem; }
+
 a.profiles-row:hover,
 a.profiles-row:focus-visible {
   background: var(--surface-btn);
@@ -1244,29 +1255,6 @@ a.profiles-row:focus-visible {
   color: var(--text-0);
   font: inherit;
   font-size: 0.85rem;
-}
-
-.practice-status {
-  display: inline-flex;
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid var(--card-border);
-}
-
-.practice-status button {
-  padding: 0.42rem 0.9rem;
-  border: none;
-  background: var(--surface-btn);
-  color: var(--text-1);
-  font-family: "Chakra Petch", sans-serif;
-  font-weight: 700;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
-.practice-status button.active {
-  background: color-mix(in srgb, var(--accent) 30%, var(--surface-btn) 70%);
-  color: var(--text-0);
 }
 
 .practice-add {
@@ -15934,6 +15922,25 @@ app-roster-panel { display: block; height: 100%; }
 :is(.roster-panel-faces, .roster-pool) b.is-good, :is(.roster-panel-faces, .roster-pool) b.is-ok { color: var(--ok); }
 :is(.roster-panel-faces, .roster-pool) b.is-poor { color: var(--warn); }
 
+
+/* Scouting in the poster's look (13 Sep 2026): each card's header is a splash band, still the card's one toggle.
+   Scoped to .player-intel-card, because Admin › Players draws the same header class. */
+.player-intel-card .player-panel-header { position: relative; isolation: isolate; overflow: hidden; align-items: flex-end; gap: 0.6rem; width: calc(100% + 2.1rem); min-height: 6.5rem; margin: -1.05rem -1.05rem 0; padding: 0.85rem 1rem; border-radius: 14px 14px 0 0; }
+.player-intel-card:not(.expanded) .player-panel-header { border-radius: 14px; margin-bottom: -1.05rem; }
+.player-intel-card .player-panel-header .splash-art { object-position: 50% 22%; }
+.player-intel-card .player-panel-header .splash-shade { background: linear-gradient(0deg, color-mix(in srgb, var(--bg-0) 92%, transparent) 0%, color-mix(in srgb, var(--bg-0) 45%, transparent) 60%, color-mix(in srgb, var(--bg-0) 15%, transparent) 100%); }
+.player-intel-card .player-panel-header .role-pill { position: absolute; top: 0.75rem; left: 1rem; }
+.player-intel-card .player-panel-header .pp-name { font-size: 1.15rem; }
+.player-intel-card .player-panel-header .pp-role { color: var(--text-1); }
+.player-intel-card .player-panel-header:hover { background: none; }
+.player-intel-card .player-panel-header:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.player-intel-card .player-panel-chevron { align-self: flex-end; }
+.player-intel-card.is-crowned { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+.intel-crown { margin-left: 0.3rem; font-size: 1.05rem; vertical-align: -0.15rem; color: var(--accent-2); }
+.intel-working { flex: none; }
+.fillin-pills { flex-wrap: wrap; margin-top: 0.6rem; }
+.player-intel-card.expanded .role-details { margin-top: 0.8rem; }
+
 /* The player's sheet */
 .roster-sheet { display: grid; grid-template-columns: minmax(12rem, 17rem) minmax(0, 1fr); min-height: 21rem; overflow: hidden; background: color-mix(in srgb, var(--card) 92%, var(--bg-0)); scroll-margin: 5rem 0 1rem; }
 .roster-sheet-art { position: relative; overflow: hidden; isolation: isolate; display: flex; flex-direction: column; justify-content: space-between; padding: 1rem; min-height: 14rem; }
@@ -16015,6 +16022,10 @@ app-rate-ring.is-big { --ring-size: 4.6rem; }
   .roster:not(.is-still) .roster-poster.is-seen .splash-crown { animation: home-stamp 700ms ease backwards; animation-delay: calc(800ms + var(--roster-i, 0) * 70ms); }
   .roster:not(.is-still) .roster-panel .splash-art { transition: transform 600ms ease; }
   .roster:not(.is-still) .roster-panel:hover .splash-art { transform: scale(1.04); }
+  .roster:not(.is-still) .profiles-row-art { transition: transform 600ms ease; }
+  .roster:not(.is-still) a.profiles-row:hover .profiles-row-art { transform: scale(1.05); }
+  .roster:not(.is-still) .player-intel-card .player-panel-header .splash-art { transition: transform 600ms ease; }
+  .roster:not(.is-still) .player-intel-card .player-panel-header:hover .splash-art { transform: scale(1.04); }
   .roster:not(.is-still) .roster-panel { transition: border-color 160ms ease, box-shadow 200ms ease, opacity 200ms ease; }
   .roster:not(.is-still) .roster-sheet { animation: film-drop 420ms ease backwards; }
   .roster:not(.is-still) .roster-sheet-block { animation: film-rise 450ms ease backwards; animation-delay: calc(90ms + var(--block-i, 0) * 60ms); }
