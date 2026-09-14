@@ -33,7 +33,7 @@ const H = 70;
     } @else {
       <p class="empty-state rank-spark-empty">
         @if (now()) { <b>{{ now() }}</b> now. }
-        Fills from tomorrow: the morning refresh writes the rank down each day and the line draws from the second.
+        Fills in after the next morning refresh (06:30): it writes the rank down each morning and the line draws from the second morning on.
       </p>
     }
   `

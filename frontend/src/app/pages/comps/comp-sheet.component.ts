@@ -237,7 +237,7 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
             </section>
 
             <section class="comps-sheet-block" style="--block-i: 5" aria-labelledby="comps-block-plays" data-tour="comp-plays">
-              <h3 id="comps-block-plays">Dive plays
+              <h3 id="comps-block-plays">Plays
                 @if (auth.editing()) {
                   <button type="button" class="view-btn" (click)="openPlay.emit({ comp: comp(), play: null })"><span class="material-symbols-rounded" aria-hidden="true">add</span> New play</button>
                 }

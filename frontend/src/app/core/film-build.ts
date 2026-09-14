@@ -17,15 +17,20 @@ import {
   ReviewLesson,
   ReviewMoment,
   ReviewPoint,
+  ReviewSwap,
   ReviewTheme,
   Role,
   ROLES,
+  SeriesGame,
   TimelineDeath,
   TimelineObjective,
   TimelinePositions,
   TimelineSide,
-  TimelineWard
+  TimelineWard,
+  Tournament,
+  TournamentSeries
 } from '../models/team.models';
+import { sameChampion } from './champion-key';
 import { mentionedSeat } from './champion-mention';
 import { DeathRead, DeathReadKind, READ_LABELS, readCounts, readDeath, readsLine } from './death-reads';
 import {
@@ -1541,13 +1546,15 @@ const MAX_LACKED = 3;
  * gap with its glyph); a version 5 review carries neither, and the chapter
  * shows the swaps alone.
  */
-function buildDraft(review: GameReview, game: AnalysisGame | undefined, protagonistChampion: string): FilmDraft | undefined {
+function buildDraft(review: GameReview, game: AnalysisGame | undefined, protagonistChampion: string, series?: SeriesContext): FilmDraft | undefined {
   const draft = review.team.draft;
   if (!draft?.verdict?.trim()) return undefined;
   const bySeat = (a: FilmDraftSeat, b: FilmDraftSeat) => seatIndex(a.seat) - seatIndex(b.seat);
   const ours: FilmDraftSeat[] = review.players.map((p) => ({ seat: p.seat, champion: p.champion, name: p.name })).sort(bySeat);
   const theirs: FilmDraftSeat[] = enemySeats(game).sort(bySeat);
-  const swaps: FilmDraft['swaps'] = (draft.swaps ?? []).slice(0, MAX_SWAPS).map((s) => {
+  // Only what was open to us in that game is drawn: a stored review can name their pick, or a champion the series had burned.
+  const open = openSwaps(draft.swaps ?? [], closedChampions(review.matchId, game, series));
+  const swaps: FilmDraft['swaps'] = open.slice(0, MAX_SWAPS).map((s) => {
     const gains = (s.gains ?? []).filter((g) => g in GAIN_GLYPHS).slice(0, 3);
     const glyphs = gains.map((g) => GAIN_GLYPHS[g]);
     const swap: FilmDraft['swaps'][number] = { seat: s.seat, out: s.out, in: s.in, why: s.why, gains, glyphs: glyphs.length ? glyphs : ['swap'] };
@@ -1571,6 +1578,65 @@ function buildDraft(review: GameReview, game: AnalysisGame | undefined, protagon
     lacked.push({ gain: g.gain, glyph: GAIN_GLYPHS[g.gain], why: (g.why ?? '').trim() });
   }
   if (lacked.length) out.lacked = lacked;
+  return out;
+}
+
+/** What a game's series knows, for the champions nobody could draft in it: the three lists the team data holds. */
+export interface SeriesContext {
+  seriesGames: readonly SeriesGame[];
+  tournamentSeries: readonly TournamentSeries[];
+  tournaments: readonly Tournament[];
+}
+
+/** Whether picks burn across a series, as Prep reads it (`TournamentContextService.isFearless`): the scrims group never, a tournament unless it says not. */
+function burnsPicks(seriesId: string, series: SeriesContext): boolean {
+  const s = series.tournamentSeries.find((x) => x.id === seriesId);
+  const group = s ? series.tournaments.find((t) => t.id === s.tournamentId) : undefined;
+  if (!group) return true;
+  return group.kind === 'scrims' ? false : group.fearless !== false;
+}
+
+/**
+ * The champions nobody could have drafted into our side in this game (14 Sep 2026, data audit): their five,
+ * and for a game of a series its own bans and, under Fearless Draft, every champion either team played in
+ * the games before it. Stored reviews were written without that list and named Sion for Mordekaiser when
+ * Sion was their pick (EUW1_7963966929), and Ornn in game 3 after our Top had burned him in game 2
+ * (EUW1-7979615260). Unique as written; compare through `sameChampion`, since ids and display names mix.
+ */
+export function closedChampions(matchId: string, game: AnalysisGame | undefined, series?: SeriesContext): string[] {
+  const closed: string[] = (game?.enemies ?? []).map((e) => e.champion);
+  const own = matchId && series ? series.seriesGames.filter((g) => g.matchId === matchId).sort((a, b) => a.gameNumber - b.gameNumber)[0] : undefined;
+  if (own && series) {
+    closed.push(...(own.theirChampions ?? []), ...(own.bans ?? []));
+    if (burnsPicks(own.seriesId, series)) {
+      for (const g of series.seriesGames) {
+        if (g.seriesId !== own.seriesId || g.gameNumber >= own.gameNumber) continue;
+        closed.push(...(g.ourChampions ?? []), ...(g.theirChampions ?? []));
+      }
+    }
+  }
+  return [...new Set(closed.filter((c): c is string => typeof c === 'string' && !!c.trim()))];
+}
+
+/**
+ * A review's swaps with every closed champion taken out (14 Sep 2026): a closed `in` gives way to the first
+ * open alternative, a closed alternative is dropped, and a swap with nothing open left is not drawn. The
+ * reason stays with the swap: it argues for the job the seat lacked, which the open champion does as well.
+ */
+export function openSwaps<S extends ReviewSwap>(swaps: readonly S[], closed: readonly string[]): S[] {
+  if (!closed.length) return [...swaps];
+  const isOpen = (c: string) => !closed.some((x) => sameChampion(x, c));
+  const out: S[] = [];
+  for (const s of swaps) {
+    const named = [s.in, ...(s.alternatives ?? [])].map((c) => (typeof c === 'string' ? c.trim() : '')).filter(Boolean);
+    if (named.every(isOpen)) {
+      out.push(s);
+      continue;
+    }
+    const [first, ...rest] = named.filter(isOpen);
+    if (!first) continue;
+    out.push({ ...s, in: first, ...(s.alternatives ? { alternatives: rest.filter((a) => a !== first) } : {}) });
+  }
   return out;
 }
 
@@ -1601,7 +1667,8 @@ export function buildFilm(
   timeline: MatchTimeline | null,
   previous: FilmPrevious | null,
   opponent?: string,
-  recording?: ReplayRecording | null
+  recording?: ReplayRecording | null,
+  series?: SeriesContext
 ): FilmModel {
   const seed = seedOf(review.matchId);
   const facts = timeline?.facts;
@@ -1622,7 +1689,7 @@ export function buildFilm(
   };
   const lessons = lessonCalls(review.team.lessons, seed);
   if (lessons.length) model.lessons = lessons;
-  const draft = buildDraft(review, game, title.protagonist.champion);
+  const draft = buildDraft(review, game, title.protagonist.champion, series);
   if (draft) model.draft = draft;
 
   // The chapter order is led by the data, never the seed: the tape needs a

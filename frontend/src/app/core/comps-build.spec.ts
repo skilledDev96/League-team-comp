@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ChampionTraits, Comp, CompResult, GameReview, Play, Player } from '../models/team.models';
 import { GameRow } from '../pages/games/game-rows';
 import { compIconFor } from './comp-identity';
-import { buildComps, championsOf, CompsInput, coverOf, faceOf, sheetAfterIndex } from './comps-build';
+import { buildComps, championsOf, CompsInput, coverOf, faceOf, reviewedOf, sheetAfterIndex } from './comps-build';
 
 const player = (id: string, name: string, role: Player['role'], order: number, over: Partial<Player> = {}) =>
   ({ id, name, role, order, top3: [], strengths: [], weaknesses: [], bans: [], ...over }) as unknown as Player;
@@ -40,9 +40,9 @@ const results: CompResult[] = [
 ];
 const plays = [{ id: 'pl1', compId: 'c1', title: 'Dragon dive', phase: 'mid', tokens: [], order: 0 }] as unknown as Play[];
 const reviews = [
-  { matchId: 'EUW_1', team: { compVerdict: 'as drafted', compWhy: '' } },
-  { matchId: 'EUW_2', team: { compVerdict: 'off plan', compWhy: 'Split instead of grouping' } },
-  { matchId: 'EUW_4', team: { compVerdict: 'unclear', compWhy: '' } }
+  { matchId: 'EUW_1', compId: 'c1', team: { compVerdict: 'as drafted', compWhy: '' } },
+  { matchId: 'EUW_2', compId: 'c1', team: { compVerdict: 'off plan', compWhy: 'Split instead of grouping' } },
+  { matchId: 'EUW_4', compId: 'c2', team: { compVerdict: 'unclear', compWhy: '' } }
 ] as unknown as GameReview[];
 /** Five traits that read as a teamfight comp for whichever comp they are handed: layered CC over two bodies. */
 const traits = (n: number): ChampionTraits[] =>
@@ -99,6 +99,21 @@ describe('buildComps', () => {
     expect(front.gameNotes).toEqual([{ matchId: 'EUW_2', text: 'Lost the 20-minute fight', win: false, date: 200 }]);
     expect(front.plays.map((p) => p.id)).toEqual(['pl1']);
     expect(JSON.stringify(m)).not.toMatch(/Rival/);
+  });
+
+  it('counts a review only when it names the comp: the Aphelios comp · Braum case from the audit reads nothing', () => {
+    // Snapshot 13 Sep 2026: EUW1_7965177150 sits under comp-bd0dfea4 (Aphelios comp · Braum), and its only
+    // review has compId null. The sheet printed "Played out as drafted in 0 of 1 reviewed game, unclear in 1."
+    const braum: Comp = { id: 'comp-bd0dfea4', name: 'Aphelios comp · Braum', picks: { Top: 'Heimerdinger', Jungle: 'Vi', Mid: 'Anivia', ADC: 'Aphelios', Support: 'Braum' }, order: 19 };
+    const played = [row('g1', 100, false, 'comp-bd0dfea4', 'EUW1_7965177150')];
+    const review = { matchId: 'EUW1_7965177150', compId: null, team: { compVerdict: 'unclear', compWhy: 'No named comp was declared, but the Heimerdinger-Anivia zone core…' } } as unknown as GameReview;
+    expect(reviewedOf(braum.id, [braum], played, [review])).toBeNull();
+    expect(buildComps(input({ comps: [braum], rows: played, gameReviews: [review] })).cards[0].reviewed).toBeNull();
+    // Another comp's review of the same game says nothing about this one either.
+    expect(reviewedOf(braum.id, [braum, c1], played, [{ ...review, compId: 'c1' } as GameReview])).toBeNull();
+    // Named, it counts; and a review naming a variant counts under the comp the variant counts under.
+    expect(reviewedOf(braum.id, [braum], played, [{ ...review, compId: braum.id } as GameReview])).toMatchObject({ reviewed: 1, unclear: 1 });
+    expect(reviewedOf('c1', [c1, c2], [row('g2', 100, true, 'c1', 'EUW_9')], [{ matchId: 'EUW_9', compId: 'c2', team: { compVerdict: 'as drafted', compWhy: '' } } as unknown as GameReview])).toMatchObject({ reviewed: 1, asDrafted: 1 });
   });
 
   it('picks the face: the champion the name names, else the seat the shape turns on, else the first filled', () => {

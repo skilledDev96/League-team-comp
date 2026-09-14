@@ -4,6 +4,7 @@ import { Router, UrlTree } from '@angular/router';
 import { AnalysisGame, DraftGain, FilmChoice, GameReview, ReviewGap, ReviewPoint, ReviewSwap, ReviewTheme, Role } from '../models/team.models';
 import { alternativesPhrase, askOf, GAIN_LABELS, reviewAsText, reviewSource, THEME_GLYPHS } from '../core/review-view';
 import type { FilmGlyph } from '../core/film-model';
+import { closedChampions, openSwaps } from '../core/film-build';
 import { DecidedByComponent } from './review/decided-by.component';
 import { ReviewPointComponent } from './review/review-point.component';
 import { ReviewSeatComponent } from './review/review-seat.component';
@@ -386,8 +387,18 @@ export class GameReviewComponent {
   protected readonly workOns = computed<ReviewPoint[]>(() => this.review()?.team.workOn ?? []);
   protected readonly keeps = computed<ReviewPoint[]>(() => this.review()?.team.keepDoing ?? []);
   protected readonly asks = computed(() => (this.review()?.players ?? []).filter((p) => p.workOn.text));
-  /** The draft with hindsight (review version 5): the swaps to try, none when the draft held, so the panel stays short. */
-  protected readonly draftSwaps = computed<ReviewSwap[]>(() => this.review()?.team.draft?.swaps ?? []);
+  /**
+   * The draft with hindsight (review version 5): the swaps to try, none when the draft held, so the panel stays short.
+   * Only champions open in that game (14 Sep 2026): not one of their five, not a ban, not one the series had burned
+   * before it, the same rule the film's draft chapter and card draw by (`openSwaps` in `core/film-build.ts`).
+   */
+  protected readonly draftSwaps = computed<ReviewSwap[]>(() => {
+    const r = this.review();
+    const swaps = r?.team.draft?.swaps ?? [];
+    if (!r || !swaps.length) return swaps;
+    const series = { seriesGames: this.data.seriesGames(), tournamentSeries: this.data.tournamentSeries(), tournaments: this.data.tournaments() };
+    return openSwaps(swaps, closedChampions(r.matchId, this.game(), series));
+  });
 
   /** What the comp lacked (review version 6), which until now only the film room has shown. */
   protected readonly lacked = computed<ReviewGap[]>(() => this.review()?.team.draft?.lacked ?? []);
@@ -436,7 +447,8 @@ export class GameReviewComponent {
           commitment: this.commitLine(),
           notes,
           // The swaps to try, so the chat copy says what to draft next time (10 Sep 2026); "out" is Riot's id, said the display way.
-          draft: r.team.draft,
+          // Filtered the way the panel draws them, so the copy never suggests a champion that was not open.
+          draft: r.team.draft ? { ...r.team.draft, swaps: this.draftSwaps() } : undefined,
           championName: (name) => this.ui.championName(name)
         })
       );

@@ -6,7 +6,7 @@ import { UiService } from '../services/ui.service';
   template: `
     <a class="champ-chip" [href]="buildUrl()" target="_blank" rel="noopener noreferrer">
       <img class="champ-icon" [src]="iconUrl()" [alt]="champion() + ' icon'" loading="lazy" />
-      <span>{{ label() || champion() }}</span>
+      <span>{{ label() || name() }}</span>
     </a>
   `
 })
@@ -16,6 +16,8 @@ export class ChampionChipComponent {
   readonly champion = input.required<string>();
   readonly label = input<string>('');
 
+  /** The name as the team reads it ("Wukong", not Riot's "MonkeyKing"); the icon, alt and build link stay on the raw id. */
+  protected readonly name = computed(() => this.ui.championName(this.champion()));
   protected readonly iconUrl = computed(() => this.ui.championIconUrl(this.champion()));
   protected readonly buildUrl = computed(() => this.ui.championBuildUrl(this.champion()));
 }

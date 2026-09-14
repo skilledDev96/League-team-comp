@@ -131,7 +131,9 @@ export class FilmComponent {
 
   protected readonly model = computed<FilmModel | undefined>(() => {
     const r = this.review();
-    return r ? buildFilm(r, this.game(), this.timeline(), this.previous(), this.opponent(), this.recording()) : undefined;
+    // The series goes along (14 Sep 2026) so the draft chapter never offers a champion that game had closed: a ban, or one the fearless series had burned.
+    const series = { seriesGames: this.data.seriesGames(), tournamentSeries: this.data.tournamentSeries(), tournaments: this.data.tournaments() };
+    return r ? buildFilm(r, this.game(), this.timeline(), this.previous(), this.opponent(), this.recording(), series) : undefined;
   });
 
   /**

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { AnalysisGame, GameReview, MatchTimeline, ReplayDeathState, ReplayRecording, TeamObjectives, TimelineDeath } from '../models/team.models';
+import { AnalysisGame, GameReview, MatchTimeline, ReplayDeathState, ReplayRecording, ReviewSwap, SeriesGame, TeamObjectives, TimelineDeath, Tournament, TournamentSeries } from '../models/team.models';
 import {
   buildFilm,
   buildStrip,
+  closedChampions,
+  openSwaps,
+  SeriesContext,
   FILM_CHAPTER_COUNT,
   framesOf,
   lessonCalls,
@@ -1508,6 +1511,90 @@ describe('the draft, again', () => {
     const empty = buildFilm({ ...v5, team: { ...v5.team, draft: { ...draft, lacked: [], swaps: [{ ...draft.swaps[0], alternatives: ['Nautilus', 'Leona', ''] }] } } } as unknown as GameReview, game, timeline, previous).draft!;
     expect(empty.lacked).toBeUndefined();
     expect('alternatives' in empty.swaps[0]).toBe(false);
+  });
+
+  it('draws only champions open in that game: never their pick (EUW1_7963966929, Sion), never one the series burned (EUW1-7979615260, Ornn)', () => {
+    // Snapshot 13 Sep 2026, the stored swaps as written. Flex EUW1_7963966929: their five were Vayne, MasterYi, Yasuo, Sion, Seraphine.
+    const flexDraft = {
+      verdict: 'The five delivered the promised early game but had no answer once fights went long.',
+      swaps: [
+        { seat: 'Top', out: 'Mordekaiser', in: 'Ornn', why: 'A safer frontline.', gains: ['frontline', 'engage', 'peel'], alternatives: ['Malphite', 'Sion'] },
+        { seat: 'Support', out: 'Morgana', in: 'Nautilus', why: 'Body-block Master Yi.', gains: ['peel', 'engage', 'frontline'], alternatives: ['Thresh', 'Leona'] }
+      ]
+    };
+    const flexEnemies = [
+      { position: 'TOP', champion: 'Vayne' },
+      { position: 'JUNGLE', champion: 'MasterYi' },
+      { position: 'MIDDLE', champion: 'Yasuo' },
+      { position: 'BOTTOM', champion: 'Sion' },
+      { position: 'UTILITY', champion: 'Seraphine' }
+    ];
+    const flex = buildFilm({ ...v5, matchId: 'EUW1_7963966929', reviewVersion: 6, team: { ...v5.team, draft: flexDraft } } as unknown as GameReview, { ...game, matchId: 'EUW1_7963966929', enemies: flexEnemies } as AnalysisGame, timeline, previous);
+    expect(flex.draft!.swaps.map((s) => [s.seat, s.in, s.alternatives])).toEqual([
+      ['Top', 'Ornn', ['Malphite']],
+      ['Support', 'Nautilus', ['Thresh', 'Leona']]
+    ]);
+
+    // Oryx Fearless League, series-7f25f7b7 (Bo3 fearless). Game 3 is EUW1-7979615260; Ornn was our Top in game 2.
+    const series: SeriesContext = {
+      tournaments: [{ id: 'tournament-f9515444', name: 'Oryx Fearless League 2026 Split 2', order: 0 }] as unknown as Tournament[],
+      tournamentSeries: [{ id: 'series-7f25f7b7', tournamentId: 'tournament-f9515444', opponent: 'Paradox Requiem', bestOf: 3 }] as unknown as TournamentSeries[],
+      seriesGames: [
+        { id: 'g1', seriesId: 'series-7f25f7b7', gameNumber: 1, matchId: 'EUW1-7979450974', ourChampions: ['Shen', 'Diana', 'Yone', 'Tristana', 'Zilean'], theirChampions: ['Urgot', 'JarvanIV', 'Syndra', 'Kaisa', 'Leona'], bans: ['Akshan', 'Draven', 'Caitlyn', 'Aurelion Sol', 'Riven', 'Ambessa', 'Akshan', 'Yuumi', 'Twitch', 'Smolder'] },
+        { id: 'g2', seriesId: 'series-7f25f7b7', gameNumber: 2, matchId: 'EUW1-7979537790', ourChampions: ['Ornn', 'MonkeyKing', 'Ahri', 'Jinx', 'Thresh'], theirChampions: ['Renekton', 'Shyvana', 'Sylas', 'Yunara', 'Seraphine'], bans: ['Sett', 'Volibear', 'Smolder', 'Karthus', 'Gangplank', 'Soraka', 'Milio', 'Vex', 'Shaco', 'Skarner'] },
+        { id: 'g3', seriesId: 'series-7f25f7b7', gameNumber: 3, matchId: 'EUW1-7979615260', ourChampions: ['Mordekaiser', 'Vi', 'Akali', 'Aphelios', 'Nautilus'], theirChampions: ['Sion', 'FiddleSticks', 'Yasuo', 'Caitlyn', 'Rell'], bans: ['Udyr', 'Viego', 'Miss Fortune', 'Amumu', 'Lillia', 'Twitch', 'Volibear', 'Briar', 'Malphite', 'Master Yi'] }
+      ] as unknown as SeriesGame[]
+    };
+    const g3Draft = {
+      verdict: 'Five damage-first picks with one true frontline folded in every late five-on-five.',
+      swaps: [
+        { seat: 'Support', out: 'Nautilus', in: 'Lulu', why: 'Peel for Aphelios.', gains: ['peel', 'disengage'], alternatives: ['Milio', 'Janna'] },
+        { seat: 'Top', out: 'Mordekaiser', in: 'Ornn', why: 'A frontline at 25:40.', gains: ['frontline', 'engage', 'peel'], alternatives: ['Sion', 'Maokai'] },
+        { seat: 'Jungle', out: 'Vi', in: 'Sejuani', why: 'Hold the 33:05 fight.', gains: ['frontline', 'engage', 'peel'], alternatives: ['Maokai', 'Zac'] }
+      ]
+    };
+    const g3Review = { ...v5, matchId: 'EUW1-7979615260', tier: 'endOfGame', reviewVersion: 6, team: { ...v5.team, draft: g3Draft } } as unknown as GameReview;
+    // Displayed before: "Ornn, or Sion, or Maokai for Mordekaiser". Only Maokai was open. A ban does not burn under
+    // fearless, so Milio (banned in game 2) stays; Malphite and Master Yi, banned in game 3 itself, would not.
+    const g3 = buildFilm(g3Review, undefined, null, null, 'Paradox Requiem', null, series);
+    expect(g3.draft!.swaps.map((s) => [s.seat, s.in, s.alternatives])).toEqual([
+      ['Support', 'Lulu', ['Milio', 'Janna']],
+      ['Top', 'Maokai', undefined],
+      ['Jungle', 'Sejuani', ['Maokai', 'Zac']]
+    ]);
+    expect(g3.draft!.swaps[1]).toMatchObject({ out: 'Mordekaiser', why: 'A frontline at 25:40.', glyphs: ['wall', 'fist', 'shield'] });
+    // With neither the series nor the analysed game nothing is known to be closed, and the swap stands as stored.
+    expect(buildFilm(g3Review, undefined, null, null).draft!.swaps[1].in).toBe('Ornn');
+    expect(closedChampions('EUW1-7979615260', undefined, series)).toEqual(expect.arrayContaining(['Ornn', 'Sion', 'Malphite']));
+  });
+
+  it('closes a fearless series\' earlier picks, the game\'s bans and their five, compared across spellings, and lets a swap with nothing open go', () => {
+    const series: SeriesContext = {
+      tournaments: [{ id: 't', kind: 'tournament' }, { id: 's', kind: 'scrims', fearless: false }] as unknown as Tournament[],
+      tournamentSeries: [{ id: 'a', tournamentId: 't' }, { id: 'b', tournamentId: 's' }] as unknown as TournamentSeries[],
+      seriesGames: [
+        { seriesId: 'a', gameNumber: 1, matchId: 'M1', ourChampions: ['MonkeyKing'], theirChampions: ['KSante'], bans: ['Zed'] },
+        { seriesId: 'a', gameNumber: 2, matchId: 'M2', ourChampions: ['Ahri'], theirChampions: ['Lux'], bans: ['Miss Fortune'] },
+        { seriesId: 'a', gameNumber: 3, matchId: 'M3', ourChampions: ['Jinx'], theirChampions: ['Vi'], bans: [] },
+        { seriesId: 'b', gameNumber: 1, matchId: 'S1', ourChampions: ['Garen'], theirChampions: ['Darius'], bans: [] },
+        { seriesId: 'b', gameNumber: 2, matchId: 'S2', ourChampions: ['Ashe'], theirChampions: ['Lulu'], bans: ['Nami'] }
+      ] as unknown as SeriesGame[]
+    };
+    // Game 2 of a fearless series: game 1's ten are gone, and its own bans and their pick; game 1's bans and game 3's picks are not.
+    expect(closedChampions('M2', undefined, series).sort()).toEqual(['KSante', 'Lux', 'Miss Fortune', 'MonkeyKing']);
+    // The scrims group burns nothing: only the game's own their-pick and bans.
+    expect(closedChampions('S2', undefined, series).sort()).toEqual(['Lulu', 'Nami']);
+    // Not a series game: their five off the analysed game alone.
+    expect(closedChampions('EUW1_1', { enemies: [{ position: 'TOP', champion: 'Sion' }] } as unknown as AnalysisGame, series)).toEqual(['Sion']);
+    const swaps = [
+      { seat: 'Jungle', out: 'Vi', in: 'Wukong', why: 'x', gains: [], alternatives: ["K'Sante"] },
+      { seat: 'ADC', out: 'Jinx', in: 'MissFortune', why: 'y', gains: [] },
+      { seat: 'Mid', out: 'Ahri', in: 'Orianna', why: 'z', gains: [] }
+    ] as unknown as ReviewSwap[];
+    const closed = closedChampions('M2', undefined, series);
+    // Wukong is MonkeyKing, K'Sante is KSante, MissFortune is Miss Fortune: nothing left for two swaps, which go.
+    expect(openSwaps(swaps, closed)).toEqual([swaps[2]]);
+    expect(openSwaps(swaps, [])).toEqual(swaps);
   });
 
   it('builds no draft, and no chapter, for a review without a verdict', () => {

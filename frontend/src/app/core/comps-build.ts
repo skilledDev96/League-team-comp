@@ -2,6 +2,7 @@ import { ChampionTraits, Comp, CompExpectation, CompGamePlan, CompRecord, CompRe
 import { GameRow } from '../pages/games/game-rows';
 import { championOf, noteOf } from '../shared/comp-board.util';
 import { expectationFor } from './comp-expectation';
+import { resolveAlias } from './comp-alias';
 import { classifyComp, compIconFor, CompIdentity, damageProfile, DamageProfile, IDENTITY_LABEL } from './comp-identity';
 import { rateBand } from './opponent-view';
 
@@ -217,9 +218,16 @@ function headlineOf(logged: CompRecord | null, played: CompPlayed | null): CompH
   };
 }
 
-function reviewedOf(rows: readonly GameRow[], reviews: readonly GameReview[]): CompReviewed | null {
+/**
+ * The reviews of a comp's games that were reviewed as this comp (14 Sep 2026). A game sits under a comp by
+ * its row, but the review names the comp it read on its own, and one with no comp (or another comp) says
+ * nothing about whether this one played out as drafted: counting it printed "0 of 1 reviewed" on a comp
+ * no review was about. A review naming a variant counts under the comp the variant counts under.
+ */
+export function reviewedOf(compId: string, comps: readonly Comp[], rows: readonly GameRow[], reviews: readonly GameReview[]): CompReviewed | null {
   const ids = new Set(rows.map((r) => r.matchId).filter((id): id is string => !!id));
-  const ours = reviews.filter((r) => ids.has(r.matchId));
+  const all = [...comps];
+  const ours = reviews.filter((r) => ids.has(r.matchId) && !!r.compId && (r.compId === compId || resolveAlias(r.compId, all) === compId));
   if (!ours.length) return null;
   const by = (verdict: GameReview['team']['compVerdict']) => ours.filter((r) => r.team.compVerdict === verdict);
   return {
@@ -282,7 +290,7 @@ export function buildComps(i: CompsInput): CompsModel {
       countsUnder: comp.countsUnder ?? null,
       countsUnderName: comp.countsUnder ? (nameOf.get(comp.countsUnder) ?? null) : null,
       variants: comps.filter((c) => c.countsUnder === comp.id).map((c) => ({ id: c.id, name: c.name })),
-      reviewed: reviewedOf(rows, i.gameReviews),
+      reviewed: reviewedOf(comp.id, comps, rows, i.gameReviews),
       gameNotes: rows
         .filter((r) => r.matchId)
         .map((r) => ({ matchId: r.matchId!, text: i.matchNote(r.matchId!), win: r.win, ...(r.date > 0 ? { date: r.date } : {}) }))
