@@ -1,6 +1,6 @@
 import { ChampionRecord, FillIn, LearnPriority, Player, Role, ROLES } from '../models/team.models';
 import { buildGameRows, GameRow, PlayerLine, playerLines } from '../pages/games/game-rows';
-import { sameChampion } from './champion-key';
+import { canonicalChampion, displaySpelling, sameChampion } from './champion-key';
 import { mvpRace } from './mvp-race';
 import { rateBand } from './opponent-view';
 import { RosterCard, RosterGroup, RosterInput, RosterModel, RosterPoolEntry } from './roster-model';
@@ -55,12 +55,24 @@ function rosterNamed(rows: readonly GameRow[], players: readonly Player[]): Game
 /**
  * The pool as the poster reads it: every champion they played for the team, most games first with the
  * record, then whatever the roster wrote down for them that they have not played, with no record.
- * A Riot id and a display name for one champion are one entry.
+ * A Riot id and a display name for one champion are one entry: `playerLines` already counts them under one
+ * key, and a line built any other way is merged here too (14 Sep 2026: Tahm Kench stood as 69% of 13 beside
+ * 0% of 3), most games first again after the merge.
  */
 export function poolOf(p: Pick<Player, 'top3'>, line: PlayerLine | undefined): RosterPoolEntry[] {
   const declared = p.top3 ?? [];
-  const played: RosterPoolEntry[] = (line?.champions ?? [])
-    .filter((c) => c.champion)
+  const merged = new Map<string, { champion: string; games: number; wins: number }>();
+  for (const c of line?.champions ?? []) {
+    if (!c.champion) continue;
+    const key = canonicalChampion(c.champion);
+    const seen = merged.get(key);
+    merged.set(
+      key,
+      seen ? { champion: displaySpelling(seen.champion, c.champion), games: seen.games + c.games, wins: seen.wins + c.wins } : { champion: c.champion, games: c.games, wins: c.wins }
+    );
+  }
+  const played: RosterPoolEntry[] = [...merged.values()]
+    .sort((x, y) => y.games - x.games || y.wins - x.wins)
     .map((c) => ({
       champion: c.champion,
       games: c.games,

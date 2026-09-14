@@ -1,5 +1,6 @@
 import { Player, ROLES, Tournament } from '../models/team.models';
 import { GameRow, PlayerLine, record } from '../pages/games/game-rows';
+import { REMAKE_SECONDS } from './game-mvp';
 import { parseLocalDate } from './local-date';
 import { FinishedSeries } from './series-results';
 
@@ -345,8 +346,8 @@ export interface GameRecord {
   detail?: string;
 }
 
-/** Ten minutes: anything shorter is a remake or a surrender vote, never a record. */
-export const MIN_GAME_SEC = 600;
+/** Ten minutes: anything shorter is a remake, never a record — the one remake line, `REMAKE_SECONDS` (14 Sep 2026). */
+export const MIN_GAME_SEC = REMAKE_SECONDS;
 
 /** For a tie: the earlier date set the record first, and an unknown date cannot claim to have. */
 const firstSet = (date: number) => (date > 0 ? date : Number.POSITIVE_INFINITY);

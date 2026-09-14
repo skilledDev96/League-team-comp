@@ -13,7 +13,9 @@
  * already does — and never "how are we doing".
  */
 import { AnalysisGame, Comp, Player, Scrim, ScrimPlayer, SeriesGame, TeamObjectives, Tournament, TournamentSeries } from '../../models/team.models';
+import { canonicalChampion, displaySpelling } from '../../core/champion-key';
 import { effectiveComp } from '../../core/comp-alias';
+import { isRemake } from '../../core/game-mvp';
 
 export type GameSource = 'tournament' | 'scrim' | 'riot';
 
@@ -288,6 +290,12 @@ export interface GameRowSources {
  * A tournament game with a replay imported against it owns that replay: the same game must not also
  * appear as a scrim, or as the Riot row the analysis folds the stored scrim into. The concatenation
  * order before the stable sort is kept exactly — the form strip reads ties in it.
+ *
+ * A remake is not a game (14 Sep 2026): a row with a length under ten minutes (`isRemake`, the MVP's own line)
+ * is left out, whatever its source, so the record, the form, the objectives, the firsts, the player lines and
+ * the trophies never count one — five early wins of 76 to 205 seconds had lifted All time from 62–89 to 67–89.
+ * It is dropped only after the claims are settled, so a tournament game that owns a remade replay still keeps
+ * that replay from coming back as a scrim or a Riot row. A row whose length nobody knows is kept.
  */
 export function buildGameRows(src: GameRowSources): GameRow[] {
   const ours = rosterIds(src.players);
@@ -315,7 +323,7 @@ export function buildGameRows(src: GameRowSources): GameRow[] {
     .filter((s) => !riotIds.has(s.id) && !claimed.has(s.id))
     .map((s) => fromScrim(s, ours))
     .filter((r): r is GameRow => r !== null);
-  return [...riotKept, ...scrims, ...tournament].sort((a, b) => b.date - a.date);
+  return [...riotKept, ...scrims, ...tournament].filter((r) => !isRemake(r)).sort((a, b) => b.date - a.date);
 }
 
 // ---- Filters and records ---------------------------------------------------
@@ -397,7 +405,7 @@ export interface PlayerLine {
 export function playerLines(rows: readonly GameRow[]): PlayerLine[] {
   const acc = new Map<
     string,
-    PlayerLine & { csSum: number; csMin: number; shareSum: number; shareN: number; kpSum: number; kpN: number; visionSum: number; visionN: number; seats: Map<string, number>; champs: Map<string, { games: number; wins: number }> }
+    PlayerLine & { csSum: number; csMin: number; shareSum: number; shareN: number; kpSum: number; kpN: number; visionSum: number; visionN: number; seats: Map<string, number>; champs: Map<string, { champion: string; games: number; wins: number }> }
   >();
   for (const r of rows) {
     const teamDamage = r.ours.reduce((n, p) => n + (p.stats?.damage ?? 0), 0);
@@ -413,10 +421,13 @@ export function playerLines(rows: readonly GameRow[]): PlayerLine[] {
       a.games += 1;
       if (r.win) a.wins += 1;
       if (p.role) a.seats.set(p.role, (a.seats.get(p.role) ?? 0) + 1);
-      const c = a.champs.get(p.champion) ?? { games: 0, wins: 0 };
+      // One champion, one entry, whichever spelling the source stored (a replay's "TahmKench", Riot's "Tahm Kench").
+      const key = canonicalChampion(p.champion);
+      const seen = a.champs.get(key);
+      const c = seen ? { ...seen, champion: displaySpelling(seen.champion, p.champion) } : { champion: p.champion, games: 0, wins: 0 };
       c.games += 1;
       if (r.win) c.wins += 1;
-      a.champs.set(p.champion, c);
+      a.champs.set(key, c);
       acc.set(p.player, a);
       if (!p.stats) continue;
       a.statGames += 1;
@@ -454,8 +465,7 @@ export function playerLines(rows: readonly GameRow[]): PlayerLine[] {
       ...(shareN > 0 ? { damageShare: shareSum / shareN } : {}),
       ...(kpN > 0 ? { killParticipation: kpSum / kpN } : {}),
       ...(visionN > 0 ? { visionPerGame: Math.round((visionSum / visionN) * 10) / 10 } : {}),
-      champions: [...champs.entries()]
-        .map(([champion, c]) => ({ champion, ...c }))
+      champions: [...champs.values()]
         .sort((x, y) => y.games - x.games || y.wins - x.wins)
     }))
     // Top to Support, the way the team reads itself; a player with no seat last.
@@ -469,15 +479,17 @@ export interface ChampionLine {
   winRate: number;
 }
 
-/** Their champions we met at least twice, worst for us first. */
+/** Their champions we met at least twice, worst for us first; one entry a champion however its sources spelled it. */
 export function toughest(rows: readonly GameRow[], min = 2, take = 6): ChampionLine[] {
   const acc = new Map<string, ChampionLine>();
   for (const r of rows) {
     for (const p of r.theirs) {
-      const a = acc.get(p.champion) ?? { champion: p.champion, games: 0, wins: 0, winRate: 0 };
+      const key = canonicalChampion(p.champion);
+      const seen = acc.get(key);
+      const a = seen ? { ...seen, champion: displaySpelling(seen.champion, p.champion) } : { champion: p.champion, games: 0, wins: 0, winRate: 0 };
       a.games += 1;
       if (r.win) a.wins += 1;
-      acc.set(p.champion, a);
+      acc.set(key, a);
     }
   }
   return [...acc.values()]

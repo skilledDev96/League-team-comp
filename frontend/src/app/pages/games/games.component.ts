@@ -396,10 +396,13 @@ export class GamesComponent {
       .gameReviews()
       .map((review) => {
         const game = this.analysisById().get(review.matchId);
-        // The team name comes off the row (a scrim or a series game), not the analysis.
-        const opponent = rowByMatch.get(review.matchId)?.opponent;
+        // The team name and the tag come off the row (a scrim or a series game), not the analysis: a Bo3 game's
+        // replay reaches the analysis as queue "Scrim", and the card head read "Scrim" for a league game.
+        const row = rowByMatch.get(review.matchId);
+        const opponent = row?.opponent;
+        const label = row?.label;
         const comp = game ? effectiveComp(game.compId, this.data.compOverride(game.matchId), comps) : null;
-        return { review, game, comp, opponent };
+        return { review, game, comp, opponent, label };
       })
       .filter((r) => filter === 'all' || r.comp?.id === filter)
       .sort((a, b) => (b.game?.date ?? 0) - (a.game?.date ?? 0));

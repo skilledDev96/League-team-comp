@@ -1,5 +1,6 @@
 import { AnalysisGame } from '../models/team.models';
 import { GameRow, RowPlayer } from '../pages/games/game-rows';
+import { isRemake, REMAKE_SECONDS } from './game-mvp';
 import { FinishedSeries, winsToTake } from './series-results';
 
 /**
@@ -27,8 +28,6 @@ export interface AchievementDef {
   need?: number;
 }
 
-/** Shorter than ten minutes is a remake, not a game anybody won (13 Sep 2026). */
-const REMAKE_UNDER_SEC = 600;
 /** Under twenty-five minutes is a quick close. */
 const QUICK_UNDER_SEC = 25 * 60;
 /** Four dragons is a soul. */
@@ -75,7 +74,7 @@ export interface Achievement extends AchievementDef {
   champion?: string;
   /** The team it was earned against, when the game or series names one. */
   opponent?: string;
-  /** Earned inside the window the home page is reading. Set on an earned trophy only. */
+  /** Earned inside the season the home page is reading; false on every earned trophy under All time. Set on an earned trophy only. */
   thisSeason?: boolean;
   /**
    * The games a trophy could be read from, out of the games it would be read from: multikills only
@@ -109,8 +108,6 @@ const LOCKED: Reading = { unlocked: false };
 function dated(at: number | null | undefined): number | undefined {
   return typeof at === 'number' && Number.isFinite(at) && at > 0 ? at : undefined;
 }
-
-const isRemake = (r: GameRow) => r.durationSec !== undefined && r.durationSec > 0 && r.durationSec < REMAKE_UNDER_SEC;
 
 /**
  * The earliest of the items that carries a date, else the first of them. An item nobody dated still
@@ -224,8 +221,13 @@ function titleLeader(titlesByName: ReadonlyMap<string, number>): { titles: numbe
  * a streak the rows cannot place is earned with no date rather than refused. Three crowns carries no
  * date at all, because the titles arrive as counts.
  *
- * `thisSeason` says an earned trophy was earned inside the window. Reading everything, every earned
- * trophy is; reading a season, one with no date cannot claim it.
+ * `thisSeason` says an earned trophy was earned inside the season being read, and the cabinet's tip
+ * says so in words. Reading everything there is no season to claim, so no earned trophy carries it
+ * (14 Sep 2026: under All time every earned tile said "Earned this season.", a Dragon soul from
+ * December included); reading a season, one with no date cannot claim it either.
+ *
+ * A remake is `isRemake` from the MVP's own line, the one rule the whole app reads; the rows from
+ * `buildGameRows` already leave remakes out, so the checks here only guard rows built elsewhere.
  */
 export function achievementsOf(i: AchievementSources): Achievement[] {
   const { rows, finished } = i;
@@ -252,7 +254,7 @@ export function achievementsOf(i: AchievementSources): Achievement[] {
         return first ? earned(dateOf(first), rowByMatch.get(first.matchId)?.opponent) : LOCKED;
       }
       case 'under-25':
-        return firstGame(rows, (r) => r.win && r.durationSec !== undefined && r.durationSec >= REMAKE_UNDER_SEC && r.durationSec < QUICK_UNDER_SEC);
+        return firstGame(rows, (r) => r.win && r.durationSec !== undefined && r.durationSec >= REMAKE_SECONDS && r.durationSec < QUICK_UNDER_SEC);
       case 'streak-3':
       case 'streak-5':
       case 'streak-8':
@@ -299,7 +301,7 @@ export function achievementsOf(i: AchievementSources): Achievement[] {
   const { from, to, mode } = i.window;
   return ACHIEVEMENTS.map((def) => {
     const reading = read(def);
-    const thisSeason = mode === 'all' || (reading.earnedAt !== undefined && reading.earnedAt >= from && reading.earnedAt <= to);
+    const thisSeason = mode === 'season' && reading.earnedAt !== undefined && reading.earnedAt >= from && reading.earnedAt <= to;
     return { ...def, ...reading, ...(reading.unlocked ? { thisSeason } : {}) };
   });
 }

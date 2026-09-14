@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, Player, Scrim, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
-import { buildGameRows, filterRows, fromAnalysis, fromScrim, fromSeriesGame, meanLength, playerLines, record, rosterIds, toughest } from './game-rows';
+import { buildGameRows, filterRows, fromAnalysis, fromScrim, fromSeriesGame, GameRow, meanLength, playerLines, record, rosterIds, toughest } from './game-rows';
 
 const roster = [
   { id: 'p1', name: 'Zac', role: 'Top', profile: { riotTag: '#EUW' } },
@@ -204,5 +204,64 @@ describe('buildGameRows', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0].date).toBeGreaterThan(rows[1].date);
     expect(rows.some((r) => r.matchId === 's-x' || r.id.includes('s-x'))).toBe(false);
+  });
+
+  /**
+   * One remake rule (14 Sep 2026): under ten minutes a game is a remake, from every source, and no record reads it.
+   * The five on the stored data were early wins of 76 to 205 seconds, which lifted All time from 62–89 to 67–89.
+   */
+  it('leaves out a remake from every source, keeps a game of ten minutes and a game whose length nobody knows', () => {
+    const remadeRiot = analysis({ matchId: 'riot-76s', durationSec: 76, win: true });
+    const remadeLate = analysis({ matchId: 'riot-9m', durationSec: 540, win: true });
+    const tenMinutes = analysis({ matchId: 'riot-600s', durationSec: 600, win: false });
+    const noLength = analysis({ matchId: 'riot-unknown', durationSec: undefined, win: false });
+    const remadeScrim = scrim({ id: 's-remake', durationSec: 143 });
+    const typed = { id: 'g-typed', seriesId: 'ser1', gameNumber: 1, win: true, ourChampions: ['Aatrox'], theirChampions: ['Renekton'] } as unknown as SeriesGame;
+    const rows = buildGameRows({ ...base, analysis: [remadeRiot, remadeLate, tenMinutes, noLength], scrims: [remadeScrim], seriesGames: [typed] });
+    expect(rows.map((r) => r.id).sort()).toEqual(['riot-riot-600s', 'riot-riot-unknown', 'series-g-typed']);
+    expect(record(rows)).toEqual({ games: 3, wins: 1, losses: 2, winRate: 33 });
+  });
+
+  it('keeps a remade replay a tournament game owns from coming back as a scrim or a Riot row', () => {
+    const replay = scrim({ id: 'r-remake', durationSec: 180 });
+    const game = { id: 'g1', seriesId: 'ser1', gameNumber: 1, win: true, matchId: 'r-remake', ourChampions: [], theirChampions: [] } as unknown as SeriesGame;
+    const rows = buildGameRows({ ...base, analysis: [analysis({ matchId: 'r-remake', queue: 'Scrim', durationSec: 180 })], scrims: [replay], seriesGames: [game] });
+    expect(rows).toEqual([]);
+  });
+});
+
+/**
+ * One champion, one entry (14 Sep 2026). A replay stores Riot's id ("TahmKench", "MonkeyKing", "JarvanIV") and a Riot
+ * row the display name, and the pools, "Played +N" and "Beats us most" counted each pair as two champions.
+ */
+describe('champions under one key', () => {
+  const seat = (champion: string, player: string | null = 'Sir StonedAlot') => ({ role: 'Support', champion, player });
+  const game = (id: string, win: boolean, champion: string, theirs: string[] = []) =>
+    ({ id, source: 'riot', label: 'Flex', date: 1, win, ours: [seat(champion)], theirs: theirs.map((c) => seat(c, null)) }) as GameRow;
+
+  it('counts a player\'s champion once whichever spelling each game stored, and shows the display name', () => {
+    // Sir StonedAlot's pool on the stored data: Tahm Kench 9 of 13 from Riot, 0 of 3 from replays — 9 of 16.
+    const rows = [
+      ...Array.from({ length: 13 }, (_, i) => game(`riot-${i}`, i < 9, 'Tahm Kench')),
+      ...Array.from({ length: 3 }, (_, i) => game(`replay-${i}`, false, 'TahmKench')),
+      game('w1', true, 'MonkeyKing'),
+      game('w2', false, 'Wukong'),
+      game('k1', true, 'Kaisa'),
+      game('k2', true, "Kai'Sa")
+    ];
+    const [line] = playerLines(rows);
+    expect(line.champions).toEqual([
+      { champion: 'Tahm Kench', games: 16, wins: 9 },
+      { champion: "Kai'Sa", games: 2, wins: 2 },
+      { champion: 'Wukong', games: 2, wins: 1 }
+    ]);
+  });
+
+  it('counts their champion once in the ones that keep beating us', () => {
+    const rows = [game('a', false, 'Ahri', ['XinZhao']), game('b', false, 'Ahri', ['Xin Zhao']), game('c', true, 'Ahri', ['Xin Zhao']), game('d', false, 'Ahri', ['LeBlanc']), game('e', false, 'Ahri', ['Leblanc'])];
+    expect(toughest(rows)).toEqual([
+      { champion: 'LeBlanc', games: 2, wins: 0, winRate: 0 },
+      { champion: 'Xin Zhao', games: 3, wins: 1, winRate: 33 }
+    ]);
   });
 });

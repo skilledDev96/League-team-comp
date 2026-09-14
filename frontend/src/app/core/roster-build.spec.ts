@@ -147,6 +147,32 @@ describe('buildRoster', () => {
     ]);
   });
 
+  it('merges one champion spelled two ways into one pool entry, with the display name and the whole record', () => {
+    // Sir StonedAlot on the stored data: "Tahm Kench 69% 13" beside "Tahm Kench 0% 3" became 56% of 16.
+    const pool = poolOf({ top3: ['Tahm Kench'] }, {
+      champions: [
+        { champion: 'Tahm Kench', games: 13, wins: 9 },
+        { champion: 'Braum', games: 5, wins: 2 },
+        { champion: 'TahmKench', games: 3, wins: 0 },
+        { champion: 'MonkeyKing', games: 2, wins: 0 },
+        { champion: 'Wukong', games: 1, wins: 0 }
+      ]
+    } as never);
+    expect(pool.map((e) => [e.champion, e.games, e.winRate, e.declared])).toEqual([
+      ['Tahm Kench', 16, 56, true],
+      ['Braum', 5, 40, false],
+      ['Wukong', 3, 0, false]
+    ]);
+  });
+
+  it('counts a replay\'s Riot id and a Riot row\'s display name as one champion all the way from the rows', () => {
+    const riot = (matchId: string, win: boolean, champion: string) =>
+      ({ matchId, compId: null, compName: null, win, queue: 'Flex', date: NOW - 86_400_000, durationSec: 1800, players: [{ name: 'Go10x', position: 'JUNGLE', champion, kills: 3, deaths: 3, assists: 6, cs: 150, damage: 12_000 }] }) as unknown as AnalysisGame;
+    const m = buildRoster(input({ analysis: [riot('m1', true, 'Jarvan IV'), riot('m2', false, 'JarvanIV'), riot('m3', true, 'JarvanIV')], seriesGames: [], scrims: [] }));
+    const jg = cardById(m, 'p-jg')!;
+    expect(jg.pool.filter((e) => sameChampion(e.champion, 'Jarvan IV')).map((e) => [e.champion, e.games, e.winRate])).toEqual([['Jarvan IV', 3, 67]]);
+  });
+
   it('carries what they are working on in order, what is resolved, and learning before ready by priority', () => {
     const adc = cardById(buildRoster(input()), 'p-adc')!;
     expect(adc.working.map((w) => w.text)).toEqual(['Wave before roam', 'Ward river at 3:15']);

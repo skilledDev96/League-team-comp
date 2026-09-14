@@ -223,6 +223,27 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, the Review
     expect(root.querySelectorAll('.review-card-open').length).toBe(2);
   });
 
+  it('heads a league game\'s review with its own tag, not the analysis queue a replay arrives under', async () => {
+    // 14 Sep 2026: EUW1-7979615260 read "10 Sep · Scrim" on the Reviews tab while the Games list said "Bo3 game 3".
+    const replayId = scrim.id;
+    data.tournaments.set([{ id: 't1', name: 'Oryx', kind: 'tournament', order: 0 } as unknown as Tournament]);
+    data.tournamentSeries.set([series]);
+    data.seriesGames.set([{ ...seriesGame, gameNumber: 3, matchId: replayId } as unknown as SeriesGame]);
+    data.players.set(roster);
+    data.scrims.set([scrim]);
+    data.compAnalysis.set({ games: [{ ...riotGame, matchId: replayId, queue: 'Scrim' }], comps: [], totalTeamGames: 1, scannedMatches: 1, generatedAt: new Date(TODAY).toISOString() } as CompAnalysis);
+    data.gameReviews.set([review(replayId, 'League game', new Date(TODAY).toISOString())]);
+    const root = await openTab();
+    expect(text(root.querySelector('.review-card-date'))).toMatch(/· Bo3 game 3$/);
+  });
+
+  it('falls back to the analysis queue when no row holds the game', async () => {
+    data.compAnalysis.set({ games: [riotGame], comps: [], totalTeamGames: 1, scannedMatches: 1, generatedAt: new Date(TODAY).toISOString() } as CompAnalysis);
+    data.gameReviews.set([review(riotGame.matchId, 'Flex game', new Date(TODAY).toISOString())]);
+    const root = await openTab();
+    expect(text(root.querySelector('.review-card-date'))).toMatch(/· Flex$/);
+  });
+
   it('says so plainly when nothing has been reviewed', async () => {
     data.gameReviews.set([]);
     const root = await openTab();
@@ -403,5 +424,26 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, Starter an
 
     const windows = [...root.querySelectorAll('[aria-label="Window"] button')].map((b) => (b.textContent ?? '').trim());
     expect(windows).toEqual(['7 days', '14 days', '30 days', '90 days', 'All']);
+  });
+
+  it('prints KDA, CS a minute and vision to one decimal, a whole number included', async () => {
+    // 14 Sep 2026: a CS a minute of 6 and a vision of 31 printed as "6" and "31" beside "6.4" and "29.5".
+    data.compAnalysis.set({
+      games: [{ ...riotGame, players: [{ name: 'Rhu', position: 'BOTTOM', champion: 'Jinx', kills: 9, deaths: 2, assists: 5, cs: 180, damage: 52500, visionScore: 31 }] }],
+      comps: [],
+      totalTeamGames: 1,
+      scannedMatches: 1,
+      generatedAt: new Date(TODAY).toISOString()
+    } as CompAnalysis);
+    // The table lists the A team; Rhu is its one member here.
+    data.players.set([{ id: 'p-rhu', name: 'Rhu', role: 'ADC', order: 0 }] as unknown as Parameters<TeamDataService['players']['set']>[0]);
+    const { harness, root } = await page();
+    [...root.querySelectorAll<HTMLButtonElement>('app-detail-toggle button')].find((b) => b.textContent?.trim() === 'Full')!.click();
+    harness.detectChanges();
+    const cells = [...root.querySelectorAll('.games-player-table tbody tr')[0].querySelectorAll('td.num')].map((td) => text(td));
+    // Games, record, K/D/A, KDA, CS/min, DMG share, KP, Vision: (9 + 5) / 2 = 7, 180 CS over 30 minutes = 6, vision 31.
+    expect(cells).toContain('7.0');
+    expect(cells).toContain('6.0');
+    expect(cells).toContain('31.0');
   });
 });

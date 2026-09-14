@@ -157,8 +157,12 @@ export const MVP_BASELINES: Record<Role, Partial<Record<MvpMetric, { centre: num
 /** How many spreads one figure may count for, either way. */
 export const MVP_CLAMP = 2.5;
 
-/** Under five minutes a game is a remake: nobody carried it. */
-export const REMAKE_SECONDS = 300;
+/**
+ * Under ten minutes a game is a remake: nobody carried it, and nobody won it (14 Sep 2026: one rule for the whole app,
+ * raised from five minutes). A surrender vote opens at fifteen, so nothing but a remake ends a League game sooner.
+ * The game rows leave these out of every record; the MVP and the trophies read the same line.
+ */
+export const REMAKE_SECONDS = 600;
 
 /** A figure's lift names it on the chip only from half a spread above the usual. */
 const WHY_FROM = 0.5;
@@ -187,7 +191,7 @@ interface MvpLine {
 
 type Figures = Partial<Record<MvpMetric, number>>;
 
-/** A remake has a length and it is under five minutes. An unknown length is not a remake. */
+/** A remake has a length and it is under ten minutes. An unknown length is not a remake. */
 export function isRemake(game: Pick<MvpGame, 'durationSec'>): boolean {
   return typeof game.durationSec === 'number' && game.durationSec > 0 && game.durationSec < REMAKE_SECONDS;
 }

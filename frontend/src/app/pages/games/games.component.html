@@ -107,7 +107,7 @@
           <div class="review-card-head">
             @if (r.game) {
               <span class="tag" [class.good]="r.game.win" [class.bad]="!r.game.win">{{ r.game.win ? 'Win' : 'Loss' }}</span>
-              <span class="review-card-date">{{ r.game.date | date: 'd MMM' }} · {{ r.game.queue }}</span>
+              <span class="review-card-date">{{ r.game.date | date: 'd MMM' }} · {{ r.label ?? r.game.queue }}</span>
               @if (r.opponent) { <span class="review-card-vs">vs <b>{{ r.opponent }}</b></span> }
               @else if (r.game.enemyChampions?.length) { <span class="muted review-card-vs">vs {{ r.game.enemyChampions!.join(', ') }}</span> }
             } @else {
@@ -270,11 +270,11 @@
                     <span>{{ per(p.kills, p.statGames) }}</span><small>/</small><span>{{ per(p.deaths, p.statGames) }}</span><small>/</small><span>{{ per(p.assists, p.statGames) }}</span>
                   } @else { — }
                 </td>
-                <td class="num"><b>{{ p.statGames ? p.kda : '—' }}</b></td>
-                <td class="num">{{ p.csPerMin ?? '—' }}</td>
+                <td class="num"><b>{{ p.statGames ? p.kda.toFixed(1) : '—' }}</b></td>
+                <td class="num">{{ p.csPerMin !== undefined ? p.csPerMin.toFixed(1) : '—' }}</td>
                 <td class="num">{{ pct(p.damageShare) }}</td>
                 <td class="num">{{ pct(p.killParticipation) }}</td>
-                <td class="num">{{ p.visionPerGame ?? '—' }}</td>
+                <td class="num">{{ p.visionPerGame !== undefined ? p.visionPerGame.toFixed(1) : '—' }}</td>
                 <td>
                   <span class="games-champs">
                     @for (c of p.champions.slice(0, 6); track c.champion) {

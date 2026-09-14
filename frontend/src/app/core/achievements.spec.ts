@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AnalysisGame, TeamObjectives } from '../models/team.models';
 import { GameRow, RowPlayer } from '../pages/games/game-rows';
 import { ACHIEVEMENTS, Achievement, AchievementSources, achievementsOf } from './achievements';
+import { isRemake, REMAKE_SECONDS } from './game-mvp';
 import { FinishedSeries } from './series-results';
 
 const DAY = 86_400_000;
@@ -203,6 +204,15 @@ describe('game trophies', () => {
     expect(trophy({ rows: [row('lost', { win: false, durationSec: 1800, ours: [seat('Go10x', 'Vi', 0)] })] }, 'deathless').unlocked).toBe(false);
     expect(trophy({ rows: [row('remake', { durationSec: 180, ours: [seat('Go10x', 'Vi', 0)] })] }, 'deathless').unlocked).toBe(false);
   });
+
+  it('reads the one remake rule, ten minutes, off the MVP line: a 7-minute win earns nothing a game would', () => {
+    expect(REMAKE_SECONDS).toBe(600);
+    const remake = row('remake', { durationSec: 420, objectives: objectives({ towers: 2 }, { towers: 0 }), ours: [seat('Go10x', 'Vi', 0)] });
+    expect(isRemake(remake)).toBe(true);
+    expect(trophy({ rows: [remake] }, 'under-25').unlocked).toBe(false);
+    expect(trophy({ rows: [remake] }, 'no-tower-lost').unlocked).toBe(false);
+    expect(trophy({ rows: [remake] }, 'deathless').unlocked).toBe(false);
+  });
 });
 
 describe('counted trophies', () => {
@@ -221,7 +231,7 @@ describe('counted trophies', () => {
     const streak = trophy({ longestWinStreak: 3 }, 'streak-3');
     expect(streak).toMatchObject({ unlocked: true, thisSeason: false });
     expect(streak.earnedAt).toBeUndefined();
-    expect(trophy({ longestWinStreak: 3, window: { ...base.window, mode: 'all' } }, 'streak-3').thisSeason).toBe(true);
+    expect(trophy({ longestWinStreak: 3, window: { ...base.window, mode: 'all' } }, 'streak-3').thisSeason).toBe(false);
   });
 
   it('counts only full-stack games toward Full stack, and dates it by the twenty-fifth', () => {
@@ -249,12 +259,15 @@ describe('counted trophies', () => {
 });
 
 describe('this season', () => {
-  it('marks a trophy earned inside the window, not one earned before it, and every earned one when reading everything', () => {
+  it('marks a trophy earned inside the season, not one earned before it, and none at all when reading everything', () => {
     const inside = [row('inside', { durationSec: 1300, date: T0 + 2 * DAY })];
     const before = [row('before', { durationSec: 1300, date: T0 - 60 * DAY })];
     expect(trophy({ rows: inside }, 'under-25').thisSeason).toBe(true);
     expect(trophy({ rows: before }, 'under-25').thisSeason).toBe(false);
-    expect(trophy({ rows: before, window: { ...base.window, mode: 'all' } }, 'under-25').thisSeason).toBe(true);
+    // All time has no season to claim (14 Sep 2026: every earned tile's tip said "Earned this season." under All time).
+    expect(trophy({ rows: before, window: { ...base.window, mode: 'all' } }, 'under-25')).toMatchObject({ unlocked: true, thisSeason: false });
+    expect(trophy({ rows: inside, window: { ...base.window, mode: 'all' } }, 'under-25')).toMatchObject({ unlocked: true, thisSeason: false });
+    expect(cabinet({ rows: [...inside, ...before], longestWinStreak: 3, window: { ...base.window, mode: 'all' } }).some((a) => a.thisSeason)).toBe(false);
     expect(trophy({ rows: [], window: { ...base.window, mode: 'all' } }, 'under-25').thisSeason).toBeUndefined();
   });
 });

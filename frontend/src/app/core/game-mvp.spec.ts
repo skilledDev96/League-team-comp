@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Scrim } from '../models/team.models';
-import { GameMvp, isRemake, MVP_BASELINES, MVP_TERMS, MvpGame, MvpPlayer, mvpGameFromRow, mvpGameFromScrim, mvpGameOfSeriesGame, mvpOf, mvpSeatOf, SeriesMvp, seriesMvpOf, seriesMvpOfGames } from './game-mvp';
+import { GameMvp, isRemake, MVP_BASELINES, REMAKE_SECONDS, MVP_TERMS, MvpGame, MvpPlayer, mvpGameFromRow, mvpGameFromScrim, mvpGameOfSeriesGame, mvpOf, mvpSeatOf, SeriesMvp, seriesMvpOf, seriesMvpOfGames } from './game-mvp';
 
 /** A seat's full end-of-game line, the way a replay or a refreshed analysis carries it. */
 const seat = (position: string, champion: string, kills: number, deaths: number, assists: number, damage: number, damageTaken: number, visionScore: number, cs: number, name?: string): MvpPlayer => ({
@@ -117,6 +117,17 @@ describe('the role-aware model', () => {
     ]) as SeriesMvp;
     expect(series.read).toBe(1);
     expect(series.games).toBe(1);
+  });
+
+  it('draws the remake line at ten minutes, the one rule the rows and the trophies read too', () => {
+    // A surrender opens at fifteen, so nothing but a remake ends a game before ten (14 Sep 2026; it was five).
+    expect(REMAKE_SECONDS).toBe(600);
+    expect(isRemake({ durationSec: 205 })).toBe(true);
+    expect(isRemake({ durationSec: 420 })).toBe(true);
+    expect(isRemake({ durationSec: 599 })).toBe(true);
+    expect(isRemake({ durationSec: 600 })).toBe(false);
+    expect(isRemake({ durationSec: 0 })).toBe(false);
+    expect(mvpOf({ ...SUPPORT_CARRY, durationSec: 420 })).toBeNull();
   });
 
   it('never offers many deaths as a reason, and falls back to the K/D/A when too little lifted the seat', () => {
