@@ -64,6 +64,12 @@ describe('influenceOf', () => {
     expect(mid.line).toBe('Ahri: +1.0k across the fights they were in, and the biggest was +1.0k on a kill at 10 min.');
   });
 
+  it('names only an objective the side of the event took (14 Sep 2026)', () => {
+    const theirHerald: InfluenceTimeline = { ...TIMELINE, objectives: [{ ...objective(20, 'herald'), side: 'them' } as TimelineObjective] };
+    const [jungle] = influenceOf(GAME, theirHerald);
+    expect(jungle.best?.what).toBe('a kill');
+  });
+
   it('says what the curve does not reach rather than counting it as nothing', () => {
     const adc = influenceOf(GAME, TIMELINE)[3];
     expect(adc.unpriced).toBe(1);

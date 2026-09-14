@@ -1624,18 +1624,20 @@ export function closedChampions(matchId: string, game: AnalysisGame | undefined,
  * reason stays with the swap: it argues for the job the seat lacked, which the open champion does as well.
  */
 export function openSwaps<S extends ReviewSwap>(swaps: readonly S[], closed: readonly string[]): S[] {
-  if (!closed.length) return [...swaps];
   const isOpen = (c: string) => !closed.some((x) => sameChampion(x, c));
+  // A champion is suggested once across the whole draft (14 Sep 2026): promoting an open alternative into a swap whose
+  // own pick was closed used to leave it in another swap's alternatives too, so Maokai was offered twice.
+  const used: string[] = [];
+  const fresh = (c: string) => !used.some((u) => sameChampion(u, c));
   const out: S[] = [];
   for (const s of swaps) {
     const named = [s.in, ...(s.alternatives ?? [])].map((c) => (typeof c === 'string' ? c.trim() : '')).filter(Boolean);
-    if (named.every(isOpen)) {
-      out.push(s);
-      continue;
-    }
-    const [first, ...rest] = named.filter(isOpen);
+    const open = named.filter((c) => isOpen(c) && fresh(c));
+    const [first, ...rest] = open;
     if (!first) continue;
-    out.push({ ...s, in: first, ...(s.alternatives ? { alternatives: rest.filter((a) => a !== first) } : {}) });
+    used.push(...open);
+    const unchanged = open.length === named.length && first === (typeof s.in === 'string' ? s.in.trim() : s.in);
+    out.push(unchanged ? s : { ...s, in: first, ...(s.alternatives || rest.length ? { alternatives: rest } : {}) });
   }
   return out;
 }

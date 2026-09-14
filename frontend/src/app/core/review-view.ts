@@ -139,7 +139,7 @@ export function playerStatLine(player: AnalysisPlayer | undefined): string {
   return bits.join(' · ');
 }
 
-function firstSentence(text: string): string {
+export function firstSentence(text: string): string {
   const m = text.match(/^(.+?[.!?])(\s|$)/);
   return (m ? m[1] : text).trim();
 }

@@ -1560,7 +1560,8 @@ describe('the draft, again', () => {
     expect(g3.draft!.swaps.map((s) => [s.seat, s.in, s.alternatives])).toEqual([
       ['Support', 'Lulu', ['Milio', 'Janna']],
       ['Top', 'Maokai', undefined],
-      ['Jungle', 'Sejuani', ['Maokai', 'Zac']]
+      // Maokai moved up for Top, so Jungle no longer offers it a second time (14 Sep 2026).
+      ['Jungle', 'Sejuani', ['Zac']]
     ]);
     expect(g3.draft!.swaps[1]).toMatchObject({ out: 'Mordekaiser', why: 'A frontline at 25:40.', glyphs: ['wall', 'fist', 'shield'] });
     // With neither the series nor the analysed game nothing is known to be closed, and the swap stands as stored.
@@ -1799,5 +1800,19 @@ describe('every option is safe to show', () => {
       for (const c of calls) for (const o of c!.options) expect(o).not.toMatch(RIOT_TAG);
       for (const a of film.card.asks) expect(a.name).not.toMatch(RIOT_TAG);
     }
+  });
+});
+
+describe('openSwaps names a champion once across the draft (14 Sep 2026)', () => {
+  it('drops an alternative that an earlier swap was promoted to, and keeps an untouched draft as it was', () => {
+    const swaps = [
+      { seat: 'Top', out: 'Mordekaiser', in: 'Ornn', alternatives: ['Sion', 'Maokai'], why: 'frontline', gains: [] },
+      { seat: 'Jungle', out: 'Vi', in: 'Sejuani', alternatives: ['Maokai', 'Zac'], why: 'engage', gains: [] }
+    ] as unknown as Parameters<typeof openSwaps>[0];
+    // Ornn was burned and Sion was their pick: Maokai moves up for Top, so the Jungle swap no longer offers it.
+    const out = openSwaps(swaps, ['Ornn', 'Sion']);
+    expect(out.map((x) => [x.in, x.alternatives])).toEqual([['Maokai', []], ['Sejuani', ['Zac']]]);
+    const clean = [{ seat: 'Support', out: 'Leona', in: 'Nautilus', alternatives: ['Thresh'], why: 'peel', gains: [] }] as unknown as Parameters<typeof openSwaps>[0];
+    expect(openSwaps(clean, [])[0]).toBe(clean[0]);
   });
 });

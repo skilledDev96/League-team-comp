@@ -125,7 +125,7 @@ describe('buildHome', () => {
 
   it('counts the season as the running tournament, and everything on All time', () => {
     const season = buildHome(input());
-    expect(season.season).toMatchObject({ label: 'Oryx Fearless', tournamentId: 'cup' });
+    expect(season.season).toMatchObject({ label: expect.stringMatching(/^Since \d{1,2} [A-Z][a-z]+$/), tournamentId: 'cup' });
     expect(season.record.counters).toMatchObject({ games: 4, wins: 3, losses: 1, seriesWon: 1, seriesPlayed: 1 });
     const all = buildHome(input({ mode: 'all' }));
     expect(all.record.counters).toMatchObject({ games: 5, wins: 4, losses: 1 });

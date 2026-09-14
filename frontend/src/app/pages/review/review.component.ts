@@ -29,7 +29,7 @@ import {
   summarise,
   MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
-import { adviceTopics, atSource, formatGap, formatSide, GameSource, gapIsGood, keepDoing, laneTable, laneTotals, METRIC_TIPS, MetricSplit, PatternFilters, PatternSource, patternSourceOf, practiceInSource, readPatternFilters, RoleMode, rosterOrderOf, seriousOnly, SideStat, starterNamesFor, teamSplits, tournamentMatchIds, withRoles, withStarters, workOn } from './win-loss-splits';
+import { adviceTopics, atSource, formatGap, formatSide, GameSource, gapIsGood, keepDoing, laneTable, laneTotals, METRIC_TIPS, MetricSplit, PatternFilters, PatternSource, patternSourceOf, practiceInSource, readPatternFilters, RoleMode, rosterOrderOf, seriousOnly, SideStat, starterNamesFor, teamSplits, tournamentMatchIds, withRoles, withStarters, workOn, withoutRemakes, missingReplaysFor } from './win-loss-splits';
 import { InfoTipComponent } from '../../shared/info-tip.component';
 
 /**
@@ -119,7 +119,7 @@ export class ReviewComponent {
   /** Comp and champion filters applied, every game, tagged or not. */
   private readonly taggedOrNot = computed<AnalysisGame[]>(() => {
     const comp = this.compFilter();
-    const games = this.analysis()?.games ?? [];
+    const games = withoutRemakes(this.analysis()?.games ?? []);
     return (comp === 'all' ? games : games.filter((game) => this.compFor(game)?.id === comp)).filter((game) =>
       this.filter.passes(game.players.map((p) => p.champion))
     );
@@ -165,13 +165,9 @@ export class ReviewComponent {
   protected readonly patternSource = computed<PatternSource>(() => patternSourceOf(this.filteredGames()));
 
   /** Tournament games the replay view cannot count, because nobody imported the replay. */
-  protected readonly missingReplays = computed(() => {
-    const series = new Map(this.data.tournamentSeries().map((s) => [s.id, s]));
-    return this.data
-      .seriesGames()
-      .filter((g) => g.win !== undefined && !g.matchId)
-      .map((g) => ({ id: g.id, label: `${series.get(g.seriesId)?.opponent ?? 'series'} game ${g.gameNumber}` }));
-  });
+  protected readonly missingReplays = computed(() =>
+    missingReplaysFor(this.data.seriesGames(), this.data.tournamentSeries(), this.sourceMode(), this.tournamentIds())
+  );
 
   // ---- The long sections behind chips, remembered per browser ----
 

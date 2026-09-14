@@ -7,6 +7,8 @@ import {
   championKey,
   formatSide,
   gamesWithTheFive,
+  missingReplaysFor,
+  withoutRemakes,
   hasFullFive,
   practiceInSource,
   ratioSplit,
@@ -677,5 +679,29 @@ describe('a player with the main five', () => {
     expect(championKey('FiddleSticks')).toBe(championKey('Fiddlesticks'));
     const games = [game(true, {}, (role) => (role === 'Top' ? { champion: 'FiddleSticks' } : {})), game(false, {}, (role) => (role === 'Top' ? { champion: 'Fiddlesticks' } : {}))];
     expect(playerSplits(games, 1).find((r) => r.name === 'top')!.champions).toEqual([{ champion: 'FiddleSticks', games: 2, wins: 1 }]);
+  });
+});
+
+describe('remakes and missing replays on Patterns (14 Sep 2026)', () => {
+  const g = (matchId: string, durationSec: number) => ({ matchId, durationSec, queue: 'Flex', players: [] }) as unknown as AnalysisGame;
+
+  it('leaves out a game under ten minutes and keeps one whose length is unknown', () => {
+    expect(withoutRemakes([g('a', 162), g('b', 600), g('c', 0), g('d', 1800)]).map((x) => x.matchId)).toEqual(['b', 'c', 'd']);
+  });
+
+  it('lists a result with no replay only under the source its series belongs to', () => {
+    const series = [
+      { id: 's1', tournamentId: 'oryx', opponent: 'MAD Synergy' },
+      { id: 's2', tournamentId: 'scrims', opponent: 'MOSS' }
+    ] as unknown as TournamentSeries[];
+    const games = [
+      { id: 'g1', seriesId: 's1', gameNumber: 1, win: true },
+      { id: 'g2', seriesId: 's2', gameNumber: 2, win: false },
+      { id: 'g3', seriesId: 's1', gameNumber: 2, win: false, matchId: 'EUW1-1' }
+    ] as unknown as SeriesGame[];
+    const ids = new Set(['oryx']);
+    expect(missingReplaysFor(games, series, 'tournament', ids)).toEqual([{ id: 'g1', label: 'MAD Synergy game 1' }]);
+    expect(missingReplaysFor(games, series, 'scrimClash', ids)).toEqual([{ id: 'g2', label: 'MOSS game 2' }]);
+    expect(missingReplaysFor(games, series, 'flex', ids)).toEqual([]);
   });
 });

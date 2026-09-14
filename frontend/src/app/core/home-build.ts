@@ -1,7 +1,7 @@
 import { AnalysisGame, Player } from '../models/team.models';
 import { buildGameRows, GameRow, PlayerLine, playerLines } from '../pages/games/game-rows';
 import { MIN_FOR_A_CLAIM } from '../pages/review/loss-patterns.util';
-import { Advice, adviceTopics, DEFAULT_PATTERN_FILTERS, keepDoing, patternInputs, tournamentMatchIds, workOn } from '../pages/review/win-loss-splits';
+import { Advice, adviceTopics, DEFAULT_PATTERN_FILTERS, keepDoing, patternInputs, tournamentMatchIds, workOn, withoutRemakes } from '../pages/review/win-loss-splits';
 import { achievementsOf } from './achievements';
 import { compOfTheMonth } from './comp-month';
 import { mvpGameFromRow, mvpOf } from './game-mvp';
@@ -252,7 +252,7 @@ export function buildHome(i: HomeInput): HomeModel {
   const entries = mvpRace(seasonCrowns, i.players);
 
   const tournamentIds = tournamentMatchIds(i.tournaments, i.series, i.seriesGames);
-  const inputs = patternInputs(i.analysis, i.patternFilters ?? DEFAULT_PATTERN_FILTERS, { practice: i.practice, tournamentIds, roster: i.players });
+  const inputs = patternInputs(withoutRemakes(i.analysis), i.patternFilters ?? DEFAULT_PATTERN_FILTERS, { practice: i.practice, tournamentIds, roster: i.players });
   const wins = inputs.games.filter((g) => g.win).length;
   // Keep doing leaves out every subject Work on holds, over Work on's whole list and not the lines Home
   // prints of it, so the two columns here agree with the Patterns tab's (14 Sep 2026).
@@ -305,7 +305,7 @@ export function buildHome(i: HomeInput): HomeModel {
     objectives: objectiveControl(seasonGames),
     trophies: achievementsOf({
       rows: serious,
-      analysis: i.analysis.filter((g) => !i.practice.has(g.matchId)),
+      analysis: withoutRemakes(i.analysis).filter((g) => !i.practice.has(g.matchId)),
       finished,
       titlesByName,
       longestWinStreak: longest?.length ?? 0,

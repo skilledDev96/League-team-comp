@@ -182,8 +182,11 @@ export function influenceOf(game: MvpGame | undefined | null, timeline: Influenc
 
 /** What the event was about: the objective within a minute of it either way, else the kill or the death itself. */
 function whatOf(event: Event, objectives: readonly TimelineObjective[]): string {
+  // Only an objective taken by the side the swing went to (14 Sep 2026): a swing against us next to our own dragon was
+  // named after it, which read as the dragon costing us. A death that bought our objective still names it.
+  const side = (event.swing ?? 0) >= 0 ? 'us' : 'them';
   const near = objectives
-    .filter((o) => Math.abs(o.minute * 60 - event.sec) <= OBJECTIVE_WINDOW_SEC)
+    .filter((o) => o.side === side && Math.abs(o.minute * 60 - event.sec) <= OBJECTIVE_WINDOW_SEC)
     .sort((a, b) => Math.abs(a.minute * 60 - event.sec) - Math.abs(b.minute * 60 - event.sec))[0];
   if (near) return near.type === 'dragon' && near.subType ? `the ${near.subType} dragon` : OBJECTIVE_WORDS[near.type];
   return event.kind === 'kill' ? 'a kill' : 'a death';

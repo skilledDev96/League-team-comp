@@ -101,7 +101,9 @@ export function seasonWindow(tournaments: readonly Tournament[], now: number, mo
     mode,
     from: parseLocalDate(t.startDate) ?? rolling,
     to: end !== null && end < now ? end : now,
-    label: t.name,
+    // The window, not the tournament (14 Sep 2026): the record under it counts flex and scrims inside those dates too, so a
+    // tournament name above "9–19" read as the league record.
+    label: seasonLabelFrom(parseLocalDate(t.startDate), t.name),
     tournamentId: t.id
   };
 }
@@ -111,6 +113,12 @@ export function seasonWindow(tournaments: readonly Tournament[], now: number, mo
  * typed in from the draft room for a series with no agreed date has no date at all, and it still
  * belongs to its tournament's season — but to no other window, since nobody can say when it was.
  */
+/** "Since 28 Aug", or the tournament's name when it has no start date. */
+export function seasonLabelFrom(start: number | null, fallback: string): string {
+  if (start === null) return fallback;
+  return `Since ${new Date(start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+}
+
 export function seasonRows(
   rows: readonly GameRow[],
   w: SeasonWindow,

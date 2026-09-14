@@ -90,7 +90,7 @@ describe('seasonWindow', () => {
       mode: 'season',
       from: new Date(2026, 7, 1).getTime(),
       to: NOW,
-      label: 'Oryx Fearless League',
+      label: 'Since 1 Aug',
       tournamentId: 'oryx'
     });
   });
@@ -108,7 +108,7 @@ describe('seasonWindow', () => {
 
   it('falls back to the dates when nothing is marked active, counting the end day whole', () => {
     const w = seasonWindow([tournament('weekend', { startDate: '2026-09-12', endDate: '2026-09-13' })], NOW, 'season');
-    expect(w).toMatchObject({ tournamentId: 'weekend', from: new Date(2026, 8, 12).getTime(), to: NOW, label: 'Cup weekend' });
+    expect(w).toMatchObject({ tournamentId: 'weekend', from: new Date(2026, 8, 12).getTime(), to: NOW, label: 'Since 12 Sept' });
     // An open end does not hold today on its dates alone.
     expect(seasonWindow([tournament('open', { startDate: '2026-09-01' })], NOW, 'season').tournamentId).toBeUndefined();
   });

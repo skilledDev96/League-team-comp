@@ -1,3 +1,4 @@
+import { isRemake } from '../../core/game-mvp';
 /**
  * What changes between the games we win and the games we lose.
  *
@@ -164,6 +165,36 @@ export function starterCount(game: AnalysisGame, starters: readonly string[]): n
  * as practice — the Roster and Patterns leave those out, and the card counted 75 games where the Roster's
  * figures stood on 58 (14 Sep 2026). With fewer than five starters named nothing is asked of the others.
  */
+/**
+ * A remake is not a game (14 Sep 2026, the one rule in core/game-mvp.ts): Patterns, Home's advice and the profile read the
+ * analysis directly rather than the game rows, so they leave remakes out here, the same way buildGameRows does.
+ */
+export function withoutRemakes(games: readonly AnalysisGame[]): AnalysisGame[] {
+  return games.filter((g) => !isRemake(g));
+}
+
+/**
+ * The series games with a result and no replay yet that belong to the source being read (14 Sep 2026): a league game
+ * with no replay is news on Tournaments, not on Scrims + Clash.
+ */
+export function missingReplaysFor(
+  seriesGames: readonly Pick<SeriesGame, 'id' | 'seriesId' | 'gameNumber' | 'win' | 'matchId'>[],
+  series: readonly Pick<TournamentSeries, 'id' | 'tournamentId' | 'opponent'>[],
+  source: GameSource,
+  tournamentIds: ReadonlySet<string>
+): { id: string; label: string }[] {
+  if (source === 'flex') return [];
+  const byId = new Map(series.map((s) => [s.id, s]));
+  return seriesGames
+    .filter((g) => g.win !== undefined && !g.matchId)
+    .filter((g) => {
+      const s = byId.get(g.seriesId);
+      if (!s) return false;
+      return tournamentIds.has(s.tournamentId) === (source === 'tournament');
+    })
+    .map((g) => ({ id: g.id, label: `${byId.get(g.seriesId)?.opponent ?? 'series'} game ${g.gameNumber}` }));
+}
+
 export function gamesWithTheFive(
   games: readonly AnalysisGame[],
   name: string,
@@ -173,6 +204,7 @@ export function gamesWithTheFive(
 ): AnalysisGame[] {
   const others = starters.filter((s) => s !== name);
   return games.filter((g) => {
+    if (isRemake(g)) return false;
     if (queue && g.queue !== queue) return false;
     if (practice.has(g.matchId)) return false;
     if (!g.players.some((p) => p.name === name)) return false;

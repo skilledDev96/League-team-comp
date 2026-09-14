@@ -2,7 +2,7 @@ import { DatePipe, Location } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
 import { AnalysisGame, DraftGain, FilmChoice, GameReview, ReviewGap, ReviewPoint, ReviewSwap, ReviewTheme, Role } from '../models/team.models';
-import { alternativesPhrase, askOf, GAIN_LABELS, reviewAsText, reviewSource, THEME_GLYPHS } from '../core/review-view';
+import { alternativesPhrase, askOf, firstSentence, GAIN_LABELS, reviewAsText, reviewSource, THEME_GLYPHS } from '../core/review-view';
 import type { FilmGlyph } from '../core/film-model';
 import { closedChampions, openSwaps } from '../core/film-build';
 import { DecidedByComponent } from './review/decided-by.component';
@@ -53,7 +53,7 @@ import { TooltipDirective } from './tooltip.directive';
         <summary class="game-review-toggle">
           <span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span>
           <strong>Review</strong>
-          <span class="game-review-headline">{{ r.team.headline || 'Read the review' }}</span>
+          <span class="game-review-headline">{{ headlineOf(r) }}</span>
           <span class="tag" [appTip]="sourceTip()">{{ sourceTag() }}</span>
           <span class="material-symbols-rounded intel-collapse-chevron" aria-hidden="true">chevron_right</span>
         </summary>
@@ -215,6 +215,11 @@ import { TooltipDirective } from './tooltip.directive';
   `
 })
 export class GameReviewComponent {
+  /** The same headline the film's title card uses when a review has none of its own (14 Sep 2026): its summary's first sentence. */
+  protected headlineOf(r: GameReview): string {
+    return r.team.headline || firstSentence(r.team.summary || '') || 'Read the review';
+  }
+
   readonly review = input<GameReview | undefined>(undefined);
   /** The game the review is about, for the scoreline and the poster. */
   readonly game = input<AnalysisGame | undefined>(undefined);
