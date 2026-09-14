@@ -699,9 +699,11 @@ describe('remakes and missing replays on Patterns (14 Sep 2026)', () => {
       { id: 'g2', seriesId: 's2', gameNumber: 2, win: false },
       { id: 'g3', seriesId: 's1', gameNumber: 2, win: false, matchId: 'EUW1-1' }
     ] as unknown as SeriesGame[];
-    const ids = new Set(['oryx']);
-    expect(missingReplaysFor(games, series, 'tournament', ids)).toEqual([{ id: 'g1', label: 'MAD Synergy game 1' }]);
-    expect(missingReplaysFor(games, series, 'scrimClash', ids)).toEqual([{ id: 'g2', label: 'MOSS game 2' }]);
-    expect(missingReplaysFor(games, series, 'flex', ids)).toEqual([]);
+    // Grouped the way the app groups them: the scrims group by its kind, every other group a tournament. (The set the
+    // component holds for sources is of MATCH ids, which is what the first version wrongly compared against.)
+    const groups = [{ id: 'oryx', kind: 'tournament' }, { id: 'scrims', kind: 'scrims' }] as unknown as Tournament[];
+    expect(missingReplaysFor(games, series, groups, 'tournament')).toEqual([{ id: 'g1', label: 'MAD Synergy game 1' }]);
+    expect(missingReplaysFor(games, series, groups, 'scrimClash')).toEqual([{ id: 'g2', label: 'MOSS game 2' }]);
+    expect(missingReplaysFor(games, series, groups, 'flex')).toEqual([]);
   });
 });

@@ -180,17 +180,19 @@ export function withoutRemakes(games: readonly AnalysisGame[]): AnalysisGame[] {
 export function missingReplaysFor(
   seriesGames: readonly Pick<SeriesGame, 'id' | 'seriesId' | 'gameNumber' | 'win' | 'matchId'>[],
   series: readonly Pick<TournamentSeries, 'id' | 'tournamentId' | 'opponent'>[],
-  source: GameSource,
-  tournamentIds: ReadonlySet<string>
+  groups: readonly Pick<Tournament, 'id' | 'kind'>[],
+  source: GameSource
 ): { id: string; label: string }[] {
   if (source === 'flex') return [];
   const byId = new Map(series.map((s) => [s.id, s]));
+  const scrimGroups = new Set(groups.filter((t) => t.kind === 'scrims').map((t) => t.id));
   return seriesGames
     .filter((g) => g.win !== undefined && !g.matchId)
     .filter((g) => {
       const s = byId.get(g.seriesId);
       if (!s) return false;
-      return tournamentIds.has(s.tournamentId) === (source === 'tournament');
+      // A series in the scrims group is read under Scrims + Clash; every other group is a tournament.
+      return scrimGroups.has(s.tournamentId) === (source === 'scrimClash');
     })
     .map((g) => ({ id: g.id, label: `${byId.get(g.seriesId)?.opponent ?? 'series'} game ${g.gameNumber}` }));
 }

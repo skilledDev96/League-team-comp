@@ -166,7 +166,7 @@ export class ReviewComponent {
 
   /** Tournament games the replay view cannot count, because nobody imported the replay. */
   protected readonly missingReplays = computed(() =>
-    missingReplaysFor(this.data.seriesGames(), this.data.tournamentSeries(), this.sourceMode(), this.tournamentIds())
+    missingReplaysFor(this.data.seriesGames(), this.data.tournamentSeries(), this.data.tournaments(), this.sourceMode())
   );
 
   // ---- The long sections behind chips, remembered per browser ----
