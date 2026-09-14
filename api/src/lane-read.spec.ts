@@ -128,6 +128,13 @@ describe('playerFacts', () => {
       }),
       1800
     );
-    expect(facts).toEqual({ goldPerMin: 300, visionPerMin: 2, controlWards: 5, wardTakedowns: 7, soloKills: 0, timeDeadSec: 95, plates: 1, damageShare: 0.123 });
+    expect(facts).toEqual({ goldPerMin: 300, visionPerMin: 2, controlWards: 5, wardTakedowns: 7, soloKills: 0, timeDeadSec: 95, plates: 1, damageShare: 0.1234 });
+  });
+
+  it("keeps Riot's damage share unrounded, so a whole percent is rounded once (EUW1_7974992024)", () => {
+    // Tristana dealt 46,611 of her team's 124,341. Three places stored 0.375 and the app printed 38%.
+    const share = playerFacts(part({ teamId: 100, teamPosition: 'BOTTOM', extras: { teamDamagePercentage: 0.37485886750610825 } }), 1800).damageShare!;
+    expect(share).toBe(0.37485886750610825);
+    expect(Math.round(share * 100)).toBe(37);
   });
 });

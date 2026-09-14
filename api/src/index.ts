@@ -65,6 +65,8 @@ import {
   buildPlayerPrompt,
   buildTeamPrompt,
   costUsd,
+  draftLockouts,
+  SeriesGameLike,
   GameReview,
   parseGameReviewRequest,
   parsePlayerNotes,
@@ -2423,6 +2425,31 @@ async function laneMatchupsFor(ours: ReviewContext["players"], enemies: { positi
   }
 }
 
+/**
+ * The bans of the series game that owns this match, and the champions earlier games of a fearless series burned
+ * (14 Sep 2026), so the review never suggests a swap that was not open. A match no series game owns is a Flex or
+ * Clash game: nothing is closed but the enemy five, which the context already carries. A group is fearless unless it
+ * is the scrims group or says fearless: false, the rule the app uses.
+ */
+async function draftLockoutsFor(matchId: string): Promise<{ bans: string[]; burned: string[] }> {
+  const none = { bans: [] as string[], burned: [] as string[] };
+  try {
+    const db = getFirestore();
+    const owner = await db.collection('seriesGames').where('matchId', '==', matchId).limit(1).get();
+    if (owner.empty) return none;
+    const seriesId = String(owner.docs[0].data().seriesId ?? '');
+    if (!seriesId) return none;
+    const [gamesSnap, seriesSnap] = await Promise.all([db.collection('seriesGames').where('seriesId', '==', seriesId).get(), db.doc('tournamentSeries/' + seriesId).get()]);
+    const tournamentId = String((seriesSnap.data() as { tournamentId?: string } | undefined)?.tournamentId ?? '');
+    const group = tournamentId ? ((await db.doc('tournaments/' + tournamentId).get()).data() as { kind?: string; fearless?: boolean } | undefined) : undefined;
+    const fearless = !!group && group.kind !== 'scrims' && group.fearless !== false;
+    const games = gamesSnap.docs.map((d) => d.data() as SeriesGameLike);
+    return draftLockouts(matchId, games, fearless);
+  } catch {
+    return none;
+  }
+}
+
 async function reviewGame(
   matchId: string,
   opts: { anthropicKey: string; riotKey: string; trigger: GameReview['trigger']; expect?: CompExpectation | null; games?: AnalysisGameResponse[] }
@@ -2499,6 +2526,7 @@ async function reviewGame(
 
   const ourFive = reviewPlayers(game);
   const laneMatchups = await laneMatchupsFor(ourFive, game.enemies, matchId);
+  const lockouts = await draftLockoutsFor(matchId);
 
   const ctx: ReviewContext = {
     teamName: settings.teamName || 'the team',
@@ -2509,6 +2537,9 @@ async function reviewGame(
     note,
     players: ourFive,
     championNames,
+    // What was closed in this game (14 Sep 2026): its bans, and in a fearless series every champion an earlier game burned.
+    ...(lockouts.bans.length > 0 && { bans: lockouts.bans }),
+    ...(lockouts.burned.length > 0 && { burned: lockouts.burned }),
     ...(laneMatchups.length > 0 && { laneMatchups }),
     ...(recordedLines.length > 0 && { recordedLines }),
     // The recording goes over whole beside its sentences (11 Sep 2026): the

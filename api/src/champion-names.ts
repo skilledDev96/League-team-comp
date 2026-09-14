@@ -4,6 +4,12 @@
  * Wukong, "Nunu" is Nunu & Willump. One table, so the match reader and the
  * review's validator normalise the same way (10 Sep 2026, moved out of
  * index.ts so `game-review.ts` can read it without a cycle).
+ *
+ * The whole table was checked against Data Dragon 16.18.1 on 14 Sep 2026, every id whose name
+ * differs, after an audit found "MasterYi" printed on a review: KSante, LeeSin and MasterYi were
+ * missing. FiddleSticks is not a Data Dragon id (that is "Fiddlesticks") but it is what Riot's
+ * match payload sends as championName, so it is here too and `riotChampionId` maps back to it,
+ * which is the key the crawler files it under.
  */
 export const DDRAGON_TO_DISPLAY: Record<string, string> = {
   Belveth: "Bel'Veth",
@@ -23,7 +29,11 @@ export const DDRAGON_TO_DISPLAY: Record<string, string> = {
   XinZhao: 'Xin Zhao',
   AurelionSol: 'Aurelion Sol',
   Chogath: "Cho'Gath",
-  MonkeyKing: 'Wukong'
+  MonkeyKing: 'Wukong',
+  KSante: "K'Sante",
+  LeeSin: 'Lee Sin',
+  MasterYi: 'Master Yi',
+  FiddleSticks: 'Fiddlesticks'
 };
 
 /** The display name for a Riot championName; a name the table does not carry is already the display name. */

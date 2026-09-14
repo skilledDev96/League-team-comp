@@ -15,8 +15,13 @@
 import { FightTally, killShare } from './fights';
 
 export interface TeamObjectives {
-  firstBlood: boolean;
-  firstTower: boolean;
+  /**
+   * Optional since 14 Sep 2026: a replay does not record first blood or first tower, and the
+   * importer stored both as `false` on both sides, which the old early-game test read as "conceded
+   * both" on every scrim loss. Absent means unknown; a factor that needs one says nothing.
+   */
+  firstBlood?: boolean;
+  firstTower?: boolean;
   dragons: number;
   barons: number;
   heralds: number;
@@ -64,6 +69,16 @@ const TOWER_DEFICIT = 4;
 const LONG_GAME_SECONDS = 30 * 60;
 
 /**
+ * Whether `taker` drew both first blood and first tower off `other`, known on both sides
+ * (14 Sep 2026). Riot's match sets exactly one side true, so for a Riot game this is the old test;
+ * a replay stores unknown as `false` on both sides (or leaves it out), and neither side can be
+ * said to have taken anything — the early-game factors then stay silent instead of claiming it.
+ */
+function tookFirsts(taker: TeamObjectives, other: TeamObjectives): boolean {
+  return taker.firstBlood === true && other.firstBlood === false && taker.firstTower === true && other.firstTower === false;
+}
+
+/**
  * Ranked reasons a loss happened, most explanatory first.
  *
  * Order is deliberate and not by severity: it walks the game forward in time,
@@ -83,7 +98,7 @@ export function describeLoss(
   const { ours, theirs } = objectives;
   const factors: LossFactor[] = [];
 
-  if (!ours.firstBlood && !ours.firstTower) {
+  if (tookFirsts(theirs, ours)) {
     factors.push({
       code: 'early_game',
       label: 'Lost the early game',
@@ -184,7 +199,7 @@ export function describeWin(
   const { ours, theirs } = objectives;
   const factors: WinFactor[] = [];
 
-  if (ours.firstBlood && ours.firstTower) {
+  if (tookFirsts(ours, theirs)) {
     factors.push({
       code: 'early_lead',
       label: 'Won the early game',

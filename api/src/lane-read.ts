@@ -199,7 +199,9 @@ export function playerFacts(p: LaneParticipant, durationSec: number): PlayerFact
     ...(x.dragonTakedowns !== undefined ? { dragonTakedowns: x.dragonTakedowns } : {}),
     ...(x.baronTakedowns !== undefined ? { baronTakedowns: x.baronTakedowns } : {}),
     ...(x.killsNearEnemyTurret !== undefined ? { killsNearEnemyTurret: x.killsNearEnemyTurret } : {}),
-    ...(x.teamDamagePercentage !== undefined ? { damageShare: Math.round(x.teamDamagePercentage * 1000) / 1000 } : {}),
+    // Riot's figure as sent (14 Sep 2026). Rounding to three places here crossed a whole percent
+    // once the app rounded again: 0.374859 stored as 0.375 and printed as 38% for a 37% share.
+    ...(x.teamDamagePercentage !== undefined ? { damageShare: x.teamDamagePercentage } : {}),
     ...(x.doubleKills !== undefined ? { doubleKills: x.doubleKills } : {}),
     ...(x.tripleKills !== undefined ? { tripleKills: x.tripleKills } : {}),
     ...(x.quadraKills !== undefined ? { quadraKills: x.quadraKills } : {}),

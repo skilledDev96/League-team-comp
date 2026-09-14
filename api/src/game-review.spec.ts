@@ -5,6 +5,7 @@ import {
   buildTeamPrompt,
   costUsd,
   DRAFT_GAINS,
+  draftLockouts,
   MAX_AUTO_REVIEWS,
   parseGameReviewRequest,
   parsePlayerNotes,
@@ -327,6 +328,21 @@ describe('the prompts', () => {
     // The player prompt has no draft field and asks nothing about one.
     expect(buildPlayerPrompt({ ...ctx, championNames: ['Wukong'] })).not.toContain('THE DRAFT WITH HINDSIGHT');
     expect(buildPlayerPrompt({ ...ctx, championNames: ['Wukong'] })).not.toContain('CHAMPIONS A SWAP MAY NAME');
+  });
+
+  it('say which champions were not open in the game, under the list, in display spelling and once each', () => {
+    const closedGame: ReviewContext['game'] = { ...game, enemies: [{ position: 'Top', champion: 'Sion' }, { position: 'Jungle', champion: 'FiddleSticks' }] };
+    const listed = buildTeamPrompt({ ...ctx, game: closedGame, championNames: ['Ornn', 'Sion'], bans: ['Malphite', 'Master Yi', 'Sion'], burned: ['Ornn', 'MonkeyKing'] });
+    expect(listed).toContain(
+      'NOT OPEN IN THIS GAME, so never a swap\'s "in" and never one of its alternatives: their five (Sion, Fiddlesticks); banned this game (Malphite, Master Yi); burned in an earlier game of this fearless series (Ornn, Wukong).'
+    );
+    expect(listed.indexOf('CHAMPIONS A SWAP MAY NAME')).toBeLessThan(listed.indexOf('NOT OPEN IN THIS GAME'));
+    // Only the parts that are known print; nothing closed, no line; no champion list, no line either.
+    expect(buildTeamPrompt({ ...ctx, championNames: ['Ornn'] })).toContain('NOT OPEN IN THIS GAME, so never a swap\'s "in" and never one of its alternatives: their five (Darius, Syndra).');
+    expect(buildTeamPrompt({ ...ctx, game: { ...game, enemies: [] }, championNames: ['Ornn'] })).not.toContain('NOT OPEN IN THIS GAME,');
+    expect(buildTeamPrompt({ ...ctx, game: closedGame, bans: ['Malphite'] })).not.toContain('NOT OPEN IN THIS GAME,');
+    expect(TEAM_SYSTEM).toContain('never one of our own five in that game and never one listed under NOT OPEN IN THIS GAME: their five, the bans and the fearless burn');
+    expect(TEAM_SYSTEM).toContain('("Orianna, or Syndra"), open in that game by the same rule as "in"');
   });
 });
 
@@ -725,6 +741,77 @@ describe('parseTeamReview: the draft with hindsight', () => {
     // Wukong is MonkeyKing in our own spelling, and still one of ours.
     const wukong: ReviewContext = { ...five, players: five.players.map((p) => (p.seat === 'Jungle' ? { ...p, champion: 'MonkeyKing' } : p)) };
     expect(parse({ verdict: 'v', swaps: [swap({ alternatives: ['Wukong', 'Nautilus'] })] }, wukong)!.swaps[0].alternatives).toEqual(['Nautilus']);
+  });
+
+  // The two games the 14 Sep 2026 data audit caught, with the swaps their stored reviews carry.
+  const seat = (name: string, position: string, champion: string) => ({ name, position, champion, kills: 0, deaths: 0, assists: 0, cs: 0 });
+  const audited = (players: [string, string, string][], enemies: [string, string][], over: Partial<ReviewContext> = {}): ReviewContext => {
+    const g: ReviewContext['game'] = { ...game, players: players.map(([n, p, c]) => seat(n, p, c)), enemies: enemies.map(([position, champion]) => ({ position, champion })) };
+    return { ...ctx, game: g, players: reviewPlayers(g), championNames: ['Janna', 'Leona', 'Lulu', 'Maokai', 'Malphite', 'Milio', 'Nautilus', 'Ornn', 'Sejuani', 'Sion', 'Thresh', 'Zac'], ...over };
+  };
+  const why = 'Nobody stood in front when four fell in two seconds at 25:40.';
+
+  it('drops an in or an alternative the enemy picked in the same game (EUW1_7963966929: Sion was theirs)', () => {
+    const flex = audited(
+      [['Sir StonedAlot', 'Top', 'Mordekaiser'], ['Go10x', 'Jungle', 'Vi'], ['DrunkenBannana', 'Mid', 'Ahri'], ['SkilledScarecrow', 'ADC', 'Jhin'], ['DaWhiteHammer', 'Support', 'Morgana']],
+      [['Top', 'Vayne'], ['Jungle', 'MasterYi'], ['Mid', 'Yasuo'], ['ADC', 'Sion'], ['Support', 'Seraphine']]
+    );
+    const stored = {
+      verdict: 'v',
+      swaps: [
+        { seat: 'Top', out: 'Mordekaiser', in: 'Ornn', why, gains: ['frontline'], alternatives: ['Malphite', 'Sion'] },
+        { seat: 'Support', out: 'Morgana', in: 'Nautilus', why, gains: ['peel'], alternatives: ['Thresh', 'Leona'] }
+      ]
+    };
+    // Before: "Ornn, or Malphite, or Sion for Mordekaiser". After: Sion goes, the swap stands.
+    expect(parse(stored, flex)!.swaps.map((s) => [s.in, s.alternatives])).toEqual([
+      ['Ornn', ['Malphite']],
+      ['Nautilus', ['Thresh', 'Leona']]
+    ]);
+    // An in the enemy played drops the whole swap, under either spelling of theirs.
+    const theirs = parse({ verdict: 'v', swaps: [{ seat: 'Top', out: 'Mordekaiser', in: 'Sion', why, gains: [], alternatives: [] }] }, flex);
+    expect(theirs!.swaps).toEqual([]);
+    const wukong = audited([['A', 'Top', 'Mordekaiser']], [['Jungle', 'MonkeyKing']], { championNames: ['Ornn', 'Wukong'] });
+    expect(parse({ verdict: 'v', swaps: [{ seat: 'Top', out: 'Mordekaiser', in: 'Wukong', why, gains: [], alternatives: ['Ornn'] }] }, wukong)!.swaps).toEqual([]);
+  });
+
+  it('drops an in or an alternative banned in the game or burned earlier in a fearless series (EUW1-7979615260, game 3)', () => {
+    const series = [
+      { gameNumber: 1, matchId: 'EUW1-7979450974', ourChampions: ['Shen', 'Diana', 'Yone', 'Tristana', 'Zilean'], theirChampions: ['Urgot', 'JarvanIV', 'Syndra', 'Kaisa', 'Leona'], bans: ['Akshan', 'Draven', 'Caitlyn', 'Aurelion Sol', 'Riven', 'Ambessa', 'Akshan', 'Yuumi', 'Twitch', 'Smolder'] },
+      { gameNumber: 3, matchId: 'EUW1-7979615260', ourChampions: ['Mordekaiser', 'Vi', 'Akali', 'Aphelios', 'Nautilus'], theirChampions: ['Sion', 'FiddleSticks', 'Yasuo', 'Caitlyn', 'Rell'], bans: ['Udyr', 'Viego', 'Miss Fortune', 'Amumu', 'Lillia', 'Twitch', 'Volibear', 'Briar', 'Malphite', 'Master Yi'] },
+      { gameNumber: 2, matchId: 'EUW1-7979537790', ourChampions: ['Ornn', 'MonkeyKing', 'Ahri', 'Jinx', 'Thresh'], theirChampions: ['Renekton', 'Shyvana', 'Sylas', 'Yunara', 'Seraphine'], bans: ['Sett', 'Volibear', 'Smolder', 'Karthus', 'Gangplank', 'Soraka', 'Milio', 'Vex', 'Shaco', 'Skarner'] }
+    ];
+    const lockouts = draftLockouts('EUW1-7979615260', series, true);
+    expect(lockouts.bans).toEqual(['Udyr', 'Viego', 'Miss Fortune', 'Amumu', 'Lillia', 'Twitch', 'Volibear', 'Briar', 'Malphite', 'Master Yi']);
+    // Games 1 and 2, in order, both teams; a ban in an earlier game (Milio, in game 2) burns nothing, and Leona is named once.
+    expect(lockouts.burned).toEqual(['Shen', 'Diana', 'Yone', 'Tristana', 'Zilean', 'Urgot', 'JarvanIV', 'Syndra', 'Kaisa', 'Leona', 'Ornn', 'MonkeyKing', 'Ahri', 'Jinx', 'Thresh', 'Renekton', 'Shyvana', 'Sylas', 'Yunara', 'Seraphine']);
+    expect(lockouts.burned).not.toContain('Milio');
+    // Not fearless: the bans still count, nothing burns. Game 1 burns nothing. An id no game carries knows nothing.
+    expect(draftLockouts('EUW1-7979615260', series, false)).toEqual({ bans: lockouts.bans, burned: [] });
+    expect(draftLockouts('EUW1-7979450974', series, true).burned).toEqual([]);
+    expect(draftLockouts('EUW1-1', series, true)).toEqual({ bans: [], burned: [] });
+
+    const game3 = audited(
+      [['Sir StonedAlot', 'Top', 'Mordekaiser'], ['Go10x', 'Jungle', 'Vi'], ['DrunkenBannana', 'Mid', 'Akali'], ['SkilledScarecrow', 'ADC', 'Aphelios'], ['DaWhiteHammer', 'Support', 'Nautilus']],
+      [['Top', 'Sion'], ['Jungle', 'FiddleSticks'], ['Mid', 'Yasuo'], ['ADC', 'Caitlyn'], ['Support', 'Rell']],
+      lockouts
+    );
+    const stored = {
+      verdict: 'v',
+      swaps: [
+        { seat: 'Support', out: 'Nautilus', in: 'Lulu', why, gains: ['peel'], alternatives: ['Milio', 'Janna'] },
+        { seat: 'Top', out: 'Mordekaiser', in: 'Ornn', why, gains: ['frontline'], alternatives: ['Sion', 'Maokai'] },
+        { seat: 'Jungle', out: 'Vi', in: 'Sejuani', why, gains: ['engage'], alternatives: ['Maokai', 'Zac'] }
+      ]
+    };
+    // Before: three swaps, "Ornn, or Sion, or Maokai for Mordekaiser" among them. After: Ornn was burned, so the Top swap goes.
+    expect(parse(stored, game3)!.swaps.map((s) => [s.seat, s.in, s.alternatives])).toEqual([
+      ['Support', 'Lulu', ['Milio', 'Janna']],
+      ['Jungle', 'Sejuani', ['Maokai', 'Zac']]
+    ]);
+    // A banned in, and a banned or burned alternative, each drop the way the enemy's do.
+    const banned = parse({ verdict: 'v', swaps: [{ seat: 'Top', out: 'Mordekaiser', in: 'Malphite', why, gains: [], alternatives: [] }, { seat: 'Jungle', out: 'Vi', in: 'Sejuani', why, gains: [], alternatives: ['Malphite', 'Leona', 'Zac'] }] }, game3);
+    expect(banned!.swaps.map((s) => [s.in, s.alternatives])).toEqual([['Sejuani', ['Zac']]]);
   });
 
   it('keeps what the five lacked: known gains once each, at most three, each with a why, under the same Riot-id check as a swap', () => {

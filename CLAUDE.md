@@ -806,7 +806,7 @@ filter rather than none, so it can never become unpickable.
    plus damage share and damage taken (Top), damage share and vision (Jungle),
    damage share and CS a minute (Mid, ADC), vision and assists (Support). A
    figure missing for any of our seats drops out for the whole game; a remake
-   (under five minutes, `isRemake`) has no MVP and no place in a series. One
+   (under ten minutes since 14 Sep 2026, `isRemake` over `REMAKE_SECONDS` in `core/game-mvp.ts`, the one rule `achievements` and `team-season` import) has no MVP and no place in a series. One
    order serves the game, the poster (`mvpSeatOf`, which `film-build.ts`
    imports, so the film's face and the chip can never name two seats) and the
    series: value, then participation, fewer deaths, lane order. `mvpOf` says
@@ -1325,6 +1325,17 @@ shared with Roster) and the hero the shared slim hero (`.hero.is-slim`, `.hero-i
 `.hero-blurb`, `.hero-actions`). Motion sits behind `.comps:not(.is-still) … .is-seen`. The old
 `.comp-*` rules are gone; `.board-*` (the board, shared with the draft room's dialog) and Review's
 `.comp-group*` stay.
+
+**The numbers were audited on 14 Sep 2026, and these rules came out of it** (the lead: "double check the data that is being displayed, this should be perfect accuracy"). An audit recomputed 239 displayed figures from a read-only copy of Firestore and a verifier re-derived every mismatch; 115 were wrong or misleading. The code rules that fix them:
+
+- **A remake is not a game.** `buildGameRows` leaves out every row under `REMAKE_SECONDS` (600) from every source, so no record, form strip, objective share, first blood, trophy, table or list counts one. A game can only end before ten minutes by a remake; surrender opens at 15.
+- **One champion key for anything counted per champion.** Replays store Riot ids (`TahmKench`, `MonkeyKing`, `JarvanIV`), Riot rows display names. `core/champion-key.ts` `canonicalChampion` keys pools, Played +N and Beats us most (one entry per champion, `displaySpelling` picks the spelling), and the draft room's wall, bans, burned lists and `compAvailability` go through the alias-aware `normalizeChampion` in `draft.util.ts` — a burned Wukong stored as MonkeyKing now greys the Wukong tile. `app-champion-chip` prints `ui.championName`.
+- **A replay cannot silently land in two places.** The importer refuses a match id another series game already holds, asks before filing a replay under another series' opponent, and never rewrites a scrim's opponent. The side comes from the roster names in the file, not the draft's side, with a toast when they disagree. Linking stores the board as it was (`SeriesGame.beforeLink`), so Unlink asks and puts it back; `draftEvents` log "Linked replay" and "Unlinked replay".
+- **A figure lives in one column.** `keepDoing` takes an exclude set of the `workOn` topics (Patterns and Home), so no metric is a weakness and a strength at once. Plates are worded as what Riot counts ("turret plates credited per player"); a lane deficit averages the losses where the lane was lost; team sums (deaths, time dead, wards) skip games with fewer than five of ours (`hasFullFive`); KDA is sum(K+A)/max(1, sum D) everywhere (unit `ratio`, one decimal).
+- **A review only suggests champions that were open.** `reviewGame` passes the series game's bans and, in a fearless group, every champion earlier games burned (`draftLockoutsFor` → `draftLockouts`); the validator drops a swap or alternative that was their pick, banned or burned, and the film room and the review panel filter stored reviews the same way (`closedChampions`, `openSwaps`). Replays carry no first blood or first tower, so `describeLoss`/`describeWin` need a side known to have taken it. Damage share is stored unrounded.
+- **Series heads count played games** (a result or a replay), the Reviews card prints the row's own label ("Bo3 game 3", not "Scrim"), the players table always shows one decimal, a trophy says "Earned this season" only when reading a season, and the profile's main champion is the Roster's.
+
+What the audit found in the **stored data** is not code and is corrected (or left for the lead) separately; see `docs/2026-09-14-road-to-the-bracket.md`.
 
 **A deep link pins a game, it does not widen the list** (12 Sep 2026).
 `?match=` on `/games` sets `pinnedMatch` and `listRows` prepends that row only

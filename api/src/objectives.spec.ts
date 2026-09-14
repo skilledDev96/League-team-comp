@@ -79,6 +79,39 @@ describe('describeLoss', () => {
   });
 });
 
+describe('first blood and first tower on a replay, which records neither', () => {
+  // EUW1-7977500462 as the analysis stored it (14 Sep 2026 audit): the importer wrote both firsts
+  // as false on both sides, and all 17 replay losses read "Conceded both first blood and first tower".
+  const replay: GameObjectives = {
+    ours: { firstBlood: false, firstTower: false, dragons: 2, barons: 1, heralds: 1, grubs: 1, towers: 4, inhibitors: 0 },
+    theirs: { firstBlood: false, firstTower: false, dragons: 4, barons: 1, heralds: 0, grubs: 2, towers: 10, inhibitors: 2 }
+  };
+
+  it('claims no early game from two unknowns, and keeps every factor the totals do support', () => {
+    const factors = describeLoss(replay, 2201, { ours: 25, theirs: 37 });
+    // Before: early_game, lost_fights, dragon_control, map_control.
+    expect(factors.map((f) => f.code)).toEqual(['lost_fights', 'dragon_control', 'map_control']);
+    expect(factors.map((f) => f.detail)).not.toContain('Conceded both first blood and first tower');
+  });
+
+  it('says nothing when the firsts are absent, on either side of the ledger', () => {
+    const { firstBlood: _b, firstTower: _t, ...oursRest } = replay.ours;
+    const { firstBlood: _b2, firstTower: _t2, ...theirsRest } = replay.theirs;
+    const unknown: GameObjectives = { ours: oursRest, theirs: theirsRest };
+    expect(describeLoss(unknown, SHORT).map((f) => f.code)).not.toContain('early_game');
+    expect(describeWin({ ours: unknown.theirs, theirs: unknown.ours }, SHORT).map((f) => f.code)).not.toContain('early_lead');
+    // One side known and the other not is still not "they took both".
+    expect(describeLoss({ ours: oursRest, theirs: { ...theirsRest, firstBlood: true, firstTower: true } }, SHORT).map((f) => f.code)).not.toContain('early_game');
+    expect(describeWin({ ours: { ...oursRest, firstBlood: true, firstTower: true }, theirs: theirsRest }, SHORT).map((f) => f.code)).not.toContain('early_lead');
+  });
+
+  it('needs the other side to have taken both, known false for us and true for them', () => {
+    expect(describeLoss(game({}, { firstBlood: true, firstTower: true }), SHORT).map((f) => f.code)).toContain('early_game');
+    expect(describeLoss(game({ firstTower: true }, { firstBlood: true, firstTower: true }), SHORT).map((f) => f.code)).not.toContain('early_game');
+    expect(describeWin(game({ firstBlood: true, firstTower: true }, { firstBlood: true }), SHORT).map((f) => f.code)).not.toContain('early_lead');
+  });
+});
+
 describe('describeWin', () => {
   const codes = (o: GameObjectives, secs: number) => describeWin(o, secs).map((f) => f.code);
 

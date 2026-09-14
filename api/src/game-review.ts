@@ -204,6 +204,80 @@ export interface ReviewContext {
    * block simply does not appear.
    */
   recording?: ReplayRecording;
+  /**
+   * Every champion banned in this game, both sides, when the game is a series game that stored
+   * them (14 Sep 2026; `SeriesGame.bans`). With `burned` and the enemy five on `game.enemies`, it
+   * is what the draft with hindsight may not suggest: an audit found a review offering Malphite
+   * for a game where Malphite was banned. Absent: no bans are known, which is not the same as none.
+   */
+  bans?: string[];
+  /**
+   * Under fearless, every champion either team played in an earlier game of this series
+   * (14 Sep 2026; `draftLockouts`). An audit found game 3 of a fearless Bo3 told to swap
+   * Mordekaiser for Ornn, whom our own Top had played in game 2. Absent outside a fearless series.
+   */
+  burned?: string[];
+}
+
+/** One game of a series as `seriesGames` stores it: the fields `draftLockouts` reads. */
+export interface SeriesGameLike {
+  gameNumber: number;
+  matchId?: string;
+  ourChampions?: string[];
+  theirChampions?: string[];
+  bans?: string[];
+}
+
+/**
+ * What was closed in the draft of the series game carrying `matchId` (14 Sep 2026): that game's
+ * own bans and, when the series is fearless, every champion either team played in an EARLIER game
+ * of it — a ban in an earlier game burns nothing. `games` is the one series' games in any order. A
+ * name is kept once, in its first spelling, compared the way the validator compares. No game
+ * carries the id: nothing is known, and both lists are empty.
+ */
+export function draftLockouts(matchId: string, games: readonly SeriesGameLike[], fearless: boolean): { bans: string[]; burned: string[] } {
+  const game = games.find((g) => g.matchId === matchId);
+  if (!game) return { bans: [], burned: [] };
+  const once = (names: readonly (string | undefined)[]): string[] => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const n of names) {
+      if (typeof n !== 'string' || !n.trim()) continue;
+      const key = norm(displayChampionName(n));
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(n);
+    }
+    return out;
+  };
+  const earlier = fearless ? games.filter((g) => g !== game && g.gameNumber < game.gameNumber).sort((a, b) => a.gameNumber - b.gameNumber) : [];
+  return {
+    bans: once(game.bans ?? []),
+    burned: once(earlier.flatMap((g) => [...(g.ourChampions ?? []), ...(g.theirChampions ?? [])]))
+  };
+}
+
+/**
+ * The champions a swap may not name in this game, as the three lists the prompt prints (14 Sep
+ * 2026): their five, the bans, and the fearless burn. Display spellings, so the prompt reads
+ * "Fiddlesticks" where Riot sent "FiddleSticks". A champion already printed in an earlier list is
+ * not printed again.
+ */
+function closedLists(ctx: ReviewContext): { theirs: string[]; bans: string[]; burned: string[] } {
+  const seen = new Set<string>();
+  const take = (names: readonly (string | undefined)[] | undefined): string[] => {
+    const out: string[] = [];
+    for (const n of names ?? []) {
+      if (typeof n !== 'string' || !n.trim()) continue;
+      const shown = displayChampionName(n);
+      const key = norm(shown);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(shown);
+    }
+    return out;
+  };
+  return { theirs: take(ctx.game.enemies?.map((e) => e.champion)), bans: take(ctx.bans), burned: take(ctx.burned) };
 }
 
 /** Our five as the review names them, from the game's players. */
@@ -248,7 +322,7 @@ ${RULES}
 - A swap is about OUR draft. The other team's champions may be named as the matchup they posed — "into Darius", "against a Syndra" — never a person.
 - When frames of the game are attached they are pictures of OUR own game, taken from the replay at the second the caption gives: read the minimap for where everyone was and the HUD for the spectated player's abilities and items, say "around minute N" because a frame is one moment and not a stretch of play, and never describe a person on the other team — a frame shows champions in seats.
 
-Length: "decidedBy" names the ONE thing that decided this game as one of the seven themes, with "why" as at most twelve words citing a figure. It is the largest thing the team sees, above the headline, so it must name the single biggest cause and never summarise the whole game. "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences of at most 45 words together and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 30 words with the evidence beside it in at most 18 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence of at most 25 words. "moments" is three to six entries in time order that walk through the game: the minute, one sentence of at most 25 words on what happened and why it mattered, and "swing" for whose way it went. A moment's "seats" names the seats of ours it is about, at most three, and stays empty when it is about the whole team. A "workOn" item that offers a choice carries its two choices again in "options" as short imperatives, and leaves them out when it offers none. "lessons" is at most three things a player should be able to answer tomorrow, each on a fact already used by "workOn" or "keepDoing" and about OUR play only: a question of at most 20 words, three options of at most 12 words with one true and the wrong ones plausible, "answer" as the index of the true one, and "why" as one sentence of at most 25 words citing the fact and the minute. "oneThing" is the one thing to watch for next game in at most twelve words, a choice not an order. "draft" is one sentence ("verdict") on whether the five we drafted fit the game that was played, and "swaps" is at most three changes to OUR draft the coach would make with hindsight, each naming the seat, the champion we played ("out", exactly as given in OUR PLAYERS), the champion to try instead ("in", from CHAMPIONS A SWAP MAY NAME, in a similar role for that seat, a mainstream pick not a niche one, never one of our own five in that game), one sentence of at most 30 words on "why" that cites the fact and the minute (for instance the fight around minute 24 where nobody could follow the engage, or the nine deaths of the carry with nobody to peel), "gains" as what the swap buys from the list, and "alternatives" as at most two other champions from CHAMPIONS A SWAP MAY NAME that would do the same job in that seat ("Orianna, or Syndra"), empty when there is no second option; for instance a Malphite for the all-in with Miss Fortune, or a Nautilus for the peel on a hypercarry. "lacked" is what the comp was missing that the game exposed: at most three gains from the same list, each with "why" as one sentence of at most 25 words citing the fact and the minute behind it. Leave both "swaps" and "lacked" empty when the draft held.`;
+Length: "decidedBy" names the ONE thing that decided this game as one of the seven themes, with "why" as at most twelve words citing a figure. It is the largest thing the team sees, above the headline, so it must name the single biggest cause and never summarise the whole game. "headline" is at most eight words that name how the game was decided, like "Lost in the fights, not the farm" or "Won off two dragons and a Baron". "summary" is two sentences of at most 45 words together and must not repeat the headline. "workOn" is at most three items and "keepDoing" at most two, each one sentence of at most 30 words with the evidence beside it in at most 18 words, each tagged with the "theme" it is about. "compVerdict" is "as drafted" when the comp did what its axes and game plan expected, "off plan" when it did not, "unclear" when the facts cannot say. "compWhy" is one sentence of at most 25 words. "moments" is three to six entries in time order that walk through the game: the minute, one sentence of at most 25 words on what happened and why it mattered, and "swing" for whose way it went. A moment's "seats" names the seats of ours it is about, at most three, and stays empty when it is about the whole team. A "workOn" item that offers a choice carries its two choices again in "options" as short imperatives, and leaves them out when it offers none. "lessons" is at most three things a player should be able to answer tomorrow, each on a fact already used by "workOn" or "keepDoing" and about OUR play only: a question of at most 20 words, three options of at most 12 words with one true and the wrong ones plausible, "answer" as the index of the true one, and "why" as one sentence of at most 25 words citing the fact and the minute. "oneThing" is the one thing to watch for next game in at most twelve words, a choice not an order. "draft" is one sentence ("verdict") on whether the five we drafted fit the game that was played, and "swaps" is at most three changes to OUR draft the coach would make with hindsight, each naming the seat, the champion we played ("out", exactly as given in OUR PLAYERS), the champion to try instead ("in", from CHAMPIONS A SWAP MAY NAME, in a similar role for that seat, a mainstream pick not a niche one, never one of our own five in that game and never one listed under NOT OPEN IN THIS GAME: their five, the bans and the fearless burn), one sentence of at most 30 words on "why" that cites the fact and the minute (for instance the fight around minute 24 where nobody could follow the engage, or the nine deaths of the carry with nobody to peel), "gains" as what the swap buys from the list, and "alternatives" as at most two other champions from CHAMPIONS A SWAP MAY NAME that would do the same job in that seat ("Orianna, or Syndra"), open in that game by the same rule as "in", empty when there is no second option; for instance a Malphite for the all-in with Miss Fortune, or a Nautilus for the peel on a hypercarry. "lacked" is what the comp was missing that the game exposed: at most three gains from the same list, each with "why" as one sentence of at most 25 words citing the fact and the minute behind it. Leave both "swaps" and "lacked" empty when the draft held.`;
 
 export const PLAYER_SYSTEM = `You are the coach writing the notes per player after one finished League of Legends game for an amateur five-stack. For each of OUR players you are given their seat, champion, line, lane read, habits, damage, and their deaths one by one with what would have stopped each. You write, per player, one strength, the first thing to work on, and up to three more things to work on, each tied to a different fact.
 
@@ -315,15 +389,26 @@ function compSection(ctx: ReviewContext): string[] {
  * the validator can find it; a name off the list is dropped, so when there is
  * no list the prompt says so rather than let the model spend words on swaps
  * nothing will keep. What the five lacked names no champion, so it is asked
- * for either way.
+ * for either way. Since 14 Sep 2026 the champions that were not open in this
+ * game — their five, the bans, the fearless burn — are printed under the list,
+ * because `draftOf` drops a swap or an alternative naming one and a model that
+ * is not told spends a swap on a champion nobody could have picked.
  */
 function draftSection(ctx: ReviewContext): string[] {
   const lines = [
     'THE DRAFT WITH HINDSIGHT',
     'Knowing how this game went, say in one sentence whether the five we drafted fit it. Then name at most three changes to OUR draft you would make with hindsight: the seat, the champion we played there, a mainstream champion in a similar role to try instead, why in one sentence on the fact and the minute, what the swap buys, and up to two other champions that would do the same job in that seat. Then say what the five lacked that the game exposed: at most three gains, each with the fact and the minute behind it. Leave the swaps and the lacked list empty when the draft held.'
   ];
-  if (ctx.championNames?.length) lines.push(`CHAMPIONS A SWAP MAY NAME (Data Dragon spelling): ${ctx.championNames.join(', ')}`);
-  else lines.push('No champion list is available for this review, so leave the swaps empty. Say what the five lacked all the same.');
+  if (ctx.championNames?.length) {
+    lines.push(`CHAMPIONS A SWAP MAY NAME (Data Dragon spelling): ${ctx.championNames.join(', ')}`);
+    const closed = closedLists(ctx);
+    const parts = [
+      closed.theirs.length ? `their five (${closed.theirs.join(', ')})` : '',
+      closed.bans.length ? `banned this game (${closed.bans.join(', ')})` : '',
+      closed.burned.length ? `burned in an earlier game of this fearless series (${closed.burned.join(', ')})` : ''
+    ].filter(Boolean);
+    if (parts.length) lines.push(`NOT OPEN IN THIS GAME, so never a swap's "in" and never one of its alternatives: ${parts.join('; ')}.`);
+  } else lines.push('No champion list is available for this review, so leave the swaps empty. Say what the five lacked all the same.');
   return lines;
 }
 
@@ -928,6 +1013,12 @@ function lackedOf(list: unknown, ours: ReadonlySet<string>): ReviewGap[] {
  * sentence it hangs on says nothing on the card. Empty alternatives and an
  * empty lacked list are left out rather than stored as [] (10 Sep 2026): the
  * app's mirror declares both optional, and a version 5 document has neither.
+ * A swap's "in" and each alternative must also have been open in this game
+ * (14 Sep 2026): not one of their five, not banned in it, and not burned by an
+ * earlier game of a fearless series (`closedLists`). An audit found Sion
+ * offered for a game the enemy played Sion in, and Ornn for a fearless game 3
+ * after our Top played him in game 2. A closed "in" drops the swap; a closed
+ * alternative drops alone.
  */
 function draftOf(v: unknown, ctx: ReviewContext): ReviewDraft | undefined {
   const row = (v ?? {}) as Record<string, unknown>;
@@ -939,7 +1030,9 @@ function draftOf(v: unknown, ctx: ReviewContext): ReviewDraft | undefined {
   // list's display name ("Wukong"), and the two normalise alike for every champion but Wukong, Nunu & Willump
   // and Renata Glasc (10 Sep 2026, second review).
   const ourChampions = new Set(ctx.players.flatMap((p) => [norm(p.champion), norm(displayChampionName(p.champion))]));
-  const offered = new Map((ctx.championNames ?? []).filter((n) => n).map((n) => [norm(n), n]));
+  const shut = closedLists(ctx);
+  const closed = new Set([...shut.theirs, ...shut.bans, ...shut.burned].map(norm));
+  const offered =new Map((ctx.championNames ?? []).filter((n) => n).map((n) => [norm(n), n]));
   const swaps: ReviewSwap[] = [];
   const seen = new Set<LaneRole>();
   for (const raw of Array.isArray(row.swaps) ? row.swaps : []) {
@@ -950,7 +1043,7 @@ function draftOf(v: unknown, ctx: ReviewContext): ReviewDraft | undefined {
     if (!out || seen.has(seat)) continue;
     if (typeof s.out !== 'string' || norm(s.out) !== norm(out)) continue;
     const pick = typeof s.in === 'string' ? offered.get(norm(s.in)) : undefined;
-    if (!pick || ourChampions.has(norm(pick))) continue;
+    if (!pick || ourChampions.has(norm(pick)) || closed.has(norm(pick))) continue;
     const why = optionNamingOurs(strWords(s.why, 210), ours); // 30 words
     if (!why) continue;
     const gains = Array.isArray(s.gains)
@@ -961,7 +1054,7 @@ function draftOf(v: unknown, ctx: ReviewContext): ReviewDraft | undefined {
       if (alternatives.length === 2) break;
       const other = typeof a === 'string' ? offered.get(norm(a)) : undefined;
       // `offered` re-stamps every spelling to the list's, so an exact `includes` is the dedup.
-      if (!other || norm(other) === norm(pick) || ourChampions.has(norm(other)) || alternatives.includes(other)) continue;
+      if (!other || norm(other) === norm(pick) || ourChampions.has(norm(other)) || closed.has(norm(other)) || alternatives.includes(other)) continue;
       alternatives.push(other);
     }
     seen.add(seat);
