@@ -19,7 +19,8 @@ import { ColumnOption, ColumnPickerComponent } from '../../shared/column-picker.
 import { SplitCellComponent } from '../../shared/split-cell.component';
 import { SplitViewToggleComponent } from '../../shared/split-view-toggle.component';
 import { TablePrefsService } from '../../services/table-prefs.service';
-import { formatSide, PLAYER_METRIC_KEYS, PlayerMetric, playerSplits, PlayerSplitRow, SideStat, SplitUnit, starterCount } from '../review/win-loss-splits';
+import { championKey, formatSide, gamesWithTheFive, PLAYER_METRIC_KEYS, PlayerMetric, playerSplits, PlayerSplitRow, SideStat, SplitUnit } from '../review/win-loss-splits';
+import { buildRoster, cardById, ROSTER_SCOPE } from '../../core/roster-build';
 import { MIN_FOR_A_CLAIM } from '../review/loss-patterns.util';
 import { InfoTipComponent } from '../../shared/info-tip.component';
 import { TourPillComponent } from '../../shared/tour-pill.component';
@@ -57,7 +58,7 @@ export class PlayerProfileComponent {
   // in, with the same figures per seat underneath. The team's own read of
   // wins against losses is on Games → Patterns; this is the one player's.
 
-  /** Their games with the main five: the player plus the other four starters. */
+  /** Their games with the main five: the player plus the other four starters, practice left out as the Roster leaves it. */
   private readonly teamGames = computed(() => {
     const name = this.player()?.name;
     if (!name) return [];
@@ -66,13 +67,34 @@ export class PlayerProfileComponent {
     // queue, so that tab shows every team game and the note says so.
     const queue = this.selectedQueue();
     const wanted = queue === 'flex' ? 'Flex' : queue === 'clash' ? 'Clash' : null;
-    return (this.data.compAnalysis()?.games ?? []).filter((g) => {
-      if (wanted && g.queue !== wanted) return false;
-      if (!g.players.some((p) => p.name === name)) return false;
-      if (starters.length < 5) return true;
-      const others = starters.filter((s) => s !== name);
-      return starterCount(g, others) >= 4;
+    return gamesWithTheFive(this.data.compAnalysis()?.games ?? [], name, starters, wanted, this.data.practiceSet());
+  });
+
+  /**
+   * The main champion the Roster puts behind this player (14 Sep 2026): read off the Roster's own model,
+   * so the two pages cannot name different champions. It read the first of the declared pool, which
+   * named Mel for a player the Roster, Players and Riot's flex all put on Lux.
+   */
+  protected readonly mainChampion = computed<string | null>(() => {
+    const p = this.player();
+    if (!p) return null;
+    const model = buildRoster({
+      now: Date.now(),
+      mode: ROSTER_SCOPE,
+      players: this.data.players(),
+      fillIns: this.data.fillIns(),
+      painPoints: this.data.painPoints(),
+      learnEntries: this.data.learnEntries(),
+      comps: this.data.comps(),
+      analysis: this.data.compAnalysis()?.games ?? [],
+      tournaments: this.data.tournaments(),
+      series: this.data.tournamentSeries(),
+      seriesGames: this.data.seriesGames(),
+      scrims: this.data.scrims(),
+      practice: this.data.practiceSet(),
+      compOverride: (id) => this.data.compOverride(id)
     });
+    return cardById(model, p.id)?.champion ?? p.top3[0] ?? null;
   });
 
   /** What the card is counting, in the queue tab's words. */
@@ -99,8 +121,9 @@ export class PlayerProfileComponent {
     const name = this.player()?.name;
     if (!name) return undefined;
     const champ = this.teamChampion();
+    // By key, as the champion list is counted, so both spellings of one champion stay in its games.
     const games = champ
-      ? this.teamGames().filter((g) => g.players.some((p) => p.name === name && p.champion === champ))
+      ? this.teamGames().filter((g) => g.players.some((p) => p.name === name && championKey(p.champion) === championKey(champ)))
       : this.teamGames();
     // Every seat they have sat in, however few games: the team asked to see
     // the other lanes, and a seat row carries its own count either way.

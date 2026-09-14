@@ -64,7 +64,49 @@ export function split(games: readonly AnalysisGame[], pick: (g: AnalysisGame) =>
   return { wins: w, losses: l, all: stat([...wins, ...losses], places), ...(w.n && l.n ? { gap: round(w.mean - l.mean, places) } : {}), samples };
 }
 
+/**
+ * A ratio of sums per side, where a mean of per-game ratios would say something else (14 Sep 2026).
+ * KDA is the case: the Roster prints sum(K+A) / max(1, sum D) over the games, and one 12/0/10 game
+ * averaged in as a ratio of 22 dragged the profile's "With the team" KDA a whole point above the
+ * Roster's for the same player and the same games. The samples stay per game, for the evidence.
+ */
+export function ratioSplit(
+  games: readonly AnalysisGame[],
+  pick: (g: AnalysisGame) => { num: number; den: number } | undefined,
+  floor = 1,
+  places = 1
+): Split {
+  const acc = { wins: { num: 0, den: 0, n: 0 }, losses: { num: 0, den: 0, n: 0 } };
+  const samples: Sample[] = [];
+  for (const g of games) {
+    const v = pick(g);
+    if (!v || Number.isNaN(v.num) || Number.isNaN(v.den)) continue;
+    const side = g.win ? acc.wins : acc.losses;
+    side.num += v.num;
+    side.den += v.den;
+    side.n += 1;
+    samples.push({ matchId: g.matchId, date: g.date, win: g.win, value: round(v.num / Math.max(floor, v.den), places) });
+  }
+  const side = (s: { num: number; den: number; n: number }): SideStat => (s.n ? { mean: round(s.num / Math.max(floor, s.den), places), n: s.n } : { mean: 0, n: 0 });
+  const w = side(acc.wins);
+  const l = side(acc.losses);
+  const all = side({ num: acc.wins.num + acc.losses.num, den: acc.wins.den + acc.losses.den, n: acc.wins.n + acc.losses.n });
+  samples.sort((a, b) => b.date - a.date);
+  return { wins: w, losses: l, all, ...(w.n && l.n ? { gap: round(w.mean - l.mean, places) } : {}), samples };
+}
+
+/** The Roster's KDA, one decimal: kills and assists over deaths, summed over the games first. */
+const kdaOf = (p: AnalysisPlayer | undefined) => (p ? { num: p.kills + p.assists, den: p.deaths } : undefined);
+
 const enough = (s: Split) => s.wins.n >= MIN_FOR_A_CLAIM && s.losses.n >= MIN_FOR_A_CLAIM;
+
+/**
+ * Whether a game lists all five of ours (14 Sep 2026). A figure that adds the five up — deaths, time
+ * dead, control wards, wards cleared, solo kills, a share of the team's gold — reads low on a game the
+ * analysis kept only four of ours for (18 of 163 flex games, where a fifth was not on the roster), so
+ * those figures leave such a game out rather than count four as the team.
+ */
+export const hasFullFive = (game: AnalysisGame): boolean => game.players.length >= 5;
 
 // ---- Per-player numbers the rows may or may not carry ------------------------
 
@@ -82,6 +124,7 @@ function damageShareOf(p: AnalysisPlayer, game: AnalysisGame): number | undefine
 }
 
 const sumIfAny = (game: AnalysisGame, pick: (p: AnalysisPlayer) => number | undefined): number | undefined => {
+  if (!hasFullFive(game)) return undefined;
   let any = false;
   let total = 0;
   for (const p of game.players) {
@@ -102,10 +145,39 @@ const topOf = (game: AnalysisGame) => game.players.find((p) => p.position === 'T
 
 // ---- Which games are the team's ------------------------------------------------
 
+/**
+ * One key per champion whatever the spelling a source used: Riot wrote FiddleSticks for years and
+ * Fiddlesticks since, and a replay may carry either. Case and punctuation only; a display name that
+ * differs from the id (Wukong for MonkeyKing) needs the champion data, which this pure file has not.
+ */
+export const championKey = (champion: string): string => champion.toLowerCase().replace(/[^a-z0-9]/g, '');
+
 /** How many of the named starters were on our side in this game. */
 export function starterCount(game: AnalysisGame, starters: readonly string[]): number {
   const names = new Set(game.players.map((p) => p.name));
   return starters.filter((s) => names.has(s)).length;
+}
+
+/**
+ * One player's games with the main five, for the profile's "With the team" card: the player on our side
+ * with at least four of the other starters, in one queue or every queue (`null`), and never a game tagged
+ * as practice — the Roster and Patterns leave those out, and the card counted 75 games where the Roster's
+ * figures stood on 58 (14 Sep 2026). With fewer than five starters named nothing is asked of the others.
+ */
+export function gamesWithTheFive(
+  games: readonly AnalysisGame[],
+  name: string,
+  starters: readonly string[],
+  queue: string | null,
+  practice: ReadonlySet<string>
+): AnalysisGame[] {
+  const others = starters.filter((s) => s !== name);
+  return games.filter((g) => {
+    if (queue && g.queue !== queue) return false;
+    if (practice.has(g.matchId)) return false;
+    if (!g.players.some((p) => p.name === name)) return false;
+    return starters.length < 5 || starterCount(g, others) >= 4;
+  });
 }
 
 /**
@@ -217,6 +289,20 @@ export function seriousOnly(games: readonly AnalysisGame[], practice: ReadonlySe
 /** The games from one source, sorted the way `gameSource` sorts them. */
 export function atSource(games: readonly AnalysisGame[], source: GameSource, tournamentIds: ReadonlySet<string>): AnalysisGame[] {
   return games.filter((g) => gameSource(g, tournamentIds) === source);
+}
+
+/**
+ * How many games of one source are tagged as practice: what Prep leaves out of THIS source (14 Sep
+ * 2026). Counted over every source at once, Scrims + Clash read "29 practice games left out" when all
+ * 29 tagged games were flex and none of this source's was tagged.
+ */
+export function practiceInSource(
+  games: readonly AnalysisGame[],
+  practice: ReadonlySet<string>,
+  source: GameSource,
+  tournamentIds: ReadonlySet<string>
+): number {
+  return atSource(games, source, tournamentIds).filter((g) => practice.has(g.matchId)).length;
 }
 
 /**
@@ -453,8 +539,8 @@ export const sourceOf = (g: AnalysisGame): PatternSource => (g.queue === 'Scrim'
 export interface MetricSplit {
   key: string;
   label: string;
-  /** How to print the mean. */
-  unit: 'count' | 'pct' | 'minutes' | 'perMin';
+  /** How to print the mean. `ratio` is printed to one decimal, as KDA is everywhere else. */
+  unit: 'count' | 'pct' | 'minutes' | 'perMin' | 'ratio';
   split: Split;
   higherIsBetter: boolean;
   /** Which source can carry the figure at all. */
@@ -478,11 +564,11 @@ export function teamSplits(games: readonly AnalysisGame[], topName?: string, sou
   const goldBalance = (g: AnalysisGame) => {
     const golds = g.players.map((p) => p.facts?.goldPerMin).filter((v): v is number => v !== undefined);
     const total = golds.reduce((a, b) => a + b, 0);
-    return golds.length === g.players.length && total > 0 ? Math.max(...golds) / total : undefined;
+    return hasFullFive(g) && golds.length === g.players.length && total > 0 ? Math.max(...golds) / total : undefined;
   };
   const all: MetricSplit[] = [
     m('killShare', 'Kill share', 'pct', true, 'any', (g) => (g.kills && g.kills.ours + g.kills.theirs > 0 ? g.kills.ours / (g.kills.ours + g.kills.theirs) : undefined)),
-    m('deaths', 'Deaths per game', 'count', false, 'any', (g) => g.players.reduce((n, p) => n + p.deaths, 0), 1),
+    m('deaths', 'Deaths per game', 'count', false, 'any', (g) => (hasFullFive(g) ? g.players.reduce((n, p) => n + p.deaths, 0) : undefined), 1),
     m('timeDead', 'Minutes dead per game', 'minutes', false, 'riot', (g) => { const s = sumIfAny(g, (p) => p.facts?.timeDeadSec); return s === undefined ? undefined : s / 60; }, 1),
     m('vision', 'Vision per minute, per player', 'perMin', true, 'riot', (g) => meanIfAny(g, (p) => p.facts?.visionPerMin)),
     // A replay has the score but not the clock it was earned over.
@@ -497,9 +583,12 @@ export function teamSplits(games: readonly AnalysisGame[], topName?: string, sou
     // A replay never records first blood or first tower, so these are Riot-only by data, not by choice.
     m('firstBlood', 'First blood', 'pct', true, 'riot', (g) => (g.objectives ? (g.objectives.ours.firstBlood ? 1 : 0) : undefined)),
     m('firstTower', 'First tower', 'pct', true, 'riot', (g) => (g.objectives ? (g.objectives.ours.firstTower ? 1 : 0) : undefined)),
-    // Riot credits a plate to every participant who took part, so a sum over
-    // five counts one plate several times; per player is the honest figure.
-    m('plates', 'Turret plates per player', 'count', true, 'riot', (g) => meanIfAny(g, (p) => p.facts?.plates), 1),
+    // Riot's turretPlatesTaken is a credit, not a plate: every one of ours who took part in a plate is
+    // credited with it, so the five credits add up to more than the plates that fell (a median of 1.3
+    // credits a plate, and higher in wins, where the pushes are grouped). The mean per player is still
+    // a count of credits, not of plates destroyed, and the label says so; the plates that fell are only
+    // on the match timeline, which the analysis game does not carry.
+    m('plates', 'Turret plates credited per player', 'count', true, 'riot', (g) => meanIfAny(g, (p) => p.facts?.plates), 1),
     m('soloKills', 'Solo kills', 'count', true, 'riot', (g) => sumIfAny(g, (p) => p.facts?.soloKills), 1),
     m('tpTop', `${topName ?? 'Top'}'s Teleport takedowns`, 'count', true, 'riot', (g) => (topName ? g.players.find((p) => p.name === topName) : topOf(g))?.facts?.tpTakedowns, 1),
     m('damageBalance', 'Biggest damage share', 'pct', false, 'any', (g) => { const shares = g.players.map((p) => damageShareOf(p, g)).filter((v): v is number => v !== undefined); return shares.length ? Math.max(...shares) : undefined; }),
@@ -514,17 +603,17 @@ export function teamSplits(games: readonly AnalysisGame[], topName?: string, sou
  * Nineteen rows carried a label and nothing else, and several of them are only obvious to
  * whoever wrote them: "Vision per minute" is Riot's vision score over the clock and not a
  * count of wards, "Biggest damage share" is one player's share and not the team's, and a
- * plate is credited to everyone who took part so the honest figure is per player. A
+ * plate is credited to everyone who took part, so the figure counts credits rather than plates. A
  * definition a reader wants once belongs in a tip, where it costs no height.
  */
 export const METRIC_TIPS: Record<string, string> = {
   killShare: 'Our kills as a share of every kill in the game. 50% is an even fight; it says nothing about who was ahead in gold.',
-  deaths: 'Deaths by the whole team in a game, all five added up.',
-  timeDead: 'Minutes the team spent waiting to respawn, added up across the five. It climbs with the clock as timers get longer, so compare games of similar length.',
+  deaths: 'Deaths by the whole team in a game, all five added up. A game with fewer than five of ours on record is left out.',
+  timeDead: 'Minutes the team spent waiting to respawn, added up across the five. It climbs with the clock as timers get longer, so compare games of similar length. A game with fewer than five of ours on record is left out.',
   vision: "Riot's vision score per player, per minute — wards placed, wards cleared and time an enemy ward was denied, over the clock. Not a count of wards.",
   visionScore: "Riot's vision score per player over the whole game, so a long game scores higher than a short one at the same rate.",
-  controlWards: 'Control wards bought by the team in a game, all five added up.',
-  wardTakedowns: 'Enemy wards the team destroyed in a game.',
+  controlWards: 'Control wards bought by the team in a game, all five added up. A game with fewer than five of ours on record is left out.',
+  wardTakedowns: 'Enemy wards the team destroyed in a game. A game with fewer than five of ours on record is left out.',
   dragons: 'Dragons we took. Elder counts as one.',
   barons: 'Barons we took.',
   towers: 'Towers we destroyed, inhibitor turrets and nexus turrets included.',
@@ -532,11 +621,11 @@ export const METRIC_TIPS: Record<string, string> = {
   heralds: 'Rift Heralds we took.',
   firstBlood: 'Share of games where we drew first blood.',
   firstTower: 'Share of games where we took the first tower.',
-  plates: 'Turret plates per player. Riot credits a plate to everyone who took part, so adding the five up counts one plate several times.',
-  soloKills: 'Kills taken with nobody else of ours in on it.',
+  plates: 'Turret plates each player was credited with, averaged over the five. A plate taken together counts for each of them, so this is not plates destroyed, and wins, where the pushes are grouped, read higher.',
+  soloKills: 'Kills taken with nobody else of ours in on it. A game with fewer than five of ours on record is left out.',
   tpTop: 'Kills and assists our Top was in on within a few seconds of a Teleport — the flank that lands, not the lane reset.',
   damageBalance: 'The biggest single share of the team damage. High means one player carried the damage; even means the whole team did.',
-  goldBalance: "The biggest single share of the team's gold per minute. High means the gold went to one lane."
+  goldBalance: "The biggest single share of the team's gold per minute. High means the gold went to one lane. A game with fewer than five of ours on record is left out."
 };
 
 // ---- Lane totals: what a replay can say about a lane ---------------------------
@@ -549,7 +638,7 @@ export interface LaneTotalRow {
   csPerMin: Split;
   damageShare: Split;
   deaths: Split;
-  /** Kills plus assists over deaths, a death counted as one at least. */
+  /** Kills plus assists over deaths, summed over the games first as the Roster counts it, a death counted as one at least. */
   kda: Split;
 }
 
@@ -567,12 +656,12 @@ export function laneTotals(games: readonly AnalysisGame[], roster: readonly stri
       const p = s.pick(g);
       const golds = g.players.map((q) => q.facts?.goldPerMin).filter((v): v is number => v !== undefined);
       const total = golds.reduce((a, b) => a + b, 0);
-      return p?.facts?.goldPerMin !== undefined && golds.length === g.players.length && total > 0 ? p.facts.goldPerMin / total : undefined;
+      return p?.facts?.goldPerMin !== undefined && hasFullFive(g) && golds.length === g.players.length && total > 0 ? p.facts.goldPerMin / total : undefined;
     }),
     csPerMin: split(games, (g) => { const p = s.pick(g); return p && g.durationSec ? p.cs / (g.durationSec / 60) : undefined; }, 1),
     damageShare: split(games, (g) => { const p = s.pick(g); return p ? damageShareOf(p, g) : undefined; }),
     deaths: split(games, (g) => s.pick(g)?.deaths, 1),
-    kda: split(games, (g) => { const p = s.pick(g); return p ? (p.kills + p.assists) / Math.max(1, p.deaths) : undefined; }, 1)
+    kda: ratioSplit(games, (g) => kdaOf(s.pick(g)))
   }));
 }
 
@@ -645,7 +734,8 @@ export function playerSplits(games: readonly AnalysisGame[], minSeatGames = MIN_
       pm('kills', 'Kills', 'count', true, (p) => p.kills, 1),
       pm('deaths', 'Deaths', 'count', false, (p) => p.deaths, 1),
       pm('assists', 'Assists', 'count', true, (p) => p.assists, 1),
-      pm('kda', 'KDA', 'count', true, (p) => (p.kills + p.assists) / Math.max(1, p.deaths), 1),
+      // The Roster's KDA: summed over the games, then divided, never a mean of each game's ratio.
+      { key: 'kda', label: 'KDA', unit: 'ratio', higherIsBetter: true, split: ratioSplit(games, (g) => kdaOf(own(g))) },
       pm('kp', 'Kill participation', 'pct', true, (p, g) => killParticipationOf(p, g)),
       pm('damageShare', 'Damage share', 'pct', true, (p, g) => damageShareOf(p, g)),
       pm('damagePerMin', 'Damage/min', 'count', true, (p, g) => { const m = minutes(g); return m ? Math.round(p.damage / m) : undefined; }, 0),
@@ -664,14 +754,16 @@ export function playerSplits(games: readonly AnalysisGame[], minSeatGames = MIN_
     ];
   };
   const championsFor = (own: (g: AnalysisGame) => AnalysisPlayer | undefined): ChampionCount[] => {
+    // Keyed by `championKey`, so Riot's FiddleSticks and a later Fiddlesticks count as one champion.
     const acc = new Map<string, ChampionCount>();
     for (const g of games) {
       const p = own(g);
       if (!p) continue;
-      const c = acc.get(p.champion) ?? { champion: p.champion, games: 0, wins: 0 };
+      const key = championKey(p.champion);
+      const c = acc.get(key) ?? { champion: p.champion, games: 0, wins: 0 };
       c.games += 1;
       if (g.win) c.wins += 1;
-      acc.set(p.champion, c);
+      acc.set(key, c);
     }
     return [...acc.values()].sort((a, b) => b.games - a.games || b.wins - a.wins || a.champion.localeCompare(b.champion));
   };
@@ -711,6 +803,7 @@ export function formatSide(s: SideStat, unit: SplitUnit): string {
     case 'pct': return `${Math.round(s.mean * 100)}%`;
     case 'minutes': return `${s.mean} min`;
     case 'perMin': return `${s.mean}/min`;
+    case 'ratio': return s.mean.toFixed(1);
     case 'diff': return s.mean > 0 ? `+${s.mean}` : `${s.mean}`;
     default: return `${s.mean}`;
   }
@@ -720,7 +813,7 @@ export function formatGap(m: { split: { gap?: number }; unit: SplitUnit }): stri
   const g = m.split.gap;
   if (g === undefined) return '—';
   const v = m.unit === 'pct' ? Math.round(g * 100) : g;
-  return `${v > 0 ? '+' : ''}${v}${m.unit === 'pct' ? ' pts' : ''}`;
+  return `${v > 0 ? '+' : ''}${m.unit === 'ratio' ? v.toFixed(1) : v}${m.unit === 'pct' ? ' pts' : ''}`;
 }
 
 /** Whether the gap reads as good for us; null with no gap. */
@@ -784,7 +877,7 @@ const DRAGON_GAP = 1.0;
 const SOLO_GAP = 1.5;
 const DAMAGE_TOP_HEAVY = 0.4;
 const DAMAGE_SPREAD = 0.34;
-/** Per player: a plate and a half a game more in wins is the lane wins being cashed in. */
+/** Per player: a plate and a half more credited a game in wins is the lane wins being cashed in. */
 const PLATES_GAP = 1.5;
 /** Three towers a game is a side of the map, not one lost fight. */
 const TOWERS_GAP = 3;
@@ -815,7 +908,7 @@ const EVIDENCE_LABEL: Record<string, string> = {
   dragons: 'dragons',
   soloKills: 'solo kills',
   damageBalance: 'to the biggest damage share',
-  plates: 'plates per player',
+  plates: 'plates credited per player',
   towers: 'towers',
   barons: 'barons',
   goldBalance: 'to the biggest gold share'
@@ -828,24 +921,42 @@ const EVIDENCE_METRIC: Record<string, string> = {
 };
 
 /**
- * Attach the games behind each line. A lane line shows the games where that
- * seat was called the way the line says; every other line shows the games
- * its metric was averaged over. Capped, newest first.
+ * What a line is about, from its key alone: the topic `Scored` carries, where two rules read one thing
+ * (the two vision rules), else the key. The lines a page is handed have dropped `topic`, so this is how
+ * the Keep doing column learns which subjects Work on already took.
+ */
+export function adviceTopic(key: string): string {
+  return key === 'visionScore' ? 'vision' : key;
+}
+
+/** The subjects a list of lines speaks to, for `keepDoing`'s `exclude`. */
+export function adviceTopics(list: readonly Pick<Advice, 'key'>[]): Set<string> {
+  return new Set(list.map((a) => adviceTopic(a.key)));
+}
+
+/**
+ * Attach the games behind each line. A lane line shows the games of that
+ * result where that seat was called the way the line says — the losses it
+ * lost, or the wins it won, which are the games its figures are over; every
+ * other line shows the games its metric was averaged over. Capped, newest
+ * first. A subject in `exclude` is dropped before the cap, so the list it
+ * leaves room in is still four long.
  */
 function withEvidence(
   out: Scored[],
   games: readonly AnalysisGame[],
   subjects: readonly LaneSubject[],
   team: Map<string, MetricSplit>,
-  laneVerdict: 'lost' | 'won'
+  laneVerdict: 'lost' | 'won',
+  exclude: ReadonlySet<string> = new Set()
 ): Advice[] {
   const seenTopic = new Set<string>();
   const seenStrong = new Set<string>();
   return out
     .sort((a, b) => b.effect - a.effect)
     .filter((a) => {
-      const topic = a.topic ?? a.key;
-      if (seenTopic.has(topic) || seenStrong.has(a.strong)) return false;
+      const topic = a.topic ?? adviceTopic(a.key);
+      if (exclude.has(topic) || seenTopic.has(topic) || seenStrong.has(a.strong)) return false;
       seenTopic.add(topic);
       seenStrong.add(a.strong);
       return true;
@@ -856,6 +967,7 @@ function withEvidence(
         const subject = subjects.find((s) => `lane-${s.key}` === a.key);
         const evidence: Sample[] = [];
         for (const g of games) {
+          if (g.win !== (laneVerdict === 'won')) continue;
           const lane = subject?.pick(g)?.lane;
           if (lane?.verdict === laneVerdict) evidence.push({ matchId: g.matchId, date: g.date, win: g.win, value: lane.goldPerMinDiff ?? 0 });
         }
@@ -888,8 +1000,14 @@ export function workOn(games: readonly AnalysisGame[], by: LaneBy = 'seat', rost
     if (l.n < MIN_FOR_A_CLAIM || lostInWins.n < MIN_FOR_A_CLAIM) continue;
     const points = l.share - lostInWins.share;
     if (l.share >= LANE_SHARE && points >= LANE_GAP_POINTS) {
-      const gold = row.goldDiff.losses.n ? `${signed(row.goldDiff.losses.mean)} gold/min` : '';
-      const cs = row.csDiff.losses.n ? `${signed(row.csDiff.losses.mean)} cs at 10` : '';
+      // "In those losses" means the losses where the lane was lost (14 Sep 2026): the row's own means
+      // are over every loss with a read, the even and won lanes among them, which printed -171 gold/min
+      // for a lane that lost by -206 in the seven games the sentence names.
+      const lostLosses = games.filter((g) => !g.win && subject.pick(g)?.lane?.verdict === 'lost');
+      const goldLost = split(lostLosses, (g) => subject.pick(g)?.lane?.goldPerMinDiff, 0).losses;
+      const csLost = split(lostLosses, (g) => subject.pick(g)?.lane?.csAt10Diff, 1).losses;
+      const gold = goldLost.n ? `${signed(goldLost.mean)} gold/min` : '';
+      const cs = csLost.n ? `${signed(csLost.mean)} cs at 10` : '';
       const numbers = [gold, cs].filter(Boolean).join(', ');
       const who = by === 'player' && row.seat ? `${row.label} (${row.seat})` : row.label;
       out.push({
@@ -921,14 +1039,15 @@ export function workOn(games: readonly AnalysisGame[], by: LaneBy = 'seat', rost
   }
   const deaths = s('deaths');
   if (enough(deaths) && deaths.gap !== undefined && -deaths.gap >= DEATHS_GAP) {
-    const lossGames = games.filter((g) => !g.win);
+    // Over the same games the team figure counts: a loss with only four of ours on record is out.
+    const lossGames = games.filter((g) => !g.win && hasFullFive(g));
     const total = lossGames.reduce((n, g) => n + g.players.reduce((m, p) => m + p.deaths, 0), 0);
     const byPlayer = new Map<string, number>();
     for (const g of lossGames) for (const p of g.players) byPlayer.set(p.name, (byPlayer.get(p.name) ?? 0) + p.deaths);
     const [who, count] = [...byPlayer.entries()].sort((a, b) => b[1] - a[1])[0] ?? ['', 0];
     const share = total ? count / total : 0;
     if (who && share >= DEATHS_SHARE) {
-      const own = split(games, (g) => g.players.find((p) => p.name === who)?.deaths, 1);
+      const own = split(games.filter(hasFullFive), (g) => g.players.find((p) => p.name === who)?.deaths, 1);
       out.push({ key: 'deaths', strong: `${who} carries ${pct(share)} of the deaths in losses`, rest: `${own.losses.mean} a game against ${own.wins.mean} in wins. Position behind the frontline; die less before objectives.`, n: nOf(deaths), effect: -deaths.gap / DEATHS_GAP });
     } else {
       out.push({ key: 'deaths', strong: `${round(-deaths.gap, 1)} more deaths a game in losses`, rest: `${deaths.losses.mean} against ${deaths.wins.mean} in wins, spread across the team. Fewer fights taken without vision or numbers.`, n: nOf(deaths), effect: -deaths.gap / DEATHS_GAP });
@@ -954,7 +1073,7 @@ export function workOn(games: readonly AnalysisGame[], by: LaneBy = 'seat', rost
   }
   const plates = s('plates');
   if (enough(plates) && plates.gap !== undefined && plates.gap >= PLATES_GAP) {
-    out.push({ key: 'plates', strong: `${plates.wins.mean} plates per player in wins, ${plates.losses.mean} in losses`, rest: 'Push after winning a 2v2; plates are the gold the lane win pays.', n: nOf(plates), effect: plates.gap / PLATES_GAP });
+    out.push({ key: 'plates', strong: `${plates.wins.mean} turret plates credited per player in wins, ${plates.losses.mean} in losses`, rest: 'Push after winning a 2v2; plates are the gold the lane win pays.', n: nOf(plates), effect: plates.gap / PLATES_GAP });
   }
   const towers = s('towers');
   if (enough(towers) && towers.gap !== undefined && towers.gap >= TOWERS_GAP) {
@@ -975,7 +1094,20 @@ export function workOn(games: readonly AnalysisGame[], by: LaneBy = 'seat', rost
   return withEvidence(out, games, source === 'replay' ? [] : laneSubjects(games, by, roster), metrics, 'lost');
 }
 
-export function keepDoing(games: readonly AnalysisGame[], by: LaneBy = 'seat', roster: readonly string[] = [], source: PatternSource = 'riot'): Advice[] {
+/**
+ * What the wins have that the losses do not. `exclude` is the subjects Work on already took
+ * (`adviceTopics(workOn(...))`, 14 Sep 2026): several rules here and there fire on one gap — plates,
+ * solo kills, towers, dragons, barons, vision score — and the page printed "9.2 towers in wins" as a
+ * weakness and a strength at once. A subject belongs to one column, and Work on, read first, keeps
+ * it; the Keep doing list fills its four from what is left.
+ */
+export function keepDoing(
+  games: readonly AnalysisGame[],
+  by: LaneBy = 'seat',
+  roster: readonly string[] = [],
+  source: PatternSource = 'riot',
+  exclude: ReadonlySet<string> = new Set()
+): Advice[] {
   const out: Scored[] = [];
   for (const subject of source === 'replay' ? [] : laneSubjects(games, by, roster)) {
     const row = laneRow(games, subject);
@@ -1016,7 +1148,7 @@ export function keepDoing(games: readonly AnalysisGame[], by: LaneBy = 'seat', r
   }
   const plates = s('plates');
   if (enough(plates) && plates.gap !== undefined && plates.gap >= PLATES_GAP) {
-    out.push({ key: 'plates', strong: `${plates.wins.mean} plates per player in wins`, rest: `against ${plates.losses.mean} in losses — the lane wins are being cashed in.`, n: nOf(plates), effect: plates.gap / PLATES_GAP });
+    out.push({ key: 'plates', strong: `${plates.wins.mean} turret plates credited per player in wins`, rest: `against ${plates.losses.mean} in losses — the lane wins are being cashed in.`, n: nOf(plates), effect: plates.gap / PLATES_GAP });
   }
   const towers = s('towers');
   if (enough(towers) && towers.gap !== undefined && towers.gap >= TOWERS_GAP) {
@@ -1030,5 +1162,5 @@ export function keepDoing(games: readonly AnalysisGame[], by: LaneBy = 'seat', r
   if (enough(barons) && barons.gap !== undefined && barons.gap >= BARON_GAP) {
     out.push({ key: 'barons', strong: 'Baron control wins games', rest: `${barons.wins.mean} a game in wins against ${barons.losses.mean} in losses.`, n: nOf(barons), effect: barons.gap / BARON_GAP });
   }
-  return withEvidence(out, games, source === 'replay' ? [] : laneSubjects(games, by, roster), metrics, 'won');
+  return withEvidence(out, games, source === 'replay' ? [] : laneSubjects(games, by, roster), metrics, 'won', exclude);
 }

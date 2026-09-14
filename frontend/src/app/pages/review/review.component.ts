@@ -29,7 +29,7 @@ import {
   summarise,
   MIN_FOR_A_CLAIM
 } from './loss-patterns.util';
-import { atSource, formatGap, formatSide, GameSource, gapIsGood, keepDoing, laneTable, laneTotals, METRIC_TIPS, MetricSplit, PatternFilters, PatternSource, patternSourceOf, readPatternFilters, RoleMode, rosterOrderOf, seriousOnly, SideStat, starterNamesFor, teamSplits, tournamentMatchIds, withRoles, withStarters, workOn } from './win-loss-splits';
+import { adviceTopics, atSource, formatGap, formatSide, GameSource, gapIsGood, keepDoing, laneTable, laneTotals, METRIC_TIPS, MetricSplit, PatternFilters, PatternSource, patternSourceOf, practiceInSource, readPatternFilters, RoleMode, rosterOrderOf, seriousOnly, SideStat, starterNamesFor, teamSplits, tournamentMatchIds, withRoles, withStarters, workOn } from './win-loss-splits';
 import { InfoTipComponent } from '../../shared/info-tip.component';
 
 /**
@@ -238,11 +238,14 @@ export class ReviewComponent {
     }
   }
 
-  /** Games tagged as practice in the current comp and champion selection. */
-  protected readonly practiceCount = computed(() => {
-    const practice = this.data.practiceSet();
-    return this.taggedOrNot().filter((g) => practice.has(g.matchId)).length;
-  });
+  /**
+   * Games tagged as practice in the current comp and champion selection, in the source picked: the
+   * games Prep leaves out of what this page counts. Over every source at once it told Scrims + Clash
+   * and Tournaments that 29 practice games were left out when all 29 were flex (14 Sep 2026).
+   */
+  protected readonly practiceCount = computed(() =>
+    practiceInSource(this.taggedOrNot(), this.data.practiceSet(), this.sourceMode(), this.tournamentIds())
+  );
 
   /** Games with the right people in, before the role question. */
   private readonly starterGames = computed<AnalysisGame[]>(() => withStarters(this.anyStackGames(), this.startersFor(this.starterMode())));
@@ -309,7 +312,10 @@ export class ReviewComponent {
   /** Roster order for the lane rows: starters by seat, then the subs. */
   private readonly rosterOrder = computed(() => rosterOrderOf(this.data.players()));
   protected readonly workOnList = computed(() => workOn(this.filteredGames(), 'player', this.rosterOrder(), this.patternSource()));
-  protected readonly keepDoingList = computed(() => keepDoing(this.filteredGames(), 'player', this.rosterOrder(), this.patternSource()));
+  /** Never a subject Work on already holds: one gap is one piece of advice, in one column (14 Sep 2026). */
+  protected readonly keepDoingList = computed(() =>
+    keepDoing(this.filteredGames(), 'player', this.rosterOrder(), this.patternSource(), adviceTopics(this.workOnList()))
+  );
   protected readonly laneRows = computed(() => laneTable(this.filteredGames(), 'player', this.rosterOrder()));
   protected readonly laneTotalRows = computed(() => laneTotals(this.filteredGames(), this.rosterOrder()));
 

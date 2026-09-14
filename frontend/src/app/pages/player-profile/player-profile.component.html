@@ -3,7 +3,7 @@
        links is not a toolbar, so the page has none. -->
   <section class="hero is-slim" appInView>
     <div class="hero-id">
-      <p class="home-kicker hero-kicker"><span class="material-symbols-rounded" aria-hidden="true">person</span>Player · {{ p.role }}@if (p.top3.length) { · main {{ ui.championName(p.top3[0]) }} }</p>
+      <p class="home-kicker hero-kicker"><span class="material-symbols-rounded" aria-hidden="true">person</span>Player · {{ p.role }}@if (mainChampion(); as main) { · main {{ ui.championName(main) }} }</p>
       <h1 class="hero-title">{{ p.name }}<app-mvp-banner [playerId]="p.id" [name]="p.name" /></h1>
       <p class="hero-blurb">Their ranked queues, their pool and how the team does with them in it.</p>
     </div>
@@ -88,7 +88,7 @@
               <span class="meta-label" [appTip]="'The champions actually played in recent ' + selectedQueueLabel() + ' games'">Most played recently</span>
               <span class="champ-chip-row is-inline">
                 @for (champ of stats.top3; track champ) {
-                  <app-champion-chip [champion]="champ" />
+                  <app-champion-chip [champion]="champ" [label]="ui.championName(champ)" />
                 }
               </span>
             </p>
@@ -106,11 +106,13 @@
         <span class="playstyle-icon material-symbols-rounded trailing" aria-hidden="true">{{ ui.playstyleIcon(p.playstyle) }}</span>
       </p>
 
-      @if (p.top3.length) {
+      <!-- The Roster's main (14 Sep 2026): what they played most for the team, else Riot's flex and solo, else the
+           declared pool — the declared pool's first alone named Mel where the Roster names Lux. -->
+      @if (mainChampion(); as main) {
         <p class="meta-line main-champ-inline">
-          <img class="main-champ-icon" [src]="ui.championIconUrl(p.top3[0])" [alt]="p.top3[0] + ' icon'" />
+          <img class="main-champ-icon" [src]="ui.championIconUrl(main)" [alt]="ui.championName(main) + ' icon'" />
           <span class="meta-label">Main Champion</span>
-          <span class="meta-value">{{ p.top3[0] }}</span>
+          <span class="meta-value">{{ ui.championName(main) }}</span>
         </p>
       }
 
@@ -138,7 +140,7 @@
         </summary>
         <div class="champ-chip-row">
           @for (champ of p.top3; track champ) {
-            <app-champion-chip [champion]="champ" />
+            <app-champion-chip [champion]="champ" [label]="ui.championName(champ)" />
           }
         </div>
       </details>
@@ -166,7 +168,7 @@
       <article class="card card-wide team-card reveal" appInView style="--reveal-i: 1">
         <div class="team-card-head">
           <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">groups</span>With the team</h2>
-          <span class="team-card-scope" [appTip]="'Games where ' + p.name + ' played with the other four starters, in the queue picked above. Wins against losses.'">
+          <span class="team-card-scope" [appTip]="'Games where ' + p.name + ' played with the other four starters, in the queue picked above, practice games left out as the Roster leaves them. Wins against losses.'">
             {{ teamQueueLabel() }} · <b>{{ w.games }}</b> {{ w.games === 1 ? 'game' : 'games' }} with the main five
           </span>
         </div>
@@ -179,8 +181,8 @@
             @for (c of teamChampions().slice(0, 8); track c.champion) {
               <button type="button" class="view-btn team-champ-btn" [class.active]="teamChampion() === c.champion"
                       (click)="teamChampion.set(teamChampion() === c.champion ? '' : c.champion)"
-                      [appTip]="c.champion + ': ' + c.wins + ' of ' + c.games + ' won with the team'">
-                <img [src]="ui.championIconUrl(c.champion)" [alt]="" loading="lazy" /> {{ c.champion }} <em>{{ c.games }}</em>
+                      [appTip]="ui.championName(c.champion) + ': ' + c.wins + ' of ' + c.games + ' won with the team'">
+                <img [src]="ui.championIconUrl(c.champion)" [alt]="" loading="lazy" /> {{ ui.championName(c.champion) }} <em>{{ c.games }}</em>
               </button>
             }
             @if (teamChampions().length > 8) {
@@ -188,7 +190,7 @@
                       (change)="teamChampion.set($any($event.target).value)" aria-label="Other champions">
                 <option value="" [selected]="!teamChampions().slice(8).some((c) => c.champion === teamChampion())">{{ teamChampions().length - 8 }} more…</option>
                 @for (c of teamChampions().slice(8); track c.champion) {
-                  <option [value]="c.champion" [selected]="c.champion === teamChampion()">{{ c.champion }} ({{ c.games }})</option>
+                  <option [value]="c.champion" [selected]="c.champion === teamChampion()">{{ ui.championName(c.champion) }} ({{ c.games }})</option>
                 }
               </select>
             }
@@ -203,7 +205,7 @@
           <table class="split-table team-table">
             <thead>
               <tr>
-                <th scope="col">{{ teamChampion() ? 'On ' + teamChampion() : 'All games' }}</th>
+                <th scope="col">{{ teamChampion() ? 'On ' + ui.championName(teamChampion()) : 'All games' }}</th>
                 @for (m of shown(w.metrics); track m.key) {
                   <th scope="col" class="num" [appTip]="m.label">{{ m.label }}</th>
                 }
@@ -219,7 +221,7 @@
                 <td>
                   <span class="games-champs">
                     @for (c of w.champions.slice(0, 6); track c.champion) {
-                      <img [src]="ui.championIconUrl(c.champion)" [alt]="c.champion" loading="lazy" [appTip]="c.champion + ': ' + c.wins + ' of ' + c.games + ' won'" />
+                      <img [src]="ui.championIconUrl(c.champion)" [alt]="ui.championName(c.champion)" loading="lazy" [appTip]="ui.championName(c.champion) + ': ' + c.wins + ' of ' + c.games + ' won'" />
                     }
                     @if (w.champions.length > 6) { <small>+{{ w.champions.length - 6 }}</small> }
                   </span>
@@ -234,7 +236,7 @@
                   <td>
                     <span class="games-champs">
                       @for (c of s.champions.slice(0, 6); track c.champion) {
-                        <img [src]="ui.championIconUrl(c.champion)" [alt]="c.champion" loading="lazy" [appTip]="c.champion + ' at ' + s.role + ': ' + c.wins + ' of ' + c.games + ' won'" />
+                        <img [src]="ui.championIconUrl(c.champion)" [alt]="ui.championName(c.champion)" loading="lazy" [appTip]="ui.championName(c.champion) + ' at ' + s.role + ': ' + c.wins + ' of ' + c.games + ' won'" />
                       }
                       @if (s.champions.length > 6) { <small>+{{ s.champions.length - 6 }}</small> }
                     </span>

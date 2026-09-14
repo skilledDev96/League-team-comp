@@ -217,4 +217,33 @@ describe('buildHome', () => {
     expect(home.trophies.every((t) => !t.unlocked)).toBe(true);
     expect(home.advice).toMatchObject({ workOn: [], keepDoing: [], wins: 0, losses: 0, needs: 8 });
   });
+
+  it('never prints one gap in both advice columns, even a gap Work on ranked past the lines Home shows', () => {
+    // The default Patterns view as the team's data read it (14 Sep 2026): plates, solo kills and towers
+    // cleared their gap in both columns, and Home printed "12.3 plates per player in wins" on both sides.
+    const seats: [string, string][] = [['Zac', 'Top'], ['Go10x', 'Jungle'], ['Mido', 'Mid'], ['SkilledScarecrow', 'ADC'], ['Suppy', 'Support']];
+    const game = (i: number, win: boolean): AnalysisGame =>
+      ({
+        matchId: `EUW_${100 + i}`,
+        compId: null,
+        compName: null,
+        win,
+        queue: 'Flex',
+        date: Date.parse('2026-09-01T20:00:00Z') + i * 3_600_000,
+        laneData: 'riot',
+        durationSec: 1900,
+        players: seats.map(([name, position]) => ({ name, position, champion: 'Vi', kills: 3, deaths: win ? 5.64 : 8.66, assists: 5, cs: 180, damage: 12_000, facts: { plates: win ? 12.3 : 4, soloKills: win ? 1.68 : 1 } })),
+        kills: { ours: win ? 25 : 12, theirs: win ? 12 : 25 },
+        objectives: {
+          ours: { firstBlood: false, firstTower: false, dragons: win ? 2.6 : 0.6, barons: win ? 1.2 : 0.2, heralds: 0, grubs: 0, towers: win ? 9.2 : 2.5, inhibitors: 0 },
+          theirs: { firstBlood: false, firstTower: false, dragons: 1, barons: 0, heralds: 0, grubs: 0, towers: 3, inhibitors: 0 }
+        }
+      }) as unknown as AnalysisGame;
+    const analysis = [...Array.from({ length: 13 }, (_, i) => game(i, true)), ...Array.from({ length: 12 }, (_, i) => game(13 + i, false))];
+    const home = buildHome(input({ analysis }));
+    expect(home.advice.workOn.map((a) => a.key)).toEqual(['plates', 'deaths']);
+    expect(home.advice.workOn[0].strong).toBe('12.3 turret plates credited per player in wins, 4 in losses');
+    // Solo kills and towers are Work on's third and fourth, off Home's two lines, and still not a strength.
+    expect(home.advice.keepDoing.map((a) => a.key)).toEqual(['dragons', 'barons']);
+  });
 });

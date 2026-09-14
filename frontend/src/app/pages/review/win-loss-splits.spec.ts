@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { AnalysisGame, AnalysisPlayer, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import {
+  adviceTopic,
+  adviceTopics,
   atSource,
+  championKey,
+  formatSide,
+  gamesWithTheFive,
+  hasFullFive,
+  practiceInSource,
+  ratioSplit,
   DEFAULT_PATTERN_FILTERS,
   gameSource,
   keepDoing,
@@ -509,5 +517,165 @@ describe('the Patterns selection, step by step', () => {
     expect([...tournamentMatchIds(tournaments, series, seriesGames)]).toEqual(['scrim-104']);
     // Before a scrims group exists, every series belongs to a tournament.
     expect([...tournamentMatchIds([], series, seriesGames)]).toEqual(['scrim-104', 'scrim-103']);
+  });
+});
+
+/**
+ * The data audit of 14 Sep 2026, each case built on the figures the team's own data printed.
+ */
+describe('one gap, one column', () => {
+  /**
+   * The default Patterns view as the snapshot read it: 13 wins and 12 losses where plates (12.3 against 4
+   * credited per player), solo kills (8.4 against 5), towers (9.2 against 2.5), deaths (28.2 against 43.3),
+   * dragons (2.6 against 0.6) and barons (1.2 against 0.2) all clear their gap.
+   */
+  const defaultView = () => {
+    const games: AnalysisGame[] = [];
+    const side = (win: boolean) =>
+      game(
+        win,
+        {
+          objectives: {
+            ours: { firstBlood: false, firstTower: false, dragons: win ? 2.6 : 0.6, barons: win ? 1.2 : 0.2, heralds: 0, grubs: 0, towers: win ? 9.2 : 2.5, inhibitors: 0 },
+            theirs: { firstBlood: false, firstTower: false, dragons: 1, barons: 0, heralds: 0, grubs: 0, towers: 3, inhibitors: 0 }
+          }
+        },
+        () => ({ deaths: win ? 5.64 : 8.66, facts: { plates: win ? 12.3 : 4, soloKills: win ? 1.68 : 1 } })
+      );
+    for (let i = 0; i < 13; i += 1) games.push(side(true));
+    for (let i = 0; i < 12; i += 1) games.push(side(false));
+    return games;
+  };
+
+  it('fired plates, solo kills and towers in both columns before, and keeps each in Work on now', () => {
+    const games = defaultView();
+    const work = workOn(games);
+    expect(work.map((a) => a.key)).toEqual(['plates', 'deaths', 'solo', 'towers']);
+    // Without the exclusion the same three gaps were printed as strengths as well.
+    const both = keepDoing(games).map((a) => a.key);
+    expect(both).toEqual(expect.arrayContaining(['plates', 'solo', 'towers']));
+    const keep = keepDoing(games, 'seat', [], 'riot', adviceTopics(work));
+    expect(keep.map((a) => a.key)).toEqual(['dragons', 'barons']);
+    expect(keep.some((a) => work.some((w) => w.key === a.key))).toBe(false);
+  });
+
+  it('drops the excluded subjects before the cap of four, so what is left can still fill the column', () => {
+    const games = defaultView();
+    // Barons are fifth without the exclusion and cut; with it they are in.
+    expect(keepDoing(games).map((a) => a.key)).not.toContain('barons');
+    expect(keepDoing(games, 'seat', [], 'riot', new Set(['plates', 'solo', 'towers'])).map((a) => a.key)).toContain('barons');
+  });
+
+  it('treats both vision rules as one subject', () => {
+    expect(adviceTopic('visionScore')).toBe('vision');
+    expect([...adviceTopics([{ key: 'visionScore' }, { key: 'lane-top' }])]).toEqual(['vision', 'lane-top']);
+    const visionBoth = botLaneStory(8, (win) => ({ facts: { visionPerMin: win ? 2.0 : 1.0 }, visionScore: win ? 40 : 18 }));
+    const keep = keepDoing(visionBoth, 'seat', [], 'riot', adviceTopics(workOn(visionBoth)));
+    expect(keep.some((a) => a.key === 'vision' || a.key === 'visionScore')).toBe(false);
+  });
+
+  it('says plates are credits, not plates destroyed', () => {
+    const games = defaultView();
+    expect(workOn(games).find((a) => a.key === 'plates')!.strong).toBe('12.3 turret plates credited per player in wins, 4 in losses');
+    expect(keepDoing(games).find((a) => a.key === 'plates')!.strong).toBe('12.3 turret plates credited per player in wins');
+    expect(teamSplits(games).find((m) => m.key === 'plates')!.label).toBe('Turret plates credited per player');
+  });
+});
+
+describe('the lane line in Work on', () => {
+  /** RULUKUKULUKU in the Custom view: lane lost in 7 of 8 losses at -206 gold/min, the eighth even. */
+  const topStory = () => {
+    const games: AnalysisGame[] = [];
+    const lane = (verdict: 'won' | 'lost' | 'even', gold: number, cs: number) => (role: string) =>
+      role === 'Top' ? { lane: { position: 'Top', theirChampion: 'Y', verdict, goldPerMinDiff: gold, csAt10Diff: cs } } : {};
+    for (let i = 0; i < 7; i += 1) games.push(game(false, { date: i }, lane('lost', -206, -26.4)));
+    games.push(game(false, { date: 7 }, lane('even', 40, 10)));
+    for (let i = 0; i < 7; i += 1) games.push(game(true, { date: 10 + i }, lane('won', 60, 8)));
+    for (let i = 0; i < 2; i += 1) games.push(game(true, { date: 20 + i }, lane('lost', -90, -5)));
+    return games;
+  };
+
+  it('prints the deficit over the losses where the lane was lost, not over every loss', () => {
+    const line = workOn(topStory()).find((a) => a.key === 'lane-Top')!;
+    expect(line.strong).toBe('Top loses lane in 7 of 8 losses');
+    // Over all eight losses the same line read -175 gold/min and -21.8 cs.
+    expect(line.rest).toContain('-206 gold/min, -26.4 cs at 10 in those losses');
+  });
+
+  it('shows the games the figure is over: the losses with the lane lost, and no win', () => {
+    const line = workOn(topStory()).find((a) => a.key === 'lane-Top')!;
+    expect(line.evidence!.length).toBe(7);
+    expect(line.evidence!.every((e) => !e.win && e.value === -206)).toBe(true);
+    const kept = keepDoing(topStory()).find((a) => a.key === 'lane-Top');
+    if (kept) expect(kept.evidence!.every((e) => e.win)).toBe(true);
+  });
+});
+
+describe('figures that add the five up', () => {
+  it('leave out a game with only four of ours on record', () => {
+    const four = (win: boolean) => ({ ...game(win, {}, () => ({ deaths: 2, facts: { soloKills: 1, controlWards: 1 } })), players: five(() => ({ deaths: 2, facts: { soloKills: 1, controlWards: 1 } })).slice(0, 4) });
+    const games = [game(true, {}, () => ({ deaths: 1, facts: { soloKills: 2, controlWards: 3 } })), game(false, {}, () => ({ deaths: 8, facts: { soloKills: 0, controlWards: 1 } })), four(true), four(false)];
+    expect(hasFullFive(games[0])).toBe(true);
+    expect(hasFullFive(games[2])).toBe(false);
+    const m = new Map(teamSplits(games).map((x) => [x.key, x.split]));
+    expect(m.get('deaths')).toMatchObject({ wins: { mean: 5, n: 1 }, losses: { mean: 40, n: 1 } });
+    expect(m.get('soloKills')).toMatchObject({ wins: { mean: 10, n: 1 }, losses: { mean: 0, n: 1 } });
+    expect(m.get('controlWards')).toMatchObject({ wins: { mean: 15, n: 1 }, losses: { mean: 5, n: 1 } });
+    // A per-player figure is still a fair read of four.
+    expect(m.get('killShare')!.wins.n).toBe(2);
+  });
+});
+
+describe('KDA', () => {
+  it('is the Roster’s: kills and assists over deaths summed over the games, printed to one decimal', () => {
+    // 12/0/10 and 1/5/1: a mean of the two ratios is 11.2, the Roster's sum is 24 over 5.
+    const games = [game(true, {}, (role) => (role === 'ADC' ? { kills: 12, deaths: 0, assists: 10 } : {})), game(false, {}, (role) => (role === 'ADC' ? { kills: 1, deaths: 5, assists: 1 } : {}))];
+    const kda = playerSplits(games, 1).find((r) => r.name === 'adc')!.metrics.find((m) => m.key === 'kda')!;
+    expect(kda.unit).toBe('ratio');
+    expect(kda.split.all).toEqual({ mean: 4.8, n: 2 });
+    expect(kda.split.wins).toEqual({ mean: 22, n: 1 });
+    expect(kda.split.losses).toEqual({ mean: 0.4, n: 1 });
+    expect(formatSide(kda.split.all, kda.unit)).toBe('4.8');
+    expect(formatSide({ mean: 4, n: 3 }, 'ratio')).toBe('4.0');
+    expect(laneTotals(games, ['adc']).find((r) => r.key === 'adc')!.kda.all).toEqual({ mean: 4.8, n: 2 });
+  });
+
+  it('divides by one at least when nobody died', () => {
+    expect(ratioSplit([game(true)], () => ({ num: 7, den: 0 })).wins).toEqual({ mean: 7, n: 1 });
+  });
+});
+
+describe('practice games left out, per source', () => {
+  it('counts the tagged games of the source picked, not every tagged game', () => {
+    const tagged = [game(true, { matchId: 'EUW1-1' }), game(false, { matchId: 'EUW1-2' })];
+    const scrims = [game(true, { matchId: 'scrim-1', queue: 'Scrim', laneData: 'none' }), game(false, { matchId: 'scrim-2', queue: 'Scrim', laneData: 'none' })];
+    const practice = new Set(['EUW1-1', 'EUW1-2']);
+    const all = [...tagged, ...scrims];
+    expect(practiceInSource(all, practice, 'flex', new Set())).toBe(2);
+    expect(practiceInSource(all, practice, 'scrimClash', new Set())).toBe(0);
+    expect(practiceInSource(all, practice, 'tournament', new Set(['scrim-2']))).toBe(0);
+    expect(practiceInSource(all, new Set(['scrim-2']), 'tournament', new Set(['scrim-2']))).toBe(1);
+  });
+});
+
+describe('a player with the main five', () => {
+  const starters = ['top', 'jungle', 'mid', 'adc', 'support'];
+
+  it('leaves out practice, a sub game and another queue', () => {
+    const played = game(true, { matchId: 'EUW1-1' });
+    const practiced = game(true, { matchId: 'EUW1-2' });
+    const clash = game(false, { matchId: 'EUW1-3', queue: 'Clash' });
+    const subbed = game(false, { matchId: 'EUW1-4' }, (role) => (role === 'Mid' || role === 'Jungle' ? { name: `bench-${role}` } : {}));
+    const games = [played, practiced, clash, subbed];
+    expect(gamesWithTheFive(games, 'adc', starters, 'Flex', new Set(['EUW1-2'])).map((g) => g.matchId)).toEqual(['EUW1-1']);
+    expect(gamesWithTheFive(games, 'adc', starters, null, new Set(['EUW1-2'])).map((g) => g.matchId)).toEqual(['EUW1-1', 'EUW1-3']);
+    // Fewer than five starters named: nothing is asked of the others.
+    expect(gamesWithTheFive(games, 'adc', ['adc'], 'Flex', new Set()).map((g) => g.matchId)).toEqual(['EUW1-1', 'EUW1-2', 'EUW1-4']);
+  });
+
+  it('counts one champion under both of its spellings', () => {
+    expect(championKey('FiddleSticks')).toBe(championKey('Fiddlesticks'));
+    const games = [game(true, {}, (role) => (role === 'Top' ? { champion: 'FiddleSticks' } : {})), game(false, {}, (role) => (role === 'Top' ? { champion: 'Fiddlesticks' } : {}))];
+    expect(playerSplits(games, 1).find((r) => r.name === 'top')!.champions).toEqual([{ champion: 'FiddleSticks', games: 2, wins: 1 }]);
   });
 });
