@@ -9,10 +9,35 @@
  *
  * Kept free of Angular so the logic can be tested directly.
  */
+import { championKey, sameChampion } from '../../core/champion-key';
 
-/** Punctuation and casing vary between Riot, our notes, and what people type. */
+/**
+ * The display-name keys of the champions whose Riot id is another word entirely ("MonkeyKing" is
+ * Wukong, "Nunu" is Nunu & Willump, "Renata" is Renata Glasc). The alias table itself lives in
+ * `core/champion-key.ts` and is not exported, so a key is resolved through its `sameChampion`:
+ * whichever of these the name is the same champion as, that is its key.
+ */
+const ALIASED_KEYS = ['wukong', 'nunuwillump', 'renataglasc'] as const;
+
+const keyCache = new Map<string, string>();
+
+/**
+ * One key for a champion however it is spelled (14 Sep 2026). Every set and every lookup in the draft
+ * room and Prep goes through this, because the board holds three spellings at once: replays write
+ * Riot's ids ("MissFortune", "MonkeyKing"), the wall and the pickers write display names ("Miss
+ * Fortune", "Wukong"), and people type "kaisa". Lower-case letters and digits settle most of them;
+ * the Riot ids that are another word resolve to the display name's key. Before this a burned
+ * MonkeyKing never greyed the Wukong tile and a banned "missfortune" never greyed Miss Fortune.
+ */
 export function normalizeChampion(name: string): string {
-  return (name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const raw = name ?? '';
+  const known = keyCache.get(raw);
+  if (known !== undefined) return known;
+  const key = championKey(raw);
+  const resolved = (key && ALIASED_KEYS.find((alias) => sameChampion(key, alias))) || key;
+  if (keyCache.size > 2000) keyCache.clear();
+  keyCache.set(raw, resolved);
+  return resolved;
 }
 
 /** One set, normalised, from however many lists of champions. */
@@ -24,6 +49,33 @@ export function blockedSet(...groups: (readonly string[] | undefined)[]): Set<st
     }
   }
   return blocked;
+}
+
+/**
+ * The champions of however many lists, once each by key, keeping the first spelling met. A burned
+ * list counts a champion once whether one game stored "MonkeyKing" and another "Wukong".
+ */
+export function uniqueChampions(...groups: (readonly (string | undefined)[] | undefined)[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const group of groups) {
+    for (const champion of group ?? []) {
+      const key = champion ? normalizeChampion(champion) : '';
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(champion!);
+    }
+  }
+  return out;
+}
+
+/**
+ * The games of a series that were played: a result recorded or a replay behind them (14 Sep 2026).
+ * An empty board somebody opened the draft room on is not a game of the series, so a head reading
+ * "0–2 · 3 games" or "not played yet · 2 games" was counting drafts that never happened.
+ */
+export function playedGames<T extends { win?: boolean; matchId?: string }>(games: readonly T[]): T[] {
+  return games.filter((g) => g.win !== undefined || !!g.matchId);
 }
 
 export interface CompChampions {

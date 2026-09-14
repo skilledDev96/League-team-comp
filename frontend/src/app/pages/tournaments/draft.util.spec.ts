@@ -1,5 +1,143 @@
 import { describe, expect, it } from 'vitest';
-import { blockedSet, compAvailability, CompChampions, poolPressure } from './draft.util';
+import { CHAMPION_LANES } from '../../data/champion-lanes';
+import {
+  blockedSet,
+  compAvailability,
+  CompChampions,
+  normalizeChampion,
+  playedGames,
+  poolPressure,
+  uniqueChampions
+} from './draft.util';
+
+/**
+ * Every champion whose Riot id (what a replay and a Riot game store) is not its display name (what the
+ * wall, the pickers and people write) in lower case — the twenty on the 13 Sep 2026 snapshot's
+ * champion index, each against the name the champion data gives it — plus what people type.
+ */
+const SPELLINGS: readonly (readonly string[])[] = [
+  ['AurelionSol', 'Aurelion Sol', 'aurelionsol'],
+  ['Belveth', "Bel'Veth", 'belveth'],
+  ['Chogath', "Cho'Gath", 'chogath'],
+  ['DrMundo', 'Dr. Mundo', 'dr mundo', 'drmundo'],
+  ['JarvanIV', 'Jarvan IV', 'jarvan iv'],
+  ['KSante', "K'Sante", 'ksante'],
+  ['Kaisa', "Kai'Sa", 'kaisa'],
+  ['Khazix', "Kha'Zix", 'khazix'],
+  ['KogMaw', "Kog'Maw", 'kogmaw'],
+  ['LeeSin', 'Lee Sin', 'leesin'],
+  ['MasterYi', 'Master Yi', 'master yi'],
+  ['MissFortune', 'Miss Fortune', 'missfortune'],
+  ['MonkeyKing', 'Wukong', 'wukong', 'monkeyking'],
+  ['Nunu', 'Nunu & Willump', 'nunu', 'nunuwillump'],
+  ['RekSai', "Rek'Sai", 'reksai'],
+  ['Renata', 'Renata Glasc', 'renata', 'renataglasc'],
+  ['TahmKench', 'Tahm Kench', 'tahmkench'],
+  ['TwistedFate', 'Twisted Fate', 'twistedfate'],
+  ['Velkoz', "Vel'Koz", 'velkoz'],
+  ['XinZhao', 'Xin Zhao', 'xinzhao'],
+  ['Leblanc', 'LeBlanc', 'leblanc'],
+  ['FiddleSticks', 'Fiddlesticks', 'fiddlesticks']
+];
+
+describe('normalizeChampion — one key whatever the spelling', () => {
+  for (const spellings of SPELLINGS) {
+    it(`reads ${spellings.join(' / ')} as one champion`, () => {
+      const keys = new Set(spellings.map(normalizeChampion));
+      expect(keys.size).toBe(1);
+      expect([...keys][0]).not.toBe('');
+    });
+  }
+
+  it('keys a Riot id the way the display name keys, not the other way round', () => {
+    expect(normalizeChampion('MonkeyKing')).toBe(normalizeChampion('Wukong'));
+    expect(normalizeChampion('MonkeyKing')).toBe('wukong');
+    expect(normalizeChampion('Nunu')).toBe('nunuwillump');
+    expect(normalizeChampion('Renata')).toBe('renataglasc');
+  });
+
+  it('keeps different champions apart', () => {
+    expect(normalizeChampion('Nunu')).not.toBe(normalizeChampion('Nami'));
+    expect(normalizeChampion('Renata Glasc')).not.toBe(normalizeChampion('Renekton'));
+    expect(normalizeChampion('Wukong')).not.toBe(normalizeChampion('MasterYi'));
+    expect(normalizeChampion('')).toBe('');
+  });
+
+  it('finds a wall tile for every Riot id on the snapshot, so a burned or banned id greys its tile', () => {
+    // The wall's tiles are display names; the lane table carries the same names for every champion.
+    const tiles = new Map(Object.keys(CHAMPION_LANES).map((name) => [normalizeChampion(name), name]));
+    for (const [id, display] of SPELLINGS.map((s) => [s[0], s[1]] as const)) {
+      expect(tiles.get(normalizeChampion(id))?.toLowerCase(), id).toBe(display.toLowerCase());
+    }
+  });
+});
+
+describe('the wall greys what the series burned, whatever the replay called it', () => {
+  // Paradox Requiem, 13 Sep 2026 snapshot: game 1 stored JarvanIV and Kaisa (theirs), game 2 MonkeyKing
+  // (ours). The wall keyed its set by lower case, so for game 3 the Jarvan IV, Kai'Sa and Wukong tiles
+  // stayed pickable — 37 greyed where 40 should be.
+  const burnedBeforeG3 = [
+    'Shen', 'Diana', 'Yone', 'Tristana', 'Zilean', 'Urgot', 'JarvanIV', 'Syndra', 'Kaisa', 'Leona',
+    'Ornn', 'MonkeyKing', 'Ahri', 'Jinx', 'Thresh', 'Renekton', 'Shyvana', 'Sylas', 'Yunara', 'Seraphine'
+  ];
+
+  it('blocks the display-name tile for every stored id', () => {
+    const blocked = blockedSet(burnedBeforeG3);
+    for (const tile of ['Jarvan IV', "Kai'Sa", 'Wukong', 'Shen']) expect(blocked.has(normalizeChampion(tile)), tile).toBe(true);
+    // What lower case alone found: the three the old wall missed are exactly these.
+    const lower = new Set(burnedBeforeG3.map((c) => c.toLowerCase()));
+    expect(['Jarvan IV', "Kai'Sa", 'Wukong'].filter((t) => lower.has(t.toLowerCase()))).toEqual([]);
+  });
+
+  it('takes Wukong out of DrunkenBannana’s pool once MonkeyKing is burned', () => {
+    const [row] = poolPressure([{ name: 'DrunkenBannana', role: 'Mid', pool: ['Wukong', 'Ahri', 'Yone'] }], blockedSet(burnedBeforeG3));
+    expect(row.gone).toEqual(['Wukong', 'Ahri', 'Yone']);
+    expect(row.left).toEqual([]);
+  });
+
+  it('breaks a comp drafted with the display name when the replay burned the id', () => {
+    const [comp] = compAvailability(
+      [{ id: 'c', name: 'Dive', champions: ['Renata Glasc', 'Wukong', "Kai'Sa", 'Nunu & Willump', 'Miss Fortune'] }],
+      blockedSet(['Renata', 'MonkeyKing', 'Kaisa', 'Nunu', 'MissFortune'])
+    );
+    expect(comp.blocked).toHaveLength(5);
+    expect(comp.playable).toBe(false);
+  });
+
+  it('breaks a comp drafted with the id when the ban was typed as the name', () => {
+    const [comp] = compAvailability([{ id: 'c', name: 'Ids', champions: ['MonkeyKing', 'LeeSin'] }], blockedSet(['wukong', 'Lee Sin']));
+    expect(comp.available).toEqual([]);
+  });
+});
+
+describe('uniqueChampions', () => {
+  it('counts a champion once across spellings, keeping the first one met', () => {
+    expect(uniqueChampions(['MonkeyKing', 'Ahri'], ['Wukong', "Kai'Sa", 'Kaisa', ''])).toEqual(['MonkeyKing', 'Ahri', "Kai'Sa"]);
+  });
+
+  it('matches a Set of one spelling each', () => {
+    expect(uniqueChampions(['Ahri', 'Ahri', 'Zed'])).toEqual(['Ahri', 'Zed']);
+  });
+});
+
+describe('playedGames', () => {
+  it('keeps a game with a result or a replay and leaves an empty board out', () => {
+    // MOSS 2 on the 13 Sep 2026 snapshot: two replays and game 3, an empty board opened on 13 Sep.
+    const moss2 = [
+      { id: 'game-2bf19e22', win: false, matchId: 'EUW1-7977500462' },
+      { id: 'game-2e156073', win: false, matchId: 'EUW1-7977592156' },
+      { id: 'game-3bdd6d33' }
+    ];
+    expect(playedGames(moss2).map((g) => g.id)).toEqual(['game-2bf19e22', 'game-2e156073']);
+    // 5s: a board at step 9 and one at step 0, neither played — "not played yet · 2 games" becomes no count.
+    const fives: { id: string; win?: boolean; matchId?: string }[] = [{ id: 'game-026f8731' }, { id: 'game-76f95ffe' }];
+    expect(playedGames(fives)).toEqual([]);
+  });
+
+  it('counts a typed result with no replay, and a replay with no result yet', () => {
+    expect(playedGames([{ win: true }, { matchId: 'EUW1-1' }, { win: undefined }])).toHaveLength(2);
+  });
+});
 
 const COMPS: CompChampions[] = [
   { id: 'engage', name: 'Engage', champions: ['Maokai', 'Vi', 'Yasuo', 'Miss Fortune', 'Nautilus'] },

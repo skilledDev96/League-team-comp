@@ -2,7 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
-import { blockedSet, CompAvailability, compAvailability, PoolPressure, poolPressure } from './draft.util';
+import { blockedSet, CompAvailability, compAvailability, playedGames, PoolPressure, poolPressure, uniqueChampions } from './draft.util';
 
 /**
  * What the Plan and Draft views both need: which tournament is open, its
@@ -100,6 +100,11 @@ export class TournamentContextService {
       .sort((a, b) => a.gameNumber - b.gameNumber);
   }
 
+  /** The games of a series that were played — a result or a replay — for every count a head shows. */
+  playedGamesFor(seriesId: string): SeriesGame[] {
+    return playedGames(this.gamesFor(seriesId));
+  }
+
   seriesScore(seriesId: string): { wins: number; losses: number } {
     const games = this.gamesFor(seriesId).filter((g) => g.win !== undefined);
     const wins = games.filter((g) => g.win).length;
@@ -114,11 +119,13 @@ export class TournamentContextService {
    */
   usedChampions(seriesId: string): string[] {
     if (!this.isFearless(seriesId)) return [];
+    // Once each by the one champion key: a game saved from a replay writes "MonkeyKing" where a
+    // typed one writes "Wukong", and a Set of the raw strings counted that champion twice.
     const used: string[] = [];
     for (const game of this.gamesFor(seriesId)) {
       used.push(...(game.ourChampions ?? []), ...(game.theirChampions ?? []));
     }
-    return [...new Set(used.filter(Boolean))];
+    return uniqueChampions(used);
   }
 
   usedCount(seriesId: string): number {
@@ -133,7 +140,7 @@ export class TournamentContextService {
       if (game.gameNumber >= gameNumber) continue;
       used.push(...(game.ourChampions ?? []), ...(game.theirChampions ?? []));
     }
-    return [...new Set(used.filter(Boolean))];
+    return uniqueChampions(used);
   }
 
   /**
@@ -150,7 +157,7 @@ export class TournamentContextService {
       our.push(...(game.ourChampions ?? []));
       their.push(...(game.theirChampions ?? []));
     }
-    return { our: [...new Set(our.filter(Boolean))], their: [...new Set(their.filter(Boolean))] };
+    return { our: uniqueChampions(our), their: uniqueChampions(their) };
   }
 
   /** Our comps reduced to their five champions, for the availability maths. */

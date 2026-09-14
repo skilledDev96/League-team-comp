@@ -1655,7 +1655,22 @@ export interface SeriesGame {
    * Games page reads that scrim's numbers under this game (8 Sep 2026).
    */
   matchId?: string;
+  /**
+   * What the replay's fill replaced, kept when a replay is linked so unlinking puts it back
+   * (14 Sep 2026). Unlink used to blank the champions and the result, and a typed Win with its
+   * board was lost that way. Absent on games linked before this, and on a game that held nothing.
+   */
+  beforeLink?: SeriesGameBoard;
   order: number;
+}
+
+/** The part of a series game a replay fills in. */
+export interface SeriesGameBoard {
+  ourChampions: string[];
+  theirChampions: string[];
+  ourSide?: 'blue' | 'red';
+  win?: boolean;
+  draftStep?: number;
 }
 
 /**

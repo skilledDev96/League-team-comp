@@ -12,13 +12,25 @@ import { TeamDataService } from '../../../services/team-data.service';
 import { UiService } from '../../../services/ui.service';
 import { noteLines } from '../../../core/note-lines';
 import { parseRiotIds } from '../../../core/riot-id';
-import { seatChampions } from '../../../core/replay-parse';
-import { DRAFT_LENGTH } from '../draft-sequence';
 import { nextSeriesId } from '../series-order';
+import { normalizeChampion } from '../draft.util';
 import { readReplay, ReplayRead, REPLAY_REQUIREMENTS } from '../../../core/replay-import';
 import { ToastService } from '../../../services/toast.service';
-import { rosterIds, scrimSide } from '../../games/game-rows';
-import { ReplayImportService } from '../../../services/replay-import.service';
+import { rosterIds } from '../../games/game-rows';
+import {
+  filedQuestion,
+  filedUnderOtherSeries,
+  linkedGame,
+  replaceQuestion,
+  replayClaim,
+  replayFill,
+  ReplayImportService,
+  replaySide,
+  rosterSideOf,
+  scrimToSave,
+  unlinkedGame,
+  unlinkQuestion
+} from '../../../services/replay-import.service';
 import { ScrimsMigrationService } from '../../../services/scrims-migration.service';
 import {
   appendToRoster,
@@ -108,6 +120,8 @@ export class TournamentPlanComponent {
   );
   protected readonly selectTournament = (id: string) => this.ctx.selectTournament(id);
   protected readonly gamesFor = (id: string) => this.ctx.gamesFor(id);
+  /** Games with a result or a replay: what a series head counts. */
+  protected readonly playedGamesFor = (id: string) => this.ctx.playedGamesFor(id);
   protected readonly seriesScore = (id: string) => this.ctx.seriesScore(id);
   protected readonly usedChampions = (id: string) => this.ctx.usedChampions(id);
   protected readonly usedCount = (id: string) => this.ctx.usedCount(id);
@@ -168,7 +182,7 @@ export class TournamentPlanComponent {
     if (!analysis && scrim && !(scrim.ourSide ?? game.ourSide)) return 'No figures: which side we were on was never recorded, so we cannot tell which five were ours.';
     const figures = this.mvpGameOf(game);
     if (!figures) return 'No figures: the replay carries no players on our side.';
-    if (isRemake(figures)) return 'No MVP: under five minutes, a remake.';
+    if (isRemake(figures)) return 'No MVP: under ten minutes, a remake.';
     return 'No figures: the replay recorded no seat for anyone, so no line can be read from it.';
   }
 
@@ -177,7 +191,9 @@ export class TournamentPlanComponent {
     for (const series of this.seriesList()) {
       // The series' own length goes in, so the mark can say "1 of 3" rather than quietly
       // averaging one game and calling it the series (12 Sep 2026). core/game-mvp.ts, shared with Home.
-      map.set(series.id, seriesMvpOfGames(this.gamesFor(series.id), this.analysisById(), this.scrimById()));
+      // Only the games that were played (14 Sep 2026): an empty board opened in the draft room made
+      // MOSS 2's mark read "2 of 3" over a series of two, where Home's crown already left it out.
+      map.set(series.id, seriesMvpOfGames(this.playedGamesFor(series.id), this.analysisById(), this.scrimById()));
     }
     return map;
   });
@@ -274,7 +290,7 @@ export class TournamentPlanComponent {
   protected seriesMvpNote(series: TournamentSeries): string {
     const mvp = this.seriesMvp(series.id);
     if (!mvp) return '';
-    const missed = this.gamesFor(series.id).filter((g) => !this.mvpGameOf(g));
+    const missed = this.playedGamesFor(series.id).filter((g) => !this.mvpGameOf(g));
     if (!missed.length) return mvp.line;
     const noSide = missed.filter((g) => !!g.matchId && !g.ourSide).length;
     const noReplay = missed.filter((g) => !g.matchId).length;
@@ -536,18 +552,22 @@ export class TournamentPlanComponent {
   /** The champions a ban would actually hurt, across their five. */
   protected readonly banCandidates = banCandidates;
 
+  /**
+   * Through the one champion key (14 Sep 2026): the board's cards carry Riot's ids ("Kaisa") and the
+   * ban picker writes display names ("Kai'Sa"), so lower case alone showed SGC's Kai'Sa target ban as
+   * not banned on its own card, and a click added it a second time.
+   */
   protected isTargetBan(series: TournamentSeries, champion: string): boolean {
-    return (series.bans ?? []).some((b) => b.toLowerCase() === champion.toLowerCase());
+    const key = normalizeChampion(champion);
+    return (series.bans ?? []).some((b) => normalizeChampion(b) === key);
   }
 
   /** One click from the ban board to the target-ban list, without duplicates. */
   /** A board card toggles: one click adds the target ban, the next removes it. */
   protected toggleTargetBan(series: TournamentSeries, champion: string): void {
     const bans = series.bans ?? [];
-    this.setSeriesBans(
-      series,
-      this.isTargetBan(series, champion) ? bans.filter((b) => !(b.replace(/[^a-z0-9]/gi, '').toLowerCase() === champion.replace(/[^a-z0-9]/gi, '').toLowerCase())) : [...bans, champion]
-    );
+    const key = normalizeChampion(champion);
+    this.setSeriesBans(series, this.isTargetBan(series, champion) ? bans.filter((b) => normalizeChampion(b) !== key) : [...bans, champion]);
   }
 
   // ---- Their roster -------------------------------------------------------
@@ -778,7 +798,25 @@ export class TournamentPlanComponent {
       note(read.line);
       return;
     }
-    const side = game.ourSide ?? scrimSide(read.scrim, rosterIds(this.data.players()));
+    // Refused before anyone is asked which side we were: finishReplay checks again, since a pending
+    // side can be answered long after another game took the replay.
+    const claim = replayClaim(read.id, this.data.seriesGames(), this.data.tournamentSeries(), { gameId: game.id });
+    if (claim) {
+      note(claim.line);
+      this.toast.show('Replay not imported', { text: claim.line, kind: 'warn' });
+      return;
+    }
+    // The names in the file decide the side (14 Sep 2026). This read `game.ourSide ?? roster`, so a
+    // side set wrongly in the draft room beat five of our names on the other team: MAD Synergy
+    // game 3 was saved with the two fives swapped. The draft's side is only the fallback now.
+    const named = rosterSideOf(read.scrim, rosterIds(this.data.players()));
+    const { side, conflict } = replaySide(named, game.ourSide);
+    if (conflict) {
+      this.toast.show(`Game ${game.gameNumber} filled as ${side}`, {
+        text: `The draft had us on ${game.ourSide}, but our five are on ${side} in ${file.name}. The names in the file win.`,
+        kind: 'warn'
+      });
+    }
     if (!side) {
       // Kept for the one-file path on a game row; the service does the same for a batch.
       // Nobody of ours by name in the file and no side on the draft: ask,
@@ -796,19 +834,33 @@ export class TournamentPlanComponent {
       delete next[game.id];
       return next;
     });
-    const team = side === 'blue' ? 100 : 200;
-    await this.data.saveScrim({ ...read.scrim, opponent: series.opponent, ourSide: side });
-    await this.data.updateSeriesGame({
-      ...game,
-      ourChampions: seatChampions(read.replay.players, team),
-      theirChampions: seatChampions(read.replay.players, team === 100 ? 200 : 100),
-      ourSide: side,
-      win: side === 'blue' ? read.replay.blueWon : !read.replay.blueWon,
-      matchId: read.id,
-      // A replay is a played game: the draft room shows it finished, not at Ban 1.
-      draftStep: DRAFT_LENGTH
-    });
-    this.replayNote.update((s) => ({ ...s, [game.id]: `Filled from ${read.fileName}.` }));
+    const note = (text: string) => this.replayNote.update((s) => ({ ...s, [game.id]: text }));
+    // Nothing is overwritten without a word (14 Sep 2026): a replay another game already carries is
+    // refused, a replay filed under another opponent is asked about and keeps its name, and a game
+    // with a typed draft or result asks before the file replaces it — which is kept for unlink.
+    const live = this.data.seriesGames().find((g) => g.id === game.id) ?? game;
+    const allSeries = this.data.tournamentSeries();
+    const claim = replayClaim(read.id, this.data.seriesGames(), allSeries, { gameId: live.id });
+    if (claim) {
+      note(claim.line);
+      this.toast.show('Replay not imported', { text: claim.line, kind: 'warn' });
+      return;
+    }
+    const existingScrim = this.data.scrims().find((s) => s.id === read.id);
+    const filedUnder = filedUnderOtherSeries(existingScrim, series, allSeries);
+    if (filedUnder && !confirm(filedQuestion(read.id, filedUnder, series.opponent))) {
+      note(`Not imported: ${read.id} is filed under ${filedUnder}.`);
+      return;
+    }
+    const replace = replaceQuestion(live, read.fileName);
+    if (replace && !confirm(replace)) {
+      note('Not imported: the game keeps what it has.');
+      return;
+    }
+    await this.data.saveScrim(scrimToSave(existingScrim, read.scrim, series.opponent, filedUnder, side));
+    // A replay is a played game: the fill stamps the draft finished, not at Ban 1.
+    await this.data.updateSeriesGame(linkedGame(live, replayFill(read.replay.players, read.replay.blueWon, side), read.id));
+    note(`Filled from ${read.fileName}.`);
   }
 
   protected candidateLabel(game: AnalysisGame): string {
@@ -825,12 +877,15 @@ export class TournamentPlanComponent {
    * id. Leaving them behind reads as hand-entered data and quietly keeps the
    * wrong champions in the fearless burn. Bans are ours, so they stay. The
    * scrim record stays too; it is a real game whoever it is filed against.
+   *
+   * Since 14 Sep 2026 it asks first, as removing a game does, and puts back the
+   * board and result the link replaced (`beforeLink`) instead of blanking them:
+   * MAD Synergy game 1's typed Win went in one click that asked nothing.
    */
   protected unlinkMatch(game: SeriesGame): void {
-    const next = { ...game, ourChampions: [], theirChampions: [] };
-    delete next.matchId;
-    delete next.win;
-    void this.data.updateSeriesGame(next);
+    const question = unlinkQuestion(game);
+    if (question && !confirm(question)) return;
+    void this.data.updateSeriesGame(unlinkedGame(game));
   }
 
   // ---- Prep games -------------------------------------------------------

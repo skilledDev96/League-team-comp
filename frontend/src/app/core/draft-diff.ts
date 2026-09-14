@@ -26,6 +26,7 @@ export type DraftChangeKind =
   | 'reset'
   | 'result'
   | 'advice'
+  | 'replay'
   | 'step';
 
 export interface DraftChange {
@@ -67,9 +68,22 @@ function pickChanges(side: 'our' | 'their', before: string[], after: string[], u
   return out;
 }
 
-export function describeGameChange(before: SeriesGame | undefined, after: SeriesGame): DraftChange[] {
-  if (!before) return [{ kind: 'step', note: `Game ${after.gameNumber} created` }];
+/**
+ * Which replay a game carries, said first (14 Sep 2026). A link or an unlink rewrites the whole board
+ * and the result, and the log used to show only the ten picks changing — nobody reading it back could
+ * tell that MAD Synergy game 1 had carried a replay, which one, or when it came off.
+ */
+function replayChanges(before: string | undefined, after: string | undefined): DraftChange[] {
+  if (before === after) return [];
   const out: DraftChange[] = [];
+  if (before) out.push({ kind: 'replay', note: `Unlinked replay ${before}` });
+  if (after) out.push({ kind: 'replay', note: `Linked replay ${after}` });
+  return out;
+}
+
+export function describeGameChange(before: SeriesGame | undefined, after: SeriesGame): DraftChange[] {
+  if (!before) return [{ kind: 'step', note: `Game ${after.gameNumber} created` }, ...replayChanges(undefined, after.matchId)];
+  const out: DraftChange[] = [...replayChanges(before.matchId, after.matchId)];
 
   const hadBoard =
     list(before.bans).some(Boolean) || list(before.ourChampions).some(Boolean) || list(before.theirChampions).some(Boolean);
@@ -110,7 +124,7 @@ export function describeGameChange(before: SeriesGame | undefined, after: Series
     out.push({ kind: 'advice', note: `Advisor answered at step ${after.advice.step + 1}${first ? `: ${first}` : ''}` });
   }
 
-  const boardMoved = out.some((c) => c.kind !== 'advice' && c.kind !== 'result' && c.kind !== 'side');
+  const boardMoved = out.some((c) => c.kind !== 'advice' && c.kind !== 'result' && c.kind !== 'side' && c.kind !== 'replay');
   if (stepAfter !== stepBefore && !boardMoved) {
     out.push(
       stepAfter > stepBefore + 1

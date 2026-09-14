@@ -5,6 +5,7 @@ import { UiService } from '../services/ui.service';
 import { Role, ROLES } from '../models/team.models';
 import { playsRole } from '../core/champion-lanes';
 import { filterChampions } from './comp-board.util';
+import { blockedSet, normalizeChampion } from '../pages/tournaments/draft.util';
 
 /**
  * A searchable wall of champions that reports what was clicked.
@@ -77,9 +78,15 @@ export class ChampionGridComponent {
     });
   }
 
-  private readonly blocked = computed(
-    () => new Set(this.unavailable().map((c) => c.toLowerCase()))
-  );
+  /**
+   * Both sets are keyed through the one champion key (14 Sep 2026). They were keyed by lower case,
+   * so a burned "MonkeyKing" or "MissFortune" from a replay never matched the Wukong or Miss Fortune
+   * tile and the wall offered a champion the series had already spent. `taken` is re-keyed here too,
+   * so a caller's own spelling of its set (the comp board lower-cases, the draft room normalises)
+   * cannot decide whether a tick shows.
+   */
+  private readonly blocked = computed(() => blockedSet(this.unavailable()));
+  private readonly takenKeys = computed(() => blockedSet([...this.taken()]));
 
   protected readonly grid = computed(() => {
     const found = filterChampions(this.champs.champions(), this.query(), null);
@@ -96,11 +103,11 @@ export class ChampionGridComponent {
   });
 
   protected isBlocked(name: string): boolean {
-    return this.blocked().has(name.toLowerCase());
+    return this.blocked().has(normalizeChampion(name));
   }
 
   protected isTaken(name: string): boolean {
-    return this.taken().has(name.toLowerCase());
+    return this.takenKeys().has(normalizeChampion(name));
   }
 
   /**

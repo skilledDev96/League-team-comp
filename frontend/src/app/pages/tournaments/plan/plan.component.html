@@ -181,8 +181,9 @@
                 <span class="scrim-group-prep" appTip="Added to prep — drop their replays in after the games">not played yet</span>
               }
             }
-            @if (isScrims() && gamesFor(series.id).length) {
-              <span class="muted scrim-group-when">{{ gamesFor(series.id).length }} {{ gamesFor(series.id).length === 1 ? 'game' : 'games' }}</span>
+            <!-- Games played (a result or a replay), not boards opened in the draft room (14 Sep 2026). -->
+            @if (isScrims() && playedGamesFor(series.id).length; as played) {
+              <span class="muted scrim-group-when">{{ played }} {{ played === 1 ? 'game' : 'games' }}</span>
             }
             @if (hasPrep(series)) {
               <span class="scrim-group-scouted material-symbols-rounded" aria-hidden="true" appTip="Notes, bans or a roster are saved for this team">description</span>

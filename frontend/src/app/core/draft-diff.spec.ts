@@ -51,4 +51,41 @@ describe('describeGameChange', () => {
     expect(notes(b, { ...b, advice })).toEqual(['Advisor answered at step 7: Vi']);
     expect(notes({ ...b, advice }, { ...b, advice })).toEqual([]);
   });
+
+  it('says which replay a game took on and gave up, first', () => {
+    // MAD Synergy game 1 on 12 Sep 2026: the unlink and the import were two writes whose only
+    // trace was ten picks changing, with nothing to say a replay was involved.
+    const typed = game({
+      draftStep: 20,
+      ourSide: 'blue',
+      win: true,
+      ourChampions: ['Mordekaiser', 'JarvanIV', 'Ahri', 'Tristana', 'Nautilus'],
+      theirChampions: ['Garen', 'Vi', 'Taliyah', 'Sivir', 'Braum']
+    });
+    const linked = {
+      ...typed,
+      matchId: 'EUW1-7977500462',
+      win: false,
+      ourChampions: ['Kled', 'MonkeyKing', 'Ahri', 'Tristana', 'Seraphine'],
+      theirChampions: ['Malphite', 'Nocturne', 'Syndra', 'Draven', 'Pantheon']
+    };
+    const link = notes(typed, linked);
+    expect(link[0]).toBe('Linked replay EUW1-7977500462');
+    expect(link).toContain('Result: loss');
+    const unlink = notes(linked, typed);
+    expect(unlink[0]).toBe('Unlinked replay EUW1-7977500462');
+    expect(unlink).toContain('Result: win');
+  });
+
+  it('logs a link that changes nothing else, and a replay swapped for another', () => {
+    const b = game({ draftStep: 20 });
+    expect(notes(b, { ...b, matchId: 'EUW1-1' })).toEqual(['Linked replay EUW1-1']);
+    expect(notes({ ...b, matchId: 'EUW1-1' }, { ...b, matchId: 'EUW1-2' })).toEqual(['Unlinked replay EUW1-1', 'Linked replay EUW1-2']);
+    expect(notes({ ...b, matchId: 'EUW1-1' }, { ...b, matchId: 'EUW1-1' })).toEqual([]);
+  });
+
+  it('names the replay on a game created from one', () => {
+    expect(notes(undefined, game({ gameNumber: 3, matchId: 'EUW1-9' }))).toEqual(['Game 3 created', 'Linked replay EUW1-9']);
+    expect(notes(undefined, game({ gameNumber: 3 }))).toEqual(['Game 3 created']);
+  });
 });
