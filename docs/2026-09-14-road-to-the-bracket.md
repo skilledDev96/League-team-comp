@@ -335,3 +335,27 @@ Close Split 2 properly and start the next split with the team's knowledge, not a
 | C089 | drop | new | 2 | M | Give film-room links a small Discord preview through a card endpoint (after the webhook) |
 
 The full problem, proposal and implementation note for each id are in the published page and in the review workspace files (round1-trim.json, round2.json).
+
+## Data check (done overnight, 14 Sep 2026)
+
+239 displayed figures were recomputed from a read-only copy of Firestore; a verifier re-derived every mismatch; 115 were wrong or misleading. After the fixes and a recheck on the deployed site: **91 fixed and live**, 11 wait on the 06:30 refresh or a Re-review, 13 need the lead or bigger work.
+
+Code (commits 6e52405, c02a702, 1c02f34, c23f8e5, 3712779, 24462a7, ca8332a; functions deployed): remakes out of every record; one champion key for pools and for the draft room's wall, bans and burn; the importer refuses a replay another series game holds and takes the side from roster names; no metric in both Work on and Keep doing; review swaps only name open champions (validator and display); display names on chips; the season labelled by its window.
+
+Stored data corrected from the draft log (backup kept in the session workspace): MAD Synergy Game 1 restored to the typed win (Mordekaiser, Jarvan IV, Ahri, Tristana, Nautilus vs Garen, Vi, Taliyah, Sivir, Braum) with the MOSS 2 replay unlinked from it; scrims/EUW1-7977500462 filed back under MOSS 2; MAD Synergy Game 3 put back on the red side with the fives the right way round.
+
+| What you see | Before | Now |
+|---|---|---|
+| Home record, all time | 67–89 · 43% · 156 | 63–88 · 42% · 151 |
+| This season | 8–20 · 29% | 9–19 · 32% (labelled Since 28 Aug) |
+| vs MAD Synergy | 0–3 · 27 burned · MVP DrunkenBannana | 1–2 · 30 burned · MVP Go10x |
+| Series MVP titles | DrunkenBannana 2 | DrunkenBannana 1 · Go10x 1 |
+| Most vision record | 154 DrunkenBannana | 181 DaWhiteHammer |
+| First blood, all time | 60 of 134 | 59 of 129 |
+| Sir StonedAlot's Tahm Kench | 69% · 13 + 0% · 3 | 56% · 16 |
+| Draft wall, Paradox Game 3 | 37 greyed | 40 greyed |
+| Review swap, Paradox Game 3 | Ornn, or Sion, or Maokai | Maokai |
+
+**For the lead:** delete or sandbox "vs test"; set Paradox Requiem's real date (played 10 Sep); re-scout SGC; import the real MAD Synergy Game 1 replay (EUW1-7975248146) if it still plays; renumber MOSS and SGC scrim games; clear the test note on a Get Jinxed game and the Aphelios comp note; after the 06:30 refresh, Re-review EUW1_7962914652, EUW1-7977592156, EUW1-7977500462, EUW1-7979615260, EUW1_7965177150 and EUW1_7963966929.
+
+**Still open in code:** about 90 older 4- and 5-stack games were never read (the backend reads four pages of match ids per player, so All time undercounts; needs a paced backfill); Riot descriptions on hand-edited players are stale; the "Riot: 184 stacked games" label.
