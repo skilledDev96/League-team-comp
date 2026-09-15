@@ -66,6 +66,7 @@ import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { OpponentScoutService } from '../../../services/opponent-scout.service';
 import { playedElsewhere, SeatChange, seatOffer, withSeats } from '../../../core/opponent-roles';
 import { TournamentContextService } from '../tournament-context.service';
+import { ConfirmService } from '../../../services/confirm.service';
 import { GameMvp, isRemake, MvpGame, mvpGameOfSeriesGame, mvpOf, SeriesMvp, seriesMvpOfGames } from '../../../core/game-mvp';
 import { MvpChipComponent } from '../../../shared/mvp-chip.component';
 import { UserPrefsService } from '../../../services/user-prefs.service';
@@ -307,11 +308,24 @@ export class TournamentPlanComponent {
   }
 
   /** The replay's record and the game go together; the Games page loses the row too. */
-  protected removeReplay(game: SeriesGame): void {
+  protected async removeReplay(game: SeriesGame): Promise<void> {
     if (!game.matchId) return;
-    if (!confirm(`Delete the replay behind game ${game.gameNumber}? Its scoreboard leaves the Games page as well.`)) return;
+    const ok = await this.confirm.ask({
+      title: `Delete the replay behind game ${game.gameNumber}?`,
+      body: 'The game goes, and its scoreboard leaves the Games page as well.',
+      confirmLabel: 'Delete replay and game',
+      danger: true
+    });
+    if (!ok) return;
+    const scrim = this.data.scrims().find((s) => s.id === game.matchId);
     void this.data.deleteScrim(game.matchId);
     void this.data.deleteSeriesGame(game.id);
+    this.toast.show(`Deleted game ${game.gameNumber} and its replay`, {
+      kind: 'warn',
+      icon: 'delete',
+      timeout: 12000,
+      action: { label: 'Undo', run: () => void this.data.restoreSeriesGame(game, scrim) }
+    });
   }
 
   /**
@@ -479,6 +493,7 @@ export class TournamentPlanComponent {
   protected readonly newBestOf = signal<1 | 3 | 5>(3);
   protected readonly replayRequirements = REPLAY_REQUIREMENTS;
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
 
   /** Six names and no bench marked: As a team cannot pick the five. */
   protected sixOnTable(players: OpponentPlayer[] | undefined): boolean {
@@ -501,13 +516,29 @@ export class TournamentPlanComponent {
     this.patchSeries(series, { bans: bans.length ? bans : undefined });
   }
 
-  protected removeSeries(series: TournamentSeries): void {
-    const ok = confirm('Delete the series against ' + series.opponent + '? Its games go too.');
+  protected async removeSeries(series: TournamentSeries): Promise<void> {
+    const games = this.gamesFor(series.id);
+    const ok = await this.confirm.ask({
+      title: `Delete the series against ${series.opponent}?`,
+      body: games.length
+        ? `Its ${games.length === 1 ? 'game goes' : `${games.length} games go`} too, with every draft and result in them. Replays stay on the Games page.`
+        : 'It has no games yet.',
+      confirmLabel: 'Delete series',
+      danger: true
+    });
     if (!ok) return;
-    for (const game of this.gamesFor(series.id)) {
+    for (const game of games) {
       void this.data.deleteSeriesGame(game.id);
     }
     void this.data.deleteSeries(series.id);
+    // Undo for a few seconds (15 Sep 2026): a whole scrim block went by mistake once.
+    this.toast.show(`Deleted the series against ${series.opponent}`, {
+      text: games.length ? `${games.length} ${games.length === 1 ? 'game' : 'games'} with it.` : undefined,
+      kind: 'warn',
+      icon: 'delete',
+      timeout: 12000,
+      action: { label: 'Undo', run: () => void this.data.restoreSeries(series, games) }
+    });
   }
 
   // ---- Games ------------------------------------------------------------
@@ -762,17 +793,26 @@ export class TournamentPlanComponent {
    * draft somebody sat through, and one mis-click on a row of small buttons
    * should not erase it silently.
    */
-  protected removeGame(game: SeriesGame): void {
+  protected async removeGame(game: SeriesGame): Promise<void> {
     const hasContent =
       (game.ourChampions ?? []).some(Boolean) ||
       (game.theirChampions ?? []).some(Boolean) ||
       (game.bans ?? []).length > 0 ||
       game.win !== undefined;
     if (hasContent) {
-      const what = game.win === undefined ? 'its draft' : 'its draft and result';
-      if (!confirm(`Delete game ${game.gameNumber}? ${what[0].toUpperCase() + what.slice(1)} will be lost.`)) return;
+      const what = game.win === undefined ? 'Its draft' : 'Its draft and result';
+      const ok = await this.confirm.ask({ title: `Delete game ${game.gameNumber}?`, body: `${what} will be lost.`, confirmLabel: 'Delete game', danger: true });
+      if (!ok) return;
     }
     void this.data.deleteSeriesGame(game.id);
+    if (hasContent) {
+      this.toast.show(`Deleted game ${game.gameNumber}`, {
+        kind: 'warn',
+        icon: 'delete',
+        timeout: 12000,
+        action: { label: 'Undo', run: () => void this.data.restoreSeriesGame(game) }
+      });
+    }
   }
 
   // ---- Import a replay against a game -----------------------------------
@@ -848,12 +888,12 @@ export class TournamentPlanComponent {
     }
     const existingScrim = this.data.scrims().find((s) => s.id === read.id);
     const filedUnder = filedUnderOtherSeries(existingScrim, series, allSeries);
-    if (filedUnder && !confirm(filedQuestion(read.id, filedUnder, series.opponent))) {
+    if (filedUnder && !(await this.confirm.ask({ title: 'File this replay here instead?', body: filedQuestion(read.id, filedUnder, series.opponent), confirmLabel: 'File it here' }))) {
       note(`Not imported: ${read.id} is filed under ${filedUnder}.`);
       return;
     }
     const replace = replaceQuestion(live, read.fileName);
-    if (replace && !confirm(replace)) {
+    if (replace && !(await this.confirm.ask({ title: `Replace what game ${live.gameNumber} holds?`, body: replace, confirmLabel: 'Fill from the replay' }))) {
       note('Not imported: the game keeps what it has.');
       return;
     }
@@ -882,9 +922,9 @@ export class TournamentPlanComponent {
    * board and result the link replaced (`beforeLink`) instead of blanking them:
    * MAD Synergy game 1's typed Win went in one click that asked nothing.
    */
-  protected unlinkMatch(game: SeriesGame): void {
+  protected async unlinkMatch(game: SeriesGame): Promise<void> {
     const question = unlinkQuestion(game);
-    if (question && !confirm(question)) return;
+    if (question && !(await this.confirm.ask({ title: `Unlink the replay from game ${game.gameNumber}?`, body: question, confirmLabel: 'Unlink replay' }))) return;
     void this.data.updateSeriesGame(unlinkedGame(game));
   }
 

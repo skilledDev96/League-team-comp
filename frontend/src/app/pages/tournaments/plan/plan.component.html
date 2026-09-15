@@ -324,11 +324,11 @@
 
                 @if (auth.editing()) {
                   <div class="field"><span>{{ teamName() }} champions</span>
-                    <app-champion-picker [champions]="game.ourChampions || []" [max]="5"
+                    <app-champion-picker [champions]="game.ourChampions || []" [max]="5" [seated]="true"
                                          [inputName]="'our-' + game.id" placeholder="Add a pick…"
                                          (championsChange)="setGameChamps(game, 'our', $event)" /></div>
                   <div class="field"><span>{{ series.opponent }} champions</span>
-                    <app-champion-picker [champions]="game.theirChampions || []" [max]="5"
+                    <app-champion-picker [champions]="game.theirChampions || []" [max]="5" [seated]="true"
                                          [inputName]="'their-' + game.id" placeholder="Add a pick…"
                                          (championsChange)="setGameChamps(game, 'their', $event)" /></div>
                   @if (game.matchId) {

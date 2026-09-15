@@ -59,6 +59,7 @@ import { ChampionRate, ChampionStatsService, previousPatch } from '../../../serv
 import { MatchupRate, MatchupStatsService } from '../../../services/matchup-stats.service';
 import { TournamentContextService } from '../tournament-context.service';
 import { ToastService } from '../../../services/toast.service';
+import { ConfirmService } from '../../../services/confirm.service';
 
 /** Which team a draft slot belongs to. */
 type DraftSide = 'our' | 'their';
@@ -264,6 +265,7 @@ export class TournamentDraftComponent implements OnInit {
   private readonly pickedGameId = this.ctx.draftGameId;
 
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
 
   // ---- Columns or map ---------------------------------------------------------
   //
@@ -674,13 +676,26 @@ export class TournamentDraftComponent implements OnInit {
   }
 
   /** Drop the last game of the series; removing an earlier one would renumber. */
-  protected removeDraftGame(game: SeriesGame): void {
+  protected async removeDraftGame(game: SeriesGame): Promise<void> {
     const drafted = (game.bans ?? []).length
       + [...(game.ourChampions ?? []), ...(game.theirChampions ?? [])].filter(Boolean).length;
-    const what = drafted ? ` and the ${drafted} bans and picks drafted into it` : '';
-    if (!confirm(`Remove game ${game.gameNumber}${what}?`)) return;
+    const ok = await this.confirm.ask({
+      title: `Remove game ${game.gameNumber}?`,
+      body: drafted ? `The ${drafted} bans and picks drafted into it go too.` : undefined,
+      confirmLabel: 'Remove game',
+      danger: true
+    });
+    if (!ok) return;
     this.pickedGameId.set('');
     void this.data.deleteSeriesGame(game.id);
+    if (drafted) {
+      this.toast.show(`Removed game ${game.gameNumber}`, {
+        kind: 'warn',
+        icon: 'delete',
+        timeout: 12000,
+        action: { label: 'Undo', run: () => void this.data.restoreSeriesGame(game) }
+      });
+    }
   }
 
   protected isLastGame(game: SeriesGame): boolean {
@@ -1313,7 +1328,7 @@ export class TournamentDraftComponent implements OnInit {
     const live = this.current(game);
     const drafted = (live.bans ?? []).length
       + [...(live.ourChampions ?? []), ...(live.theirChampions ?? [])].filter(Boolean).length;
-    if (drafted && !confirm(`Clear all ${drafted} bans and picks from game ${live.gameNumber}?`)) return;
+    if (drafted && !(await this.confirm.ask({ title: `Clear game ${live.gameNumber}?`, body: `All ${drafted} bans and picks go, and the draft starts again from the side choice.`, confirmLabel: 'Clear the draft', danger: true }))) return;
 
     await this.data.updateSeriesGame({
       ...live,
@@ -1339,7 +1354,7 @@ export class TournamentDraftComponent implements OnInit {
     if (!previous) return;
     // A ban comes back without asking; a pick is a decision someone made.
     const target = undoTarget(live);
-    if (target?.action === 'pick' && target.champion && !confirm(`Undo the last pick, ${target.champion}?`)) return;
+    if (target?.action === 'pick' && target.champion && !(await this.confirm.ask({ title: `Undo the last pick, ${target.champion}?`, confirmLabel: 'Undo pick' }))) return;
 
     const patch: Partial<SeriesGame> = { draftStep: position - 1, holding: undefined };
     if (previous.action === 'ban') {

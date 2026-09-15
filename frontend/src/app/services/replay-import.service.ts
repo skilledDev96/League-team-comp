@@ -7,6 +7,7 @@ import { DRAFT_LENGTH } from '../pages/tournaments/draft-sequence';
 import { rosterIds, scrimSide } from '../pages/games/game-rows';
 import { TeamDataService } from './team-data.service';
 import { ToastService } from './toast.service';
+import { ConfirmService } from './confirm.service';
 
 type Side = 'blue' | 'red';
 type SeatPlayers = Parameters<typeof seatChampions>[0];
@@ -190,7 +191,6 @@ export function replaceQuestion(game: SeriesGame, fileName: string): string | nu
   return `Game ${game.gameNumber} already has ${held}. Fill it from ${fileName} instead? Unlinking the replay later puts back what is there now.`;
 }
 
-const ask = (question: string): boolean => typeof confirm === 'function' && confirm(question);
 
 /**
  * One way in for a .rofl (9 Sep 2026): against a series, each file becomes a
@@ -203,6 +203,7 @@ const ask = (question: string): boolean => typeof confirm === 'function' && conf
 export class ReplayImportService {
   private readonly data = inject(TeamDataService);
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
 
   readonly importing = signal(false);
   readonly note = signal('');
@@ -271,7 +272,7 @@ export class ReplayImportService {
     }
     const existingScrim = this.data.scrims().find((s) => s.id === read.id);
     const filedUnder = filedUnderOtherSeries(existingScrim, series, allSeries);
-    if (filedUnder && !ask(filedQuestion(read.id, filedUnder, series.opponent))) {
+    if (filedUnder && !(await this.confirm.ask({ title: 'File this replay here instead?', body: filedQuestion(read.id, filedUnder, series.opponent), confirmLabel: 'File it here' }))) {
       return `${read.id} is filed under ${filedUnder} and was left there.`;
     }
 

@@ -29,13 +29,45 @@ export function championMatches(name: string, query: string): boolean {
   return squash(key).includes(squash(q));
 }
 
+/**
+ * How well a match fits what was typed, lower first: the name itself, then a name that starts with it, then the rest.
+ * Enter takes the top suggestion, and in name order "Vi" was Anivia (15 Sep 2026).
+ */
+export function matchRank(name: string, query: string): number {
+  const key = championKey(name);
+  const q = championKey(query);
+  if (!q || key === q) return 0;
+  return key.startsWith(q) ? 1 : 2;
+}
+
+/** A new pick: the first empty seat when the list is seated and has one, else the end of the list. */
+export function pickerAdd(list: readonly string[], name: string, seated: boolean): string[] {
+  const clean = [...list];
+  if (seated) {
+    const blank = clean.findIndex((c) => !c || !c.trim());
+    if (blank >= 0) {
+      clean[blank] = name;
+      return clean;
+    }
+  }
+  return [...clean.filter((c) => !!c && !!c.trim()), name];
+}
+
+/** A removed pick: its seat emptied (trailing empty seats dropped) when seated, else taken out of the list. */
+export function pickerRemove(list: readonly string[], name: string, seated: boolean): string[] {
+  if (!seated) return list.filter((c) => c !== name && !!c && !!c.trim());
+  const next = list.map((c) => (c === name ? '' : c));
+  while (next.length && !next[next.length - 1]?.trim()) next.pop();
+  return next;
+}
+
 @Component({
   selector: 'app-champion-picker',
   imports: [FormsModule, NgModelNameDirective],
   template: `
     <div class="champ-picker">
       <div class="champ-picker-chips">
-        @for (champ of champions(); track champ) {
+        @for (champ of picked(); track champ) {
           <span class="champ-picker-chip">
             <img class="champ-picker-icon" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
             <span>{{ champ }}</span>
@@ -79,7 +111,7 @@ export function championMatches(name: string, query: string): boolean {
       }
 
       @if (max() > 0) {
-        <span class="champ-picker-count">{{ champions().length }} / {{ max() }}</span>
+        <span class="champ-picker-count">{{ picked().length }} / {{ max() }}</span>
       }
     </div>
   `
@@ -104,14 +136,25 @@ export class ChampionPickerComponent {
    */
   readonly unavailable = input<string[]>([]);
 
+  /**
+   * The list is five seats in role order, as the draft room saves a game (15 Sep 2026): an empty name is a seat nobody
+   * has picked yet. The picker draws and counts only the champions, a new pick fills the first empty seat, and
+   * removing one empties its seat rather than shifting the champions after it into the wrong roles. A draft
+   * abandoned half way used to show broken chips for the empty seats and count them towards the five.
+   */
+  readonly seated = input(false);
+
   readonly championsChange = output<string[]>();
+
+  /** The champions only: an empty seat is not a pick. */
+  protected readonly picked = computed(() => this.champions().filter((c) => !!c && !!c.trim()));
 
   protected readonly query = signal('');
   protected readonly open = signal(false);
 
   protected readonly atLimit = computed(() => {
     const cap = this.max();
-    return cap > 0 && this.champions().length >= cap;
+    return cap > 0 && this.picked().length >= cap;
   });
 
   private norm(value: string): string {
@@ -137,12 +180,14 @@ export class ChampionPickerComponent {
    */
   protected readonly suggestions = computed(() => {
     const q = this.norm(this.query());
-    const taken = new Set([...this.champions(), ...this.unavailable()].map((c) => this.norm(c)));
+    const taken = new Set([...this.picked(), ...this.unavailable()].map((c) => this.norm(c)));
     const all = this.champData.champions().filter((c) => !taken.has(this.norm(c.name)));
     const byName = (a: ChampionInfo, b: ChampionInfo) => a.name.localeCompare(b.name);
 
     if (q) {
-      return all.filter((c) => championMatches(c.name, q)).sort(byName);
+      return all
+        .filter((c) => championMatches(c.name, q))
+        .sort((a, b) => matchRank(a.name, q) - matchRank(b.name, q) || byName(a, b));
     }
 
     const tags = ChampionPickerComponent.ROLE_TAGS[this.role()] ?? [];
@@ -163,15 +208,15 @@ export class ChampionPickerComponent {
 
   protected add(name: string): void {
     if (this.atLimit()) return;
-    const taken = new Set([...this.champions(), ...this.unavailable()].map((c) => this.norm(c)));
+    const taken = new Set([...this.picked(), ...this.unavailable()].map((c) => this.norm(c)));
     if (taken.has(this.norm(name))) return;
-    this.championsChange.emit([...this.champions(), name]);
+    this.championsChange.emit(pickerAdd(this.champions(), name, this.seated()));
     this.query.set('');
     this.open.set(false);
   }
 
   protected remove(name: string): void {
-    this.championsChange.emit(this.champions().filter((c) => c !== name));
+    this.championsChange.emit(pickerRemove(this.champions(), name, this.seated()));
   }
 
   /** Enter picks the top suggestion, so the list never needs the mouse. */

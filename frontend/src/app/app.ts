@@ -21,13 +21,14 @@ import { PlayerEditorDrawerComponent } from './shared/player-editor-drawer.compo
 import { TourOverlayComponent } from './shared/tour-overlay.component';
 import { TourHelpComponent } from './shared/tour-help.component';
 import { ReviewTakeoverComponent } from './shared/review-takeover.component';
+import { ConfirmDialogComponent } from './shared/confirm-dialog.component';
 import { TourService } from './services/tour.service';
 import { MotionService } from './services/motion.service';
 import { TooltipDirective } from './shared/tooltip.directive';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, UserMenuComponent, TooltipDirective, PlayerEditorDrawerComponent, TourOverlayComponent, TourHelpComponent, ReviewTakeoverComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, UserMenuComponent, TooltipDirective, PlayerEditorDrawerComponent, TourOverlayComponent, TourHelpComponent, ReviewTakeoverComponent, ConfirmDialogComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

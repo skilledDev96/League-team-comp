@@ -663,6 +663,21 @@ export class TeamDataService {
     return this.persistRemove('tournamentSeries', this.tournamentSeries, id);
   }
 
+  /**
+   * Put a deleted series and its games back under their own ids (15 Sep 2026, the Undo on a delete). Written whole,
+   * as they were read, so nothing is re-derived; the games are not diffed into the draft log again.
+   */
+  async restoreSeries(series: TournamentSeries, games: readonly SeriesGame[]): Promise<void> {
+    await this.persistUpsert('tournamentSeries', this.tournamentSeries, series);
+    for (const game of games) await this.persistUpsert('seriesGames', this.seriesGames, game);
+  }
+
+  /** Put a deleted game (and the replay record that went with it, if any) back under its own id. */
+  async restoreSeriesGame(game: SeriesGame, scrim?: Scrim): Promise<void> {
+    if (scrim) await this.persistUpsert('scrims', this.scrims, scrim);
+    await this.persistUpsert('seriesGames', this.seriesGames, game);
+  }
+
   async createSeriesGame(data: Omit<SeriesGame, 'id' | 'order'>): Promise<string> {
     const entity: SeriesGame = { ...data, id: this.newId('game'), order: this.nextOrder(this.seriesGames()) };
     await this.persistUpsert('seriesGames', this.seriesGames, entity);
@@ -730,7 +745,44 @@ export class TeamDataService {
   }
 
   deleteSeriesGame(id: string): Promise<void> {
+    const gone = this.seriesGames().find((g) => g.id === id);
+    if (gone) void this.logDeletedGame(gone);
     return this.persistRemove('seriesGames', this.seriesGames, id);
+  }
+
+  /**
+   * A deleted game leaves its last board in the draft log (15 Sep 2026): deletes used to leave no trace, so the one
+   * way back for a scrim block deleted by mistake was a snapshot taken for something else.
+   */
+  private async logDeletedGame(game: SeriesGame): Promise<void> {
+    if (this.mode !== 'firebase') return;
+    const db = getDb();
+    if (!db) return;
+    const at = new Date();
+    const id = `${at.toISOString().replace(/[-:.TZ]/g, '').slice(0, 15)}-${game.id.slice(-6)}-del`;
+    const opponent = this.tournamentSeries().find((s) => s.id === game.seriesId)?.opponent;
+    const event: Omit<DraftEvent, 'id'> = {
+      at: at.toISOString(),
+      by: getAuthInstance()?.currentUser?.email ?? 'unknown',
+      seriesId: game.seriesId,
+      gameId: game.id,
+      gameNumber: game.gameNumber,
+      stepBefore: game.draftStep ?? 0,
+      stepAfter: 0,
+      changes: [`Deleted game ${game.gameNumber}${opponent ? ` vs ${opponent}` : ''}${game.matchId ? ` (replay ${game.matchId})` : ''}`],
+      kinds: ['delete'],
+      board: {
+        ...(game.ourSide ? { ourSide: game.ourSide } : {}),
+        bans: (game.bans ?? []).filter(Boolean),
+        ourChampions: game.ourChampions ?? [],
+        theirChampions: game.theirChampions ?? []
+      }
+    };
+    try {
+      await setDoc(doc(db, 'draftEvents', id), stripUndefined(event as unknown as Record<string, unknown>));
+    } catch (error) {
+      console.warn('Draft log write failed', error);
+    }
   }
 
   /** Returns the new comp's id, so a page can open it. */

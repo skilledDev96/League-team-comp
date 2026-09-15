@@ -11474,6 +11474,14 @@ button.coaching-theme:hover, button.coaching-theme:focus-visible { color: var(--
    card is its own stacking context, so the panel's z-index alone cannot. */
 .card:has(.overflow-panel) { z-index: 40; }
 .modal-card.is-wide { width: min(40rem, 100%); }
+/* The app's own confirmation (15 Sep 2026): a browser that suppresses page dialogs answered window.confirm with yes. */
+.modal-card.confirm-dialog { width: min(30rem, 100%); display: grid; gap: 0.7rem; }
+.confirm-dialog-title { margin: 0; display: flex; align-items: center; gap: 0.45rem; font-family: "Chakra Petch", sans-serif; font-size: 1.15rem; line-height: 1.25; text-wrap: balance; }
+.confirm-dialog-title .material-symbols-rounded { font-size: 1.3rem; color: var(--warn); }
+.confirm-dialog-body { margin: 0; color: var(--text-1); font-size: var(--fs-body); line-height: 1.5; }
+.confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.3rem; }
+.view-btn.confirm-dialog-go.is-danger { border-color: color-mix(in srgb, var(--warn) 70%, transparent); background: color-mix(in srgb, var(--warn) 22%, var(--surface-btn)); color: var(--text-0); }
+.view-btn.confirm-dialog-go.is-danger:hover, .view-btn.confirm-dialog-go.is-danger:focus-visible { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 34%, var(--surface-btn)); }
 /* Each tour one line, so the list and its Close stay on a shorter screen (13 Sep 2026). */
 .modal-card.tour-help { width: min(44rem, 100%); }
 .fillin-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; }
