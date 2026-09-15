@@ -665,17 +665,48 @@ export class TeamDataService {
 
   /**
    * Put a deleted series and its games back under their own ids (15 Sep 2026, the Undo on a delete). Written whole,
-   * as they were read, so nothing is re-derived; the games are not diffed into the draft log again.
+   * as they were read, so nothing is re-derived; the games are not diffed into the draft log again. A game that can
+   * no longer go back as it was (`restoreBlock`) is left out, and the reasons are returned for the toast.
    */
-  async restoreSeries(series: TournamentSeries, games: readonly SeriesGame[]): Promise<void> {
-    await this.persistUpsert('tournamentSeries', this.tournamentSeries, series);
-    for (const game of games) await this.persistUpsert('seriesGames', this.seriesGames, game);
+  async restoreSeries(series: TournamentSeries, games: readonly SeriesGame[]): Promise<string[]> {
+    const writes: Promise<void>[] = [this.persistUpsert('tournamentSeries', this.tournamentSeries, series)];
+    const skipped: string[] = [];
+    for (const game of games) {
+      const why = this.restoreBlock(game, series);
+      if (why) skipped.push(`game ${game.gameNumber}: ${why}`);
+      else writes.push(this.persistUpsert('seriesGames', this.seriesGames, game));
+    }
+    await Promise.all(writes);
+    return skipped;
   }
 
-  /** Put a deleted game (and the replay record that went with it, if any) back under its own id. */
-  async restoreSeriesGame(game: SeriesGame, scrim?: Scrim): Promise<void> {
-    if (scrim) await this.persistUpsert('scrims', this.scrims, scrim);
-    await this.persistUpsert('seriesGames', this.seriesGames, game);
+  /**
+   * Put a deleted game back under its own id, with the replay record that went with it unless one has been saved
+   * under that id since. Returns why it could not go back, or null when it did.
+   */
+  async restoreSeriesGame(game: SeriesGame, scrim?: Scrim): Promise<string | null> {
+    const why = this.restoreBlock(game);
+    if (why) return why;
+    const writes = [this.persistUpsert('seriesGames', this.seriesGames, game)];
+    if (scrim && !this.scrims().some((s) => s.id === scrim.id)) writes.push(this.persistUpsert('scrims', this.scrims, scrim));
+    await Promise.all(writes);
+    return null;
+  }
+
+  /**
+   * Why a deleted game cannot go back as it was, or null: its series is gone, its number (or the last slot of a
+   * best-of) has been filled since, or its replay now belongs to another game. Undo stays up for seconds, and a
+   * Game 3 added in them used to leave a series with two of them.
+   */
+  private restoreBlock(game: SeriesGame, seriesBeingRestored?: TournamentSeries): string | null {
+    const series = seriesBeingRestored ?? this.tournamentSeries().find((s) => s.id === game.seriesId);
+    if (!series) return 'its series has been deleted';
+    const others = this.seriesGames().filter((g) => g.id !== game.id);
+    const siblings = others.filter((g) => g.seriesId === game.seriesId);
+    if (siblings.some((g) => g.gameNumber === game.gameNumber)) return `game ${game.gameNumber} has been added again since`;
+    if (series.bestOf > 0 && siblings.length >= series.bestOf) return 'the series is full';
+    if (game.matchId && others.some((g) => g.matchId === game.matchId)) return 'its replay is linked to another game now';
+    return null;
   }
 
   async createSeriesGame(data: Omit<SeriesGame, 'id' | 'order'>): Promise<string> {
@@ -769,7 +800,9 @@ export class TeamDataService {
       gameNumber: game.gameNumber,
       stepBefore: game.draftStep ?? 0,
       stepAfter: 0,
-      changes: [`Deleted game ${game.gameNumber}${opponent ? ` vs ${opponent}` : ''}${game.matchId ? ` (replay ${game.matchId})` : ''}`],
+      changes: [
+        `Deleted game ${game.gameNumber}${opponent ? ` vs ${opponent}` : ''}${game.win === undefined ? '' : game.win ? ', a win' : ', a loss'}${game.matchId ? ` (replay ${game.matchId})` : ''}`
+      ],
       kinds: ['delete'],
       board: {
         ...(game.ourSide ? { ourSide: game.ourSide } : {}),

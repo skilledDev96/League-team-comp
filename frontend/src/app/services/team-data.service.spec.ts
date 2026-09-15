@@ -56,6 +56,45 @@ describe('TeamDataService in local mode', () => {
     expect(stored()['trophies']).toEqual([]);
   });
 
+  describe('undoing a delete (15 Sep 2026)', () => {
+    const board = { ourChampions: ['Sion', '', 'Ahri', '', ''], theirChampions: [], bans: ['Zed'] };
+
+    it('puts a deleted series and its games back as they were', async () => {
+      const seriesId = await data.createSeries({ tournamentId: 't1', opponent: '5s', bestOf: 0 });
+      const g1 = await data.createSeriesGame({ seriesId, gameNumber: 1, ...board });
+      const series = data.tournamentSeries().find((s) => s.id === seriesId)!;
+      const games = data.seriesGames().filter((g) => g.seriesId === seriesId);
+      await data.deleteSeriesGame(g1);
+      await data.deleteSeries(seriesId);
+      expect(await data.restoreSeries(series, games)).toEqual([]);
+      expect(data.tournamentSeries().some((s) => s.id === seriesId)).toBe(true);
+      expect(data.seriesGames().find((g) => g.id === g1)).toMatchObject({ gameNumber: 1, ourChampions: ['Sion', '', 'Ahri', '', ''] });
+    });
+
+    it('will not put a game back where game 3 has been added again, into a full best-of, or under a deleted series', async () => {
+      const seriesId = await data.createSeries({ tournamentId: 't1', opponent: 'MAD', bestOf: 3 });
+      for (const n of [1, 2]) await data.createSeriesGame({ seriesId, gameNumber: n, ...board });
+      const g3 = await data.createSeriesGame({ seriesId, gameNumber: 3, ...board });
+      const gone = data.seriesGames().find((g) => g.id === g3)!;
+      await data.deleteSeriesGame(g3);
+      await data.createSeriesGame({ seriesId, gameNumber: 3, ourChampions: [], theirChampions: [] });
+      expect(await data.restoreSeriesGame(gone)).toBe('game 3 has been added again since');
+      expect(data.seriesGames().filter((g) => g.seriesId === seriesId)).toHaveLength(3);
+
+      await data.deleteSeries(seriesId);
+      expect(await data.restoreSeriesGame(gone)).toBe('its series has been deleted');
+    });
+
+    it('will not give a replay to two games, and leaves a replay record saved since in place', async () => {
+      const seriesId = await data.createSeries({ tournamentId: 't1', opponent: '5s', bestOf: 0 });
+      const linked = await data.createSeriesGame({ seriesId, gameNumber: 1, matchId: 'EUW1_9', ...board });
+      const gone = data.seriesGames().find((g) => g.id === linked)!;
+      await data.deleteSeriesGame(linked);
+      await data.createSeriesGame({ seriesId, gameNumber: 2, matchId: 'EUW1_9', ourChampions: [], theirChampions: [] });
+      expect(await data.restoreSeriesGame(gone)).toBe('its replay is linked to another game now');
+    });
+  });
+
   it('starts in local mode and seeds itself', () => {
     expect(data.mode).toBe('local');
     expect(data.players().length).toBeGreaterThan(0);

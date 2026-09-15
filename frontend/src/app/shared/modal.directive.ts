@@ -30,6 +30,8 @@ export class ModalDirective implements OnDestroy {
   readonly closed = output<void>();
 
   private destroyed = false;
+  /** Whatever had focus when the dialog was created: the button that opened it, as a rule. */
+  private readonly opener = typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null);
 
   constructor() {
     afterNextRender(() => {
@@ -64,5 +66,7 @@ export class ModalDirective implements OnDestroy {
     this.destroyed = true;
     const dialog = this.host.nativeElement;
     if (dialog.open && typeof dialog.close === 'function') dialog.close();
+    const opener = this.opener;
+    if (opener && opener !== document.body && opener.isConnected && typeof opener.focus === 'function') opener.focus({ preventScroll: true });
   }
 }

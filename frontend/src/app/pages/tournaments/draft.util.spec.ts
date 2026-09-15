@@ -4,6 +4,7 @@ import {
   blockedSet,
   compAvailability,
   CompChampions,
+  gameHasContent,
   normalizeChampion,
   playedGames,
   poolPressure,
@@ -261,5 +262,14 @@ describe('poolPressure', () => {
     const rows = poolPressure([{ name: 'Solo', pool: ['Ahri'] }], blockedSet(['Ahri']));
     expect(rows[0].left).toEqual([]);
     expect(rows[0].critical).toBe(true);
+  });
+});
+
+describe('gameHasContent', () => {
+  it('counts a pick, a ban or a result, and not the empty seats a draft leaves', () => {
+    expect(gameHasContent({ ourChampions: ['', '', '', '', ''], theirChampions: [], bans: [] })).toBe(false);
+    expect(gameHasContent({ ourChampions: ['', 'Vi'], theirChampions: [] })).toBe(true);
+    expect(gameHasContent({ ourChampions: [], theirChampions: [], bans: ['Zed'] })).toBe(true);
+    expect(gameHasContent({ ourChampions: [], theirChampions: [], win: false })).toBe(true);
   });
 });

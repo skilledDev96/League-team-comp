@@ -5,6 +5,7 @@ import { PlayerEditorService } from '../../../services/player-editor.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { PlayerDraft, toPlayerDraft } from '../admin-drafts';
 import { AdminShellService } from './admin-shell.service';
+import { ConfirmService } from '../../../services/confirm.service';
 
 /**
  * The player editor's Admin side: the roster drafts, the add-player dialog
@@ -15,6 +16,7 @@ import { AdminShellService } from './admin-shell.service';
 @Injectable()
 export class AdminPlayersService {
   private readonly data = inject(TeamDataService);
+  private readonly confirm = inject(ConfirmService);
   private readonly auth = inject(AuthService);
   private readonly editor = inject(PlayerEditorService);
   private readonly shell = inject(AdminShellService);
@@ -168,7 +170,7 @@ export class AdminPlayersService {
       this.playerDrafts.update((list) => list.filter((d) => d !== draft));
       return;
     }
-    if (!confirm(`Delete player ${draft.name}?`)) {
+    if (!(await this.confirm.ask({ title: `Delete player ${draft.name}?`, confirmLabel: 'Delete player', danger: true }))) {
       return;
     }
     await this.data.deletePlayer(draft.id);

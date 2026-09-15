@@ -7,7 +7,7 @@ import { DRAFT_LENGTH } from '../pages/tournaments/draft-sequence';
 import { rosterIds, scrimSide } from '../pages/games/game-rows';
 import { TeamDataService } from './team-data.service';
 import { ToastService } from './toast.service';
-import { ConfirmService } from './confirm.service';
+import { ConfirmRequest, ConfirmService } from './confirm.service';
 
 type Side = 'blue' | 'red';
 type SeatPlayers = Parameters<typeof seatChampions>[0];
@@ -94,6 +94,11 @@ export function filedUnderOtherSeries(
 /** The question asked before linking a replay filed under another series. */
 export function filedQuestion(matchId: string, filedUnder: string, opponent: string): string {
   return `${matchId} is filed under ${filedUnder}. Link it to this game vs ${opponent} anyway? The replay stays filed under ${filedUnder}.`;
+}
+
+/** The question as the app's dialog asks it: linking here does not move the replay, so the button says link. */
+export function filedConfirm(matchId: string, filedUnder: string, opponent: string): ConfirmRequest {
+  return { title: 'Link this replay here too?', body: filedQuestion(matchId, filedUnder, opponent), confirmLabel: 'Link it here' };
 }
 
 /**
@@ -272,7 +277,7 @@ export class ReplayImportService {
     }
     const existingScrim = this.data.scrims().find((s) => s.id === read.id);
     const filedUnder = filedUnderOtherSeries(existingScrim, series, allSeries);
-    if (filedUnder && !(await this.confirm.ask({ title: 'File this replay here instead?', body: filedQuestion(read.id, filedUnder, series.opponent), confirmLabel: 'File it here' }))) {
+    if (filedUnder && !(await this.confirm.ask(filedConfirm(read.id, filedUnder, series.opponent)))) {
       return `${read.id} is filed under ${filedUnder} and was left there.`;
     }
 

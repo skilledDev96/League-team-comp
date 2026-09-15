@@ -57,6 +57,7 @@ type Tab = 'games' | 'patterns' | 'reviews';
  * is a tag on a game, not the thing the page is organised around.
  */
 import { PlayerMarkComponent } from '../../shared/player-mark.component';
+import { ConfirmService } from '../../services/confirm.service';
 @Component({
   selector: 'app-games',
   imports: [MvpBannerComponent, PlayerMarkComponent, GameGraphsComponent, DatePipe,
@@ -85,6 +86,7 @@ export class GamesComponent {
   }
 
   protected readonly data = inject(TeamDataService);
+  private readonly confirm = inject(ConfirmService);
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
   protected readonly refresh = inject(RefreshService);
@@ -434,9 +436,10 @@ export class GamesComponent {
     return reviewFailure(matchId ? this.reviews.errorFor(matchId) : undefined)?.said ?? '';
   }
 
-  protected removeReview(row: GameRow): void {
+  protected async removeReview(row: GameRow): Promise<void> {
     if (!row.matchId || !this.data.reviewFor(row.matchId)) return;
-    if (!confirm('Remove this review? The facts stay; writing it again costs about a dime.')) return;
+    const ok = await this.confirm.ask({ title: 'Remove this review?', body: 'The facts stay; writing it again costs about a dime.', confirmLabel: 'Remove review', danger: true });
+    if (!ok) return;
     void this.data.deleteGameReview(row.matchId);
   }
 

@@ -20,6 +20,7 @@ import { CompTileComponent } from './comp-tile.component';
 import { CompWritesService } from './comp-writes.service';
 import { compToOpen, revealBehavior } from './open-comp.util';
 import { TacticalBoardComponent } from './tactical-board.component';
+import { ConfirmService } from '../../services/confirm.service';
 
 /** Below this the grid is two across and the sheet one column; the CSS carries the same figure. */
 const NARROW = '(max-width: 62rem)';
@@ -44,6 +45,7 @@ const NARROW = '(max-width: 62rem)';
 })
 export class CompsComponent {
   protected readonly data = inject(TeamDataService);
+  private readonly confirm = inject(ConfirmService);
   protected readonly auth = inject(AuthService);
   protected readonly filter = inject(ChampionFilterService);
   protected readonly motion = inject(MotionService);
@@ -268,10 +270,11 @@ export class CompsComponent {
       results.length ? `${results.length} logged ${results.length === 1 ? 'result' : 'results'}` : '',
       plays.length ? `${plays.length} ${plays.length === 1 ? 'play' : 'plays'}` : ''
     ].filter(Boolean);
-    const lines = [`Delete ${comp.name}?`];
+    const lines: string[] = [];
     if (goes.length) lines.push(`Its ${goes.join(' and ')} ${results.length + plays.length === 1 ? 'goes' : 'go'} too.`);
     if (variants.length) lines.push(variants.length === 1 ? '1 comp that counted under it will stand on its own.' : `${variants.length} comps that counted under it will stand on their own.`);
-    if (!confirm(lines.join(' '))) return;
+    const ok = await this.confirm.ask({ title: `Delete ${comp.name}?`, body: lines.join(' ') || undefined, confirmLabel: 'Delete comp', danger: true });
+    if (!ok) return;
     const list = this.visible();
     const at = list.findIndex((c) => c.id === card.id);
     const next = list[at + 1]?.id ?? list[at - 1]?.id ?? null;

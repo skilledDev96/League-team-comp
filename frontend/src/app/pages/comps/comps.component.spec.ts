@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 import { Comp } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { ChampionFilterService } from '../../services/champion-filter.service';
+import { ConfirmService } from '../../services/confirm.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { CompsComponent } from './comps.component';
@@ -235,8 +236,8 @@ describe.skipIf(typeof localStorage === 'undefined')('CompsComponent', () => {
     data.compResults.set([{ id: 'r1', compId: 'c1', outcome: 'win', playedOn: '2026-09-01', order: 0 }]);
     TestBed.inject(AuthService).editMode.set(true);
     const asked: string[] = [];
-    vi.stubGlobal('confirm', (text: string) => {
-      asked.push(text);
+    vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockImplementation(async (req) => {
+      asked.push(`${req.title} ${req.body ?? ''}`.trim());
       return true;
     });
     try {
@@ -252,7 +253,7 @@ describe.skipIf(typeof localStorage === 'undefined')('CompsComponent', () => {
       expect(data.compResults()).toHaveLength(0);
       expect(sheets(root)).toHaveLength(0);
     } finally {
-      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
     }
   });
 });

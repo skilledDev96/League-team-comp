@@ -11,6 +11,7 @@ import { UiService } from '../../../services/ui.service';
 import { ChampionPickerComponent } from '../../../shared/champion-picker.component';
 import { NgModelNameDirective } from '../../../shared/ng-model-name.directive';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
+import { ConfirmService } from '../../../services/confirm.service';
 
 const PRIORITY_RANK: Record<LearnPriority, number> = { high: 0, med: 1, low: 2 };
 
@@ -209,6 +210,7 @@ export class RosterPlayerDetailComponent {
   readonly full = input(false);
 
   protected readonly data = inject(TeamDataService);
+  private readonly confirm = inject(ConfirmService);
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
   protected readonly editor = inject(PlayerEditorService);
@@ -263,8 +265,9 @@ export class RosterPlayerDetailComponent {
     void this.data.updatePainPoint({ ...pain, resolved: !pain.resolved });
   }
 
-  protected removePain(pain: PainPoint): void {
-    if (!confirm(`Delete this pain point — "${pain.text}"?`)) return;
+  protected async removePain(pain: PainPoint): Promise<void> {
+    const ok = await this.confirm.ask({ title: 'Delete this pain point?', body: pain.text ? `"${pain.text}"` : undefined, confirmLabel: 'Delete pain point', danger: true });
+    if (!ok) return;
     void this.data.deletePainPoint(pain.id);
   }
 
@@ -288,8 +291,9 @@ export class RosterPlayerDetailComponent {
     void this.data.updateLearnEntry({ ...entry, priority });
   }
 
-  protected removeLearn(entry: LearnEntry): void {
-    if (!confirm(`Remove ${this.ui.championName(entry.champion) || 'this champion'} from the learn list?`)) return;
+  protected async removeLearn(entry: LearnEntry): Promise<void> {
+    const ok = await this.confirm.ask({ title: `Remove ${this.ui.championName(entry.champion) || 'this champion'} from the learn list?`, confirmLabel: 'Remove', danger: true });
+    if (!ok) return;
     void this.data.deleteLearnEntry(entry.id);
   }
 

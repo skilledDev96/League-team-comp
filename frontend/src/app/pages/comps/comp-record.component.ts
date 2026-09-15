@@ -12,6 +12,7 @@ import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { CompWritesService, ResultDraft } from './comp-writes.service';
 import { rollupNotes } from './note-insights.util';
+import { ConfirmService } from '../../services/confirm.service';
 
 /** How many of a comp's game notes show before "Show all". */
 const NOTES_PREVIEW = 3;
@@ -140,6 +141,7 @@ export class CompRecordComponent {
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
   protected readonly writes = inject(CompWritesService);
+  private readonly confirm = inject(ConfirmService);
   private readonly data = inject(TeamDataService);
   private readonly champData = inject(ChampionDataService);
 
@@ -171,9 +173,15 @@ export class CompRecordComponent {
     }
   }
 
-  protected deleteResult(r: CompResult): void {
+  protected async deleteResult(r: CompResult): Promise<void> {
     const who = r.opponent ? ` against ${r.opponent}` : '';
-    if (!confirm(`Delete the logged ${r.outcome}${who} on ${this.ui.formatDay(r.playedOn)}?`)) return;
+    const ok = await this.confirm.ask({
+      title: `Delete the logged ${r.outcome}${who}?`,
+      body: `Played on ${this.ui.formatDay(r.playedOn)}. It leaves the comp's record.`,
+      confirmLabel: 'Delete result',
+      danger: true
+    });
+    if (!ok) return;
     void this.writes.deleteResult(r);
   }
 }

@@ -24,7 +24,7 @@ import { ModalDirective } from './modal.directive';
           <p id="confirm-dialog-body" class="confirm-dialog-body">{{ req.body }}</p>
         }
         <div class="confirm-dialog-actions">
-          <button #cancel type="button" class="view-btn" (click)="confirm.answer(false)">{{ req.cancelLabel || 'Cancel' }}</button>
+          <button #cancel type="button" class="view-btn" autofocus (click)="confirm.answer(false)">{{ req.cancelLabel || 'Cancel' }}</button>
           <button type="button" class="view-btn confirm-dialog-go" [class.is-danger]="req.danger" (click)="confirm.answer(true)">{{ req.confirmLabel }}</button>
         </div>
       </dialog>
@@ -36,12 +36,13 @@ export class ConfirmDialogComponent {
   private readonly cancel = viewChild<ElementRef<HTMLButtonElement>>('cancel');
 
   constructor() {
-    // Cancel is focused on every new question: showModal would focus the first focusable, which is
-    // Cancel today, but saying it outright keeps a future reorder from putting Delete under Enter.
+    // Cancel is focused on every question. The first one is autofocus, which showModal honours; this covers a
+    // second question asked while the dialog is already open. Never before the dialog is modal: a focus then
+    // scrolled the page to where the closed dialog sits in the shell.
     afterRenderEffect(() => {
       const req = this.confirm.request();
       const button = this.cancel()?.nativeElement;
-      if (req && button && document.activeElement !== button) button.focus();
+      if (req && button && button.closest('dialog')?.open && document.activeElement !== button) button.focus({ preventScroll: true });
     });
   }
 }

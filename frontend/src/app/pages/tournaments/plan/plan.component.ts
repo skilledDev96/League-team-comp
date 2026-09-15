@@ -4,7 +4,7 @@ import { ChampionFilterComponent } from '../../../shared/champion-filter.compone
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AnalysisGame, ChampionRecord, OpponentPlayer, Role, SeriesGame, TournamentSeries } from '../../../models/team.models';
+import { AnalysisGame, ChampionRecord, OpponentPlayer, Role, Scrim, SeriesGame, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
 import { ChampionDataService } from '../../../services/champion-data.service';
 import { NgModelNameDirective } from '../../../shared/ng-model-name.directive';
@@ -13,12 +13,12 @@ import { UiService } from '../../../services/ui.service';
 import { noteLines } from '../../../core/note-lines';
 import { parseRiotIds } from '../../../core/riot-id';
 import { nextSeriesId } from '../series-order';
-import { normalizeChampion } from '../draft.util';
+import { gameHasContent, normalizeChampion } from '../draft.util';
 import { readReplay, ReplayRead, REPLAY_REQUIREMENTS } from '../../../core/replay-import';
 import { ToastService } from '../../../services/toast.service';
 import { rosterIds } from '../../games/game-rows';
 import {
-  filedQuestion,
+  filedConfirm,
   filedUnderOtherSeries,
   linkedGame,
   replaceQuestion,
@@ -316,15 +316,17 @@ export class TournamentPlanComponent {
       confirmLabel: 'Delete replay and game',
       danger: true
     });
-    if (!ok) return;
-    const scrim = this.data.scrims().find((s) => s.id === game.matchId);
-    void this.data.deleteScrim(game.matchId);
-    void this.data.deleteSeriesGame(game.id);
-    this.toast.show(`Deleted game ${game.gameNumber} and its replay`, {
+    // The answer can take a while and a teammate may have changed the game meanwhile: act on it as it is now.
+    const live = this.data.seriesGames().find((g) => g.id === game.id);
+    if (!ok || !live?.matchId) return;
+    const scrim = this.data.scrims().find((s) => s.id === live.matchId);
+    void this.data.deleteScrim(live.matchId);
+    void this.data.deleteSeriesGame(live.id);
+    this.toast.show(`Deleted game ${live.gameNumber} and its replay`, {
       kind: 'warn',
       icon: 'delete',
       timeout: 12000,
-      action: { label: 'Undo', run: () => void this.data.restoreSeriesGame(game, scrim) }
+      action: { label: 'Undo', run: () => this.undoGame(live, scrim) }
     });
   }
 
@@ -537,7 +539,20 @@ export class TournamentPlanComponent {
       kind: 'warn',
       icon: 'delete',
       timeout: 12000,
-      action: { label: 'Undo', run: () => void this.data.restoreSeries(series, games) }
+      action: {
+        label: 'Undo',
+        run: () =>
+          void this.data.restoreSeries(series, games).then((skipped) => {
+            if (skipped.length) this.toast.show('Some games stayed deleted', { text: skipped.join('; ') + '.', kind: 'warn' });
+          })
+      }
+    });
+  }
+
+  /** Undo for one deleted game, saying so when it could not go back. */
+  private undoGame(game: SeriesGame, scrim?: Scrim): void {
+    void this.data.restoreSeriesGame(game, scrim).then((why) => {
+      if (why) this.toast.show(`Game ${game.gameNumber} stayed deleted`, { text: `Undo could not put it back: ${why}.`, kind: 'warn' });
     });
   }
 
@@ -794,23 +809,21 @@ export class TournamentPlanComponent {
    * should not erase it silently.
    */
   protected async removeGame(game: SeriesGame): Promise<void> {
-    const hasContent =
-      (game.ourChampions ?? []).some(Boolean) ||
-      (game.theirChampions ?? []).some(Boolean) ||
-      (game.bans ?? []).length > 0 ||
-      game.win !== undefined;
+    const hasContent = gameHasContent(game);
     if (hasContent) {
       const what = game.win === undefined ? 'Its draft' : 'Its draft and result';
       const ok = await this.confirm.ask({ title: `Delete game ${game.gameNumber}?`, body: `${what} will be lost.`, confirmLabel: 'Delete game', danger: true });
       if (!ok) return;
     }
-    void this.data.deleteSeriesGame(game.id);
-    if (hasContent) {
-      this.toast.show(`Deleted game ${game.gameNumber}`, {
+    const live = this.data.seriesGames().find((g) => g.id === game.id);
+    if (!live) return;
+    void this.data.deleteSeriesGame(live.id);
+    if (hasContent || gameHasContent(live)) {
+      this.toast.show(`Deleted game ${live.gameNumber}`, {
         kind: 'warn',
         icon: 'delete',
         timeout: 12000,
-        action: { label: 'Undo', run: () => void this.data.restoreSeriesGame(game) }
+        action: { label: 'Undo', run: () => this.undoGame(live) }
       });
     }
   }
@@ -888,7 +901,7 @@ export class TournamentPlanComponent {
     }
     const existingScrim = this.data.scrims().find((s) => s.id === read.id);
     const filedUnder = filedUnderOtherSeries(existingScrim, series, allSeries);
-    if (filedUnder && !(await this.confirm.ask({ title: 'File this replay here instead?', body: filedQuestion(read.id, filedUnder, series.opponent), confirmLabel: 'File it here' }))) {
+    if (filedUnder && !(await this.confirm.ask(filedConfirm(read.id, filedUnder, series.opponent)))) {
       note(`Not imported: ${read.id} is filed under ${filedUnder}.`);
       return;
     }

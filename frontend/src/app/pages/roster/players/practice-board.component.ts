@@ -6,6 +6,7 @@ import { PainPoint } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { NgModelNameDirective } from '../../../shared/ng-model-name.directive';
+import { ConfirmService } from '../../../services/confirm.service';
 
 interface PainRow extends PainPoint {
   playerName: string;
@@ -93,6 +94,7 @@ export class PracticeBoardComponent {
   readonly cards = input<readonly RosterCard[]>([]);
 
   protected readonly data = inject(TeamDataService);
+  private readonly confirm = inject(ConfirmService);
   protected readonly auth = inject(AuthService);
 
   /** Follows the depth, and a click turns it until the depth changes again. */
@@ -141,9 +143,10 @@ export class PracticeBoardComponent {
     void this.data.updatePainPoint({ ...pain, resolved: !pain.resolved });
   }
 
-  protected remove(id: string): void {
+  protected async remove(id: string): Promise<void> {
     const pain = this.data.painPoints().find((p) => p.id === id);
-    if (!confirm(`Delete this pain point${pain?.text ? ` — "${pain.text}"` : ''}?`)) return;
+    const ok = await this.confirm.ask({ title: 'Delete this pain point?', body: pain?.text ? `"${pain.text}"` : undefined, confirmLabel: 'Delete pain point', danger: true });
+    if (!ok) return;
     void this.data.deletePainPoint(id);
   }
 }

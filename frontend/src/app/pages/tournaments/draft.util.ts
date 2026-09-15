@@ -10,6 +10,17 @@
  * Kept free of Angular so the logic can be tested directly.
  */
 import { championKey, sameChampion } from '../../core/champion-key';
+import type { SeriesGame } from '../../models/team.models';
+
+/** Whether a delete would lose anything: a pick, a ban or a result. Prep and the draft room ask, and offer Undo, on this one rule. */
+export function gameHasContent(game: Pick<SeriesGame, 'ourChampions' | 'theirChampions' | 'bans' | 'win'>): boolean {
+  return (
+    (game.ourChampions ?? []).some(Boolean) ||
+    (game.theirChampions ?? []).some(Boolean) ||
+    (game.bans ?? []).some(Boolean) ||
+    game.win !== undefined
+  );
+}
 
 /**
  * The display-name keys of the champions whose Riot id is another word entirely ("MonkeyKing" is

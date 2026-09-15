@@ -11475,7 +11475,9 @@ button.coaching-theme:hover, button.coaching-theme:focus-visible { color: var(--
 .card:has(.overflow-panel) { z-index: 40; }
 .modal-card.is-wide { width: min(40rem, 100%); }
 /* The app's own confirmation (15 Sep 2026): a browser that suppresses page dialogs answered window.confirm with yes. */
-.modal-card.confirm-dialog { width: min(30rem, 100%); display: grid; gap: 0.7rem; }
+.modal-card.confirm-dialog { width: min(30rem, 100%); gap: 0.7rem; }
+/* Only an open dialog is a grid: display on a closed one would draw it in the page flow at the foot of the shell. */
+.modal-card.confirm-dialog[open] { display: grid; }
 .confirm-dialog-title { margin: 0; display: flex; align-items: center; gap: 0.45rem; font-family: "Chakra Petch", sans-serif; font-size: 1.15rem; line-height: 1.25; text-wrap: balance; }
 .confirm-dialog-title .material-symbols-rounded { font-size: 1.3rem; color: var(--warn); }
 .confirm-dialog-body { margin: 0; color: var(--text-1); font-size: var(--fs-body); line-height: 1.5; }

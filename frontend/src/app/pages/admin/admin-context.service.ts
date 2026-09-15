@@ -9,6 +9,7 @@ import { AdminShellService } from './state/admin-shell.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { API_SHA, BUILD_SHA } from '../../build-info';
+import { ConfirmService } from '../../services/confirm.service';
 import {
   AccessDraft,
   CompDraft,
@@ -37,6 +38,7 @@ import {
 export class AdminContextService {
   readonly auth = inject(AuthService);
   readonly data = inject(TeamDataService);
+  private readonly confirm = inject(ConfirmService);
   private readonly enrichment = inject(PlayerEnrichmentService);
   private readonly route = inject(ActivatedRoute);
   readonly roles = ROLES;
@@ -291,7 +293,7 @@ export class AdminContextService {
       this.tournamentDrafts.update((list) => list.filter((d) => d !== draft));
       return;
     }
-    if (!confirm('Delete ' + draft.name + '? Its series and games go too.')) {
+    if (!(await this.confirm.ask({ title: `Delete ${draft.name}?`, body: 'Its series and games go too.', confirmLabel: 'Delete tournament', danger: true }))) {
       return;
     }
     const series = this.data.tournamentSeries().filter((s) => s.tournamentId === draft.id);
@@ -563,7 +565,7 @@ export class AdminContextService {
       this.fillInDrafts.update((list) => list.filter((d) => d !== draft));
       return;
     }
-    if (!confirm(`Delete fill-in ${draft.summoner}?`)) {
+    if (!(await this.confirm.ask({ title: `Delete fill-in ${draft.summoner}?`, confirmLabel: 'Delete fill-in', danger: true }))) {
       return;
     }
     await this.data.deleteFillIn(draft.id);
@@ -611,7 +613,7 @@ export class AdminContextService {
       this.compDrafts.update((list) => list.filter((d) => d !== draft));
       return;
     }
-    if (!confirm(`Delete comp ${draft.name}?`)) {
+    if (!(await this.confirm.ask({ title: `Delete comp ${draft.name}?`, confirmLabel: 'Delete comp', danger: true }))) {
       return;
     }
     await this.data.deleteComp(draft.id);
@@ -676,7 +678,7 @@ export class AdminContextService {
       this.accessDrafts.update((list) => list.filter((item) => item !== draft));
       return;
     }
-    if (!confirm(`Delete access entry for ${email}?`)) {
+    if (!(await this.confirm.ask({ title: `Delete the access entry for ${email}?`, body: 'They can no longer sign in.', confirmLabel: 'Delete access', danger: true }))) {
       return;
     }
     await this.data.deleteAccessEntry(email);
@@ -691,7 +693,7 @@ export class AdminContextService {
       this.flash('Only admins can seed the database.');
       return;
     }
-    if (!confirm('Seed Firestore from the starter data? This is for an empty database; it will not overwrite what is there, but it adds the starter roster and comps beside it.')) {
+    if (!(await this.confirm.ask({ title: 'Seed Firestore from the starter data?', body: 'This is for an empty database; it will not overwrite what is there, but it adds the starter roster and comps beside it.', confirmLabel: 'Seed the database' }))) {
       return;
     }
     try {
@@ -702,8 +704,8 @@ export class AdminContextService {
     }
   }
 
-  resetLocal(): void {
-    if (!confirm('Reset local data back to the original starter roster?')) {
+  async resetLocal(): Promise<void> {
+    if (!(await this.confirm.ask({ title: 'Reset local data?', body: 'Everything here goes back to the original starter roster.', confirmLabel: 'Reset local data', danger: true }))) {
       return;
     }
     this.data.resetLocal();

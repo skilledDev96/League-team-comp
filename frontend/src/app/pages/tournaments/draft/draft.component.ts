@@ -13,6 +13,7 @@ import {
   blockedSet,
   CompAvailability,
   compAvailability,
+  gameHasContent,
   normalizeChampion,
   PoolPressure,
   poolPressure
@@ -679,21 +680,31 @@ export class TournamentDraftComponent implements OnInit {
   protected async removeDraftGame(game: SeriesGame): Promise<void> {
     const drafted = (game.bans ?? []).length
       + [...(game.ourChampions ?? []), ...(game.theirChampions ?? [])].filter(Boolean).length;
+    const result = game.win === undefined ? '' : game.win ? 'its win' : 'its loss';
+    const goes = [drafted ? `the ${drafted} bans and picks drafted into it` : '', result].filter(Boolean).join(' and ');
     const ok = await this.confirm.ask({
       title: `Remove game ${game.gameNumber}?`,
-      body: drafted ? `The ${drafted} bans and picks drafted into it go too.` : undefined,
+      body: goes ? `${goes[0].toUpperCase()}${goes.slice(1)} go too.` : undefined,
       confirmLabel: 'Remove game',
       danger: true
     });
-    if (!ok) return;
+    // The draft is live and shared: act on the game as it is after the answer, not as it was when asked.
+    const live = this.data.seriesGames().find((g) => g.id === game.id);
+    if (!ok || !live) return;
     this.pickedGameId.set('');
-    void this.data.deleteSeriesGame(game.id);
-    if (drafted) {
-      this.toast.show(`Removed game ${game.gameNumber}`, {
+    void this.data.deleteSeriesGame(live.id);
+    if (gameHasContent(live)) {
+      this.toast.show(`Removed game ${live.gameNumber}`, {
         kind: 'warn',
         icon: 'delete',
         timeout: 12000,
-        action: { label: 'Undo', run: () => void this.data.restoreSeriesGame(game) }
+        action: {
+          label: 'Undo',
+          run: () =>
+            void this.data.restoreSeriesGame(live).then((why) => {
+              if (why) this.toast.show(`Game ${live.gameNumber} stayed removed`, { text: `Undo could not put it back: ${why}.`, kind: 'warn' });
+            })
+        }
       });
     }
   }

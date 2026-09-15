@@ -18,6 +18,7 @@ import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ModalDirective } from '../../shared/modal.directive';
 import { NgModelNameDirective } from '../../shared/ng-model-name.directive';
+import { ConfirmService } from '../../services/confirm.service';
 
 const PHASES: PlayPhase[] = ['Early', 'Mid', 'Late'];
 
@@ -63,6 +64,7 @@ const MARKER_KINDS: MarkerKind[] = ['ward', 'minion', 'dragon', 'grubs', 'herald
 })
 export class TacticalBoardComponent {
   private readonly data = inject(TeamDataService);
+  private readonly confirm = inject(ConfirmService);
   protected readonly ui = inject(UiService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
@@ -380,7 +382,8 @@ export class TacticalBoardComponent {
   protected async remove(): Promise<void> {
     const existing = this.play();
     if (!existing || !this.canEdit()) return;
-    if (!confirm(`Delete the play "${existing.title || 'Untitled'}"? Its tokens, arrows and notes go too.`)) return;
+    const ok = await this.confirm.ask({ title: `Delete the play "${existing.title || 'Untitled'}"?`, body: 'Its tokens, arrows and notes go too.', confirmLabel: 'Delete play', danger: true });
+    if (!ok) return;
     await this.data.deletePlay(existing.id);
     this.close.emit();
   }

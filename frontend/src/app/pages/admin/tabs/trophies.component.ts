@@ -4,6 +4,7 @@ import { Trophy } from '../../../models/team.models';
 import { ChampionDataService } from '../../../services/champion-data.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { NgModelNameDirective } from '../../../shared/ng-model-name.directive';
+import { ConfirmService } from '../../../services/confirm.service';
 
 /** A trophy as its form holds it: every field a string, so an empty box is simply empty. */
 interface TrophyDraft {
@@ -109,6 +110,7 @@ function toDraft(t: Trophy): TrophyDraft {
 })
 export class AdminTrophiesComponent {
   private readonly data = inject(TeamDataService);
+  private readonly confirm = inject(ConfirmService);
   private readonly champions = inject(ChampionDataService);
 
   protected readonly placings = PLACINGS;
@@ -183,7 +185,7 @@ export class AdminTrophiesComponent {
       this.drafts.update((list) => list.filter((d) => d !== draft));
       return;
     }
-    if (!confirm(`Delete ${draft.title || 'this trophy'}?`)) return;
+    if (!(await this.confirm.ask({ title: `Delete ${draft.title || 'this trophy'}?`, body: 'It leaves the cabinet on Home.', confirmLabel: 'Delete trophy', danger: true }))) return;
     this.dirty.delete(draft);
     await this.data.deleteTrophy(draft.id);
   }

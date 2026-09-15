@@ -379,6 +379,26 @@ says "something went wrong in the draft" and cannot say what can now be read
 back step by step. Do not add per-action logging in the draft room — the diff
 at the write path already sees every page's writes.
 
+**Never call `window.confirm`; ask through `ConfirmService`** (15 Sep 2026, the lead: "There is no delete
+confirmation on the Scrims and draft side… I mistakenly deleted a whole scrim"). Every delete used the
+browser's `confirm()`, and a browser that suppresses page dialogs answers it yes by itself, with nothing in the
+page able to tell — so a whole scrim block went with no question. `services/confirm.service.ts` `ask({ title,
+body, confirmLabel, danger })` resolves true only from the confirm button; `shared/confirm-dialog.component.ts`
+is the one native `<dialog appModal>`, mounted once in `app.html`, opening with **Cancel focused** so a reflexive
+Enter cancels, and Escape or the backdrop cancel too. Name the button for what it does ("Delete series", never
+"OK"). Prep's delete series, delete replay and remove game, and the draft room's remove game, also offer **Undo**
+in the toast (`TeamDataService.restoreSeries` / `restoreSeriesGame` write the captured documents back under their
+own ids, refusing — and saying why — when the series is gone, the game number or the last best-of slot has been
+filled since, or the replay now belongs to another game; the callers re-read the game after the answer, since the
+dialog does not block the page and the draft is shared). An open `.confirm-dialog` is a grid only while `[open]`:
+a closed dialog with a `display` draws in the page flow at the foot of the shell, and focusing into it scrolled the
+page there. `ModalDirective` returns focus to whatever opened a modal. And `deleteSeriesGame` writes a "Deleted game N" `draftEvents` row with the board first, since deletes
+left no trace and the 5s block could only be restored from a snapshot taken for the data audit. A spec stubs
+`ConfirmService.ask`, not the global. **Prep's game pickers are seated** (`[seated]="true"` on
+`app-champion-picker`): the draft room saves five role-indexed seats with `""` for an empty one, so the picker
+draws and counts only the champions, a pick fills the first empty seat and a removal empties its seat; without it
+a half-drafted game showed broken chips and counted blanks toward the five.
+
 **The advisor's auto-ask is a team setting, off by default.**
 `Settings.autoAdvisor` (Admin → Settings) gates the `autoAsk` effect in the
 draft room; "Ask what to pick" always works.
