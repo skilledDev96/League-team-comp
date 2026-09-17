@@ -46,6 +46,18 @@ export const DRAFT_SEQUENCE: readonly DraftStep[] = Object.freeze(steps());
 export const DRAFT_LENGTH = DRAFT_SEQUENCE.length;
 
 /**
+ * A ban nobody saw (17 Sep 2026). The sequence will not reach the picks until ten bans are in, and operators who
+ * missed one got past it with the first tiles on the wall or the random test aid, which later read as real bans.
+ * Stored in the flat bans list, because a ban's position is what says whose it was (`bansForTeam`); never a
+ * champion: it blocks nothing, is never sent to the advisor, and never counts.
+ */
+export const NO_BAN = "-";
+
+export function isNoBan(champion: string | null | undefined): boolean {
+  return champion === NO_BAN;
+}
+
+/**
  * Where a game is in the sequence. `draftStep` when it was drafted here; a
  * game with no step but five picks a side (filled from a replay, or typed in
  * on the Plan) is over, not waiting at Ban 1 (8 Sep 2026). Anything else

@@ -599,6 +599,11 @@ export interface Settings {
    * no file storage, so a banner is always one of Riot's splashes and never an upload.
    */
   banner?: SettingsBanner;
+  /**
+   * When the next League patch lands, as an ISO date (17 Sep 2026). A replay only plays on the patch it was
+   * recorded on, so this is the day the customs still to record stop playing; absent, it is estimated.
+   */
+  nextPatchOn?: string;
 }
 
 export interface SettingsBanner {
@@ -1588,6 +1593,12 @@ export interface TournamentSeries {
   side?: 'blue' | 'red';
   /** Whether we won the side-selection 1v1. */
   wonSideSelection?: boolean;
+  /**
+   * A practice series nobody plays for real, such as "vs test" (17 Sep 2026): kept to rehearse the draft room on,
+   * and left out of Next series, the landing series, crowns, trophies and anything shared. Set by hand; never
+   * derived from the name.
+   */
+  sandbox?: boolean;
   /** Scouting notes for this opponent. */
   notes?: string;
   /** Target bans for this opponent, kept separate from per-comp bans. */
@@ -1789,6 +1800,11 @@ export interface Scrim {
   playedOn: string;
   durationSec: number;
   blueWon: boolean;
+  /**
+   * The client build the replay was saved on, from the file header ("16.18.815.9717"), 17 Sep 2026. A replay only
+   * plays on its own patch, so this says whether it can still be recorded.
+   */
+  gameVersion?: string;
   surrendered?: boolean;
   /** Which side we were on, once someone has said. */
   ourSide?: 'blue' | 'red';
