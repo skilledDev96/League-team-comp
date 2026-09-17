@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FilmCommitment, FilmPrefs, GameReview } from '../models/team.models';
-import { advance, dueReminders, nextAskAt, reminderFor, tallyLine } from './film-progress';
+import { advance, commitmentStandsOn, dueReminders, isCurrentCommitment, nextAskAt, reminderFor, tallyLine } from './film-progress';
 
 const done = '2026-09-09T20:00:00.000Z';
 const now = '2026-09-10T21:00:00.000Z';
@@ -57,14 +57,15 @@ describe('reminderFor', () => {
   const v3 = { ...empty, team: { ...empty.team, workOn: [firstWorkOn] } } as unknown as GameReview;
   /** A version 5 review: the headline, the one thing, two work-ons, the lessons, a note per player. */
   const v5 = { ...v3, players, team: { ...v3.team, workOn: [firstWorkOn, secondWorkOn], headline: 'Bled 35 kills while farming even', oneThing: 'Play safer trades or ask for jungle pressure earlier.', lessons } } as unknown as GameReview;
-  const commitment: FilmCommitment = { matchId: 'EUW1_1', text: 'Either ward the river or ask for a gank.', options: ['Ward the river', 'Ask for a gank'], by: { a: 'b', b: 'b', c: 'a' } };
+  /** The team's picks on the first work-on as it reads in these reviews: the sentence the One thing chapter commits on. */
+  const commitment: FilmCommitment = { matchId: 'EUW1_1', text: firstWorkOn.text, options: ['Play safer trades', 'Ask for jungle pressure earlier'], by: { a: 'b', b: 'b', c: 'a' } };
 
   it('reminds of the one thing, the commitment, your own ask and two further asks, and asks nothing', () => {
     const r = reminderFor(v5, { done, asked: 0 }, commitment, 42, 'ADC');
     expect(r).toEqual({
       headline: 'Bled 35 kills while farming even',
       oneThing: 'Play safer trades or ask for jungle pressure earlier.',
-      commitment: 'Ask for a gank',
+      commitment: 'Ask for jungle pressure earlier',
       ask: 'Hold the wave under tower.',
       more: ['Either a control ward at 18 or the jungler paths there.', 'Keep Flash for the way out.']
     });
@@ -94,9 +95,9 @@ describe('reminderFor', () => {
   });
 
   it('reads the commitment as the team\'s pick, ties to A, the sentence whole when the team took it whole, and nothing until somebody picked', () => {
-    expect(reminderFor(v5, { done }, { ...commitment, by: { a: 'a', b: 'b' } }, 42)!.commitment).toBe('Ward the river');
-    expect(reminderFor(v5, { done }, { ...commitment, by: { a: 'commit' } }, 42)!.commitment).toBe('Either ward the river or ask for a gank.');
-    expect(reminderFor(v5, { done }, { ...commitment, options: undefined, by: { a: 'commit' } }, 42)!.commitment).toBe('Either ward the river or ask for a gank.');
+    expect(reminderFor(v5, { done }, { ...commitment, by: { a: 'a', b: 'b' } }, 42)!.commitment).toBe('Play safer trades');
+    expect(reminderFor(v5, { done }, { ...commitment, by: { a: 'commit' } }, 42)!.commitment).toBe(firstWorkOn.text);
+    expect(reminderFor(v5, { done }, { ...commitment, options: undefined, by: { a: 'commit' } }, 42)!.commitment).toBe(firstWorkOn.text);
     expect(reminderFor(v5, { done }, { ...commitment, by: {} }, 42)!.commitment).toBeUndefined();
     expect(reminderFor(v5, { done }, undefined, 42)!.commitment).toBeUndefined();
   });
@@ -114,8 +115,55 @@ describe('reminderFor', () => {
   it('is nothing without a one thing, a work-on or a commitment somebody picked on', () => {
     expect(reminderFor(empty, { done }, undefined, 42)).toBeNull();
     expect(reminderFor(empty, { done }, { ...commitment, by: {} }, 42)).toBeNull();
-    // A commitment alone is a reminder; the one thing is then blank and the card shows the commitment line.
-    expect(reminderFor(empty, { done }, commitment, 42)).toEqual({ headline: '', oneThing: '', commitment: 'Ask for a gank' });
+    // A commitment is made on the first work-on, so a review without one has no commitment standing either (17 Sep 2026).
+    expect(reminderFor(empty, { done }, commitment, 42)).toBeNull();
+  });
+
+  it('leaves out a commitment a re-review has reworded, and keeps the rest of the reminder', () => {
+    // The re-review of 17 Sep 2026: the same game, a new first work-on and new options, the old picks still in the document.
+    const reworded = { text: 'Jinx walked into five alone; either reset until all five are up or engage only with Aphelios in range.', evidence: '', minute: 22 };
+    const again = { ...v5, team: { ...v5.team, workOn: [reworded, secondWorkOn], oneThing: 'Reset until all five are up.' } } as unknown as GameReview;
+    const r = reminderFor(again, { done }, commitment, 42, 'ADC')!;
+    expect(r.commitment).toBeUndefined();
+    expect('commitment' in r).toBe(false);
+    expect(r.oneThing).toBe('Reset until all five are up.');
+    expect(r.ask).toBe('Hold the wave under tower.');
+  });
+});
+
+describe('isCurrentCommitment', () => {
+  const sentence = 'Jinx died three times before ten; either play safer trades or ask for jungle pressure earlier.';
+  const reviewOn = (text: string | undefined): GameReview =>
+    ({ matchId: 'EUW1_1', team: { workOn: text === undefined ? [] : [{ text, evidence: '', minute: 9 }, { text: 'Ward the river at 18.', evidence: '', minute: 18 }], keepDoing: [] }, players: [] }) as unknown as GameReview;
+  const commitment: FilmCommitment = { matchId: 'EUW1_1', text: sentence, options: ['Play safer trades', 'Ask for jungle pressure earlier'], by: { a: 'a' } };
+
+  it('keeps a commitment while the review still reads the sentence it was made on', () => {
+    expect(isCurrentCommitment(commitment, reviewOn(sentence))).toBe(true);
+    // Only the first work-on counts: the one the One thing chapter asks about and `commitTo` stores.
+    expect(isCurrentCommitment({ ...commitment, text: 'Ward the river at 18.' }, reviewOn(sentence))).toBe(false);
+  });
+
+  it('drops it once a re-review has reworded the sentence', () => {
+    expect(isCurrentCommitment(commitment, reviewOn('Jinx walked into five alone; either reset until all five are up or engage only with Aphelios in range.'))).toBe(false);
+    // One word is a different question.
+    expect(isCurrentCommitment(commitment, reviewOn(sentence.replace('three', 'four')))).toBe(false);
+  });
+
+  it('sets aside case and spacing', () => {
+    expect(isCurrentCommitment(commitment, reviewOn(`  ${sentence.toUpperCase()}  `))).toBe(true);
+    expect(isCurrentCommitment({ ...commitment, text: sentence.replace(/ /g, '   ') }, reviewOn(sentence.replace('; ', ';\n')))).toBe(true);
+    expect(commitmentStandsOn(commitment, `\t${sentence.toLowerCase()}\n`)).toBe(true);
+  });
+
+  it('is not current with no review, no commitment, no work-on or an empty sentence', () => {
+    expect(isCurrentCommitment(commitment, undefined)).toBe(false);
+    expect(isCurrentCommitment(commitment, null)).toBe(false);
+    expect(isCurrentCommitment(undefined, reviewOn(sentence))).toBe(false);
+    expect(isCurrentCommitment(null, reviewOn(sentence))).toBe(false);
+    expect(isCurrentCommitment(commitment, reviewOn(undefined))).toBe(false);
+    // An empty sentence on both sides is not a match: nobody commits to nothing.
+    expect(isCurrentCommitment({ ...commitment, text: '  ' }, reviewOn(' '))).toBe(false);
+    expect(commitmentStandsOn(commitment, undefined)).toBe(false);
   });
 });
 

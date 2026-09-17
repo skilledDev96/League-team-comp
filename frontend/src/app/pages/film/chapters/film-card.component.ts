@@ -2,7 +2,7 @@ import { Location } from '@angular/common';
 import { afterRenderEffect, Component, computed, ElementRef, inject, input, output, untracked, viewChildren } from '@angular/core';
 import { Router } from '@angular/router';
 import { FilmModel } from '../../../core/film-model';
-import { reminderFor } from '../../../core/film-progress';
+import { isCurrentCommitment, reminderFor } from '../../../core/film-progress';
 import { mvpOf } from '../../../core/game-mvp';
 import { influenceOf, INFLUENCE_NO_TIMELINE, INFLUENCE_NOTHING, INFLUENCE_TIP } from '../../../core/influence';
 import { MatchTimelineService } from '../../../services/match-timeline.service';
@@ -290,7 +290,15 @@ export class FilmCardComponent {
   protected altsOf(s: ReviewSwap): string {
     return alternativesPhrase(s.alternatives);
   }
-  private readonly commitment = computed(() => this.data.commitmentFor(this.model().matchId));
+  /**
+   * The team's commitment, only while it was made on the review's sentence as it reads now (17 Sep 2026):
+   * after a re-review the card printed the old option under the new one thing, while the One thing chapter
+   * was asking about new options. A stale one leaves the block, its initials and the copy's line out.
+   */
+  private readonly commitment = computed(() => {
+    const c = this.data.commitmentFor(this.model().matchId);
+    return isCurrentCommitment(c, this.review()) ? c : undefined;
+  });
   private readonly teamChoice = computed<FilmChoice | undefined>(() => {
     const c = this.commitment();
     return c && Object.keys(c.by).length ? this.data.teamChoice(c) : undefined;

@@ -66,6 +66,34 @@ function committedLine(c: FilmCommitment | undefined): string | undefined {
   return c.text?.trim() || undefined;
 }
 
+/**
+ * Whether a commitment still stands on the review as it reads now (17 Sep
+ * 2026). `TeamDataService.commitTo` keeps the first work-on's sentence and its
+ * two options as they read when the team picked, and a re-review rewrites both
+ * without touching that document: the film's One thing chapter marked A on the
+ * new options ("Engage only with Aphelios in range") while the card and the
+ * Before you play reminder printed the old A ("Reset until all five are up").
+ * So a commitment counts only while its sentence is the review's first work-on,
+ * give or take case and spacing; a missing review or commitment, or a review
+ * with no work-on, has none. The options are not compared on their own:
+ * `commitTo` starts the picks over only when the sentence changes, so asking
+ * again over the options alone would fold the old picks into the new answer.
+ */
+export function isCurrentCommitment(commitment: FilmCommitment | null | undefined, review: GameReview | null | undefined): boolean {
+  return commitmentStandsOn(commitment, review?.team?.workOn?.[0]?.text);
+}
+
+/** The same test against the sentence itself, for a surface that holds the film's model rather than the review (the One thing chapter commits on `oneThing.point.text`, which is that work-on). */
+export function commitmentStandsOn(commitment: FilmCommitment | null | undefined, sentence: string | null | undefined): boolean {
+  const stored = sameSentence(commitment?.text);
+  return !!stored && stored === sameSentence(sentence);
+}
+
+/** A sentence with case and runs of spacing set aside. */
+function sameSentence(s: string | null | undefined): string {
+  return (s ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
 /** How many further asks the card carries at most; the rest stay on the film's card. */
 const MAX_MORE_LINES = 2;
 
@@ -79,7 +107,7 @@ export interface FilmReminder {
   headline: string;
   /** The one thing to watch for: the review's own, else the first work-on cut to its ask; '' when the review carries neither. */
   oneThing: string;
-  /** What the team committed to: the option it picked, or the sentence whole; absent until somebody picked. */
+  /** What the team committed to: the option it picked, or the sentence whole; absent until somebody picked, and once a re-review rewrote the sentence it was picked on. */
   commitment?: string;
   /** The viewer's own seat's ask, when the seat is known and the review has a note for it. */
   ask?: string;
@@ -99,13 +127,15 @@ export interface FilmReminder {
  * for. `progress` and `seed` stay in the signature for the callers: the
  * reminder no longer turns with `asked` or draws on the seed, but the ladder
  * (`nextAskAt`, `advance`, `dueReminders`) still climbs on Got it as it did.
+ * A commitment made on a sentence a re-review has since rewritten is left out
+ * (`isCurrentCommitment`, 17 Sep 2026): its option answered another question.
  * Null when the review has none of a one thing, a work-on or a commitment.
  */
 export function reminderFor(review: GameReview, _progress: FilmProgress, commitment: FilmCommitment | undefined, _seed: number, seat?: Role): FilmReminder | null {
   const team = review.team;
   const first = team.workOn?.[0]?.text?.trim();
   const oneThing = team.oneThing?.trim() || (first ? askOf(first) : '');
-  const committed = committedLine(commitment);
+  const committed = isCurrentCommitment(commitment, review) ? committedLine(commitment) : undefined;
   if (!oneThing && !committed) return null;
   const reminder: FilmReminder = { headline: team.headline?.trim() ?? '', oneThing };
   if (committed) reminder.commitment = committed;

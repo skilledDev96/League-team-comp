@@ -8,6 +8,7 @@ import { styleFor } from '../../../core/film-style';
 import { INFLUENCE_NO_TIMELINE, INFLUENCE_NOTHING, INFLUENCE_TIP } from '../../../core/influence';
 import { AnalysisGame, GameReview, MatchTimeline } from '../../../models/team.models';
 import { devTimelineKey, MatchTimelineService } from '../../../services/match-timeline.service';
+import { TeamDataService } from '../../../services/team-data.service';
 import { ToastService } from '../../../services/toast.service';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
 import { FilmCardComponent } from './film-card.component';
@@ -188,6 +189,27 @@ describe.skipIf(typeof localStorage === 'undefined')('FilmCardComponent', () => 
       { who: 'Sejuani for Wukong', gains: '' }
     ]);
     expect(text(root.querySelector('.film-card-draft'))).not.toContain('MonkeyKing');
+  });
+
+  it('prints the commitment only while it was made on the review\'s sentence, in the card and in the copy', async () => {
+    // 17 Sep 2026: after a re-review the card said the old option while the One thing chapter asked about new ones.
+    const data = TestBed.inject(TeamDataService);
+    const label = (root: HTMLElement) => Array.from(root.querySelectorAll('.film-card-label')).map(text);
+    data.filmCommitments.set([{ matchId: ID, text: 'Jinx walked into five alone; either reset until all five are up or hold for the Baron timer.', options: ['Reset until all five are up', 'Hold for the Baron timer'], by: { 'rhu@bom.gg': 'a' } }]);
+    const stale = mount();
+    expect(label(stale.root)).not.toContain('We committed to');
+    expect(stale.root.querySelector('.film-card .film-initial')).toBeNull();
+    Array.from(stale.root.querySelectorAll<HTMLButtonElement>('.film-card-actions .view-btn')).find((b) => text(b).includes('Copy for Discord'))!.click();
+    await stale.fixture.whenStable();
+    expect(written[0]).not.toContain('We committed to');
+    stale.fixture.destroy();
+
+    // The same picks on the sentence the review reads now, spaced and cased differently: the block stands.
+    data.filmCommitments.set([{ matchId: ID, text: `  ${review.team.workOn[0].text.toUpperCase()}`, options: ['Play safer trades', 'Ask for jungle pressure earlier'], by: { 'rhu@bom.gg': 'b' } }]);
+    const current = mount();
+    expect(label(current.root)).toContain('We committed to');
+    const block = Array.from(current.root.querySelectorAll('.film-card-block')).find((b) => text(b.querySelector('.film-card-label')) === 'We committed to');
+    expect(text(block?.querySelector('.film-card-text') ?? null)).toBe('Ask for jungle pressure earlier RH');
   });
 
   it('Back to the game is a pill, never a link, and goes to the game\'s row on Games', () => {

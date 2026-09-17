@@ -1,6 +1,7 @@
 import { afterRenderEffect, Component, computed, DestroyRef, effect, ElementRef, HostListener, inject, signal, untracked, viewChild } from '@angular/core';
 import { MotionService } from '../services/motion.service';
 import { ReviewTakeoverService } from '../services/review-takeover.service';
+import { TeamDataService } from '../services/team-data.service';
 import { ReviewTakeoverStageComponent } from './review-takeover-stage.component';
 
 /** A second Escape within this always closes the takeover, however stuck the stage is. The film room's own figure. */
@@ -27,6 +28,10 @@ const ESCAPE_TWICE_MS = 2000;
         <div class="modal-card rt-gate" role="dialog" aria-modal="true" aria-labelledby="rt-gate-title" #card>
           <h2 id="rt-gate-title" class="title-with-icon"><span class="section-icon material-symbols-rounded" aria-hidden="true">auto_awesome</span>{{ svc.again() ? 'Write the review again?' : 'Review this game?' }}</h2>
           <p class="muted">Two Opus calls over the facts, about a dime.</p>
+          @if (committed()) {
+            <!-- A re-review rewrites the sentence the team committed on, and the film asks again (17 Sep 2026): said before anything is spent, not found out after. -->
+            <p class="muted">The team's commitment will be asked again.</p>
+          }
           <div class="links rt-gate-pills">
             <button type="button" class="view-btn active" #roll (click)="rollIt()"><span class="material-symbols-rounded" aria-hidden="true">auto_awesome</span> Roll it</button>
             <button type="button" class="view-btn" (click)="svc.close()">Not now</button>
@@ -74,11 +79,17 @@ const ESCAPE_TWICE_MS = 2000;
 export class ReviewTakeoverComponent {
   protected readonly svc = inject(ReviewTakeoverService);
   protected readonly motion = inject(MotionService);
+  private readonly data = inject(TeamDataService);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly phase = this.svc.phase;
   protected readonly on = computed(() => this.phase() !== 'closed');
   protected readonly live = computed(() => this.phase() !== 'closed' && this.phase() !== 'gate');
+  /** The team has picked on this game's one thing in the film room, so the gate says a new review asks it again. */
+  protected readonly committed = computed(() => {
+    const c = this.data.commitmentFor(this.svc.matchId() ?? undefined);
+    return !!c && Object.keys(c.by ?? {}).length > 0;
+  });
   /** The gate card's box at Roll it, for the stage to grow out of. */
   protected readonly flipFrom = signal<DOMRect | null>(null);
 

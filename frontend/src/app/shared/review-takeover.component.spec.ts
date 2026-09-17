@@ -158,6 +158,27 @@ describe.skipIf(typeof localStorage === 'undefined')('ReviewTakeoverComponent', 
     expect(svc.phase()).toBe('closed');
   });
 
+  it('says the team\'s commitment will be asked again when the team has picked on this game, and nothing when it has not', async () => {
+    // 17 Sep 2026: a re-review rewrites the sentence the commitment was made on, and the film asks again.
+    const gateLines = () => [...root.querySelectorAll('.rt-gate p')].map((p) => p.textContent?.replace(/\s+/g, ' ').trim());
+    data.gameReviews.set([reviewAt('2026-09-01T10:00:00.000Z')]);
+    await openGate();
+    expect(gateLines()).toEqual(['Two Opus calls over the facts, about a dime.']);
+    svc.close();
+    await render();
+
+    data.filmCommitments.set([{ matchId: ID, text: 'Path top once.', by: { 'rhu@bom.gg': 'commit' } }]);
+    await openGate();
+    expect(gateLines()).toEqual(['Two Opus calls over the facts, about a dime.', "The team's commitment will be asked again."]);
+    svc.close();
+    await render();
+
+    // Another game's commitment says nothing on this one's gate.
+    data.filmCommitments.set([{ matchId: 'EUW1_7000000003', text: 'Path top once.', by: { 'rhu@bom.gg': 'commit' } }]);
+    await openGate();
+    expect(gateLines()).toEqual(['Two Opus calls over the facts, about a dime.']);
+  });
+
   it('Roll it fires the review and the totals reel stands in without a timeline', async () => {
     await openGate();
     pill(root, 'Roll it')!.click();

@@ -5,6 +5,7 @@ import { AnalysisGame, DraftGain, FilmChoice, GameReview, ReviewGap, ReviewPoint
 import { alternativesPhrase, askOf, firstSentence, GAIN_LABELS, reviewAsText, reviewSource, THEME_GLYPHS } from '../core/review-view';
 import type { FilmGlyph } from '../core/film-model';
 import { closedChampions, openSwaps } from '../core/film-build';
+import { isCurrentCommitment } from '../core/film-progress';
 import { DecidedByComponent } from './review/decided-by.component';
 import { ReviewPointComponent } from './review/review-point.component';
 import { ReviewSeatComponent } from './review/review-seat.component';
@@ -418,8 +419,16 @@ export class GameReviewComponent {
     return alternativesPhrase(s.alternatives);
   }
 
-  /** What the team committed to in the film room, and who picked it. */
-  private readonly commitment = computed(() => this.data.commitmentFor(this.review()?.matchId));
+  /**
+   * What the team committed to in the film room, and who picked it: only while it was made on the review's
+   * first work-on as it reads now (17 Sep 2026). A re-review rewrites that sentence and its options, and the
+   * line went on printing the old option; a stale commitment prints nothing here or in the chat copy.
+   */
+  private readonly commitment = computed(() => {
+    const r = this.review();
+    const c = this.data.commitmentFor(r?.matchId);
+    return isCurrentCommitment(c, r) ? c : undefined;
+  });
   private readonly teamChoice = computed<FilmChoice | undefined>(() => {
     const c = this.commitment();
     return c && Object.keys(c.by).length ? this.data.teamChoice(c) : undefined;

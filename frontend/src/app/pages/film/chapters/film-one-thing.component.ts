@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, input, output, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 import { mentionedSeat } from '../../../core/champion-mention';
 import { FilmModel } from '../../../core/film-model';
+import { commitmentStandsOn } from '../../../core/film-progress';
 import { evidenceChips } from '../../../core/review-view';
 import { normalizeEmail } from '../../../core/access';
 import { FilmChoice, FilmNote } from '../../../models/team.models';
@@ -22,6 +23,14 @@ import { FilmFrameComponent, themeIcon, themeLabel } from '../film-frame.compone
  * tap writes the team's document and a viewer's pick stays their own. The
  * other points follow as cards that open on tap, and one line of team notes
  * sits under the point, keyed "w:0" in the film's notes.
+ *
+ * After a re-review the chapter asks again (17 Sep 2026). The team's document
+ * keeps the sentence it was picked on, and a re-review rewrites the sentence
+ * and its options under it: the new cards wore the old A and its initials.
+ * While the stored sentence is not this one the cards carry no team mark and
+ * no initials, one muted line gives the sentence the team had committed on,
+ * and the first pick goes through `commitTo`, which starts the document over
+ * because the sentence changed.
  */
 @Component({
   selector: 'app-film-one-thing',
@@ -79,6 +88,9 @@ import { FilmFrameComponent, themeIcon, themeLabel } from '../film-frame.compone
               </button>
             }
           </div>
+          @if (before(); as was) {
+            <p class="film-commit-line">Before the re-review the team committed to: {{ was }}</p>
+          }
           @if (team(); as tc) {
             <p class="film-commit-line">The team committed to {{ tc === 'commit' ? 'it' : tc.toUpperCase() }}.</p>
           } @else if (mine()) {
@@ -167,12 +179,33 @@ export class FilmOneThingComponent {
     const seat = mentionedSeat(m.oneThing.point.text, m.seats);
     return m.seats.find((s) => s.seat === seat)?.champion ?? m.title.protagonist.champion;
   });
-  protected readonly commitment = computed(() => this.data.commitmentFor(this.model().matchId));
+  /** The team's document for this game, whatever sentence it was picked on. */
+  private readonly stored = computed(() => this.data.commitmentFor(this.model().matchId));
+  /** The team's commitment on this sentence; nothing while the document holds picks on a sentence a re-review has since rewritten. */
+  protected readonly commitment = computed(() => {
+    const c = this.stored();
+    return commitmentStandsOn(c, this.model().oneThing.point.text) ? c : undefined;
+  });
+  /**
+   * The sentence the team had committed on before the re-review, as the document keeps it; '' while the
+   * commitment stands or nobody had picked. The sentence and not the option (17 Sep 2026): an old option
+   * can come back word for word as one of the new cards, and the line then read as a pick already made.
+   */
+  protected readonly before = computed(() => {
+    const c = this.stored();
+    return c && !this.commitment() && Object.keys(c.by ?? {}).length ? (c.text?.trim() ?? '') : '';
+  });
   protected readonly team = computed<FilmChoice | undefined>(() => {
     const c = this.commitment();
     return c && Object.keys(c.by).length ? this.data.teamChoice(c) : undefined;
   });
-  /** What I picked: the team document for an editor, my own progress for a viewer. */
+  /**
+   * What I picked: the team document for an editor, my own progress for a viewer.
+   * A viewer's saved pick carries no sentence, so after a re-review it shows on the new
+   * cards until they pick again (17 Sep 2026). Hiding it while the team's is stale lost a
+   * pick the viewer had just saved as soon as the chapter was built again; telling an old
+   * pick from a new one needs the sentence saved with it, which is the film page's progress.
+   */
   protected readonly mine = computed<FilmChoice | undefined>(() => {
     if (this.auth.canEdit()) return this.commitment()?.by[this.emailKey()];
     return this.ownChoice() ?? this.prefs.filmProgress(this.model().matchId)?.choice;
@@ -214,7 +247,10 @@ export class FilmOneThingComponent {
   protected choose(choice: FilmChoice): void {
     const m = this.model();
     if (this.auth.canEdit()) {
-      void this.data.commitTo(m.matchId, m.oneThing.point.text, m.oneThing.options, choice);
+      // While the commitment stands, its own stored sentence (17 Sep 2026): `commitTo` compares exactly and
+      // starts the picks over on any difference, and the chapter has just shown a sentence that differs only
+      // by case or spacing as standing, every teammate's initials on it. A stale one gets this sentence, and the reset.
+      void this.data.commitTo(m.matchId, this.commitment()?.text ?? m.oneThing.point.text, m.oneThing.options, choice);
     } else {
       this.chosen.emit(choice);
     }
