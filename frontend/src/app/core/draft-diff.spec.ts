@@ -26,6 +26,21 @@ describe('describeGameChange', () => {
     expect(notes(c, { ...c, ourChampions: ['', '', '', 'Jinx', ''], draftStep: 7 })).toEqual(['Our ADC: Jinx']);
   });
 
+  it('reads a ban nobody saw as not seen, never as a champion called "-" (17 Sep 2026)', () => {
+    const b = game({ draftStep: 2, bans: ['Zed', 'Ahri'] });
+    expect(notes(b, { ...b, bans: ['Zed', 'Ahri', '-'], draftStep: 3 })).toEqual(['Ban 3: not seen']);
+    // Rest of phase not seen: the four bans left, in one save.
+    expect(notes(b, { ...b, bans: ['Zed', 'Ahri', '-', '-', '-', '-'], draftStep: 6 })).toEqual([
+      'Ban 3: not seen',
+      'Ban 4: not seen',
+      'Ban 5: not seen',
+      'Ban 6: not seen'
+    ]);
+    const unseen = game({ draftStep: 3, bans: ['Zed', 'Ahri', '-'] });
+    expect(notes(unseen, { ...unseen, bans: ['Zed', 'Ahri', 'Leona'] })).toEqual(['Replaced the not-seen ban 3 with Leona']);
+    expect(notes(unseen, { ...unseen, bans: ['Zed', 'Ahri'], draftStep: 2 })).toEqual(['Undo: removed the not-seen ban 3']);
+  });
+
   it('reads an undo as a removal walked back', () => {
     const b = game({ draftStep: 7, ourChampions: ['', '', '', 'Jinx', ''] });
     expect(notes(b, { ...b, ourChampions: ['', '', '', '', ''], draftStep: 6 })).toEqual(['Undo: removed our ADC Jinx']);

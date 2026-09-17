@@ -132,6 +132,24 @@ describe('buildHome', () => {
     expect(all.record.segments.map((s) => s.key)).toEqual(['wins', 'losses']);
   });
 
+  // 17 Sep 2026: a series called "test" in the live group was every viewer's NEXT SERIES.
+  it('changes nothing at all for a sandbox series, however early it sits and whatever its games and replays hold', () => {
+    const plain = input();
+    const test = { id: 'test', tournamentId: 'cup', opponent: 'test', bestOf: 3, order: -1, sandbox: true } as unknown as TournamentSeries;
+    const withSandbox = input({
+      series: [test, ...series],
+      seriesGames: [...plain.seriesGames, seriesGame('t1', 'test', 1, true, 'r-t1'), seriesGame('t2', 'test', 2, true, 'r-t2')],
+      scrims: [...plain.scrims, replay('r-t1', '2026-09-10T19:00:00Z'), replay('r-t2', '2026-09-10T20:00:00Z')],
+      analysis: [...plain.analysis, { ...flex('r-t1', '2026-09-10T19:00:00Z', true, 'SkilledScarecrow'), queue: 'Scrim' }]
+    });
+    const home = buildHome(withSandbox);
+    expect(home.next?.seriesId).toBe('b');
+    expect(home).toEqual(buildHome(plain));
+    // Unplayed and dated sooner than the real next match, it is still not the next series.
+    const rehearsalFirst = { ...test, scheduledAt: '2026-09-14T19:00' } as TournamentSeries;
+    expect(buildHome(input({ series: [rehearsalFirst, ...series] })).next).toMatchObject({ seriesId: 'b', opponent: 'Iron Owls' });
+  });
+
   it('leaves a practice-tagged game out of every count', () => {
     const home = buildHome(input({ practice: new Set(['EUW_2']) }));
     expect(home.record.counters).toMatchObject({ games: 3, losses: 0 });

@@ -1,5 +1,5 @@
 import { Injectable, isDevMode, signal } from '@angular/core';
-import { doc, Firestore, getDoc } from 'firebase/firestore';
+import { collection, doc, Firestore, getDoc, getDocs } from 'firebase/firestore';
 import { getDb, isFirebaseConfigured } from '../core/firebase';
 import { ReplayRecording, ReplayShot } from '../models/team.models';
 
@@ -119,6 +119,26 @@ export class ReplayRecordingService {
   /** The picture, if it has been read; `undefined` while nobody has asked for it. */
   shotFor(docId: string): ReplayShot | null | undefined {
     return this.knownShots().get(docId);
+  }
+
+  /**
+   * The match id of every recording there is (17 Sep 2026), for Customs to record on Admin ›
+   * Diagnostics: read once when that card asks, never a listener, and empty in local mode, where
+   * nothing is ever recorded. The web SDK cannot list ids without their documents, so this reads
+   * the collection whole; a recording is kilobytes and its pictures live in `replayShots`, so it
+   * stays small. A failed read throws, because "none recorded" would put a recorded game back on
+   * the list.
+   */
+  async recordedIds(): Promise<string[]> {
+    const db = this.db();
+    if (!db) return [];
+    const snap = await this.listCollection(db, 'replayRecordings');
+    return snap.docs.map((d) => d.id);
+  }
+
+  /** A whole collection read once, behind a method so a spec can stand in for Firestore (17 Sep 2026). */
+  protected listCollection(db: Firestore, name: string): Promise<{ docs: readonly { id: string }[] }> {
+    return getDocs(collection(db, name));
   }
 
   /** Drop a stale read, so a game recorded again is picked up. */

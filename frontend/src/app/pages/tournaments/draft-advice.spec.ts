@@ -374,6 +374,25 @@ describe('suggestion ordering', () => {
   it('scores an unplayed suggestion at nothing rather than at even', () => {
     expect(confidenceScore({ champion: 'X', comps: [], games: 0 })).toBe(0);
   });
+
+  it('gives exactly the scores it gave before the Wilson bound moved into draft.util', () => {
+    // Pinned on 17 Sep 2026 against the function as it stood, then run again after the maths was
+    // shared with the Comps popup's order: the advisor's ranking must not move by a hair.
+    const score = (projected: number | undefined, games: number) => confidenceScore({ champion: 'X', comps: [], games, projected });
+    expect(score(100, 1)).toBe(20.654329147389294);
+    expect(score(57, 14)).toBe(32.47075438539916);
+    expect(score(83, 6)).toBe(43.34738129795422);
+    expect(score(50, 4)).toBe(15.003570882017145);
+    expect(score(100, 5)).toBe(56.5508505247919);
+    expect(score(71, 7)).toBe(35.54185589364394);
+    // Out of range is clamped, and nothing to count is nothing.
+    expect(score(120, 2)).toBe(34.23719528896193);
+    expect(score(-5, 3)).toBe(0);
+    expect(score(0, 3)).toBe(0);
+    expect(score(64, -2)).toBe(0);
+    expect(score(40, 0)).toBe(0);
+    expect(score(undefined, 5)).toBe(0);
+  });
 });
 
 describe('ownRecord', () => {

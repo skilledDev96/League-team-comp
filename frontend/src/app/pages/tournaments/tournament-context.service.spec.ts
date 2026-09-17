@@ -88,4 +88,13 @@ describe.skipIf(typeof localStorage === 'undefined')('TournamentContextService',
   it('burns nothing in the scrims group', () => {
     expect(ctx.usedChampions('series-1d59cb83')).toEqual([]);
   });
+
+  // 17 Sep 2026: "vs test" stood first among the draft room's series pills in the live group.
+  it('lists a sandbox series after every real one, and leaves the rest in their stored order', () => {
+    const test = { id: 'series-test', tournamentId: 'tournament-f9515444', opponent: 'test', bestOf: 3, status: 'scheduled', order: 0, sandbox: true } as unknown as TournamentSeries;
+    const next = { id: 'series-next', tournamentId: 'tournament-f9515444', opponent: 'Iron Owls', bestOf: 3, status: 'scheduled', order: 2 } as unknown as TournamentSeries;
+    data.tournamentSeries.set([test, ...series, next]);
+    ctx.selectTournament('tournament-f9515444');
+    expect(ctx.seriesList().map((s) => s.id)).toEqual(['series-7f25f7b7', 'series-next', 'series-test']);
+  });
 });

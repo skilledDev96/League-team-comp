@@ -144,4 +144,25 @@ describe('ReplayRecordingService', () => {
     expect(await offline.loadShot(`${ID}__620`)).toBeNull();
     expect(offline.has(ID)).toBe(false);
   });
+
+  it('lists no recorded ids in local mode, where nothing is ever recorded (17 Sep 2026)', async () => {
+    const offline = new ReplayRecordingService();
+    vi.spyOn(offline as unknown as Private, 'db').mockReturnValue(null);
+    expect(await offline.recordedIds()).toEqual([]);
+  });
+
+  it('lists the id of every recording from Firestore, and throws on a failed read rather than answer none', async () => {
+    // "None recorded" would put every recorded game back on Customs to record, so the card has to see the failure.
+    type Listing = { db(): unknown; listCollection(db: unknown, name: string): Promise<{ docs: { id: string }[] }> };
+    const online = new ReplayRecordingService();
+    const seam = online as unknown as Listing;
+    const db = { name: 'firestore' };
+    vi.spyOn(seam, 'db').mockReturnValue(db);
+    const list = vi.spyOn(seam, 'listCollection').mockResolvedValue({ docs: [{ id: ID }, { id: 'EUW1-7979450974' }] });
+    expect(await online.recordedIds()).toEqual([ID, 'EUW1-7979450974']);
+    expect(list).toHaveBeenCalledWith(db, 'replayRecordings');
+
+    list.mockRejectedValue(new Error('Missing or insufficient permissions.'));
+    await expect(online.recordedIds()).rejects.toThrow('Missing or insufficient permissions.');
+  });
 });

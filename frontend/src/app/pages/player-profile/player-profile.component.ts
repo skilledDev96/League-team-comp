@@ -21,6 +21,7 @@ import { SplitViewToggleComponent } from '../../shared/split-view-toggle.compone
 import { TablePrefsService } from '../../services/table-prefs.service';
 import { championKey, formatSide, gamesWithTheFive, PLAYER_METRIC_KEYS, PlayerMetric, playerSplits, PlayerSplitRow, SideStat, SplitUnit } from '../review/win-loss-splits';
 import { buildRoster, cardById, ROSTER_SCOPE } from '../../core/roster-build';
+import { sandboxMatchIds } from '../../core/sandbox-series';
 import { MIN_FOR_A_CLAIM } from '../review/loss-patterns.util';
 import { InfoTipComponent } from '../../shared/info-tip.component';
 import { TourPillComponent } from '../../shared/tour-pill.component';
@@ -67,7 +68,11 @@ export class PlayerProfileComponent {
     // queue, so that tab shows every team game and the note says so.
     const queue = this.selectedQueue();
     const wanted = queue === 'flex' ? 'Flex' : queue === 'clash' ? 'Clash' : null;
-    return gamesWithTheFive(this.data.compAnalysis()?.games ?? [], name, starters, wanted, this.data.practiceSet());
+    // A replay filed under a sandbox series is a rehearsal (17 Sep 2026): the analysis folds it in as a Scrim like any
+    // other, so it leaves here the way it leaves Patterns and Home's advice, or it counted in this player's record.
+    const sandbox = sandboxMatchIds(this.data.tournamentSeries(), this.data.seriesGames());
+    const games = (this.data.compAnalysis()?.games ?? []).filter((g) => !sandbox.has(g.matchId));
+    return gamesWithTheFive(games, name, starters, wanted, this.data.practiceSet());
   });
 
   /**

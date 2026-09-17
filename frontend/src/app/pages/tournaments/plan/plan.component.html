@@ -169,6 +169,16 @@
           <summary class="series-summary" (click)="$event.preventDefault(); toggleSeries(series.id)">
             <span class="series-index">{{ i + 1 }}</span>
             <span class="series-opponent">vs {{ series.opponent }}</span>
+            <!-- A rehearsal, not a match (17 Sep 2026): the quiet chip says so, and a series named like one that is not
+                 marked yet offers editors the flag in one press. The name only prompts; the flag is what counts.
+                 Inside the summary, so preventDefault as well as stopPropagation, as on Scout below. -->
+            @if (isSandbox(series)) {
+              <span class="chip is-compact" appTip="Practice only: never the next series, and its games stay out of the record, Patterns, the crowns and the trophies">Sandbox</span>
+            } @else if (auth.canEdit() && looksLikeTest(series)) {
+              <button type="button" class="view-btn is-compact"
+                      [appTip]="'Keep it to rehearse on, out of Next series, the record, the crowns and the trophies'"
+                      (click)="$event.preventDefault(); $event.stopPropagation(); markSandbox(series)">Mark as sandbox</button>
+            }
             @if (series.scheduledAt) {
               <span class="chip">{{ ui.formatDayTime(series.scheduledAt) }}</span>
             }
@@ -196,6 +206,13 @@
             @if (usedCount(series.id); as used) {
               <span class="series-burned" [appTip]="used + ' champions burned this series'">
                 {{ used }} burned
+              </span>
+            }
+            <!-- Series audit (17 Sep 2026): what the stored games say that cannot be true — a champion twice
+                 under fearless, a game after the decider, one replay on two games. Passive: the words are the tip. -->
+            @if (auditChip(series.id); as check) {
+              <span class="chip is-warn series-audit-chip" tabindex="0" [appTip]="check.tip">
+                <span class="material-symbols-rounded" aria-hidden="true">report</span>{{ check.label }}
               </span>
             }
             <!-- Reachable without opening the series first: scouting is what
@@ -245,7 +262,12 @@
             @if (usedChampions(series.id).length) {
               <div class="tag-row fearless-chips">
                 @for (champ of usedChampions(series.id); track champ) {
-                  <app-champion-chip [champion]="champ" />
+                  <!-- A repeated champion is listed once; its outline and tip say where else it went (17 Sep 2026). -->
+                  @if (burnedTip(series.id, champ); as tip) {
+                    <span class="series-audit-burned" [appTip]="tip"><app-champion-chip [champion]="champ" /></span>
+                  } @else {
+                    <app-champion-chip [champion]="champ" />
+                  }
                 }
               </div>
             } @else {
@@ -1014,6 +1036,15 @@
                   <button type="button" [class.active]="series.side === 'red'"
                           (click)="patchSeries(series, { side: 'red' })">Red side G1</button>
                 </div>
+                <!-- Set by hand, never read off the name (17 Sep 2026). Unticked removes the key. -->
+                <label class="field field-check">
+                  <input type="checkbox" [ngModel]="isSandbox(series)" (ngModelChange)="setSandbox(series, $event)"
+                         [name]="'sandbox-' + series.id" />
+                  <span>
+                    Sandbox (practice only)
+                    <small class="muted">Never the next series or the room's first pick, and its games stay out of the record, Patterns, the crowns and the trophies.</small>
+                  </span>
+                </label>
               } @else {
                 @if (series.bans?.length) {
                   <div class="tag-row">

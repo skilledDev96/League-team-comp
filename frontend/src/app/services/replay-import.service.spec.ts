@@ -147,6 +147,14 @@ describe('the replay record’s opponent', () => {
     expect(scrimToSave(stored, read, 'MOSS 2', null, null).ourSide).toBe('blue');
     expect(scrimToSave(undefined, read, 'MOSS 2', null, null).ourSide).toBeUndefined();
   });
+
+  it('keeps the build a replay was saved on when a later read carries none, and takes the file’s own when it does', () => {
+    const withBuild = { ...stored, gameVersion: '16.18.815.9717' } as Scrim;
+    const read = { id: 'x', playedOn: '', durationSec: 1, blueWon: true, players: [], order: 1 };
+    expect(scrimToSave(withBuild, read, 'MOSS 2', null, null).gameVersion).toBe('16.18.815.9717');
+    expect(scrimToSave(withBuild, { ...read, gameVersion: '16.19.1.1' }, 'MOSS 2', null, null).gameVersion).toBe('16.19.1.1');
+    expect(scrimToSave(undefined, read, 'MOSS 2', null, null)).not.toHaveProperty('gameVersion');
+  });
 });
 
 describe('link and unlink keep what was there', () => {

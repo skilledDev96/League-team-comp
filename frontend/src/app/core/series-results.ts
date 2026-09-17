@@ -2,6 +2,7 @@ import { AnalysisGame, Player, Scrim, SeriesGame, Tournament, TournamentSeries }
 import { nextSeriesId } from '../pages/tournaments/series-order';
 import { MvpGame, SeriesMvp, seriesMvpOfGames } from './game-mvp';
 import { parseLocalDate } from './local-date';
+import { isSandboxSeries } from './sandbox-series';
 
 /**
  * How a series stands, which series are over, and who a finished one crowns (13 Sep 2026).
@@ -11,7 +12,10 @@ import { parseLocalDate } from './local-date';
  * card to open and wrong for handing out a title — a Bo3 at 1–0 is not over.
  *
  * Only real tournament series count here. A scrim block (`bestOf: 0`, or anything in the scrims group)
- * is open-ended practice with no result of its own, so it never finishes and never crowns anyone.
+ * is open-ended practice with no result of its own, so it never finishes and never crowns anyone. Nor
+ * does a sandbox series (17 Sep 2026, `isSandboxSeries`): it is a rehearsal inside a real group, so it
+ * is never the next opponent, never finished, never crowns anyone and never makes an earlier series
+ * look played-past.
  */
 
 export interface SeriesScore {
@@ -65,7 +69,10 @@ export interface SeriesSources {
   seriesGames: readonly SeriesGame[];
 }
 
-/** Real tournaments first by their start date, then stored order; series in their stored order inside each. */
+/**
+ * Real tournaments first by their start date, then stored order; series in their stored order inside each. A
+ * sandbox series is not on the schedule at all, so its results cannot mark an earlier series as played past.
+ */
 function scheduleOrder(tournaments: readonly Tournament[], series: readonly TournamentSeries[]): { tournament: Tournament; series: TournamentSeries }[] {
   const real = tournaments
     .filter((t) => t.kind !== 'scrims')
@@ -75,7 +82,7 @@ function scheduleOrder(tournaments: readonly Tournament[], series: readonly Tour
   const out: { tournament: Tournament; series: TournamentSeries }[] = [];
   for (const tournament of real) {
     for (const s of series.filter((x) => x.tournamentId === tournament.id).sort((a, b) => a.order - b.order)) {
-      if (s.bestOf >= 1) out.push({ tournament, series: s });
+      if (s.bestOf >= 1 && !isSandboxSeries(s)) out.push({ tournament, series: s });
     }
   }
   return out;
@@ -121,10 +128,12 @@ export function finishedSeries(
 /**
  * The next opponent: the first series of a real tournament with no result yet, and nothing once every
  * one has one. The rule `NextUpComponent` has used since 12 Sep 2026, lifted so Home asks the same.
+ * Since 17 Sep 2026 a sandbox series is never it, and an unplayed series with a date comes before one
+ * without (`nextSeriesId`).
  */
 export function nextOpenSeries(i: SeriesSources): TournamentSeries | null {
   const scrimGroups = new Set(i.tournaments.filter((t) => t.kind === 'scrims').map((t) => t.id));
-  const list = i.series.filter((s) => !scrimGroups.has(s.tournamentId));
+  const list = i.series.filter((s) => !scrimGroups.has(s.tournamentId) && !isSandboxSeries(s));
   if (!list.length) return null;
   const played = (id: string) => seriesScoreOf(i.seriesGames.filter((g) => g.seriesId === id)).played > 0;
   const series = list.find((s) => s.id === nextSeriesId(list, played));

@@ -10,6 +10,7 @@
  * Pure. The service adds who and when and writes the result.
  */
 import { SeriesGame } from '../models/team.models';
+import { banWord, isNoBan } from '../pages/tournaments/draft-sequence';
 
 const SEATS = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'] as const;
 
@@ -105,11 +106,19 @@ export function describeGameChange(before: SeriesGame | undefined, after: Series
     const b = list(before.bans);
     const a = list(after.bans);
     const n = Math.max(a.length, b.length);
+    // A ban nobody saw is stored as NO_BAN and read back as "not seen" (17 Sep 2026), never as a champion called "-".
     for (let i = 0; i < n; i += 1) {
       if (b[i] === a[i]) continue;
-      if (b[i] && a[i]) out.push({ kind: 'ban-replaced', note: `Replaced ban ${i + 1} ${b[i]} with ${a[i]}` });
-      else if (a[i]) out.push({ kind: 'ban', note: `Ban ${i + 1}: ${a[i]}` });
-      else out.push({ kind: 'ban-removed', note: `${undo ? 'Undo: removed' : 'Removed'} ban ${i + 1} ${b[i]}` });
+      if (b[i] && a[i]) {
+        const note = isNoBan(b[i])
+          ? `Replaced the not-seen ban ${i + 1} with ${banWord(a[i])}`
+          : `Replaced ban ${i + 1} ${b[i]} with ${banWord(a[i])}`;
+        out.push({ kind: 'ban-replaced', note });
+      } else if (a[i]) out.push({ kind: 'ban', note: `Ban ${i + 1}: ${banWord(a[i])}` });
+      else {
+        const what = isNoBan(b[i]) ? `the not-seen ban ${i + 1}` : `ban ${i + 1} ${b[i]}`;
+        out.push({ kind: 'ban-removed', note: `${undo ? 'Undo: removed' : 'Removed'} ${what}` });
+      }
     }
     out.push(...pickChanges('our', list(before.ourChampions), list(after.ourChampions), undo));
     out.push(...pickChanges('their', list(before.theirChampions), list(after.theirChampions), undo));

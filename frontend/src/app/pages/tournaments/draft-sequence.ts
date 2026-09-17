@@ -51,10 +51,15 @@ export const DRAFT_LENGTH = DRAFT_SEQUENCE.length;
  * Stored in the flat bans list, because a ban's position is what says whose it was (`bansForTeam`); never a
  * champion: it blocks nothing, is never sent to the advisor, and never counts.
  */
-export const NO_BAN = "-";
+export const NO_BAN = '-';
 
 export function isNoBan(champion: string | null | undefined): boolean {
   return champion === NO_BAN;
+}
+
+/** How a ban reads in words: the champion, or "not seen" for `NO_BAN`. */
+export function banWord(champion: string): string {
+  return isNoBan(champion) ? 'not seen' : champion;
 }
 
 /**
@@ -201,6 +206,127 @@ export function picksLeftInPhase(position: number): number {
     left += 1;
   }
   return left;
+}
+
+/**
+ * How many bans remain before the next pick, including the one on the clock (17 Sep 2026). What "Rest of phase
+ * not seen" writes as `NO_BAN` in one save; zero on a pick step or past the end.
+ */
+export function bansLeftInPhase(position: number): number {
+  if (!Number.isInteger(position) || position < 0) return 0;
+  let left = 0;
+  for (let i = position; i < DRAFT_SEQUENCE.length; i += 1) {
+    if (DRAFT_SEQUENCE[i].action !== 'ban') break;
+    left += 1;
+  }
+  return left;
+}
+
+/**
+ * Everything the sequence will not take, on a ban step or a pick (17 Sep 2026): burned earlier in the series,
+ * drafted by either side, or already banned this game. A confirmed ban is spent, so it stays closed on a ban step
+ * too — the test aids chose from a list that left the bans made out, and Skip bans banned Akshan twice in
+ * Paradox Requiem game 1. Blanks and `NO_BAN` ride along; `blockedSet` drops both.
+ */
+export function sequenceClosed(
+  game: { bans?: readonly string[]; ourChampions?: readonly string[]; theirChampions?: readonly string[] },
+  burned: readonly string[]
+): string[] {
+  return [
+    ...burned,
+    ...(game.ourChampions ?? []).filter(Boolean),
+    ...(game.theirChampions ?? []).filter(Boolean),
+    ...(game.bans ?? [])
+  ];
+}
+
+/** The held line in the confirm slot, in parts: whose step, which, what is held, and where a pick lands. */
+export interface HeldLine {
+  /** Our side or theirs, which is what the line leads with. */
+  readonly who: 'our' | 'their';
+  /** The side's colour this game, for the tint. */
+  readonly colour: DraftTeam;
+  /** "pick 5", "ban 3". */
+  readonly step: string;
+  /** The champion, or "Ban not seen". */
+  readonly champion: string;
+  /** "their Support", or null on a ban or with no seat yet. */
+  readonly seat: string | null;
+}
+
+/**
+ * Whose step a held champion is going into, said before the champion (17 Sep 2026). The slot read "Jinx into ADC",
+ * and on 13 Sep an editor put our Jinx into their step and abandoned the draft; it now reads "Their pick 1 · Jinx →
+ * their ADC" in red when red picks. Null without a step or a side, when there is no sequence to name.
+ */
+export function heldLine(step: DraftStep | null, ourSide: DraftTeam | undefined, champion: string, seat: Role | null): HeldLine | null {
+  if (!step || !ourSide || !champion) return null;
+  const who = step.team === ourSide ? 'our' : 'their';
+  return {
+    who,
+    colour: step.team,
+    step: `${step.action} ${step.ordinal}`,
+    champion: isNoBan(champion) ? 'Ban not seen' : champion,
+    seat: step.action === 'pick' && seat && !isNoBan(champion) ? `${who} ${seat}` : null
+  };
+}
+
+/**
+ * Whose ban a place in the flat list is, in words: "their ban 2" (17 Sep 2026). Read off the sequence the way
+ * `bansForTeam` reads it; null past the tenth or without a side, when there is no order to read.
+ */
+export function banPlaceWords(index: number, ourSide: DraftTeam | undefined): string | null {
+  const team = banTeamAt(index);
+  if (!team || !ourSide) return null;
+  const ordinal = BAN_TEAMS.slice(0, index + 1).filter((t) => t === team).length;
+  return `${team === ourSide ? 'our' : 'their'} ban ${ordinal}`;
+}
+
+/**
+ * A wall click on the bans of a board the sequence is not running (17 Sep 2026): a game filled in freely, or a
+ * finished draft with "Adjust picks or bans" open. `at` is where the clicked champion is already banned, or -1.
+ *
+ * A banned champion comes off. On a drafted board (`ourSide` set) it leaves a ban nobody saw in its place instead
+ * of closing the gap, since a ban's position is what says whose it was and every later ban would change sides. A
+ * new champion fills the first ban nobody saw before it is added at the end: a finished draft holds all ten, so a
+ * not-seen ban read off the client afterwards was a click that did nothing. `filled` is the place it took, if any.
+ */
+export function banWallClick(
+  bans: readonly string[],
+  at: number,
+  name: string,
+  ourSide: DraftTeam | undefined,
+  max: number
+): { bans: string[]; filled: number | null } {
+  const next = [...bans];
+  if (at >= 0) {
+    if (ourSide) next[at] = NO_BAN;
+    else next.splice(at, 1);
+    return { bans: next, filled: null };
+  }
+  const unseen = next.findIndex(isNoBan);
+  if (unseen >= 0) {
+    next[unseen] = name;
+    return { bans: next, filled: unseen };
+  }
+  if (next.length < max) next.push(name);
+  return { bans: next, filled: null };
+}
+
+/** What Enter in the sequence wall's empty search box does: hold a ban nobody saw, confirm it, or nothing. */
+export type EmptyEnterAction = 'hold' | 'confirm' | 'none';
+
+/**
+ * Enter on the sequence wall's empty box (17 Sep 2026). On a ban step with nothing held it holds `NO_BAN`, and with
+ * that held it confirms it, so a missed ban is two Enters. It does nothing with a champion held — whether Enter
+ * should confirm one waits on the lead — nothing on a pick step, where not seen is no answer, and nothing while a
+ * made ban or seat is aimed at, since the replace has the wall. `action` is the step on the clock, absent when no
+ * sequence runs.
+ */
+export function emptyEnterAction(action: DraftAction | null | undefined, held: string | null, replacing: boolean): EmptyEnterAction {
+  if (action !== 'ban' || replacing) return 'none';
+  if (!held) return 'hold';
+  return isNoBan(held) ? 'confirm' : 'none';
 }
 
 /** What Undo would take back from a game at its current step, so the room can ask before removing a pick. */

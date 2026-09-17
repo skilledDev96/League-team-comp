@@ -706,4 +706,17 @@ describe('remakes and missing replays on Patterns (14 Sep 2026)', () => {
     expect(missingReplaysFor(games, series, groups, 'scrimClash')).toEqual([{ id: 'g2', label: 'MOSS game 2' }]);
     expect(missingReplaysFor(games, series, groups, 'flex')).toEqual([]);
   });
+
+  it('never lists a rehearsal in a sandbox series as a missing replay (17 Sep 2026)', () => {
+    const series = [
+      { id: 's1', tournamentId: 'oryx', opponent: 'MAD Synergy' },
+      { id: 'test', tournamentId: 'oryx', opponent: 'test', sandbox: true }
+    ] as unknown as TournamentSeries[];
+    const games = [
+      { id: 'g1', seriesId: 's1', gameNumber: 1, win: true },
+      { id: 't1', seriesId: 'test', gameNumber: 1, win: false }
+    ] as unknown as SeriesGame[];
+    const groups = [{ id: 'oryx', kind: 'tournament' }] as unknown as Tournament[];
+    expect(missingReplaysFor(games, series, groups, 'tournament')).toEqual([{ id: 'g1', label: 'MAD Synergy game 1' }]);
+  });
 });

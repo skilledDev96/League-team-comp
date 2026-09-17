@@ -46,7 +46,9 @@ export function readReplay(
       surrendered: replay.surrendered,
       players: replay.players.map((p) => ({ ...p })),
       objectives: { blue: { ...replay.objectives.blue }, red: { ...replay.objectives.red } },
-      order: opts.order
+      order: opts.order,
+      // The build it was saved on (17 Sep 2026), which says whether it can still be recorded.
+      ...(replay.gameVersion ? { gameVersion: replay.gameVersion } : {})
     }
   };
 }

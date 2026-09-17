@@ -9,26 +9,44 @@ import { RouterLink } from '@angular/router';
 import { ChampionGridComponent } from '../../../shared/champion-grid.component';
 import { ChampionPickerComponent } from '../../../shared/champion-picker.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
+import { ModalDirective } from '../../../shared/modal.directive';
 import {
   blockedSet,
+  BurnGap,
+  COMP_RATE_MIN_GAMES,
   CompAvailability,
   compAvailability,
+  gameAfterPlayed,
   gameHasContent,
+  gapsBefore,
+  gapsLine,
   normalizeChampion,
+  playedGameWrite,
+  playedSeats,
   PoolPressure,
-  poolPressure
+  poolPressure,
+  uniqueChampions
 } from '../draft.util';
 import {
+  bansLeftInPhase,
+  banPlaceWords,
   banTeamAt,
+  banWallClick,
   bansForTeam,
   describeStep,
   DraftStep,
   draftProgress,
+  emptyEnterAction,
+  HeldLine,
+  heldLine,
   isComplete,
+  isNoBan,
   lastPickOfPhase,
+  NO_BAN,
   picksLeftInPhase,
   positionOf,
   seatFor,
+  sequenceClosed,
   stepAt,
   undoTarget
 } from '../draft-sequence';
@@ -53,6 +71,7 @@ import { comfortOf, gamePlan, GamePlan, LaneRead, LaneVerdict, readLanes, SeatIn
 import { countersFor, poolFor, starters } from '../../../core/opponent-view';
 import { playsRole } from '../../../core/champion-lanes';
 import { MAP_SPOTS } from '../../../core/rift-zones';
+import { isSandboxSeries } from '../../../core/sandbox-series';
 import { DraftAdvisorService } from '../../../services/draft-advisor.service';
 import { DraftAdvice, SavedDraftAdvice } from '../../../models/team.models';
 import { CompIdentity, IDENTITY_ICON, IDENTITY_LABEL, classifyComp } from '../../../core/comp-identity';
@@ -111,7 +130,8 @@ const LAYOUT_KEY = 'bom-draft-layout';
     FormsModule,
     ChampionGridComponent,
     ChampionPickerComponent,
-    TooltipDirective
+    TooltipDirective,
+    ModalDirective
   ],
   templateUrl: './draft.component.html'
 })
@@ -207,9 +227,17 @@ export class TournamentDraftComponent implements OnInit {
    */
   protected readonly devAids = signal(readDevAids());
 
+  /**
+   * And only on a sandbox series (17 Sep 2026). Random bans written into a real series are read as real by the
+   * burn lists, the advisor and the review lockouts; a ban nobody saw is "Rest of phase not seen", not a test aid.
+   */
+  protected aidsShown(series: TournamentSeries): boolean {
+    return this.devAids() && series.sandbox === true;
+  }
+
   /** Their target bans from scouting that are still on the table. */
   protected targetBans(series: TournamentSeries, game: SeriesGame): string[] {
-    const gone = new Set([...(game.bans ?? []), ...(game.ourChampions ?? []), ...(game.theirChampions ?? [])].filter(Boolean).map((c) => normalizeChampion(c)));
+    const gone = blockedSet(game.bans, game.ourChampions, game.theirChampions);
     return (series.bans ?? []).filter((b) => b && !gone.has(normalizeChampion(b))).slice(0, 5);
   }
   private readonly now = signal(Date.now());
@@ -329,12 +357,15 @@ export class TournamentDraftComponent implements OnInit {
     }
   }
 
-  /** The series being drafted: whatever was picked, else the first live one. */
+  /**
+   * The series being drafted: whatever was picked, else the first live one. A sandbox series is only ever opened by
+   * a click or a link (17 Sep 2026): an open rehearsal game made "vs test" the room everyone landed in.
+   */
   protected draftSeries(): TournamentSeries | undefined {
     const list = this.seriesList();
     return (
       list.find((s) => s.id === this.pickedSeriesId()) ??
-      list.find((s) => this.gamesFor(s.id).some((g) => g.win === undefined)) ??
+      list.find((s) => !isSandboxSeries(s) && this.gamesFor(s.id).some((g) => g.win === undefined)) ??
       list[0]
     );
   }
@@ -435,6 +466,9 @@ export class TournamentDraftComponent implements OnInit {
 
   protected readonly compsShown = signal(false);
   private readonly compsDialog = viewChild<ElementRef<HTMLDialogElement>>('compsDialog');
+
+  /** Games a comp's row needs before it prints "83% · 6"; under it the row says "few games" (17 Sep 2026). */
+  protected readonly COMP_RATE_MIN_GAMES = COMP_RATE_MIN_GAMES;
 
   /** Into the top layer as soon as it is on the page. jsdom has no showModal, and is left alone. */
   private readonly openCompsDialog = afterRenderEffect(() => {
@@ -877,13 +911,18 @@ export class TournamentDraftComponent implements OnInit {
     const aimed = this.target();
     if (aimed.kind === 'ban' && aimed.index !== undefined) {
       const champ = (live.bans ?? [])[aimed.index];
-      return champ ? { label: `the ${champ} ban` } : null;
+      return champ ? { label: this.banLabel(champ) } : null;
     }
     if (aimed.kind === 'pick') {
       const slot = this.pickSlots(live, aimed.side)[aimed.index];
       return slot?.champion ? { label: `${slot.champion} at ${slot.role}` } : null;
     }
     return null;
+  }
+
+  /** "the Ahri ban", or "the not-seen ban" for a ban nobody saw (17 Sep 2026). */
+  private banLabel(champion: string): string {
+    return isNoBan(champion) ? 'the not-seen ban' : `the ${champion} ban`;
   }
 
   protected cancelReplace(): void {
@@ -905,18 +944,23 @@ export class TournamentDraftComponent implements OnInit {
    */
   protected gridTaken(game: SeriesGame): Set<string> {
     if (this.target().kind !== 'ban') return new Set<string>();
-    return new Set((game.bans ?? []).filter(Boolean).map((c) => normalizeChampion(c)));
+    return blockedSet(game.bans);
   }
 
   protected gridPick(game: SeriesGame, name: string): void {
     const aimed = this.target();
 
     if (aimed.kind === 'ban') {
-      const bans = [...(game.bans ?? [])];
+      // A ban nobody saw is filled in place, and on a drafted board a ban taken off leaves one (17 Sep 2026):
+      // with all ten in, a not-seen ban read off the client afterwards used to be a click that did nothing.
+      const bans = game.bans ?? [];
       const at = bans.findIndex((b) => normalizeChampion(b) === normalizeChampion(name));
-      if (at >= 0) bans.splice(at, 1);
-      else if (bans.length < MAX_BANS) bans.push(name);
-      this.setGameBans(game, bans);
+      const click = banWallClick(bans, at, name, game.ourSide, MAX_BANS);
+      this.setGameBans(game, click.bans);
+      if (click.filled !== null) {
+        const place = banPlaceWords(click.filled, game.ourSide);
+        this.toast.show(`Replaced the not-seen ban with ${name}${place ? ` (${place})` : ''}`);
+      }
       return;
     }
 
@@ -987,6 +1031,155 @@ export class TournamentDraftComponent implements OnInit {
     );
   }
 
+  // ---- A game played without the room (17 Sep 2026) -------------------------------------------------
+  //
+  // On 10 Sep Paradox Requiem's games 1 and 2 were back-filled through the live sequence with the Skip
+  // bans test aid two minutes before game 3, which wrote random bans; nothing had said the two games
+  // were empty, and an empty earlier game leaves the burn, the advisor and the Comps popup wrong. The
+  // side question now names those games, and offers to enter a played game whole: our side, both fives
+  // in seat order, the result when there is one. One dialog, in the top layer, so nothing in the room
+  // moves while it is open.
+
+  /** Earlier games of a fearless series short of five picks a side. A series that burns nothing misses nothing. */
+  protected sideGaps(game: SeriesGame): BurnGap[] {
+    return this.ctx.isFearless(game.seriesId) ? gapsBefore(this.gamesFor(game.seriesId), game.gameNumber) : [];
+  }
+
+  protected readonly gapsLine = gapsLine;
+
+  /** The game being entered, and the game the room was showing when the dialog opened. */
+  private readonly playedGameId = signal('');
+  private readonly playedFromId = signal('');
+  protected readonly playedGame = computed(() => {
+    const id = this.playedGameId();
+    return id ? this.data.seriesGames().find((g) => g.id === id) : undefined;
+  });
+  protected readonly playedSide = signal<'blue' | 'red' | null>(null);
+  protected readonly playedOurs = signal<string[]>([]);
+  protected readonly playedTheirs = signal<string[]>([]);
+  protected readonly playedWin = signal<boolean | undefined>(undefined);
+
+  /** A game deleted, or the room left without a game, while the dialog is open closes it rather than leaving it armed. */
+  private readonly dropPlayedWithoutGame = effect(() => {
+    if (this.playedGameId() && (!this.playedGame() || !this.draftGame())) untracked(() => this.playedGameId.set(''));
+  });
+
+  /** Open the dialog on a game, filled with whatever it already holds. */
+  protected openPlayed(gameId: string, from: SeriesGame): void {
+    const game = this.data.seriesGames().find((g) => g.id === gameId);
+    if (!game) return;
+    // Game 1's side is the one the pre-series 1v1 settled, when Prep recorded it.
+    const agreed = game.gameNumber === 1 ? this.data.tournamentSeries().find((s) => s.id === game.seriesId)?.side : undefined;
+    this.playedSide.set(game.ourSide ?? agreed ?? null);
+    this.playedOurs.set([...(game.ourChampions ?? [])]);
+    this.playedTheirs.set([...(game.theirChampions ?? [])]);
+    this.playedWin.set(game.win);
+    this.playedFromId.set(from.id);
+    this.playedGameId.set(game.id);
+  }
+
+  protected closePlayed(): void {
+    this.playedGameId.set('');
+  }
+
+  /**
+   * Escape in a picker whose list is showing closes the list and keeps the form: the dialog's cancel
+   * would otherwise throw away every champion typed so far. The picker closes its list only on Escape in
+   * its own input, and has already asked to by the time the key reaches here (the list is still on the
+   * page until the view updates). With focus on an option or a chip instead, nothing closed the list and
+   * every Escape was swallowed until a click outside (review, 17 Sep 2026), so focus goes back to the
+   * input and the Escape is handed to it there. A picker with no input, all five in, has no list to close,
+   * and the Escape cancels the dialog as usual.
+   */
+  protected keepPlayedOpen(event: Event): void {
+    const target = event.target as HTMLElement | null;
+    const picker = target?.closest?.('.champ-picker');
+    const input = picker?.querySelector<HTMLInputElement>('.champ-picker-input');
+    if (!input || !picker?.querySelector('.champ-picker-menu, .champ-picker-none')) return;
+    event.preventDefault();
+    if (target === input) return;
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  }
+
+  /** Win and Loss are optional: pressing the chosen one again takes the result off. */
+  protected togglePlayedWin(win: boolean): void {
+    this.playedWin.update((was) => (was === win ? undefined : win));
+  }
+
+  /** Counted off the seats Save writes, so the note never promises a champion the save would cut. */
+  private filledSeats(list: readonly string[]): number {
+    return playedSeats(list).filter(Boolean).length;
+  }
+
+  /** The seat the next champion lands in: a seated picker fills the first empty one, Top to Support. */
+  protected nextSeat(list: readonly string[]): Role | '' {
+    return this.roles.find((_, i) => !list[i]?.trim()) ?? '';
+  }
+
+  protected seatPlaceholder(list: readonly string[]): string {
+    const seat = this.nextSeat(list);
+    return seat ? `${seat}…` : '';
+  }
+
+  /**
+   * What neither five can take: the other five in this dialog, and in a fearless series every champion
+   * another game of it holds. Bans are not refused, because a back-filled game's bans are the ones this
+   * dialog exists to stop trusting.
+   */
+  protected playedUnavailable(game: SeriesGame, side: DraftSide): string[] {
+    const across = side === 'our' ? this.playedTheirs() : this.playedOurs();
+    if (!this.ctx.isFearless(game.seriesId)) return across.filter(Boolean);
+    const others = this.gamesFor(game.seriesId).filter((g) => g.id !== game.id);
+    return uniqueChampions(across, ...others.map((g) => g.ourChampions), ...others.map((g) => g.theirChampions));
+  }
+
+  protected readonly playedCanSave = computed(
+    () => !!this.playedSide() && this.filledSeats(this.playedOurs()) + this.filledSeats(this.playedTheirs()) > 0
+  );
+
+  /** One muted line under the form: what Save still needs, else how many champions the burn will miss. */
+  protected readonly playedNote = computed(() => {
+    const game = this.playedGame();
+    if (!game) return '';
+    if (!this.playedSide()) return 'Choose our side to save.';
+    const filled = this.filledSeats(this.playedOurs()) + this.filledSeats(this.playedTheirs());
+    if (!filled) return 'Add at least one champion to save.';
+    const missing = 10 - filled;
+    if (!missing || !this.ctx.isFearless(game.seriesId)) return '';
+    return `Saved like this, the burn will miss ${missing} champion${missing === 1 ? '' : 's'} from game ${game.gameNumber}.`;
+  });
+
+  /**
+   * Write the game as played, in one save built by `playedGameWrite` (the side, both fives as seats, the
+   * result, the step at the end; the hold and the pick log go, the bans and the rest stay). Then the room
+   * shows the game `gameAfterPlayed` names: the one it was on when an earlier game was entered from the
+   * warning, else the next game still to draft, else this one, whose done bar offers the next game.
+   */
+  protected async savePlayed(): Promise<void> {
+    const game = this.playedGame();
+    const side = this.playedSide();
+    if (!game || !side || !this.playedCanSave()) return;
+    const from = this.playedFromId();
+    const saved = playedGameWrite(this.current(game), {
+      ourSide: side,
+      ours: this.playedOurs(),
+      theirs: this.playedTheirs(),
+      win: this.playedWin()
+    });
+    this.closePlayed();
+    await this.data.updateSeriesGame(saved);
+
+    const after = gameAfterPlayed(this.gamesFor(saved.seriesId), saved, from);
+    if (after.back) {
+      this.pickedGameId.set(after.id);
+      return;
+    }
+    this.selectDraftGame(after.id);
+    this.pending.set(null);
+    this.restartClock();
+  }
+
   /**
    * Who takes the final pick of the phase in progress, in our own terms.
    *
@@ -1014,6 +1207,7 @@ export class TournamentDraftComponent implements OnInit {
    * their bans for them.
    */
   protected banCost(game: SeriesGame, champion: string): string[] {
+    if (isNoBan(champion)) return [];
     return compsUsing(
       champion,
       this.compAvailability(game.seriesId),
@@ -1135,7 +1329,7 @@ export class TournamentDraftComponent implements OnInit {
   protected pendingSeat(game: SeriesGame): Role | null {
     const champ = this.pending();
     const step = this.step(game);
-    if (!champ || !step || step.action !== 'pick') return null;
+    if (!champ || isNoBan(champ) || !step || step.action !== 'pick') return null;
 
     const taken = this.pickSlots(game, this.sideOfStep(game)).map((s) => s.champion);
 
@@ -1178,7 +1372,7 @@ export class TournamentDraftComponent implements OnInit {
       if (!was) return;
       bans[aimed.index] = name;
       await this.data.updateSeriesGame({ ...live, bans });
-      this.toast.show(`Replaced the ${was} ban with ${name}`);
+      this.toast.show(`Replaced ${this.banLabel(was)} with ${name}`);
     } else if (aimed.kind === 'pick') {
       const picks = [...((aimed.side === 'our' ? live.ourChampions : live.theirChampions) ?? [])];
       const was = picks[aimed.index];
@@ -1211,6 +1405,84 @@ export class TournamentDraftComponent implements OnInit {
     void this.data.updateSeriesGame({ ...live, holding: name ?? undefined });
   }
 
+  protected readonly isNoBan = isNoBan;
+
+  /** The held line in the confirm slot, in parts: whose step and which, what is held, and the seat (17 Sep 2026). */
+  protected held(game: SeriesGame): HeldLine | null {
+    const champ = this.pending();
+    return champ ? heldLine(this.step(game), game.ourSide, champ, this.pendingSeat(game)) : null;
+  }
+
+  /**
+   * Enter in the sequence wall's empty search box (17 Sep 2026). On a ban step with nothing held it holds a ban
+   * nobody saw, and with that held it locks it: a missed ban is two Enters, not a junk champion off the wall's first
+   * row that the burn lists, the advisor and the review lockouts then read as real. The rule itself is
+   * `emptyEnterAction`, pure and tested: nothing with a champion held, on a pick step, or while a replace is aimed.
+   */
+  protected wallEmptyEnter(): void {
+    const game = this.draftGame();
+    if (!game || !this.auth.editing()) return;
+    const live = this.current(game);
+    if (!this.sequenceActive(live)) return;
+    const action = emptyEnterAction(this.step(live)?.action, this.pending(), !!this.replacing(live));
+    if (action === 'hold') {
+      this.pending.set(NO_BAN);
+      this.writeHold(NO_BAN);
+    } else if (action === 'confirm') {
+      void this.confirmPending(live);
+    }
+  }
+
+  /** How many bans "Rest of phase not seen" would write from here: the bans left before the next pick. */
+  protected bansLeft(game: SeriesGame): number {
+    return this.sequenceActive(game) ? bansLeftInPhase(positionOf(game)) : 0;
+  }
+
+  /**
+   * Rest of phase not seen (17 Sep 2026): every ban left before the next pick, written as `NO_BAN` in one save, for
+   * an operator who joined late or lost the thread mid-phase. Not a test aid, so any editor on any series. Undo in
+   * the toast takes them all back while the draft has not moved since; after that each one is replaced in place by
+   * aiming at it, like any other ban.
+   */
+  protected async restOfPhaseNotSeen(game: SeriesGame): Promise<void> {
+    if (this.committing()) return;
+    const live = this.current(game);
+    if (!this.sequenceActive(live) || this.step(live)?.action !== 'ban') return;
+    const from = positionOf(live);
+    const count = bansLeftInPhase(from);
+    if (!count) return;
+
+    this.committing.set(true);
+    try {
+      const bans = [...(live.bans ?? []), ...Array.from({ length: count }, () => NO_BAN)];
+      await this.data.updateSeriesGame({ ...live, bans, draftStep: from + count, holding: undefined });
+      this.pending.set(null);
+      this.wall()?.chooseLane(null);
+      this.restartClock();
+    } finally {
+      this.committing.set(false);
+    }
+    this.toast.show(count === 1 ? 'Ban marked not seen' : `${count} bans marked not seen`, {
+      icon: 'visibility_off',
+      timeout: 12000,
+      action: { label: 'Undo', run: () => void this.undoNotSeen(game, from, count) }
+    });
+  }
+
+  /** Take back what "Rest of phase not seen" wrote, only while those bans are still the last thing that happened. */
+  private async undoNotSeen(game: SeriesGame, from: number, count: number): Promise<void> {
+    const now = this.current(game);
+    const bans = now.bans ?? [];
+    const stillLast = positionOf(now) === from + count && bans.length >= count && bans.slice(-count).every(isNoBan);
+    if (!stillLast) {
+      this.toast.show('The bans stayed not seen', { kind: 'warn', text: 'The draft has moved on since. Aim at a ban to replace it.' });
+      return;
+    }
+    await this.data.updateSeriesGame({ ...now, bans: bans.slice(0, -count), draftStep: from, holding: undefined });
+    this.pending.set(null);
+    this.restartClock();
+  }
+
   /** Commit the held champion and advance one step. */
   // ---- Filling the draft automatically ------------------------------------
   //
@@ -1233,7 +1505,9 @@ export class TournamentDraftComponent implements OnInit {
    * for a test the point is to arrive at a full board.
    */
   private autoChoice(game: SeriesGame, action: 'ban' | 'pick'): string | null {
-    const blocked = blockedSet(this.unavailableFor(game, action));
+    // The sequence's own closed list, bans made included (17 Sep 2026): `unavailableFor(game, 'ban')` leaves
+    // them out for the free-form picker's sake, and Skip bans banned Akshan twice in Paradox Requiem game 1.
+    const blocked = blockedSet(this.sequenceUnavailable(game));
     const pool = this.champs
       .champions()
       .map((c) => c.name)
@@ -1255,7 +1529,8 @@ export class TournamentDraftComponent implements OnInit {
    * the slow part and the part nobody is testing. `'end'` fills the rest.
    */
   protected async autoAdvance(game: SeriesGame, until: 'bans' | 'end'): Promise<void> {
-    if (this.autoFilling()) return;
+    const series = this.draftSeries();
+    if (this.autoFilling() || !series || !this.aidsShown(series)) return;
     this.autoFilling.set(true);
     try {
       // Bounded by the sequence length: a step that refuses to advance would
@@ -1288,7 +1563,8 @@ export class TournamentDraftComponent implements OnInit {
     const live = this.current(game);
     const step = this.step(live);
     if (!step) return;
-    // Refuse rather than advance with nothing stored.
+    // Refuse rather than advance with nothing stored — or with a not-seen ban, held on a ban step another editor
+    // has since confirmed, about to land in a seat.
     if (this.confirmBlockedReason(live)) return;
 
     this.committing.set(true);
@@ -1404,9 +1680,7 @@ export class TournamentDraftComponent implements OnInit {
    * times over, which is exactly what happened the first time this ran.
    */
   protected sequenceUnavailable(game: SeriesGame): string[] {
-    const step = this.step(game);
-    const base = this.unavailableFor(game, step?.action === 'ban' ? 'ban' : 'pick');
-    return step?.action === 'ban' ? [...base, ...(game.bans ?? [])] : base;
+    return sequenceClosed(game, this.burnedBefore(game.seriesId, game.gameNumber));
   }
 
   /**
@@ -1440,7 +1714,10 @@ export class TournamentDraftComponent implements OnInit {
 
   protected confirmBlockedReason(game: SeriesGame): string | null {
     const step = this.step(game);
-    if (!this.pending() || !step || step.action !== 'pick') return null;
+    const held = this.pending();
+    if (!held || !step) return null;
+    if (isNoBan(held)) return step.action === 'ban' ? null : 'Not seen is for a ban. Cancel it and hold a champion.';
+    if (step.action !== 'pick') return null;
     if (this.pendingSeat(game)) return null;
     const side = this.sideOfStep(game) === 'our' ? this.teamName() : (this.draftSeries()?.opponent ?? 'They');
     return `${side} already have five champions — clear a seat first.`;
@@ -1507,7 +1784,7 @@ export class TournamentDraftComponent implements OnInit {
     const all = this.compAvailability(game.seriesId);
     const playable = all.filter((c) => c.playable).length;
     const burned = this.burnedBeforeCount(game);
-    const banned = (game.bans ?? []).filter(Boolean).length;
+    const banned = blockedSet(game.bans).size;
 
     const parts = [
       `Across the ${playable} of ${all.length} comps still reachable`,
@@ -1880,7 +2157,8 @@ export class TournamentDraftComponent implements OnInit {
       seat,
       ourPicks: pickMap('our'),
       theirPicks: pickMap('their'),
-      bans: (live.bans ?? []).filter(Boolean),
+      // A ban nobody saw is not a champion the model should weigh (17 Sep 2026).
+      bans: (live.bans ?? []).filter((c) => c && !isNoBan(c)),
       burned: this.burnedBefore(live.seriesId, live.gameNumber),
       ourRoster: this.data.starters().map((p) => ({ name: p.name, role: p.role, pool: (p.top3 ?? []).slice(0, 10) })),
       theirRoster: theirs.map((p) => ({
@@ -2108,7 +2386,14 @@ export class TournamentDraftComponent implements OnInit {
   protected targetLabel(game: SeriesGame): string {
     const aimed = this.target();
     if (aimed.kind === 'ban') {
-      return `Bans — ${(game.bans ?? []).length} of ${MAX_BANS}`;
+      // Say which ban the click fills while one was not seen (17 Sep 2026), since that is where it lands.
+      const bans = game.bans ?? [];
+      const unseen = bans.findIndex(isNoBan);
+      if (unseen >= 0) {
+        const place = banPlaceWords(unseen, game.ourSide);
+        return place ? `${place}, not seen` : 'the not-seen ban';
+      }
+      return `Bans — ${bans.length} of ${MAX_BANS}`;
     }
     const side = aimed.side === 'our' ? this.teamName() : this.draftSeries()?.opponent ?? 'Opponent';
     return `${side} — ${this.roles[aimed.index]}`;

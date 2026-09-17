@@ -8,6 +8,7 @@ import { mvpGameFromRow, mvpOf } from './game-mvp';
 import { donutSegments } from './home-charts';
 import { HomeAdviceLine, HomeHandTrophy, HomeInput, HomeLineupCard, HomeModel, HomeNextSeries, HomeRecords, HomeSlide, HomeSpotlight, HomeWelcome } from './home-model';
 import { parseLocalDate } from './local-date';
+import { sandboxMatchIds } from './sandbox-series';
 import { welcomeFor } from './home-welcome';
 import { lastCrown, mvpRace, podium, titlesById } from './mvp-race';
 import { nextOpenSeries, seriesCrowns } from './series-results';
@@ -149,7 +150,8 @@ function lineupOf(starters: readonly Player[], allLines: readonly PlayerLine[], 
  * rates. The spotlight and the race's foot name the newest crowned series whatever the season, because a
  * split that has only just begun has not crowned anybody and the last MVP is still the last MVP. The
  * trophy cabinet reads everything and marks what fell inside the season. Practice-tagged games count
- * nowhere, as on Patterns.
+ * nowhere, as on Patterns, and a sandbox series (17 Sep 2026) is nowhere at all: not the next series, not
+ * finished, not crowned, and none of its games in a count.
  */
 export function buildHome(i: HomeInput): HomeModel {
   const rows = buildGameRows({
@@ -252,7 +254,11 @@ export function buildHome(i: HomeInput): HomeModel {
   const entries = mvpRace(seasonCrowns, i.players);
 
   const tournamentIds = tournamentMatchIds(i.tournaments, i.series, i.seriesGames);
-  const inputs = patternInputs(withoutRemakes(i.analysis), i.patternFilters ?? DEFAULT_PATTERN_FILTERS, { practice: i.practice, tournamentIds, roster: i.players });
+  // The analysis folds in every stored replay, a rehearsal's included: those are left out of the advice and the
+  // trophies the way the rows already leave them out (17 Sep 2026), and no filter brings them back.
+  const sandbox = sandboxMatchIds(i.series, i.seriesGames);
+  const teamAnalysis = withoutRemakes(i.analysis).filter((g) => !sandbox.has(g.matchId));
+  const inputs = patternInputs(teamAnalysis, i.patternFilters ?? DEFAULT_PATTERN_FILTERS, { practice: i.practice, tournamentIds, roster: i.players });
   const wins = inputs.games.filter((g) => g.win).length;
   // Keep doing leaves out every subject Work on holds, over Work on's whole list and not the lines Home
   // prints of it, so the two columns here agree with the Patterns tab's (14 Sep 2026).
@@ -305,7 +311,7 @@ export function buildHome(i: HomeInput): HomeModel {
     objectives: objectiveControl(seasonGames),
     trophies: achievementsOf({
       rows: serious,
-      analysis: withoutRemakes(i.analysis).filter((g) => !i.practice.has(g.matchId)),
+      analysis: teamAnalysis.filter((g) => !i.practice.has(g.matchId)),
       finished,
       titlesByName,
       longestWinStreak: longest?.length ?? 0,

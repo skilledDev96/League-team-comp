@@ -7,6 +7,7 @@ import {
   DRAFT_GAINS,
   draftLockouts,
   MAX_AUTO_REVIEWS,
+  NO_BAN,
   parseGameReviewRequest,
   parsePlayerNotes,
   parseTeamReview,
@@ -812,6 +813,15 @@ describe('parseTeamReview: the draft with hindsight', () => {
     // A banned in, and a banned or burned alternative, each drop the way the enemy's do.
     const banned = parse({ verdict: 'v', swaps: [{ seat: 'Top', out: 'Mordekaiser', in: 'Malphite', why, gains: [], alternatives: [] }, { seat: 'Jungle', out: 'Vi', in: 'Sejuani', why, gains: [], alternatives: ['Malphite', 'Leona', 'Zac'] }] }, game3);
     expect(banned!.swaps.map((s) => [s.in, s.alternatives])).toEqual([['Sejuani', ['Zac']]]);
+  });
+
+  it('leaves a ban nobody saw out of the lockouts (NO_BAN, 17 Sep 2026)', () => {
+    const series = [
+      { gameNumber: 1, matchId: 'EUW1-1', ourChampions: ['Ornn', 'Vi', 'Ahri', 'Jinx', 'Leona'], theirChampions: ['Sion', 'Viego', 'Syndra', 'Caitlyn', 'Rell'], bans: [NO_BAN, 'Akshan'] },
+      { gameNumber: 2, matchId: 'EUW1-2', ourChampions: [], theirChampions: [], bans: ['Ahri', NO_BAN, NO_BAN, 'Yuumi'] }
+    ];
+    expect(draftLockouts('EUW1-2', series, true)).toEqual({ bans: ['Ahri', 'Yuumi'], burned: ['Ornn', 'Vi', 'Ahri', 'Jinx', 'Leona', 'Sion', 'Viego', 'Syndra', 'Caitlyn', 'Rell'] });
+    expect(draftLockouts('EUW1-1', series, false).bans).toEqual(['Akshan']);
   });
 
   it('keeps what the five lacked: known gains once each, at most three, each with a why, under the same Riot-id check as a swap', () => {

@@ -229,11 +229,19 @@ export interface SeriesGameLike {
 }
 
 /**
+ * A ban nobody saw, as the draft room stores it (17 Sep 2026): the app's `NO_BAN` in
+ * `pages/tournaments/draft-sequence.ts`, kept in step by hand. It holds a ban's place in the flat
+ * list, so the side that made each ban can still be read off its position, and closes nothing.
+ */
+export const NO_BAN = '-';
+
+/**
  * What was closed in the draft of the series game carrying `matchId` (14 Sep 2026): that game's
  * own bans and, when the series is fearless, every champion either team played in an EARLIER game
  * of it — a ban in an earlier game burns nothing. `games` is the one series' games in any order. A
  * name is kept once, in its first spelling, compared the way the validator compares. No game
- * carries the id: nothing is known, and both lists are empty.
+ * carries the id: nothing is known, and both lists are empty. A ban nobody saw (`NO_BAN`) is left
+ * out (17 Sep 2026), or the prompt would print "-" among the banned champions.
  */
 export function draftLockouts(matchId: string, games: readonly SeriesGameLike[], fearless: boolean): { bans: string[]; burned: string[] } {
   const game = games.find((g) => g.matchId === matchId);
@@ -242,7 +250,7 @@ export function draftLockouts(matchId: string, games: readonly SeriesGameLike[],
     const seen = new Set<string>();
     const out: string[] = [];
     for (const n of names) {
-      if (typeof n !== 'string' || !n.trim()) continue;
+      if (typeof n !== 'string' || !n.trim() || n === NO_BAN) continue;
       const key = norm(displayChampionName(n));
       if (seen.has(key)) continue;
       seen.add(key);

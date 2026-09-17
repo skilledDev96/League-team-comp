@@ -1,5 +1,5 @@
 import { AnalysisGame, ChampionTraits, Role, SeriesGame } from '../../models/team.models';
-import { CompAvailability, normalizeChampion } from './draft.util';
+import { CompAvailability, normalizeChampion, wilsonLowerBound } from './draft.util';
 
 /**
  * What to pick next, answered from our own record rather than a win rate.
@@ -142,9 +142,6 @@ export function ownRecord(
   };
 }
 
-/** 95% confidence, the usual choice for a lower bound like this. */
-const Z = 1.96;
-
 /**
  * The win rate this record can actually support, not the one it happens to show.
  *
@@ -161,19 +158,13 @@ const Z = 1.96;
  * shrinks to 60%, which beats a genuine 57%.
  *
  * This is the same mistake the panel exists to stop the team making: a small
- * sample looking like a strong one.
+ * sample looking like a strong one. The bound itself lives in draft.util as
+ * `wilsonLowerBound` since 17 Sep 2026, so the Comps popup orders comps on the
+ * same maths; the spec pins these scores to what they were before the move.
  */
 export function confidenceScore(suggestion: ChampionSuggestion): number {
   if (suggestion.projected === undefined) return 0;
-
-  const n = Math.max(suggestion.games, 0);
-  if (n <= 0) return 0;
-
-  const p = Math.min(Math.max(suggestion.projected / 100, 0), 1);
-  const denominator = 1 + (Z * Z) / n;
-  const centre = p + (Z * Z) / (2 * n);
-  const margin = Z * Math.sqrt((p * (1 - p) + (Z * Z) / (4 * n)) / n);
-  return ((centre - margin) / denominator) * 100;
+  return wilsonLowerBound(suggestion.projected, suggestion.games);
 }
 
 

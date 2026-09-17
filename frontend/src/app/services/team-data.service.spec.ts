@@ -95,6 +95,88 @@ describe('TeamDataService in local mode', () => {
     });
   });
 
+  describe('Download team data (17 Sep 2026)', () => {
+    it('stamps what it is and when, and carries every hand-entered collection and singleton doc', async () => {
+      const seriesId = await data.createSeries({ tournamentId: 't1', opponent: 'Paradox Requiem', bestOf: 3 });
+      await data.createSeriesGame({ seriesId, gameNumber: 1, matchId: 'EUW1-7979450974', ourChampions: [], theirChampions: [] });
+      await data.saveScrim({ id: 'EUW1-7979450974', playedOn: '2026-09-10T20:18:12.686Z', durationSec: 2201, blueWon: true, gameVersion: '16.18.815.9717', players: [], order: 0 });
+      await data.saveMatchNote('EUW1-7979450974', 'Their jungler starts bot');
+      await data.saveFilmNote('EUW1-7979450974', 'd:4:ADC', 'Hold the wave.');
+      const trophyId = await data.createTrophy({ title: 'Split 1 champions', placement: 1 });
+
+      const exported = data.exportTeamData();
+      expect(exported.app).toBe('bom-squad');
+      expect(exported.version).toBe(1);
+      expect(Number.isNaN(Date.parse(exported.exportedAt))).toBe(false);
+      expect(Object.keys(exported).sort()).toEqual(
+        [
+          'app', 'version', 'exportedAt', 'settings', 'teamIdentity', 'resourceLinks', 'players', 'fillIns', 'comps',
+          'compResults', 'compOverrides', 'practiceGames', 'tournaments', 'tournamentSeries', 'seriesGames', 'scrims',
+          'scrimOpponents', 'matchNotes', 'filmNotes', 'filmCommitments', 'plays', 'painPoints', 'learnEntries',
+          'trophies', 'gameReviews', 'accessEntries'
+        ].sort()
+      );
+      expect(exported.players).toEqual(data.players());
+      expect(exported.tournamentSeries.map((s) => s.id)).toContain(seriesId);
+      expect(exported.scrims[0].gameVersion).toBe('16.18.815.9717');
+      expect(exported.matchNotes.map((n) => n.text)).toEqual(['Their jungler starts bot']);
+      expect(exported.filmNotes[0].notes['d:4:ADC'].text).toBe('Hold the wave.');
+      expect(exported.trophies.map((t) => t.id)).toEqual([trophyId]);
+      expect(exported.settings).toEqual(data.settings());
+    });
+
+    it('leaves out what a refresh writes again: the analysis and the self-scout', () => {
+      data.compAnalysis.set({ games: [] } as never);
+      data.selfScout.set({ players: [] } as never);
+      const exported = data.exportTeamData() as unknown as Record<string, unknown>;
+      expect(exported).not.toHaveProperty('compAnalysis');
+      expect(exported).not.toHaveProperty('selfScout');
+      expect(exported).not.toHaveProperty('championTraits');
+      expect(exported).not.toHaveProperty('refreshLog');
+    });
+
+    it('is plain data: it reads back from JSON as it went in', () => {
+      const exported = data.exportTeamData();
+      expect(JSON.parse(JSON.stringify(exported))).toEqual(exported);
+    });
+
+    it('writes no Riot id of the other side: a replay carries all ten, and the file keeps ours and their champions', async () => {
+      // Their names, as a .rofl carries them; the app prints none of them, so the file must not either.
+      const THEIRS = ['RivalTopLaner', 'RivalJungler', 'RivalMid', 'RivalMarksman', 'RivalSupport'];
+      const OURS = ['Rulukuku', 'Go10x', 'DrunkenBannana', 'SkilledScarecrow', 'DaWhiteHammer'];
+      const TAGS = ['EUW', 'EUW', 'EUW', '42096', 'EUW'];
+      const seat = (name: string, tag: string, champion: string, team: number) =>
+        ({ name, tag, champion, team, win: team === 200, position: 'TOP', kills: 1, deaths: 1, assists: 1, gold: 9000, damage: 9000, damageToBuildings: 0, damageTaken: 9000, visionScore: 10, cs: 150 });
+      const ten = (oursOn: number) => [
+        ...OURS.map((n, i) => seat(n, TAGS[i], `Ours${i}`, oursOn)),
+        ...THEIRS.map((n, i) => seat(n, 'RVL9', `Theirs${i}`, oursOn === 100 ? 200 : 100))
+      ];
+      // Our five on red, told by their names alone.
+      await data.saveScrim({ id: 'EUW1-7979450974', playedOn: '2026-09-10T20:18:12.686Z', durationSec: 2201, blueWon: false, players: ten(200), order: 0 });
+      // A file the roster cannot place: two of ours on each side (a fill-in took the fifth seat) and no side stored.
+      const unplacedPlayers = [
+        seat(OURS[0], TAGS[0], 'Ours0', 100), seat(OURS[1], TAGS[1], 'Ours1', 100), seat(THEIRS[0], 'RVL9', 'Theirs0', 100), seat(THEIRS[1], 'RVL9', 'Theirs1', 100), seat(THEIRS[2], 'RVL9', 'Theirs2', 100),
+        seat(OURS[2], TAGS[2], 'Ours2', 200), seat(OURS[3], TAGS[3], 'Ours3', 200), seat(THEIRS[3], 'RVL9', 'Theirs3', 200), seat(THEIRS[4], 'RVL9', 'Theirs4', 200), seat('FillInFriend', 'EUW', 'Ours4', 200)
+      ];
+      await data.saveScrim({ id: 'EUW1-7979537790', playedOn: '2026-09-10T21:02:00.000Z', durationSec: 1900, blueWon: true, players: unplacedPlayers, order: 1 });
+
+      const exported = data.exportTeamData();
+      const file = JSON.stringify(exported);
+      for (const name of [...THEIRS, 'RVL9']) expect(file).not.toContain(name);
+
+      const red = exported.scrims.find((s) => s.id === 'EUW1-7979450974')!;
+      expect(red.players.filter((p) => p.team === 100).map((p) => [p.name, p.tag, p.champion])).toEqual(THEIRS.map((_, i) => ['', '', `Theirs${i}`]));
+      expect(red.players.filter((p) => p.team === 200).map((p) => `${p.name}#${p.tag}`)).toEqual(OURS.map((n, i) => `${n}#${TAGS[i]}`));
+      // Which five are theirs is unknown there, so only the roster's names stay, and every champion does.
+      const unplaced = exported.scrims.find((s) => s.id === 'EUW1-7979537790')!;
+      expect(unplaced.players.map((p) => p.name)).toEqual([OURS[0], OURS[1], '', '', '', OURS[2], OURS[3], '', '', '']);
+      expect(unplaced.players.map((p) => p.champion)).toEqual(unplacedPlayers.map((p) => p.champion));
+
+      // The export is a copy: the replays in the app keep every name.
+      expect(data.scrims().find((s) => s.id === 'EUW1-7979450974')!.players.map((p) => p.name)).toContain('RivalMid');
+    });
+  });
+
   it('starts in local mode and seeds itself', () => {
     expect(data.mode).toBe('local');
     expect(data.players().length).toBeGreaterThan(0);

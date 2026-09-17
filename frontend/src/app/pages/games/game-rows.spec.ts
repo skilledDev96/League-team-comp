@@ -228,6 +228,43 @@ describe('buildGameRows', () => {
     const rows = buildGameRows({ ...base, analysis: [analysis({ matchId: 'r-remake', queue: 'Scrim', durationSec: 180 })], scrims: [replay], seriesGames: [game] });
     expect(rows).toEqual([]);
   });
+
+  // 17 Sep 2026: the rehearsals drafted against "test" in the live group were counting as league games.
+  it('leaves every game of a sandbox series out, and keeps its replay from coming back as a scrim or a Riot row', () => {
+    const sandbox = { id: 'ser-test', tournamentId: 't1', opponent: 'test', bestOf: 3, order: 1, sandbox: true } as unknown as TournamentSeries;
+    const typed = { id: 'g-typed', seriesId: 'ser-test', gameNumber: 1, win: true, ourChampions: ['Aatrox'], theirChampions: ['Renekton'] } as unknown as SeriesGame;
+    const withReplay = { id: 'g-replay', seriesId: 'ser-test', gameNumber: 2, win: true, matchId: 'r-test', ourChampions: [], theirChampions: [] } as unknown as SeriesGame;
+    const real = { id: 'g-real', seriesId: 'ser1', gameNumber: 1, win: false, ourChampions: ['Ornn'], theirChampions: ['Ahri'] } as unknown as SeriesGame;
+    const rows = buildGameRows({
+      ...base,
+      series: [cup, block, sandbox],
+      analysis: [analysis({ matchId: 'r-test', queue: 'Scrim' })],
+      scrims: [scrim({ id: 'r-test' })],
+      seriesGames: [typed, withReplay, real]
+    });
+    expect(rows.map((r) => r.id)).toEqual(['series-g-real']);
+    expect(record(rows)).toEqual({ games: 1, wins: 0, losses: 1, winRate: 0 });
+  });
+
+  // 17 Sep 2026, from the review: a rehearsal's result toggled back off makes no row and so claims nothing, and its
+  // replay came back as a Scrim row — through the analysis, or through the scrims store when the analysis lacks it.
+  it('keeps the replay of a sandbox game with no result out, whether the analysis or only the scrims store holds it', () => {
+    const sandbox = { id: 'ser-test', tournamentId: 't1', opponent: 'test', bestOf: 3, order: 1, sandbox: true } as unknown as TournamentSeries;
+    const unresolved = { id: 'g-off', seriesId: 'ser-test', gameNumber: 1, matchId: 'r-test', ourChampions: [], theirChampions: [] } as unknown as SeriesGame;
+    const storeOnly = { id: 'g-store', seriesId: 'ser-test', gameNumber: 2, matchId: 'r-store', ourChampions: [], theirChampions: [] } as unknown as SeriesGame;
+    const real = { id: 'g-real', seriesId: 'ser1', gameNumber: 1, win: false, ourChampions: ['Ornn'], theirChampions: ['Ahri'] } as unknown as SeriesGame;
+    const sources = {
+      ...base,
+      analysis: [analysis({ matchId: 'r-test', queue: 'Scrim', win: true })],
+      scrims: [scrim({ id: 'r-test' }), scrim({ id: 'r-store' })]
+    };
+    // Without the flag both replays are ordinary scrims, so the case below is the flag at work and not a sideless file.
+    const asScrims = buildGameRows({ ...sources, series: [cup, block, { ...sandbox, sandbox: undefined }], seriesGames: [unresolved, storeOnly, real] });
+    expect(asScrims.map((r) => r.id).sort()).toEqual(['riot-r-test', 'scrim-r-store', 'series-g-real']);
+    const rows = buildGameRows({ ...sources, series: [cup, block, sandbox], seriesGames: [unresolved, storeOnly, real] });
+    expect(rows.map((r) => r.id)).toEqual(['series-g-real']);
+    expect(record(rows)).toEqual({ games: 1, wins: 0, losses: 1, winRate: 0 });
+  });
 });
 
 /**

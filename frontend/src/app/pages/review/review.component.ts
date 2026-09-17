@@ -16,6 +16,7 @@ import { SplitCellComponent } from '../../shared/split-cell.component';
 import { SplitViewToggleComponent } from '../../shared/split-view-toggle.component';
 import { TablePrefsService } from '../../services/table-prefs.service';
 import { effectiveComp } from '../../core/comp-alias';
+import { sandboxMatchIds } from '../../core/sandbox-series';
 import {
   commonestFactor,
   formatDuration,
@@ -116,10 +117,14 @@ export class ReviewComponent {
   /** Serious games only by default; a game tagged as messing around is left out. */
   protected readonly seriousOnly = signal(ReviewComponent.storedFilters().prep);
 
-  /** Comp and champion filters applied, every game, tagged or not. */
+  /**
+   * Comp and champion filters applied, every game, tagged or not — except a replay filed under a sandbox series
+   * (17 Sep 2026), which is a rehearsal and not a team game, so not even All brings it back.
+   */
   private readonly taggedOrNot = computed<AnalysisGame[]>(() => {
     const comp = this.compFilter();
-    const games = withoutRemakes(this.analysis()?.games ?? []);
+    const sandbox = sandboxMatchIds(this.data.tournamentSeries(), this.data.seriesGames());
+    const games = withoutRemakes(this.analysis()?.games ?? []).filter((game) => !sandbox.has(game.matchId));
     return (comp === 'all' ? games : games.filter((game) => this.compFor(game)?.id === comp)).filter((game) =>
       this.filter.passes(game.players.map((p) => p.champion))
     );

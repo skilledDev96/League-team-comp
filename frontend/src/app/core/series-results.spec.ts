@@ -61,6 +61,13 @@ describe('finishedSeries', () => {
     expect(out[1].endedAt).toBe(Date.parse('2026-09-06T19:30:00.000Z'));
     expect(out[0].endedAt).toBe(new Date(2026, 5, 5).getTime());
   });
+
+  it('never finishes a sandbox series, and its results do not mark an earlier series as played past (17 Sep 2026)', () => {
+    const tournaments = [tournament('cup')];
+    const all = [series('r1', 'cup', 3, 0), series('test', 'cup', 3, 1, { opponent: 'test', sandbox: true })];
+    const games = [game('r1', 1, true), game('test', 1, true), game('test', 2, true)];
+    expect(finishedSeries({ ...base, tournaments, series: all, seriesGames: games })).toEqual([]);
+  });
 });
 
 describe('nextOpenSeries', () => {
@@ -70,6 +77,20 @@ describe('nextOpenSeries', () => {
     expect(nextOpenSeries({ tournaments, series: all, seriesGames: [game('a', 1, true)] })?.id).toBe('b');
     expect(nextOpenSeries({ tournaments, series: all, seriesGames: [game('a', 1, true), game('b', 1, false)] })).toBeNull();
     expect(nextOpenSeries({ tournaments, series: [series('s', 'scrims', 0, 0)], seriesGames: [] })).toBeNull();
+  });
+
+  it('skips a sandbox series and puts a dated series before an undated one (17 Sep 2026)', () => {
+    const tournaments = [tournament('cup')];
+    const all = [
+      series('r1', 'cup', 3, 0, { scheduledAt: '2026-09-10T19:00' }),
+      series('test', 'cup', 3, 1, { opponent: 'test', sandbox: true, scheduledAt: '2026-09-12T19:00' }),
+      series('tbd', 'cup', 3, 2),
+      series('r2', 'cup', 3, 3, { scheduledAt: '2026-09-20T19:30' })
+    ];
+    expect(nextOpenSeries({ tournaments, series: all, seriesGames: [game('r1', 1, true)] })?.id).toBe('r2');
+    expect(nextOpenSeries({ tournaments, series: all, seriesGames: [game('r1', 1, true), game('r2', 1, true)] })?.id).toBe('tbd');
+    // A group holding only the sandbox has no next series at all.
+    expect(nextOpenSeries({ tournaments, series: [all[1]], seriesGames: [] })).toBeNull();
   });
 });
 
@@ -128,5 +149,15 @@ describe('seriesCrowns', () => {
     expect(out.finished.map((f) => f.series.id)).toEqual(['a', 'b']);
     expect(out.crowns.map((c) => c.playerId)).toEqual(['p-adc']);
     expect(out.crownBySeries.get('b')).toBeNull();
+  });
+
+  it('crowns nobody for a sandbox series, however well its games read', () => {
+    const tournaments = [tournament('cup')];
+    const players = [{ id: 'p-adc', name: 'SkilledScarecrow' }];
+    const analysis = [{ matchId: 'm1', date: 5, players: [{ name: 'SkilledScarecrow', position: 'BOTTOM', champion: 'Jinx', kills: 9, deaths: 1, assists: 3, damage: 20_000, killParticipation: 0.7 }], kills: { ours: 12, theirs: 4 } }] as unknown as AnalysisGame[];
+    const out = seriesCrowns({ tournaments, series: [series('test', 'cup', 1, 0, { sandbox: true })], seriesGames: [game('test', 1, true, { matchId: 'm1' })], analysis, scrims: [], players });
+    expect(out.finished).toEqual([]);
+    expect(out.crowns).toEqual([]);
+    expect(out.crownBySeries.size).toBe(0);
   });
 });

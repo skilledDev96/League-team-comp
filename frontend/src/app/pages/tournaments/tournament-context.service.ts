@@ -2,7 +2,15 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
+import { isSandboxSeries } from '../../core/sandbox-series';
 import { blockedSet, CompAvailability, compAvailability, playedGames, PoolPressure, poolPressure, uniqueChampions } from './draft.util';
+import { isNoBan } from './draft-sequence';
+
+/**
+ * A side's picks as champions for the burned lists. A ban nobody saw (`NO_BAN`, 17 Sep 2026) lives in the bans, but
+ * nothing that burns may ever count it as a champion, wherever a stray one lands.
+ */
+const champions = (list: readonly string[] | undefined): string[] => (list ?? []).filter((c) => !isNoBan(c));
 
 /**
  * What the Plan and Draft views both need: which tournament is open, its
@@ -87,10 +95,18 @@ export class TournamentContextService {
     this.openDraft(seriesId, gameId);
   }
 
+  /**
+   * The group's series in their stored order, with a sandbox series after every real one (17 Sep 2026): a rehearsal
+   * such as "vs test" has no business among the draft room's series pills and the Plan cards ahead of the matches
+   * actually coming up. The sort is stable, so everything else keeps the order it was typed in.
+   */
   readonly seriesList = computed<TournamentSeries[]>(() => {
     const t = this.currentTournament();
     if (!t) return [];
-    return this.data.tournamentSeries().filter((s) => s.tournamentId === t.id);
+    return this.data
+      .tournamentSeries()
+      .filter((s) => s.tournamentId === t.id)
+      .sort((a, b) => Number(isSandboxSeries(a)) - Number(isSandboxSeries(b)));
   });
 
   gamesFor(seriesId: string): SeriesGame[] {
@@ -123,7 +139,7 @@ export class TournamentContextService {
     // typed one writes "Wukong", and a Set of the raw strings counted that champion twice.
     const used: string[] = [];
     for (const game of this.gamesFor(seriesId)) {
-      used.push(...(game.ourChampions ?? []), ...(game.theirChampions ?? []));
+      used.push(...champions(game.ourChampions), ...champions(game.theirChampions));
     }
     return uniqueChampions(used);
   }
@@ -138,7 +154,7 @@ export class TournamentContextService {
     const used: string[] = [];
     for (const game of this.gamesFor(seriesId)) {
       if (game.gameNumber >= gameNumber) continue;
-      used.push(...(game.ourChampions ?? []), ...(game.theirChampions ?? []));
+      used.push(...champions(game.ourChampions), ...champions(game.theirChampions));
     }
     return uniqueChampions(used);
   }
@@ -154,8 +170,8 @@ export class TournamentContextService {
     const their: string[] = [];
     for (const game of this.gamesFor(seriesId)) {
       if (game.gameNumber >= gameNumber) continue;
-      our.push(...(game.ourChampions ?? []));
-      their.push(...(game.theirChampions ?? []));
+      our.push(...champions(game.ourChampions));
+      their.push(...champions(game.theirChampions));
     }
     return { our: uniqueChampions(our), their: uniqueChampions(their) };
   }

@@ -2,7 +2,19 @@ import { Injectable, inject, signal } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { getAuthInstance, isFirebaseConfigured } from '../core/firebase';
 import { DraftAdvice } from '../models/team.models';
+import { isNoBan } from '../pages/tournaments/draft-sequence';
 import { ActivityService } from './activity.service';
+
+/**
+ * The request with every ban nobody saw taken out of its bans (17 Sep 2026). `NO_BAN` marks a step, not a champion,
+ * and the model would read "-" as one; filtered here as well as where the room builds the request, so no caller can
+ * send one.
+ */
+export function withoutUnseenBans(request: Record<string, unknown>): Record<string, unknown> {
+  const bans = request['bans'];
+  if (!Array.isArray(bans)) return request;
+  return { ...request, bans: bans.filter((b) => typeof b === 'string' && b && !isNoBan(b)) };
+}
 
 /**
  * One question to the draft advisor, answered by a model on the backend.
@@ -38,7 +50,7 @@ export class DraftAdvisorService {
           const response = await fetch(this.functionUrl(), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
-            body: JSON.stringify(request)
+            body: JSON.stringify(withoutUnseenBans(request))
           });
           const data = (await response.json()) as Partial<DraftAdvice> & { error?: string };
           if (!response.ok) {

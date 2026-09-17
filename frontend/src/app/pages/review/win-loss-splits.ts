@@ -1,4 +1,5 @@
 import { isRemake } from '../../core/game-mvp';
+import { isSandboxSeries } from '../../core/sandbox-series';
 /**
  * What changes between the games we win and the games we lose.
  *
@@ -175,11 +176,12 @@ export function withoutRemakes(games: readonly AnalysisGame[]): AnalysisGame[] {
 
 /**
  * The series games with a result and no replay yet that belong to the source being read (14 Sep 2026): a league game
- * with no replay is news on Tournaments, not on Scrims + Clash.
+ * with no replay is news on Tournaments, not on Scrims + Clash. A rehearsal in a sandbox series is news nowhere
+ * (17 Sep 2026).
  */
 export function missingReplaysFor(
   seriesGames: readonly Pick<SeriesGame, 'id' | 'seriesId' | 'gameNumber' | 'win' | 'matchId'>[],
-  series: readonly Pick<TournamentSeries, 'id' | 'tournamentId' | 'opponent'>[],
+  series: readonly Pick<TournamentSeries, 'id' | 'tournamentId' | 'opponent' | 'sandbox'>[],
   groups: readonly Pick<Tournament, 'id' | 'kind'>[],
   source: GameSource
 ): { id: string; label: string }[] {
@@ -190,7 +192,7 @@ export function missingReplaysFor(
     .filter((g) => g.win !== undefined && !g.matchId)
     .filter((g) => {
       const s = byId.get(g.seriesId);
-      if (!s) return false;
+      if (!s || isSandboxSeries(s)) return false;
       // A series in the scrims group is read under Scrims + Clash; every other group is a tournament.
       return scrimGroups.has(s.tournamentId) === (source === 'scrimClash');
     })

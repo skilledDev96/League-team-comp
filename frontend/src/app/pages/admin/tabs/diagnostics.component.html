@@ -1,5 +1,11 @@
 <section class="card" aria-label="Diagnostics">
-  <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">monitor_heart</span>Diagnostics</h2>
+  <div class="section-head diag-head">
+    <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">monitor_heart</span>Diagnostics</h2>
+    <!-- Everything typed in, as one file (17 Sep 2026): a copy to keep, since a delete by mistake had no other way back. -->
+    <button type="button" class="view-btn is-compact" (click)="downloadTeamData()" appTip="Everything the team entered, as one JSON file: roster, comps, opponents, games, replays, notes, reviews, trophies, settings and access. Not the analysis, which a refresh writes again, and not the other side's Riot ids from the replays">
+      <span class="material-symbols-rounded" aria-hidden="true">download</span>Download team data
+    </button>
+  </div>
   <p class="muted edit-hint">
     Health of the match-analysis pipeline. Admin only — the team doesn't need to see this.
   </p>
@@ -21,7 +27,7 @@
   </p>
   <label class="field field-check">
     <input type="checkbox" [checked]="devAids()" (change)="setDevAids($any($event.target).checked)" name="devAids" />
-    <span>Show the test aids in the draft room <small class="muted">Skip bans and Fill draft, in this browser only. Also on with ?dev=1.</small></span>
+    <span>Show the test aids in the draft room <small class="muted">Skip bans and Fill draft, on sandbox series only, in this browser only. Also on with ?dev=1.</small></span>
   </label>
 
   @if (data.keyHealth(); as k) {
@@ -111,6 +117,112 @@
   } @else {
     <p class="empty-state">No analysis yet.</p>
   }
+
+  <!-- Series audit (17 Sep 2026): what the stored series games say that cannot be true. MAD Synergy's
+       Bo3 read 0–3 with Pantheon theirs twice and one replay filed as two games, and no page said so. -->
+  <h3>Series audit</h3>
+  @if (seriesAudit().length) {
+    <ul class="list-clean series-audit-list">
+      @for (f of seriesAudit(); track $index) {
+        <li class="series-audit-row">
+          <span class="material-symbols-rounded" aria-hidden="true">report</span>
+          <span class="series-audit-text">{{ f.text }}</span>
+          <button type="button" class="view-btn is-compact" (click)="openSeries(f.seriesId)">Open the series</button>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="empty-state">Every fearless series checks out.</p>
+  }
+</section>
+
+<!-- Customs to record (17 Sep 2026): a replay plays only on the patch it was saved on, so the
+     recorder has until the next patch to read a custom, and nothing said which were left. -->
+<section class="card customs-queue" aria-label="Customs to record">
+  <h2 class="title-with-icon"><span class="section-icon material-symbols-rounded">videocam</span>Customs to record</h2>
+  @let q = queue();
+  @if (!data.scrims().length) {
+    <p class="empty-state">No customs imported yet. A replay dropped on Prep &amp; Draft lands here.</p>
+  } @else if (recordedIds() === null && !recordedError()) {
+    <p class="empty-state">Reading which games are recorded…</p>
+  } @else {
+    @if (q.currentPatch) {
+      <p class="muted edit-hint customs-queue-close" [class.is-lapsed]="q.lapsed"
+         [appTip]="closeTip()">
+        <b>{{ q.currentPatch }}</b> ·
+        @if (q.lapsed) {
+          Stopped playing {{ q.estimated ? 'about' : 'on' }} {{ q.closesOn | date: 'd MMM' }}@if (q.estimated) { (estimated)}
+        } @else {
+          Still play until {{ q.estimated ? 'about ' : '' }}{{ q.closesOn | date: 'd MMM' }}@if (q.estimated) { (estimated)}
+        }
+      </p>
+    }
+    @if (recordedError()) {
+      <p class="tag bad" role="alert">Could not read the recordings: {{ recordedError() }} A game already recorded may be listed to record.</p>
+    }
+    @if (q.recordable.length) {
+      <ul class="list-clean customs-queue-list">
+        @for (r of q.recordable; track r.matchId) {
+          <li class="customs-queue-row">
+            <ng-container *ngTemplateOutlet="customsRow; context: { $implicit: r }" />
+            <button type="button" class="view-btn is-compact" (click)="copyRecordCommand(r.matchId)" [appTip]="'Copies npm run record -- ' + r.matchId">
+              <span class="material-symbols-rounded" aria-hidden="true">content_copy</span>Copy command
+            </button>
+          </li>
+        }
+      </ul>
+    } @else if (q.lapsed) {
+      <p class="empty-state">Nothing can be recorded until a replay saved on the next patch is imported.</p>
+    } @else if (q.currentPatch) {
+      <p class="empty-state">Nothing left to record on {{ q.currentPatch }}.</p>
+    } @else {
+      <p class="empty-state">No custom carries its build yet: import the replay again, or run scripts/backfill-replay-versions.mjs.</p>
+    }
+    @if (!recordedError()) {
+      <p class="muted edit-hint">Recorded: <b>{{ q.recorded.length }}</b></p>
+    }
+
+    @if (q.closed.length) {
+      <details class="fold-card customs-queue-fold">
+        <summary class="section-head">
+          <h3>Past their patch ({{ q.closed.length }})</h3>
+          <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+        </summary>
+        <ul class="list-clean customs-queue-list">
+          @for (r of q.closed; track r.matchId) {
+            <li class="customs-queue-row">
+              <ng-container *ngTemplateOutlet="customsRow; context: { $implicit: r }" />
+              <span class="customs-queue-patch">{{ r.patch }}</span>
+            </li>
+          }
+        </ul>
+      </details>
+    }
+    @if (q.unknown.length) {
+      <details class="fold-card customs-queue-fold">
+        <summary class="section-head">
+          <h3>Build unknown ({{ q.unknown.length }})</h3>
+          <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+        </summary>
+        <p class="muted edit-hint">Imported before the build was read. <code>node scripts/backfill-replay-versions.mjs</code> reads it off the files in the Replays folder.</p>
+        <ul class="list-clean customs-queue-list">
+          @for (r of q.unknown; track r.matchId) {
+            <li class="customs-queue-row">
+              <ng-container *ngTemplateOutlet="customsRow; context: { $implicit: r }" />
+              <span class="customs-queue-patch">—</span>
+            </li>
+          }
+        </ul>
+      </details>
+    }
+  }
+  <!-- The cells every row shares: who and which game, when, how long, the id. -->
+  <ng-template #customsRow let-r>
+    <span class="customs-queue-who">{{ r.opponent || 'No opponent' }}@if (r.game) { · {{ r.game }}}@if (r.tournament) { <span class="chip is-compact">Tournament</span>}</span>
+    <span class="customs-queue-when">{{ r.playedOn | date: 'd MMM' }}</span>
+    <span class="customs-queue-length">{{ r.durationSec / 60 | number: '1.0-0' }} min</span>
+    <code class="customs-queue-id">{{ r.matchId }}</code>
+  </ng-template>
 </section>
 
 <!-- What the draft room did, one line per save, so a bug a teammate cannot

@@ -1,19 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { looksLikeFiveOnFive, matchIdFromFilename, parseReplay } from './replay-parse';
+import { buildFromHeader, looksLikeFiveOnFive, matchIdFromFilename, parseReplay, patchOfBuild } from './replay-parse';
 
 /**
  * A replay file in miniature: the "RIOT" magic, some padding standing in for
  * the replay payload, and the metadata object at the end where the real one
  * puts it.
  */
-function fakeReplay(rows: Record<string, unknown>[], gameLengthMs = 1_800_000): ArrayBuffer {
+function fakeReplay(rows: Record<string, unknown>[], gameLengthMs = 1_800_000, head: Uint8Array = new TextEncoder().encode('RIOT')): ArrayBuffer {
   const meta = JSON.stringify({
     gameLength: gameLengthMs,
     lastGameChunkId: 12,
     lastKeyFrameId: 9,
     statsJson: JSON.stringify(rows)
   });
-  const head = new TextEncoder().encode('RIOT');
   const filler = new Uint8Array(2048); // stands in for the replay payload
   const tail = new TextEncoder().encode(meta);
 
@@ -22,6 +21,21 @@ function fakeReplay(rows: Record<string, unknown>[], gameLengthMs = 1_800_000): 
   out.set(filler, head.length);
   out.set(tail, head.length + filler.length);
   return out.buffer;
+}
+
+/**
+ * A header as the client writes it (17 Sep 2026, laid out after real files): the magic, a two-byte
+ * format number, eight bytes this reader does not use, then the build's length in byte 14 and the
+ * build in ASCII. `length` overrides the length byte, to write one that lies.
+ */
+function fakeHeader(build: string, length = build.length): Uint8Array<ArrayBuffer> {
+  const out = new Uint8Array(64);
+  out.set(new TextEncoder().encode('RIOT'), 0);
+  out.set([0x02, 0x00, 0xf6, 0xa1, 0x0a, 0xf0, 0x85, 0x04, 0xa7, 0xee], 4);
+  out[14] = length;
+  out.set(new TextEncoder().encode(build), 15);
+  out.set([0x01, 0x00, 0x00, 0x00, 0x02], 15 + build.length);
+  return out;
 }
 
 /** Riot writes every value in statsJson as a string, numbers included. */
@@ -112,6 +126,53 @@ describe('parseReplay', () => {
     const out = new Uint8Array(1024);
     out.set(head, 0);
     expect(parseReplay(out.buffer)).toBeNull();
+  });
+});
+
+describe('the build a replay was saved on (17 Sep 2026)', () => {
+  it('reads the build from the header onto the game', () => {
+    const game = parseReplay(fakeReplay(tenPlayers(), 1_800_000, fakeHeader('16.18.815.9717')))!;
+    expect(game.gameVersion).toBe('16.18.815.9717');
+    expect(game.players).toHaveLength(10);
+  });
+
+  it('leaves the key off, rather than guessing, when the header carries no build', () => {
+    expect(parseReplay(fakeReplay(tenPlayers()))!).not.toHaveProperty('gameVersion');
+  });
+
+  it('needs only the first 64 bytes, so a backfill never reads a whole file', () => {
+    expect(buildFromHeader(fakeHeader('16.17.803.4410'))).toBe('16.17.803.4410');
+    expect(buildFromHeader(fakeHeader('16.17.803.4410').buffer)).toBe('16.17.803.4410');
+  });
+
+  it('refuses a length past the header, a zero length, text that is not a build and a file that is not a replay', () => {
+    expect(buildFromHeader(fakeHeader('16.18.815.9717', 60))).toBeUndefined();
+    expect(buildFromHeader(fakeHeader('', 0))).toBeUndefined();
+    expect(buildFromHeader(fakeHeader('not a build'))).toBeUndefined();
+    const wrongMagic = fakeHeader('16.18.815.9717');
+    wrongMagic.set(new TextEncoder().encode('NOPE'), 0);
+    expect(buildFromHeader(wrongMagic)).toBeUndefined();
+    expect(buildFromHeader(new Uint8Array(8))).toBeUndefined();
+  });
+});
+
+describe('patchOfBuild', () => {
+  it('names the patch the way the patch notes do: the client counts ten behind the year', () => {
+    expect(patchOfBuild('16.18.815.9717')).toBe('26.18');
+    expect(patchOfBuild('16.17.803.4410')).toBe('26.17');
+    expect(patchOfBuild('16.9.700.1')).toBe('26.9');
+    expect(patchOfBuild('15.24.1.1')).toBe('25.24');
+  });
+
+  it('keeps an older build as its own patch', () => {
+    expect(patchOfBuild('14.23.1.1')).toBe('14.23');
+  });
+
+  it('is empty for anything that is not a build', () => {
+    expect(patchOfBuild(undefined)).toBe('');
+    expect(patchOfBuild(null)).toBe('');
+    expect(patchOfBuild('')).toBe('');
+    expect(patchOfBuild('latest')).toBe('');
   });
 });
 

@@ -47,6 +47,10 @@
       <small class="muted">Applies to the 06:30 run. Off: a game is reviewed when someone presses "Review this game" on Games. On: up to three new games with a timeline, about a dime each; <a [routerLink]="['/admin']" [queryParams]="{ tab: 'diagnostics' }">Diagnostics</a> shows what it spent.</small>
     </span>
   </label>
+  <label class="field admin-next-patch">
+    <span>Next patch on <small class="muted">the day replays saved on this patch stop playing; empty estimates it for Customs to record on Diagnostics</small></span>
+    <input type="date" [ngModel]="ctx.nextPatchOn()" (ngModelChange)="ctx.setNextPatchOn($event)" name="ctx.nextPatchOn" />
+  </label>
   <p class="muted edit-hint">Saves as you change it.</p>
 
   <div class="links" style="margin-top: 0.75rem;">

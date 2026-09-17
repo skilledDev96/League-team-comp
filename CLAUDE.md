@@ -1357,6 +1357,20 @@ shared with Roster) and the hero the shared slim hero (`.hero.is-slim`, `.hero-i
 
 What the audit found in the **stored data** is not code and is corrected (or left for the lead) separately; see `docs/2026-09-14-road-to-the-bracket.md`.
 
+**The roadmap's Fix first release shipped on 17 Sep 2026** (the lead: "lets start with those fixes"). What each part rules:
+
+- **A ban can be 'not seen'.** `NO_BAN` (`'-'`, `draft-sequence.ts`) sits in the flat bans list, because a ban's position is what says whose it was; it is never a champion — `blockedSet`, the burn lists, the advisor request (`withoutUnseenBans`), `draftLockouts` in the api and every chip skip it, and it draws as the dashed empty card. On a ban step, Enter in the wall's empty search holds it and Enter again locks it (`emptyEnterAction`; Enter with a champion held still does nothing — whether a second Enter locks a pick waits on the lead). **Rest of phase not seen** in the step bar writes every ban left before the next pick in one save, for any editor on any series, and claims no width of its own. After a finished draft, a wall click fills the first not-seen ban (`banWallClick`), and unticking a ban on a sided board leaves a not-seen ban rather than shifting the later ones to the other side.
+- **The held line says whose step and seat**: 'OUR pick 1 · Aurelion Sol → our Mid', blue side in `--accent`, red in `--warn` (the side question's pair); only the champion's name gives way.
+- **Skip bans and Fill draft draw only on a sandbox series** with the aids switch on — random bans on a real series read as real. `autoChoice` reads the sequence's closed set, so Skip bans never repeats a ban.
+- **A game played without the room is entered from the side question**: 'Already played, enter it', and in a fearless series a warning with 'Enter game N' when an earlier game is short of five picks a side (`gapsBefore`), both into one `<dialog appModal class="draft-played-dialog">` with seated pickers (`playedGameWrite`, `gameAfterPlayed`). The side modal is `position: fixed`, so neither moves the room.
+- **The Comps popup ranks by confidence**: Still playable by the Wilson lower bound of each comp's record (`wilsonLowerBound`, shared with the advisor's `confidenceScore`), rows read '83% · 6', and under three games a 'few games' chip replaces the rate.
+- **A sandbox series is practice only** (`TournamentSeries.sandbox`, set on the series' edit block or 'Mark as sandbox' on a `test…` head; never derived from the name): `core/sandbox-series.ts` keeps it and its replays out of Next series, crowns, Home, trophies, the Games rows, Patterns and the profile, and it sorts last on Plan and in the room. `nextSeriesId` and `nextOpenSeries` prefer a series with a parseable date.
+- **Fearless series are audited** (`core/series-audit.ts`): a champion twice in one fearless series, a game after the best-of was decided, more games than it allows, one replay on two games, a replay file dated days before its series, and a replay that shares fewer than 8 of 10 champions with the room's pick log. Plan's series head wears a warn chip, Admin › Diagnostics lists them with Open the series, and both import paths (`linkGame` and Plan's `finishReplay`) ask through `importConflicts` before a replay repeats a burned champion, lands in a decided series, contradicts the draft, or replaces a replay already on the game; `importTarget` files a replay on the game whose pick log it matches best.
+- **Customs to record** (Admin › Diagnostics): a replay keeps the build in its header (`Scrim.gameVersion`, `patchOfBuild` maps 16.x to 26.x) and only plays on that patch, so `core/recording-queue.ts` lists what can still be recorded with a Copy command pill, what is recorded, and what is past its patch; the close date is `Settings.nextPatchOn` when it is a plausible next patch, else 13 days after the first custom on the patch. `scripts/backfill-replay-versions.mjs` (dry run by default) stamps the imported scrims from the Replays folder.
+- **Download team data** (Diagnostics) saves `exportTeamData()`: every hand-entered collection and the reviews, not the analysis or anything a refresh rewrites, with the other side's Riot ids blanked from the replays (`scrimForExport`).
+- **A commitment counts only on the sentence it was made on** (`isCurrentCommitment` in `core/film-progress.ts`, case and spacing forgiven): after a re-review the card, the reminder and the review panel say nothing, and the one-thing chapter shows the old sentence muted and asks again; the takeover's gate says the commitment will be asked again.
+- **A native modal dialog is opaque** (`dialog.modal-card` lays `--card` over `--bg-0`): the card token is translucent for splash art, and a dialog over the draft room's side question showed its text through.
+
 **A deep link pins a game, it does not widen the list** (12 Sep 2026).
 `?match=` on `/games` sets `pinnedMatch` and `listRows` prepends that row only
 when the window does not already hold it; `days()` stays where it was. The
@@ -1379,7 +1393,8 @@ somebody signs in.
 
 **Prep opens on the series you have to play** (12 Sep 2026). `nextSeriesId`
 (`pages/tournaments/series-order.ts`) is the first series with no result
-recorded, and the last one when the tournament is over. Read from the games, not
+recorded, and the last one when the tournament is over. Since 17 Sep 2026 it skips a sandbox
+series and takes a dated one before an undated one, so a 'vs test' no longer leads. Read from the games, not
 from `TournamentSeries.status` — that field is only ever written as
 `'scheduled'`, so a rule asking it would quietly do nothing. The stored order is
 left alone. At Starter the roster is one line a player (`topPlays` and

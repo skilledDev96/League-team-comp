@@ -8,6 +8,8 @@ import { rosterIds, scrimSide } from '../pages/games/game-rows';
 import { TeamDataService } from './team-data.service';
 import { ToastService } from './toast.service';
 import { ConfirmRequest, ConfirmService } from './confirm.service';
+import { importConfirm, importConflicts, importRefusal, importTarget } from '../core/series-audit';
+import { UiService } from './ui.service';
 
 type Side = 'blue' | 'red';
 type SeatPlayers = Parameters<typeof seatChampions>[0];
@@ -118,6 +120,8 @@ export function scrimToSave(
   if (existing?.note) saved.note = existing.note;
   const ourSide = side ?? existing?.ourSide;
   if (ourSide) saved.ourSide = ourSide;
+  // A build the backfill wrote stays when a later read of the file finds none (17 Sep 2026).
+  if (!saved.gameVersion && existing?.gameVersion) saved.gameVersion = existing.gameVersion;
   return saved;
 }
 
@@ -209,6 +213,7 @@ export class ReplayImportService {
   private readonly data = inject(TeamDataService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly ui = inject(UiService);
 
   readonly importing = signal(false);
   readonly note = signal('');
@@ -282,10 +287,26 @@ export class ReplayImportService {
     }
 
     const games = all.filter((g) => g.seriesId === series.id).sort((a, b) => a.gameNumber - b.gameNumber);
-    const existing = games.find((g) => g.matchId === read.id);
-    // The next free slot in the block, else the number after the last game.
-    const open = existing ? undefined : games.find((g) => !g.matchId && g.win === undefined && !hasPicks(g));
-    const target = existing ?? open;
+    // The game already carrying the replay, else the game whose draft it fits best (even one holding
+    // another replay, which is asked about below), else the next free slot in the block, else the number
+    // after the last game (17 Sep 2026: a drafted game never counted as free, so its replay became a game 4).
+    const champions = read.replay.players.map((p) => p.champion);
+    const target = importTarget(games, read.id, champions);
+
+    // Asked before anything is written (17 Sep 2026): MAD Synergy's Bo3 read 0–3 with Pantheon theirs
+    // in two games, and the page drew it as a tidy fearless pool.
+    const conflicts = importConflicts({
+      series,
+      tournaments: this.data.tournaments(),
+      games,
+      target: target ?? { gameNumber: games.length + 1 },
+      replayChampions: champions,
+      matchId: read.id,
+      championName: (c) => this.ui.championName(c)
+    });
+    if (conflicts.length && !(await this.confirm.ask(importConfirm(conflicts, target?.gameNumber ?? games.length + 1)))) {
+      return `${read.id} was not linked: ${importRefusal(conflicts)}.`;
+    }
 
     const named = rosterSideOf(read.scrim, rosterIds(this.data.players()));
     const { side, conflict } = replaySide(named, target?.ourSide);

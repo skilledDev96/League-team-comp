@@ -13,6 +13,7 @@ import { UiService } from '../../../services/ui.service';
 import { noteLines } from '../../../core/note-lines';
 import { parseRiotIds } from '../../../core/riot-id';
 import { nextSeriesId } from '../series-order';
+import { isSandboxSeries, looksLikeTestSeries } from '../../../core/sandbox-series';
 import { gameHasContent, normalizeChampion } from '../draft.util';
 import { readReplay, ReplayRead, REPLAY_REQUIREMENTS } from '../../../core/replay-import';
 import { ToastService } from '../../../services/toast.service';
@@ -70,6 +71,7 @@ import { ConfirmService } from '../../../services/confirm.service';
 import { GameMvp, isRemake, MvpGame, mvpGameOfSeriesGame, mvpOf, SeriesMvp, seriesMvpOfGames } from '../../../core/game-mvp';
 import { MvpChipComponent } from '../../../shared/mvp-chip.component';
 import { UserPrefsService } from '../../../services/user-prefs.service';
+import { auditChip, auditSeries, burnedTip, importConfirm, importConflicts, importRefusal, SeriesFinding } from '../../../core/series-audit';
 
 /**
  * Planning a tournament: the schedule, each series, and the prep around it.
@@ -202,6 +204,38 @@ export class TournamentPlanComponent {
   /** Who carried this series, or nothing when no game of it carries figures yet. */
   protected seriesMvp(id: string): SeriesMvp | null {
     return this.seriesMvps().get(id) ?? null;
+  }
+
+  // ---- Series audit (17 Sep 2026) --------------------------------------------
+  //
+  // MAD Synergy's head read 0–3 and "27 burned" from thirty picks, and nothing
+  // said why: the burned list counts a champion once, so Pantheon theirs in two
+  // games and one replay filed as two games all looked tidy. The head now wears
+  // what core/series-audit.ts finds, the same list Admin › Diagnostics reads.
+
+  private readonly audit = computed(() => {
+    const findings = auditSeries({
+      tournaments: this.data.tournaments(),
+      series: this.data.tournamentSeries(),
+      seriesGames: this.data.seriesGames(),
+      scrims: this.data.scrims(),
+      championName: (c) => this.ui.championName(c)
+    });
+    const bySeries = new Map<string, SeriesFinding[]>();
+    for (const f of findings) bySeries.set(f.seriesId, [...(bySeries.get(f.seriesId) ?? []), f]);
+    return bySeries;
+  });
+
+  /** The warn chip beside the burned count: a label and every finding's words, or nothing when it checks out. */
+  protected auditChip(seriesId: string): { label: string; tip: string } | null {
+    return auditChip(this.audit().get(seriesId) ?? []);
+  }
+
+  /** Where else a burned champion went, for the chip of a champion the audit calls repeated. */
+  protected burnedTip(seriesId: string, champion: string): string {
+    const findings = this.audit().get(seriesId);
+    if (!findings?.some((f) => f.kind === 'repeat')) return '';
+    return burnedTip(findings, this.gamesFor(seriesId), champion, (c) => this.ui.championName(c));
   }
 
   // ---- Replays dropped on the page or on a series (9 Sep 2026) --------------------
@@ -504,6 +538,37 @@ export class TournamentPlanComponent {
 
   protected patchSeries(series: TournamentSeries, patch: Partial<TournamentSeries>): void {
     void this.data.updateSeries({ ...series, ...patch });
+  }
+
+  // ---- Sandbox series ------------------------------------------------------
+  //
+  // A series called "test" sat in the live Oryx group, so Home told every viewer
+  // NEXT SERIES vs test and the draft room opened on it (17 Sep 2026). The lead
+  // kept it to rehearse on: the flag is set here by hand and never read off the
+  // name, which only decides whether the head offers to set it.
+
+  protected readonly isSandbox = isSandboxSeries;
+  protected readonly looksLikeTest = looksLikeTestSeries;
+
+  /** Ticked writes `sandbox: true`; unticked removes the key, so an ordinary series stays shaped as it always was. */
+  protected setSandbox(series: TournamentSeries, on: boolean): void {
+    // The live document, not the card's copy: the page is shared and the head's pill writes without opening anything.
+    const live = this.data.tournamentSeries().find((s) => s.id === series.id) ?? series;
+    if (isSandboxSeries(live) === on) return;
+    const { sandbox: _dropped, ...rest } = live;
+    void this.data.updateSeries(on ? { ...rest, sandbox: true } : rest);
+  }
+
+  /** The head's one-press fix for a rehearsal in a live group, with Undo in the toast. */
+  protected markSandbox(series: TournamentSeries): void {
+    this.setSandbox(series, true);
+    this.toast.show(`vs ${series.opponent} is a sandbox`, {
+      text: 'Practice only: it is no longer the next series, and its games stay out of the record, the crowns and the trophies.',
+      kind: 'ok',
+      icon: 'science',
+      timeout: 12000,
+      action: { label: 'Undo', run: () => this.setSandbox(series, false) }
+    });
   }
 
   protected seriesBansValue(series: TournamentSeries): string {
@@ -903,6 +968,22 @@ export class TournamentPlanComponent {
     const filedUnder = filedUnderOtherSeries(existingScrim, series, allSeries);
     if (filedUnder && !(await this.confirm.ask(filedConfirm(read.id, filedUnder, series.opponent)))) {
       note(`Not imported: ${read.id} is filed under ${filedUnder}.`);
+      return;
+    }
+    // The same question the batch import asks (17 Sep 2026): a file that is not the draft the room ran,
+    // a champion an earlier game already burned, a series already decided, or another replay the game
+    // took while the side was being asked (`replaceQuestion` says nothing of a linked game), all in one dialog.
+    const conflicts = importConflicts({
+      series: allSeries.find((s) => s.id === series.id) ?? series,
+      tournaments: this.data.tournaments(),
+      games: this.data.seriesGames(),
+      target: live,
+      replayChampions: read.replay.players.map((p) => p.champion),
+      matchId: read.id,
+      championName: (c) => this.ui.championName(c)
+    });
+    if (conflicts.length && !(await this.confirm.ask(importConfirm(conflicts, live.gameNumber)))) {
+      note(`Not imported: ${importRefusal(conflicts)}.`);
       return;
     }
     const replace = replaceQuestion(live, read.fileName);

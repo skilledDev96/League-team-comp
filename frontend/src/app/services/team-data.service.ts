@@ -55,8 +55,59 @@ import { normalizeEmail } from '../core/access';
 import { AuthService } from './auth.service';
 import { describeGameChange } from '../core/draft-diff';
 import { ClientError } from '../core/error-reporting';
+import { rosterIds, scrimSide } from '../pages/games/game-rows';
 
 const LOCAL_KEY = 'bom-team-data';
+
+/** What Download team data saves (17 Sep 2026): the hand-entered collections and singleton docs, stamped. */
+export interface TeamDataExport {
+  app: 'bom-squad';
+  /** The shape's version; bump it when a key changes meaning. */
+  version: 1;
+  /** ISO. */
+  exportedAt: string;
+  settings: Settings;
+  teamIdentity: TeamIdentity | null;
+  resourceLinks: ResourceLinks;
+  players: Player[];
+  fillIns: FillIn[];
+  comps: Comp[];
+  compResults: CompResult[];
+  compOverrides: CompOverride[];
+  practiceGames: PracticeGame[];
+  tournaments: Tournament[];
+  tournamentSeries: TournamentSeries[];
+  seriesGames: SeriesGame[];
+  scrims: Scrim[];
+  scrimOpponents: ScrimOpponent[];
+  matchNotes: MatchNote[];
+  filmNotes: FilmNotes[];
+  filmCommitments: FilmCommitment[];
+  plays: Play[];
+  painPoints: PainPoint[];
+  learnEntries: LearnEntry[];
+  trophies: Trophy[];
+  gameReviews: GameReview[];
+  accessEntries: AccessEntry[];
+}
+
+/**
+ * A scrim as Download team data writes it (17 Sep 2026): the other side's Riot ids blanked. A replay file carries
+ * all ten names, the app prints theirs nowhere, and the other side is a team name and champions in seats, so a
+ * file that leaves the app must not list them either. Their five are the side that is not ours; when neither a
+ * stored side nor the roster's names tell which that is, only roster names are kept. An empty name is what a
+ * replay that omitted one already holds, so the rest of the app reads the row the same way.
+ */
+export function scrimForExport(scrim: Scrim, roster: Set<string>): Scrim {
+  const side = scrimSide(scrim, roster);
+  const ourTeam = side === 'blue' ? 100 : side === 'red' ? 200 : null;
+  return {
+    ...scrim,
+    players: scrim.players.map((p) =>
+      (ourTeam !== null ? p.team === ourTeam : roster.has(`${p.name}#${p.tag}`.toLowerCase())) ? p : { ...p, name: '', tag: '' }
+    )
+  };
+}
 
 type EntityKey =
   | 'players'
@@ -308,6 +359,48 @@ export class TeamDataService {
       resourceLinks: this.resourceLinks()
     };
     localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
+  }
+
+  /**
+   * Everything the team entered by hand, as one plain object, for Download team data on Admin ›
+   * Diagnostics (17 Sep 2026). A scrim block went with a mistaken delete on 15 Sep and came back
+   * only from a snapshot taken for something else; this is a copy anyone with the page can keep.
+   * Read off the signals, so it is what this tab holds at the click, in either mode. The reviews go
+   * in because each was a paid call. Left out: the analysis, the champion traits, the self-scout,
+   * the key health and the refresh log, which the functions and a Refresh write again; and the other
+   * side's Riot ids in the replays (`scrimForExport`), which the app never shows. The scouted rosters
+   * on an opponent stay: someone pasted those, and Prep & Draft prints them.
+   */
+  exportTeamData(): TeamDataExport {
+    const roster = rosterIds(this.players());
+    return {
+      app: 'bom-squad',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      settings: this.settings(),
+      teamIdentity: this.teamIdentity(),
+      resourceLinks: this.resourceLinks(),
+      players: this.players(),
+      fillIns: this.fillIns(),
+      comps: this.comps(),
+      compResults: this.compResults(),
+      compOverrides: this.compOverrides(),
+      practiceGames: this.practiceGames(),
+      tournaments: this.tournaments(),
+      tournamentSeries: this.tournamentSeries(),
+      seriesGames: this.seriesGames(),
+      scrims: this.scrims().map((s) => scrimForExport(s, roster)),
+      scrimOpponents: this.scrimOpponents(),
+      matchNotes: this.matchNotes(),
+      filmNotes: this.filmNotes(),
+      filmCommitments: this.filmCommitments(),
+      plays: this.plays(),
+      painPoints: this.painPoints(),
+      learnEntries: this.learnEntries(),
+      trophies: this.trophies(),
+      gameReviews: this.gameReviews(),
+      accessEntries: this.accessEntries()
+    };
   }
 
   // ---- Firebase mode ----------------------------------------------------

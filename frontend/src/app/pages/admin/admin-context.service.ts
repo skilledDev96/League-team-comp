@@ -50,6 +50,8 @@ export class AdminContextService {
   readonly motto = signal('');
   readonly bannerChampion = signal('');
   readonly bannerSkin = signal(0);
+  /** YYYY-MM-DD the next League patch lands, or empty (17 Sep 2026). */
+  readonly nextPatchOn = signal('');
   readonly fillInDrafts = signal<FillInDraft[]>([]);
   readonly compDrafts = signal<CompDraft[]>([]);
   readonly accessDrafts = signal<AccessDraft[]>([]);
@@ -113,6 +115,7 @@ export class AdminContextService {
       this.motto.set(this.data.settings().motto ?? '');
       this.bannerChampion.set(this.data.settings().banner?.champion ?? '');
       this.bannerSkin.set(this.data.settings().banner?.skin ?? 0);
+      this.nextPatchOn.set(this.data.settings().nextPatchOn ?? '');
       this.players.load(players);
       this.fillInDrafts.set(fillIns.map((f) => toFillInDraft(f)));
       this.compDrafts.set(comps.map((c) => ({ id: c.id, name: c.name, picks: { ...c.picks } })));
@@ -404,6 +407,15 @@ export class AdminContextService {
     void this.saveSettings();
   }
 
+  /**
+   * A date input answers "" when cleared, which takes the date off and puts the estimate back. Saved a
+   * moment after the last change, like the name: typing a year walks through 0002, 0020 and 0202 first.
+   */
+  setNextPatchOn(value: string): void {
+    this.nextPatchOn.set(/^\d{4}-\d{2}-\d{2}$/.test(value ?? '') ? value : '');
+    this.saveSettingsSoon();
+  }
+
   private saveSettingsSoon(): void {
     if (this.settingsTimer) clearTimeout(this.settingsTimer);
     this.settingsTimer = setTimeout(() => void this.saveSettings(), 600);
@@ -427,12 +439,14 @@ export class AdminContextService {
     // Every field the settings document holds, or a save from this form wipes the ones it forgot.
     const champion = this.bannerChampion().trim();
     const motto = this.motto().trim();
+    const nextPatchOn = this.nextPatchOn();
     await this.data.updateSettings({
       teamName: this.teamName().trim() || 'Bom Squad',
       autoAdvisor: this.autoAdvisor(),
       autoReview: this.autoReview(),
       ...(motto ? { motto } : {}),
-      ...(champion ? { banner: { champion, ...(this.bannerSkin() > 0 ? { skin: this.bannerSkin() } : {}) } } : {})
+      ...(champion ? { banner: { champion, ...(this.bannerSkin() > 0 ? { skin: this.bannerSkin() } : {}) } } : {}),
+      ...(nextPatchOn ? { nextPatchOn } : {})
     });
     this.flash('Settings saved');
   }

@@ -16,6 +16,7 @@ import { AnalysisGame, Comp, Player, Scrim, ScrimPlayer, SeriesGame, TeamObjecti
 import { canonicalChampion, displaySpelling } from '../../core/champion-key';
 import { effectiveComp } from '../../core/comp-alias';
 import { isRemake } from '../../core/game-mvp';
+import { sandboxMatchIds, sandboxSeriesIds } from '../../core/sandbox-series';
 
 export type GameSource = 'tournament' | 'scrim' | 'riot';
 
@@ -296,6 +297,10 @@ export interface GameRowSources {
  * the trophies never count one — five early wins of 76 to 205 seconds had lifted All time from 62–89 to 67–89.
  * It is dropped only after the claims are settled, so a tournament game that owns a remade replay still keeps
  * that replay from coming back as a scrim or a Riot row. A row whose length nobody knows is kept.
+ *
+ * A game of a sandbox series is not a team game either (17 Sep 2026, `isSandboxSeries`): the rehearsals drafted
+ * against "test" must not reach the record, the form, Patterns or an MVP. It goes the same way as a remake — after
+ * the claims — so a replay imported against a rehearsal stays out too rather than coming back as a scrim.
  */
 export function buildGameRows(src: GameRowSources): GameRow[] {
   const ours = rosterIds(src.players);
@@ -317,13 +322,18 @@ export function buildGameRows(src: GameRowSources): GameRow[] {
       return twin?.compId && !r.compId ? { ...r, compId: twin.compId, compName: twin.compName } : r;
     });
   const claimed = new Set(tournament.map((r) => r.matchId).filter(Boolean));
-  const riotKept = riot.filter((r) => !claimed.has(r.matchId));
+  // A replay filed under a sandbox game stays out by its match id as well as through the claim (17 Sep 2026): a
+  // rehearsal whose result was toggled back off makes no row and claims nothing, and its replay came back as a Scrim.
+  const sandboxMatches = sandboxMatchIds(src.series, src.seriesGames);
+  const riotKept = riot.filter((r) => !claimed.has(r.matchId) && !(r.matchId && sandboxMatches.has(r.matchId)));
   const riotIds = new Set(riot.map((r) => r.matchId));
   const scrims = src.scrims
-    .filter((s) => !riotIds.has(s.id) && !claimed.has(s.id))
+    .filter((s) => !riotIds.has(s.id) && !claimed.has(s.id) && !sandboxMatches.has(s.id))
     .map((s) => fromScrim(s, ours))
     .filter((r): r is GameRow => r !== null);
-  return [...riotKept, ...scrims, ...tournament].filter((r) => !isRemake(r)).sort((a, b) => b.date - a.date);
+  const sandbox = sandboxSeriesIds(src.series);
+  const teamGames = sandbox.size ? tournament.filter((r) => !(r.seriesId && sandbox.has(r.seriesId))) : tournament;
+  return [...riotKept, ...scrims, ...teamGames].filter((r) => !isRemake(r)).sort((a, b) => b.date - a.date);
 }
 
 // ---- Filters and records ---------------------------------------------------

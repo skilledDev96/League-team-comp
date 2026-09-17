@@ -28,11 +28,13 @@ const CHAMPIONS: [id: string, name: string][] = [
 
 @Component({
   imports: [ChampionGridComponent],
-  template: `<app-champion-grid [unavailable]="unavailable()" [taken]="taken()" />`
+  template: `<app-champion-grid [unavailable]="unavailable()" [taken]="taken()" (pick)="picks.push($event)" (emptyEnter)="empties = empties + 1" />`
 })
 class HostComponent {
   readonly unavailable = signal<string[]>([]);
   readonly taken = signal<ReadonlySet<string>>(new Set());
+  readonly picks: string[] = [];
+  empties = 0;
 }
 
 describe.skipIf(typeof localStorage === 'undefined')('ChampionGridComponent', () => {
@@ -79,5 +81,42 @@ describe.skipIf(typeof localStorage === 'undefined')('ChampionGridComponent', ()
     host.taken.set(new Set(['wukong', 'miss fortune', "kai'sa", 'Renata']));
     fixture.detectChanges();
     expect(ticked()).toEqual(['Wukong', 'Miss Fortune', "Kai'Sa", 'Renata Glasc']);
+  });
+
+  const box = () => (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.board-search')!;
+  const pressEnter = (): KeyboardEvent => {
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    box().dispatchEvent(event);
+    fixture.detectChanges();
+    return event;
+  };
+  const type = async (text: string) => {
+    box().value = text;
+    box().dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+  };
+
+  it('keeps the comp board\'s hint when the caller names none', () => {
+    expect(box().placeholder).toBe('Type a name, Enter takes the top match');
+  });
+
+  it('reports Enter on an empty box and keeps the key to itself (17 Sep 2026)', async () => {
+    const empty = pressEnter();
+    expect(host.empties).toBe(1);
+    expect(empty.defaultPrevented).toBe(true);
+    // Spaces are not a search.
+    await type('   ');
+    pressEnter();
+    expect(host.empties).toBe(2);
+    expect(host.picks).toEqual([]);
+  });
+
+  it('takes the top match on Enter with a search, and reports no empty box', async () => {
+    await type('ahr');
+    const typed = pressEnter();
+    expect(host.picks).toEqual(['Ahri']);
+    expect(host.empties).toBe(0);
+    expect(typed.defaultPrevented).toBe(true);
   });
 });

@@ -222,6 +222,12 @@ html:has(.page.is-film) {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
+/* A modal is opaque (17 Sep 2026): --card is see-through on purpose, for cards over splash art, and a dialog
+   opened over another overlay (the draft room's side question) showed that overlay's text through its body. */
+dialog.modal-card {
+  background: linear-gradient(var(--card), var(--card)), var(--bg-0);
+}
+
 dialog.modal-card::backdrop {
   background: color-mix(in srgb, var(--bg-0) 78%, transparent);
 }
@@ -3547,6 +3553,34 @@ body[data-theme='light'] select { color-scheme: light; }
 
 .series-panel[open] .series-chevron {
   transform: rotate(180deg);
+}
+
+/* Series audit (17 Sep 2026): the head's warn chip at the burned count's size, and a burned champion the
+   audit calls repeated outlined in the warn colour. Both passive; the words are in the tip. */
+.series-audit-chip {
+  gap: 0.2rem;
+  padding: 0.1rem 0.45rem;
+  font-weight: 700;
+  cursor: help;
+}
+
+.series-audit-chip .material-symbols-rounded {
+  font-size: 0.9rem;
+}
+
+.series-audit-chip:focus-visible {
+  outline: 2px solid var(--warn);
+  outline-offset: 2px;
+}
+
+.series-audit-burned {
+  display: inline-flex;
+  border-radius: var(--r-pill);
+}
+
+.series-audit-burned .champ-chip {
+  border-color: var(--warn);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--warn) 40%, transparent);
 }
 
 /* Fearless pool */
@@ -7051,6 +7085,22 @@ body[data-theme="bomb"] {
   content: none;
 }
 
+/* A ban nobody saw (17 Sep 2026): the empty dashed card, marked, so it reads as a
+   ban that happened unseen rather than one still to come. The mark is laid over
+   the card, not in its flow, so the card keeps its height. */
+.ban-card-unseen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: var(--text-1);
+  opacity: 0.75;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 @media (max-width: 1100px) {
   .draft-page {
     margin-inline: 0;
@@ -8398,6 +8448,143 @@ body:has(.draft-stage) .edit-mode-frame {
   opacity: 0.7;
 }
 
+/* ---- The held line says whose step (17 Sep 2026) ------------------------
+   "Jinx into ADC" never said whose ADC, and on 13 Sep our Jinx went into their
+   step. The line now leads with the step in the side's colour — the room's own
+   pair, blue as the accent and red as the warning, as on the side question —
+   then the champion, then the seat.
+
+   It must not move the slot. The line is zero wide to the row: it never forces
+   the row to wrap and adds nothing to the column's intrinsic width (the middle
+   column sizes to its content below 1400px). It grows into the room the row has,
+   up to its own words, and when that is short the champion's name gives way first
+   and the seat after it, each with its own ellipsis; the step never does. */
+.draft-held {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex: 1 1 auto;
+  width: 0;
+  min-width: 0;
+  max-width: max-content;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.draft-held.is-blue { --held-side: var(--accent); }
+.draft-held.is-red  { --held-side: var(--warn); }
+
+.draft-held-step {
+  flex: none;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--held-side, var(--text-0));
+}
+
+.draft-held-who {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.draft-held-dot {
+  flex: none;
+  color: var(--text-1);
+}
+
+/* The champion and the seat, which give way in that order. Only the name shrinks,
+   down to a floor an ellipsis wide, so a cut name shows as cut instead of
+   vanishing into "· → their Support"; the icon beside it still says who it is.
+   The seat never shrinks. It is capped at what the name's floor leaves, so it
+   keeps every letter until the name is at the floor and only then ends in an
+   ellipsis of its own. Weighted shrinking was tried first: the seat took a sliver
+   of a pixel with the name and Chrome cut "Support" for it. The floor sits just
+   under the narrowest name, "Vi": behind a name held up by the floor the cap
+   equals the seat exactly, and rounding cut "Jungle" when it was 1.4rem. */
+.draft-held-what {
+  --held-name-floor: 1.2rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.draft-held .draft-confirm-name {
+  flex: 0 1 auto;
+  min-width: var(--held-name-floor);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.draft-held .draft-confirm-seat {
+  flex: none;
+  max-width: calc(100% - var(--held-name-floor) - 0.4rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--held-side, var(--text-1));
+}
+
+/* ---- A ban nobody saw, in the slot and the watchers' bar (17 Sep 2026) --
+   Never a picture: the dashed empty icon, the same dashes a ban still to come
+   wears, with the words beside it or a small mark inside. */
+.draft-unseen-icon {
+  display: inline-block;
+  border: 1.5px dashed color-mix(in srgb, var(--text-1) 55%, transparent);
+  background: color-mix(in srgb, var(--card-border) 18%, transparent);
+}
+
+.draft-held .draft-confirm-name.is-unseen {
+  color: var(--text-1);
+}
+
+.draft-slot-icon.is-unseen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-1);
+}
+
+.draft-slot-icon.is-unseen .material-symbols-rounded {
+  font-size: 1.05rem;
+  opacity: 0.75;
+}
+
+.draft-slot-ban.is-aimed .draft-slot-icon.is-unseen {
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* Rest of phase not seen, in the step bar where the test aids sit. It claims no
+   room: the holder is zero wide to the bar and to the column, grows into the
+   progress bar's free space (which would otherwise take it) up to the pill's own
+   width, and cuts the words short before anything else gives. The pill is the
+   compact one, shorter than Undo and Reset beside it, so the bar keeps its height. */
+.draft-unseen-rest {
+  display: flex;
+  align-items: center;
+  flex: 1000 1 auto;
+  width: 0;
+  min-width: 0;
+  max-width: max-content;
+}
+
+.draft-unseen-rest .view-btn {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.draft-unseen-rest .material-symbols-rounded {
+  flex: none;
+}
+
+.draft-unseen-rest-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ---- Whose pick is this -------------------------------------------------
    The step bar names the turn, but it sits above the champion wall while the
    pick columns are at the far edges of a full-width screen — so mid-draft you
@@ -8553,6 +8740,29 @@ body:has(.draft-stage) .edit-mode-frame {
 
 .draft-side-hint { font-size: 0.75rem; color: var(--text-1); }
 .draft-side-agreed { margin: 1rem 0 0 !important; font-size: 0.8rem; }
+
+/* The side question's warning and its third answer (17 Sep 2026): an earlier game of a fearless series
+   with its picks missing, one line and a pill per game, and "Already played, enter it" under Blue and
+   Red. All of it grows the card, and the card lives in .draft-side-modal, which is position: fixed with
+   inset 0 and out of the page's flow, so nothing in the room beneath can move for it. The card scrolls
+   inside the window rather than running past it. */
+.draft-side-card { max-height: calc(100vh - 2rem); overflow-y: auto; }
+.draft-side-gaps {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  margin: 0 0 1.1rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--r-sm);
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--card-border));
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+.draft-side-card .draft-side-gap-line { display: flex; align-items: flex-start; gap: 0.4rem; margin: 0; font-size: var(--fs-body); line-height: 1.4; color: var(--text-0); text-align: left; }
+.draft-side-gap-line .material-symbols-rounded { font-size: 1.1rem; color: var(--warn); }
+.draft-side-gap-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.35rem; }
+.view-btn.draft-side-played { display: flex; width: 100%; margin-top: 0.6rem; border-style: dashed; background: transparent; color: var(--text-1); }
+.view-btn.draft-side-played:hover,
+.view-btn.draft-side-played:focus-visible { border-style: solid; color: var(--text-0); }
 
 /* The stage is the positioning context the overlay covers. */
 .draft-stage { position: relative; }
@@ -10865,6 +11075,57 @@ summary.opp-history-head:hover .fold-chevron { color: var(--accent); }
   .draft-log-changes { grid-column: 1 / -1; }
 }
 
+/* ---- Customs to record (17 Sep 2026) ----------------------------------------
+   Admin › Diagnostics. A replay plays only on its own patch, so the card lists the customs the
+   recorder can still read, a row each with the command a compact pill away, and folds the ones
+   past their patch and the ones with no build under it; the rows are the draft log's lines.
+   Download team data is the compact pill in the first card's head, and Next patch on the date
+   field on Settings that closes the list. */
+.diag-head { margin-bottom: 0.6rem; }
+.card .diag-head > h2 { margin: 0; }
+
+.customs-queue-close { margin: 0 0 0.2rem; }
+.customs-queue-close.is-lapsed b { color: var(--warn); }
+
+.customs-queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0.4rem 0 0.5rem;
+  padding: 0;
+  font-size: var(--fs-meta);
+}
+
+.customs-queue-list > .customs-queue-row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) 4rem 4rem minmax(8.5rem, 10rem) 8.5rem;
+  gap: 0.6rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+  border-radius: 0.5rem;
+  min-width: 0;
+}
+
+.customs-queue-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-0); }
+.customs-queue-who .chip { margin-left: 0.35rem; }
+.customs-queue-when,
+.customs-queue-length { font-variant-numeric: tabular-nums; color: var(--text-1); white-space: nowrap; }
+.customs-queue-id { font-size: var(--fs-meta); color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.customs-queue-row > .view-btn { justify-self: end; white-space: nowrap; }
+.customs-queue-patch { justify-self: end; font-variant-numeric: tabular-nums; color: var(--text-1); }
+
+.customs-queue-fold { margin-top: 0.4rem; }
+.card .customs-queue-fold h3 { margin: 0; }
+
+.admin-next-patch input { align-self: flex-start; width: 12rem; }
+
+@media (max-width: 56.25rem) {
+  .customs-queue-list > .customs-queue-row { grid-template-columns: 1fr auto; }
+  .customs-queue-who { grid-column: 1 / -1; }
+}
+
 /* ---- Games (8 Sep 2026) ----------------------------------------------------
    One page for every game we played. The rows are the opponent-history rows;
    above them one filter line and the record, with a player table between. */
@@ -11182,6 +11443,13 @@ button.insight-tile.active { border-color: var(--accent); background: color-mix(
 .health-table code { font-size: var(--fs-label); }
 .health-table tr.is-flagged td { background: color-mix(in srgb, var(--warn) 8%, transparent); }
 .health-table .health-flags { white-space: normal; min-width: 14rem; color: var(--warn); font-size: 0.74rem; }
+
+/* Series audit (17 Sep 2026): one row a finding under Data health, the sentence and the way to its series. */
+.series-audit-list { padding-left: 0; list-style: none; }
+.series-audit-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.55rem; border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); border-radius: var(--r-sm); background: color-mix(in srgb, var(--warn) 6%, transparent); }
+.series-audit-row > .material-symbols-rounded { flex: none; font-size: 1.1rem; color: var(--warn); }
+.series-audit-text { flex: 1; min-width: 0; font-size: var(--fs-meta); color: var(--text-0); }
+.series-audit-row > .view-btn { flex: none; }
 
 /* ---- Patterns overview (8 Sep 2026): the glance line and the chips ------- */
 .patterns-glance { padding: 0.7rem 0.9rem; }
@@ -14175,6 +14443,29 @@ so none of this can move the draft room. */
   align-content: start;
   padding-right: 0.25rem;
 }
+
+/* A comp's record reads "83% · 6", or a quiet "few games" chip under three games (17 Sep 2026): a rate
+   never stands without the games behind it, and the rows are ordered by how much the record can bear. */
+.draft-comps-card .draft-comp-rate { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.draft-comps-card .draft-comp-few { margin-left: auto; color: var(--text-2); }
+.draft-comp-row > .draft-comp .draft-comp-few ~ em { margin-left: 0; }
+
+/* ---- A game played without the room (17 Sep 2026) ----------------------------------------------------
+   Opened by the side question's "Already played, enter it" and its warning's "Enter game N": our side,
+   both fives in seat order, the result. A .modal-card in the top layer, so the room cannot move. It hangs
+   from a fixed top rather than centring, because the pickers wrap as champions go in and a centred dialog
+   would move its own top each time; its overflow is visible so a picker's list can open past its foot.
+   Only an open dialog is a grid, as with the confirmation: display on the closed dialog, for the frame
+   before showModal, would draw it in the page flow. */
+.modal-card.draft-played-dialog { width: min(40rem, 100%); max-height: none; margin-block: max(1rem, 12vh) auto; overflow: visible; }
+.modal-card.draft-played-dialog[open] { display: grid; gap: 0.75rem; }
+.draft-played-title { margin: 0; font-family: "Chakra Petch", sans-serif; font-size: 1.15rem; line-height: 1.25; }
+.draft-played-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; }
+.draft-played-field { display: grid; gap: 0.35rem; }
+.draft-played-label { font-size: var(--fs-meta); font-weight: 600; color: var(--text-1); }
+.draft-played-label small { margin-left: 0.3rem; font-weight: 400; color: var(--text-2); }
+.draft-played-note { min-height: 1.4em; font-size: var(--fs-meta); }
+.draft-played-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
 
 /* ---- Splash primitives: Home and Roster (13 Sep 2026) ----------------------------------------------
    The pieces the two expressive pages share: a champion's splash behind a tile with a shade under its words,

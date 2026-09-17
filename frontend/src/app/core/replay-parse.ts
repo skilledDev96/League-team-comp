@@ -72,6 +72,51 @@ export interface ReplayGame {
   readonly surrendered: boolean;
   /** Objective totals per side, summed from the per-player counters. */
   readonly objectives: { readonly blue: ReplayObjectives; readonly red: ReplayObjectives };
+  /**
+   * The client build the file was saved on, from its header ("16.18.815.9717"), 17 Sep 2026. A replay
+   * only plays in the client of its own patch, so this is what says whether it can still be recorded.
+   * Absent when the header does not carry one.
+   */
+  readonly gameVersion?: string;
+}
+
+/**
+ * Where the build sits in the header (17 Sep 2026, measured on real files from 16.13 to 16.18):
+ * after the "RIOT" magic and ten bytes this reader does not use, byte 14 holds the build's length
+ * and the build follows it as ASCII — `0e` then "16.18.817.5716".
+ */
+const BUILD_LENGTH_AT = 14;
+
+/** How much of a file the build needs: the magic, the ten bytes, the length and a long build. */
+export const REPLAY_HEADER_BYTES = 64;
+
+/**
+ * The client build out of a replay's header, or undefined. Only the first `REPLAY_HEADER_BYTES`
+ * are needed, so a backfill can read a folder of twenty-megabyte files a few bytes each. Anything
+ * that is not dotted numbers is no build at all rather than a guess.
+ */
+export function buildFromHeader(bytes: ArrayBuffer | Uint8Array): string | undefined {
+  const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (view.length <= BUILD_LENGTH_AT) return undefined;
+  if (String.fromCharCode(view[0], view[1], view[2], view[3]) !== 'RIOT') return undefined;
+  const length = view[BUILD_LENGTH_AT];
+  const start = BUILD_LENGTH_AT + 1;
+  if (!length || start + length > view.length) return undefined;
+  const text = String.fromCharCode(...view.subarray(start, start + length));
+  return /^\d+(\.\d+){1,3}$/.test(text) ? text : undefined;
+}
+
+/**
+ * The patch a client build belongs to, as the patch notes name it: "16.18.815.9717" is "26.18".
+ * Since 2025 patches carry the year while the client kept counting, so a build's major is ten
+ * behind (15.x is 25.x, 16.x is 26.x); an older build was its own patch. Empty for anything that
+ * is not a build.
+ */
+export function patchOfBuild(build: string | null | undefined): string {
+  const match = /^(\d+)\.(\d+)(?:\.|$)/.exec((build ?? '').trim());
+  if (!match) return '';
+  const major = Number(match[1]);
+  return `${major >= 15 ? major + 10 : major}.${Number(match[2])}`;
 }
 
 /**
@@ -200,6 +245,7 @@ export function parseReplay(bytes: ArrayBuffer): ReplayGame | null {
       };
     };
 
+    const gameVersion = buildFromHeader(view.subarray(0, REPLAY_HEADER_BYTES));
     return {
       // gameLength is milliseconds; TIME_PLAYED per player is seconds and
       // agrees with it, so either would do and this is the one place it lives.
@@ -207,7 +253,8 @@ export function parseReplay(bytes: ArrayBuffer): ReplayGame | null {
       players,
       blueWon: players.some((p) => p.team === 100 && p.win),
       surrendered: rows.some((r) => String(r['GAME_ENDED_IN_SURRENDER'] ?? '0') !== '0'),
-      objectives: { blue: objectivesFor(100), red: objectivesFor(200) }
+      objectives: { blue: objectivesFor(100), red: objectivesFor(200) },
+      ...(gameVersion ? { gameVersion } : {})
     };
   } catch {
     return null;

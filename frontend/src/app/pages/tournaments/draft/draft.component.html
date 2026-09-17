@@ -116,8 +116,13 @@
             <span class="draft-step-turn">{{ stepLabel(game) }}</span>
             @if (game.holding; as held) {
               <span class="draft-live-hold">
-                <img class="pool-champ-icon" [src]="ui.championIconUrl(held)" [alt]="" loading="lazy" />
-                considering <strong>{{ held }}</strong>
+                @if (isNoBan(held)) {
+                  <span class="pool-champ-icon draft-unseen-icon" aria-hidden="true"></span>
+                  considering <strong>Ban not seen</strong>
+                } @else {
+                  <img class="pool-champ-icon" [src]="ui.championIconUrl(held)" [alt]="" loading="lazy" />
+                  considering <strong>{{ held }}</strong>
+                }
               </span>
             }
           }
@@ -193,10 +198,13 @@
                    left visible so the count reads at a glance. Which side made
                    a ban comes from its position — see bansOf. -->
               <div class="ban-strip">
+                <!-- A ban nobody saw (17 Sep 2026) is the empty dashed card with a small mark, never art. -->
                 <ol class="list-clean ban-cards is-ours" [attr.aria-label]="teamName() + ' bans'">
                   @for (champ of bansOf(game, 'our'); track $index) {
-                    <li class="ban-card" [class.is-empty]="!champ">
-                      @if (champ) {
+                    <li class="ban-card" [class.is-empty]="!champ || isNoBan(champ)" [class.is-unseen]="isNoBan(champ)">
+                      @if (isNoBan(champ)) {
+                        <span class="ban-card-unseen">not seen</span>
+                      } @else if (champ) {
                         <img class="pick-art" [src]="ui.championArtUrl(champ)" (error)="ui.artFallback($event, champ)" [alt]="" />
                         <span class="ban-card-name">{{ champ }}</span>
                       }
@@ -206,8 +214,10 @@
                 <span class="ban-strip-split" aria-hidden="true"></span>
                 <ol class="list-clean ban-cards is-theirs" [attr.aria-label]="series.opponent + ' bans'">
                   @for (champ of bansOf(game, 'their'); track $index) {
-                    <li class="ban-card" [class.is-empty]="!champ">
-                      @if (champ) {
+                    <li class="ban-card" [class.is-empty]="!champ || isNoBan(champ)" [class.is-unseen]="isNoBan(champ)">
+                      @if (isNoBan(champ)) {
+                        <span class="ban-card-unseen">not seen</span>
+                      } @else if (champ) {
                         <img class="pick-art" [src]="ui.championArtUrl(champ)" (error)="ui.artFallback($event, champ)" [alt]="" />
                         <span class="ban-card-name">{{ champ }}</span>
                       }
@@ -451,10 +461,28 @@
               <span class="draft-step-progress" aria-hidden="true">
                 <span class="draft-step-fill" [style.width.%]="progress(game)"></span>
               </span>
+              <!-- Rest of phase not seen (17 Sep 2026): every ban left before the next pick as NO_BAN, in
+                   one save. Any editor, any series; not a test aid. It claims no room of its own: zero width
+                   to the flex line and to the column's intrinsic width, it grows into the progress bar's
+                   free space up to its own content and cuts its words short before anything moves, and a
+                   compact pill is shorter than Undo and Reset beside it, so the bar keeps its height. -->
+              @if (step(game)?.action === 'ban' && bansLeft(game); as left) {
+                <span class="draft-unseen-rest">
+                  <button type="button" class="view-btn is-compact"
+                          [disabled]="isCommitting() || autoFilling()"
+                          [attr.aria-label]="'Rest of phase not seen: marks ' + (left === 1 ? 'the last ban' : 'the ' + left + ' bans') + ' before the picks as not seen'"
+                          [appTip]="'Mark ' + (left === 1 ? 'the last ban' : 'the ' + left + ' bans left') + ' before the picks as not seen, in one go. Aim at one afterwards to replace it.'"
+                          (click)="restOfPhaseNotSeen(game)">
+                    <span class="material-symbols-rounded" aria-hidden="true">visibility_off</span>
+                    <span class="draft-unseen-rest-text">Rest of phase not seen</span>
+                  </button>
+                </span>
+              }
               <!-- Test aids. Reaching the interesting part of this screen means
                    clicking through ten bans first, and doing that by hand every
-                   time is how a layout bug survives to match night. -->
-              @if (auth.editing() && devAids()) {
+                   time is how a layout bug survives to match night. On sandbox
+                   series only (17 Sep 2026): random bans in a real series read as real. -->
+              @if (auth.editing() && aidsShown(series)) {
                 @if (step(game)?.action === 'ban') {
                   <button type="button" class="view-btn draft-auto" [disabled]="autoFilling()"
                           [appTip]="'Ban at random through to the first pick. For testing.'"
@@ -476,10 +504,28 @@
             <div class="draft-confirm-slot">
             @if (pending(); as champ) {
               <div class="draft-confirm">
-                <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
-                <span class="draft-confirm-name">{{ champ }}</span>
-                @if (pendingSeat(game); as seat) {
-                  <span class="draft-confirm-seat">into {{ seat }}</span>
+                @if (isNoBan(champ)) {
+                  <span class="pool-champ-icon draft-unseen-icon" aria-hidden="true"></span>
+                } @else {
+                  <img class="pool-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="" loading="lazy" />
+                }
+                <!-- Whose step first, in that side's colour, then the champion, then the seat (17 Sep 2026).
+                     "Jinx into ADC" never said whose ADC, and on 13 Sep our Jinx went into their step. One
+                     nowrap line that adds nothing to the row's width: the champion's name gives way first. -->
+                @if (held(game); as line) {
+                  <span class="draft-held" [class.is-blue]="line.colour === 'blue'" [class.is-red]="line.colour === 'red'"
+                        [appTip]="(line.who === 'our' ? 'Our ' : 'Their ') + line.step + ' · ' + line.champion + (line.seat ? ' → ' + line.seat : '')">
+                    <b class="draft-held-step"><span class="draft-held-who">{{ line.who === 'our' ? 'Our' : 'Their' }}</span> {{ line.step }}</b>
+                    <span class="draft-held-dot" aria-hidden="true">&middot;</span>
+                    <span class="draft-held-what">
+                      <span class="draft-confirm-name" [class.is-unseen]="isNoBan(champ)">{{ line.champion }}</span>
+                      @if (line.seat) {
+                        <span class="draft-confirm-seat">&rarr; {{ line.seat }}</span>
+                      }
+                    </span>
+                  </span>
+                } @else {
+                  <span class="draft-confirm-name">{{ champ }}</span>
                 }
                 <!-- What this pick does, at the moment it is worth reading. -->
                 <!-- What has actually beaten the people we are playing. Riot
@@ -561,7 +607,13 @@
                         <button type="button" class="draft-slot-ban" [class.is-aimed]="isBanTargeted(banIndexOf(game, 'our', $index))"
                                 [disabled]="!auth.editing() || !sequenceActive(game)"
                                 (click)="aimAtBan(banIndexOf(game, 'our', $index))">
-                          <img class="draft-slot-icon is-ban" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
+                          @if (isNoBan(champ)) {
+                            <span class="draft-slot-icon is-empty is-unseen" role="img" aria-label="Ban not seen">
+                              <span class="material-symbols-rounded" aria-hidden="true">visibility_off</span>
+                            </span>
+                          } @else {
+                            <img class="draft-slot-icon is-ban" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
+                          }
                         </button>
                       } @else {
                         <span class="draft-slot-icon is-empty" aria-hidden="true"></span>
@@ -573,7 +625,13 @@
                         <button type="button" class="draft-slot-ban" [class.is-aimed]="isBanTargeted(banIndexOf(game, 'their', $index))"
                                 [disabled]="!auth.editing() || !sequenceActive(game)"
                                 (click)="aimAtBan(banIndexOf(game, 'their', $index))">
-                          <img class="draft-slot-icon is-ban" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
+                          @if (isNoBan(champ)) {
+                            <span class="draft-slot-icon is-empty is-unseen" role="img" aria-label="Ban not seen">
+                              <span class="material-symbols-rounded" aria-hidden="true">visibility_off</span>
+                            </span>
+                          } @else {
+                            <img class="draft-slot-icon is-ban" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
+                          }
                         </button>
                       } @else {
                         <span class="draft-slot-icon is-empty" aria-hidden="true"></span>
@@ -636,10 +694,13 @@
             <!-- The seat only filters the wall here; the sequence still decides
                  where the pick lands. Clicking a seat mid-draft is a way of
                  asking "who can go here", not a way of choosing a target. -->
+            <!-- Enter on the empty box holds a ban nobody saw, and locks it once held (17 Sep 2026). -->
             <app-champion-grid data-tour="draft-wall" [unavailable]="sequenceUnavailable(game)"
                                [taken]="gridTaken(game)"
                                [lane]="gridLane()"
+                               placeholder="Type a name, Enter · Enter on empty: ban not seen"
                                (laneChange)="shownLane.set($event)"
+                               (emptyEnter)="wallEmptyEnter()"
                                (pick)="proposeFromSequence($event)" />
           } @else {
           <app-champion-grid [unavailable]="gridUnavailable(game)"
@@ -934,6 +995,25 @@
               Blue bans and picks first. Everything after this depends on it &mdash;
               whose turn it is, which seat a pick lands in, who banned what.
             </p>
+            <!-- An earlier game of a fearless series with its picks missing leaves the burn, the advisor and
+                 the Comps popup wrong, and nothing used to say so (17 Sep 2026). One line, a pill per game. -->
+            @if (sideGaps(game); as gaps) {
+              @if (gaps.length) {
+                <div class="draft-side-gaps" role="note">
+                  <p class="draft-side-gap-line">
+                    <span class="material-symbols-rounded" aria-hidden="true">warning</span>
+                    <span>{{ gapsLine(gaps) }}</span>
+                  </p>
+                  @if (auth.editing()) {
+                    <div class="draft-side-gap-actions">
+                      @for (gap of gaps; track gap.id) {
+                        <button type="button" class="view-btn is-compact" (click)="openPlayed(gap.id, game)">Enter game {{ gap.gameNumber }}</button>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            }
             <div class="draft-side-choices">
               <button type="button" class="draft-side-choice is-blue"
                       (click)="setOurSide(game, 'blue')">
@@ -946,6 +1026,13 @@
                 <span class="draft-side-hint">Last pick of each phase</span>
               </button>
             </div>
+            <!-- The quiet third answer: this game happened without the room. Entered whole rather than
+                 walked through the sequence, which is how random bans were written on 10 Sep 2026. -->
+            @if (auth.editing()) {
+              <button type="button" class="view-btn draft-side-played" (click)="openPlayed(game.id, game)">
+                Already played, enter it
+              </button>
+            }
             @if (draftSeries(); as s) {
               <button type="button" class="view-btn draft-side-escape"
                       (click)="openPrep(s.id)">
@@ -994,9 +1081,16 @@
                   <button type="button" class="draft-comp is-ok" [class.open]="isCompOpen(row.id)"
                           [attr.aria-expanded]="isCompOpen(row.id)" (click)="toggleComp(row.id)">
                     <span class="draft-comp-name">{{ row.name }}</span>
-                    @if (row.winRate !== undefined) {
-                      <span class="draft-comp-rate" [class]="winRateBand(row.winRate)"
-                            [appTip]="row.games + ' games in match history'">{{ row.winRate }}%</span>
+                    <!-- The games beside the rate, and no rate under three games (17 Sep 2026): a bare 100%
+                         from one game read as the best comp on the board. -->
+                    @if (row.winRate !== undefined && row.games) {
+                      @if (row.games >= COMP_RATE_MIN_GAMES) {
+                        <span class="draft-comp-rate" [class]="winRateBand(row.winRate)"
+                              [appTip]="row.winRate + '% over ' + row.games + ' games in match history'">{{ row.winRate }}% &middot; {{ row.games }}</span>
+                      } @else {
+                        <span class="chip is-compact draft-comp-few"
+                              [appTip]="row.winRate + '% over ' + row.games + (row.games === 1 ? ' game' : ' games') + ', too few to read as a rate'">few games</span>
+                      }
                     }
                     <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
                   </button>
@@ -1038,8 +1132,12 @@
                           [attr.aria-expanded]="isCompOpen(row.id)"
                           [appTip]="'Gone: ' + row.blocked.join(', ')" (click)="toggleComp(row.id)">
                     <span class="draft-comp-name">{{ row.name }}</span>
-                    @if (row.winRate !== undefined) {
-                      <span class="draft-comp-rate" [class]="winRateBand(row.winRate)">{{ row.winRate }}%</span>
+                    @if (row.winRate !== undefined && row.games) {
+                      @if (row.games >= COMP_RATE_MIN_GAMES) {
+                        <span class="draft-comp-rate" [class]="winRateBand(row.winRate)">{{ row.winRate }}% &middot; {{ row.games }}</span>
+                      } @else {
+                        <span class="chip is-compact draft-comp-few">few games</span>
+                      }
                     }
                     <em>&minus;{{ row.blocked.length }}</em>
                     <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
@@ -1123,6 +1221,54 @@
               }
             </div>
           </div>
+        </div>
+      </dialog>
+    }
+
+    <!-- A game played without the room, entered whole (17 Sep 2026): opened from the side question's
+         "Already played, enter it" or an "Enter game N" on its warning. Outside the .card for the reason
+         above and modal through appModal, so the room behind it cannot move; it hangs from a fixed top
+         rather than re-centring, because the pickers grow a line as champions go in. -->
+    @if (playedGame(); as pg) {
+      <dialog appModal class="modal-card draft-played-dialog" aria-labelledby="draft-played-title" (closed)="closePlayed()"
+              (keydown.escape)="keepPlayedOpen($event)">
+        <h3 id="draft-played-title" class="draft-played-title">Enter game {{ pg.gameNumber }} as played</h3>
+        <div class="draft-played-row">
+          <span class="draft-played-label">Our side</span>
+          <span class="view-segment" role="group" aria-label="Our side">
+            <button type="button" [class.active]="playedSide() === 'blue'" [attr.aria-pressed]="playedSide() === 'blue'"
+                    (click)="playedSide.set('blue')">Blue</button>
+            <button type="button" [class.active]="playedSide() === 'red'" [attr.aria-pressed]="playedSide() === 'red'"
+                    (click)="playedSide.set('red')">Red</button>
+          </span>
+        </div>
+        <div class="draft-played-field" role="group" aria-labelledby="draft-played-ours">
+          <span id="draft-played-ours" class="draft-played-label">Our five</span>
+          <app-champion-picker [champions]="playedOurs()" [max]="5" [seated]="true"
+                               [role]="nextSeat(playedOurs())" [placeholder]="seatPlaceholder(playedOurs())"
+                               [unavailable]="playedUnavailable(pg, 'our')" [inputName]="'played-our-' + pg.id"
+                               (championsChange)="playedOurs.set($event)" />
+        </div>
+        <div class="draft-played-field" role="group" aria-labelledby="draft-played-theirs">
+          <span id="draft-played-theirs" class="draft-played-label">Their five</span>
+          <app-champion-picker [champions]="playedTheirs()" [max]="5" [seated]="true"
+                               [role]="nextSeat(playedTheirs())" [placeholder]="seatPlaceholder(playedTheirs())"
+                               [unavailable]="playedUnavailable(pg, 'their')" [inputName]="'played-their-' + pg.id"
+                               (championsChange)="playedTheirs.set($event)" />
+        </div>
+        <div class="draft-played-row">
+          <span class="draft-played-label">Result <small>optional</small></span>
+          <span class="view-segment" role="group" aria-label="Result">
+            <button type="button" class="is-win" [class.active]="playedWin() === true" [attr.aria-pressed]="playedWin() === true"
+                    (click)="togglePlayedWin(true)">Win</button>
+            <button type="button" class="is-loss" [class.active]="playedWin() === false" [attr.aria-pressed]="playedWin() === false"
+                    (click)="togglePlayedWin(false)">Loss</button>
+          </span>
+        </div>
+        <p class="muted draft-played-note" aria-live="polite">{{ playedNote() }}</p>
+        <div class="draft-played-actions">
+          <button type="button" class="view-btn" (click)="closePlayed()">Cancel</button>
+          <button type="button" class="view-btn active" [disabled]="!playedCanSave()" (click)="savePlayed()">Save game {{ pg.gameNumber }}</button>
         </div>
       </dialog>
     }

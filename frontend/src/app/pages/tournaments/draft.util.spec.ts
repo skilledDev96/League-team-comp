@@ -1,14 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { CHAMPION_LANES } from '../../data/champion-lanes';
+import type { SeriesGame } from '../../models/team.models';
+import { DRAFT_LENGTH } from './draft-sequence';
 import {
   blockedSet,
   compAvailability,
   CompChampions,
+  gameAfterPlayed,
   gameHasContent,
+  gapsBefore,
+  gapsLine,
   normalizeChampion,
+  playedGameWrite,
   playedGames,
+  playedSeats,
   poolPressure,
-  uniqueChampions
+  uniqueChampions,
+  wilsonLowerBound
 } from './draft.util';
 
 /**
@@ -161,6 +169,13 @@ describe('blockedSet', () => {
   it('ignores empty entries', () => {
     expect(blockedSet(['', 'Vi']).size).toBe(1);
   });
+
+  it('ignores a ban nobody saw, which closes no champion (17 Sep 2026)', () => {
+    const set = blockedSet(['-', 'Vi'], ['-']);
+    expect([...set]).toEqual(['vi']);
+    expect(set.has('')).toBe(false);
+    expect(set.has('-')).toBe(false);
+  });
 });
 
 describe('compAvailability', () => {
@@ -183,29 +198,56 @@ describe('compAvailability', () => {
     expect(rows.map((r) => r.name)).toEqual(['Poke', 'Engage', 'Dive']);
   });
 
-  it('ranks playable comps by win rate, best first', () => {
+  it('ranks playable comps by win rate when the samples are alike', () => {
     const rated = [
-      { ...COMPS[0], winRate: 40 },
-      { ...COMPS[1], winRate: 80 },
-      { ...COMPS[2], winRate: 60 }
+      { ...COMPS[0], winRate: 40, games: 10 },
+      { ...COMPS[1], winRate: 80, games: 10 },
+      { ...COMPS[2], winRate: 60, games: 10 }
     ];
     const rows = compAvailability(rated, blockedSet());
     expect(rows.map((r) => r.name)).toEqual(['Poke', 'Dive', 'Engage']);
   });
 
-  it('sinks a comp with no record below one that has won', () => {
-    const rows = compAvailability([{ ...COMPS[0] }, { ...COMPS[1], winRate: 10 }], blockedSet());
+  it('puts a 5–1 comp above a 1–0 comp, because one game cannot carry 100%', () => {
+    // The popup sorted on the raw rate (17 Sep 2026): 100% from one game stood above 83% from six.
+    const rows = compAvailability([{ ...COMPS[0], winRate: 100, games: 1 }, { ...COMPS[1], winRate: 83, games: 6 }], blockedSet());
+    expect(rows.map((r) => [r.name, r.winRate, r.games])).toEqual([['Poke', 83, 6], ['Engage', 100, 1]]);
+  });
+
+  it('puts a comp never played last, below even a losing record', () => {
+    const rows = compAvailability(
+      [{ ...COMPS[2] }, { ...COMPS[0], winRate: 0, games: 3 }, { ...COMPS[1], winRate: 100, games: 1 }],
+      blockedSet()
+    );
+    expect(rows.map((r) => r.name)).toEqual(['Poke', 'Engage', 'Dive']);
+  });
+
+  it('reads a rate with no games behind it as no record', () => {
+    const rows = compAvailability([{ ...COMPS[0], winRate: 90 }, { ...COMPS[1], winRate: 10, games: 2 }], blockedSet());
     expect(rows.map((r) => r.name)).toEqual(['Poke', 'Engage']);
   });
 
-  it('still ranks broken comps by damage before win rate', () => {
+  it('still ranks broken comps by damage before record', () => {
     // Poke loses one champion, Engage two; the nearer fix leads regardless of record.
     const rated = [
-      { ...COMPS[0], winRate: 90 },
-      { ...COMPS[1], winRate: 10 }
+      { ...COMPS[0], winRate: 90, games: 10 },
+      { ...COMPS[1], winRate: 10, games: 10 }
     ];
     const rows = compAvailability(rated, blockedSet(['Maokai', 'Vi', 'Jayce']));
     expect(rows.map((r) => r.name)).toEqual(['Poke', 'Engage']);
+  });
+
+  it('breaks a tie between equally broken comps on the record, no games last', () => {
+    // Vi breaks Engage and Dive by one champion each; Poke is intact and leads. Both expected orders run
+    // against name order (Dive before Engage), so a tiebreak dropped, reversed or on the raw rate fails here.
+    const rated = [
+      { ...COMPS[0], winRate: 83, games: 6 },
+      { ...COMPS[1] },
+      { ...COMPS[2], winRate: 100, games: 1 }
+    ];
+    expect(compAvailability(rated, blockedSet(['Vi'])).map((r) => r.name)).toEqual(['Poke', 'Engage', 'Dive']);
+    const unplayed = [{ ...COMPS[0], winRate: 0, games: 4 }, { ...COMPS[2] }];
+    expect(compAvailability(unplayed, blockedSet(['Vi'])).map((r) => r.name)).toEqual(['Engage', 'Dive']);
   });
 
   it('treats a differently punctuated pick as the same champion', () => {
@@ -262,6 +304,177 @@ describe('poolPressure', () => {
     const rows = poolPressure([{ name: 'Solo', pool: ['Ahri'] }], blockedSet(['Ahri']));
     expect(rows[0].left).toEqual([]);
     expect(rows[0].critical).toBe(true);
+  });
+});
+
+describe('gapsBefore', () => {
+  const five = ['Shen', 'Diana', 'Yone', 'Tristana', 'Zilean'];
+  const theirs = ['Urgot', 'JarvanIV', 'Syndra', 'Kaisa', 'Leona'];
+  const game = (id: string, gameNumber: number, ourChampions: string[] = [], theirChampions: string[] = []) => ({ id, gameNumber, ourChampions, theirChampions });
+
+  it('names the earlier games short of five picks a side, in game order', () => {
+    // Paradox Requiem as it stood before game 3 on 10 Sep 2026: two games played without the room.
+    const games = [game('g3', 3), game('g2', 2), game('g1', 1)];
+    expect(gapsBefore(games, 3)).toEqual([
+      { id: 'g1', gameNumber: 1, picks: 0, missing: 10 },
+      { id: 'g2', gameNumber: 2, picks: 0, missing: 10 }
+    ]);
+  });
+
+  it('counts the empty seats honestly, not a whole game', () => {
+    const games = [game('g1', 1, five, theirs), game('g2', 2, ['Ornn', '', 'Ahri', '', ''], ['Renekton', 'Shyvana', '  ', 'Sylas'])];
+    expect(gapsBefore(games, 3)).toEqual([{ id: 'g2', gameNumber: 2, picks: 5, missing: 5 }]);
+  });
+
+  it('leaves out a full board, this game and every later one', () => {
+    const games = [game('g1', 1, five, theirs), game('g2', 2), game('g3', 3)];
+    expect(gapsBefore(games, 2)).toEqual([]);
+    expect(gapsBefore(games, 1)).toEqual([]);
+  });
+
+  it('never counts more than five a side', () => {
+    expect(gapsBefore([game('g1', 1, [...five, 'Extra'], theirs.slice(0, 4))], 2)).toEqual([{ id: 'g1', gameNumber: 1, picks: 9, missing: 1 }]);
+  });
+});
+
+describe('gapsLine', () => {
+  it('says which games are empty and how many champions the burn is missing', () => {
+    expect(gapsLine([{ id: 'g1', gameNumber: 1, picks: 0, missing: 10 }])).toBe('Game 1 has no picks, so the burn is missing up to 10 champions');
+    expect(gapsLine([
+      { id: 'g1', gameNumber: 1, picks: 0, missing: 10 },
+      { id: 'g2', gameNumber: 2, picks: 0, missing: 10 }
+    ])).toBe('Games 1 and 2 have no picks, so the burn is missing up to 20 champions');
+  });
+
+  it('counts a half-entered game by its seats', () => {
+    expect(gapsLine([{ id: 'g2', gameNumber: 2, picks: 9, missing: 1 }])).toBe('Game 2 has 9 of 10 picks, so the burn is missing up to 1 champion');
+    expect(gapsLine([
+      { id: 'g1', gameNumber: 1, picks: 0, missing: 10 },
+      { id: 'g2', gameNumber: 2, picks: 0, missing: 10 },
+      { id: 'g3', gameNumber: 3, picks: 7, missing: 3 }
+    ])).toBe('Games 1 and 2 have no picks and game 3 has 7 of 10 picks, so the burn is missing up to 23 champions');
+  });
+
+  it('says nothing without a gap', () => {
+    expect(gapsLine([])).toBe('');
+  });
+});
+
+describe('playedSeats', () => {
+  it('keeps each champion in the seat it was entered in, an empty seat as ""', () => {
+    expect(playedSeats(['Ornn', '', 'Ahri'])).toEqual(['Ornn', '', 'Ahri', '', '']);
+    expect(playedSeats([' Shen ', '   ', undefined, 'Jinx', 'Thresh'])).toEqual(['Shen', '', '', 'Jinx', 'Thresh']);
+    expect(playedSeats(undefined)).toEqual(['', '', '', '', '']);
+  });
+
+  it('cuts a list longer than five at the fifth seat', () => {
+    expect(playedSeats(['Shen', 'Diana', 'Yone', 'Tristana', 'Zilean', 'Extra'])).toEqual(['Shen', 'Diana', 'Yone', 'Tristana', 'Zilean']);
+  });
+});
+
+describe('playedGameWrite', () => {
+  // Paradox Requiem game 1 as it stood on 10 Sep 2026: bans written by the Skip bans test aid, a hold
+  // and a pick log from the sequence walked through it, and a replay linked over an earlier board.
+  const live: SeriesGame = {
+    id: 'g1',
+    seriesId: 's-paradox',
+    gameNumber: 1,
+    ourChampions: ['', 'Diana'],
+    theirChampions: [],
+    bans: ['Ahri', 'Zed', 'Sylas'],
+    ourSide: 'red',
+    draftStep: 7,
+    holding: 'Yone',
+    pickLog: ['our:Jungle'],
+    advice: { step: 6, action: 'pick', askedAt: '2026-09-10T18:58:00.000Z' } as SeriesGame['advice'],
+    matchId: 'EUW1-7977500462',
+    beforeLink: { ourChampions: [], theirChampions: [] },
+    order: 3
+  };
+  const entry = { ourSide: 'blue' as const, ours: ['Shen', 'Diana', 'Yone', 'Tristana', 'Zilean'], theirs: ['Urgot', '', 'Syndra'], win: true };
+
+  it('writes the side, both fives as seats, the result and the step at the end', () => {
+    const saved = playedGameWrite(live, entry);
+    expect(saved.ourSide).toBe('blue');
+    expect(saved.ourChampions).toEqual(['Shen', 'Diana', 'Yone', 'Tristana', 'Zilean']);
+    expect(saved.theirChampions).toEqual(['Urgot', '', 'Syndra', '', '']);
+    expect(saved.win).toBe(true);
+    expect(saved.draftStep).toBe(DRAFT_LENGTH);
+  });
+
+  it('clears the hold and the pick log of a sequence that never ran', () => {
+    const saved = playedGameWrite(live, entry);
+    expect(saved.holding).toBeUndefined();
+    expect(saved.pickLog).toBeUndefined();
+  });
+
+  it('keeps the bans, the advice, the replay and everything else the dialog does not ask about', () => {
+    const saved = playedGameWrite(live, entry);
+    expect(saved.bans).toEqual(['Ahri', 'Zed', 'Sylas']);
+    expect(saved.advice).toEqual(live.advice);
+    expect(saved.matchId).toBe('EUW1-7977500462');
+    expect(saved.beforeLink).toEqual({ ourChampions: [], theirChampions: [] });
+    expect([saved.id, saved.seriesId, saved.gameNumber, saved.order]).toEqual(['g1', 's-paradox', 1, 3]);
+  });
+
+  it('takes the result off when none is given, and cuts a sixth champion', () => {
+    const saved = playedGameWrite({ ...live, win: false }, { ...entry, ours: [...entry.ours, 'Extra'], win: undefined });
+    expect(saved.win).toBeUndefined();
+    expect(saved.ourChampions).toHaveLength(5);
+    expect(saved.ourChampions).not.toContain('Extra');
+  });
+
+  it('leaves the game it was given untouched', () => {
+    playedGameWrite(live, entry);
+    expect(live.holding).toBe('Yone');
+    expect(live.ourChampions).toEqual(['', 'Diana']);
+  });
+});
+
+describe('gameAfterPlayed', () => {
+  const full = ['Shen', 'Diana', 'Yone', 'Tristana', 'Zilean'];
+  const g = (id: string, gameNumber: number, extra: Partial<SeriesGame> = {}) => ({ id, gameNumber, ourChampions: [] as string[], theirChampions: [] as string[], ...extra });
+
+  it('hands the room back to the game it was on when an earlier game was entered from the warning', () => {
+    const games = [g('g1', 1, { win: true, draftStep: DRAFT_LENGTH }), g('g2', 2), g('g3', 3)];
+    expect(gameAfterPlayed(games, games[0], 'g3')).toEqual({ id: 'g3', back: true });
+  });
+
+  it('moves on to the next game still to draft when the game on the clock was entered', () => {
+    const games = [g('g1', 1, { win: true, draftStep: DRAFT_LENGTH }), g('g2', 2), g('g3', 3)];
+    expect(gameAfterPlayed(games, games[0], 'g1')).toEqual({ id: 'g2', back: false });
+  });
+
+  it('skips a later game with a result or a finished board, in game order', () => {
+    const games = [
+      g('g4', 4),
+      g('g1', 1),
+      g('g2', 2, { win: false }),
+      g('g3', 3, { ourChampions: full, theirChampions: full })
+    ];
+    expect(gameAfterPlayed(games, games[1], 'g1')).toEqual({ id: 'g4', back: false });
+  });
+
+  it('stays on the saved game when nothing after it is left to draft, or the game it came from is gone', () => {
+    const games = [g('g1', 1), g('g2', 2, { win: true })];
+    expect(gameAfterPlayed(games, games[0], 'g1')).toEqual({ id: 'g1', back: false });
+    expect(gameAfterPlayed(games, games[0], 'deleted')).toEqual({ id: 'g1', back: false });
+    expect(gameAfterPlayed(games, games[0], '')).toEqual({ id: 'g1', back: false });
+  });
+});
+
+describe('wilsonLowerBound', () => {
+  it('is what a record can support, as a percentage', () => {
+    expect(Math.round(wilsonLowerBound(100, 1))).toBe(21);
+    expect(Math.round(wilsonLowerBound(83, 6))).toBe(43);
+    expect(wilsonLowerBound(83, 6)).toBeGreaterThan(wilsonLowerBound(100, 1));
+  });
+
+  it('is nothing with no games, and clamps a rate outside 0–100', () => {
+    expect(wilsonLowerBound(100, 0)).toBe(0);
+    expect(wilsonLowerBound(100, -3)).toBe(0);
+    expect(wilsonLowerBound(150, 4)).toBe(wilsonLowerBound(100, 4));
+    expect(wilsonLowerBound(-20, 4)).toBe(0);
   });
 });
 

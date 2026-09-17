@@ -45,7 +45,16 @@ export class ChampionGridComponent {
    */
   readonly lane = input<Role | null>(null);
 
+  /** The search box's hint. The draft room's sequence wall names what Enter does on an empty box (17 Sep 2026). */
+  readonly placeholder = input('Type a name, Enter takes the top match');
+
   readonly pick = output<string>();
+
+  /**
+   * Enter on an empty search box (17 Sep 2026). The grid still owns no idea of what it means: the draft room's
+   * sequence wall holds a ban nobody saw with it, and the comp board does not listen.
+   */
+  readonly emptyEnter = output<void>();
 
   /**
    * The lane chip in force, so a caller can follow it.
@@ -117,7 +126,11 @@ export class ChampionGridComponent {
    * whole of it now.
    */
   protected commitFirst(event: Event): void {
-    if (!this.query().trim()) return;
+    if (!this.query().trim()) {
+      event.preventDefault();
+      this.emptyEnter.emit();
+      return;
+    }
     const first = this.grid().find((c) => !this.isBlocked(c.name) && !this.isTaken(c.name));
     if (!first) return;
     event.preventDefault();
