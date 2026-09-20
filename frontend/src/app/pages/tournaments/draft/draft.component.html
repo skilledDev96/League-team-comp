@@ -696,7 +696,7 @@
             <app-champion-grid data-tour="draft-wall" [unavailable]="sequenceUnavailable(game)"
                                [taken]="gridTaken(game)"
                                [lane]="gridLane()"
-                               placeholder="Type a name, Enter · Enter on empty: ban not seen"
+                               [placeholder]="wallPlaceholder(game)"
                                (laneChange)="shownLane.set($event)"
                                (emptyEnter)="wallEmptyEnter()"
                                (pick)="proposeFromSequence($event)" />

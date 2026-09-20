@@ -323,11 +323,30 @@ export type EmptyEnterAction = 'hold' | 'confirm' | 'none';
  * made ban or seat is aimed at, since the replace has the wall. `action` is the step on the clock, absent when no
  * sequence runs.
  */
-export function emptyEnterAction(action: DraftAction | null | undefined, held: string | null, replacing: boolean): EmptyEnterAction {
-  if (action !== 'ban' || replacing) return 'none';
-  if (!held) return 'hold';
-  return isNoBan(held) ? 'confirm' : 'none';
+export function emptyEnterAction(
+  action: DraftAction | null | undefined,
+  held: string | null,
+  replacing: boolean,
+  heldForMs = Number.POSITIVE_INFINITY
+): EmptyEnterAction {
+  if (!action || replacing) return 'none';
+  // Nothing held: on a ban step, Enter on an empty box holds a ban nobody saw. A pick nobody saw is not a thing
+  // — an unseen pick would hide a real champion from the burn and the advisor — so a pick step does nothing.
+  if (!held) return action === 'ban' ? 'hold' : 'none';
+  // Something held: Enter locks it. A not-seen ban locks at once (its first Enter was the empty box, so a second
+  // Enter is deliberate); a champion has to have been held for LOCK_AFTER_MS, because the Enter that took it off
+  // the wall clears the box, and a double tap of one key must not confirm something nobody has read back yet.
+  if (isNoBan(held)) return action === 'ban' ? 'confirm' : 'none';
+  return heldForMs >= LOCK_AFTER_MS ? 'confirm' : 'none';
 }
+
+/**
+ * How long a champion must have been held before Enter locks it (21 Sep 2026, the lead: "second enter should lock
+ * the pick"). Typing a name and pressing Enter holds it and clears the box, so the very next Enter would otherwise
+ * confirm a champion the operator has not looked at — and on a live draft that is the one keystroke you cannot take
+ * back cleanly. A third of a second is longer than a double tap and shorter than reading the confirm line.
+ */
+export const LOCK_AFTER_MS = 350;
 
 /** What Undo would take back from a game at its current step, so the room can ask before removing a pick. */
 export function undoTarget(game: { draftStep?: number; bans?: string[]; pickLog?: string[] }): { action: DraftAction; champion: string | null } | null {

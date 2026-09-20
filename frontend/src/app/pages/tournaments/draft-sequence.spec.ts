@@ -251,7 +251,7 @@ describe('positionOf', () => {
   });
 });
 
-import { banPlaceWords, banWallClick, banWord, bansLeftInPhase, emptyEnterAction, heldLine, isNoBan, NO_BAN, sequenceClosed } from './draft-sequence';
+import { banPlaceWords, banWallClick, banWord, bansLeftInPhase, emptyEnterAction, heldLine, isNoBan, LOCK_AFTER_MS, NO_BAN, sequenceClosed } from './draft-sequence';
 import { blockedSet, normalizeChampion } from './draft.util';
 
 describe('NO_BAN', () => {
@@ -388,14 +388,26 @@ describe('emptyEnterAction — Enter in the wall\'s empty search box', () => {
     expect(emptyEnterAction('ban', NO_BAN, false)).toBe('confirm');
   });
 
-  it('leaves a held champion alone: whether Enter confirms one waits on the lead', () => {
-    expect(emptyEnterAction('ban', 'Akshan', false)).toBe('none');
+  it('locks a held champion on the second Enter, on a ban step and on a pick step (21 Sep 2026)', () => {
+    // Typing a name and pressing Enter holds it and clears the box, so the next Enter lands here.
+    expect(emptyEnterAction('ban', 'Akshan', false, 400)).toBe('confirm');
+    expect(emptyEnterAction('pick', 'Jinx', false, 400)).toBe('confirm');
   });
 
-  it('does nothing on a pick step, with no sequence, or while a made ban or seat is aimed at', () => {
+  it('will not lock a champion held a moment ago, so one double tap cannot confirm it', () => {
+    expect(emptyEnterAction('ban', 'Akshan', false, 0)).toBe('none');
+    expect(emptyEnterAction('pick', 'Jinx', false, LOCK_AFTER_MS - 1)).toBe('none');
+    expect(emptyEnterAction('pick', 'Jinx', false, LOCK_AFTER_MS)).toBe('confirm');
+  });
+
+  it('locks a not-seen ban at once, since its own first Enter was the empty box', () => {
+    expect(emptyEnterAction('ban', NO_BAN, false, 0)).toBe('confirm');
+  });
+
+  it('does nothing with an empty hand on a pick step, with no sequence, or while a made ban or seat is aimed at', () => {
+    // A pick nobody saw is not a thing: it would hide a real champion from the burn, the advisor and the lockouts.
     expect(emptyEnterAction('pick', null, false)).toBe('none');
     expect(emptyEnterAction('pick', NO_BAN, false)).toBe('none');
-    expect(emptyEnterAction('pick', 'Jinx', false)).toBe('none');
     expect(emptyEnterAction(undefined, null, false)).toBe('none');
     expect(emptyEnterAction(null, NO_BAN, false)).toBe('none');
     expect(emptyEnterAction('ban', null, true)).toBe('none');

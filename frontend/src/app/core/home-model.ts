@@ -4,7 +4,7 @@ import { Achievement } from './achievements';
 import { WelcomeSolo } from './home-welcome';
 import { CompOfTheMonth } from './comp-month';
 import { DonutSegment } from './home-charts';
-import { LastCrown, PodiumPlace, RaceEntry } from './mvp-race';
+import { LastCrown, RaceEntry } from './mvp-race';
 import { GameRecord, HeadlineCounters, ObjectiveShare, RankedRecord, SeasonMode, SeasonWindow, Streak, TrendMarker, TrendPoint } from './team-season';
 
 /**
@@ -112,7 +112,6 @@ export type HomeSpotlight =
 
 export interface HomeRace {
   entries: RaceEntry[];
-  podium: PodiumPlace[];
   /** The newest series that crowned somebody, whatever the season. */
   last: LastCrown | null;
   /** The newest finished series, when it is newer than `last` and crowned nobody yet: "vs X is waiting on replays". */

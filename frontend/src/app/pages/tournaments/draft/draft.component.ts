@@ -39,6 +39,7 @@ import {
   DraftStep,
   draftProgress,
   emptyEnterAction,
+  LOCK_AFTER_MS,
   HeldLine,
   heldLine,
   isComplete,
@@ -1041,6 +1042,11 @@ export class TournamentDraftComponent implements OnInit {
   // a pick is confirmed rather than typed, the way it happens at the table.
 
   protected readonly pending = signal<string | null>(null);
+  /**
+   * When the held champion was taken, so a second Enter can lock it without a double tap doing it (21 Sep 2026).
+   * Set beside every hold; read only by `wallEmptyEnter`.
+   */
+  private heldAt = 0;
 
   /**
    * A write is in flight. Confirming is one click and a draft is drafted fast,
@@ -1446,7 +1452,13 @@ export class TournamentDraftComponent implements OnInit {
       void this.replaceAimed(this.current(game), name);
       return;
     }
+    this.hold(name);
+  }
+
+  /** Hold a champion for confirmation, remembering when, and tell the watchers. */
+  private hold(name: string): void {
     this.pending.set(name);
+    this.heldAt = Date.now();
     this.writeHold(name);
   }
 
@@ -1500,23 +1512,35 @@ export class TournamentDraftComponent implements OnInit {
   }
 
   /**
-   * Enter in the sequence wall's empty search box (17 Sep 2026). On a ban step with nothing held it holds a ban
-   * nobody saw, and with that held it locks it: a missed ban is two Enters, not a junk champion off the wall's first
-   * row that the burn lists, the advisor and the review lockouts then read as real. The rule itself is
-   * `emptyEnterAction`, pure and tested: nothing with a champion held, on a pick step, or while a replace is aimed.
+   * Enter in the sequence wall's empty search box. On a ban step with nothing held it holds a ban nobody saw
+   * (17 Sep 2026), and with anything held it locks it (21 Sep 2026, the lead: "second enter should lock the pick") —
+   * so a pick is type, Enter, Enter, and a missed ban is Enter, Enter, with no reach for the mouse. Taking a champion
+   * off the wall clears the search box, which is what makes the second Enter land here; `LOCK_AFTER_MS` since the
+   * hold keeps a double tap of one key from confirming it. The rule itself is `emptyEnterAction`, pure and tested:
+   * nothing while a replace is aimed, and nothing on a pick step with an empty hand.
    */
   protected wallEmptyEnter(): void {
     const game = this.draftGame();
     if (!game || !this.auth.editing()) return;
     const live = this.current(game);
     if (!this.sequenceActive(live)) return;
-    const action = emptyEnterAction(this.step(live)?.action, this.pending(), !!this.replacing(live));
+    const action = emptyEnterAction(this.step(live)?.action, this.pending(), !!this.replacing(live), Date.now() - this.heldAt);
     if (action === 'hold') {
-      this.pending.set(NO_BAN);
-      this.writeHold(NO_BAN);
+      this.hold(NO_BAN);
     } else if (action === 'confirm') {
       void this.confirmPending(live);
     }
+  }
+
+  /**
+   * What the wall's search box says, which is what the next two keys do (21 Sep 2026). It changes only with the
+   * step and whether something is held — the box is a fixed width, so nothing moves.
+   */
+  protected wallPlaceholder(game: SeriesGame): string {
+    if (this.pending()) return 'Enter again locks it';
+    return this.step(game)?.action === 'ban'
+      ? 'Type a name, Enter holds · Enter on empty: ban not seen'
+      : 'Type a name, Enter holds · Enter again locks';
   }
 
   /** How many bans "Rest of phase not seen" would write from here: the bans left before the next pick. */

@@ -82,29 +82,6 @@ export function mvpRace(crowns: readonly SeriesCrown[], roster: readonly Player[
     .map(({ entry }) => entry);
 }
 
-export interface PodiumPlace {
-  place: 1 | 2 | 3;
-  entry: RaceEntry;
-}
-
-/**
- * The first three places by titles, shared on a tie (13 Sep 2026).
- *
- * Places are dense: two players on three titles are both first and the next count down is second, so the
- * podium never skips a step because two people shared one. Nobody without a title stands on it, and
- * everyone who does comes back in the race's own order.
- */
-export function podium(race: readonly RaceEntry[]): PodiumPlace[] {
-  const titled = race.filter((entry) => entry.titles > 0);
-  const counts = [...new Set(titled.map((entry) => entry.titles))].sort((a, b) => b - a);
-  const out: PodiumPlace[] = [];
-  for (const entry of titled) {
-    const place = counts.indexOf(entry.titles) + 1;
-    if (place <= 3) out.push({ place: place as PodiumPlace['place'], entry });
-  }
-  return out;
-}
-
 export interface LastCrown {
   seriesId: string;
   /** The other team's name, which is all the page ever says about them. */

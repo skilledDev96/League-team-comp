@@ -4,7 +4,6 @@ import { HomeAdviceComponent } from './tiles/home-advice.component';
 import { HomeCompMonthComponent } from './tiles/home-comp-month.component';
 import { HomeLineupComponent } from './tiles/home-lineup.component';
 import { HomeObjectivesComponent } from './tiles/home-objectives.component';
-import { HomePodiumComponent } from './tiles/home-podium.component';
 import { HomeRankClimbComponent } from './tiles/home-rank-climb.component';
 import { HomeRecordComponent } from './tiles/home-record.component';
 import { HomeRecordsComponent } from './tiles/home-records.component';
@@ -13,7 +12,7 @@ import { HomeTrophiesComponent } from './tiles/home-trophies.component';
 
 /**
  * The bento under the spotlight (13 Sep 2026, design B's "Team HQ"), loaded as its own chunk once it
- * nears the screen: the podium, the record and the form; the comp of the month beside the records to
+ * nears the screen: the record and the form; the comp of the month beside the records to
  * beat; what we do well and what to work on; the five; objective control; and the trophy cabinet last,
  * because it matters later rather than now.
  */
@@ -24,7 +23,6 @@ import { HomeTrophiesComponent } from './tiles/home-trophies.component';
     HomeCompMonthComponent,
     HomeLineupComponent,
     HomeObjectivesComponent,
-    HomePodiumComponent,
     HomeRankClimbComponent,
     HomeRecordComponent,
     HomeRecordsComponent,
@@ -34,7 +32,6 @@ import { HomeTrophiesComponent } from './tiles/home-trophies.component';
   template: `
     @let h = home();
     <div class="home-bento">
-      <app-home-podium class="home-cell home-cell-podium" [podium]="h.race.podium" [scope]="scope()" />
       <app-home-record class="home-cell home-cell-record" [record]="h.record" [scopeLabel]="h.season.label" />
       <app-home-trend class="home-cell home-cell-trend" [trend]="h.trend" />
       <app-home-comp-month class="home-cell home-cell-comp" [compMonth]="h.compMonth" />

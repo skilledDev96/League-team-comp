@@ -10,7 +10,7 @@ import { HomeAdviceLine, HomeHandTrophy, HomeInput, HomeLineupCard, HomeModel, H
 import { parseLocalDate } from './local-date';
 import { sandboxMatchIds } from './sandbox-series';
 import { welcomeFor } from './home-welcome';
-import { lastCrown, mvpRace, podium, titlesById } from './mvp-race';
+import { lastCrown, mvpRace, titlesById } from './mvp-race';
 import { nextOpenSeries, seriesCrowns } from './series-results';
 import {
   finishedInSeason,
@@ -292,7 +292,6 @@ export function buildHome(i: HomeInput): HomeModel {
     spotlight,
     race: {
       entries,
-      podium: podium(entries),
       last,
       ...(waiting ? { waitingOn: newest.series.opponent } : {}),
       finished: seasonFinished.length

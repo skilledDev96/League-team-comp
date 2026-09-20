@@ -15059,7 +15059,6 @@ body { --tier-iron: #8b8e94; --tier-bronze: #b0743f; --tier-silver: #aeb8c6; --t
 .home-bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 1rem; }
 .home-cell { display: block; min-width: 0; }
 .home-cell > .home-tile { height: 100%; box-sizing: border-box; }
-.home-cell-podium { grid-column: span 4; min-height: 16rem; }
 .home-cell-record { grid-column: span 3; min-height: 16rem; }
 .home-cell-trend { grid-column: span 5; min-height: 16rem; }
 .home-cell-comp, .home-cell-records { grid-column: span 6; min-height: 19.5rem; }
@@ -15079,22 +15078,7 @@ body { --tier-iron: #8b8e94; --tier-bronze: #b0743f; --tier-silver: #aeb8c6; --t
 .home-card-head .view-btn { font-size: 0.74rem; }
 
 /* Podium */
-.home-podium-steps { list-style: none; margin: auto 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 0.5rem; }
-.home-podium-step { display: grid; justify-items: center; gap: 0.4rem; min-width: 0; }
-.home-podium-who { display: grid; justify-items: center; gap: 0.25rem; min-height: 3.6rem; align-content: end; }
-.home-podium-person { display: grid; justify-items: center; gap: 0.15rem; min-width: 0; }
-.home-podium-person .avatar { width: 2.3rem; height: 2.3rem; }
-.home-podium-step.is-first .home-podium-person .avatar { width: 2.9rem; height: 2.9rem; box-shadow: 0 0 0 2px var(--accent-2); }
-.home-podium-person b { max-width: 7rem; font-size: var(--fs-meta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.home-podium-open { display: grid; place-items: center; width: 2.3rem; height: 2.3rem; border-radius: 50%; border: 1px dashed var(--card-border); color: var(--text-2); font-family: "Chakra Petch", sans-serif; }
-.home-podium-block { width: 100%; display: grid; justify-items: center; align-content: start; gap: 0.1rem; padding-top: 0.4rem; border-radius: 10px 10px 4px 4px; transform-origin: bottom center;
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 30%, var(--card)), color-mix(in srgb, var(--accent) 8%, var(--card))); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
-.home-podium-step:nth-child(1) .home-podium-block { height: 4.2rem; }
-.home-podium-step.is-first .home-podium-block { height: 5.8rem; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-2) 45%, var(--card)), color-mix(in srgb, var(--accent) 12%, var(--card))); }
-.home-podium-step:nth-child(3) .home-podium-block { height: 3.2rem; }
-.home-podium-step.is-empty .home-podium-block { background: transparent; border-style: dashed; border-color: var(--card-border); }
-.home-podium-place { font-family: "Chakra Petch", sans-serif; font-size: 1.4rem; font-weight: 700; line-height: 1; color: var(--text-0); }
-.home-podium-block small { font-size: 0.66rem; color: var(--text-1); }
 
 /* Record donut */
 .home-record-body { flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 1rem; }
@@ -15262,8 +15246,8 @@ span.home-records-open { width: 4.1rem; }
 .home-trophy-progress span { display: block; height: 100%; background: var(--accent); transform-origin: left center; transform: scaleX(var(--home-share, 0)); }
 
 @media (max-width: 62rem) {
+  .home-cell-record, .home-cell-trend, .home-cell-comp, .home-cell-records { grid-column: 1 / -1; }
   .home-climb-body { grid-template-columns: minmax(0, 1fr); }
-  .home-cell-podium, .home-cell-record, .home-cell-trend, .home-cell-comp, .home-cell-records { grid-column: 1 / -1; }
   .home-lineup-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-objectives-body, .home-objectives-bars, .home-advice-cols { grid-template-columns: minmax(0, 1fr); }
   .home-trophy-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -15272,10 +15256,6 @@ span.home-records-open { width: 4.1rem; }
 @media (prefers-reduced-motion: no-preference) {
   .home:not(.is-still) .home-tile.is-seen { animation: film-rise 600ms ease backwards; }
   .home:not(.is-still) .home-tile:not(.is-seen) > * { opacity: 0; }
-  .home:not(.is-still) .home-podium.is-seen .home-podium-block { animation: home-step-rise 800ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(250ms + var(--home-i, 0) * 120ms); }
-  .home-podium-step.is-first { --home-i: 1; }
-  .home-podium-step:nth-child(3) { --home-i: 2; }
-  .home:not(.is-still) .home-podium.is-seen .home-podium-who { animation: film-drop 500ms ease backwards; animation-delay: calc(700ms + var(--home-i, 0) * 120ms); }
   .home:not(.is-still) .home-record.is-seen .home-donut-part { animation: home-ring-draw 1100ms cubic-bezier(0.3, 0.7, 0.2, 1) 200ms backwards; }
   .home:not(.is-still) .home-lineup.is-seen .rate-ring-fill { animation: home-ring-draw 1000ms cubic-bezier(0.3, 0.7, 0.2, 1) 300ms backwards; }
   /* A wipe rather than a dash: the chart stretches to its box with non-scaling strokes, and a dash length does not survive that. */
@@ -15290,7 +15270,6 @@ span.home-records-open { width: 4.1rem; }
   .home:not(.is-still) .home-lineup-card { transition: border-color 160ms ease, transform 200ms ease; }
   .home:not(.is-still) .home-lineup-card:hover .splash-art { transform: scale(1.04); }
   .home:not(.is-still) .home-lineup-card .splash-art { transition: transform 600ms ease; }
-  @keyframes home-step-rise { from { transform: scaleY(0); } }
   @keyframes home-ring-draw { from { stroke-dasharray: 0 100; } }
   @keyframes home-stamp { from { opacity: 0; transform: scale(1.5) rotate(-8deg); } }
   .home:not(.is-still) .home-welcome.is-seen .home-welcome-crest { animation: home-stamp 700ms ease 250ms backwards; }

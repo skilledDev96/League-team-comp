@@ -154,7 +154,7 @@ export const TOURS: readonly Tour[] = [
       {
         anchor: 'home-tiles',
         title: 'The season at a glance',
-        text: 'The podium, the form, the comp of the month, the records to beat and what to work on.', more: 'Further down: the five, objective control and the trophy cabinet. Every figure is read off the same games the Games page lists.'
+        text: 'The MVP race, the form, the comp of the month, the records to beat and what to work on.', more: 'Further down: the five, objective control and the trophy cabinet. Every figure is read off the same games the Games page lists.'
       },
       {
         anchor: 'edit-toggle',

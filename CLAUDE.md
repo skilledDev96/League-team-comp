@@ -191,7 +191,10 @@ switch, a Motion pill, the next series with a countdown and **Scout them**, whic
 opens that series' prep through `TournamentContextService.openPrep` and never the
 draft room), the welcome band (the reader is the starter in `UserPrefs.film.seat`),
 the MVP of the last series in a gold frame with the page's one ability clip, and the
-MVP race with the last series MVP at its foot. **A series is finished** when its
+MVP race with the last series MVP at its foot. **There is no Podium tile** (dropped
+21 Sep 2026, the lead: "feels duplicate cause we already have this"): it printed the same three names and
+title counts as the race directly above it, and on a three-way tie it stood all three on step 1 and drew
+steps 2 and 3 empty. **A series is finished** when its
 best-of is decided or a later series of its tournament has results
 (`core/series-results.ts`; scrim blocks never), and **a crown counts** when it names
 a roster player and more than half its games carry figures (`CROWN_MIN_READ_SHARE`).
@@ -877,7 +880,7 @@ filter rather than none, so it can never become unpickable.
    the gold ribbon beside the holder's name and nothing beside anyone else; the tip names the series,
    the champion and the date. It stands at every name site outside the draft room and the film
    room: the Roster poster, sheet, Players rows, practice board and Scout report, Home's welcome,
-   race, lineup, podium and rank climb, the Games player table and scoreboards, the story's lanes,
+   race, lineup and rank climb, the Games player table and scoreboards, the story's lanes,
    the review seats and the MVP chip's label, Patterns' player buttons, tables and draft rows, the
    numbers check, the Comps seat covers, the profile's headings, Admin's player header and the
    editor drawer. Inside a button or a link it is `[focusable]="false"` (the host is the tab stop);
@@ -1396,7 +1399,8 @@ gesture is one write): it enforces **on read** that a seat with no priority has 
 
 **The roadmap's Fix first release shipped on 17 Sep 2026** (the lead: "lets start with those fixes"). What each part rules:
 
-- **A ban can be 'not seen'.** `NO_BAN` (`'-'`, `draft-sequence.ts`) sits in the flat bans list, because a ban's position is what says whose it was; it is never a champion — `blockedSet`, the burn lists, the advisor request (`withoutUnseenBans`), `draftLockouts` in the api and every chip skip it, and it draws as the dashed empty card. On a ban step, Enter in the wall's empty search holds it and Enter again locks it (`emptyEnterAction`; Enter with a champion held still does nothing — whether a second Enter locks a pick waits on the lead). **Rest of phase not seen** in the step bar writes every ban left before the next pick in one save, for any editor on any series, and claims no width of its own. After a finished draft, a wall click fills the first not-seen ban (`banWallClick`), and unticking a ban on a sided board leaves a not-seen ban rather than shifting the later ones to the other side.
+- **A ban can be 'not seen'.** `NO_BAN` (`'-'`, `draft-sequence.ts`) sits in the flat bans list, because a ban's position is what says whose it was; it is never a champion — `blockedSet`, the burn lists, the advisor request (`withoutUnseenBans`), `draftLockouts` in the api and every chip skip it, and it draws as the dashed empty card. On a ban step, Enter in the wall's empty search holds it and Enter again locks it. **Rest of phase not seen** in the step bar writes every ban left before the next pick in one save, for any editor on any series, and claims no width of its own. After a finished draft, a wall click fills the first not-seen ban (`banWallClick`), and unticking a ban on a sided board leaves a not-seen ban rather than shifting the later ones to the other side.
+- **A second Enter locks what is held** (21 Sep 2026, the lead: "SECOND ENTER SHOULD LOCK THE PICK"). Taking a champion off the wall clears the search box, so the next Enter lands on the empty-box path: `emptyEnterAction` confirms it once the hold is `LOCK_AFTER_MS` (350 ms) old, which is longer than a double tap of one key and shorter than reading the confirm line back. A pick is type, Enter, Enter; a missed ban is Enter, Enter; the mouse is never needed for either. A not-seen ban locks at once, since its own first Enter was the empty box, and nothing locks while a replace is aimed. The wall's placeholder says which of the three it is doing, and changes only with the step and the hold — the box is a fixed width, so nothing moves.
 - **The held line says whose step and seat**: 'OUR pick 1 · Aurelion Sol → our Mid', blue side in `--accent`, red in `--warn` (the side question's pair); only the champion's name gives way.
 - **Skip bans and Fill draft draw only on a sandbox series** with the aids switch on — random bans on a real series read as real. `autoChoice` reads the sequence's closed set, so Skip bans never repeats a ban.
 - **A game played without the room is entered from the side question**: 'Already played, enter it', and in a fearless series a warning with 'Enter game N' when an earlier game is short of five picks a side (`gapsBefore`), both into one `<dialog appModal class="draft-played-dialog">` with seated pickers (`playedGameWrite`, `gameAfterPlayed`). The side modal is `position: fixed`, so neither moves the room.

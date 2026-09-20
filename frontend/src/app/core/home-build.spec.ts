@@ -109,7 +109,6 @@ describe('buildHome', () => {
     expect(home.spotlight).toMatchObject({ kind: 'series', playerId: 'p-adc', name: 'SkilledScarecrow', champion: 'Jinx', opponent: 'Tidal Wolves', result: 'won', score: { wins: 2, losses: 0 }, titles: 1, read: 2, of: 2 });
     expect(home.race.entries[0]).toMatchObject({ playerId: 'p-adc', titles: 1 });
     expect(home.race.last).toMatchObject({ seriesId: 'a', name: 'SkilledScarecrow', champion: 'Jinx', opponent: 'Tidal Wolves' });
-    expect(home.race.podium.map((p) => [p.place, p.entry.playerId])).toEqual([[1, 'p-adc']]);
     expect(home.race.waitingOn).toBeUndefined();
     expect(home.lineup.filter((c) => c.crowned).map((c) => c.playerId)).toEqual(['p-adc']);
   });

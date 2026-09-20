@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Player, Role } from '../models/team.models';
-import { lastCrown, mvpRace, podium, RaceEntry } from './mvp-race';
+import { lastCrown, mvpRace, RaceEntry } from './mvp-race';
 import { FinishedSeries, SeriesCrown } from './series-results';
 
 const player = (id: string, name: string, role: Role, over: Partial<Player> = {}) => ({ id, name, role, order: 0, top3: [], ...over }) as unknown as Player;
@@ -103,33 +103,6 @@ describe('mvpRace', () => {
   });
 });
 
-describe('podium', () => {
-  const entry = (playerId: string, titles: number): RaceEntry => ({ playerId, name: playerId, role: 'Mid', titles, provisional: 0 });
-
-  it('ranks densely, so two players sharing first leave the next count second', () => {
-    const race = [entry('a', 3), entry('b', 3), entry('c', 2), entry('d', 1), entry('e', 0)];
-    expect(podium(race).map((p) => [p.place, p.entry.playerId])).toEqual([
-      [1, 'a'],
-      [1, 'b'],
-      [2, 'c'],
-      [3, 'd']
-    ]);
-  });
-
-  it('cuts after third place and leaves out anyone without a title', () => {
-    const race = [entry('a', 4), entry('b', 3), entry('c', 2), entry('d', 2), entry('e', 1), entry('f', 0)];
-    expect(podium(race).map((p) => [p.place, p.entry.playerId])).toEqual([
-      [1, 'a'],
-      [2, 'b'],
-      [3, 'c'],
-      [3, 'd']
-    ]);
-  });
-
-  it('is empty when nobody has a title', () => {
-    expect(podium([entry('a', 0), entry('b', 0)])).toEqual([]);
-  });
-});
 
 describe('lastCrown', () => {
   it('skips a newer mark that does not count and reads the newest one that does', () => {
