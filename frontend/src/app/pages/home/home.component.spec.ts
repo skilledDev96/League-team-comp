@@ -87,8 +87,17 @@ describe.skipIf(typeof localStorage === 'undefined')('HomeComponent', () => {
     return { harness, root: harness.routeNativeElement as HTMLElement };
   }
 
+  /** The glance grid is deferred, and the MVP race is one of its tiles since 21 Sep 2026. */
+  async function openWithTiles(): Promise<{ harness: RouterTestingHarness; root: HTMLElement }> {
+    const { harness, root } = await open();
+    const [bento] = await harness.fixture.getDeferBlocks();
+    await bento.render(DeferBlockState.Complete);
+    harness.detectChanges();
+    return { harness, root };
+  }
+
   it('draws the empties on purpose: no record, the first crown to win, every starter in the race', async () => {
-    const { root } = await open();
+    const { root } = await openWithTiles();
     expect(text(root.querySelector('.home-hero h1'))).toBe(data.settings().teamName || 'Bom Squad');
     expect(text(root.querySelector('.home-hero-empty'))).toContain('The record starts');
     // The one empty state (13 Sep 2026): the hero's line is the shared paragraph, its own class only sizes it.
@@ -101,7 +110,7 @@ describe.skipIf(typeof localStorage === 'undefined')('HomeComponent', () => {
   it('crowns the MVP of a finished Bo3 in the spotlight and names them at the foot of the race', async () => {
     data.seriesGames.set(games);
     data.scrims.set([replay('rep-1', NOW - 2 * DAY), replay('rep-2', NOW - 2 * DAY + 3_600_000)]);
-    const { root } = await open();
+    const { root } = await openWithTiles();
     expect(text(root.querySelector('.home-spotlight-name'))).toBe('SkilledScarecrow');
     expect(text(root.querySelector('.home-spotlight-meta'))).toContain('Won 2–0 vs Tidal Wolves');
     expect(text(root.querySelector('.home-race-row.is-leader .home-race-who b'))).toBe('SkilledScarecrow');
@@ -173,6 +182,8 @@ describe.skipIf(typeof localStorage === 'undefined')('HomeComponent', () => {
     harness.detectChanges();
     const cells = [...root.querySelectorAll('app-home-tiles .home-cell')].map((c) => c.className.replace(/^home-cell home-cell-/, ''));
     expect(cells.at(-1)).toBe('trophies');
+    // The race fills the four columns the podium used to, beside the record and the form (21 Sep 2026).
+    expect(cells.slice(0, 3)).toEqual(['record', 'trend', 'race']);
     // What the team entered by hand stands first in the cabinet, with its medal.
     const cabinet = root.querySelector('.home-trophies')!;
     expect(cabinet.querySelector('ul')!.classList.contains('home-won')).toBe(true);

@@ -772,13 +772,7 @@
                                   <em class="opp-queue-what">Plays</em>
                                   @for (rec of q.pool; track rec.champion) {
                                     <span class="opp-champ-cell"
-                                          [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won' : '') + (q.forSeat ? ' at ' + opp.role : '') + (q.label ? ' (' + q.label + ')' : '')">
-                                      @if (masteryOf(opp, rec.champion); as m) {
-                                        <span class="opp-champ-mastery"
-                                              [appTip]="'Mastery ' + m.level + ' — ' + m.points.toLocaleString() + ' points on ' + rec.champion">M{{ m.level }}<em>{{ masteryLabel(m) }}</em></span>
-                                      } @else {
-                                        <span class="opp-champ-mastery is-none" aria-hidden="true">&nbsp;</span>
-                                      }
+                                          [appTip]="poolTip(opp, rec, q)">
                                       <img class="opp-champ" [class.is-seat]="q.forSeat" [class.is-match]="filter.matches(rec.champion)"
                                            [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
                                       @if (rateOf(rec) !== null) {
@@ -811,7 +805,7 @@
                             <div class="opp-queue">
                               <span class="opp-queue-head">
                                 <span class="opp-queue-label">Lately</span>
-                                <small class="muted">Everything they have touched in the last two months, newest first</small>
+                                <small class="muted">Last two months, newest first</small>
                               </span>
                               <span class="opp-queue-line opp-recent">
                                 @for (champ of recentShown(opp); track champ) {

@@ -120,8 +120,26 @@ export class TournamentPlanComponent {
    * never name a player whose row says nothing: the face draws the merged top few, which is a
    * shorter list than the pools `holders` reasons over.
    */
+  /**
+   * Is this row the one the champion filter is asking about? `passes` answers true when nobody has asked, which
+   * lit every row at once (21 Sep 2026, the lead: "the blue lines are a little too much") — a mark that is always
+   * on says nothing. So: only while a champion is actually being asked for.
+   */
   protected rowMatches(opp: OpponentPlayer): boolean {
+    if (!this.filter.active()) return false;
     return this.filter.passes(queueRows(opp).flatMap((row) => row.pool.map((rec) => rec.champion)));
+  }
+
+  /** What a pool champion's tip says: the record, the seat it is from, the queue, and the mastery behind it. */
+  protected poolTip(opp: OpponentPlayer, rec: ChampionRecord, q: { label?: string; forSeat?: boolean }): string {
+    const mastery = this.masteryOf(opp, rec.champion);
+    return [
+      rec.champion,
+      rec.games ? ` — ${rec.wins} of ${rec.games} won` : '',
+      q.forSeat ? ` at ${opp.role}` : '',
+      q.label ? ` (${q.label})` : '',
+      mastery ? ` · mastery ${mastery.level}, ${this.masteryLabel(mastery)} points` : ''
+    ].join('');
   }
 
   /** Per series, the scouted opponents whose pool has the champion being asked about. */

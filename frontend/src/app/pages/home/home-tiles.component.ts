@@ -5,6 +5,7 @@ import { HomeCompMonthComponent } from './tiles/home-comp-month.component';
 import { HomeLineupComponent } from './tiles/home-lineup.component';
 import { HomeObjectivesComponent } from './tiles/home-objectives.component';
 import { HomeRankClimbComponent } from './tiles/home-rank-climb.component';
+import { HomeRaceComponent } from './home-race.component';
 import { HomeRecordComponent } from './tiles/home-record.component';
 import { HomeRecordsComponent } from './tiles/home-records.component';
 import { HomeTrendComponent } from './tiles/home-trend.component';
@@ -24,6 +25,7 @@ import { HomeTrophiesComponent } from './tiles/home-trophies.component';
     HomeLineupComponent,
     HomeObjectivesComponent,
     HomeRankClimbComponent,
+    HomeRaceComponent,
     HomeRecordComponent,
     HomeRecordsComponent,
     HomeTrendComponent,
@@ -34,6 +36,7 @@ import { HomeTrophiesComponent } from './tiles/home-trophies.component';
     <div class="home-bento">
       <app-home-record class="home-cell home-cell-record" [record]="h.record" [scopeLabel]="h.season.label" />
       <app-home-trend class="home-cell home-cell-trend" [trend]="h.trend" />
+      <app-home-race class="home-cell home-cell-race" [race]="home().race" [seasonLabel]="home().season.label" />
       <app-home-comp-month class="home-cell home-cell-comp" [compMonth]="h.compMonth" />
       <app-home-records class="home-cell home-cell-records" [records]="h.records" [scopeLabel]="h.season.label" />
       <app-home-advice class="home-cell home-cell-advice" [advice]="h.advice" />

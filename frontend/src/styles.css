@@ -11022,10 +11022,14 @@ button.opp-more.active {
    champion the banner counted can sit in a per-queue pool behind the row opening with no ring
    anywhere — the reader would have to open all five rows to find the one the banner means. The
    row itself says "it is in here", the same inset ring a Players row wears. */
-.opp-roster .opp-table .opp-row.is-match { box-shadow: inset 0 0 0 2px var(--accent-2); }
+.opp-roster .opp-table .opp-row.is-match {
+  background: color-mix(in srgb, var(--accent-2) 7%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-2) 45%, transparent);
+}
 .opp-roster .opp-table .opp-row:has(.opp-open:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
 .opp-roster .opp-table .opp-row.is-open {
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  background: color-mix(in srgb, var(--surface-btn) 70%, transparent);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
   border-bottom-color: transparent;
   border-radius: var(--r-menu) var(--r-menu) 0 0;
 }
@@ -11173,6 +11177,20 @@ button.opp-more.active {
   padding: 0.7rem 0.85rem 0.85rem;
   background: color-mix(in srgb, var(--accent) 5%, transparent);
   border-radius: 0 0 var(--r-menu) var(--r-menu);
+}
+
+/* The opened row, made readable (21 Sep 2026): three quiet panels rather than six rows of small text, with the
+   mastery moved into each champion's tip — it was a line of "M13 113k" above every icon, which is the densest
+   thing on the page and the least acted on. */
+.opp-roster .opp-queue {
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--r-menu);
+  background: color-mix(in srgb, var(--surface-btn) 45%, transparent);
+}
+
+.opp-roster .opp-queue-what {
+  flex: 0 0 4.4rem;
+  color: var(--text-2);
 }
 
 .opp-roster .opp-detail-grid {
@@ -14965,7 +14983,6 @@ body { --tier-iron: #8b8e94; --tier-bronze: #b0743f; --tier-silver: #aeb8c6; --t
 .home-seat-later { border-color: var(--card-border); color: var(--text-1); }
 
 /* The spotlight and the race */
-.home-duo { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1rem; align-items: stretch; }
 .home-spotlight { position: relative; overflow: hidden; isolation: isolate; min-height: 22rem; display: grid; align-items: end; padding: 1.5rem 1.6rem; border-radius: var(--r-frame); background: var(--bg-0); border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: 0 14px 34px var(--shadow-elev), 0 0 2.5rem color-mix(in srgb, var(--accent) 16%, transparent); }
 .home-spotlight::before { content: ""; position: absolute; inset: 0.45rem; z-index: 1; border-radius: 11px; border: 1px solid color-mix(in srgb, var(--accent-2) 38%, transparent); pointer-events: none; }
 .home-spotlight-art { z-index: -1; }
@@ -15018,7 +15035,6 @@ body { --tier-iron: #8b8e94; --tier-bronze: #b0743f; --tier-silver: #aeb8c6; --t
   .home-hero-next { grid-column: 1; }
   .home-counters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-title { font-size: 3rem; }
-  .home-duo { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -15061,6 +15077,10 @@ body { --tier-iron: #8b8e94; --tier-bronze: #b0743f; --tier-silver: #aeb8c6; --t
 .home-cell > .home-tile { height: 100%; box-sizing: border-box; }
 .home-cell-record { grid-column: span 3; min-height: 16rem; }
 .home-cell-trend { grid-column: span 5; min-height: 16rem; }
+/* The MVP race sits in the glance row (21 Sep 2026), where the podium used to: four columns beside the record
+   and the form, the same height, so the row closes instead of trailing off into nothing. */
+.home-cell-race { grid-column: span 4; min-height: 16rem; }
+.home-cell > .home-race { height: 100%; box-sizing: border-box; }
 .home-cell-comp, .home-cell-records { grid-column: span 6; min-height: 19.5rem; }
 .home-cell-advice { grid-column: 1 / -1; min-height: 14.5rem; }
 .home-cell-lineup { grid-column: 1 / -1; min-height: 19rem; }
@@ -15246,7 +15266,7 @@ span.home-records-open { width: 4.1rem; }
 .home-trophy-progress span { display: block; height: 100%; background: var(--accent); transform-origin: left center; transform: scaleX(var(--home-share, 0)); }
 
 @media (max-width: 62rem) {
-  .home-cell-record, .home-cell-trend, .home-cell-comp, .home-cell-records { grid-column: 1 / -1; }
+  .home-cell-record, .home-cell-trend, .home-cell-race, .home-cell-comp, .home-cell-records { grid-column: 1 / -1; }
   .home-climb-body { grid-template-columns: minmax(0, 1fr); }
   .home-lineup-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-objectives-body, .home-objectives-bars, .home-advice-cols { grid-template-columns: minmax(0, 1fr); }

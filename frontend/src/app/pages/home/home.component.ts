@@ -5,7 +5,6 @@ import { MotionService } from '../../services/motion.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { HomeHeroComponent } from './home-hero.component';
-import { HomeRaceComponent } from './home-race.component';
 import { HomeSpotlightComponent } from './home-spotlight.component';
 import { HomeTilesComponent } from './home-tiles.component';
 import { HomeWelcomeComponent } from './home-welcome.component';
@@ -43,7 +42,7 @@ function writeStored(key: string, value: string): void {
  */
 @Component({
   selector: 'app-home',
-  imports: [HomeHeroComponent, HomeRaceComponent, HomeSpotlightComponent, HomeTilesComponent, HomeWelcomeComponent],
+  imports: [HomeHeroComponent, HomeSpotlightComponent, HomeTilesComponent, HomeWelcomeComponent],
   template: `
     @let h = home();
     <div class="home" [class.is-still]="motion.reduced()">
@@ -61,10 +60,7 @@ function writeStored(key: string, value: string): void {
         (modeChange)="setMode($event)"
       />
       <app-home-welcome [welcome]="h.welcome" (dismiss)="dismissSeat()" />
-      <div class="home-duo">
-        <app-home-spotlight [spotlight]="h.spotlight" [scope]="scope()" />
-        <app-home-race [race]="h.race" [seasonLabel]="h.season.label" />
-      </div>
+      <app-home-spotlight [spotlight]="h.spotlight" [scope]="scope()" />
       <section class="home-tiles" aria-labelledby="home-tiles-title">
         <!-- The tour's anchor is the heading, outside the deferred block: a step finds it before the chunk arrives, and it is short enough to scroll to with the first tiles still under it. -->
         <header class="home-tiles-head" data-tour="home-tiles">
@@ -101,7 +97,7 @@ export class HomeComponent {
   protected readonly motion = inject(MotionService);
 
   /** The bento's cells, top to bottom: the placeholder draws each as an empty shell of the same size, so nothing moves when the tiles land. */
-  protected readonly cells = ['record', 'trend', 'comp', 'records', 'advice', 'lineup', 'climb', 'objectives', 'trophies'] as const;
+  protected readonly cells = ['record', 'trend', 'race', 'comp', 'records', 'advice', 'lineup', 'climb', 'objectives', 'trophies'] as const;
 
   // All time unless this browser chose the season (13 Sep 2026, the lead: "keep the default on all time").
   protected readonly mode = signal<SeasonMode>(readStored(SEASON_KEY) === 'season' ? 'season' : 'all');
