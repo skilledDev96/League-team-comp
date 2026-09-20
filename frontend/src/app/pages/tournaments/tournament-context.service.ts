@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { TeamDataService } from '../../services/team-data.service';
 import { isSandboxSeries } from '../../core/sandbox-series';
+import { endedLast, isActiveTournament, isEndedTournament, lastEndedTournament } from '../../core/tournament-ended';
 import { compSeatOptions } from '../../core/comp-seats';
 import { blockedSet, CompAvailability, compAvailability, CompChampions, playedGames, PoolPressure, poolPressure, uniqueChampions } from './draft.util';
 import { isNoBan } from './draft-sequence';
@@ -36,20 +37,55 @@ export class TournamentContextService {
 
   readonly tournaments = computed(() => this.data.tournaments());
 
+  /**
+   * Which group the page lands on when nobody has chosen one: the active tournament, so it opens on what
+   * matters now.
+   *
+   * An ended split never leads (21 Sep 2026), whatever its `active` flag says — that is the whole point of
+   * ending one. With nothing marked current, a tournament still being played comes before the scrims group,
+   * which is where the scrims are and has never been anybody's landing group. With every real split ended
+   * the one ended most recently is shown rather than nothing: the page has to draw something, and the split
+   * just finished is the one to read back. Choosing an ended group by hand still opens it.
+   *
+   * The scrims group is never reached by any of those clauses (21 Sep 2026, review fix). Nothing ever ends
+   * it, so a clause reading merely "not ended" matched it ahead of the split just finished, and ending the
+   * only real tournament landed the page on the scrim blocks — which the rule above says it must never do.
+   * `all[0]` is the last resort for a team that has no real tournament at all.
+   */
+  private landingGroup(all: readonly Tournament[]): Tournament | null {
+    return (
+      all.find(isActiveTournament) ??
+      all.find((t) => t.kind !== 'scrims' && !isEndedTournament(t)) ??
+      lastEndedTournament(all) ??
+      all[0] ??
+      null
+    );
+  }
+
   /** Defaults to the active tournament so the page opens on what matters now. */
   readonly currentTournament = computed<Tournament | null>(() => {
     const all = this.tournaments();
     const chosen = this.chosenTournamentId();
     // A link may ask for the scrims group before the data has arrived; the wish is kept until it has.
-    if (chosen === 'scrims') return this.scrimsGroup() ?? all.find((t) => t.active) ?? all[0] ?? null;
+    if (chosen === 'scrims') return this.scrimsGroup() ?? this.landingGroup(all);
     if (chosen) return all.find((t) => t.id === chosen) ?? null;
     // A draft opened by link names its series, and the data may arrive after
     // the link is read: the series' tournament wins until one is chosen (9 Sep 2026).
     const seriesId = this.draftSeriesId();
     const via = seriesId ? this.data.tournamentSeries().find((s) => s.id === seriesId) : undefined;
     const own = via ? all.find((t) => t.id === via.tournamentId) : undefined;
-    return own ?? all.find((t) => t.active) ?? all[0] ?? null;
+    return own ?? this.landingGroup(all);
   });
+
+  /**
+   * The groups as Prep & Draft's group row lists them: the live ones first, the ended ones after
+   * (21 Sep 2026). A separate signal from `tournaments`, which is the stored order and is what the draft
+   * room reads — nothing in that room may move.
+   */
+  readonly groupList = computed(() => endedLast(this.tournaments()));
+
+  /** True when the group showing is a split somebody has ended. */
+  readonly isEnded = computed(() => isEndedTournament(this.currentTournament()));
 
   selectTournament(id: string): void {
     this.chosenTournamentId.set(id);

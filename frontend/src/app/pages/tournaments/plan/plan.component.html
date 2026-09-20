@@ -2,9 +2,11 @@
      view sits here, since the draft view has neither. -->
 <section class="view-row plan-groups" aria-label="Groups" [attr.data-tour]="tournaments().length > 1 ? 'prep-groups' : null">
   @if (tournaments().length > 1) {
-    @for (t of tournaments(); track t.id) {
-      <button type="button" class="view-btn" [class.active]="currentTournament()?.id === t.id"
-              [appTip]="t.kind === 'scrims' ? 'Every team we scrim: replays, scouting, bans and drafts' : (t.format || 'A tournament: series, games and the fearless pool')"
+    <!-- Live groups first, ended splits after (21 Sep 2026, `groupList`): a finished league is still one press
+         away, just not in front of the one being played. -->
+    @for (t of groupList(); track t.id) {
+      <button type="button" class="view-btn" [class.active]="currentTournament()?.id === t.id" [class.is-ended]="isEndedGroup(t)"
+              [appTip]="t.kind === 'scrims' ? 'Every team we scrim: replays, scouting, bans and drafts' : (isEndedGroup(t) ? 'This split is over. Its games still count everywhere.' : (t.format || 'A tournament: series, games and the fearless pool'))"
               (click)="selectTournament(t.id)">
         @if (t.kind === 'scrims') { <span class="material-symbols-rounded" aria-hidden="true">sports_esports</span> } @else { <span class="material-symbols-rounded" aria-hidden="true">trophy</span> }
         {{ t.name }}
@@ -95,11 +97,22 @@
       }
     </section>
   } @else {
-  <section class="card tournament-head" aria-label="Tournament details">
+  <section class="card tournament-head" [class.is-ended]="isEndedGroup(tournament)" aria-label="Tournament details">
     <h2 class="title-with-icon">
       <span class="section-icon material-symbols-rounded">trophy</span>{{ tournament.name }}
+      <!-- Ended (21 Sep 2026): a quiet chip, never a banner. What stops is leading this page and Home's next
+           series; every game of it still counts in the record, the crowns, Patterns and the Games list. -->
+      @if (isEndedGroup(tournament)) {
+        <span class="chip is-compact tournament-ended-chip"
+              appTip="This split is over: it no longer leads Prep &amp; Draft or Home's next series. Its games still count everywhere.">Ended {{ ui.formatDay(tournament.endedAt) }}</span>
+      }
     </h2>
     <dl class="tournament-meta">
+      <!-- Only while the split is ended (21 Sep 2026): Reopen lifts the day and keeps the words, and a live
+           group printing "Finished 3rd of 12" over its own schedule contradicts the head above it. -->
+      @if (isEndedGroup(tournament) && tournament.finish) {
+        <div><dt>Finished</dt><dd>{{ tournament.finish }}</dd></div>
+      }
       @if (tournament.organiser) {
         <div><dt>Organiser</dt><dd>{{ tournament.organiser }}</dd></div>
       }

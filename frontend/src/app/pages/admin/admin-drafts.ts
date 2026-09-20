@@ -1,4 +1,5 @@
 import { AccessRole, CompPicks, FillIn, Player, Role, Tournament, FillInRiot } from '../../models/team.models';
+import { isActiveTournament } from '../../core/tournament-ended';
 
 /**
  * The shapes the admin editors work on, and the conversions between them and
@@ -62,6 +63,10 @@ export interface TournamentDraft {
   active: boolean;
   /** Picks burn across a series. Off for a league that is not fearless. */
   fearless: boolean;
+  /** The day it was ended, or empty while it is still being played (21 Sep 2026). Set by End tournament, not typed. */
+  endedAt: string;
+  /** How it finished, in the lead's own words; editable on the card once the split has ended. */
+  finish: string;
 }
 
 export interface AccessDraft {
@@ -157,8 +162,12 @@ export function toTournamentDraft(t: Tournament): TournamentDraft {
     startDate: t.startDate ?? '',
     endDate: t.endDate ?? '',
     notes: t.notes ?? '',
-    active: t.active ?? false,
-    fearless: t.fearless !== false
+    // The form reads `active` the way the app does (21 Sep 2026): a document carrying both the ended day and
+    // the flag is not the current tournament anywhere else, so the box must not be ticked here either.
+    active: isActiveTournament(t),
+    fearless: t.fearless !== false,
+    endedAt: t.endedAt ?? '',
+    finish: t.finish ?? ''
   };
 }
 

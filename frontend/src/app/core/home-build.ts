@@ -6,12 +6,13 @@ import { achievementsOf } from './achievements';
 import { compOfTheMonth } from './comp-month';
 import { mvpGameFromRow, mvpOf } from './game-mvp';
 import { donutSegments } from './home-charts';
-import { HomeAdviceLine, HomeHandTrophy, HomeInput, HomeLineupCard, HomeModel, HomeNextSeries, HomeRecords, HomeSlide, HomeSpotlight, HomeWelcome } from './home-model';
+import { HomeAdviceLine, HomeEndedSplit, HomeHandTrophy, HomeInput, HomeLineupCard, HomeModel, HomeNextSeries, HomeRecords, HomeSlide, HomeSpotlight, HomeWelcome } from './home-model';
 import { parseLocalDate } from './local-date';
 import { sandboxMatchIds } from './sandbox-series';
 import { welcomeFor } from './home-welcome';
 import { lastCrown, mvpRace, titlesById } from './mvp-race';
 import { nextOpenSeries, seriesCrowns } from './series-results';
+import { hasLiveTournament, lastEndedTournament } from './tournament-ended';
 import {
   finishedInSeason,
   headline,
@@ -152,6 +153,11 @@ function lineupOf(starters: readonly Player[], allLines: readonly PlayerLine[], 
  * trophy cabinet reads everything and marks what fell inside the season. Practice-tagged games count
  * nowhere, as on Patterns, and a sandbox series (17 Sep 2026) is nowhere at all: not the next series, not
  * finished, not crowned, and none of its games in a count.
+ *
+ * An ended tournament (21 Sep 2026) moves exactly two things: the season stops being it, and its series
+ * stop being what comes next — with `endedSplit` naming the split so the rung can say the season is over
+ * rather than that nobody has typed a schedule in. Every count stays: ending is not deleting, and on All
+ * time the whole model is the model it was the day before.
  */
 export function buildHome(i: HomeInput): HomeModel {
   const rows = buildGameRows({
@@ -203,6 +209,19 @@ export function buildHome(i: HomeInput): HomeModel {
         at: kickOffOf(upcoming.scheduledAt),
         ...(upcoming.scheduledAt?.trim() ? { when: upcoming.scheduledAt.trim() } : {})
       }
+    : null;
+
+  // Why the rung is empty (21 Sep 2026): a split that has been ended and not replaced is a finished
+  // season, not a page waiting for somebody to type a schedule in. Only asked when nothing is next.
+  //
+  // "Not replaced" is asked as well as "nothing next" (21 Sep 2026, review fix): the first reading asked
+  // only whether a series was coming, so the moment a new split's games were all played — or before its
+  // first opponent had been typed in — Home went back to calling the *old* split the end of the season
+  // while the switch beside it was scoped to the new one. With any real tournament still running there is
+  // no season over to report, and the rung falls back to "No series scheduled yet", which is the truth.
+  const closed = next || hasLiveTournament(i.tournaments) ? null : lastEndedTournament(i.tournaments);
+  const endedSplit: HomeEndedSplit | null = closed
+    ? { name: closed.name, endedAt: closed.endedAt ?? '', ...(closed.finish?.trim() ? { finish: closed.finish.trim() } : {}) }
     : null;
 
   const greeting = welcomeFor({
@@ -288,6 +307,7 @@ export function buildHome(i: HomeInput): HomeModel {
       current: streaks(seasonGames).current
     },
     next,
+    endedSplit,
     welcome,
     spotlight,
     race: {

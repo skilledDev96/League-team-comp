@@ -1,5 +1,5 @@
 import { Component, computed, DestroyRef, effect, inject, input, output, signal, untracked } from '@angular/core';
-import { HomeNextSeries, HomeRecord, HomeSlide } from '../../core/home-model';
+import { HomeEndedSplit, HomeNextSeries, HomeRecord, HomeSlide } from '../../core/home-model';
 import { SettingsBanner } from '../../models/team.models';
 import { prefersSaveData } from '../../core/save-data';
 import { SeasonMode, SeasonWindow } from '../../core/team-season';
@@ -113,7 +113,7 @@ function parseBanner(key: string): { champion: string; skin: number } | null {
         }
       </div>
 
-      <app-home-next-series class="home-hero-next" [next]="next()" />
+      <app-home-next-series class="home-hero-next" [next]="next()" [ended]="endedSplit()" />
     </section>
   `
 })
@@ -129,6 +129,8 @@ export class HomeHeroComponent {
   readonly slides = input.required<readonly HomeSlide[]>();
   readonly record = input.required<HomeRecord>();
   readonly next = input<HomeNextSeries | null>(null);
+  /** Passed straight to the rung: why nothing is next, when the split has been ended (21 Sep 2026). */
+  readonly endedSplit = input<HomeEndedSplit | null>(null);
   readonly modeChange = output<SeasonMode>();
   /** The running tournament's name, for the season button's tip. */
   readonly seasonName = input('');

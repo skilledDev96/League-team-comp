@@ -3,6 +3,7 @@ import { GameRow, PlayerLine, record } from '../pages/games/game-rows';
 import { REMAKE_SECONDS } from './game-mvp';
 import { parseLocalDate } from './local-date';
 import { FinishedSeries } from './series-results';
+import { isActiveTournament, isEndedTournament } from './tournament-ended';
 
 /**
  * How the team's season is going, read for the home page (13 Sep 2026).
@@ -68,10 +69,14 @@ function runsAt(t: Tournament, now: number): boolean {
 /**
  * The real tournament we are in: one marked active if any is, else one whose dates hold today; the
  * latest start among several, and the first listed when two start together. Never the scrims group.
+ *
+ * Never an ended one either (21 Sep 2026): a split somebody has ended is not running, so neither its
+ * flag nor its dates can make it the season — a league whose end date is still weeks away because the
+ * team was knocked out early would otherwise go on scoping every figure on the home page.
  */
 function currentTournament(tournaments: readonly Tournament[], now: number): Tournament | null {
-  const real = tournaments.filter((t) => t.kind !== 'scrims');
-  const flagged = real.filter((t) => t.active === true);
+  const real = tournaments.filter((t) => t.kind !== 'scrims' && !isEndedTournament(t));
+  const flagged = real.filter(isActiveTournament);
   const pool = flagged.length ? flagged : real.filter((t) => runsAt(t, now));
   let best: Tournament | null = null;
   let bestStart = Number.NEGATIVE_INFINITY;
@@ -89,7 +94,9 @@ function currentTournament(tournaments: readonly Tournament[], now: number): Tou
  * The stretch of time the home page reads (13 Sep 2026): the running tournament from its first day
  * to its last, or to today while it is still on; the last ninety days when none is running; or
  * everything. A tournament over but still marked active ends on its end day, so a quiet week after
- * the final does not dilute the season with the games played since.
+ * the final does not dilute the season with the games played since. And once it has actually been
+ * ended (21 Sep 2026) it is not running at all: the season falls back to the last ninety days, which
+ * is what "how are we doing" means between splits.
  */
 export function seasonWindow(tournaments: readonly Tournament[], now: number, mode: SeasonMode): SeasonWindow {
   if (mode === 'all') return { mode, from: 0, to: now, label: 'All time' };

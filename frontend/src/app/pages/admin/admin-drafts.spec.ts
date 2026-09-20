@@ -105,6 +105,18 @@ describe('toTournamentDraft', () => {
     expect(draft.division).toBe('Second');
     expect(draft.active).toBe(true);
   });
+
+  // 21 Sep 2026: the form has to read `active` the way every other page does, or the box would say "current"
+  // about a split nothing in the app treats as current.
+  it('carries the ended day and the finish line, and unticks Current on a document that has both', () => {
+    const draft = toTournamentDraft({ ...tournament, active: true, endedAt: '2026-09-20', finish: '3rd of 12' });
+    expect(draft.endedAt).toBe('2026-09-20');
+    expect(draft.finish).toBe('3rd of 12');
+    expect(draft.active).toBe(false);
+    const live = toTournamentDraft(tournament);
+    expect(live.endedAt).toBe('');
+    expect(live.finish).toBe('');
+  });
 });
 
 describe('splitList', () => {

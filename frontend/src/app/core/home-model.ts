@@ -64,6 +64,18 @@ export interface HomeNextSeries {
   when?: string;
 }
 
+/**
+ * The split that is over, when that is *why* nothing is next (21 Sep 2026). Set only while `next` is
+ * null: with a match coming, the rung has something better to say than what ended last.
+ */
+export interface HomeEndedSplit {
+  name: string;
+  /** The day it was ended, as stored (`YYYY-MM-DD`). */
+  endedAt: string;
+  /** How it finished, when the lead wrote a line: "3rd of 12". */
+  finish?: string;
+}
+
 export interface HomeWelcome {
   greeting: string;
   needsSeat: boolean;
@@ -207,6 +219,8 @@ export interface HomeModel {
   slides: HomeSlide[];
   record: HomeRecord;
   next: HomeNextSeries | null;
+  /** Why there is no next series, when the reason is that the split has been ended; null otherwise. */
+  endedSplit: HomeEndedSplit | null;
   welcome: HomeWelcome;
   spotlight: HomeSpotlight | null;
   race: HomeRace;

@@ -15791,3 +15791,28 @@ app-mvp-banner { display: contents; }
   .page:not(.is-still) .mvp-banner::after { animation: mvp-sheen 7s ease-in-out 1.2s infinite; }
   @keyframes mvp-sheen { 0%, 78% { transform: translateX(-130%); } 100% { transform: translateX(130%); } }
 }
+
+
+/* ---- Ended tournaments (21 Sep 2026) --------------------------------------------------------------------------
+   The lead: "Also we should be able to end a tournament…". Ending is a quiet state, not an alarm: nothing here is
+   red, nothing is struck through, and no card changes size. A finished split keeps its place on the page — it has
+   simply stopped leading it, and its games still count everywhere they counted the day before. */
+/* Prep & Draft's group row: an ended split is already sorted after the live ones, so it only has to read quieter.
+   The open group's .active still wins, because you can be reading a finished league. */
+.plan-groups .view-btn.is-ended:not(.active) { color: var(--text-1); border-color: color-mix(in srgb, var(--card-border) 55%, transparent); }
+.plan-groups .view-btn.is-ended:not(.active) .material-symbols-rounded { opacity: 0.7; }
+/* The group head loses its accent stripe and its wash: the same card, no longer the live one. */
+.tournament-head.is-ended { border-left-color: color-mix(in srgb, var(--card-border) 70%, transparent); background: var(--card); }
+.tournament-ended-chip { margin-left: 0.5rem; vertical-align: 0.15rem; color: var(--text-1); cursor: help; }
+/* Admin › Tournaments: the End / Reopen row, under the two checkboxes and above Save. */
+.tournament-end { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; margin-top: 0.35rem; padding-top: 0.75rem; border-top: 1px solid color-mix(in srgb, var(--card-border) 45%, transparent); }
+.tournament-end .field { flex: 1 1 14rem; margin: 0; }
+.tournament-end > .muted { flex: 1 1 14rem; font-size: var(--fs-meta); }
+.tournament-end-state { flex-basis: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin: 0; font-size: var(--fs-meta); }
+/* Why Current tournament is off and untickable on an ended card; beside the box, never instead of it.
+   The box itself already dims — `input[type='checkbox']:disabled` is global. */
+.tournament-end-why { font-size: var(--fs-meta); }
+/* Home's Next series rung, finished rather than waiting: the same box, the same height, a calmer border. */
+.home-next.is-ended { border-color: color-mix(in srgb, var(--card-border) 70%, transparent); }
+.home-next.is-ended .home-next-vs { color: var(--text-1); }
+.home-next-finish { opacity: 0.85; }

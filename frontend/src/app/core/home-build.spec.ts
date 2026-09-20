@@ -122,6 +122,64 @@ describe('buildHome', () => {
     expect(buildHome(input({ series: freeText })).next).toMatchObject({ at: null, when: 'Sunday evening' });
   });
 
+  /**
+   * Ending a tournament (21 Sep 2026). Two things move and nothing else does: the rung stops naming a series
+   * of a split that is over and says the split is over instead, and the season stops being that split. Every
+   * count stays — ending is not deleting, so on All time the record, the records to beat and the race are the
+   * figures they were the day before.
+   */
+  it('ends the split without taking a game out of the record, and says so on the rung', () => {
+    const ended = tournaments.map((t) => (t.id === 'cup' ? { ...t, endedAt: '2026-09-12', finish: '3rd of 12' } : t)) as unknown as Tournament[];
+    const before = buildHome(input({ mode: 'all' }));
+    const after = buildHome(input({ mode: 'all', tournaments: ended }));
+    expect(after.record.counters).toEqual(before.record.counters);
+    expect(after.records).toEqual(before.records);
+    expect(after.race.entries).toEqual(before.race.entries);
+    expect(after.spotlight).toEqual(before.spotlight);
+    expect(after.trend).toEqual(before.trend);
+    // Nothing is next, and the reason has a name.
+    expect(after.next).toBeNull();
+    expect(after.endedSplit).toEqual({ name: 'Oryx Fearless', endedAt: '2026-09-12', finish: '3rd of 12' });
+    // The season falls back to the last ninety days: the split is no longer running.
+    const season = buildHome(input({ tournaments: ended }));
+    expect(season.season.tournamentId).toBeUndefined();
+    expect(season.season.label).toBe('Last 90 days');
+    // While a series is coming, the rung has better things to say than what ended last.
+    expect(before.endedSplit).toBeNull();
+    expect(buildHome(input()).endedSplit).toBeNull();
+  });
+
+  /**
+   * "Season over" needs the ended split to be the last word, not merely the last thing that ended (21 Sep 2026).
+   * A new split with no opponent typed in yet, or one whose scheduled series have all been played, has nothing
+   * next — and is emphatically not a finished season while the rest of the page is scoped to it.
+   */
+  it('says nothing about the ended split once a live tournament has replaced it', () => {
+    const ended = tournaments.map((t) => (t.id === 'cup' ? { ...t, endedAt: '2026-09-12', finish: '3rd of 12' } : t)) as unknown as Tournament[];
+    // Split 3 exists and is current, but the Swiss pairings are not out, so it carries no series at all.
+    const split3 = { id: 'cup3', name: 'Oryx Split 3', kind: 'tournament', order: 2, startDate: '2026-09-13', active: true } as unknown as Tournament;
+    const empty = buildHome(input({ mode: 'all', tournaments: [...ended, split3] }));
+    expect(empty.next).toBeNull();
+    expect(empty.endedSplit).toBeNull();
+
+    // And the same once every series of the live split has a result: still not a season over.
+    const played = { id: 'c', tournamentId: 'cup3', opponent: 'Iron Owls', bestOf: 3, order: 0, scheduledAt: '2026-09-18T19:30' } as unknown as TournamentSeries;
+    const done = buildHome(
+      input({
+        mode: 'all',
+        tournaments: [...ended, split3],
+        series: [...series, played],
+        seriesGames: [seriesGame('a1', 'a', 1, true, 'r-1'), seriesGame('a2', 'a', 2, true, 'r-2'), seriesGame('c1', 'c', 1, true), seriesGame('c2', 'c', 2, true)]
+      })
+    );
+    expect(done.next).toBeNull();
+    expect(done.endedSplit).toBeNull();
+
+    // The scrims group is not a replacement: it never ends, and it is not a competition.
+    const onlyScrims = buildHome(input({ mode: 'all', tournaments: ended }));
+    expect(onlyScrims.endedSplit).toMatchObject({ name: 'Oryx Fearless' });
+  });
+
   it('counts the season as the running tournament, and everything on All time', () => {
     const season = buildHome(input());
     expect(season.season).toMatchObject({ label: expect.stringMatching(/^Since \d{1,2} [A-Z][a-z]+$/), tournamentId: 'cup' });

@@ -57,6 +57,7 @@ function writeStored(key: string, value: string): void {
         [slides]="h.slides"
         [record]="h.record"
         [next]="h.next"
+        [endedSplit]="h.endedSplit"
         (modeChange)="setMode($event)"
       />
       <app-home-welcome [welcome]="h.welcome" (dismiss)="dismissSeat()" />

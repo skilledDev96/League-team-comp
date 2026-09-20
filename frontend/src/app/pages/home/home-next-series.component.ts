@@ -1,7 +1,8 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { countdownOf } from '../../core/countdown';
-import { HomeNextSeries } from '../../core/home-model';
+import { HomeEndedSplit, HomeNextSeries } from '../../core/home-model';
+import { AuthService } from '../../services/auth.service';
 import { PageVisibilityService } from '../../services/page-visibility.service';
 import { UiService } from '../../services/ui.service';
 import { TournamentContextService } from '../tournaments/tournament-context.service';
@@ -15,11 +16,16 @@ import { TournamentContextService } from '../tournaments/tournament-context.serv
  *
  * The countdown ticks once a second, only while the tab is looked at and only for a kick-off that has a
  * time of day; a bare date or free text prints as it was typed and counts nothing down.
+ *
+ * There are two empty cases (21 Sep 2026), and telling them apart is the point: nothing is scheduled yet,
+ * or the split is over. An ended tournament never reaches the first branch at all — `nextOpenSeries` will
+ * not name a series of one — so the rung says the season is finished and says when, instead of asking
+ * somebody to add an opponent to a league that has already been played.
  */
 @Component({
   selector: 'app-home-next-series',
   template: `
-    <div class="home-next" [class.is-empty]="!next()" [class.is-live]="countdown()?.live">
+    <div class="home-next" [class.is-empty]="!next()" [class.is-ended]="!next() && !!ended()" [class.is-live]="countdown()?.live">
       @if (next(); as n) {
         <p class="home-kicker">
           @if (countdown()?.live) { <span class="home-live-dot" aria-hidden="true"></span> Live now } @else { Next series }
@@ -41,6 +47,18 @@ import { TournamentContextService } from '../tournaments/tournament-context.serv
         <button type="button" class="view-btn home-next-pill" (click)="scout(n.seriesId)">
           <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span> Scout them
         </button>
+      } @else if (ended(); as e) {
+        <p class="home-kicker">Season over</p>
+        <p class="home-next-vs">{{ e.name }} is finished</p>
+        <p class="home-next-meta">
+          Ended {{ ui.formatDay(e.endedAt) }}@if (e.finish) { · {{ e.finish }} }
+        </p>
+        <p class="home-next-meta home-next-finish">
+          Every game of it still counts.@if (canEdit()) { Add the next tournament on Admin &rsaquo; Tournaments and it counts down here. }
+        </p>
+        <button type="button" class="view-btn home-next-pill" (click)="openPlan()">
+          <span class="material-symbols-rounded" aria-hidden="true">event</span> Open Prep &amp; Draft
+        </button>
       } @else {
         <p class="home-kicker">Next series</p>
         <p class="home-next-vs">No series scheduled yet</p>
@@ -54,8 +72,20 @@ import { TournamentContextService } from '../tournaments/tournament-context.serv
 })
 export class HomeNextSeriesComponent {
   readonly next = input<HomeNextSeries | null>(null);
+  /**
+   * The split that has ended, when that is why nothing is next (21 Sep 2026). Read only in the empty
+   * case: "No series scheduled yet" read as somebody forgetting to type the schedule in, when the honest
+   * answer was that the league was over.
+   */
+  readonly ended = input<HomeEndedSplit | null>(null);
 
   protected readonly ui = inject(UiService);
+  /**
+   * Whether the reader can do the thing the ended rung names (21 Sep 2026, review fix). A tournament is added
+   * on Admin › Tournaments and nowhere else — Prep & Draft has no add-tournament control — so the sentence
+   * says Admin, and a viewer who cannot reach Admin is told nothing to do rather than sent somewhere useless.
+   */
+  protected readonly canEdit = inject(AuthService).canEdit;
   private readonly router = inject(Router);
   private readonly ctx = inject(TournamentContextService);
   private readonly visibility = inject(PageVisibilityService);

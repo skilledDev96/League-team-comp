@@ -122,6 +122,43 @@ describe.skipIf(typeof localStorage === 'undefined')('TournamentContextService',
     expect(ctx.usedChampions('series-1d59cb83')).toEqual([]);
   });
 
+  // 21 Sep 2026: ending a split stops it leading the page — including a document that kept the active flag.
+  it('never lands on an ended tournament, and lists it after the live groups', () => {
+    const ended = { ...tournaments[0], active: true, endedAt: '2026-09-20' } as Tournament;
+    const live = { id: 'tournament-new', name: 'Oryx Split 3', kind: 'tournament', order: 3 } as unknown as Tournament;
+    data.tournaments.set([ended, tournaments[1], live]);
+    expect(ctx.currentTournament()?.id).toBe('tournament-new');
+    expect(ctx.isEnded()).toBe(false);
+    expect(ctx.groupList().map((t) => t.id)).toEqual(['tournament-12c5a17f', 'tournament-new', 'tournament-f9515444']);
+    // The stored order is untouched: the draft room reads that one.
+    expect(ctx.tournaments().map((t) => t.id)).toEqual(['tournament-f9515444', 'tournament-12c5a17f', 'tournament-new']);
+    // Chosen by hand it still opens, and the page can say it is over.
+    ctx.selectTournament('tournament-f9515444');
+    expect(ctx.currentTournament()?.id).toBe('tournament-f9515444');
+    expect(ctx.isEnded()).toBe(true);
+  });
+
+  // The shape production always carries: the scrims group is there too, and nothing ever ends it. Without it in
+  // the list this passed on a list that cannot occur, while the page really landed on Scrims (21 Sep 2026).
+  it('still shows the last split when every real group has ended, never the scrims group', () => {
+    data.tournaments.set([{ ...tournaments[0], endedAt: '2026-09-20' } as Tournament, tournaments[1]]);
+    expect(ctx.currentTournament()?.id).toBe('tournament-f9515444');
+    expect(ctx.isEnded()).toBe(true);
+  });
+
+  it('reads back the split ended most recently, not the first one stored', () => {
+    const older = { ...tournaments[0], endedAt: '2026-05-31' } as Tournament;
+    const newer = { id: 'tournament-split3', name: 'Oryx Split 3', kind: 'tournament', order: 3, endedAt: '2026-09-20' } as unknown as Tournament;
+    data.tournaments.set([older, tournaments[1], newer]);
+    expect(ctx.currentTournament()?.id).toBe('tournament-split3');
+  });
+
+  // A team with nothing but scrims still has to be shown something.
+  it('falls back to the scrims group only when there is no real tournament at all', () => {
+    data.tournaments.set([tournaments[1]]);
+    expect(ctx.currentTournament()?.id).toBe('tournament-12c5a17f');
+  });
+
   // 17 Sep 2026: "vs test" stood first among the draft room's series pills in the live group.
   it('lists a sandbox series after every real one, and leaves the rest in their stored order', () => {
     const test = { id: 'series-test', tournamentId: 'tournament-f9515444', opponent: 'test', bestOf: 3, status: 'scheduled', order: 0, sandbox: true } as unknown as TournamentSeries;

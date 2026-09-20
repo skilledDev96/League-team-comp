@@ -196,6 +196,21 @@ describe('buildGameRows', () => {
     expect(bySeries).toEqual({ ser1: 'tournament', ser2: 'scrim' });
   });
 
+  // 21 Sep 2026: ending a tournament is not deleting it. The Games list reads the group's `kind` and nothing else
+  // about it, so a split that is over lists exactly the games it listed the day before, as the same source.
+  it('lists every game of an ended tournament, unchanged', () => {
+    const inCup = { id: 'g1', seriesId: 'ser1', gameNumber: 1, win: true, ourChampions: ['Aatrox'], theirChampions: ['Renekton'] } as unknown as SeriesGame;
+    const inBlock = { id: 'g2', seriesId: 'ser2', gameNumber: 1, win: false, ourChampions: ['Ornn'], theirChampions: ['Ahri'] } as unknown as SeriesGame;
+    const live = buildGameRows({ ...base, seriesGames: [inCup, inBlock] });
+    const ended = buildGameRows({
+      ...base,
+      tournaments: tournaments.map((t) => (t.id === 't1' ? { ...t, endedAt: '2026-09-20', finish: '3rd of 12' } : t)) as unknown as Tournament[],
+      seriesGames: [inCup, inBlock]
+    });
+    expect(ended).toEqual(live);
+    expect(record(ended)).toEqual(record(live));
+  });
+
   it('drops a scrim whose side cannot be told, and sorts newest first', () => {
     const unsided = scrim({ id: 's-x', players: [scrim().players[1]] });
     const older = scrim({ id: 's-old', playedOn: '2026-08-01T18:00:00.000Z' });

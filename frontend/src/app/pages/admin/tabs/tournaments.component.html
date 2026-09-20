@@ -26,14 +26,42 @@
         </div>
         <label class="field"><span>Notes / key rules</span>
           <textarea rows="3" [ngModel]="draft.notes" (ngModelChange)="draft.notes = $event" [name]="'tnotes' + $index"></textarea></label>
+        <!-- Ended beats active on read, so the box is off and untickable on a finished split (21 Sep 2026): it
+             used to stay tickable while the write path forced it back to false, which is a control that quietly
+             does nothing under a "Saved …" flash. The reason stands beside it, naming the way round. -->
         <label class="field checkbox-field">
-          <input type="checkbox" [ngModel]="draft.active" (ngModelChange)="draft.active = $event" [name]="'tactive' + $index" />
+          <input type="checkbox" [ngModel]="draft.active && !draft.endedAt" (ngModelChange)="draft.active = $event" [name]="'tactive' + $index" [disabled]="!!draft.endedAt" />
           <span>Current tournament (opens by default on the Prep &amp; Draft page)</span>
+          @if (draft.endedAt) { <span class="muted tournament-end-why">Reopen it first.</span> }
         </label>
         <label class="field checkbox-field">
           <input type="checkbox" [ngModel]="draft.fearless" (ngModelChange)="draft.fearless = $event" [name]="'tfearless' + $index" />
           <span>Fearless draft (a champion picked in one game is gone for the rest of the series)</span>
         </label>
+        <!-- Ending a split (21 Sep 2026). Only a saved tournament can be ended, so the row appears once it has an id.
+             The finish line is edited here afterwards, not asked for at the moment of ending. -->
+        @if (draft.id) {
+          <div class="tournament-end">
+            @if (draft.endedAt) {
+              <p class="tournament-end-state">
+                <span class="chip is-compact">Ended {{ ui.formatDay(draft.endedAt) }}</span>
+                <span class="muted">It no longer leads Prep &amp; Draft or Home's next series. Its games still count everywhere.</span>
+              </p>
+            }
+            <!-- The line outlives Reopen (21 Sep 2026): `reopenTournament` lifts the day and keeps the words, so
+                 gating this on `endedAt` alone stranded a typed finish with no control left to change or clear it. -->
+            @if (draft.endedAt || draft.finish) {
+              <label class="field"><span>How it finished</span>
+                <input type="text" [ngModel]="draft.finish" (ngModelChange)="draft.finish = $event" [name]="'tfinish' + $index" placeholder="e.g. 3rd of 12 — lost the semi" /></label>
+            }
+            @if (draft.endedAt) {
+              <button class="view-btn" type="button" (click)="ctx.reopenTournament(draft)">Reopen</button>
+            } @else {
+              <button class="view-btn" type="button" (click)="ctx.endTournament(draft)">End tournament</button>
+              <span class="muted">Ending stops it leading Prep &amp; Draft and Home's next series. Its games keep counting.</span>
+            }
+          </div>
+        }
         <div class="links">
           <button class="view-btn active" type="button" [disabled]="ctx.savingTournament()" (click)="ctx.saveTournament(draft)">Save</button>
           <button class="view-btn" type="button" (click)="ctx.deleteTournament(draft)">Delete</button>

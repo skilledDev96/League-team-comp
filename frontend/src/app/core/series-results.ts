@@ -3,6 +3,7 @@ import { nextSeriesId } from '../pages/tournaments/series-order';
 import { MvpGame, SeriesMvp, seriesMvpOfGames } from './game-mvp';
 import { parseLocalDate } from './local-date';
 import { isSandboxSeries } from './sandbox-series';
+import { endedTournamentIds } from './tournament-ended';
 
 /**
  * How a series stands, which series are over, and who a finished one crowns (13 Sep 2026).
@@ -16,6 +17,11 @@ import { isSandboxSeries } from './sandbox-series';
  * does a sandbox series (17 Sep 2026, `isSandboxSeries`): it is a rehearsal inside a real group, so it
  * is never the next opponent, never finished, never crowns anyone and never makes an earlier series
  * look played-past.
+ *
+ * An ended tournament (21 Sep 2026, `isEndedTournament`) is a different thing from a sandbox one, and
+ * only `nextOpenSeries` reads it: a finished split has no next opponent. `finishedSeries` and
+ * `seriesCrowns` deliberately do not change — ending a split is not deleting it, so every series it
+ * finished stays finished and every crown it handed out stands.
  */
 
 export interface SeriesScore {
@@ -130,10 +136,17 @@ export function finishedSeries(
  * one has one. The rule `NextUpComponent` has used since 12 Sep 2026, lifted so Home asks the same.
  * Since 17 Sep 2026 a sandbox series is never it, and an unplayed series with a date comes before one
  * without (`nextSeriesId`).
+ *
+ * An ended split has no next opponent (21 Sep 2026). A schedule usually outlives the split — a Swiss
+ * round nobody played, a play-off the team never reached — so without this a finished league would keep
+ * pointing Home and the Next up card at a match that is never going to happen. Its series are left
+ * exactly where they are; they are simply not what comes next.
  */
 export function nextOpenSeries(i: SeriesSources): TournamentSeries | null {
-  const scrimGroups = new Set(i.tournaments.filter((t) => t.kind === 'scrims').map((t) => t.id));
-  const list = i.series.filter((s) => !scrimGroups.has(s.tournamentId) && !isSandboxSeries(s));
+  // The ended ids come from `endedTournamentIds` rather than a second copy of the rule (21 Sep 2026): this is
+  // the reader its doc comment names, and an inline set beside it is the first thing to drift.
+  const closed = new Set([...endedTournamentIds(i.tournaments), ...i.tournaments.filter((t) => t.kind === 'scrims').map((t) => t.id)]);
+  const list = i.series.filter((s) => !closed.has(s.tournamentId) && !isSandboxSeries(s));
   if (!list.length) return null;
   const played = (id: string) => seriesScoreOf(i.seriesGames.filter((g) => g.seriesId === id)).played > 0;
   const series = list.find((s) => s.id === nextSeriesId(list, played));

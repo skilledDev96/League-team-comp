@@ -4,7 +4,7 @@ import { ChampionFilterComponent } from '../../../shared/champion-filter.compone
 import { afterNextRender, Component, DestroyRef, computed, effect, inject, Injector, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AnalysisGame, ChampionRecord, OpponentPlayer, Role, Scrim, SeriesGame, TournamentSeries } from '../../../models/team.models';
+import { AnalysisGame, ChampionRecord, OpponentPlayer, Role, Scrim, SeriesGame, Tournament, TournamentSeries } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
 import { ChampionDataService } from '../../../services/champion-data.service';
 import { NgModelNameDirective } from '../../../shared/ng-model-name.directive';
@@ -14,6 +14,7 @@ import { noteLines } from '../../../core/note-lines';
 import { parseRiotIds } from '../../../core/riot-id';
 import { nextSeriesId } from '../series-order';
 import { isSandboxSeries, looksLikeTestSeries } from '../../../core/sandbox-series';
+import { isEndedTournament } from '../../../core/tournament-ended';
 import { gameHasContent, normalizeChampion } from '../draft.util';
 import { readReplay, ReplayRead, REPLAY_REQUIREMENTS } from '../../../core/replay-import';
 import { ToastService } from '../../../services/toast.service';
@@ -109,8 +110,16 @@ export class TournamentPlanComponent {
   protected readonly roles = this.ctx.roles;
   protected readonly teamName = this.ctx.teamName;
   protected readonly tournaments = this.ctx.tournaments;
+  /** The group row's order: live groups first, ended splits after (21 Sep 2026). */
+  protected readonly groupList = this.ctx.groupList;
   protected readonly currentTournament = this.ctx.currentTournament;
+  protected readonly isEnded = this.ctx.isEnded;
   protected readonly seriesList = this.ctx.seriesList;
+
+  /** Whether that group is a split somebody has ended — the chip on the head and the quiet pill in the row. */
+  protected isEndedGroup(t: Tournament): boolean {
+    return isEndedTournament(t);
+  }
 
   /**
    * Whether the page's champion filter finds this player anywhere — on the face of their row or
@@ -427,10 +436,15 @@ export class TournamentPlanComponent {
    * 'scheduled' — sorting on it would have been a control that quietly does nothing.
    */
   protected readonly nextSeriesId = computed(() =>
-    nextSeriesId(this.seriesList(), (id) => {
-      const score = this.seriesScore(id);
-      return !!score && score.wins + score.losses > 0;
-    })
+    nextSeriesId(
+      this.seriesList(),
+      (id) => {
+        const score = this.seriesScore(id);
+        return !!score && score.wins + score.losses > 0;
+      },
+      // An ended split lands on its last series whatever is left unplayed on its schedule (21 Sep 2026).
+      { ended: this.isEnded() }
+    )
   );
 
   /** null until someone presses one: the next series is open, and any press wins after that. */

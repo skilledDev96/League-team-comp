@@ -92,6 +92,28 @@ describe('nextOpenSeries', () => {
     // A group holding only the sandbox has no next series at all.
     expect(nextOpenSeries({ tournaments, series: [all[1]], seriesGames: [] })).toBeNull();
   });
+
+  // 21 Sep 2026: a schedule outlives a split, so a round nobody played must not become the next match.
+  it('is nothing at all in an ended split, and the live group beside it still answers', () => {
+    const ended = tournament('cup', { endedAt: '2026-09-20' });
+    const all = [series('r1', 'cup', 3, 0), series('r2', 'cup', 3, 1, { scheduledAt: '2026-09-27T19:00' })];
+    expect(nextOpenSeries({ tournaments: [ended], series: all, seriesGames: [game('r1', 1, true)] })).toBeNull();
+    // Unended, the same data names the next round.
+    expect(nextOpenSeries({ tournaments: [tournament('cup')], series: all, seriesGames: [game('r1', 1, true)] })?.id).toBe('r2');
+    const next = [...all, series('n1', 'new', 3, 0, { scheduledAt: '2026-10-04T19:00' })];
+    expect(nextOpenSeries({ tournaments: [ended, tournament('new')], series: next, seriesGames: [game('r1', 1, true)] })?.id).toBe('n1');
+  });
+
+  // Ending is not deleting: the series it finished stay finished and the crowns it handed out stand.
+  it('leaves finishedSeries and the crowns exactly as they were', () => {
+    const all = [series('a', 'cup', 3, 0), series('b', 'cup', 3, 1)];
+    const games = [game('a', 1, true), game('a', 2, true), game('b', 1, false), game('b', 2, false)];
+    const base = { series: all, seriesGames: games, analysisById: noAnalysis, scrimById: noScrims };
+    const live = finishedSeries({ ...base, tournaments: [tournament('cup')] });
+    const over = finishedSeries({ ...base, tournaments: [tournament('cup', { endedAt: '2026-09-20', finish: '3rd of 12' })] });
+    expect(over.map((f) => [f.series.id, f.result, f.incomplete])).toEqual(live.map((f) => [f.series.id, f.result, f.incomplete]));
+    expect(over).toHaveLength(2);
+  });
 });
 
 describe('crownOf', () => {

@@ -10,6 +10,9 @@ import { PlayerEnrichmentService } from '../../services/player-enrichment.servic
 import { TeamDataService } from '../../services/team-data.service';
 import { API_SHA, BUILD_SHA } from '../../build-info';
 import { ConfirmService } from '../../services/confirm.service';
+import { ToastService } from '../../services/toast.service';
+import { UiService } from '../../services/ui.service';
+import { todayStored } from '../../core/tournament-ended';
 import {
   AccessDraft,
   CompDraft,
@@ -41,6 +44,9 @@ export class AdminContextService {
   private readonly confirm = inject(ConfirmService);
   private readonly enrichment = inject(PlayerEnrichmentService);
   private readonly route = inject(ActivatedRoute);
+  /** For the one toast this service raises: Undo on Reopen, which the status line cannot carry. */
+  private readonly toast = inject(ToastService);
+  private readonly ui = inject(UiService);
   readonly roles = ROLES;
   readonly accessRoles: AccessRole[] = ['admin', 'contributor', 'viewer'];
 
@@ -237,7 +243,7 @@ export class AdminContextService {
   addTournamentDraft(): void {
     this.tournamentDrafts.update((list) => [
       ...list,
-      { id: '', name: '', organiser: '', division: '', format: '', startDate: '', endDate: '', notes: '', active: false, fearless: true }
+      { id: '', name: '', organiser: '', division: '', format: '', startDate: '', endDate: '', notes: '', active: false, fearless: true, endedAt: '', finish: '' }
     ]);
   }
 
@@ -259,6 +265,9 @@ export class AdminContextService {
   }
 
   private async persistTournament(draft: TournamentDraft, name: string): Promise<void> {
+    // Ended beats active on the way in as well as on the way out (21 Sep 2026): a save can never leave a
+    // finished split marked current, whatever the form was holding.
+    const endedAt = draft.endedAt.trim();
     const base = {
       name,
       organiser: draft.organiser.trim() || undefined,
@@ -267,8 +276,10 @@ export class AdminContextService {
       startDate: draft.startDate.trim() || undefined,
       endDate: draft.endDate.trim() || undefined,
       notes: draft.notes.trim() || undefined,
-      active: draft.active,
-      fearless: draft.fearless
+      active: endedAt ? false : draft.active,
+      fearless: draft.fearless,
+      endedAt: endedAt || undefined,
+      finish: draft.finish.trim() || undefined
     };
     if (draft.id) {
       const existing = this.data.tournaments().find((t) => t.id === draft.id);
@@ -281,7 +292,7 @@ export class AdminContextService {
       this.initialized = false;
     }
     // Only one tournament should read as current.
-    if (draft.active) {
+    if (base.active) {
       for (const other of this.data.tournaments()) {
         if (other.id !== draft.id && other.active) {
           await this.data.updateTournament({ ...other, active: false });
@@ -289,6 +300,82 @@ export class AdminContextService {
       }
     }
     this.flash('Saved ' + name + '.');
+  }
+
+  /**
+   * End a tournament (21 Sep 2026, the lead: *"Also we should be able to end a tournament…"*).
+   *
+   * Ending writes the day and clears `active` — those two together are the whole of it. The question names
+   * what changes and what does not, because the fear it has to answer is that ending deletes a split: the
+   * games keep counting everywhere they counted yesterday. What stops is leading Prep & Draft and Home's
+   * next series.
+   *
+   * Only a saved tournament can be ended; a blank draft has no document to write to.
+   */
+  async endTournament(draft: TournamentDraft): Promise<void> {
+    const existing = draft.id ? this.data.tournaments().find((t) => t.id === draft.id) : undefined;
+    if (!existing) {
+      this.flash('Save the tournament before ending it.');
+      return;
+    }
+    const ok = await this.confirm.ask({
+      title: `End ${existing.name}?`,
+      body: "Ended tournaments stop leading Prep & Draft and Home's next series. Its games keep counting.",
+      confirmLabel: 'End tournament'
+    });
+    if (!ok) return;
+    const endedAt = todayStored();
+    await this.data.updateTournament({ ...existing, endedAt, active: false });
+    this.patchTournamentDraft(draft.id, { endedAt, active: false });
+    this.flash('Ended ' + existing.name + '.');
+  }
+
+  /**
+   * The way back, for a wrong click or a split that turned out to have one more round in it.
+   *
+   * No confirmation: a question on the way back is the friction the way back exists to remove. It lifts the
+   * ended mark and nothing else — being the current tournament is the Current tournament box, a separate
+   * switch somebody has to mean, and ending cleared it.
+   *
+   * **It offers Undo, because the day is stored data** (21 Sep 2026, review fix). `endedAt` is printed on the
+   * group head and in Home's Season over rung, and Reopen sits a tab stop from the finish line's input; a
+   * mis-click threw the real day away and End again wrote today over it, with no route back short of
+   * Firestore. The toast's Undo writes the day it lifted back, which is the repo's rule for anything that
+   * overwrites stored data. The toast, not `flash`: the status line cannot carry a pill.
+   */
+  async reopenTournament(draft: TournamentDraft): Promise<void> {
+    const existing = draft.id ? this.data.tournaments().find((t) => t.id === draft.id) : undefined;
+    if (!existing) return;
+    const was = existing.endedAt;
+    await this.data.updateTournament({ ...existing, endedAt: undefined });
+    this.patchTournamentDraft(draft.id, { endedAt: '' });
+    this.flash('Reopened ' + existing.name + '. Tick Current tournament to make it the one the pages open on.');
+    if (was) {
+      this.toast.show('Reopened ' + existing.name, {
+        text: 'It was ended ' + this.ui.formatDay(was) + '. Undo puts that day back.',
+        action: { label: 'Undo', run: () => void this.restoreEndedAt(draft.id, was) }
+      });
+    }
+  }
+
+  /** Puts a lifted `endedAt` back, for the Undo on Reopen. It says so when the tournament has gone since. */
+  private async restoreEndedAt(id: string, endedAt: string): Promise<void> {
+    const existing = this.data.tournaments().find((t) => t.id === id);
+    if (!existing) {
+      this.toast.show('Could not end it again', { text: 'That tournament is no longer there.', kind: 'warn' });
+      return;
+    }
+    await this.data.updateTournament({ ...existing, endedAt, active: false });
+    this.patchTournamentDraft(id, { endedAt, active: false });
+    this.flash('Ended ' + existing.name + ' again, on ' + this.ui.formatDay(endedAt) + '.');
+  }
+
+  /**
+   * The form row for a saved tournament, replaced rather than mutated: the answer comes back from a dialog
+   * long after the click that opened it, and a mutation that late schedules no render of its own.
+   */
+  private patchTournamentDraft(id: string, patch: Partial<TournamentDraft>): void {
+    this.tournamentDrafts.update((list) => list.map((d) => (d.id === id ? { ...d, ...patch } : d)));
   }
 
   async deleteTournament(draft: TournamentDraft): Promise<void> {

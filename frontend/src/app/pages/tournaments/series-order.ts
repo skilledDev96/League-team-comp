@@ -22,13 +22,21 @@ import { isSandboxSeries } from '../../core/sandbox-series';
  * one without — a date is someone saying the match is really on. Free text such as
  * "Sat 20:00" is not a date here (`parseLocalDate`). The stored order still breaks
  * every tie.
+ *
+ * `group.ended` (21 Sep 2026) is the tournament being over said out loud, rather than
+ * guessed from every series having a result. A schedule outlives a split — a Swiss round
+ * nobody played, a play-off the team never reached — so an ended group lands on its last
+ * series, the one to read back, and never on a match that is not going to happen.
  */
 export function nextSeriesId(
   list: readonly { id: string; sandbox?: boolean; scheduledAt?: string }[],
-  isPlayed: (id: string) => boolean
+  isPlayed: (id: string) => boolean,
+  group: { ended?: boolean } = {}
 ): string {
   const real = list.filter((s) => !isSandboxSeries(s));
+  const last = real[real.length - 1]?.id ?? '';
+  if (group.ended) return last;
   const unplayed = real.filter((s) => !isPlayed(s.id));
   const next = unplayed.find((s) => parseLocalDate(s.scheduledAt) !== null) ?? unplayed[0];
-  return (next ?? real[real.length - 1])?.id ?? '';
+  return next?.id ?? last;
 }

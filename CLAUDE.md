@@ -1360,6 +1360,34 @@ shared with Roster) and the hero the shared slim hero (`.hero.is-slim`, `.hero-i
 
 What the audit found in the **stored data** is not code and is corrected (or left for the lead) separately; see `docs/2026-09-14-road-to-the-bracket.md`.
 
+**A tournament can be ended** (21 Sep 2026, the lead: "we should be able to end a tournament"). `Tournament.endedAt`
+is the day it was ended (a stored local day, not `toISOString`, or a split pressed after midnight ends yesterday)
+and `Tournament.finish` is one free line about how it went; `endDate` stays what it always was, the organiser's
+schedule. **Ended beats active on read**: `core/tournament-ended.ts` is the one module that decides it
+(`isActiveTournament`, `isEndedTournament`, `endedLast`, `lastEndedTournament`, `hasLiveTournament`), and every
+reader of `active` asks it, so a document hand-edited to carry both still does not lead the app. Ending clears
+`active`, Admin › Tournaments offers **End tournament** behind ConfirmService and **Reopen** afterwards, and the
+Current box is off and disabled on an ended split rather than tickable and ignored.
+
+- **What ending changes**: the season (`core/team-season.ts` drops ended tournaments before the flag or the dates
+  are read, so it falls back to the last 90 days), the next series (`nextOpenSeries` and `nextSeriesId` treat an
+  ended group as closed), the landing group on Prep & Draft (`landingGroup`: active-not-ended, else the newest
+  ended real tournament — never the scrims group), the group order (ended last) and the group head (a quiet Ended
+  chip, the finish line, no accent stripe).
+- **What ending does not change, because ending is not deleting**: every record, form strip, Patterns source,
+  crown, trophy and MVP banner. Its games stay tournament games. A spec compares the whole Games row list before
+  and after.
+- **Home says the season is over only when there is nothing live** (`hasLiveTournament`): with a split ended and
+  another running, the rung keeps the honest "No series scheduled yet". The finished rung names the split, its
+  end date and its finish line, says the games still count, and points at Admin › Tournaments, which is where a
+  new one is actually started.
+
+**The banner picks a skin by name** (21 Sep 2026). Data Dragon lists skins Riot publishes no splash for — Miss
+Fortune's skin 10 answers 403 while 2 and 15 are served — so the number box was a guess that drew a broken image.
+`ChampionDataService.skinsOf` reads the champion's own skins (cached per champion for the life of the page; an
+empty answer falls back to the number box), Admin › Settings offers them by name, a skin whose splash refuses to
+load is marked "— no splash" in the list, and the preview draws nothing rather than a broken image.
+
 **A seat holds more than one champion** (20 Sep 2026, the lead: "the dive comp has naut a priority but Leona
 can also be added as a secondary pick"). `Comp.picks` is unchanged and always the **priority** pick; the optional
 `Comp.fallbacks` (`Partial<Record<Role, string[]>>`) holds that seat's fallbacks in order, each its own
@@ -1400,6 +1428,7 @@ gesture is one write): it enforces **on read** that a seat with no priority has 
 **The roadmap's Fix first release shipped on 17 Sep 2026** (the lead: "lets start with those fixes"). What each part rules:
 
 - **A ban can be 'not seen'.** `NO_BAN` (`'-'`, `draft-sequence.ts`) sits in the flat bans list, because a ban's position is what says whose it was; it is never a champion — `blockedSet`, the burn lists, the advisor request (`withoutUnseenBans`), `draftLockouts` in the api and every chip skip it, and it draws as the dashed empty card. On a ban step, Enter in the wall's empty search holds it and Enter again locks it. **Rest of phase not seen** in the step bar writes every ban left before the next pick in one save, for any editor on any series, and claims no width of its own. After a finished draft, a wall click fills the first not-seen ban (`banWallClick`), and unticking a ban on a sided board leaves a not-seen ban rather than shifting the later ones to the other side.
+- **The board has the last word on where the sequence is** (21 Sep 2026, the lead: "Why is it asking for a pick if the picks are already in?"). `positionOf` takes the stored step and then `openFrom` walks forward past every step the board has already answered — a ban step needs a ban in its own slot, a pick step a free seat on that side — so a game filled by a replay, the Already played dialog or Plan's pickers asks for what is genuinely missing (MAD Synergy G3: ten picks and six bans, so the second ban phase) and reads as finished when nothing is. It only ever moves forward, and without a side it cannot call a pick step answered.
 - **A second Enter locks what is held** (21 Sep 2026, the lead: "SECOND ENTER SHOULD LOCK THE PICK"). Taking a champion off the wall clears the search box, so the next Enter lands on the empty-box path: `emptyEnterAction` confirms it once the hold is `LOCK_AFTER_MS` (350 ms) old, which is longer than a double tap of one key and shorter than reading the confirm line back. A pick is type, Enter, Enter; a missed ban is Enter, Enter; the mouse is never needed for either. A not-seen ban locks at once, since its own first Enter was the empty box, and nothing locks while a replace is aimed. The wall's placeholder says which of the three it is doing, and changes only with the step and the hold — the box is a fixed width, so nothing moves.
 - **The held line says whose step and seat**: 'OUR pick 1 · Aurelion Sol → our Mid', blue side in `--accent`, red in `--warn` (the side question's pair); only the champion's name gives way.
 - **Skip bans and Fill draft draw only on a sandbox series** with the aids switch on — random bans on a real series read as real. `autoChoice` reads the sequence's closed set, so Skip bans never repeats a ban.

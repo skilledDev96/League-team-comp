@@ -129,6 +129,17 @@ describe('seasonWindow', () => {
     });
   });
 
+  // 21 Sep 2026: an ended split is not running, however its flag and its dates read.
+  it('reads the last ninety days once the tournament has been ended, flag and dates notwithstanding', () => {
+    const ended = tournament('oryx', { active: true, startDate: '2026-08-01', endDate: '2026-10-31', endedAt: '2026-09-12' });
+    const w = seasonWindow([ended], NOW, 'season');
+    expect(w).toEqual({ mode: 'season', from: NOW - ROLLING_SEASON_DAYS * DAY, to: NOW, label: 'Last 90 days' });
+    expect('tournamentId' in w).toBe(false);
+    // The live one beside it takes the season instead.
+    const live = tournament('next', { active: true, startDate: '2026-09-12' });
+    expect(seasonWindow([ended, live], NOW, 'season').tournamentId).toBe('next');
+  });
+
   it('reads the last ninety days when no tournament is running', () => {
     const tournaments = [tournament('scrims', { kind: 'scrims', active: true }), tournament('old', { startDate: '2026-01-01', endDate: '2026-02-01' })];
     const w = seasonWindow(tournaments, NOW, 'season');

@@ -1350,8 +1350,24 @@ export interface Tournament {
   startDate?: string;
   endDate?: string;
   notes?: string;
-  /** Only one tournament is normally "current"; drives default page focus. */
+  /** Only one tournament is normally "current"; drives default page focus. Never an ended one — see `endedAt`. */
   active?: boolean;
+  /**
+   * The day the split was declared over (21 Sep 2026), stored as `YYYY-MM-DD`. Optional and absent on
+   * every tournament still being played, and on every document written before this existed.
+   *
+   * Not `endDate`: that is the schedule the organiser published, typed in before a game was played. This
+   * is us pressing End tournament. An ended tournament stops leading Prep & Draft and Home's next series
+   * and is never the active one, however `active` reads — the rule lives in `core/tournament-ended.ts`,
+   * which every reader asks. Its games keep counting everywhere.
+   */
+  endedAt?: string;
+  /**
+   * How it finished, in the lead's own words: "3rd of 12", "7–3, lost the semi". Free text, because the
+   * app never sees the bracket and no one shape fits Swiss, groups and cups alike; editable on Admin ›
+   * Tournaments after the split has ended, not only at the moment of ending.
+   */
+  finish?: string;
   /** Riot matchIds tagged as prep for this tournament (scrims, practice). */
   prepMatchIds?: string[];
   /**
