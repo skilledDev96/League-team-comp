@@ -1,6 +1,8 @@
 import { ChampionTraits, Comp, CompExpectation, CompGamePlan, CompRecord, CompResult, GameReview, Play, Player, Role, ROLES } from '../models/team.models';
 import { GameRow } from '../pages/games/game-rows';
 import { championOf, noteOf } from '../shared/comp-board.util';
+import { canonicalChampion } from './champion-key';
+import { seatOptions } from './comp-seats';
 import { expectationFor } from './comp-expectation';
 import { resolveAlias } from './comp-alias';
 import { classifyComp, compIconFor, CompIdentity, damageProfile, DamageProfile, IDENTITY_LABEL } from './comp-identity';
@@ -27,6 +29,13 @@ export interface CompSeat {
   /** The champion as the comp writes it; '' for an empty seat. */
   champion: string;
   note: string;
+  /**
+   * Everything the seat can play, the priority first and its fallbacks behind it in order (20 Sep 2026,
+   * read through `seatOptions`, so the invariant, the dedupe and the cap are answered in one place).
+   * `champion` and `note` above stay the priority's, so every reader written before fallbacks existed
+   * reads exactly what it always did. Empty for a seat holding no champion.
+   */
+  options: { champion: string; note: string }[];
   /** Who on the roster can play the seat: the main first, then anyone who flexes into it. */
   cover: { name: string; flex: boolean }[];
 }
@@ -41,6 +50,13 @@ export interface CompPlayed {
   form: ('W' | 'L')[];
   /** Epoch ms of the newest dated game, or null. */
   lastPlayed: number | null;
+  /**
+   * How many of those games were fielded on one of the seats' fallbacks rather than its priority
+   * (20 Sep 2026, the lead: a game played with a listed fallback counts as the comp, and the record
+   * should say how many did). A row carrying none of our champions — a tournament game typed in
+   * without its ten — cannot be told apart either way, so it is not counted here rather than guessed.
+   */
+  onFallback: number;
 }
 
 /** The record the tile and the sheet head print: the logged one when there is one, else the played one. */
@@ -140,9 +156,16 @@ export function coverOf(players: readonly Player[], role: Role): { name: string;
   ];
 }
 
-/** The five champions a card holds, empty seats left out. */
+/**
+ * Every champion a card can put on the map: each seat's priority and then its fallbacks, in seat order,
+ * empty seats left out (20 Sep 2026).
+ *
+ * This is what "does this comp use Leona" asks — the page's champion filter, the tile it lights and the
+ * count line beside the box — so a comp keeping Leona behind Nautilus answers yes. What a comp *fields*
+ * is still its five: identity, damage, face and expectation all read `seats[].champion`.
+ */
 export function championsOf(card: Pick<CompCard, 'seats'>): string[] {
-  return card.seats.map((s) => s.champion).filter(Boolean);
+  return card.seats.flatMap((s) => s.options.map((o) => o.champion)).filter(Boolean);
 }
 
 const key = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -154,16 +177,28 @@ const FACE_SEAT: Record<CompIdentity, Role> = { dive: 'Jungle', pick: 'Jungle', 
  * The champion whose splash stands for the comp. A name that names one of its champions wins ("Jinx protect"),
  * whole words or four letters and more — so "Vi" is not read into "Dive"; else the seat the comp's shape turns
  * on; else the first seat with a champion; null on an empty comp.
+ *
+ * The name is matched against **every** option, a seat's fallbacks included (20 Sep 2026), so a comp named after
+ * the champion it keeps in reserve still points at that seat. The face itself is always that seat's priority:
+ * the face is one of the five the comp fields, like its identity and its expectation, and a splash of a champion
+ * missing from the tile's five icons would read as a mistake.
+ *
+ * The fallbacks are a **second** pass, not a wider first one (20 Sep 2026): a seat that actually fields the
+ * named champion wins wherever it sits, and the reserve rule only decides when no priority is named. One pass
+ * over every option would let a fallback in an earlier seat beat a priority in a later one — "Gwen Leona dive"
+ * with Gwen behind Camille at Top and Leona at Support would have changed face from Leona to Camille, a
+ * champion the name never mentions, for a comp that was drawn the other way yesterday.
  */
 export function faceOf(card: Pick<CompCard, 'seats' | 'name' | 'identity'>): string | null {
   const filled = card.seats.filter((s) => s.champion);
   if (!filled.length) return null;
   const words = card.name.split(/[^A-Za-z0-9']+/).map(key).filter(Boolean);
   const whole = key(card.name);
-  const named = filled.find((s) => {
-    const k = key(s.champion);
+  const names = (champion: string) => {
+    const k = key(champion);
     return k.length > 0 && (words.includes(k) || (k.length >= 4 && whole.includes(k)));
-  });
+  };
+  const named = filled.find((s) => names(s.champion)) ?? filled.find((s) => s.options.some((o) => names(o.champion)));
   if (named) return named.champion;
   const bySeat = filled.find((s) => s.role === FACE_SEAT[card.identity]);
   return (bySeat ?? filled[0]).champion;
@@ -190,7 +225,22 @@ function loggedOf(results: readonly CompResult[]): CompRecord | null {
   };
 }
 
-function playedOf(rows: readonly GameRow[]): CompPlayed | null {
+/**
+ * Was this game fielded on one of the comp's fallbacks (20 Sep 2026)?
+ *
+ * True when any champion on our side of the row is a fallback of some seat. `row.ours` is the only thing
+ * a row carries about our five, and a row can carry none of them — a tournament game typed in without its
+ * ten champions has an empty `ours`. Such a game answers false: it cannot be told apart from one played on
+ * the priorities, and a receipt is worth nothing if it counts games no champion backs.
+ */
+function playedOnFallback(row: GameRow, fallbacks: ReadonlySet<string>): boolean {
+  return (row.ours ?? []).some((p) => {
+    const champion = canonicalChampion(p.champion ?? '');
+    return !!champion && fallbacks.has(champion);
+  });
+}
+
+function playedOf(rows: readonly GameRow[], fallbacks: ReadonlySet<string>): CompPlayed | null {
   if (!rows.length) return null;
   const newest = [...rows].sort((a, b) => b.date - a.date);
   const wins = rows.filter((r) => r.win).length;
@@ -201,7 +251,9 @@ function playedOf(rows: readonly GameRow[]): CompPlayed | null {
     losses: rows.length - wins,
     winRate: Math.round((wins / rows.length) * 100),
     form: newest.slice(0, COMP_FORM_GAMES).map((r) => (r.win ? 'W' : 'L')),
-    lastPlayed: dated.length ? Math.max(...dated.map((r) => r.date)) : null
+    lastPlayed: dated.length ? Math.max(...dated.map((r) => r.date)) : null,
+    // A comp holding no fallbacks can have no game on one, and asking every row would be the same answer.
+    onFallback: fallbacks.size ? rows.filter((r) => playedOnFallback(r, fallbacks)).length : 0
   };
 }
 
@@ -255,15 +307,33 @@ export function buildComps(i: CompsInput): CompsModel {
   const cards = comps.map((comp): CompCard => {
     const seats = ROLES.map((role): CompSeat => {
       const line = comp.picks[role] ?? '';
-      return { role, champion: championOf(line), note: noteOf(line), cover: cover.get(role) ?? [] };
+      // The priority stays `champion`/`note`, straight off `picks` as it always was — an empty seat keeps
+      // the note written against it. `seatOptions` adds what the seat can play behind it (20 Sep 2026).
+      const options = seatOptions(comp, role).map((o) => ({ champion: o.champion, note: o.note }));
+      return { role, champion: championOf(line), note: noteOf(line), options, cover: cover.get(role) ?? [] };
     });
+    // Every seat's fallbacks, canonically, for the games fielded on one: MonkeyKing in a seat finds the
+    // Wukong a replay stored.
+    //
+    // The priorities come out of the set first (20 Sep 2026). `comp-seats` dedupes within a seat, and the
+    // board refuses a champion already in another seat, but that refusal is on the write path and this read
+    // is deliberately written to survive a hand-edited or pasted document. A comp whose Top priority is the
+    // Leona its Support keeps in reserve would otherwise read every game Leona was fielded in — as the
+    // priority — as a game on a fallback: "12 games · 12 on a fallback" for a comp that has never played one.
+    const priorityKeys = new Set(seats.map((s) => canonicalChampion(s.champion)).filter(Boolean));
+    const fallbackKeys = new Set(
+      seats
+        .flatMap((s) => s.options.slice(1))
+        .map((o) => canonicalChampion(o.champion))
+        .filter((k) => !!k && !priorityKeys.has(k))
+    );
     const filled = seats.filter((s) => s.champion).length;
     const complete = filled === ROLES.length;
     const traits = i.traitsOf(comp);
     const identity: CompIdentity = complete && traits.length === ROLES.length ? classifyComp(traits) : 'unclear';
     const rows = rowsBy.get(comp.id) ?? [];
     const logged = loggedOf(i.compResults.filter((r) => r.compId === comp.id));
-    const played = playedOf(rows);
+    const played = playedOf(rows, fallbackKeys);
     const base = { seats, name: comp.name, identity };
     return {
       id: comp.id,

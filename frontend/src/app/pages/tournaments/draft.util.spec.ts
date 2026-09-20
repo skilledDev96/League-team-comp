@@ -259,6 +259,95 @@ describe('compAvailability', () => {
     const [empty] = compAvailability([{ id: 'x', name: 'Empty', champions: [] }], blockedSet());
     expect(empty.playable).toBe(false);
   });
+
+  // ---- Seats with fallbacks (20 Sep 2026) -------------------------------------------------------
+  // The lead: "the dive comp has naut a priority but Leona can also be added as a secondary pick".
+  const DIVE: CompChampions = {
+    ...COMPS[2],
+    champions: ['Camille', 'Vi', 'Ahri', 'Kaisa', 'Nautilus'],
+    seats: [
+      { role: 'Top', champions: ['Camille'] },
+      { role: 'Jungle', champions: ['Vi'] },
+      { role: 'Mid', champions: ['Ahri'] },
+      { role: 'ADC', champions: ['Kaisa'] },
+      { role: 'Support', champions: ['Nautilus', 'Leona'] }
+    ]
+  };
+
+  it('keeps the comp playable whichever one of the seat’s two champions is banned', () => {
+    for (const ban of ['Nautilus', 'Leona']) {
+      const [dive] = compAvailability([DIVE], blockedSet([ban]));
+      expect(dive.playable, ban).toBe(true);
+      expect(dive.lost, ban).toBe(0);
+    }
+  });
+
+  it('breaks it only once both of them are gone, and counts one seat lost', () => {
+    const [dive] = compAvailability([DIVE], blockedSet(['Nautilus', 'Leona']));
+    expect(dive.playable).toBe(false);
+    expect(dive.lost).toBe(1);
+    // Both champions are still reported gone; it is the seat that decides whether the comp survives.
+    expect(dive.blocked).toEqual(['Nautilus', 'Leona']);
+  });
+
+  it('says which seat is running a substitute and what it would field now', () => {
+    const [dive] = compAvailability([DIVE], blockedSet(['Nautilus']));
+    expect(dive.substituted).toBe(1);
+    const support = dive.seats.find((s) => s.role === 'Support')!;
+    expect(support.best).toBe('Leona');
+    expect(support.substituted).toBe(true);
+    expect(support.lost).toBe(false);
+    expect(support.options).toEqual([
+      { champion: 'Nautilus', gone: true, rank: 0 },
+      { champion: 'Leona', gone: false, rank: 1 }
+    ]);
+  });
+
+  it('orders the broken by the seats they lost, not by the champions', () => {
+    // Dive loses one seat with three champions in it; Poke loses two seats of one. The nearer fix is Dive,
+    // which the old count of blocked champions (3 against 2) had the wrong way round.
+    const deep: CompChampions = {
+      ...DIVE,
+      seats: DIVE.seats!.map((s) => (s.role === 'Support' ? { ...s, champions: ['Nautilus', 'Leona', 'Rakan'] } : s))
+    };
+    const rows = compAvailability([deep, COMPS[1]], blockedSet(['Nautilus', 'Leona', 'Rakan', 'Jayce', 'Nidalee']));
+    expect(rows.map((r) => [r.name, r.lost, r.blocked.length])).toEqual([
+      ['Dive', 1, 3],
+      ['Poke', 2, 2]
+    ]);
+  });
+
+  it('reads a comp that sent no seats as one champion a seat, exactly as before', () => {
+    const [engage] = compAvailability([COMPS[0]], blockedSet(['Vi']));
+    expect(engage.seats.map((s) => [s.role, s.options.map((o) => o.champion)])).toEqual([
+      ['Top', ['Maokai']],
+      ['Jungle', ['Vi']],
+      ['Mid', ['Yasuo']],
+      ['ADC', ['Miss Fortune']],
+      ['Support', ['Nautilus']]
+    ]);
+    expect(engage.lost).toBe(1);
+    expect(engage.substituted).toBe(0);
+  });
+
+  it('treats a seat nobody filled as no constraint, and still draws it as a row', () => {
+    const four: CompChampions = {
+      id: 'four',
+      name: 'Four',
+      champions: ['Camille', 'Vi', 'Ahri', 'Kaisa', ''],
+      seats: [
+        { role: 'Top', champions: ['Camille'] },
+        { role: 'Jungle', champions: ['Vi'] },
+        { role: 'Mid', champions: ['Ahri'] },
+        { role: 'ADC', champions: ['Kaisa'] },
+        { role: 'Support', champions: [] }
+      ]
+    };
+    const [row] = compAvailability([four], blockedSet());
+    expect(row.playable).toBe(true);
+    expect(row.seats).toHaveLength(5);
+    expect(row.seats.at(-1)).toMatchObject({ role: 'Support', options: [], best: '', lost: false });
+  });
 });
 
 describe('poolPressure', () => {

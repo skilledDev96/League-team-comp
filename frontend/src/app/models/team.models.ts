@@ -226,6 +226,16 @@ export interface CompPerformance {
   wins: number;
   losses: number;
   winRate: number;
+  /**
+   * How many of those games filled a seat with a fallback rather than the priority (20 Sep 2026 — the
+   * lead: "the comp's record should say how many of its games were played on a fallback"). Absent
+   * while it is 0, which is every comp until the first fallback is entered.
+   *
+   * Note that Comps counts a comp's record from the game rows and not from here (13 Sep 2026), so a
+   * surface printing this beside that record is reading two different counts of the same games; read
+   * `AnalysisGame.onFallback` off the rows instead if the two must agree.
+   */
+  fallbackGames?: number;
 }
 
 /** One seat against theirs. Mirrors `api/src/lane-read.ts`. */
@@ -349,6 +359,15 @@ export interface AnalysisGame {
   nearOverlap?: number;
   /** Comps tied at the same overlap; length > 1 means attribution is ambiguous. */
   tiedNames?: string[];
+  /**
+   * How many of the comp's seats this game filled with a **fallback** rather than the seat's priority
+   * (20 Sep 2026) — the receipt behind "played on a fallback".
+   *
+   * Absent, not 0, when it filled none, so no stored game changed shape on the day fallbacks shipped
+   * and nothing has to be backfilled. Absent on a game a person placed by hand too: an override names
+   * the comp outright, and the matcher's count would describe a comp the game is not counted under.
+   */
+  onFallback?: number;
   // Roster members on our team this game (5 = full stack, 3 = off-the-books).
   rosterCount?: number;
   win: boolean;

@@ -8,7 +8,7 @@ import { normalizeEmail, parseBearerToken, parseEnrichRequest } from './parse-re
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
-import { attributeComp } from './comp-attribution';
+import { attributeComp, fallbackReceipt } from './comp-attribution';
 import { killParticipation, tallyKills } from './fights';
 import { EnemyStats, enemyStats, trimAnalysisPayload } from './analysis-payload';
 import { ChampionRecord, summarizeMatches } from './match-stats';
@@ -1067,13 +1067,31 @@ const MAX_MATCH_ID_PAGES = 4;
 // the rate limit and function timeout. Re-run Refresh to fetch the next batch;
 // already-cached matches are always processed regardless of this budget.
 const MAX_NEW_FETCHES = 40;
-// A played comp is credited to a defined comp when at least this many champs overlap.
+/**
+ * A played comp is credited to a defined comp when at least this many of the comp's **seats** were
+ * filled by the played five.
+ *
+ * Unchanged at 3 on 20 Sep 2026, when a seat gained fallbacks, and deliberately so: the score has
+ * always been out of the same five seats, and the lead's decision is that a seat played on a listed
+ * fallback is a seat that went to plan, so "three of the five" means what it meant. Raising it would
+ * silently drop games that are matched today; lowering it would take games the matcher is not sure
+ * about. What fallbacks do change is how *easily* three is reached — a comp with a fallback in every
+ * seat can be filled by more fives than one without — which is bounded by `MAX_SEAT_OPTIONS` (4) and
+ * is what the priority tie-break is for. Measure it after the first fallbacks are entered
+ * (`scripts/comp-override-check.mjs` prints the before and after game by game) before moving it.
+ */
 const COMP_MATCH_THRESHOLD = 3;
 
 interface CompInput {
   id: string;
   name: string;
   champions: string[];
+  /**
+   * One array a filled seat, the priority first then its fallbacks (20 Sep 2026). Absent for a comp
+   * holding none — which is every comp today — and absent is what makes the matcher score it exactly
+   * as it scored yesterday. `parseCompAnalysisRequest` normalises it; nothing here builds one.
+   */
+  seats?: string[][];
   /** Id of the comp this one folds into, for near-duplicates kept as separate drafts. */
   countsUnder?: string | null;
 }
@@ -1092,6 +1110,12 @@ interface CompPerformanceResponse {
   wins: number;
   losses: number;
   winRate: number;
+  /**
+   * How many of those games filled a seat with a fallback rather than the priority (20 Sep 2026) —
+   * the lead's "the comp's record should say how many of its games were played on a fallback".
+   * Absent while the number is 0, which is every comp until the first fallback is entered.
+   */
+  fallbackGames?: number;
 }
 
 interface AnalysisPlayerResponse {
@@ -1136,6 +1160,13 @@ interface AnalysisGameResponse {
   nearOverlap: number;
   /** Comps tied at the same overlap; length > 1 means attribution is ambiguous. */
   tiedNames?: string[];
+  /**
+   * How many of the comp's seats this game filled with a fallback rather than the priority
+   * (20 Sep 2026). Absent, not 0, when it filled none — and absent on an overridden game, where the
+   * matcher's count would describe a comp the game is not counted under. Mirrors `AnalysisGame` in
+   * `frontend/src/app/models/team.models.ts`.
+   */
+  onFallback?: number;
   // Roster members on our team this game (5 = full stack, 4 = a sub was in).
   rosterCount: number;
   win: boolean;
@@ -1602,7 +1633,10 @@ async function computeCompAnalysis(
       .reverse()
   ];
 
-  const perComp = new Map<string, { compId: string; compName: string; games: number; wins: number }>();
+  const perComp = new Map<
+    string,
+    { compId: string; compName: string; games: number; wins: number; fallbackGames: number }
+  >();
   const games: AnalysisGameResponse[] = [];
   // Permanent audit trail of the analysis pass. A silent drop (like the corrupt
   // match cache) shows up here as a non-zero reason instead of a missing game.
@@ -1747,6 +1781,10 @@ async function computeCompAnalysis(
     // The matcher reads champions; this applies what people have said about
     // comps folding together and about individual games.
     const attributed = attributeComp(compMatch, matchId, payload.overrides, payload.comps);
+    // "Played on a fallback" is a fact about the comp the game is **counted under**, and the
+    // matcher scored a different one whenever an override, a `countsUnder` or the threshold moved
+    // the game (20 Sep 2026). `fallbackReceipt` is that one rule; 0 until the lead adds a fallback.
+    const onFallback = fallbackReceipt(attributed, compMatch);
 
     if (attributed.compId) {
       funnel.attributedToComp += 1;
@@ -1754,10 +1792,12 @@ async function computeCompAnalysis(
         compId: attributed.compId,
         compName: attributed.compName ?? '',
         games: 0,
-        wins: 0
+        wins: 0,
+        fallbackGames: 0
       };
       acc.games += 1;
       if (win) acc.wins += 1;
+      if (onFallback > 0) acc.fallbackGames += 1;
       perComp.set(attributed.compId, acc);
     }
     games.push({
@@ -1771,6 +1811,10 @@ async function computeCompAnalysis(
       nearOverlap: compMatch.overlap,
       // Conditional spread, not `: undefined` — Firestore rejects undefined values.
       ...(compMatch.tiedNames.length > 1 && { tiedNames: compMatch.tiedNames }),
+      // How many of the comp's seats this game filled with a fallback rather than the priority
+      // (20 Sep 2026). Absent, not 0, when it filled none — which is every game until the lead
+      // adds a fallback, so no stored game changes shape today.
+      ...(onFallback > 0 && { onFallback }),
       rosterCount,
       win,
       side,
@@ -1799,7 +1843,10 @@ async function computeCompAnalysis(
       games: a.games,
       wins: a.wins,
       losses: a.games - a.wins,
-      winRate: a.games ? Math.round((a.wins / a.games) * 100) : 0
+      winRate: a.games ? Math.round((a.wins / a.games) * 100) : 0,
+      // Conditional spread — Firestore rejects undefined, and a comp with none should read the way
+      // it read yesterday rather than gaining a zero.
+      ...(a.fallbackGames > 0 && { fallbackGames: a.fallbackGames })
     }))
     .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
 

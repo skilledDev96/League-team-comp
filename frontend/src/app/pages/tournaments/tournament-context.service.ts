@@ -1,9 +1,9 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { TeamDataService } from '../../services/team-data.service';
-import { UiService } from '../../services/ui.service';
 import { isSandboxSeries } from '../../core/sandbox-series';
-import { blockedSet, CompAvailability, compAvailability, playedGames, PoolPressure, poolPressure, uniqueChampions } from './draft.util';
+import { compSeatOptions } from '../../core/comp-seats';
+import { blockedSet, CompAvailability, compAvailability, CompChampions, playedGames, PoolPressure, poolPressure, uniqueChampions } from './draft.util';
 import { isNoBan } from './draft-sequence';
 
 /**
@@ -23,7 +23,6 @@ const champions = (list: readonly string[] | undefined): string[] => (list ?? []
 @Injectable({ providedIn: 'root' })
 export class TournamentContextService {
   private readonly data = inject(TeamDataService);
-  private readonly ui = inject(UiService);
 
   readonly roles = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'] as const;
 
@@ -176,18 +175,29 @@ export class TournamentContextService {
     return { our: uniqueChampions(our), their: uniqueChampions(their) };
   }
 
-  /** Our comps reduced to their five champions, for the availability maths. */
-  compChampions() {
+  /**
+   * Our comps as the availability maths reads them: every seat's champions, the priority first, and
+   * the priority five beside them (20 Sep 2026).
+   *
+   * `champions` is unchanged — still one champion a seat, still the first choice — so nothing that
+   * reads it changes meaning. `seats` is what makes a fallback count: a seat lives while any of its
+   * champions is open. Both come from `core/comp-seats`, the one module that knows a comp has two
+   * seat fields, so this never touches `fallbacks` itself and inherits its invariant, its dedupe and
+   * its cap.
+   */
+  compChampions(): CompChampions[] {
     const ranked = this.data.compAnalysis()?.comps ?? [];
     return this.data.comps().map((comp) => {
       const record = ranked.find((r) => r.compId === comp.id);
+      const seats = compSeatOptions(comp);
       return {
         id: comp.id,
         name: comp.name,
         category: comp.category,
         winRate: record?.winRate,
         games: record?.games,
-        champions: this.roles.map((role) => this.ui.parseCompLine(comp.picks[role] ?? '').champion)
+        champions: this.roles.map((role) => seats[role][0]?.champion ?? ''),
+        seats: this.roles.map((role) => ({ role, champions: seats[role].map((option) => option.champion) }))
       };
     });
   }

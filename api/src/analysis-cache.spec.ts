@@ -138,4 +138,45 @@ describe('parseCompAnalysisRequest', () => {
     expect(parsed.comps[0].name).toBe('Comp');
     expect(parsed.comps[0].champions).toEqual([]);
   });
+
+  // The parser rebuilds each comp field by field, so a field it does not name is dropped in silence.
+  // These are the guard on `seats` (20 Sep 2026): without them the whole fallbacks feature would
+  // reach the function and be thrown away, and nothing would look broken.
+  it('keeps a comp seats through, priority first', () => {
+    const parsed = parseCompAnalysisRequest({
+      players: roster(5),
+      comps: [{ id: 'c1', name: 'Dive', champions: ['Nautilus'], seats: [['Nautilus', 'Leona']] }]
+    });
+    expect(parsed.comps[0].seats).toEqual([['Nautilus', 'Leona']]);
+  });
+
+  it('leaves seats off a comp that carries none, rather than storing an empty one', () => {
+    const parsed = parseCompAnalysisRequest({
+      players: roster(5),
+      comps: [
+        { id: 'c1', name: 'Dive', champions: ['Nautilus'] },
+        { id: 'c2', name: 'Engage', champions: ['Vi'], seats: [] },
+        { id: 'c3', name: 'Half', champions: ['Ahri'], seats: 'Nautilus' }
+      ]
+    });
+    // Absent is what the matcher reads as "score this comp the way it was scored yesterday".
+    for (const comp of parsed.comps) expect(comp.seats).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(parsed.comps[0], 'seats')).toBe(false);
+  });
+
+  it('normalises the seats it keeps, so a hand-rolled body cannot widen one', () => {
+    const parsed = parseCompAnalysisRequest({
+      players: roster(5),
+      comps: [
+        {
+          id: 'c1',
+          name: 'Dive',
+          champions: ['Nautilus'],
+          seats: [['Nautilus', 'nautilus', 'Leona', 'Braum', 'Alistar', 'Rell'], ['', 'Ahri'], [42]]
+        }
+      ]
+    });
+    // Deduped, capped at four, and the seat with no priority dropped whole.
+    expect(parsed.comps[0].seats).toEqual([['Nautilus', 'Leona', 'Braum', 'Alistar']]);
+  });
 });

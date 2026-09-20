@@ -556,13 +556,11 @@
                      fearless, so banning into our own comps spends one of their
                      bans for them. -->
                 @if (step(game)?.action === 'ban' && pending(); as champ) {
-                  @if (banCost(game, champ); as costs) {
-                    @if (costs.length) {
-                      <span class="draft-ban-cost"
-                            [appTip]="'Banning ' + champ + ' costs us: ' + costs.join(', ')">
-                        also in {{ costs.length }} of our comps
-                      </span>
-                    }
+                  <!-- Counted on the comps the ban takes, worded on both (20 Sep 2026): with a fallback behind the
+                       seat, "also in N of our comps" was a lie — banning Leona does not cost us Dive while Nautilus
+                       is free. One inline span either way, since the confirm slot's height is fixed. -->
+                  @if (banCostRead(game, champ); as cost) {
+                    <span class="draft-ban-cost" [class.is-covered]="cost.covered" [appTip]="cost.tip">{{ cost.line }}</span>
                   }
                 }
                 @if (pendingAdvice(game); as a) {
@@ -1092,25 +1090,39 @@
                               [appTip]="row.winRate + '% over ' + row.games + (row.games === 1 ? ' game' : ' games') + ', too few to read as a rate'">few games</span>
                       }
                     }
+                    <!-- Alive, but not on its priority: this comp is running a fallback in that seat (20 Sep 2026). -->
+                    @if (row.substituted) {
+                      <span class="chip is-compact draft-comp-swap" [appTip]="compSwapTip(row)">{{ row.substituted }} swap{{ row.substituted === 1 ? '' : 's' }}</span>
+                    }
                     <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
                   </button>
                   @if (isCompOpen(row.id)) {
                     <ul class="list-clean draft-lineup">
-                      @for (line of compLineup(row.id); track line.role) {
-                        <li class="draft-lineup-row">
-                          <span class="draft-lineup-role">{{ line.role }}</span>
-                          @if (line.champion) {
-                            <button type="button" class="pick-chip"
-                              [class.is-picked]="isPicked(game, line.champion)"
-                              [disabled]="!auth.editing() || compsPickBlocked(game, line.champion, line.role)"
-                              [appTip]="compsPickHint(game, line.champion, line.role)"
-                              (click)="pickFromComps(game, line.champion, line.role)">
-                        <img class="pool-champ-icon" [src]="ui.championIconUrl(line.champion)" [alt]="" loading="lazy" />
-                        <span>{{ line.champion }}</span>
-                        @if (isPicked(game, line.champion)) {
-                          <span class="material-symbols-rounded" aria-hidden="true">check</span>
-                        }
-                      </button>
+                      <!-- A seat draws every champion it can field, the priority first and the fallbacks behind it,
+                           read off the availability row so a chip can never disagree with the verdict above it
+                           (20 Sep 2026). A gone champion stays on the row struck through: it is why the seat is
+                           playing somebody else. The dialog scrolls inside a fixed height, so these may grow. -->
+                      @for (seat of compSeats(row); track $index) {
+                        <li class="draft-lineup-row" [class.is-gone]="seat.lost">
+                          <span class="draft-lineup-role">{{ seat.role }}</span>
+                          @if (seat.options.length) {
+                            <span class="draft-seat-options">
+                              @for (option of seat.options; track option.champion) {
+                                <button type="button" class="pick-chip draft-seat-option"
+                                  [class.is-fallback]="option.rank > 0"
+                                  [class.is-gone]="option.gone"
+                                  [class.is-picked]="isPicked(game, option.champion)"
+                                  [disabled]="!auth.editing() || compsPickBlocked(game, option.champion, seatRole(seat))"
+                                  [appTip]="seatOptionHint(game, seat, option)"
+                                  (click)="pickFromComps(game, option.champion, seatRole(seat))">
+                                  <img class="pool-champ-icon" [src]="ui.championIconUrl(option.champion)" [alt]="" loading="lazy" />
+                                  <span>{{ option.champion }}</span>
+                                  @if (isPicked(game, option.champion)) {
+                                    <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                                  }
+                                </button>
+                              }
+                            </span>
                           } @else {
                             <span class="muted">&mdash;</span>
                           }
@@ -1130,7 +1142,7 @@
                 <div class="draft-comp-row">
                   <button type="button" class="draft-comp is-broken" [class.open]="isCompOpen(row.id)"
                           [attr.aria-expanded]="isCompOpen(row.id)"
-                          [appTip]="'Gone: ' + row.blocked.join(', ')" (click)="toggleComp(row.id)">
+                          [appTip]="compLostTip(row)" (click)="toggleComp(row.id)">
                     <span class="draft-comp-name">{{ row.name }}</span>
                     @if (row.winRate !== undefined && row.games) {
                       @if (row.games >= COMP_RATE_MIN_GAMES) {
@@ -1139,26 +1151,37 @@
                         <span class="chip is-compact draft-comp-few">few games</span>
                       }
                     }
-                    <em>&minus;{{ row.blocked.length }}</em>
+                    <!-- Seats, not champions (20 Sep 2026): a comp that lost its Nautilus but kept Leona lost nothing. -->
+                    <em>&minus;{{ row.lost }}</em>
                     <span class="draft-comp-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
                   </button>
                   @if (isCompOpen(row.id)) {
                     <ul class="list-clean draft-lineup">
-                      @for (line of compLineup(row.id); track line.role) {
-                        <li class="draft-lineup-row" [class.is-gone]="row.blocked.includes(line.champion)">
-                          <span class="draft-lineup-role">{{ line.role }}</span>
-                          @if (line.champion) {
-                            <button type="button" class="pick-chip"
-                              [class.is-picked]="isPicked(game, line.champion)"
-                              [disabled]="!auth.editing() || compsPickBlocked(game, line.champion, line.role)"
-                              [appTip]="compsPickHint(game, line.champion, line.role)"
-                              (click)="pickFromComps(game, line.champion, line.role)">
-                        <img class="pool-champ-icon" [src]="ui.championIconUrl(line.champion)" [alt]="" loading="lazy" />
-                        <span>{{ line.champion }}</span>
-                        @if (isPicked(game, line.champion)) {
-                          <span class="material-symbols-rounded" aria-hidden="true">check</span>
-                        }
-                      </button>
+                      <!-- A seat draws every champion it can field, the priority first and the fallbacks behind it,
+                           read off the availability row so a chip can never disagree with the verdict above it
+                           (20 Sep 2026). A gone champion stays on the row struck through: it is why the seat is
+                           playing somebody else. The dialog scrolls inside a fixed height, so these may grow. -->
+                      @for (seat of compSeats(row); track $index) {
+                        <li class="draft-lineup-row" [class.is-gone]="seat.lost">
+                          <span class="draft-lineup-role">{{ seat.role }}</span>
+                          @if (seat.options.length) {
+                            <span class="draft-seat-options">
+                              @for (option of seat.options; track option.champion) {
+                                <button type="button" class="pick-chip draft-seat-option"
+                                  [class.is-fallback]="option.rank > 0"
+                                  [class.is-gone]="option.gone"
+                                  [class.is-picked]="isPicked(game, option.champion)"
+                                  [disabled]="!auth.editing() || compsPickBlocked(game, option.champion, seatRole(seat))"
+                                  [appTip]="seatOptionHint(game, seat, option)"
+                                  (click)="pickFromComps(game, option.champion, seatRole(seat))">
+                                  <img class="pool-champ-icon" [src]="ui.championIconUrl(option.champion)" [alt]="" loading="lazy" />
+                                  <span>{{ option.champion }}</span>
+                                  @if (isPicked(game, option.champion)) {
+                                    <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                                  }
+                                </button>
+                              }
+                            </span>
                           } @else {
                             <span class="muted">&mdash;</span>
                           }

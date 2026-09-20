@@ -8,6 +8,8 @@
  * entry gives silently wrong numbers, distrusting a good one burns the budget.
  */
 
+import { normalizeSeats } from './comp-match';
+
 /** Only the field the trust check reads; callers pass richer objects. */
 export interface CachedParticipant {
   puuid: string;
@@ -93,6 +95,12 @@ export interface AnalysisCompInput {
   id: string;
   name: string;
   champions: string[];
+  /**
+   * One array a filled seat, the priority first then its fallbacks (20 Sep 2026). Absent for a comp
+   * holding none, which is every comp the day this shipped — and absent is what makes the matcher
+   * score it exactly as it scored yesterday. See `comp-match.ts`.
+   */
+  seats?: string[][];
   /** Id of the comp this one folds into, for near-duplicates kept as separate drafts. */
   countsUnder?: string | null;
 }
@@ -135,15 +143,22 @@ export function parseCompAnalysisRequest(body: unknown): CompAnalysisRequestInpu
 
   // Comps are optional: without them the pass still reports the team's games,
   // it just has nothing to attribute them to.
+  //
+  // This rebuilds each comp field by field and drops anything it does not name, so a field added to
+  // the comp and not added here reaches the function and is thrown away in silence — which is what
+  // `seats` was added for on 20 Sep 2026. A conditional spread, not `seats: … ?? undefined`: absent
+  // is the value the matcher reads as "score this comp the way it was scored yesterday".
   const comps = Array.isArray(candidate.comps)
     ? candidate.comps.map((value) => {
         const comp = (value ?? {}) as Record<string, unknown>;
+        const seats = normalizeSeats(comp.seats);
         return {
           id: typeof comp.id === 'string' ? comp.id : '',
           name: typeof comp.name === 'string' ? comp.name : 'Comp',
           champions: Array.isArray(comp.champions)
             ? comp.champions.filter((c): c is string => typeof c === 'string')
             : [],
+          ...(seats && { seats }),
           countsUnder: typeof comp.countsUnder === 'string' ? comp.countsUnder : null
         };
       })

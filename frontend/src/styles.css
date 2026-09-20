@@ -14488,6 +14488,55 @@ so none of this can move the draft room. */
 .draft-comps-card .draft-comp-few { margin-left: auto; color: var(--text-2); }
 .draft-comp-row > .draft-comp .draft-comp-few ~ em { margin-left: 0; }
 
+/* ---- Comp fallbacks in the room (20 Sep 2026) --------------------------------------------------
+   A seat can hold more than one champion — the priority, then fallbacks — so a seat row in this dialog
+   draws a chip each instead of one name. Only the dialog may grow: it has a fixed height and scrolls
+   inside, and nothing here is used outside .draft-comps-card, so no reserved box in the room moves.
+   The fallbacks are quieter than the priority and a gone champion is struck through rather than dropped,
+   because why the seat is playing somebody else is the thing the drafter is reading for. */
+.draft-seat-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* A fallback: the same chip, one step back — smaller face, quieter text, no border of its own. */
+.draft-seat-option.is-fallback {
+  padding-left: 0.14rem;
+  border-color: transparent;
+  background: color-mix(in srgb, var(--surface-btn) 60%, transparent);
+  color: var(--text-2);
+  font-size: 0.8rem;
+}
+
+.draft-lineup .draft-seat-option.is-fallback .pool-champ-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+/* Gone from this board. It keeps its place in the seat so the order still reads priority-first. */
+.draft-seat-option.is-gone {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.draft-seat-option.is-gone .pool-champ-icon { filter: grayscale(1); }
+
+/* A lost seat's row is already dimmed as a whole (.draft-lineup-row.is-gone), and every chip on it is
+   gone by definition — dimming both left them at 0.275 and unreadable. The strike still says gone. */
+.draft-lineup-row.is-gone .draft-seat-option.is-gone { opacity: 1; }
+
+/* How many seats are alive on a fallback. Takes the auto margin only when no rate has claimed it. */
+.draft-comp-swap { margin-left: auto; color: var(--text-2); }
+.draft-comps-card .draft-comp-rate ~ .draft-comp-swap,
+.draft-comps-card .draft-comp-few ~ .draft-comp-swap { margin-left: 0; }
+.draft-comp-row > .draft-comp .draft-comp-swap ~ em { margin-left: 0; }
+
+/* A ban that costs us nothing but a substitution is not a warning; the wording carries the rest. */
+.draft-ban-cost.is-covered { color: var(--text-2); }
+
 /* ---- A game played without the room (17 Sep 2026) ----------------------------------------------------
    Opened by the side question's "Already played, enter it" and its warning's "Enter game N": our side,
    both fives in seat order, the result. A .modal-card in the top layer, so the room cannot move. It hangs
@@ -15183,6 +15232,9 @@ app-comp-tile { display: block; height: 100%; }
 .comps-tile-five img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .comps-tile-five li.is-empty { border-style: dashed; }
 .comps-tile-five li.is-match { border-color: var(--accent-2); box-shadow: 0 0 0 1px var(--accent-2); }
+/* A seat holding fallbacks says how many, inside its own icon (20 Sep 2026): the tile's shape is five icons
+   and its height is fixed, so the mark sits over the art and the row cannot grow a sixth thing. */
+.comps-tile-more { position: absolute; right: 0; bottom: 0; z-index: 3; min-width: 0.9rem; padding: 0 0.15rem; border-radius: var(--r-xs) 0 0 0; background: color-mix(in srgb, var(--bg-0) 82%, transparent); font-family: "Chakra Petch", sans-serif; font-size: 0.55rem; font-weight: 700; line-height: 1.3; text-align: center; color: var(--accent-2); }
 .comps-tile-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.5rem; min-height: 1rem; }
 .comps-tile-plays { display: inline-flex; align-items: center; gap: 0.15rem; font-size: 0.68rem; color: var(--text-2); }
 .comps-tile-plays .material-symbols-rounded { font-size: 0.9rem; }
@@ -15234,6 +15286,24 @@ app-comp-tile { display: block; height: 100%; }
 .comps-seat-cover { display: flex; flex-wrap: wrap; gap: 0.2rem; font-size: 0.64rem; color: var(--text-1); }
 .comps-seat-cover span { padding: 0.05rem 0.4rem; border-radius: var(--r-pill); background: color-mix(in srgb, var(--bg-0) 65%, transparent); border: 1px solid var(--card-border); white-space: nowrap; }
 .comps-seat-cover span.is-flex { color: var(--text-2); border-style: dashed; }
+
+/* Comp fallbacks (20 Sep 2026) — what a seat plays instead, under its priority's name, and the receipt the
+   record prints for the games fielded on one. The chips are read-only here: the board in edit mode is where
+   an entry is added, promoted or removed, so nothing in this block is a control. They wrap rather than stack,
+   which keeps three of them inside one extra line of the 9.5rem seat card. */
+.comps-seat-fallbacks { list-style: none; margin: 0.15rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.2rem; min-width: 0; }
+/* Both `min-width: 0` matter (20 Sep 2026): the chip is a flex item of the list and the name is a flex item of
+   the chip, and a flex item's automatic minimum size is its own content — so without them nothing shrinks, the
+   ellipsis below can never fire, and at the narrow breakpoint "Nunu & Willump" runs past its own pill border to
+   be cut by the tile's overflow. */
+.comps-seat-fallback { display: inline-flex; align-items: center; gap: 0.2rem; min-width: 0; max-width: 100%; padding: 0.05rem 0.35rem 0.05rem 0.1rem; border-radius: var(--r-pill); border: 1px solid var(--card-border); background: color-mix(in srgb, var(--bg-0) 65%, transparent); font-size: 0.62rem; color: var(--text-1); }
+.comps-seat-fallback img { flex: none; width: 0.95rem; height: 0.95rem; border-radius: 50%; object-fit: cover; }
+.comps-seat-fallback span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comps-seat-fallback.is-match { border-color: var(--accent-2); color: var(--text-0); }
+/* The record's receipt, under the headline it does not touch. */
+.comps-record-fallback { margin: 0.1rem 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; font-size: 0.76rem; color: var(--text-1); }
+.comps-record-fallback .material-symbols-rounded { font-size: 0.95rem; color: var(--text-2); }
+.comps-record-fallback b { color: var(--text-0); }
 
 /* The blocks under the five */
 .comps-sheet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem 1.25rem; }

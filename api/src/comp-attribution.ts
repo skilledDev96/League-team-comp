@@ -38,6 +38,26 @@ export interface Attribution {
    * showing, because a number a person can change should say so.
    */
   source: 'auto' | 'manual' | 'alias';
+  /**
+   * Whether an override put the game here, rather than the matcher (20 Sep 2026).
+   *
+   * `source` cannot answer this: `alias` is what an override *and* the matcher both become once
+   * `countsUnder` applies. The caller needs the answer because the matcher's own receipts describe
+   * the comp **it** matched — `onFallback` says how many seats of that comp were played on a
+   * fallback, and on an overridden game that is a fact about a comp the game is not counted under.
+   * `fallbackReceipt` below is where this is applied, together with the other two ways the game
+   * ends up somewhere the matcher did not put it (`countsUnder`, and the threshold).
+   */
+  overridden: boolean;
+}
+
+/**
+ * The part of the matcher's answer a receipt is about: which comp it placed the game on, and how
+ * many of **that** comp's seats were filled by a fallback. `CompMatchResult` satisfies it.
+ */
+export interface FallbackMatch {
+  compId: string | null;
+  onFallback: number;
 }
 
 /**
@@ -74,6 +94,34 @@ export function resolveAlias(compId: string, comps: AttributableComp[]): string 
 }
 
 /**
+ * How many of a comp's seats this game filled with a fallback rather than the priority — as a fact
+ * about the comp the game is **counted under**, which is the only comp anything may print it
+ * against (20 Sep 2026).
+ *
+ * The matcher scores one comp and reports its receipt. Two things then move the game somewhere
+ * else, and a receipt that travelled with it would be a sentence about seats the comp it landed on
+ * does not have:
+ *
+ * - an **override**, which names a comp outright — the reason `Attribution.overridden` exists;
+ * - **`countsUnder`**, which folds the matched comp into another. 'Dive v2' counting under 'Dive'
+ *   is the same lie by a different road: the fallback is on Dive v2's Support seat, and Dive holds
+ *   no fallback at all.
+ *
+ * And a game **below the threshold** is counted under nothing, while the matcher still reports its
+ * nearest comp and that comp's receipt — so a receipt written there would describe `nearCompName`
+ * rather than the comp the game counts as, which is none.
+ *
+ * So the receipt stands only when the game is counted under the very comp the matcher scored. 0 for
+ * every comp until the lead adds a fallback, either way.
+ */
+export function fallbackReceipt(attributed: Attribution, match: FallbackMatch): number {
+  if (!attributed.compId) return 0;
+  if (attributed.overridden) return 0;
+  if (attributed.compId !== match.compId) return 0;
+  return match.onFallback > 0 ? match.onFallback : 0;
+}
+
+/**
  * The comp a game counts as: an override if one names this match, otherwise
  * whatever the matcher found, with `countsUnder` applied either way.
  *
@@ -95,17 +143,23 @@ export function attributeComp(
     return {
       compId: resolved,
       compName: byId.get(resolved)?.name ?? null,
-      source: resolved === override ? 'manual' : 'alias'
+      source: resolved === override ? 'manual' : 'alias',
+      overridden: true
     };
   }
 
   if (!auto.compId) {
-    return { compId: null, compName: null, source: 'auto' };
+    return { compId: null, compName: null, source: 'auto', overridden: false };
   }
 
   const resolved = resolveAlias(auto.compId, comps);
   if (resolved === auto.compId) {
-    return { compId: auto.compId, compName: auto.compName, source: 'auto' };
+    return { compId: auto.compId, compName: auto.compName, source: 'auto', overridden: false };
   }
-  return { compId: resolved, compName: byId.get(resolved)?.name ?? auto.compName, source: 'alias' };
+  return {
+    compId: resolved,
+    compName: byId.get(resolved)?.name ?? auto.compName,
+    source: 'alias',
+    overridden: false
+  };
 }

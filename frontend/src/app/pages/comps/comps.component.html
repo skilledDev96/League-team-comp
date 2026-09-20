@@ -34,13 +34,24 @@
     <app-champion-filter [count]="visible().length" noun="comps" placeholder="Find a champion" [showCount]="false" />
   </div>
   <app-detail-toggle surface="comps" starterTip="Open a comp for its five, plan and bans" fullTip="The first comp open, with its results and the notes from its games" />
-  <!-- The answer belongs to the filter that asked it, so it sits inside the toolbar with it. -->
+  <!-- The answer belongs to the filter that asked it, so it sits inside the toolbar with it. Two sentences since
+       20 Sep 2026: a comp drafts the champion when one of its five seats fields it, and keeps it in reserve when
+       it only sits behind a priority — the tiles below show the second kind five other icons and a "+1" mark, so
+       naming both under "Drafted in" would contradict the page itself. -->
   @if (filter.active()) {
     <p class="champ-filter-answer is-inset">
       @if (visible().length) {
-        Drafted in
-        @for (c of visible(); track c.id; let last = $last) {
-          <b>{{ c.name }}</b>{{ last ? '.' : ',' }}
+        @if (drafted().length) {
+          Drafted in
+          @for (c of drafted(); track c.id; let last = $last) {
+            <b>{{ c.name }}</b>{{ last ? '.' : ',' }}
+          }
+        }
+        @if (reserve().length) {
+          In reserve in
+          @for (c of reserve(); track c.id; let last = $last) {
+            <b>{{ c.name }}</b>{{ last ? '.' : ',' }}
+          }
         }
       } @else {
         No saved comp drafts {{ filter.active() }}.

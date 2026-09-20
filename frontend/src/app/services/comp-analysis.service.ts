@@ -1,5 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { environment } from '../../environments/environment';
+import { compSeats } from '../core/comp-alias';
 import { getAuthInstance, isFirebaseConfigured } from '../core/firebase';
 import { CompAnalysis, Comp, Player, ROLES } from '../models/team.models';
 import { UiService } from './ui.service';
@@ -72,13 +73,26 @@ export class CompAnalysisService {
           riotTag: player.profile?.riotTag,
           region: player.profile?.region
         })),
-        comps: comps.map((comp) => ({
-          id: comp.id,
-          name: comp.name,
-          countsUnder: comp.countsUnder ?? null,
-          // Pull the champion out of each "Champion - note" pick line.
-          champions: ROLES.map((role) => this.ui.parseCompLine(comp.picks[role] ?? '').champion).filter(Boolean)
-        })),
+        comps: comps.map((comp) => {
+          // Each seat's champions, the priority first then its fallbacks (20 Sep 2026). Undefined for
+          // a comp holding no fallback — which the matcher reads as "score this comp the way it was
+          // scored yesterday" — so the day this shipped every comp's record is unchanged. The rule is
+          // `compSeats`, mirroring `seatsOfComp` in `api/src/daily-refresh.ts`, because the morning
+          // run and this Refresh must hand the one matcher the same comps or they would attribute the
+          // same game two ways.
+          const seats = compSeats(comp);
+          return {
+            id: comp.id,
+            name: comp.name,
+            countsUnder: comp.countsUnder ?? null,
+            // Pull the champion out of each "Champion - note" pick line. Still the PRIORITY five, and
+            // still what a comp with no seats is matched on.
+            champions: ROLES.map((role) => this.ui.parseCompLine(comp.picks[role] ?? '').champion).filter(Boolean),
+            // Conditional spread, not `seats: seats ?? undefined`: absent is a meaningful value here
+            // and `JSON.stringify` drops an undefined key anyway, so say it once and plainly.
+            ...(seats && { seats })
+          };
+        }),
         // Games placed by hand. The backend applies these over its own champion
         // matching, so the win rates it returns already account for them.
         overrides

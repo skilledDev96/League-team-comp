@@ -347,11 +347,13 @@ export function buildDraftPrompt(req: DraftAdviceRequest): string {
   lines.push('');
 
   if (req.comps.length) {
-    lines.push('OUR COMPS (record from our own games; playable = every champion still available this game):');
+    // A seat can hold fallbacks since 20 Sep 2026, so a comp is playable while every seat can still field
+    // one of its champions — which means a playable comp may carry blocked champions, and BROKEN counts seats.
+    lines.push('OUR COMPS (record from our own games; playable = every seat can still field one of its champions, so a playable comp may list blocked champions where a seat is on a fallback):');
     for (const c of req.comps) {
       const record = c.games ? `${c.winRate}% over ${c.games}` : 'no games yet';
       lines.push(
-        `- ${c.name}: ${c.champions.join(', ')} — ${record}${c.playable ? '' : `; BROKEN, missing ${c.blocked.join(', ')}`}`
+        `- ${c.name}: ${c.champions.join(', ')} — ${record}${c.playable ? (c.blocked.length ? `; on a fallback, ${c.blocked.join(', ')} gone` : '') : `; BROKEN, a seat has nothing left (${c.blocked.join(', ')} gone)`}`
       );
     }
     lines.push('');

@@ -1357,6 +1357,43 @@ shared with Roster) and the hero the shared slim hero (`.hero.is-slim`, `.hero-i
 
 What the audit found in the **stored data** is not code and is corrected (or left for the lead) separately; see `docs/2026-09-14-road-to-the-bracket.md`.
 
+**A seat holds more than one champion** (20 Sep 2026, the lead: "the dive comp has naut a priority but Leona
+can also be added as a secondary pick"). `Comp.picks` is unchanged and always the **priority** pick; the optional
+`Comp.fallbacks` (`Partial<Record<Role, string[]>>`) holds that seat's fallbacks in order, each its own
+"Champion - note" line, so `parseCompLine` reads one entry and nothing is stacked on the ` - ` separator. Every
+comp stored before this is already valid, and everything that wants one champion a seat still reads `picks`.
+**`core/comp-seats.ts` is the only module that knows both fields exist** (`seatOptions`, `compSeatOptions`,
+`priorityChampions`, `allChampions`, `seatOf`, and pure writes that return `{ picks, fallbacks }` together, so one
+gesture is one write): it enforces **on read** that a seat with no priority has no options, dedupes by
+`canonicalChampion`, and caps a seat at `MAX_SEAT_OPTIONS` (4). One champion may not sit in two seats of a comp.
+
+- **Editing** is the board (`shared/comp-board.component.*`): pressing a seat aims the wall at its priority as
+  before; **Add a fallback** aims at that seat's fallbacks and each wall click appends without advancing; a chip
+  promotes (pressing its body) or removes (its ×); clearing a priority promotes the next fallback, so a seat never
+  reads Empty with chips under it; a line above the wall says what the next click does. Angular fires a native
+  `change` event as well as the output, so the board stops it at its own root — without that, the sheet's handler
+  was called with an `Event` and a whole comp's five picks were written as `undefined`.
+- **A comp's shape, face, damage and expectation read the priority five only**, deliberately: the identity should
+  not change under a reader because a board burned one champion. The name-match half of `faceOf` searches every
+  option, but the face drawn is always that seat's priority.
+- **The Comps page**: `CompSeat.options` carries the seat's entries (priority first) beside `champion`/`note`,
+  which still mean the priority; `championsOf` answers with every option, so the champion filter finds a comp that
+  keeps Leona in reserve and the answer line says "Drafted in X. In reserve in Y."; the tile keeps five icons with a
+  `+N` mark inside the seat's own icon; the sheet's seat cards draw the fallbacks as chips under the priority.
+- **The draft room** is per seat: a seat is alive while **any** of its champions is unblocked, a comp is playable
+  while every filled seat is alive, and Broken's `−N` counts **seats**. The popup draws each seat's options off the
+  availability row (so the chips cannot disagree with the verdict), any of them holdable, and a comp running a
+  substitute wears a "1 swap" chip. `compsUsing` answers `{ breaks, weakens }` — banning Leona while Nautilus is
+  free does not cost us Dive — and the ban cost counts `breaks` only. The advisor prompt says so too: playable
+  means every seat can still field one of its champions, so a playable comp may list blocked champions.
+- **Records count a fallback game as the comp** (the lead's decision, 20 Sep 2026). `matchComp` is seat-aware: a
+  played champion satisfies at most one seat and a seat at most one champion, scored by an exact maximum matching
+  over the ≤5×5, tie-broken on how many matched seats were the seat's priority and then the lowest comp id. A spec
+  pins the **generalisation property**: for any comp whose seats hold one champion each, the seat score equals
+  today's overlap for every played five, so no stored record moves on the day it ships. `parseCompAnalysisRequest`
+  had to be taught the new field or the whole thing would have silently done nothing. The comp's record prints the
+  receipt — "12 games · 3 on a fallback" — and a game the rows carry no champions for is never counted as one.
+
 **The roadmap's Fix first release shipped on 17 Sep 2026** (the lead: "lets start with those fixes"). What each part rules:
 
 - **A ban can be 'not seen'.** `NO_BAN` (`'-'`, `draft-sequence.ts`) sits in the flat bans list, because a ban's position is what says whose it was; it is never a champion — `blockedSet`, the burn lists, the advisor request (`withoutUnseenBans`), `draftLockouts` in the api and every chip skip it, and it draws as the dashed empty card. On a ban step, Enter in the wall's empty search holds it and Enter again locks it (`emptyEnterAction`; Enter with a champion held still does nothing — whether a second Enter locks a pick waits on the lead). **Rest of phase not seen** in the step bar writes every ban left before the next pick in one save, for any editor on any series, and claims no width of its own. After a finished draft, a wall click fills the first not-seen ban (`banWallClick`), and unticking a ban on a sided board leaves a not-seen ban rather than shifting the later ones to the other side.

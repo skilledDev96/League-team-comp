@@ -3,7 +3,7 @@ import { MvpBannerComponent } from '../../shared/mvp-banner.component';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EXPECT_AXES, EXPECT_LABEL, ExpectAxis, LEVEL_LABEL, LEVELS } from '../../core/comp-expectation';
-import { CompCard } from '../../core/comps-build';
+import { CompCard, CompSeat } from '../../core/comps-build';
 import { playedAgo } from '../../core/team-season';
 import { Comp, ExpectLevel, Play } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
@@ -125,12 +125,13 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
           <!-- The five. Editors get the board — press a seat, press a champion — and readers five faces with who covers each. -->
           @if (auth.editing()) {
             <!-- Both seat fields in, both out: one gesture is one write (20 Sep 2026). The read-only
-                 list below still draws the priority alone. -->
+                 list below names the same entries as chips, but nothing in it is a control: this board
+                 is the one place a fallback is added, promoted or removed. -->
             <app-comp-board data-tour="comp-board" [picks]="comp().picks" [fallbacks]="comp().fallbacks" [unavailable]="c.bans" (change)="writes.saveSeats(comp(), $event)" />
           } @else {
             <ol class="comps-seats" data-tour="comp-seats" aria-label="The five, by seat">
               @for (s of c.seats; track s.role; let k = $index) {
-                <li class="splash-tile comps-seat" [style.--seat-i]="k" [class.is-empty]="!s.champion" [class.is-match]="s.champion && filter.matches(s.champion)">
+                <li class="splash-tile comps-seat" [style.--seat-i]="k" [class.is-empty]="!s.champion" [class.is-match]="seatMatch(s)">
                   @if (s.champion) {
                     <img class="splash-art" [src]="ui.championArtUrl(s.champion)" (error)="ui.artFallback($event, s.champion)" alt="" loading="lazy" />
                     <span class="splash-shade" aria-hidden="true"></span>
@@ -138,6 +139,22 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
                     <div class="comps-seat-plate">
                       <span class="comps-seat-champ">{{ ui.championName(s.champion) }}</span>
                       @if (s.note) { <span class="comps-seat-note" [appTip]="s.note">{{ s.note }}</span> }
+                      <!-- What the seat falls back to, in order under its priority (20 Sep 2026). Read only:
+                           the sheet's seats have never been editable, and the board in edit mode is where an
+                           entry is added, promoted or removed. Each chip's own note is its tip. -->
+                      @if (s.options.length > 1) {
+                        <ul class="comps-seat-fallbacks" [attr.aria-label]="'Fallbacks for ' + s.role">
+                          @for (o of s.options; track o.champion; let r = $index) {
+                            @if (r > 0) {
+                              <li class="comps-seat-fallback" [class.is-match]="filter.matches(o.champion)"
+                                  [appTip]="o.note || (ui.championName(o.champion) + ' if ' + ui.championName(s.champion) + ' is gone')">
+                                <img [src]="ui.championIconUrl(o.champion)" alt="" loading="lazy" />
+                                <span>{{ ui.championName(o.champion) }}</span>
+                              </li>
+                            }
+                          }
+                        </ul>
+                      }
                       @if (s.cover.length) {
                         <span class="comps-seat-cover" [appTip]="'Who can play ' + s.role">
                           @for (p of s.cover; track p.name) { <span [class.is-flex]="p.flex">{{ p.name }}<app-mvp-banner size="inline" [focusable]="false" [name]="p.name" /></span> }
@@ -317,6 +334,16 @@ export class CompSheetComponent {
     const p = this.card().gamePlan;
     return !!(p.early || p.mid || p.late);
   });
+
+  /**
+   * A seat card is lit when the champion being asked about is anything the seat can play, its fallbacks
+   * included (20 Sep 2026) — the card now draws them, so hiding the answer for one would be a lie. The
+   * matching chip lights too, so a seat holding three says which one was asked about. `options[0]` is the
+   * priority, so this still covers what the ring always meant.
+   */
+  protected seatMatch(s: CompSeat): boolean {
+    return !!s.champion && s.options.some((o) => this.filter.matches(o.champion));
+  }
 
   protected neighbour(dir: 1 | -1): CompCard | undefined {
     const list = this.siblings();

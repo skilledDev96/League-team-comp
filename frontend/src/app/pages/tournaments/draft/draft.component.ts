@@ -25,6 +25,8 @@ import {
   playedSeats,
   PoolPressure,
   poolPressure,
+  SeatAvailability,
+  SeatOptionState,
   uniqueChampions
 } from '../draft.util';
 import {
@@ -59,6 +61,7 @@ import {
   CompFit,
   CompGaps,
   compGaps,
+  CompCost,
   compsUsing,
   currentStanding,
   DraftRead,
@@ -542,14 +545,71 @@ export class TournamentDraftComponent implements OnInit {
     return 'Hold ' + champion + ' as ' + whose + ' ' + (step?.action ?? 'pick') + ', then confirm it in the room';
   }
 
-  /** A comp's picks by role, for the expanded row. */
-  protected compLineup(compId: string): { role: Role; champion: string }[] {
-    const comp = this.data.comps().find((c) => c.id === compId);
-    if (!comp) return [];
-    return this.roles.map((role) => ({
-      role,
-      champion: this.ui.parseCompLine(comp.picks[role] ?? '').champion
-    }));
+  /**
+   * What a comp's seat would field now, for every reader in the room that wants one champion a seat
+   * (20 Sep 2026): the seat's highest-ranked champion this board has not taken, so a comp whose
+   * Nautilus is banned answers Leona rather than a champion nobody can pick.
+   *
+   * Read off the availability row rather than the comp document, which is the point: the row already
+   * decided what is gone, so a chip in the popup and the verdict above it cannot disagree.
+   */
+  private seatBest(comp: CompAvailability, role: Role): string {
+    return comp.seats.find((seat) => seat.role === role)?.best ?? '';
+  }
+
+  /**
+   * What a seat would field if the drafter took *this* champion: the champion itself when the seat
+   * names it at any rank and the board still has it, otherwise the seat's best (20 Sep 2026).
+   *
+   * The confirm line asks what holding this one champion does for us, and the lead has decided a game
+   * played on a listed fallback counts as that comp — so holding Leona while Nautilus is still free is
+   * Dive with one swap, not "in no comp of ours". The lane shortlist deliberately does **not** use this:
+   * there every champion is a candidate, and letting a fallback stand in for its own seat would rank
+   * Leona level with Nautilus and put Dive behind both.
+   */
+  private seatIfTaken(comp: CompAvailability, role: Role, champion: string): string {
+    const key = normalizeChampion(champion);
+    const seat = comp.seats.find((s) => s.role === role);
+    const held = seat?.options.find((o) => normalizeChampion(o.champion) === key && !o.gone);
+    return held?.champion ?? seat?.best ?? '';
+  }
+
+  /** The seats of a comp against the live board, for the popup's expanded row. */
+  protected compSeats(comp: CompAvailability): SeatAvailability[] {
+    return comp.seats;
+  }
+
+  /** A seat's role as the pick path takes it: a seat with no role aims at no lane rather than at ''. */
+  protected seatRole(seat: SeatAvailability): Role | undefined {
+    return seat.role || undefined;
+  }
+
+  /**
+   * What one option in a seat is, then what clicking it would do. A gone champion keeps its chip — it is
+   * the reason the seat is on a fallback — and says so instead of offering a hold it cannot honour.
+   */
+  protected seatOptionHint(game: SeriesGame, seat: SeatAvailability, option: SeatOptionState): string {
+    const where = seat.role || 'Seat';
+    const place = option.rank === 0 ? `${where} priority` : `${where} fallback ${option.rank}`;
+    if (option.gone) return `${option.champion} — ${place}, gone from this board`;
+    return `${option.champion} — ${place}. ${this.compsPickHint(game, option.champion, this.seatRole(seat))}`;
+  }
+
+  /** How many swaps a comp is running, for its chip: seats alive on a fallback rather than the priority. */
+  protected compSwapTip(comp: CompAvailability): string {
+    const swapped = comp.seats.filter((seat) => seat.substituted);
+    return swapped
+      .map((seat) => `${seat.role || 'Seat'}: ${seat.options[0].champion} gone, playing ${seat.best}`)
+      .join('\n');
+  }
+
+  /** Which seats a broken comp has lost, and to what — the tip on its row, in place of a flat champion list. */
+  protected compLostTip(comp: CompAvailability): string {
+    const lost = comp.seats.filter((seat) => seat.lost);
+    if (!lost.length) return '';
+    return lost
+      .map((seat) => `${seat.role || 'Seat'} has nothing left: ${seat.options.map((o) => o.champion).join(', ')} gone`)
+      .join('\n');
   }
 
   // ---- Drafting a champion straight off the board ------------------------
@@ -1205,18 +1265,42 @@ export class TournamentDraftComponent implements OnInit {
    * banning it cost us". A ban is permanent for the whole series under
    * fearless, so banning a champion three of our comps depend on spends one of
    * their bans for them.
+   *
+   * Two answers since fallbacks (20 Sep 2026): the comps the ban *takes*, and
+   * the comps that carry on without it because the seat named somebody else.
+   * Only the first is a cost.
    */
-  protected banCost(game: SeriesGame, champion: string): string[] {
-    if (isNoBan(champion)) return [];
-    return compsUsing(
-      champion,
-      this.compAvailability(game.seriesId),
-      (comp, lane) => {
-        const source = this.data.comps().find((c) => c.id === comp.id);
-        return source ? this.ui.parseCompLine(source.picks[lane] ?? '').champion : '';
-      },
-      this.roles
-    );
+  protected banCost(game: SeriesGame, champion: string): CompCost {
+    if (isNoBan(champion)) return { breaks: [], weakens: [] };
+    return compsUsing(champion, this.compAvailability(game.seriesId));
+  }
+
+  /**
+   * The one line under a held ban, or null when the ban costs us nothing (20 Sep 2026).
+   *
+   * Counted on `breaks`, worded on both: "takes 2 of our comps" is the cost, and a comp the ban only
+   * thins is said as covered rather than counted as lost. Before fallbacks the line said "also in N
+   * of our comps", which with a fallback behind the seat was simply untrue.
+   *
+   * One call a render on purpose — the template reads the line, the tip and the tone off this object
+   * — and it stays a single inline span, because the confirm slot's height is fixed.
+   */
+  protected banCostRead(game: SeriesGame, champion: string): { line: string; tip: string; covered: boolean } | null {
+    const { breaks, weakens } = this.banCost(game, champion);
+    if (!breaks.length && !weakens.length) return null;
+
+    const line = breaks.length
+      ? weakens.length
+        ? `takes ${breaks.length} of ours, ${weakens.length} covered`
+        : `takes ${breaks.length} of our comps`
+      : `${weakens.length} of ours, covered`;
+    const tip = [
+      breaks.length ? `Banning ${champion} takes: ${breaks.join(', ')}` : '',
+      weakens.length ? `Covered by a fallback: ${weakens.join(', ')}` : ''
+    ]
+      .filter(Boolean)
+      .join('\n');
+    return { line, tip, covered: !breaks.length };
   }
 
   /**
@@ -1265,7 +1349,9 @@ export class TournamentDraftComponent implements OnInit {
     return banSuggestions(
       roster,
       (champ) => !blocked.has(normalizeChampion(champ)),
-      (champ) => this.banCost(game, champ)
+      // The cost of banning one of their answers is the comps it takes: a comp whose seat names a
+      // fallback is not spent by the ban, so since 20 Sep 2026 it no longer marks the idea costly.
+      (champ) => [...this.banCost(game, champ).breaks]
     ).slice(0, 5);
   }
 
@@ -1761,10 +1847,11 @@ export class TournamentDraftComponent implements OnInit {
     const champ = this.pending();
     const seat = this.pendingSeat(game);
     if (!champ || !seat) return null;
-    const found = suggestForLane(seat, [champ], this.compAvailability(game.seriesId), (comp, lane) => {
-      const source = this.data.comps().find((c) => c.id === comp.id);
-      return source ? this.ui.parseCompLine(source.picks[lane] ?? '').champion : '';
-    });
+    // Seat-aware on the held champion itself (20 Sep 2026): a comp that names it as a fallback is one
+    // this pick keeps, and the line used to read "in no comp of ours" over a comp we were about to play.
+    const found = suggestForLane(seat, [champ], this.compAvailability(game.seriesId), (comp, lane) =>
+      this.seatIfTaken(comp, lane, champ)
+    );
     return found[0] ?? null;
   }
   /** Where we stand now, across every comp still reachable. */
@@ -1941,6 +2028,13 @@ export class TournamentDraftComponent implements OnInit {
     // Joined on the Data Dragon id, the same way traitsForSide does it — the
     // traits are keyed by id and the comp lines carry display names, and the
     // two differ for exactly the champions that break silently (FiddleSticks).
+    //
+    // Deliberately the PRIORITY five and not the seats' fallbacks (20 Sep 2026):
+    // a comp's identity, damage profile, face and expectation all read its first
+    // choice, so the glyph on a pill stays the comp's own shape rather than
+    // changing under the reader because a board burned one champion. What the
+    // board would field now is `seatBest`, and only the popup and the advisor
+    // ask that.
     const index = indexTraits(this.data.championTraits());
     const traits: ChampionTraits[] = [];
     for (const role of this.roles) {
@@ -2015,10 +2109,13 @@ export class TournamentDraftComponent implements OnInit {
         const ourPlayer = this.data.starters().find((p) => p.role === s);
         for (const champ of ourPlayer?.top3 ?? []) add(champ);
       }
+      // Every champion the seat can still field, not only its priority (20 Sep 2026): with Nautilus
+      // banned the model may still name Leona, which is the moment a fallback is worth having.
       for (const comp of this.draftPlayable(game)) {
-        const source = this.data.comps().find((c) => c.id === comp.id);
-        if (!source) continue;
-        for (const s of seats) add(this.ui.parseCompLine(source.picks[s] ?? '').champion);
+        for (const s of seats) {
+          const seatRow = comp.seats.find((row) => row.role === s);
+          for (const option of seatRow?.options ?? []) add(option.champion);
+        }
       }
       for (const champ of this.champs.champions().map((c) => c.name)) {
         if (seats.some((s) => playsRole(champ, s))) add(champ);
@@ -2170,9 +2267,15 @@ export class TournamentDraftComponent implements OnInit {
         counters: countersFor(p).map((r) => r.champion),
         mastery: (p.mastery ?? []).slice(0, 8)
       })),
+      // The five it would field on this board, not the five it was written with (20 Sep 2026): a comp
+      // playing its fallback used to be sent as "Nautilus, playable: true, blocked: [Nautilus]",
+      // which contradicts itself. `blocked` still lists every champion of the comp that is gone.
+      // A seat with nothing left keeps its written priority rather than dropping out, so the list is
+      // one champion a seat either way: a broken comp sending four names for a five-seat game read as
+      // a four-champion comp, and nothing said the two missing names had been one seat.
       comps: this.draftComps(live).map((c) => ({
         name: c.name,
-        champions: this.compLineup(c.id).map((l) => l.champion).filter(Boolean),
+        champions: c.seats.map((s) => s.best || s.options[0]?.champion || '').filter(Boolean),
         winRate: c.winRate,
         games: c.games,
         playable: c.playable,
@@ -2298,10 +2401,12 @@ export class TournamentDraftComponent implements OnInit {
     const candidates = this.champs.champions()
       .map((c) => c.name)
       .filter((name) => !blocked.has(normalizeChampion(name)));
-    const fromComps = suggestForLane(lane, candidates, this.compAvailability(game.seriesId), (comp, seat) => {
-      const source = this.data.comps().find((c) => c.id === comp.id);
-      return source ? this.ui.parseCompLine(source.picks[seat] ?? '').champion : '';
-    });
+    // One champion a seat, and it is the one that seat would field now: with the priority banned the
+    // comp's record travels to its fallback instead of vanishing from the shortlist (20 Sep 2026).
+    // One champion a comp a seat also means a comp can never be counted twice behind one suggestion.
+    const fromComps = suggestForLane(lane, candidates, this.compAvailability(game.seriesId), (comp, seat) =>
+      this.seatBest(comp, seat)
+    );
     // The advisor's picks for this seat and the seat's own pool join the comp
     // champions, so the champion being argued for has its matchup on the
     // board even when no comp of ours fields it: Tristana into Kai'Sa was the

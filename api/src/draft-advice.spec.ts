@@ -68,9 +68,24 @@ describe('buildDraftPrompt', () => {
       })
     );
     expect(prompt).toContain('QUESTION: We are banning (ban 1).');
-    expect(prompt).toContain('- Engage: Ornn, Jarvan IV — 60% over 5; BROKEN, missing Ornn');
+    expect(prompt).toContain('- Engage: Ornn, Jarvan IV — 60% over 5; BROKEN, a seat has nothing left (Ornn gone)');
     expect(prompt).toContain('- Top A: plays Aatrox; loses to Fiora');
     expect(prompt).toContain('- Top: weak (-9) — Aatrox is a main for them');
+  });
+
+  it('says a comp is running a fallback rather than reading as a contradiction', () => {
+    // A seat can hold fallbacks since 20 Sep 2026: Dive keeps Leona behind Nautilus, so it is still playable
+    // with Nautilus gone. The old wording (playable = every champion available) made that line read as a
+    // contradiction — playable, with a champion listed as blocked.
+    const prompt = buildDraftPrompt(
+      parseDraftAdviceRequest({
+        ...minimal,
+        action: 'pick',
+        comps: [{ name: 'Dive', champions: ['Camille', 'Vi', 'Ahri', 'Kaisa', 'Leona'], winRate: 70, games: 10, playable: true, blocked: ['Nautilus'] }]
+      })
+    );
+    expect(prompt).toContain('- Dive: Camille, Vi, Ahri, Kaisa, Leona — 70% over 10; on a fallback, Nautilus gone');
+    expect(prompt).toContain('playable = every seat can still field one of its champions');
   });
 });
 

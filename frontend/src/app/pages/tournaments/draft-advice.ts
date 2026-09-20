@@ -356,32 +356,62 @@ export function enemyRead(traits: readonly ChampionTraits[]): DraftRead[] {
   return out;
 }
 
+/** What banning one champion would do to our own comps, split by whether they survive it. */
+export interface CompCost {
+  /** Comps this ban takes: the champion is that seat's last survivor, so the seat is lost with it. */
+  readonly breaks: readonly string[];
+  /** Comps that live without it: the seat has another champion behind this one. */
+  readonly weakens: readonly string[];
+}
+
 /**
- * Which of our still-playable comps a champion belongs to.
+ * What banning a champion costs our still-playable comps, seat by seat.
  *
  * Written for ban time, where the useful question is the reverse of pick time:
  * not "does this help us" but "does banning it cost us". A ban is permanent for
  * the series under fearless, so banning a champion three of our comps depend on
  * spends one of their bans for them.
  *
+ * Split in two on 20 Sep 2026, because a seat can now name a fallback and the
+ * old single answer became a lie: banning Leona does not cost us Dive while
+ * Nautilus is free. `breaks` is the cost — the seat's only survivor goes with
+ * the ban — and `weakens` is the honest rest, a comp that carries on one
+ * substitute lighter. A champion already gone costs nothing and is in neither:
+ * the board took it before the ban could.
+ *
+ * Read off the availability row's own seats rather than the comp documents, so
+ * this and the playable/broken verdict above it cannot disagree. **Every** seat
+ * naming the champion is weighed, not the first one found (20 Sep 2026): the
+ * comp writes refuse a champion already sitting in another seat, but the read
+ * in `core/comp-seats.ts` dedupes only *within* a seat, so a hand-edited
+ * document, an Admin paste or an importer can still put one champion in two.
+ * Judging the ban on whichever seat came first said "covered" while the other
+ * seat was the one the ban emptied — the room recommended a ban that killed the
+ * comp. The comp is still counted once however many of its seats hold it.
+ *
  * Deliberately not a ban *recommendation*. Recommending what to ban needs to
  * know what the opponent plays, and nothing in this app knows that yet — a
  * suggestion built from our own comps alone would be a confident-looking guess
  * about somebody else's draft.
  */
-export function compsUsing(
-  champion: string,
-  comps: readonly CompAvailability[],
-  championInComp: (comp: CompAvailability, lane: Role) => string,
-  lanes: readonly Role[]
-): string[] {
+export function compsUsing(champion: string, comps: readonly CompAvailability[]): CompCost {
   const wanted = normalizeChampion(champion);
-  if (!wanted) return [];
+  const breaks: string[] = [];
+  const weakens: string[] = [];
+  if (!wanted) return { breaks, weakens };
 
-  return comps
-    .filter((comp) => comp.playable)
-    .filter((comp) => lanes.some((lane) => normalizeChampion(championInComp(comp, lane)) === wanted))
-    .map((comp) => comp.name);
+  for (const comp of comps) {
+    if (!comp.playable) continue;
+    const holding = comp.seats.filter((s) =>
+      s.options.some((o) => normalizeChampion(o.champion) === wanted && !o.gone)
+    );
+    // Not in this comp, or already off the board: either way the ban takes nothing from it.
+    if (!holding.length) continue;
+    // One seat losing its last survivor is enough to break the comp, whatever the others hold.
+    const takesASeat = holding.some((s) => s.options.filter((o) => !o.gone).length === 1);
+    (takesASeat ? breaks : weakens).push(comp.name);
+  }
+  return { breaks, weakens };
 }
 
 /** A champion worth banning, and why. */

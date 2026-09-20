@@ -9,6 +9,8 @@
  * analysis request, are decided here where they can be tested.
  */
 
+import { normalizeSeats } from './comp-match';
+
 export type KnownRole = 'Top' | 'Jungle' | 'Mid' | 'ADC' | 'Support';
 
 export const ROLES: readonly KnownRole[] = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
@@ -68,7 +70,15 @@ export interface StoredComp {
   notes?: string;
   id: string;
   name?: string;
+  /** Always the seat's **priority** pick, one "Champion - note" line a seat. */
   picks?: Partial<Record<KnownRole, string>>;
+  /**
+   * Each seat's fallbacks behind its priority, in order, each its own "Champion - note" line
+   * (20 Sep 2026). Absent on every comp stored before that. Mirrors `CompFallbacks` in the frontend
+   * models; read it only through `seatsOfComp` below, which enforces the same invariant
+   * `core/comp-seats.ts` enforces in the browser.
+   */
+  fallbacks?: Partial<Record<KnownRole, string[]>>;
   countsUnder?: string | null;
 }
 
@@ -78,16 +88,46 @@ export interface StoredOverride {
 }
 
 /**
- * "Champion - note" → the champion. Mirrors `UiService.parseCompLine` in the
- * frontend, which is what builds the request when a person clicks Refresh;
- * the two have to agree or the morning run attributes games differently
- * from the afternoon one.
+ * "Champion - note" → the champion. Mirrors `UiService.parseCompLine` in the frontend, which is
+ * what builds the request when a person clicks Refresh, and `championOf` in
+ * `frontend/src/app/core/comp-seats.ts`, which is what the browser reads a seat with. All three
+ * have to agree or the morning run attributes games differently from the afternoon one.
+ *
+ * **The separator is looked for in the raw line, before any trim** (20 Sep 2026). Trimming first
+ * made this the one of the three that reads a note-only line as a champion: ' - need engage'
+ * trimmed to '- need engage', which holds no ' - ' and so came back whole and truthy, and
+ * `seatsOfComp` then kept a seat the browser drops — a seat a fallback could fill. That state is
+ * reachable (Admin › Comps edits a pick line as free text and `saveComp` leaves `fallbacks`
+ * alone), and it moved a comp's record depending on whether the 06:30 run or a hand Refresh went
+ * last. Trimming what is left of the separator is unchanged, so every real line reads as before.
  */
 export function championOfLine(text: string | undefined): string {
-  const line = (text ?? '').trim();
+  const line = text ?? '';
   const separator = ' - ';
-  if (!line.includes(separator)) return line;
+  if (!line.includes(separator)) return line.trim();
   return line.slice(0, line.indexOf(separator)).trim();
+}
+
+/**
+ * One comp's seats as the matcher takes them: a filled seat's priority first, then its fallbacks in
+ * order (20 Sep 2026).
+ *
+ * The invariant is applied here and not left to the document: a seat whose `picks` line names no
+ * champion holds **nothing**, whatever is sitting in its `fallbacks`. That is the same rule
+ * `core/comp-seats.ts` enforces on read in the browser — and it is the same rule only because
+ * `championOfLine` answers exactly what `championOf` answers there, note-only lines included
+ * (20 Sep 2026). The morning run has to reach the same answer as the afternoon Refresh or the two
+ * would attribute games differently.
+ * `normalizeSeats` then dedupes each seat and caps it, and drops the empty seats.
+ */
+export function seatsOfComp(comp: StoredComp): string[][] | undefined {
+  return normalizeSeats(
+    ROLES.map((role) => {
+      const priority = championOfLine(comp.picks?.[role]);
+      if (!priority) return [];
+      return [priority, ...(comp.fallbacks?.[role] ?? []).map(championOfLine)];
+    })
+  );
 }
 
 /**
@@ -97,6 +137,10 @@ export function championOfLine(text: string | undefined): string {
  * an empty list — but a comp doc with no id cannot be attributed to and is
  * dropped. Overrides are keyed by match id and a malformed one is skipped,
  * the same leniency `parseCompAnalysisRequest` applies.
+ *
+ * `champions` stays the priority five exactly as it was, and `seats` rides beside it and is left off
+ * a comp holding no fallbacks — which is what keeps every record byte-identical on the day this
+ * shipped (`comp-match.ts` reads an absent `seats` as one champion a seat).
  */
 export function analysisRequestFrom(
   players: readonly StoredPlayer[],
@@ -104,7 +148,7 @@ export function analysisRequestFrom(
   overrides: readonly StoredOverride[]
 ): {
   players: { id: string; name: string; riotTag?: string; region?: string }[];
-  comps: { id: string; name: string; champions: string[]; countsUnder: string | null }[];
+  comps: { id: string; name: string; champions: string[]; seats?: string[][]; countsUnder: string | null }[];
   overrides: Record<string, string>;
 } {
   const overrideMap: Record<string, string> = {};
@@ -122,12 +166,21 @@ export function analysisRequestFrom(
       })),
     comps: comps
       .filter((c) => c.id)
-      .map((c) => ({
-        id: c.id,
-        name: c.name ?? 'Comp',
-        champions: ROLES.map((role) => championOfLine(c.picks?.[role])).filter(Boolean),
-        countsUnder: c.countsUnder ?? null
-      })),
+      .map((c) => {
+        const seats = seatsOfComp(c);
+        return {
+          id: c.id,
+          name: c.name ?? 'Comp',
+          champions: ROLES.map((role) => championOfLine(c.picks?.[role])).filter(Boolean),
+          // Only a comp that actually holds a fallback sends seats at all. The matcher scores
+          // one-champion seats identically to the flat list (proved in `comp-match.spec.ts`), so
+          // this changes no answer — it means that on the day this shipped, with no comp holding a
+          // fallback, not one comp even takes the new path. Mirrored in
+          // `frontend/src/app/services/comp-analysis.service.ts`; the two must agree.
+          ...(seats && seats.some((seat) => seat.length > 1) && { seats }),
+          countsUnder: c.countsUnder ?? null
+        };
+      }),
     overrides: overrideMap
   };
 }

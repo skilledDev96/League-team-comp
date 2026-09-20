@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, output } from '@angular/core';
 import { EXPECT_AXES, EXPECT_LABEL, LEVEL_LABEL } from '../../core/comp-expectation';
-import { championsOf, CompCard } from '../../core/comps-build';
+import { championsOf, CompCard, CompSeat } from '../../core/comps-build';
 import { playedAgo } from '../../core/team-season';
 import { ChampionFilterService } from '../../services/champion-filter.service';
 import { UiService } from '../../services/ui.service';
@@ -51,10 +51,16 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
         </p>
         <ol class="comps-tile-five" aria-label="The five">
           @for (s of c.seats; track s.role; let k = $index) {
-            <li [style.--seat-i]="k" [class.is-empty]="!s.champion" [class.is-match]="s.champion && filter.matches(s.champion)"
-                [appTip]="s.role + (s.champion ? ': ' + ui.championName(s.champion) : ': empty')">
+            <li [style.--seat-i]="k" [class.is-empty]="!s.champion" [class.is-match]="seatMatch(s)" [appTip]="seatTip(s)">
               @if (s.champion) {
                 <img [src]="ui.championIconUrl(s.champion)" [alt]="s.role + ' ' + ui.championName(s.champion)" loading="lazy" />
+                <!-- The five icons are the five the comp fields; a seat holding fallbacks says how many
+                     inside its own icon, so the tile keeps its shape and its height (20 Sep 2026). The tip
+                     names them; the tip is hover and focus only, so the names are in the DOM as well. -->
+                @if (s.options.length > 1) {
+                  <span class="comps-tile-more" aria-hidden="true">+{{ s.options.length - 1 }}</span>
+                  <span class="visually-hidden">, or {{ fallbackNames(s) }}</span>
+                }
               }
             </li>
           }
@@ -92,8 +98,36 @@ export class CompTileComponent {
   protected readonly axisLabel = EXPECT_LABEL;
   protected readonly levelLabel = LEVEL_LABEL;
 
-  /** Lit when the champion being asked about is one of its five, dimmed when not, neither without a question. */
+  /**
+   * Lit when the champion being asked about is one this comp can put on the map, dimmed when not, neither
+   * without a question. `championsOf` counts a seat's fallbacks since 20 Sep 2026, so a comp keeping Leona
+   * behind Nautilus lights for her — and the seat mark below says which seat she is in.
+   */
   protected readonly match = computed(() => (this.filter.active() ? this.filter.passes(championsOf(this.card())) : null));
+
+  /** A seat's fallbacks by name, in order; '' for a seat that has none. */
+  protected fallbackNames(s: CompSeat): string {
+    return s.options
+      .slice(1)
+      .map((o) => this.ui.championName(o.champion))
+      .join(', ');
+  }
+
+  /** The seat's tip: who holds it, and what it falls back to. */
+  protected seatTip(s: CompSeat): string {
+    if (!s.champion) return `${s.role}: empty`;
+    const rest = this.fallbackNames(s);
+    return `${s.role}: ${this.ui.championName(s.champion)}${rest ? `, or ${rest}` : ''}`;
+  }
+
+  /**
+   * The seat's own ring, lit when the champion asked about is anything this seat can play. Without it a
+   * comp lit by one of its fallbacks would show no lit seat, and nothing would say where that champion sits.
+   * `options[0]` is the priority, so this still covers what the ring always meant.
+   */
+  protected seatMatch(s: CompSeat): boolean {
+    return !!s.champion && s.options.some((o) => this.filter.matches(o.champion));
+  }
   protected readonly ago = computed(() => {
     const at = this.card().lastPlayed;
     return at ? playedAgo(at, Date.now()) : '';

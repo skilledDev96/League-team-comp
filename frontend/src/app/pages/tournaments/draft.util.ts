@@ -10,7 +10,7 @@
  * Kept free of Angular so the logic can be tested directly.
  */
 import { championKey, sameChampion } from '../../core/champion-key';
-import type { SeriesGame } from '../../models/team.models';
+import { ROLES, type Role, type SeriesGame } from '../../models/team.models';
 import { DRAFT_LENGTH, isComplete, isNoBan, positionOf } from './draft-sequence';
 
 /** Whether a delete would lose anything: a pick, a ban or a result. Prep and the draft room ask, and offer Undo, on this one rule. */
@@ -230,23 +230,65 @@ export function wilsonLowerBound(rate: number, games: number): number {
 /** Games a comp needs before the Comps popup prints its rate; under this it says "few games" instead. */
 export const COMP_RATE_MIN_GAMES = 3;
 
+/** One seat as the availability maths is given it: the priority first, then that seat's fallbacks in order. */
+export interface CompSeatChampions {
+  role: Role;
+  champions: string[];
+}
+
 export interface CompChampions {
   id: string;
   name: string;
   category?: string;
+  /** The priority five, one a seat — the comp's first choice, which is what its identity still reads. */
   champions: string[];
+  /**
+   * Every seat's champions, the priority first (20 Sep 2026). Absent from a caller that holds only the
+   * flat five, and then each champion reads as a seat of its own: exactly the behaviour before fallbacks.
+   */
+  seats?: CompSeatChampions[];
   /** From match history, when the comp has been played enough to have one. */
   winRate?: number;
   games?: number;
+}
+
+/** One champion a seat can field, and whether this board has taken it. */
+export interface SeatOptionState {
+  champion: string;
+  gone: boolean;
+  /** 0 is the comp's priority; 1 and up are its fallbacks, in the order they were written. */
+  rank: number;
+}
+
+/** A comp's seat read against one board: what it can field, what it would field now, what it has lost. */
+export interface SeatAvailability {
+  /** '' only for a seat synthesised past the fifth champion of a flat list, which has no role to carry. */
+  role: Role | '';
+  /** The priority first, then the fallbacks in order. Empty for a seat the comp never filled. */
+  options: SeatOptionState[];
+  /** What this seat would field now: the highest-ranked option still open, '' when none is. */
+  best: string;
+  /** Alive, but not on its priority — this seat is running a substitute. */
+  substituted: boolean;
+  /** Filled and nothing left: the seat that breaks the comp. */
+  lost: boolean;
 }
 
 export interface CompAvailability {
   id: string;
   name: string;
   category?: string;
+  /** Every champion of the comp this board has left, seat then rank order. */
   available: string[];
+  /** Every champion of the comp this board has taken — a gone fallback is listed even where the seat lives. */
   blocked: string[];
   playable: boolean;
+  /** Each filled and unfilled seat against this board, in the order the caller sent them. */
+  seats: SeatAvailability[];
+  /** Filled seats with nothing left. This, not the champion count, is what "broken by N" means. */
+  lost: number;
+  /** Filled seats alive on a fallback — how many swaps the comp is running. */
+  substituted: number;
   winRate?: number;
   games?: number;
 }
@@ -267,10 +309,32 @@ function byRecord(a: { winRate?: number; games?: number }, b: { winRate?: number
 }
 
 /**
+ * The seats to judge a comp by: the caller's own, or one single-option seat a champion when it sent
+ * only the flat five (20 Sep 2026). The synthesised seats take their role by position, which is the
+ * order every caller builds that list in, and '' past the fifth rather than a role it cannot know.
+ */
+function seatsOf(comp: CompChampions): { role: Role | ''; champions: string[] }[] {
+  if (comp.seats?.length) {
+    return comp.seats.map((seat) => ({ role: seat.role, champions: (seat.champions ?? []).filter(Boolean) }));
+  }
+  return comp.champions.map((champion, i) => ({ role: ROLES[i] ?? '', champions: [champion].filter(Boolean) }));
+}
+
+/**
  * Playable comps come back by how much their record can bear, not by the rate it shows (17 Sep 2026):
  * sorted on the raw rate a 1–0 comp stood above a 5–1 one, so the order is the Wilson lower bound
  * and a comp never played goes last. Broken comps come back least-damaged first: a comp missing one
- * champion is a substitution, one missing three is not worth the conversation; the record breaks a tie.
+ * seat is a substitution, one missing three is not worth the conversation; the record breaks a tie.
+ *
+ * Read per seat since 20 Sep 2026, because a seat can now name a fallback behind its priority. The
+ * question a board asks a comp is not "is every champion on it free" — that was exactly backwards
+ * for fallbacks, and adding Leona to Dive would have broken Dive the moment Leona was banned. It is
+ * "can every seat still field somebody": a seat is alive while ANY of its champions is open, a seat
+ * the comp never filled is no constraint at all (as a comp of fewer than five always has been), and
+ * the damage a board has done is counted in LOST SEATS, not in lost champions — a comp that lost its
+ * Nautilus but kept Leona has lost nothing to fix. `available` and `blocked` still list champions,
+ * so everything already reading them reads what it always did; a comp with no fallbacks comes back
+ * champion for champion, seat for seat, identical to before.
  */
 export function compAvailability(
   comps: readonly CompChampions[],
@@ -278,22 +342,41 @@ export function compAvailability(
 ): CompAvailability[] {
   return comps
     .map((comp) => {
-      const champions = comp.champions.filter(Boolean);
+      const seats: SeatAvailability[] = seatsOf(comp).map((seat) => {
+        const options = seat.champions.map((champion, rank) => ({
+          champion,
+          gone: blocked.has(normalizeChampion(champion)),
+          rank
+        }));
+        const open = options.filter((o) => !o.gone);
+        return {
+          role: seat.role,
+          options,
+          best: open[0]?.champion ?? '',
+          substituted: open.length > 0 && options[0].gone,
+          lost: options.length > 0 && open.length === 0
+        };
+      });
+      const filled = seats.filter((s) => s.options.length > 0);
+      const champions = seats.flatMap((s) => s.options);
       return {
         id: comp.id,
         name: comp.name,
         category: comp.category,
         winRate: comp.winRate,
         games: comp.games,
-        available: champions.filter((c) => !blocked.has(normalizeChampion(c))),
-        blocked: champions.filter((c) => blocked.has(normalizeChampion(c))),
-        playable: champions.length > 0 && champions.every((c) => !blocked.has(normalizeChampion(c)))
+        seats,
+        available: champions.filter((o) => !o.gone).map((o) => o.champion),
+        blocked: champions.filter((o) => o.gone).map((o) => o.champion),
+        lost: filled.filter((s) => s.lost).length,
+        substituted: filled.filter((s) => s.substituted).length,
+        playable: filled.length > 0 && filled.every((s) => !s.lost)
       };
     })
     .sort(
       (a, b) =>
         Number(b.playable) - Number(a.playable) ||
-        (a.playable ? byRecord(a, b) : a.blocked.length - b.blocked.length || byRecord(a, b)) ||
+        (a.playable ? byRecord(a, b) : a.lost - b.lost || byRecord(a, b)) ||
         a.name.localeCompare(b.name)
     );
 }

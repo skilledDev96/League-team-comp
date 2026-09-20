@@ -90,13 +90,27 @@ export class CompsComponent {
   protected readonly category = signal<string>('all');
   protected readonly categories = computed(() => this.model().categories);
 
-  /** The comps on the page: the category chosen, and only those the champion asked about is drafted in. */
+  /** The comps on the page: the category chosen, and only those the champion asked about is anywhere in. */
   protected readonly visible = computed<CompCard[]>(() => {
     const cat = this.category();
     return this.model()
       .cards.filter((c) => cat === 'all' || c.category === cat)
       .filter((c) => this.filter.passes(championsOf(c)));
   });
+
+  /**
+   * The filter's answer, split in two (20 Sep 2026). A seat can hold more than one champion, so `visible()` now
+   * also holds the comps that merely keep the champion behind a priority — and one flat "Drafted in" over them
+   * said a comp drafts a champion its own five icons, and the tile's "+1" mark, say it does not field. What the
+   * comp fields is its five, so the card's own seats tell the two lists apart with no new field.
+   */
+  protected readonly drafted = computed(() => this.visible().filter((c) => this.fields(c)));
+  protected readonly reserve = computed(() => this.visible().filter((c) => !this.fields(c)));
+
+  /** Is the champion being asked about one of this comp's priority five, rather than something behind one? */
+  private fields(c: CompCard): boolean {
+    return c.seats.some((s) => this.filter.matches(s.champion));
+  }
 
   /** The slim hero's words: what the page holds, and one line that says what to do. */
   protected readonly heading = computed(() => {

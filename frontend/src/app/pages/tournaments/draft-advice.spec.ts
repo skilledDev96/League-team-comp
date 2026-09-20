@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ChampionTraits, Role } from '../../models/team.models';
-import { CompAvailability } from './draft.util';
+import { CompAvailability, SeatAvailability } from './draft.util';
 import {
   MIN_SWING_GAMES,
   banSuggestions,
@@ -15,11 +15,32 @@ import {
   ownRecord
 } from './draft-advice';
 
+/**
+ * One seat as the availability maths returns it: its champions in priority order, anything named in
+ * `gone` already taken by the board (20 Sep 2026).
+ */
+function seat(role: Role, champions: string[], gone: string[] = []): SeatAvailability {
+  const options = champions.map((champion, rank) => ({ champion, gone: gone.includes(champion), rank }));
+  const open = options.filter((o) => !o.gone);
+  return {
+    role,
+    options,
+    best: open[0]?.champion ?? '',
+    substituted: open.length > 0 && options[0].gone,
+    lost: options.length > 0 && open.length === 0
+  };
+}
+
+/** A comp row: its seats from `lineups`, one champion each, unless the test hands it its own. */
 function comp(over: Partial<CompAvailability> & { id: string; name: string }): CompAvailability {
+  const seats = Object.entries(lineups[over.id] ?? {}).map(([role, champion]) => seat(role as Role, [champion]));
   return {
     available: [],
     blocked: [],
     playable: true,
+    seats,
+    lost: 0,
+    substituted: 0,
     ...over
   } as CompAvailability;
 }
@@ -261,28 +282,80 @@ describe('compsUsing', () => {
     comp({ id: 'poke', name: 'Poke', winRate: 50, games: 4 }),
     comp({ id: 'fresh', name: 'Fresh', games: 0 })
   ];
-  const lanes: Role[] = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
-
-  it('names every comp of ours the champion appears in', () => {
-    // Galio is mid in both Engage and Poke: banning him costs us two.
-    expect(compsUsing('Galio', comps, pick, lanes)).toEqual(['Engage', 'Poke']);
+  it('names every comp of ours the ban would take with it', () => {
+    // Galio is mid in both Engage and Poke and the only champion either seat names: banning him costs two.
+    expect(compsUsing('Galio', comps)).toEqual({ breaks: ['Engage', 'Poke'], weakens: [] });
   });
 
   it('says nothing for a champion we do not run', () => {
-    expect(compsUsing('Garen', comps, pick, lanes)).toEqual([]);
+    expect(compsUsing('Garen', comps)).toEqual({ breaks: [], weakens: [] });
   });
 
   it('ignores comps already broken, which cost nothing to ban into', () => {
     const broken = [comp({ id: 'engage', name: 'Engage', playable: false })];
-    expect(compsUsing('Maokai', broken, pick, lanes)).toEqual([]);
+    expect(compsUsing('Maokai', broken)).toEqual({ breaks: [], weakens: [] });
   });
 
   it('matches regardless of punctuation or casing', () => {
-    expect(compsUsing('miss fortune', comps, pick, lanes)).toEqual(['Engage']);
+    expect(compsUsing('miss fortune', comps)).toEqual({ breaks: ['Engage'], weakens: [] });
   });
 
   it('has nothing to say about an empty champion', () => {
-    expect(compsUsing('', comps, pick, lanes)).toEqual([]);
+    expect(compsUsing('', comps)).toEqual({ breaks: [], weakens: [] });
+  });
+
+  // 20 Sep 2026: with a fallback behind the seat, "which comps use this champion" stopped being the cost.
+  it('does not charge a ban for a seat that names somebody else', () => {
+    const dive = [comp({ id: 'dive', name: 'Dive', seats: [seat('Support', ['Nautilus', 'Leona'])] })];
+    expect(compsUsing('Leona', dive)).toEqual({ breaks: [], weakens: ['Dive'] });
+    expect(compsUsing('Nautilus', dive)).toEqual({ breaks: [], weakens: ['Dive'] });
+  });
+
+  it('charges it once the seat is down to one champion, and not for the one already gone', () => {
+    const dive = [comp({ id: 'dive', name: 'Dive', seats: [seat('Support', ['Nautilus', 'Leona'], ['Nautilus'])] })];
+    expect(compsUsing('Leona', dive)).toEqual({ breaks: ['Dive'], weakens: [] });
+    // Nautilus is off the board already: banning him takes nothing from anybody.
+    expect(compsUsing('Nautilus', dive)).toEqual({ breaks: [], weakens: [] });
+  });
+
+  it('counts a comp once however many of its seats hold the champion', () => {
+    const odd = [
+      comp({ id: 'odd', name: 'Odd', seats: [seat('Mid', ['Galio']), seat('Support', ['Galio', 'Rakan'])] })
+    ];
+    expect(compsUsing('Galio', odd)).toEqual({ breaks: ['Odd'], weakens: [] });
+  });
+
+  // The seats in the other order: a document can carry one champion in two seats (the comp writes
+  // refuse it, the read does not), and judging the ban on the first seat found called this covered
+  // while the Support seat was the one it emptied.
+  it('charges the ban when a LATER seat is the one it empties', () => {
+    const odd = [
+      comp({ id: 'odd', name: 'Odd', seats: [seat('Mid', ['Ahri', 'Galio']), seat('Support', ['Galio'])] })
+    ];
+    expect(compsUsing('Galio', odd)).toEqual({ breaks: ['Odd'], weakens: [] });
+  });
+
+  it('still only weakens when every seat holding it names somebody else', () => {
+    const odd = [
+      comp({
+        id: 'odd',
+        name: 'Odd',
+        seats: [seat('Mid', ['Ahri', 'Galio']), seat('Support', ['Galio', 'Rakan'])]
+      })
+    ];
+    expect(compsUsing('Galio', odd)).toEqual({ breaks: [], weakens: ['Odd'] });
+  });
+
+  it('reads each holding seat against the board it is on', () => {
+    const odd = [
+      comp({
+        id: 'odd',
+        name: 'Odd',
+        // Both seats still hold Galio, and the board has taken what stood behind him in each.
+        seats: [seat('Mid', ['Galio', 'Ahri'], ['Ahri']), seat('Support', ['Galio', 'Rakan'], ['Rakan'])]
+      })
+    ];
+    expect(compsUsing('Galio', odd)).toEqual({ breaks: ['Odd'], weakens: [] });
   });
 });
 

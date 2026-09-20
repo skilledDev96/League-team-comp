@@ -85,6 +85,39 @@ describe.skipIf(typeof localStorage === 'undefined')('TournamentContextService',
     expect(ctx.poolPressure('series-7f25f7b7')[0]).toMatchObject({ left: ['Galio'], gone: ['Wukong'] });
   });
 
+  // 20 Sep 2026 — the lead: "the dive comp has naut a priority but Leona can also be added as a secondary pick".
+  it('sends each seat its fallbacks, so a comp survives the burn of its priority', () => {
+    data.comps.set([
+      {
+        id: 'c1',
+        name: 'Dive',
+        order: 0,
+        picks: { Top: 'Camille', Jungle: 'Sejuani', Mid: 'Taliyah', ADC: 'Lucian', Support: 'Nautilus - engage' },
+        fallbacks: { Support: ['Braum - if Nautilus is gone'] }
+      }
+    ] as unknown as Comp[]);
+
+    // `champions` is still the priority five, notes off, so nothing reading it changed meaning.
+    const [sent] = ctx.compChampions();
+    expect(sent.champions).toEqual(['Camille', 'Sejuani', 'Taliyah', 'Lucian', 'Nautilus']);
+    expect(sent.seats).toEqual([
+      { role: 'Top', champions: ['Camille'] },
+      { role: 'Jungle', champions: ['Sejuani'] },
+      { role: 'Mid', champions: ['Taliyah'] },
+      { role: 'ADC', champions: ['Lucian'] },
+      { role: 'Support', champions: ['Nautilus', 'Braum'] }
+    ]);
+
+    // Game 3 of the Paradox Requiem series burned Nautilus. Braum covers the seat, so the comp is still
+    // on the table — before the fallbacks it was broken and gone from the Comps popup's first column.
+    const [row] = ctx.compAvailability('series-7f25f7b7');
+    expect(row.playable).toBe(true);
+    expect(row.lost).toBe(0);
+    expect(row.substituted).toBe(1);
+    expect(row.blocked).toEqual(['Nautilus']);
+    expect(row.seats.find((s) => s.role === 'Support')).toMatchObject({ best: 'Braum', substituted: true, lost: false });
+  });
+
   it('burns nothing in the scrims group', () => {
     expect(ctx.usedChampions('series-1d59cb83')).toEqual([]);
   });

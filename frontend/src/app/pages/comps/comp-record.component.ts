@@ -37,6 +37,23 @@ const NOTES_PREVIEW = 3;
       <p class="empty-state comps-sheet-empty">No games yet — play it, or log one.</p>
     }
 
+    <!-- The receipt the lead asked for (20 Sep 2026): a game played with a listed fallback counts as this
+         comp, so the record says how many did. Only for a comp that holds fallbacks — for every other comp
+         the answer is nought out of nought — and zero is printed rather than left out, so silence never has
+         to be read as "none". The headline above is untouched.
+
+         The total names its source when the headline is the hand-logged one (20 Sep 2026): only match-history
+         games carry champions, so only they can be told apart, and a bare "1 game" under a headline reading
+         "3W–2L logged by hand" is two totals stacked with nothing saying they count different things. -->
+    @if (hasFallbacks() && c.played; as p) {
+      <p class="comps-record-fallback"
+         appTip="Of this comp’s games from match history, how many fielded one of a seat’s fallbacks instead of its priority. A result logged by hand carries no champions, and neither does a game typed in without its ten, so neither can be told apart and neither is counted here.">
+        <span class="material-symbols-rounded" aria-hidden="true">alt_route</span>
+        {{ p.games }} {{ p.games === 1 ? 'game' : 'games' }}{{ c.headline?.source === 'logged' ? ' from match history' : '' }} ·
+        @if (p.onFallback) { <b>{{ p.onFallback }} on a fallback</b> } @else { <span>none on a fallback</span> }
+      </p>
+    }
+
     @if (full() && c.headline; as h) {
       <div class="comps-record-bar" role="img" [attr.aria-label]="h.winRate + '% win rate'"><span [style.width.%]="h.winRate"></span></div>
     }
@@ -150,6 +167,9 @@ export class CompRecordComponent {
   protected readonly retroAll = signal(false);
   /** The rollup over the notes, only while the fold is open: fifty games is fifty notes. */
   protected readonly rollup = computed(() => (this.retroOpen() ? rollupNotes(this.card().gameNotes, this.champData.champions().map((c) => c.name)) : null));
+
+  /** Does any seat keep something behind its priority? Only then is "on a fallback" a question worth asking. */
+  protected readonly hasFallbacks = computed(() => this.card().seats.some((s) => s.options.length > 1));
 
   /** Every other comp, as targets for counts-under; a comp cannot fold into itself. */
   protected readonly others = computed(() => this.data.comps().filter((c) => c.id !== this.card().id));

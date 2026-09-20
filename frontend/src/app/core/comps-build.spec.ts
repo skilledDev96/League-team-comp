@@ -18,6 +18,18 @@ const players = [
 const c1: Comp = { id: 'c1', name: 'Front to back', picks: { Top: 'Ornn', Jungle: 'Trundle - peel', Mid: 'Orianna', ADC: 'Jinx', Support: 'Leona' }, order: 0, notes: 'Group at 14', bans: ['Zed'] };
 const c2: Comp = { id: 'c2', name: 'Dive', picks: { Top: 'Camille', Jungle: 'Vi', Mid: 'Akali', ADC: 'Kaisa', Support: 'Nautilus' }, category: 'Meta', order: 2, countsUnder: 'c1' };
 const c3: Comp = { id: 'c3', name: 'Half built', picks: { Top: 'Sett', Jungle: '', Mid: 'Ahri', ADC: '', Support: '' }, category: ' Comfort ', order: 1 };
+/**
+ * The lead's own example (20 Sep 2026): "the dive comp has naut a priority but Leona can also be added as a
+ * secondary pick". Gwen sits behind Camille with a note, and a fallback is parked on an empty seat to prove the
+ * invariant is read here too.
+ */
+const dive: Comp = {
+  id: 'c4',
+  name: 'Naut dive',
+  order: 3,
+  picks: { Top: 'Camille', Jungle: 'Vi', Mid: '', ADC: 'Kaisa', Support: 'Nautilus' },
+  fallbacks: { Top: ['Gwen - into ranged'], Jungle: ['Wukong'], Mid: ['Sylas'], Support: ['Leona - if Naut is gone'] }
+};
 
 /** A row with our five and their five on it, the way the games page carries them. */
 const row = (id: string, date: number, win: boolean, compId?: string, matchId?: string): GameRow =>
@@ -32,6 +44,10 @@ const row = (id: string, date: number, win: boolean, compId?: string, matchId?: 
     ...(compId ? { compId, compName: compId } : {}),
     ...(matchId ? { matchId } : {})
   }) as unknown as GameRow;
+
+/** A row carrying exactly these champions of ours; an empty list is a game typed in without its ten. */
+const ourRow = (id: string, date: number, win: boolean, compId: string, champions: string[]): GameRow =>
+  ({ ...row(id, date, win, compId), ours: champions.map((champion, k) => ({ player: players[k]?.name ?? null, role: '', champion })) }) as unknown as GameRow;
 
 const rows = [row('r1', 300, true, 'c1', 'EUW_1'), row('r2', 200, false, 'c1', 'EUW_2'), row('r3', 100, true, 'c1', 'EUW_3'), row('r4', 250, true, 'c2', 'EUW_4'), row('r5', 400, false), row('r6', 50, true, 'gone', 'EUW_6')];
 const results: CompResult[] = [
@@ -80,7 +96,7 @@ describe('buildComps', () => {
   it('counts a comp from the rows placed under it, newest first, and lets a logged record head the played one', () => {
     const m = buildComps(input());
     const [front, , dive] = m.cards;
-    expect(front.played).toEqual({ games: 3, wins: 2, losses: 1, winRate: 67, form: ['W', 'L', 'W'], lastPlayed: 300 });
+    expect(front.played).toEqual({ games: 3, wins: 2, losses: 1, winRate: 67, form: ['W', 'L', 'W'], lastPlayed: 300, onFallback: 0 });
     expect(front.logged).toMatchObject({ games: 2, wins: 1, losses: 1, winRate: 50 });
     expect(front.logged?.results.map((r) => r.id)).toEqual(['x2', 'x1']);
     expect(front.headline).toEqual({ games: 2, wins: 1, losses: 1, winRate: 50, band: 'is-even', source: 'logged' });
@@ -139,5 +155,81 @@ describe('buildComps', () => {
     expect(coverOf(players, 'Mid').map((c) => c.name)).toEqual(['Mido', 'SkilledScarecrow']);
     expect(coverOf(players, 'Support')).toEqual([{ name: 'Suppy', flex: false }]);
     expect(championsOf(buildComps(input()).cards[1])).toEqual(['Sett', 'Ahri']);
+  });
+
+  it('carries what each seat can play behind its priority, and holds nothing on a seat with no priority', () => {
+    const [card] = buildComps(input({ comps: [dive], rows: [] })).cards;
+    const seat = (role: string) => card.seats.find((s) => s.role === role)!;
+    // The priority is exactly what `champion` and `note` have always been, and options[0] is the same entry.
+    expect(seat('Support').champion).toBe('Nautilus');
+    expect(seat('Support').options).toEqual([
+      { champion: 'Nautilus', note: '' },
+      { champion: 'Leona', note: 'if Naut is gone' }
+    ]);
+    expect(seat('Top').options.map((o) => o.champion)).toEqual(['Camille', 'Gwen']);
+    // Mid holds Sylas in the document and no priority: the seat reads empty, and empty means empty.
+    expect(seat('Mid')).toMatchObject({ champion: '', options: [] });
+    // What the comp *fields* is unchanged: four seats filled, so it is still building.
+    expect(card.filled).toBe(4);
+    expect(card.complete).toBe(false);
+    expect(card.seats.map((s) => s.champion)).toEqual(['Camille', 'Vi', '', 'Kaisa', 'Nautilus']);
+  });
+
+  it('answers the champion filter with every option, so a comp keeping Leona in reserve is one of its comps', () => {
+    const cards = buildComps(input({ comps: [c1, dive], rows: [] })).cards;
+    expect(championsOf(cards[1])).toEqual(['Camille', 'Gwen', 'Vi', 'Wukong', 'Kaisa', 'Nautilus', 'Leona']);
+    // c1 fields Leona, the dive comp keeps her behind Nautilus: the page counts two comps with Leona.
+    expect(cards.filter((c) => championsOf(c).includes('Leona')).map((c) => c.id)).toEqual(['c1', 'c4']);
+    // A champion in nobody's seat is still in nobody's.
+    expect(cards.filter((c) => championsOf(c).includes('Yuumi'))).toEqual([]);
+  });
+
+  it('lets the name name a fallback, and still puts one of the five it fields on the tile', () => {
+    const seats = buildComps(input({ comps: [dive], rows: [] })).cards[0].seats;
+    // Named after a priority: unchanged.
+    expect(faceOf({ seats, name: 'Camille split', identity: 'unclear' })).toBe('Camille');
+    // Named after the champion it keeps in reserve: that seat wins, and its *priority* is the face, because
+    // a splash of a champion missing from the five icons would read as a mistake.
+    expect(faceOf({ seats, name: 'Leona dive', identity: 'protect' })).toBe('Nautilus');
+    expect(faceOf({ seats, name: 'Gwen split', identity: 'protect' })).toBe('Camille');
+    // A name that names an earlier seat's fallback *and* a later seat's priority: the seat that actually fields
+    // the champion wins, wherever it sits. Matching every option in one pass let Top's Gwen beat Support's
+    // Nautilus on seat order alone, and an existing comp's splash changed under it.
+    expect(faceOf({ seats, name: 'Gwen Nautilus dive', identity: 'split' })).toBe('Nautilus');
+  });
+
+  it('does not read a champion that is another seat’s priority as a fallback of the comp', () => {
+    // comp-seats refuses a champion already in another seat on the *write* path; this read is written to survive
+    // a hand-edited or pasted document, where Top can be the Leona Support keeps in reserve. Every Leona game is
+    // then a game on the priority, and the receipt must not read "1 game · 1 on a fallback" for it.
+    const crossed: Comp = {
+      id: 'c5',
+      name: 'Pasted',
+      order: 4,
+      picks: { Top: 'Leona', Jungle: 'Vi', Mid: 'Ahri', ADC: 'Kaisa', Support: 'Nautilus' },
+      fallbacks: { Support: ['Leona'] }
+    };
+    const played = [ourRow('x1', 100, true, 'c5', ['Leona', 'Vi', 'Ahri', 'Kaisa', 'Nautilus'])];
+    const [card] = buildComps(input({ comps: [crossed], rows: played, compResults: [], gameReviews: [] })).cards;
+    expect(card.played).toMatchObject({ games: 1, onFallback: 0 });
+  });
+
+  it('counts the games fielded on a fallback, and cannot count one that carries no champions of ours', () => {
+    const played = [
+      ourRow('f1', 400, true, 'c4', ['Camille', 'Vi', 'Ahri', 'Kaisa', 'Leona']),
+      ourRow('f2', 300, false, 'c4', ['Camille', 'Vi', 'Ahri', 'Kaisa', 'Nautilus']),
+      // A tournament game typed in without its ten: `ours` is empty, so nothing says which way it went.
+      ourRow('f3', 200, true, 'c4', []),
+      // The replay spells him MonkeyKing and the seat says Wukong; one champion, one answer.
+      ourRow('f4', 100, true, 'c4', ['Camille', 'MonkeyKing', 'Ahri', 'Kaisa', 'Nautilus'])
+    ];
+    const [card] = buildComps(input({ comps: [dive], rows: played, compResults: [], gameReviews: [] })).cards;
+    expect(card.played).toMatchObject({ games: 4, wins: 3, losses: 1, onFallback: 2 });
+    // The headline is untouched by the receipt.
+    expect(card.headline).toEqual({ games: 4, wins: 3, losses: 1, winRate: 75, band: 'is-good', source: 'played' });
+
+    // A comp holding no fallbacks can have no game on one, however its games were played.
+    const plain = buildComps(input({ comps: [c1], rows: [ourRow('p1', 100, true, 'c1', ['Ornn', 'Trundle', 'Orianna', 'Jinx', 'Leona'])], compResults: [], gameReviews: [] })).cards[0];
+    expect(plain.played).toMatchObject({ games: 1, onFallback: 0 });
   });
 });
