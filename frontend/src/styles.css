@@ -15097,9 +15097,6 @@ body { --tier-iron: #8b8e94; --tier-bronze: #b0743f; --tier-silver: #aeb8c6; --t
 .home-tile-error p { margin: 0; color: var(--text-1); }
 .home-card-head .view-btn { font-size: 0.74rem; }
 
-/* Podium */
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 30%, var(--card)), color-mix(in srgb, var(--accent) 8%, var(--card))); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
-
 /* Record donut */
 .home-record-body { flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 1rem; }
 .home-donut { position: relative; margin: 0; width: 8.5rem; height: 8.5rem; }
@@ -15300,7 +15297,12 @@ span.home-records-open { width: 4.1rem; }
 .admin-banner legend { padding: 0 0.3rem; font-weight: 600; }
 .admin-banner-row { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 0.75rem; }
 .admin-banner-row .field { margin: 0; }
+/* Wide enough for a skin name now that the field names them, not numbers them (21 Sep 2026). */
 .admin-banner-skin { width: 8rem; }
+.admin-banner-skin:has(select) { width: min(18rem, 100%); }
+/* A splash that 404s draws nothing rather than a broken-image box (21 Sep 2026). */
+.admin-banner-preview img.is-gone { display: none; }
+
 .admin-banner-preview { margin: 0.6rem 0 0; display: grid; gap: 0.3rem; max-width: 28rem; }
 .admin-banner-preview img { width: 100%; aspect-ratio: 1215 / 717; object-fit: cover; border-radius: var(--r-menu); border: 1px solid var(--card-border); background: var(--bg-1); }
 

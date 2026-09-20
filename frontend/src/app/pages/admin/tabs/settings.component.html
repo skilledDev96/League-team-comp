@@ -13,17 +13,35 @@
     <div class="admin-banner-row">
       <label class="field"><span>Champion</span>
         <input type="text" list="admin-banner-champions" [ngModel]="ctx.bannerChampion()" (ngModelChange)="ctx.setBannerChampion($event)" name="ctx.bannerChampion" placeholder="e.g. Miss Fortune" /></label>
-      <label class="field admin-banner-skin"><span>Skin number</span>
-        <input type="number" min="0" step="1" [ngModel]="ctx.bannerSkin()" (ngModelChange)="ctx.setBannerSkin($event)" name="ctx.bannerSkin" /></label>
+      @if (skins().length) {
+        <label class="field admin-banner-skin"><span>Skin</span>
+          <select [ngModel]="ctx.bannerSkin()" (ngModelChange)="pickSkin($event)" name="ctx.bannerSkin">
+            @for (s of skins(); track s.num) {
+              <option [value]="s.num" [selected]="s.num === ctx.bannerSkin()">{{ skinLabel(s) }}</option>
+            }
+            @if (!chosenSkin()) {
+              <option [value]="ctx.bannerSkin()" selected>Skin {{ ctx.bannerSkin() }} — not in Riot's list</option>
+            }
+          </select></label>
+      } @else {
+        <label class="field admin-banner-skin"><span>Skin number</span>
+          <input type="number" min="0" step="1" [ngModel]="ctx.bannerSkin()" (ngModelChange)="ctx.setBannerSkin($event)" name="ctx.bannerSkin" /></label>
+      }
       @if (ctx.bannerChampion().trim()) {
         <button type="button" class="view-btn" (click)="ctx.clearBanner()">Clear banner</button>
       }
     </div>
     @if (ctx.bannerChampion().trim(); as champion) {
       <figure class="admin-banner-preview">
-        <img [src]="ui.championSkinSplashUrl(champion, ctx.bannerSkin())" alt="" (error)="previewFailed.set(true)" (load)="previewFailed.set(false)" />
+        <img [class.is-gone]="previewFailed()" [src]="ui.championSkinSplashUrl(champion, ctx.bannerSkin())" alt="" (error)="splashFailed()" (load)="previewFailed.set(false)" />
         <figcaption class="muted">
-          @if (previewFailed()) { No splash under that name and skin number: Home will show the base splash instead. } @else { 0 is the base skin; Riot numbers the rest in the order they were released. }
+          @if (previewFailed()) {
+            Riot publishes no splash for {{ chosenSkin()?.name || ('skin ' + ctx.bannerSkin()) }} — some skins in their list have no picture at this size. Pick another; Home falls back to the base splash meanwhile.
+          } @else if (chosenSkin(); as s) {
+            {{ s.name }}, skin {{ s.num }} of {{ champion }}.
+          } @else {
+            0 is the base skin; Riot numbers the rest in the order they were released.
+          }
         </figcaption>
       </figure>
     }

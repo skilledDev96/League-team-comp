@@ -251,7 +251,7 @@ describe('positionOf', () => {
   });
 });
 
-import { banPlaceWords, banWallClick, banWord, bansLeftInPhase, emptyEnterAction, heldLine, isNoBan, LOCK_AFTER_MS, NO_BAN, sequenceClosed } from './draft-sequence';
+import { banPlaceWords, banWallClick, banWord, bansLeftInPhase, emptyEnterAction, heldLine, isNoBan, LOCK_AFTER_MS, NO_BAN, openFrom, sequenceClosed } from './draft-sequence';
 import { blockedSet, normalizeChampion } from './draft.util';
 
 describe('NO_BAN', () => {
@@ -378,6 +378,56 @@ describe('banWallClick — the wall on a finished or free-form board', () => {
     expect(banWallClick(['Ahri'], -1, 'Zed', undefined, 10)).toEqual({ bans: ['Ahri', 'Zed'], filled: null });
     const full = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
     expect(banWallClick(full, -1, 'Zed', 'blue', 10)).toEqual({ bans: full, filled: null });
+  });
+});
+
+describe('the board has the last word on where the sequence is (21 Sep 2026)', () => {
+  // MAD Synergy G3 as it stood: ten picks off the replay, six bans entered as not seen, and a stored step of 6.
+  // The room asked for THEIR PICK 1 — a pick with nowhere to land, since every seat was full.
+  const madG3 = {
+    draftStep: 6,
+    ourSide: 'red' as const,
+    ourChampions: ['Illaoi', 'Diana', 'Yasuo', 'Jhin', 'Seraphine'],
+    theirChampions: ['Shen', 'Naafiri', 'Veigar', 'Caitlyn', 'Mel'],
+    bans: [NO_BAN, NO_BAN, NO_BAN, NO_BAN, NO_BAN, NO_BAN]
+  };
+
+  it('asks for the bans that are missing, not for picks that are already in', () => {
+    const at = positionOf(madG3);
+    // Six bans and ten picks are answered; the next thing the draft is missing is the second ban phase.
+    expect(DRAFT_SEQUENCE[at]).toMatchObject({ action: 'ban' });
+    expect(at).toBe(12);
+  });
+
+  it('reads a board with all ten picks and all ten bans as finished, whatever the stored step says', () => {
+    expect(positionOf({ ...madG3, bans: Array.from({ length: 10 }, () => NO_BAN) })).toBe(DRAFT_LENGTH);
+    expect(isComplete(positionOf({ ...madG3, bans: Array.from({ length: 10 }, () => NO_BAN) }))).toBe(true);
+  });
+
+  it('leaves a draft in progress exactly where it is', () => {
+    // Four bans in, at ban 5: the board has answered four ban steps, so the step stands.
+    const live = { draftStep: 4, ourSide: 'blue' as const, ourChampions: [], theirChampions: [], bans: ['Ahri', 'Vi', 'Sion', 'Jinx'] };
+    expect(positionOf(live)).toBe(4);
+    // Mid pick phase: six bans and two picks in, at blue pick 2.
+    const picking = { draftStep: 8, ourSide: 'blue' as const, ourChampions: ['Ornn'], theirChampions: ['Vi'], bans: Array.from({ length: 6 }, () => 'Ahri') };
+    expect(positionOf(picking)).toBe(8);
+  });
+
+  it('never walks backwards into a draft that has moved on', () => {
+    // An operator at ban 5 with no bans written yet (they were cleared by hand) still stands at ban 5.
+    expect(openFrom(4, { bans: [], ourChampions: [], theirChampions: [], ourSide: 'blue' })).toBe(4);
+  });
+
+  it('cannot call a pick step answered when nobody has said which side we are', () => {
+    // Without a side, a column of five champions says nothing about whose step it was.
+    const noSide = { draftStep: 6, ourChampions: ['Illaoi', 'Diana', 'Yasuo', 'Jhin', 'Seraphine'], theirChampions: ['Shen', 'Naafiri', 'Veigar', 'Caitlyn', 'Mel'], bans: [NO_BAN, NO_BAN, NO_BAN, NO_BAN, NO_BAN, NO_BAN] };
+    expect(positionOf(noSide)).toBe(6);
+  });
+
+  it('keeps the old rules: a stored step with an empty board, and a replay-filled game with no step at all', () => {
+    expect(positionOf({ draftStep: 0, ourChampions: [], theirChampions: [], bans: [] })).toBe(0);
+    expect(positionOf({ ourChampions: ['a', 'b', 'c', 'd', 'e'], theirChampions: ['f', 'g', 'h', 'i', 'j'] })).toBe(DRAFT_LENGTH);
+    expect(positionOf({ ourChampions: [], theirChampions: [] })).toBe(0);
   });
 });
 

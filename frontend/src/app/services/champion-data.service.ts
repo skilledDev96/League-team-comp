@@ -6,6 +6,12 @@ const CACHE_KEY = 'bom-ddragon-v1';
 const VERSIONS_URL = 'https://ddragon.leagueoflegends.com/api/versions.json';
 
 /** A single champion as we need it across the app. */
+/** One skin as Data Dragon lists it: the number the splash URL needs, and the name a person recognises. */
+export interface ChampionSkin {
+  num: number;
+  name: string;
+}
+
 export interface ChampionInfo {
   /** Data Dragon id / icon filename stem, e.g. "Maokai", "MonkeyKing". */
   id: string;
@@ -39,6 +45,8 @@ interface DdragonChampionEntry {
 @Injectable({ providedIn: 'root' })
 export class ChampionDataService {
   readonly version = signal<string>(FALLBACK_VERSION);
+  /** Skins per champion id, for the life of the page. */
+  private readonly skinCache = new Map<string, ChampionSkin[]>();
   readonly champions = signal<ChampionInfo[]>([]);
   readonly ready = signal(false);
 
@@ -143,6 +151,31 @@ export class ChampionDataService {
       this.writeCache({ version: latest, champions });
     } catch {
       // Offline or blocked: keep whatever the cache/fallback gave us.
+    }
+  }
+
+  /**
+   * A champion's skins, from Data Dragon's own champion file (21 Sep 2026). Riot numbers skins in release order
+   * and the numbers have gaps — Miss Fortune has no 10 — so a number typed by hand is a guess that 404s. Cached
+   * per champion for the life of the page; an unknown champion or a blocked network answers with an empty list,
+   * and the caller falls back to the plain number box.
+   */
+  async skinsOf(championName: string): Promise<ChampionSkin[]> {
+    const id = this.resolveId(championName);
+    if (!id) return [];
+    const had = this.skinCache.get(id);
+    if (had) return had;
+    try {
+      const url = `https://ddragon.leagueoflegends.com/cdn/${this.version()}/data/en_US/champion/${id}.json`;
+      const payload = (await this.fetchJson(url)) as { data?: Record<string, { skins?: { num?: number; name?: string }[] }> } | null;
+      const skins = (payload?.data?.[id]?.skins ?? [])
+        .filter((s) => typeof s.num === 'number')
+        .map((s) => ({ num: s.num as number, name: s.name === 'default' ? 'Base skin' : (s.name ?? `Skin ${s.num}`) }));
+      this.skinCache.set(id, skins);
+      return skins;
+    } catch {
+      // Offline or blocked: the number box still works.
+      return [];
     }
   }
 

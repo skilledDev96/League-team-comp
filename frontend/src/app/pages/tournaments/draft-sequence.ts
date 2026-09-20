@@ -67,11 +67,61 @@ export function banWord(champion: string): string {
  * game with no step but five picks a side (filled from a replay, or typed in
  * on the Plan) is over, not waiting at Ban 1 (8 Sep 2026). Anything else
  * opens at the start.
+ *
+ * Then the board has the last word (21 Sep 2026, the lead: "Why is it asking for a pick if the picks are already
+ * in?"): the stored step is where the operator got to, but a game can be filled from somewhere else — a replay
+ * import, the Already played dialog, the Plan's pickers — and then the step points at a pick that has nowhere to
+ * land. `openFrom` walks forward past every step the board has already answered, so the room asks for what is
+ * genuinely missing (MAD Synergy G3: ten picks, six bans, so the second ban phase) and reads as complete when
+ * nothing is. It only ever moves forward, so it cannot skip a step back into a draft in progress.
  */
-export function positionOf(game: { draftStep?: number; ourChampions?: readonly string[]; theirChampions?: readonly string[] }): number {
-  if (game.draftStep !== undefined) return game.draftStep;
+export function positionOf(game: {
+  draftStep?: number;
+  ourChampions?: readonly string[];
+  theirChampions?: readonly string[];
+  bans?: readonly string[];
+  ourSide?: 'blue' | 'red';
+}): number {
   const full = (list?: readonly string[]) => (list ?? []).filter(Boolean).length >= 5;
-  return full(game.ourChampions) && full(game.theirChampions) ? DRAFT_LENGTH : 0;
+  const stored = game.draftStep !== undefined ? game.draftStep : full(game.ourChampions) && full(game.theirChampions) ? DRAFT_LENGTH : 0;
+  return openFrom(stored, game);
+}
+
+/**
+ * The first step at or after `from` that the board has not already answered: a ban step needs a ban in its own
+ * slot, a pick step needs a free seat on that side. `DRAFT_LENGTH` when every step is answered.
+ *
+ * A not-seen ban counts as answered — that is what it is for. A side is counted by the champions actually on the
+ * board, so a half-filled board still walks to the right place.
+ */
+export function openFrom(
+  from: number,
+  board: {
+    ourChampions?: readonly string[];
+    theirChampions?: readonly string[];
+    bans?: readonly string[];
+    ourSide?: 'blue' | 'red';
+  }
+): number {
+  const start = Number.isInteger(from) && from > 0 ? Math.min(from, DRAFT_LENGTH) : 0;
+  const bans = (board.bans ?? []).filter((b) => !!b).length;
+  const ours = (board.ourChampions ?? []).filter(Boolean).length;
+  const theirs = (board.theirChampions ?? []).filter(Boolean).length;
+  const side = board.ourSide;
+  let bansBefore = 0;
+  const picksBefore = { blue: 0, red: 0 };
+  for (let i = 0; i < DRAFT_LENGTH; i++) {
+    const step = DRAFT_SEQUENCE[i];
+    const answered =
+      step.action === 'ban'
+        ? bans > bansBefore
+        : // Without a side nothing says which column a step's team is, so a pick step cannot be called answered.
+          side !== undefined && (step.team === side ? ours : theirs) > picksBefore[step.team];
+    if (i >= start && !answered) return i;
+    if (step.action === 'ban') bansBefore += 1;
+    else picksBefore[step.team] += 1;
+  }
+  return DRAFT_LENGTH;
 }
 
 /** The step at this position, or null once the draft is over. */
