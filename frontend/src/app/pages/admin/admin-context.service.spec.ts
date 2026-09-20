@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
-import { Settings } from '../../models/team.models';
+import { Comp, Settings } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { ConfirmService } from '../../services/confirm.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
@@ -113,5 +113,66 @@ describe('AdminContextService settings save', () => {
   it('keeps Next patch on when a checkbox saves at once', () => {
     ctx.setAutoReview(false);
     expect(updateSettings.mock.calls[0][0]).toEqual({ ...STORED, autoReview: false });
+  });
+});
+
+/**
+ * Admin › Comps is the text fallback for the comp board, and it edits the five picks only. Since a seat may
+ * also hold fallbacks (20 Sep 2026), a save writing `picks` alone would delete them — `updateComp` is a
+ * `setDoc` with no merge, so the document is replaced whole. `saveComp` spreads the existing comp first,
+ * which is what keeps them; this holds it to that.
+ */
+describe('AdminContextService comp save', () => {
+  let ctx: AdminContextService;
+  let updateComp: Mock<(comp: Comp) => Promise<void>>;
+
+  const stored: Comp = {
+    id: 'comp-dive',
+    name: 'Dive',
+    picks: { Top: 'Maokai', Jungle: 'Vi', Mid: 'Ahri', ADC: 'Jinx', Support: 'Nautilus - hook engage' },
+    fallbacks: { Support: ['Leona - same engage, longer lockdown'] },
+    notes: 'Force the 5v5',
+    order: 3
+  };
+
+  beforeEach(() => {
+    updateComp = vi.fn(async (_comp: Comp) => undefined);
+    const empty = convertToParamMap({});
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        AdminContextService,
+        AdminShellService,
+        { provide: AdminPlayersService, useValue: { load: vi.fn(), follow: vi.fn(), playerDrafts: signal([]) } },
+        {
+          provide: TeamDataService,
+          useValue: {
+            ready: signal(true),
+            settings: signal<Settings>({ teamName: 'Bom Squad' }),
+            players: signal([]),
+            fillIns: signal([]),
+            comps: signal<Comp[]>([structuredClone(stored)]),
+            accessEntries: signal([]),
+            tournaments: signal([]),
+            compAnalysis: signal(null),
+            updateComp
+          }
+        },
+        { provide: AuthService, useValue: { canManageUsers: signal(true) } },
+        { provide: ConfirmService, useValue: {} },
+        { provide: PlayerEnrichmentService, useValue: {} },
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: empty }, queryParamMap: of(empty) } }
+      ]
+    });
+    ctx = TestBed.inject(AdminContextService);
+    TestBed.tick();
+  });
+
+  it('keeps a seat’s fallbacks when the five are saved as text', async () => {
+    await ctx.saveComp({ id: stored.id, name: 'Dive', picks: { ...stored.picks, Top: 'Ornn' } }, true);
+    const written = updateComp.mock.calls[0][0];
+    expect(written.picks.Top).toBe('Ornn');
+    expect(written.fallbacks).toEqual({ Support: ['Leona - same engage, longer lockdown'] });
+    expect(written.notes).toBe('Force the 5v5');
   });
 });

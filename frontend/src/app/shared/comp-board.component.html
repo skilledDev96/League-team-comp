@@ -1,6 +1,12 @@
-<div class="comp-board">
-  <!-- The five slots. Clicking one aims the grid at it; the highlighted slot is
-       where the next champion lands. -->
+<!-- The seat write leaves through an output named `change`, and a native change event bubbles: the note
+     fields and the wall's search box all fire one, and Angular binds the output AND a DOM listener on the
+     host, so the host's `(change)` handler was called with an Event and wrote `picks: undefined`. Measured,
+     not assumed (20 Sep 2026). Stopping it on the board's own root means nothing inside can ever reach the
+     host element; the component's own emit is an output subscription and is untouched. -->
+<div class="comp-board" (change)="$event.stopPropagation()">
+  <!-- The five slots. Clicking one aims the grid at its priority; the highlighted
+       slot is where the next champion lands. The pill under a filled seat aims at
+       that seat's fallbacks instead, and the chips are the fallbacks themselves. -->
   <ol class="board-slots" aria-label="Comp by role">
     @for (role of roles; track role) {
       <li class="board-slot" [class.is-focused]="gridShown() && focused() === role"
@@ -10,7 +16,7 @@
           (dragover)="$event.preventDefault()"
           (drop)="$event.preventDefault(); drop($any($event.dataTransfer?.getData('text/plain')), role)">
         <button type="button" class="board-slot-main" (click)="aim(role)"
-                [attr.aria-pressed]="gridShown() && focused() === role">
+                [attr.aria-pressed]="gridShown() && focused() === role && aimAt() === 'priority'">
           <span class="board-role">{{ role }}</span>
           @if (championOf(picks()[role]); as champ) {
             <img class="board-champ-icon" [src]="ui.championIconUrl(champ)" [alt]="champ" loading="lazy" />
@@ -34,6 +40,53 @@
           <button type="button" class="board-clear" [attr.aria-label]="'Clear ' + role"
                   (click)="clear(role)">
             <span class="material-symbols-rounded" aria-hidden="true">close</span>
+          </button>
+        }
+
+        <!-- The seat's fallbacks, in order behind the priority. The chip's body
+             promotes it — the only reordering anyone needs — and its × removes
+             that one entry. The note it was written with is the tip. -->
+        @if (fallbacksOf(role); as chips) {
+          @if (chips.length) {
+            <ul class="board-fallbacks" [attr.aria-label]="'Fallbacks for ' + role">
+              @for (opt of chips; track opt.champion) {
+                <li>
+                  <span class="champ-picker-chip">
+                    <button type="button" class="board-chip-main" (click)="promote(role, opt.champion)"
+                            [attr.aria-label]="'Make ' + opt.champion + ' the ' + role + ' priority'"
+                            [appTip]="opt.note || ('Make ' + opt.champion + ' the priority')">
+                      <img class="champ-picker-icon" [src]="ui.championIconUrl(opt.champion)" alt="" loading="lazy" />
+                      <span>{{ opt.champion }}</span>
+                    </button>
+                    <button type="button" class="champ-picker-remove"
+                            [attr.aria-label]="'Remove ' + opt.champion + ' from ' + role"
+                            (click)="removeFallback(role, opt.champion)">
+                      <span class="material-symbols-rounded" aria-hidden="true">close</span>
+                    </button>
+                  </span>
+                </li>
+              }
+            </ul>
+          }
+        }
+
+        <!-- Only on a seat with a priority: a fallback with nothing to fall back
+             from is the one state the model forbids.
+
+             Not disabled at the cap (20 Sep 2026): a disabled button fires no
+             mouseenter and takes no focus, so the tip saying why it is grey
+             could never be read, and the same sentence in .board-aim only
+             shows once the wall is aimed at this seat — which this pill is the
+             only way to do. Pressing it at the cap aims the wall and the line
+             says "already holds 4"; the wall click itself is already refused. -->
+        @if (options()[role].length) {
+          <button type="button" class="view-btn is-compact board-fallback-add"
+                  [class.active]="gridShown() && focused() === role && aimAt() === 'fallback'"
+                  [attr.aria-pressed]="gridShown() && focused() === role && aimAt() === 'fallback'"
+                  [attr.aria-label]="'Add a fallback for ' + role"
+                  [appTip]="atLimit(role) ? (role + ' already holds ' + maxOptions + ' — remove one first') : ('Aim the champions at ' + role + '’s fallbacks')"
+                  (click)="aimFallback(role)">
+            <span class="material-symbols-rounded" aria-hidden="true">add</span> Add a fallback
           </button>
         }
 
@@ -62,6 +115,20 @@
   }
 
   @if (gridShown()) {
+    <!-- Always drawn while the wall is, so saying what the next click does never
+         moves anything. A click that appends where a replacement was expected is
+         the kind of mistake nobody notices until the comp is wrong. -->
+    <p class="board-aim" role="status">
+      @if (aimAt() === 'fallback') {
+        @if (atLimit(focused())) {
+          <b>{{ focused() }}</b> already holds {{ maxOptions }} — remove one to add another.
+        } @else {
+          Adding fallbacks to <b>{{ focused() }}</b> — {{ options()[focused()].length }} of {{ maxOptions }}. Each click adds one.
+        }
+      } @else {
+        Filling <b>{{ focused() }}</b>. Click a champion to set the pick.
+      }
+    </p>
     @if (complete()) {
       <button type="button" class="view-btn board-grid-toggle" (click)="gridWanted.set(false)">
         <span class="material-symbols-rounded" aria-hidden="true">check</span> Done

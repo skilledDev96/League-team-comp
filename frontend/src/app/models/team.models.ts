@@ -118,6 +118,23 @@ export interface FillIn {
 
 export type CompPicks = Record<Role, string>;
 
+/**
+ * A seat's fallbacks, in order behind the priority (20 Sep 2026 — the lead: "the dive comp has naut a
+ * priority but Leona can also be added as a secondary pick").
+ *
+ * Deliberately a sibling of `picks` rather than a new shape for it: `picks` still holds one
+ * "Champion - note" line a seat and is *always* the priority, so every reader that wants one champion
+ * a seat — the comp's identity, its damage profile, its face, its expectation, the draft room — keeps
+ * working untouched and a comp stored before today is already valid. Nothing is stacked on the ' - '
+ * separator either: each fallback is its own "Champion - note" line, so `championOf` / `noteOf` read
+ * one entry exactly as they read a pick.
+ *
+ * A role with no fallbacks is left off entirely rather than stored as an empty array. Read it through
+ * `core/comp-seats.ts`, which is the only module that knows both fields exist and which enforces the
+ * invariant that a seat never has fallbacks without a priority.
+ */
+export type CompFallbacks = Partial<Record<Role, string[]>>;
+
 // A short, per-comp game plan by phase — the macro that applies to this draft.
 export interface CompGamePlan {
   early?: string;
@@ -128,7 +145,10 @@ export interface CompGamePlan {
 export interface Comp {
   id: string;
   name: string;
+  /** The five seats, one champion each — always the *priority* pick. See `CompFallbacks`. */
   picks: CompPicks;
+  /** Each seat's fallbacks, in order behind its priority. Absent on every comp stored before 20 Sep 2026. */
+  fallbacks?: CompFallbacks;
   category?: string;
   notes?: string;
   gamePlan?: CompGamePlan;

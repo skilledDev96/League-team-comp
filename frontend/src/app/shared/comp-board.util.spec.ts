@@ -89,10 +89,23 @@ describe('nextEmptySlot', () => {
 describe('championsInComp', () => {
   it('lists what is already picked, case-insensitively', () => {
     const picks = { ...empty, Top: 'Maokai - frontline', Mid: 'Ahri' };
-    const taken = championsInComp(picks);
+    const taken = championsInComp({ picks });
     expect(taken.has('maokai')).toBe(true);
     expect(taken.has('ahri')).toBe(true);
     expect(taken.has('vi')).toBe(false);
+  });
+
+  it('marks a fallback too, so the wall ticks every champion the comp can play', () => {
+    // A fallback is in the comp: the wall has to mark it, and clicking a marked
+    // champion is how the board takes one back off.
+    const picks = { ...empty, Support: 'Nautilus - engage' };
+    const taken = championsInComp({ picks, fallbacks: { Support: ['Leona - same engage, longer lockdown'] } });
+    expect(taken.has('nautilus')).toBe(true);
+    expect(taken.has('leona')).toBe(true);
+  });
+
+  it('ignores fallbacks on a seat with no priority, as every read of a seat does', () => {
+    expect(championsInComp({ picks: empty, fallbacks: { Top: ['Sion'] } }).size).toBe(0);
   });
 });
 

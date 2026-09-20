@@ -6240,6 +6240,43 @@ body[data-theme="bomb"] {
   font-size: 0.74rem;
 }
 
+/* A seat's fallbacks, under its priority (20 Sep 2026). The chip is the Bans picker's own, so a seat
+   holding three reads the same as a ban list; only the row around them is new. */
+.board-fallbacks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The chip's body promotes it, which is the only reordering the board offers. */
+.board-chip-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.board-fallback-add {
+  justify-self: center;
+}
+
+/* What the next wall click does. Always drawn while the wall is, so it can never move anything. */
+.board-aim {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-1);
+}
+
 /* Change picks on a finished comp, and Done over its open wall. Left-aligned under the seats, so it
    reads as belonging to the board rather than to the panel. */
 .board-grid-toggle {
@@ -14225,6 +14262,7 @@ so none of this can move the draft room. */
 .learn-check:focus-visible,
 .board-slot-main:focus-visible,
 .board-clear:focus-visible,
+.board-chip-main:focus-visible,
 .draft-map-token:focus-visible,
 .pick-slot-role:focus-visible,
 .pick-target:focus-visible,

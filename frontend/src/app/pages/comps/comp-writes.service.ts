@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { ExpectAxis } from '../../core/comp-expectation';
-import { Comp, CompExpectation, CompOutcome, CompPicks, CompResult, ExpectLevel, Play, ROLES } from '../../models/team.models';
+import { Comp, CompExpectation, CompFallbacks, CompOutcome, CompPicks, CompResult, ExpectLevel, Play, ROLES } from '../../models/team.models';
 import { CompExpectationService } from '../../services/comp-expectation.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { ToastService } from '../../services/toast.service';
@@ -69,9 +69,23 @@ export class CompWritesService {
     return 'saved';
   }
 
-  /** The board emits the whole picks object; a pick lands as soon as it is clicked. */
-  async savePicks(comp: Comp, picks: CompPicks): Promise<void> {
-    await this.data.updateComp(this.stamp({ ...comp, picks }));
+  /**
+   * The board emits both seat fields together; a pick lands as soon as it is clicked.
+   *
+   * One method rather than one per field (20 Sep 2026): a gesture that promotes a fallback changes the
+   * priority *and* the fallbacks, and two writes could leave a seat holding a champion twice or none.
+   * An empty `fallbacks` is written as absent — `stripUndefined` drops it, so the document keeps no
+   * empty arrays and a comp that never had a fallback stays shaped exactly as it was.
+   */
+  async saveSeats(comp: Comp, seats: { picks: CompPicks; fallbacks?: CompFallbacks }): Promise<void> {
+    // Refuse anything that is not a seat write. The output is named `change` and a native change
+    // event bubbles, so a stray one reaching here would write `picks: undefined` — `stripUndefined`
+    // drops the key and the document is written whole, which is a comp's five picks gone. The board
+    // stops those events on its own root; this is the same guard at the write, where it costs nothing
+    // and does not depend on that template staying shaped as it is (20 Sep 2026).
+    if (!seats?.picks) return;
+    const fallbacks = seats.fallbacks && Object.keys(seats.fallbacks).length ? seats.fallbacks : undefined;
+    await this.data.updateComp(this.stamp({ ...comp, picks: seats.picks, fallbacks }));
     this.saved(comp);
   }
 

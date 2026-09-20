@@ -9,6 +9,14 @@
 
 import { ChampionInfo } from '../services/champion-data.service';
 import { ChampionTraits, CompPicks, Role, ROLES } from '../models/team.models';
+import { allChampions, championOf, CompSeats } from '../core/comp-seats';
+
+/**
+ * The "Champion - note" line now belongs to `core/comp-seats.ts`, because a fallback is one of those
+ * lines too and both fields have to be parsed the same way (20 Sep 2026). Re-exported here so every
+ * existing import keeps reading them from the board's util, unchanged.
+ */
+export { championOf, noteOf, setChampionInLine } from '../core/comp-seats';
 
 /**
  * Champion traits, re-keyed so they can be read with a Data Dragon id.
@@ -42,25 +50,6 @@ export function traitsFor(
 }
 
 /**
- * Picks are stored as "Champion - note" lines, so setting a champion must not
- * throw away a note someone wrote against that slot.
- */
-export function setChampionInLine(line: string | undefined, champion: string): string {
-  const note = noteOf(line ?? '');
-  return note ? `${champion} - ${note}` : champion;
-}
-
-export function championOf(line: string | undefined): string {
-  const [champ] = (line ?? '').split(' - ');
-  return (champ ?? '').trim();
-}
-
-export function noteOf(line: string | undefined): string {
-  const parts = (line ?? '').split(' - ');
-  return parts.slice(1).join(' - ').trim();
-}
-
-/**
  * Where focus goes after filling a slot: the next empty one, wrapping round.
  *
  * Wrapping matters more than it sounds. Filling top-to-bottom and stopping at
@@ -77,14 +66,15 @@ export function nextEmptySlot(picks: CompPicks, from: Role): Role | null {
   return null;
 }
 
-/** Champions already in this comp, so the grid can grey them out. */
-export function championsInComp(picks: CompPicks): Set<string> {
-  const taken = new Set<string>();
-  for (const role of ROLES) {
-    const champ = championOf(picks[role]);
-    if (champ) taken.add(champ.toLowerCase());
-  }
-  return taken;
+/**
+ * Champions already in this comp, so the grid can tick them.
+ *
+ * Every option of every seat since 20 Sep 2026, not just the five priorities: a fallback is in the
+ * comp, so the wall must mark it, and clicking a marked champion is how both callers take one back
+ * off. The grid re-keys whatever it is handed through `normalizeChampion`, so lower case is enough.
+ */
+export function championsInComp(comp: CompSeats): Set<string> {
+  return new Set(allChampions(comp).map((champ) => champ.toLowerCase()));
 }
 
 /**

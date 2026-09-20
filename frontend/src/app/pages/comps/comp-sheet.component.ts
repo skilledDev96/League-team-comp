@@ -124,7 +124,9 @@ const PHASES: { key: Phase; label: string; hint: string }[] = [
 
           <!-- The five. Editors get the board — press a seat, press a champion — and readers five faces with who covers each. -->
           @if (auth.editing()) {
-            <app-comp-board data-tour="comp-board" [picks]="comp().picks" [unavailable]="c.bans" (picksChange)="writes.savePicks(comp(), $event)" />
+            <!-- Both seat fields in, both out: one gesture is one write (20 Sep 2026). The read-only
+                 list below still draws the priority alone. -->
+            <app-comp-board data-tour="comp-board" [picks]="comp().picks" [fallbacks]="comp().fallbacks" [unavailable]="c.bans" (change)="writes.saveSeats(comp(), $event)" />
           } @else {
             <ol class="comps-seats" data-tour="comp-seats" aria-label="The five, by seat">
               @for (s of c.seats; track s.role; let k = $index) {
