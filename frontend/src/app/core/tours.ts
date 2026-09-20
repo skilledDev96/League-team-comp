@@ -318,14 +318,20 @@ export const TOURS: readonly Tour[] = [
     id: 'prep-read',
     title: 'Reading the prep',
     blurb: 'What a series card holds before you play it: what is burned, who they are, and what to ban.',
-    version: 1,
+    // Version 2, 20 Sep 2026: the roster is one row a player now — at both depths and in edit
+    // mode — and any row opens for the rest. The old copy described two different surfaces and a
+    // switch between them, which is the thing that went, so everyone is shown it once more.
+    version: 2,
     match: { path: '/tournaments', query: { view: 'plan' } },
     needs: 'series',
     steps: [
       { anchor: 'prep-series', title: 'A series', text: 'One card per opponent, opened on the next series you play.', more: 'Opponents you have already played stay closed.' },
       { anchor: 'prep-fearless', title: 'What is burned', text: 'What the series has already spent, and nobody can play again.', more: 'Under Fearless Draft, a champion played by either team is gone for the rest of the series.' },
-      { anchor: 'detail-prep', title: 'How much to show', text: 'Starter is their five on a line each, Full expands everything.', more: 'Full adds both ranked queues, who beats them, what they played lately and their bench. Your choice is remembered for you.' },
-      { anchor: 'prep-roster', title: 'Their five', text: 'Each player’s expected seat, their rank, and the three champions they actually play.', more: 'Both ranked queues added together, most games first.' },
+      // The bench is not in this list (20 Sep 2026): it draws under the roster at both depths now,
+      // since the roster is one surface. Full adds the read sample, who beats them, and the games.
+      { anchor: 'detail-prep', title: 'How much to show', text: 'Starter is their five on a line each; Full fills each line out, and any line opens for the rest.', more: 'Full adds the games behind each rank, who beats them, and their games one by one. Your choice is remembered for you.' },
+      { anchor: 'prep-roster', title: 'Their five', text: 'One row a player: the seat, both ranks, and the champions they actually play.', more: 'Solo and flex are added together, most games first, because a ban is aimed at comfort and not at a ladder.' },
+      { anchor: 'prep-roster-open', title: 'A row opens for the rest', text: 'Click a player for the two ladders apart, their mastery, and every lane they have played lately.', more: 'Escape closes it again. A row stays one line until you ask for more, which is what lets their five and the ban board share a screen.' },
       { anchor: 'prep-banboard', title: 'Who to ban', text: 'Champions across their five that a ban would actually hurt.', more: 'Ranked by games rather than win rate: a 100% over three games is a curiosity.' },
       { anchor: 'prep-team', title: 'As a team', text: 'Games their five queued together lately, and what they pick then.', more: 'An editor fetches it once, and everyone sees it after that.' }
     ]
@@ -379,7 +385,7 @@ export const TOURS: readonly Tour[] = [
       { anchor: ['prep-paste', 'prep-scout-cta', 'prep-scout-again'], title: 'Paste their roster', text: 'Their op.gg multi-link, or Name#TAG one per line.', more: 'Only the text of the link is read. Nothing is looked up until you scout.', editMode: true, before: 'clickScout' },
       { anchor: ['prep-scout-cta', 'prep-scout-again'], title: 'Scout from Riot', text: 'Looks up what each of them plays.', more: 'About two minutes a player, and it keeps running if you leave the page. Scout again reads further back.', editMode: true, before: 'clickScout' },
       { anchor: 'prep-banboard', title: 'Ban board', text: 'Champions their five live on, at most two per player.', more: 'A click adds one to the target bans.', editMode: true, before: 'clickScout' },
-      { anchor: 'prep-sub-toggle', title: 'Their bench', text: 'With six names, mark one as the bench.', more: 'As a team can only read the right five once someone is on the bench.', editMode: true, before: 'clickScout' },
+      { anchor: 'prep-sub-toggle', title: 'Their bench', text: 'With six names, mark one as the bench.', more: 'It sits in the row beside their name, with the seat picker: edit mode adds nothing above the roster. As a team can only read the right five once someone is on the bench.', editMode: true, before: 'clickScout' },
       { anchor: 'prep-team', title: 'As a team', text: 'Games their five queued together lately.', more: 'One fetch serves the whole team.', editMode: true, before: 'clickScout' },
       { anchor: 'prep-target-bans', title: 'Target bans and notes', text: 'Bans set here reach the draft room’s ban steps.', more: 'The notes are shown to the advisor.', editMode: true, before: 'clickScout' }
     ]

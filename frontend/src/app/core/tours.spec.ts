@@ -212,8 +212,10 @@ describe('the tours on the pages the disclosure batch changed', () => {
     // Bumping the version is the documented way to show a tour once more.
     expect(byId('games').version).toBeGreaterThan(1);
     expect(byId('patterns').version).toBeGreaterThan(1);
-    // The Prep tours are new, so they run for everyone already.
-    expect(byId('prep-read').version).toBe(1);
+    // Prep's reading tour was rewritten on 20 Sep 2026, when the roster became one row a player
+    // at every depth and in edit mode: its old copy described two surfaces and a switch between
+    // them, so everyone is shown it once more. The draft one is untouched and still new.
+    expect(byId('prep-read').version).toBe(2);
     expect(byId('draft-watch').version).toBe(1);
   });
 
@@ -243,6 +245,25 @@ describe('the tours on the pages the disclosure batch changed', () => {
         expect(s.editMode, `${id}: ${s.anchor}`).toBeUndefined();
       }
     }
+  });
+
+  /**
+   * 20 Sep 2026. The lead: "when scouting someone we dont have the full view in one screen" and
+   * "the edit mode should stay on the same view cause it jumps from this to this". One roster
+   * surface now, at both depths and in edit mode, with a row opening for the rest — so the tour
+   * has to name the opening, and the depth step has to stop promising a different view.
+   */
+  it('tells a reader of Prep that a roster row opens, and that Full fills the same line out', () => {
+    const steps = byId('prep-read').steps;
+    const open = steps.find((s) => s.anchor === 'prep-roster-open');
+    expect(open, 'the row opening is what replaced the second surface').toBeDefined();
+    // Neither step may raise the depth: the roster is the same surface at both.
+    for (const s of steps) expect(s.before, String(s.anchor)).toBeUndefined();
+    const depth = steps.find((s) => s.anchor === 'detail-prep')!;
+    expect(depth.text).toContain('Full fills each line out');
+    expect(depth.text).not.toContain('expands everything');
+    // The bench draws under the roster at both depths now, so Full may not claim to add it.
+    expect(`${depth.text} ${depth.more ?? ''}`, 'the bench is not a Full-only block').not.toContain('bench');
   });
 
   it('names the three things the batch added to the Games page', () => {

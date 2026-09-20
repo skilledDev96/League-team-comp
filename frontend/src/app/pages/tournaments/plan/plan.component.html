@@ -450,6 +450,15 @@
                             (click)="togglePaste(series.id)">
                       {{ pasteOpenFor() === series.id ? 'Cancel' : 'New link' }}
                     </button>
+                    <!-- Folded the way New link already folds (20 Sep 2026): a permanently drawn
+                         label, input and button for the rare sixth name sat between the head and
+                         the roster, above the thing the panel is for. -->
+                    <button type="button" class="tag opp-head-btn"
+                            [class.active]="addOpenFor() === series.id"
+                            [appTip]="'Add one more Name#TAG without touching the five already here'"
+                            (click)="toggleAddPlayer(series.id)">
+                      {{ addOpenFor() === series.id ? 'Cancel' : 'Add a player' }}
+                    </button>
                   }
                   @if (auth.editing() && series.opponentPlayers?.length && scoutedAt(series)) {
                     <!-- Once there is data the button is a refresh, so it steps
@@ -488,8 +497,9 @@
                      scout runs in a root service and keeps going even if you
                      navigate away, writing each player as it lands. -->
                 <!-- One more name, without touching the five already there:
-                     the sub who was not in the multi-link. -->
-                @if (auth.editing() && series.opponentPlayers?.length && pasteOpenFor() !== series.id) {
+                     the sub who was not in the multi-link. Behind the head's chip since
+                     20 Sep 2026, so nothing above the roster is drawn that nobody asked for. -->
+                @if (auth.editing() && series.opponentPlayers?.length && addOpenFor() === series.id) {
                   <div class="opp-add-player">
                     <label class="field">
                       <span>Add a player</span>
@@ -573,77 +583,50 @@
                     </span>
                   </button>
                 }
-                <!-- A table, not five dense rows.
+                <!-- ONE row a player, at every depth and in edit mode (20 Sep 2026).
 
-                     Each player carries three separate champion strips and two
-                     ranks, and with the labels repeated inline every row read as
-                     eight competing things. Naming the columns once at the top
-                     lets the rows be nothing but data, which is the whole reason
-                     tables exist. Columns line up because the header and the
-                     rows share one grid. -->
-                @if (compactRoster()) {
-                  <!-- Their five on a line each: the seat, who, one rank and the three
-                       champions they actually play. The table under this says the same
-                       thing across six columns and up to nine cells a player, because a
-                       solo-and-flex player emits two of everything — about three hundred
-                       figures for a scouted opponent. This is what a reader acts on
-                       before a series; the rest is what they check, and it waits for
-                       Full. Edit mode always draws the table, because that is where the
-                       controls live. -->
-                  <ul class="list-clean opp-lines" data-tour="prep-roster" aria-label="Their five">
-                    @for (opp of orderedRoster(series); track opp.name + opp.riotTag) {
-                      <li class="opp-line">
-                        <span class="opp-line-seat">{{ opp.role }}</span>
-                        <span class="opp-line-name" [appTip]="opp.riotTag ? opp.name + '#' + opp.riotTag : opp.name">{{ opp.name }}@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}</span>
-                        @if (bestRank(opp); as r) {
-                          <span class="opp-line-rank" [appTip]="(r.label || 'Ranked') + ' — switch to Full for both queues'">@if (r.label) { <em>{{ r.label }}</em> } {{ r.rank }}</span>
-                        } @else {
-                          <span class="opp-line-rank is-unranked" appTip="No ranked games recorded">&mdash;</span>
-                        }
-                        <span class="opp-line-plays">
-                          @for (rec of topPlays(opp); track rec.champion) {
-                            <span class="opp-champ-cell"
-                                  [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won, solo and flex together' : ' — no record')">
-                              <img class="opp-champ" [class.is-match]="filter.matches(rec.champion)"
-                                   [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
-                              @if (rateOf(rec) !== null) {
-                                <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rateOf(rec) }}%<em>{{ rec.games }}</em></span>
-                              }
-                            </span>
-                          } @empty {
-                            <span class="opp-none">&mdash;</span>
-                          }
-                        </span>
-                        <a class="view-btn is-compact"
-                           [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
-                           target="_blank" rel="noopener noreferrer"
-                           [appTip]="'Open ' + opp.name + ' on op.gg'" [attr.aria-label]="'Open ' + opp.name + ' on op.gg'">op.gg <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
-                      </li>
-                    } @empty {
-                      <li class="muted opp-empty">Nobody in their five yet.</li>
-                    }
-                  </ul>
-                  @if (bench(series).length) {
-                    <p class="muted opp-lines-more">{{ bench(series).length }} on their bench, and what they played lately, are in Full.</p>
-                  }
-                } @else {
+                     The lead, with screenshots: "when scouting someone we dont have the full view
+                     in one screen" and "the edit mode should stay on the same view cause it jumps
+                     from this to this". Measured before it was answered: this panel was 71.7rem in
+                     edit mode, about a screen and a half before the ban board, because a player
+                     occupied one grid row per ranked queue and carried three champion strips and
+                     two ranks — and Starter drew a different surface again, so edit mode was a
+                     second depth switch on top of the real one.
+
+                     So the face of a row is one merged answer about the player: both ranks labelled
+                     in one cell, and the champions they actually play with solo and flex added
+                     together (topPlays, three at Starter and five at Full). The per-queue split,
+                     the mastery, the whole of Lately and the seats they really play wait behind the
+                     row opening. Full fills this same line out — the read sample and who beats them
+                     — rather than swapping in another view. -->
                 <div class="opp-scroll" data-tour="prep-roster">
-                <div class="opp-table" role="table" aria-label="Their roster">
+                <div class="opp-table" [class.is-full]="full()" role="table" aria-label="Their roster">
                   <div class="opp-head" role="row">
                     <span role="columnheader">Seat</span>
                     <span role="columnheader">Player</span>
-                    <span role="columnheader">Rank</span>
-                    <span role="columnheader" [appTip]="'What they play — in this seat where we have games for it, otherwise overall. The win rate beside each is coloured: green from 65%, pale green above 50%, plain at exactly 50%, red below.'">Plays</span>
-                    <span role="columnheader" [appTip]="'Champions that beat them in lane, from games they lost'">Loses to</span>
-                    <span role="columnheader" [appTip]="'Everything they have touched in the last two months, newest first'">Lately</span>
+                    <span role="columnheader" [appTip]="'Both ladders, labelled. Solo is the one a player is measured on; flex is the queue a team plays together.'">Rank</span>
+                    <span role="columnheader" [appTip]="'What they play, solo and flex added together because a ban is aimed at comfort and not at a ladder. Most games first, with the win rate coloured: green from 65%, pale green above 50%, plain at exactly 50%, red below.'">Plays</span>
+                    @if (full()) {
+                      <span role="columnheader" [appTip]="'Games read against the games Riot lists, per queue. The plus means scouting again reads the next batch.'">Read</span>
+                      <span role="columnheader" [appTip]="'Champions that beat them in lane, from games they lost — both queues added together'">Loses to</span>
+                    }
+                    <span role="columnheader"><span class="visually-hidden">Open</span></span>
                   </div>
 
                   @for (opp of orderedRoster(series); track opp.name + opp.riotTag) {
-                    <div class="opp-row" role="row">
-                      <!-- Set by hand, never from history. A team that has just
-                           swapped roles looks exactly like a roster pasted in
-                           the wrong order, and only somebody watching them
-                           knows which it is. -->
+                    @let openRow = isRowOpen(series, opp);
+                    <!-- Escape is on the row as well as on what it opens: rowClick puts the focus on
+                         the opener, which is in the row and not in the detail. The ring says the
+                         champion filter found this player, whether or not the face shows it: the
+                         tiles are the merged top few and a match can sit in a per-queue pool
+                         behind the row opening (20 Sep 2026). -->
+                    <div class="opp-row" role="row" [class.is-open]="openRow" [class.is-match]="rowMatches(opp)"
+                         (click)="rowClick(series, opp, $event)"
+                         (keydown.escape)="closeRowOnEscape(series, opp, $event)">
+                      <!-- Set by hand, never from history. A team that has just swapped roles looks
+                           exactly like a roster pasted in the wrong order, and only somebody
+                           watching them knows which it is. The select stays in its cell in edit
+                           mode: that is what keeps edit mode from being a different view. -->
                       <span class="opp-cell opp-seat" role="cell">
                         @if (auth.editing()) {
                           <select class="opp-role-pick" [ngModel]="opp.role"
@@ -654,7 +637,6 @@
                           </select>
                         } @else {
                           <span class="opp-role">{{ opp.role }}</span>
-                          @if (opp.sub) { <span class="chip is-compact is-accent opp-sub-tag">sub</span> }
                         }
                       </span>
 
@@ -663,50 +645,34 @@
                           <img class="opp-avatar" [src]="opp.icon" [alt]="" loading="lazy" />
                         }
                         <span class="opp-who-text">
-                        <span class="opp-name">
-                          <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
-                             target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>@if (opp.riotTag) {<em class="opp-tag">#{{ opp.riotTag }}</em>}
-                        </span>
-                        @if (auth.editing()) {
-                          <button data-tour="prep-sub-toggle" type="button" class="ateam-toggle is-small" [class.is-bench]="opp.sub"
-                                  [attr.aria-pressed]="!!opp.sub"
-                                  [appTip]="opp.sub ? 'On their bench — click to make them a starter' : 'In their five — click to bench them, so As a team reads the right five'"
-                                  (click)="setOpponentSub(series, opp, !opp.sub)">{{ opp.sub ? 'Bench' : 'A team' }}</button>
-                        }
-                        <!-- Where they actually play, under the name rather than
-                             beside it: a main with a fallback reads differently
-                             from a real flex, and the counts are the difference. -->
-                        <span class="opp-sub">
-                          @for (p of opp.positions ?? []; track p.role) {
-                            <span class="opp-position"
-                                  [appTip]="p.games + ' games as ' + p.role + ' in the scouted sample'">
-                              {{ p.role }} <em>{{ p.games }}</em>
-                            </span>
-                          }
-                          @if (!poolIsForSeat(opp) && playedElsewhere(opp); as was) {
-                            <span class="opp-swapped"
-                                  [appTip]="'Everything on this row comes from their games as ' + was.role + ' — they have no games at ' + opp.role + ' yet'">
-                              <span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span>
-                              from {{ was.role }}
-                            </span>
+                          <span class="opp-name">
+                            <!-- One stretched button, the Roster Players pattern: its ::after covers
+                                 the row, so a click anywhere that is not a control of its own opens
+                                 the row. No stopPropagation on the select, the toggle or op.gg. -->
+                            <button type="button" class="opp-open" [id]="'opp-open-' + rowDomId(series, opp)"
+                                    [attr.data-tour]="$first ? 'prep-roster-open' : null"
+                                    [attr.aria-expanded]="openRow"
+                                    [attr.aria-controls]="openRow ? 'opp-detail-' + rowDomId(series, opp) : null"
+                                    [appTip]="(opp.riotTag ? opp.name + '#' + opp.riotTag : opp.name) + ' — open for both queues, mastery and what they played lately'"
+                                    (click)="toggleRow(series, opp)">{{ opp.name }}</button><em class="opp-tag">@if (opp.riotTag) {#{{ opp.riotTag }}}</em>
+                          </span>
+                          <a class="view-btn is-compact opp-oppg"
+                             [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
+                             target="_blank" rel="noopener noreferrer"
+                             [appTip]="'Open ' + opp.name + ' on op.gg'" [attr.aria-label]="'Open ' + opp.name + ' on op.gg'">op.gg<span class="material-symbols-rounded" aria-hidden="true">open_in_new</span></a>
+                          @if (auth.editing()) {
+                            <button data-tour="prep-sub-toggle" type="button" class="ateam-toggle is-small" [class.is-bench]="opp.sub"
+                                    [attr.aria-pressed]="!!opp.sub"
+                                    [appTip]="opp.sub ? 'On their bench — click to make them a starter' : 'In their five — click to bench them, so As a team reads the right five'"
+                                    (click)="setOpponentSub(series, opp, !opp.sub)">{{ opp.sub ? 'Bench' : 'A team' }}</button>
                           }
                         </span>
                       </span>
-                        </span>
 
-                      <!-- One line per ranked queue. Solo and flex are separate
-                           ladders with separate champion pools, and the backend
-                           used to merge them — preferring flex — so this column
-                           showed half the picture unlabelled. A roster scouted
-                           before the split has one row, not two empty ones. -->
-                      @for (q of queueRows(opp); track q.key) {
-                        <span class="opp-cell opp-ranks" role="cell">
-                          @if (q.sample; as s) {
-                            <small class="opp-sample"
-                                   [appTip]="s.read + ' of the ' + s.available + ' recent ' + (q.label || '') + ' games Riot lists were read' + (s.unread ? ' — scout again to read the next batch' : '')">
-                              {{ s.read }}/{{ s.available }}@if (s.unread) { <em>+</em> }
-                            </small>
-                          }
+                      <!-- Both ranks, labelled, in one cell. Solo and flex differ by a tier or more
+                           often enough that an unlabelled number is a guess. -->
+                      <span class="opp-cell opp-ranks" role="cell">
+                        @for (q of queueRows(opp); track q.key) {
                           @if (q.rank) {
                             <span class="opp-rank" [class.is-flex]="q.key === 'flex'"
                                   [appTip]="(q.key === 'flex' ? 'Ranked flex, the queue a team plays together' : q.key === 'solo' ? 'Ranked solo/duo' : 'Rank') + (q.record ? ' — ' + q.record : '')">
@@ -718,75 +684,180 @@
                               @if (q.label) { <em>{{ q.label }}</em> } &mdash;
                             </span>
                           }
-                        </span>
+                        }
+                      </span>
 
-                        <span class="opp-cell opp-pool" role="cell">
-                          @for (rec of q.pool; track rec.champion) {
-                            <span class="opp-champ-cell"
-                                  [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won' : '') + (q.forSeat ? ' at ' + opp.role : '') + (q.label ? ' (' + q.label + ')' : '')">
-                              @if (masteryOf(opp, rec.champion); as m) {
-                                <span class="opp-champ-mastery"
-                                      [appTip]="'Mastery ' + m.level + ' — ' + m.points.toLocaleString() + ' points on ' + rec.champion">M{{ m.level }}<em>{{ masteryLabel(m) }}</em></span>
-                              } @else {
-                                <span class="opp-champ-mastery is-none" aria-hidden="true">&nbsp;</span>
-                              }
-                              <img class="opp-champ" [class.is-seat]="q.forSeat" [class.is-match]="filter.matches(rec.champion)"
-                                   [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
-                              @if (rateOf(rec) !== null) {
-                                <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rateOf(rec) }}%<em>{{ rec.games }}</em></span>
-                              } @else {
-                                <span class="opp-champ-stat is-none" aria-hidden="true">&nbsp;</span>
-                              }
-                            </span>
+                      <span class="opp-cell opp-plays" role="cell">
+                        @for (rec of playsOnFace(opp); track rec.champion) {
+                          <span class="opp-champ-cell"
+                                [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won, solo and flex together' : ' — no record')">
+                            <img class="opp-champ" [class.is-match]="filter.matches(rec.champion)"
+                                 [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                            @if (rateOf(rec) !== null) {
+                              <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rateOf(rec) }}%<em>{{ rec.games }}</em></span>
+                            }
+                          </span>
+                        } @empty {
+                          <span class="opp-none">&mdash;</span>
+                        }
+                      </span>
+
+                      @if (full()) {
+                        <!-- How much of their history the figures beside it are built from. Under
+                             the rank until 20 Sep 2026, where it widened the rank cell for a fact
+                             a reader checks rather than acts on. -->
+                        <span class="opp-cell opp-read" role="cell">
+                          @for (q of queueRows(opp); track q.key) {
+                            @if (q.sample; as s) {
+                              <small class="opp-sample"
+                                     [appTip]="s.read + ' of the ' + s.available + ' recent ' + (q.label || '') + ' games Riot lists were read' + (s.unread ? ' — scout again to read the next batch' : '')">
+                                {{ s.read }}/{{ s.available }}@if (s.unread) { <em>+</em> }
+                              </small>
+                            } @else {
+                              <small class="opp-sample is-none" aria-hidden="true">&nbsp;</small>
+                            }
                           }
-                          @if (!q.pool.length) { <span class="opp-none">&mdash;</span> }
                         </span>
 
-                        <!-- A record of this player losing to this champion, not
-                             a meta guess, which is what makes it a ban list. -->
-                        <span class="opp-cell opp-counters" role="cell">
-                          @for (rec of q.counters; track rec.champion) {
+                        <!-- A record of this player losing to this champion, not a meta guess,
+                             which is what makes it a ban list. Both queues added together. -->
+                        <span class="opp-cell opp-loses" role="cell">
+                          @for (rec of topCounters(opp); track rec.champion) {
                             <span class="opp-champ-cell"
-                                  [appTip]="rec.champion + ' beat them' + (rec.games ? ' ' + rec.games + (rec.games === 1 ? ' time' : ' times') : '') + (q.forSeat ? ' at ' + opp.role : ' in lane') + (q.label ? ' (' + q.label + ')' : '')">
-                              <img class="opp-champ is-counter" [class.is-seat]="q.forSeat"
+                                  [appTip]="rec.champion + ' beat them' + (rec.games ? ' ' + rec.games + (rec.games === 1 ? ' time' : ' times') : '') + ' in lane, solo and flex together'">
+                              <img class="opp-champ is-counter"
                                    [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
                               @if (rec.games) { <span class="opp-champ-stat is-poor">{{ rec.games }}&times;</span> }
                             </span>
+                          } @empty {
+                            <span class="opp-none">&mdash;</span>
                           }
-                          @if (!q.counters.length) { <span class="opp-none">&mdash;</span> }
                         </span>
                       }
 
-                      <!-- From mastery, so it sees past the match window: a
-                           champion picked up six weeks ago is invisible to the
-                           scan and obvious here. Mastery carries no position,
-                           so the raw list put supports and junglers in a top
-                           laner's row — narrowed here to champions actually
-                           played in this seat, using the pro-play lane map. -->
-                      <span class="opp-cell opp-recent" role="cell">
-                        @for (champ of recentShown(opp); track champ) {
-                          <img class="opp-champ is-recent" [class.is-elsewhere]="!recentForSeat(opp).includes(champ)"
-                               [src]="ui.championIconUrl(champ)"
-                               [alt]="champ" [appTip]="champ + (recentForSeat(opp).includes(champ) ? ' — played at ' + opp.role : ' — played lately, in another lane')"
-                               loading="lazy" />
-                          }
-                        @if (recentHidden(opp); as hidden) {
-                          <button type="button" class="opp-more" [class.active]="isRecentOpen(opp)"
-                                  [attr.aria-pressed]="isRecentOpen(opp)"
-                                  [appTip]="isRecentOpen(opp) ? 'Back to this seat only' : hidden + ' more they have played lately, in other lanes — show them'"
-                                  (click)="toggleRecent(opp)">{{ isRecentOpen(opp) ? '−' + hidden : '+' + hidden }}</button>
-                        }
-                        @if (!recentForSeat(opp).length) { <span class="opp-none">&mdash;</span> }
-                      </span>
+                      <span class="opp-cell opp-chevron material-symbols-rounded" aria-hidden="true">{{ openRow ? 'expand_less' : 'expand_more' }}</span>
 
                       @if (opp.scoutError) {
                         <span class="opp-cell opp-error" role="cell">{{ opp.scoutError }}</span>
                       }
                     </div>
+
+                    @if (openRow) {
+                      <!-- The rest of what the six-column table used to draw on every row at once:
+                           the two ladders apart, the mastery under each champion, every lane they
+                           have touched lately, the seats their scouted games are actually from,
+                           and the swap note. -->
+                      <div class="opp-open-row" role="row">
+                        <div class="opp-detail" role="cell" [id]="'opp-detail-' + rowDomId(series, opp)"
+                             (keydown.escape)="closeRowOnEscape(series, opp, $event)">
+                          <div class="opp-detail-grid">
+                            @for (q of queueRows(opp); track q.key) {
+                              <div class="opp-queue">
+                                <span class="opp-queue-head">
+                                  <span class="opp-queue-label">{{ q.label || 'Ranked' }}</span>
+                                  @if (q.rank) {
+                                    <span class="opp-rank" [appTip]="q.record || 'Their rank in this queue'">{{ q.rank }}</span>
+                                  } @else {
+                                    <span class="opp-rank is-unranked">&mdash;</span>
+                                  }
+                                  @if (q.sample; as s) {
+                                    <small class="opp-sample"
+                                           [appTip]="s.read + ' of the ' + s.available + ' recent games Riot lists were read' + (s.unread ? ' — scout again to read the next batch' : '')">
+                                      {{ s.read }}/{{ s.available }}@if (s.unread) { <em>+</em> }
+                                    </small>
+                                  }
+                                </span>
+
+                                <span class="opp-queue-line">
+                                  <em class="opp-queue-what">Plays</em>
+                                  @for (rec of q.pool; track rec.champion) {
+                                    <span class="opp-champ-cell"
+                                          [appTip]="rec.champion + (rec.games ? ' — ' + rec.wins + ' of ' + rec.games + ' won' : '') + (q.forSeat ? ' at ' + opp.role : '') + (q.label ? ' (' + q.label + ')' : '')">
+                                      @if (masteryOf(opp, rec.champion); as m) {
+                                        <span class="opp-champ-mastery"
+                                              [appTip]="'Mastery ' + m.level + ' — ' + m.points.toLocaleString() + ' points on ' + rec.champion">M{{ m.level }}<em>{{ masteryLabel(m) }}</em></span>
+                                      } @else {
+                                        <span class="opp-champ-mastery is-none" aria-hidden="true">&nbsp;</span>
+                                      }
+                                      <img class="opp-champ" [class.is-seat]="q.forSeat" [class.is-match]="filter.matches(rec.champion)"
+                                           [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                                      @if (rateOf(rec) !== null) {
+                                        <span class="opp-champ-stat" [class]="rateBand(rec)">{{ rateOf(rec) }}%<em>{{ rec.games }}</em></span>
+                                      } @else {
+                                        <span class="opp-champ-stat is-none" aria-hidden="true">&nbsp;</span>
+                                      }
+                                    </span>
+                                  } @empty {
+                                    <span class="opp-none">&mdash;</span>
+                                  }
+                                </span>
+
+                                <span class="opp-queue-line">
+                                  <em class="opp-queue-what">Loses to</em>
+                                  @for (rec of q.counters; track rec.champion) {
+                                    <span class="opp-champ-cell"
+                                          [appTip]="rec.champion + ' beat them' + (rec.games ? ' ' + rec.games + (rec.games === 1 ? ' time' : ' times') : '') + (q.forSeat ? ' at ' + opp.role : ' in lane') + (q.label ? ' (' + q.label + ')' : '')">
+                                      <img class="opp-champ is-counter" [class.is-seat]="q.forSeat"
+                                           [src]="ui.championIconUrl(rec.champion)" [alt]="rec.champion" loading="lazy" />
+                                      @if (rec.games) { <span class="opp-champ-stat is-poor">{{ rec.games }}&times;</span> }
+                                    </span>
+                                  } @empty {
+                                    <span class="opp-none">&mdash;</span>
+                                  }
+                                </span>
+                              </div>
+                            }
+
+                            <div class="opp-queue">
+                              <span class="opp-queue-head">
+                                <span class="opp-queue-label">Lately</span>
+                                <small class="muted">Everything they have touched in the last two months, newest first</small>
+                              </span>
+                              <span class="opp-queue-line opp-recent">
+                                @for (champ of recentShown(opp); track champ) {
+                                  <img class="opp-champ is-recent" [class.is-elsewhere]="!recentForSeat(opp).includes(champ)"
+                                       [src]="ui.championIconUrl(champ)"
+                                       [alt]="champ" [appTip]="champ + (recentForSeat(opp).includes(champ) ? ' — played at ' + opp.role : ' — played lately, in another lane')"
+                                       loading="lazy" />
+                                }
+                                @if (recentHidden(opp); as hidden) {
+                                  <button type="button" class="opp-more" [class.active]="isRecentOpen(opp)"
+                                          [attr.aria-pressed]="isRecentOpen(opp)"
+                                          [appTip]="isRecentOpen(opp) ? 'Back to this seat only' : hidden + ' more they have played lately, in other lanes — show them'"
+                                          (click)="toggleRecent(opp)">{{ isRecentOpen(opp) ? '−' + hidden : '+' + hidden }}</button>
+                                }
+                                @if (!recentForSeat(opp).length) { <span class="opp-none">&mdash;</span> }
+                              </span>
+
+                              <!-- Where they actually play, and whether the figures above are about
+                                   the seat we have them in at all. -->
+                              <span class="opp-queue-line opp-sub">
+                                <em class="opp-queue-what">Seats</em>
+                                @for (p of opp.positions ?? []; track p.role) {
+                                  <span class="opp-position"
+                                        [appTip]="p.games + ' games as ' + p.role + ' in the scouted sample'">
+                                    {{ p.role }} <em>{{ p.games }}</em>
+                                  </span>
+                                } @empty {
+                                  <span class="opp-none">&mdash;</span>
+                                }
+                                @if (!poolIsForSeat(opp) && playedElsewhere(opp); as was) {
+                                  <span class="opp-swapped"
+                                        [appTip]="'Everything on this row comes from their games as ' + was.role + ' — they have no games at ' + opp.role + ' yet'">
+                                    <span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span>
+                                    from {{ was.role }}
+                                  </span>
+                                }
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    }
                   } @empty {
-                    <!-- Six column headers over nothing read as a broken table rather than
-                         an empty one. Everyone on the roster is on the bench, or the five
-                         pasted in were all marked as subs. -->
+                    <!-- Column headers over nothing read as a broken table rather than an empty
+                         one. Everyone on the roster is on the bench, or the five pasted in were
+                         all marked as subs. -->
                     <p class="empty-state opp-empty" role="row"><span role="cell">
                       Nobody in their five yet.
                       @if (bench(series).length) {
@@ -811,7 +882,7 @@
                           <em>{{ opp.role }}</em>
                           <a [href]="ui.summonerSearchUrl(opp.name, { region: opp.region || 'euw', riotTag: opp.riotTag })"
                              target="_blank" rel="noopener noreferrer" [appTip]="'Open ' + opp.name + ' on op.gg'">{{ opp.name }}</a>
-                          @if (queueRows(opp)[0]?.rank; as rank) { <span class="opp-bench-rank">{{ rank }}</span> }
+                          @if (bestRank(opp); as r) { <span class="opp-bench-rank">{{ r.rank }}</span> }
                           @if (auth.editing()) {
                             <button type="button" class="opp-bench-promote"
                                     [appTip]="'Move ' + opp.name + ' into the five'"
@@ -821,7 +892,6 @@
                       }
                     </div>
                   }
-                }
                 }
               </div>
 

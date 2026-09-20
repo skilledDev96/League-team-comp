@@ -9304,6 +9304,12 @@ body:has(.draft-stage) .edit-mode-frame {
 .opp-table .opp-row > .opp-counters { grid-column: 5; }
 .opp-table .opp-row > .opp-recent   { grid-column: 6; }
 
+/* A failed scout was the one cell with no column of its own (found 20 Sep 2026), so it
+   auto-placed into whichever slot happened to be free — landing beside a queue's Plays on
+   one row and under the seat on the next, and adding a grid row to the player either way.
+   Its own line, the width of the table, wherever it appears. Both surfaces draw it. */
+.opp-table .opp-row > .opp-error { grid-column: 1 / -1; }
+
 /* Span every row this player has, whatever the cell order. Absolute within the
    subgrid, so it does not depend on where the placement cursor happens to be —
    which is exactly what went wrong before. Top-aligned so a name lines up with
@@ -10937,6 +10943,294 @@ button.opp-more.active {
 .opp-champ-stat.is-none {
   visibility: hidden;
 }
+
+/* ---- Their roster: one dense row a player (20 Sep 2026) -------------------
+   The lead, with screenshots: "when scouting someone we dont have the full view in one
+   screen" and "the edit mode should stay on the same view cause it jumps from this to
+   this". Measured against this stylesheet at a 1504px window, root 16px: the panel was
+   71.7rem in edit mode — a screen and a half, before the 11.6rem ban board — because a
+   player occupied one grid row per ranked queue (11.74rem each: Plays set 80.8px a queue
+   row, Lately 92.1px of grid row 1) and still carried 23.8px of card chrome from the
+   pre-table .opp-row rule. Starter drew a different surface again, so edit mode was a
+   second depth switch on top of the real one.
+
+   Every rule here is under .opp-roster, because the Roster page's Scout report draws the
+   same .opp-* classes and does NOT carry it: that table is still the six-column one, and
+   it is left exactly as it was. The one deliberate exception is the .opp-error column pin
+   up beside the other pins, which is a bug both surfaces had.
+
+   Budget, at root 16px: a closed row is 3.5rem plus its 1px hairline, the same at both
+   depths — the Plays tiles are the tallest thing in it, and neither the read sample nor
+   the counters beside them reach that. Five of them under a 1.35rem header row is
+   19.15rem; with the head and the bench the panel is about 24rem, so it and the ban board
+   fit one 47rem screen together. An open row adds about 9.8rem, which is the price of
+   asking. */
+/* The seat track is content-aware at both depths (20 Sep 2026): a fixed 4.6rem is narrower
+   than the <select> edit mode puts in it — Chrome sizes that control to its widest option,
+   "Support" — so the control overhung the track and ran under the player avatar. The old
+   six-column table sized it minmax(5rem, auto) for the same reason. In read mode the cell
+   holds a short uppercase label and the track stays at its 4.6rem floor. */
+.opp-roster .opp-table {
+  --opp-cols: minmax(4.6rem, auto) minmax(11rem, 1.5fr) 9rem minmax(9.6rem, 1fr) 1.6rem;
+  display: block;
+  min-width: 42rem;
+}
+
+.opp-roster .opp-table.is-full {
+  /* Full fills the same line out rather than adding a view: the read sample and the
+     merged "loses to" trio take their own columns, and nothing else moves. */
+  --opp-cols: minmax(4.6rem, auto) minmax(11rem, 1.2fr) 9rem minmax(16rem, 1fr) 5rem 7.5rem 1.6rem;
+  min-width: 60rem;
+}
+
+/* A plain grid, not the six-column subgrid: a player is one row now, so nothing has to
+   span queue rows and the placement cursor has nowhere to drift to. */
+.opp-roster .opp-table .opp-row,
+.opp-roster .opp-table .opp-head {
+  display: grid;
+  grid-template-columns: var(--opp-cols);
+  align-items: center;
+  column-gap: 0.7rem;
+  row-gap: 0.2rem;
+}
+
+.opp-roster .opp-table .opp-head { padding: 0; }
+
+.opp-roster .opp-table .opp-head > span {
+  position: static;
+  padding: 0.25rem 0 0.35rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+/* The leftover card chrome, reclaimed. .opp-row kept the padding, border, radius and
+   background of the rule it had before this was ever a table, under six more rules that
+   only ever overrode its display and its columns. */
+.opp-roster .opp-table .opp-row {
+  position: relative;
+  isolation: isolate;
+  min-height: 3.5rem;
+  padding: 0.3rem 0.5rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+  border-radius: var(--r-menu);
+  background: none;
+  cursor: pointer;
+}
+
+.opp-roster .opp-table .opp-row:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+/* The filter's answer on the closed row (20 Sep 2026). The face draws the merged top few, so a
+   champion the banner counted can sit in a per-queue pool behind the row opening with no ring
+   anywhere — the reader would have to open all five rows to find the one the banner means. The
+   row itself says "it is in here", the same inset ring a Players row wears. */
+.opp-roster .opp-table .opp-row.is-match { box-shadow: inset 0 0 0 2px var(--accent-2); }
+.opp-roster .opp-table .opp-row:has(.opp-open:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.opp-roster .opp-table .opp-row.is-open {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-bottom-color: transparent;
+  border-radius: var(--r-menu) var(--r-menu) 0 0;
+}
+
+/* The hairline is the row's own now, so the per-cell one goes: it drew six of them. */
+.opp-roster .opp-table .opp-row:not(:last-child) > .opp-cell { border-bottom: 0; }
+
+.opp-roster .opp-table .opp-cell {
+  position: relative;
+  z-index: 2;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  gap: 0.35rem;
+}
+
+/* Each cell names its own column, so the two Full-only cells cannot shuffle the rest. */
+.opp-roster .opp-table .opp-row > .opp-seat    { grid-column: 1; }
+.opp-roster .opp-table .opp-row > .opp-who     { grid-column: 2; }
+.opp-roster .opp-table .opp-row > .opp-ranks   { grid-column: 3; }
+.opp-roster .opp-table .opp-row > .opp-plays   { grid-column: 4; }
+.opp-roster .opp-table.is-full .opp-row > .opp-read  { grid-column: 5; }
+.opp-roster .opp-table.is-full .opp-row > .opp-loses { grid-column: 6; }
+.opp-roster .opp-table .opp-row > .opp-chevron { grid-column: -2; }
+
+/* The seat and the player cell spanned every queue row of the old table, top-aligned. A player
+   is one row now, so the span is untied and both sit on the row's own middle. */
+.opp-roster .opp-table .opp-row > .opp-seat,
+.opp-roster .opp-table .opp-row > .opp-who {
+  grid-row: auto;
+  align-self: center;
+  padding-top: 0;
+}
+
+/* The seat cell stands one level above the rest (20 Sep 2026). A grid item with a z-index
+   other than auto makes a stacking context even at position: static, so .opp-who — which
+   keeps the cells' z-index: 2 while resetting only their position — lifted the opener's
+   stretched ::after (z-index: 1) into level 2 and, being later in DOM than .opp-seat, painted
+   it over the seat. Every cell after .opp-who wins that tie on DOM order; .opp-seat is the one
+   cell before it, and the one cell holding a control, so the <select> could not be clicked at
+   all. Level 3 puts it over that overlay whatever the DOM order. */
+.opp-roster .opp-table .opp-row > .opp-seat { z-index: 3; }
+
+.opp-roster .opp-table .opp-seat { flex-wrap: wrap; }
+/* Belt and braces on the track above: the control can never overhang the cell it is in. */
+.opp-roster .opp-table .opp-role-pick { min-width: 0; max-width: 100%; }
+.opp-roster .opp-table .opp-role { font-size: 0.66rem; }
+
+/* The player cell stays unpositioned, so the name button's stretch covers the whole row
+   rather than this cell — the Roster Players rule, for the same reason. */
+.opp-roster .opp-table .opp-who {
+  position: static;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.opp-roster .opp-table .opp-avatar { width: 2.1rem; height: 2.1rem; }
+
+.opp-roster .opp-table .opp-who-text {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.opp-roster .opp-table .opp-name {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+
+/* One stretched opener, so a click anywhere on the row that is not a control of its own
+   opens it — which is what lets the seat select, the A team toggle and op.gg keep working
+   inside a clickable row with no stopPropagation on any of them. */
+.opp-roster .opp-table .opp-open {
+  all: unset;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.opp-roster .opp-table .opp-open::after { content: ''; position: absolute; inset: 0; z-index: 1; }
+.opp-roster .opp-table .opp-open:hover { color: var(--accent-2); }
+
+.opp-roster .opp-table .opp-oppg { position: relative; z-index: 2; flex: none; }
+.opp-roster .opp-table .opp-who-text .ateam-toggle { position: relative; z-index: 2; flex: none; margin-left: 0; }
+
+/* Both ladders in one cell, stacked and labelled: solo and flex differ by a tier often
+   enough that an unlabelled number is a guess. */
+.opp-roster .opp-table .opp-ranks {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.18rem;
+}
+
+.opp-roster .opp-table .opp-read {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.18rem;
+}
+
+.opp-roster .opp-table .opp-read .opp-sample { order: 0; }
+.opp-roster .opp-table .opp-read .opp-sample.is-none { visibility: hidden; }
+
+.opp-roster .opp-table .opp-plays,
+.opp-roster .opp-table .opp-loses {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+/* The tile: the icon with its rate and its sample on one line under it. Narrow enough
+   that five of them are a column rather than a strip, which is what lets Full fill the
+   line out instead of opening a second view. */
+.opp-roster .opp-table .opp-plays .opp-champ-cell { min-width: 2.9rem; }
+.opp-roster .opp-table .opp-plays .opp-champ { width: 2rem; height: 2rem; }
+.opp-roster .opp-table .opp-loses .opp-champ-cell { min-width: 2.2rem; }
+.opp-roster .opp-table .opp-loses .opp-champ { width: 1.7rem; height: 1.7rem; }
+.opp-roster .opp-table .opp-row .opp-champ-stat { font-size: 0.68rem; }
+.opp-roster .opp-table .opp-row .opp-champ-stat em { font-size: 0.6rem; }
+
+.opp-roster .opp-table .opp-chevron {
+  justify-self: end;
+  font-size: 1.25rem;
+  color: var(--accent-2);
+}
+
+/* A failed scout is content, so it is allowed the height — but on its own line, pinned,
+   rather than auto-placed into whichever slot happened to be free. */
+.opp-roster .opp-table .opp-row > .opp-error { font-size: var(--fs-label); }
+
+/* ---- A row, opened -------------------------------------------------------
+   Everything the six-column table used to draw on every row at once: the two ladders
+   apart with the mastery under each champion, every lane they have touched lately, and
+   the seats their scouted games are actually from. auto-fit, so a wide panel puts Solo,
+   Flex and Lately side by side and a narrow one stacks them. */
+.opp-roster .opp-open-row {
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+}
+
+.opp-roster .opp-detail {
+  padding: 0.7rem 0.85rem 0.85rem;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border-radius: 0 0 var(--r-menu) var(--r-menu);
+}
+
+.opp-roster .opp-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  gap: 0.8rem 1.2rem;
+}
+
+.opp-roster .opp-queue {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.opp-roster .opp-queue-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.opp-roster .opp-queue-label {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.opp-roster .opp-queue-head .opp-sample { order: 0; }
+.opp-roster .opp-queue-head small.muted { font-size: var(--fs-label); }
+
+.opp-roster .opp-queue-line {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.4rem;
+  min-width: 0;
+}
+
+.opp-roster .opp-queue-what {
+  flex: none;
+  align-self: center;
+  min-width: 3.6rem;
+  font-style: normal;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  opacity: 0.8;
+}
+
+.opp-roster .opp-detail .opp-champ { width: 2rem; height: 2rem; }
+.opp-roster .opp-detail .opp-recent .opp-champ { width: 1.8rem; height: 1.8rem; }
+
+/* The panel is a grid with its own gap, so the bench's own margin was a second one. */
+.opp-roster .opp-bench { margin-top: 0; }
 
 /* ---- Their games together, opened (6 Sep 2026) ---------------------------
    Each game row is a details: the row is the summary, the match underneath —

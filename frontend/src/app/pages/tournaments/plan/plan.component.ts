@@ -1,7 +1,7 @@
 import { ChampionFilterService } from '../../../services/champion-filter.service';
 import { InViewDirective } from '../../../shared/in-view.directive';
 import { ChampionFilterComponent } from '../../../shared/champion-filter.component';
-import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { afterNextRender, Component, DestroyRef, computed, effect, inject, Injector, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AnalysisGame, ChampionRecord, OpponentPlayer, Role, Scrim, SeriesGame, TournamentSeries } from '../../../models/team.models';
@@ -56,6 +56,7 @@ import {
   setSubstitute,
   starters,
   bestRank,
+  topCounters,
   topPlays
 } from '../../../core/opponent-view';
 import { OpponentHistoryService } from '../../../services/opponent-history.service';
@@ -102,6 +103,7 @@ export class TournamentPlanComponent {
   protected readonly champData = inject(ChampionDataService);
 
   private readonly ctx = inject(TournamentContextService);
+  private readonly injector = inject(Injector);
 
   // Shared with the other view; re-exposed so the template reads the same.
   protected readonly roles = this.ctx.roles;
@@ -110,14 +112,24 @@ export class TournamentPlanComponent {
   protected readonly currentTournament = this.ctx.currentTournament;
   protected readonly seriesList = this.ctx.seriesList;
 
+  /**
+   * Whether the page's champion filter finds this player anywhere — on the face of their row or
+   * in a per-queue pool behind it.
+   *
+   * The one predicate the banner and the row's ring both read (20 Sep 2026), so the banner can
+   * never name a player whose row says nothing: the face draws the merged top few, which is a
+   * shorter list than the pools `holders` reasons over.
+   */
+  protected rowMatches(opp: OpponentPlayer): boolean {
+    return this.filter.passes(queueRows(opp).flatMap((row) => row.pool.map((rec) => rec.champion)));
+  }
+
   /** Per series, the scouted opponents whose pool has the champion being asked about. */
   protected readonly holders = computed(() =>
     this.seriesList()
       .map((series) => ({
         series,
-        players: (series.opponentPlayers ?? []).filter((p) =>
-          this.filter.passes(queueRows(p).flatMap((row) => row.pool.map((rec) => rec.champion)))
-        )
+        players: (series.opponentPlayers ?? []).filter((p) => this.rowMatches(p))
       }))
       .filter((h) => h.players.length)
   );
@@ -365,17 +377,28 @@ export class TournamentPlanComponent {
   }
 
   /**
-   * How much of a series to draw (12 Sep 2026). Starter is their five on a line each, the
-   * ban board and the games; Full adds the roster table, the bench and the team's games one
-   * by one. **Edit mode always draws the table** — scouting writes seats, subs and target
-   * bans, and every control for that lives in the table's cells, so a compact line in edit
-   * mode would be a page with the work taken out of it.
+   * How much of a series to draw (12 Sep 2026, rewritten 20 Sep 2026).
+   *
+   * There is now **one** roster surface at every depth and in edit mode: one dense row a player,
+   * and any row opens for the rest. Starter is that line; Full fills the same line out with the
+   * read sample and who beats them, and adds the bench and the team's games one by one.
+   *
+   * The `compactRoster` split went with it (the lead: "the edit mode should stay on the same view
+   * cause it jumps from this to this"). It read `!full() && !editing()`, which made edit mode a
+   * second depth switch on top of the real one — the house's act-or-check rule forbids that, and
+   * it was measured: turning edit mode on swapped a 17rem list for a 71.7rem table. Every control
+   * scouting needs now lives in the one row's own cells, so edit mode changes nothing but the
+   * panel head.
    */
   private readonly userPrefs = inject(UserPrefsService);
   protected readonly full = computed(() => this.userPrefs.depthOf('prep') === 'full');
-  protected readonly compactRoster = computed(() => !this.full() && !this.auth.editing());
-  protected readonly topPlays = topPlays;
+  protected readonly topCounters = topCounters;
   protected readonly bestRank = bestRank;
+
+  /** How many champions a row shows on its face: the three they live on, five when the line is filled out. */
+  protected playsOnFace(opp: OpponentPlayer) {
+    return topPlays(opp, this.full() ? 5 : 3);
+  }
 
   /**
    * Which series the page lands on: the first with no result recorded yet, and the last one
@@ -703,6 +726,23 @@ export class TournamentPlanComponent {
 
   protected togglePaste(id: string): void {
     this.pasteOpenFor.set(this.pasteOpenFor() === id ? '' : id);
+    if (this.pasteOpenFor()) this.addOpenFor.set('');
+  }
+
+  /**
+   * Series whose "Add a player" box is showing (20 Sep 2026).
+   *
+   * It was a permanently drawn label, input and button between the roster head and the table —
+   * a two-line form for the rare sixth name, budgeted by nobody, sitting above the thing the
+   * panel is for. Folded behind a chip in the head beside New link, exactly the way the paste
+   * box already folds, and the two are mutually exclusive: both open is two roster forms above
+   * the roster.
+   */
+  protected readonly addOpenFor = signal<string>('');
+
+  protected toggleAddPlayer(id: string): void {
+    this.addOpenFor.set(this.addOpenFor() === id ? '' : id);
+    if (this.addOpenFor()) this.pasteOpenFor.set('');
   }
 
   protected applyRoster(series: TournamentSeries): void {
@@ -811,6 +851,81 @@ export class TournamentPlanComponent {
   protected readonly recentForSeat = recentForSeat;
   protected readonly gameClock = gameClock;
   protected readonly compactNumber = compactNumber;
+
+  // ---- A roster row opens for the rest (20 Sep 2026) ---------------------------------------
+  //
+  // The Roster page's Players pattern, not a <details>: a stretched opener over the whole row
+  // plus a click handler that stands down for the row's own controls. That is what lets the seat
+  // <select>, the A team / Bench toggle and the op.gg link keep working inside a clickable row
+  // with no stopPropagation on any of them — which is the thing that made one row a player
+  // possible at all, since every scouting control had to stay in its cell.
+  private readonly rowsOpen = signal<ReadonlySet<string>>(new Set());
+
+  /** A row's key: the series plus the player, so two series scouting the same team open apart. */
+  protected rowKey(series: TournamentSeries, opp: OpponentPlayer): string {
+    return `${series.id}:${opp.name}#${opp.riotTag ?? ''}`;
+  }
+
+  /**
+   * The same key, safe to put in an attribute (20 Sep 2026).
+   *
+   * A Riot game name may hold a space, so the raw key is neither a valid id nor usable as an
+   * `aria-controls` value — that attribute is an IDREF *list*, and "Hide on bush" parsed as three
+   * tokens naming nothing, which left a screen reader with an opener pointing at no region. The
+   * raw key stays the `rowsOpen` key; only the DOM sees this one.
+   */
+  protected rowDomId(series: TournamentSeries, opp: OpponentPlayer): string {
+    return this.rowKey(series, opp).replace(/[^a-zA-Z0-9_-]/g, '-');
+  }
+
+  protected isRowOpen(series: TournamentSeries, opp: OpponentPlayer): boolean {
+    return this.rowsOpen().has(this.rowKey(series, opp));
+  }
+
+  protected toggleRow(series: TournamentSeries, opp: OpponentPlayer): void {
+    const key = this.rowKey(series, opp);
+    this.rowsOpen.update((set) => {
+      const next = new Set(set);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  /**
+   * A click anywhere on the row that is not one of its own controls opens it.
+   *
+   * The opener is then given the focus (20 Sep 2026): every cell paints above the opener's
+   * stretched `::after`, so a click on the chevron, a rank chip, a Plays tile or the Read cell —
+   * all of them the ordinary way to open a row — landed on the cell and left `activeElement` on
+   * `<body>`, which is an ancestor of neither `(keydown.escape)` handler. Escape then did nothing,
+   * while the tour promised it closed the row. Focusing the opener makes Escape work however the
+   * row was opened, and keeps the opener as the place the focus returns to.
+   */
+  protected rowClick(series: TournamentSeries, opp: OpponentPlayer, event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button, a, input, select, textarea')) return;
+    this.toggleRow(series, opp);
+    this.focusRowOpener(series, opp);
+  }
+
+  /**
+   * Escape closes the open row, unless it was pressed in one of the row's own fields — the same
+   * carve-out the Players rows make, for the same reason: a select uses Escape to shut its menu.
+   */
+  protected closeRowOnEscape(series: TournamentSeries, opp: OpponentPlayer, event: Event): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('input, select, textarea')) return;
+    if (!this.isRowOpen(series, opp)) return;
+    this.toggleRow(series, opp);
+    this.focusRowOpener(series, opp);
+  }
+
+  /** Put the focus back on the row's opener, which is the row's one tab stop. */
+  private focusRowOpener(series: TournamentSeries, opp: OpponentPlayer): void {
+    const id = `opp-open-${this.rowDomId(series, opp)}`;
+    afterNextRender(() => document.getElementById(id)?.focus({ preventScroll: true }), { injector: this.injector });
+  }
 
   /** Players whose Lately row is showing every lane, not just their seat's. */
   private readonly recentOpen = signal<ReadonlySet<string>>(new Set());

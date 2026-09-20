@@ -15,6 +15,7 @@ import {
   scoutedAgo,
   setSubstitute,
   starters,
+  topCounters,
   topPlays
 } from './opponent-view';
 
@@ -305,6 +306,68 @@ describe('topPlays', () => {
       { champion: 'Ahri', games: 0, wins: 0, winRate: 0 },
       { champion: 'Sylas', games: 0, wins: 0, winRate: 0 }
     ]);
+  });
+});
+
+/**
+ * The merged "loses to" trio (20 Sep 2026). Full fills the roster line out instead of opening a
+ * second view, so this is the counters answered once for the player rather than once per ladder.
+ */
+describe('topCounters', () => {
+  const twoQueues = p('a', 'Top', {
+    byQueue: {
+      solo: { bansByRole: { Top: [{ champion: 'Jax', games: 3, wins: 3 }, { champion: 'Camille', games: 2, wins: 2 }] } },
+      flex: { bansByRole: { Top: [{ champion: 'Camille', games: 4, wins: 4 }, { champion: 'Aatrox', games: 1, wins: 1 }] } }
+    }
+  });
+
+  it('adds the two queues together, because a counter is a counter whichever ladder it beat them on', () => {
+    expect(topCounters(twoQueues)).toEqual([
+      { champion: 'Camille', games: 6, wins: 6 },
+      { champion: 'Jax', games: 3, wins: 3 },
+      { champion: 'Aatrox', games: 1, wins: 1 }
+    ]);
+  });
+
+  it('ranks by how often, and breaks a tie on the name so the trio does not reshuffle between renders', () => {
+    const tied = p('b', 'Mid', {
+      byQueue: {
+        solo: { bansByRole: { Mid: [{ champion: 'Zed', games: 2, wins: 2 }] } },
+        flex: { bansByRole: { Mid: [{ champion: 'Ahri', games: 2, wins: 2 }] } }
+      }
+    });
+    expect(topCounters(tied).map((r) => r.champion)).toEqual(['Ahri', 'Zed']);
+  });
+
+  it('takes as many as it is asked for, and nothing from a player nobody has scouted', () => {
+    expect(topCounters(twoQueues, 1).map((r) => r.champion)).toEqual(['Camille']);
+    expect(topCounters(p('c', 'Mid'))).toEqual([]);
+  });
+
+  // Deliberately not alphabetical: the api ranks `bans` most-lost-to first, so a name tie-break
+  // that ignored the source order would flip this pair and the assertion would catch it.
+  it('still reads a roster scouted before records existed, with no count to go with it', () => {
+    expect(topCounters(p('d', 'Mid', { bans: ['Sylas', 'Ahri'] }))).toEqual([
+      { champion: 'Sylas', games: 0, wins: 0 },
+      { champion: 'Ahri', games: 0, wins: 0 }
+    ]);
+  });
+
+  /**
+   * 20 Sep 2026. Every zero-count roster is one big tie on games, which is the common case: the
+   * per-queue `bans` fallback carries names and no numbers, and the api hands them over already
+   * ranked most-lost-to first. Sorting the tie on the name alone dropped two of the four most
+   * dangerous champions here and put the rest in alphabetical order, with no ×N badge to say the
+   * trio was arbitrary.
+   */
+  it('keeps the order the names arrived in when nothing carries a count', () => {
+    const byName = p('e', 'Mid', {
+      byQueue: {
+        solo: { bans: ['Fizz', 'Zed', 'Ahri'] },
+        flex: { bans: ['Yone', 'Talon', 'Akali'] }
+      }
+    });
+    expect(topCounters(byName).map((r) => r.champion)).toEqual(['Fizz', 'Yone', 'Talon']);
   });
 });
 

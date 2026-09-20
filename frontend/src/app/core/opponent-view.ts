@@ -323,6 +323,47 @@ export function topPlays(player: OpponentPlayer, take = 3): (ChampionRecord & { 
 }
 
 /**
+ * Who beats them, both queues added together, most often first (20 Sep 2026).
+ *
+ * The mirror of `topPlays`, and here for the same reason: Full now fills the one roster line out
+ * rather than opening a second view, so the "loses to" trio on the face of a row has to be one
+ * answer about the player and not one answer per ladder. A counter record counts the games this
+ * player *lost* to that champion — `games` and `wins` are the same number by construction in the
+ * api's `banCandidatesByPosition` — so the count is the whole fact and the merge is a sum.
+ *
+ * Ranked by that count, then by where the name stood in the list it came from, then on the
+ * champion name so the trio is stable between renders rather than following whatever order the
+ * map happened to be built in. A roster scouted by name only carries zero-game entries and those
+ * still come back: the icon is worth showing, and the row claims nothing beside it.
+ *
+ * That middle term is load-bearing (20 Sep 2026). `queueRows` falls back to the queue's `bans`
+ * whenever `bansByRole` has nothing for the seat — the normal case for a player whose hand-set
+ * seat differs from the seat their history is about, and for every roster scouted before
+ * `bansByRole` existed — and those names arrive already ranked most-lost-to first, from the api's
+ * `rankedByCount`. With every merged record at games 0 the count term is a tie for every pair, so
+ * a name-only tie-break sorted the whole trio alphabetically and threw the backend's ranking away:
+ * solo Fizz, Zed, Ahri plus flex Yone, Talon, Akali came out as Ahri, Akali, Fizz. Nothing on
+ * screen said so either, since no ×N badge is drawn without a count.
+ */
+export function topCounters(player: OpponentPlayer, take = 3): ChampionRecord[] {
+  const merged = new Map<string, { games: number; wins: number; best: number }>();
+  for (const row of queueRows(player)) {
+    row.counters.forEach((rec, index) => {
+      const m = merged.get(rec.champion) ?? { games: 0, wins: 0, best: Number.MAX_SAFE_INTEGER };
+      m.games += rec.games;
+      m.wins += rec.wins;
+      m.best = Math.min(m.best, index);
+      merged.set(rec.champion, m);
+    });
+  }
+  return [...merged.entries()]
+    .map(([champion, m]) => ({ champion, ...m }))
+    .sort((a, b) => b.games - a.games || a.best - b.best || a.champion.localeCompare(b.champion))
+    .slice(0, take)
+    .map(({ champion, games, wins }) => ({ champion, games, wins }));
+}
+
+/**
  * The one rank worth printing when there is room for one (12 Sep 2026).
  *
  * Solo first: it is the ladder a player is measured on, and a roster scouted before the

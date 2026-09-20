@@ -1434,11 +1434,23 @@ recorded, and the last one when the tournament is over. Since 17 Sep 2026 it ski
 series and takes a dated one before an undated one, so a 'vs test' no longer leads. Read from the games, not
 from `TournamentSeries.status` — that field is only ever written as
 `'scheduled'`, so a rule asking it would quietly do nothing. The stored order is
-left alone. At Starter the roster is one line a player (`topPlays` and
-`bestRank` in `core/opponent-view.ts`); **edit mode always draws the six-column
-table**, because every scouting control lives in its cells. One win-rate scale
-everywhere on the page: `rateBand` (65 / above 50 / 50 / below), never a
-hand-coded 55/45.
+left alone. **The scouted roster is one table, one row a player, in every state** (20 Sep 2026, the lead: "when scouting
+someone we dont have the full view in one screen" and "the edit mode should stay on the same view cause it jumps
+from this to this"). The Starter-only one-line list and `compactRoster` are gone from Prep: edit mode was a second
+depth switch, which the act-or-check rule forbids, and it swapped a 17rem list for a 71.7rem table. Now one row a
+player carries the seat (a `<select>` in edit mode), the name with op.gg and the A team / Bench toggle, both ranks
+labelled, and the champion tiles merged across solo and flex (`topPlays`, three at Starter and five at Full, the
+tip saying the figures are both queues together). **Full fills the same line out** — the read sample and the
+`loses to` trio (`topCounters` beside `topPlays` in `core/opponent-view.ts`) — and never swaps the view. **A row
+opens on click** for the per-queue split, mastery, Lately, the seats actually played and the "from TOP" note,
+through the Roster Players pattern (a stretched opener plus `rowClick` with the `closest('button, a, input,
+select, textarea')` guard, so the controls inside a clickable row need no `stopPropagation`); Escape closes it
+however it was opened, and rows never auto-open at Full. Measured with a six-name roster: the panel is 23.15rem
+read and 23.69rem edit at 1504 and at 1920, every row 56px, so the roster and the ban board sit on one screen; the
+only thing edit mode grows is the panel head, where "Add a player" now folds beside the paste control. The Roster
+page's Scout report still draws the old `.opp-lines` at Starter, so those rules stay; every new rule is scoped
+under `.opp-roster`, which exists only on Prep. One win-rate scale everywhere on the page: `rateBand` (65 / above
+50 / 50 / below), never a hand-coded 55/45.
 
 **The design system is written down** (12 Sep 2026, `docs/design-system.md`). Read it before
 adding a control or a colour. The three rules that cost the most time before it existed:
