@@ -1,5 +1,12 @@
-import { Injectable, WritableSignal, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, WritableSignal, computed, effect, inject, signal, untracked } from '@angular/core';
 import {
+  DocumentReference,
+  DocumentSnapshot,
+  Firestore,
+  FirestoreError,
+  Query,
+  QuerySnapshot,
+  Unsubscribe,
   collection,
   deleteDoc,
   deleteField,
@@ -54,7 +61,7 @@ import {
 import { normalizeEmail } from '../core/access';
 import { AuthService } from './auth.service';
 import { describeGameChange } from '../core/draft-diff';
-import { ClientError } from '../core/error-reporting';
+import { ClientError, reportClientError } from '../core/error-reporting';
 import { rosterIds, scrimSide } from '../pages/games/game-rows';
 
 const LOCAL_KEY = 'bom-team-data';
@@ -404,6 +411,37 @@ export class TeamDataService {
   }
 
   // ---- Firebase mode ----------------------------------------------------
+  //
+  // Members-only rules written 26 Sep 2026 (firestore.rules): every document but
+  // meta/settings needs a signed-in account with an active access entry. A
+  // listen the rules refuse ends for good (Firestore never retries it), and the
+  // first listen goes out once Auth has settled its first state — null on the
+  // login page. So listeners opened at construction were all refused there, and
+  // after sign-in nothing opened them again: `ready` stayed false and the shell
+  // sat on "Loading team data…" until a reload.
+  //
+  // So only meta/settings, which the signed-out shell prints the team name from,
+  // opens at construction. Everything else opens when AuthService has let
+  // someone in — `userEmail` is set only after its access check — and closes
+  // when they leave or another account takes over, with the data emptied so the
+  // last account's never lingers in memory and `ready` back to false. The whole
+  // access list is an admin's alone, so it opens only while canManageUsers()
+  // holds. Every listen carries an error callback: without one the SDK logs a
+  // refusal as a console error, which the e2e sweeps fail on, and a refused
+  // players listen must still settle `ready` rather than spin for ever.
+
+  /** The unsubscribe of every open member listen, closed together. */
+  private readonly memberListeners: Unsubscribe[] = [];
+  /** Whose data the member listeners are open for; null while none are. */
+  private listeningAs: string | null = null;
+  private accessListener: Unsubscribe | null = null;
+  private settingsListener: Unsubscribe | null = null;
+  /** Bumped every time the member listeners close, so a refusal from a closed set is ignored. */
+  private session = 0;
+  /** The session a refusal was last reported in: one report a session, however many listens it refused. */
+  private refusalReportedIn = -1;
+  /** The session a member listen's refusal was last answered in (answerRefusal): one access check a session. */
+  private refusalAnsweredIn = -1;
 
   private initFirebase(): void {
     const db = getDb();
@@ -412,119 +450,305 @@ export class TeamDataService {
       return;
     }
 
-    onSnapshot(collection(db, 'players'), (snap) => {
+    // Public on purpose (its own block in the rules): the signed-out topbar and footer print the team name.
+    this.settingsListener = this.listen(
+      doc(db, 'meta', 'settings'),
+      (d) => this.settings.set((d.data() as Settings) ?? { teamName: '' }),
+      (error) => this.reportRefusal('meta/settings', error)
+    );
+
+    // AuthService does not inject this service, so reading its signals here makes no cycle. The work runs
+    // untracked: only who is signed in, and whether they manage users, may re-run it.
+    effect(() => {
+      const email = this.auth.userEmail();
+      const admin = email !== null && this.auth.canManageUsers();
+      untracked(() => this.followSession(db, email, admin));
+    });
+
+    inject(DestroyRef).onDestroy(() => {
+      this.closeMemberListeners();
+      this.settingsListener?.();
+      this.settingsListener = null;
+    });
+  }
+
+  /** Bring the listeners in line with who is signed in, and whether they may manage users. */
+  private followSession(db: Firestore, email: string | null, admin: boolean): void {
+    if (email !== this.listeningAs) {
+      this.closeMemberListeners();
+      if (email) this.openMemberListeners(db, email);
+    }
+    if (email && admin) {
+      if (!this.accessListener) this.openAccessListener(db, email);
+    } else if (this.accessListener) {
+      this.closeAccessListener();
+    }
+  }
+
+  private openMemberListeners(db: Firestore, email: string): void {
+    this.listeningAs = email;
+    const session = this.session;
+    const listenList = (name: string, next: (snap: QuerySnapshot) => void) =>
+      this.memberListeners.push(this.listen(collection(db, name), next, this.onRefused(name, session, email)));
+    const listenMeta = (id: string, next: (snap: DocumentSnapshot) => void) =>
+      this.memberListeners.push(this.listen(doc(db, 'meta', id), next, this.onRefused(`meta/${id}`, session, email)));
+
+    listenList('players', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Player, 'id'>) }));
       this.players.set(list.sort((a, b) => a.order - b.order));
       this.ready.set(true);
     });
-    onSnapshot(collection(db, 'fillIns'), (snap) => {
+    listenList('fillIns', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<FillIn, 'id'>) }));
       this.fillIns.set(list.sort((a, b) => a.order - b.order));
     });
-    onSnapshot(collection(db, 'comps'), (snap) => {
+    listenList('comps', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Comp, 'id'>) }));
       this.comps.set(list.sort((a, b) => a.order - b.order));
     });
-    onSnapshot(collection(db, 'scrims'), (snap) => {
+    listenList('scrims', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Scrim, 'id'>) }));
       this.scrims.set(list.sort((a, b) => a.order - b.order));
     });
-    onSnapshot(collection(db, 'scrimOpponents'), (snap) => {
+    listenList('scrimOpponents', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ScrimOpponent, 'id'>) }));
       this.scrimOpponents.set(list.sort((a, b) => a.order - b.order));
     });
 
-    onSnapshot(collection(db, 'compResults'), (snap) => {
+    listenList('compResults', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CompResult, 'id'>) }));
       this.compResults.set(list.sort((a, b) => a.order - b.order));
     });
-    onSnapshot(collection(db, 'plays'), (snap) => {
+    listenList('plays', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Play, 'id'>) }));
       this.plays.set(list.sort((a, b) => a.order - b.order));
     });
-    onSnapshot(collection(db, 'painPoints'), (snap) => {
+    listenList('painPoints', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<PainPoint, 'id'>) }));
       this.painPoints.set(list.sort((a, b) => a.order - b.order));
     });
-    onSnapshot(collection(db, 'learnEntries'), (snap) => {
+    listenList('learnEntries', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<LearnEntry, 'id'>) }));
       this.learnEntries.set(list.sort((a, b) => a.order - b.order));
     });
-    onSnapshot(collection(db, 'trophies'), (snap) => {
+    listenList('trophies', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Trophy, 'id'>) }));
       this.trophies.set(list.sort((a, b) => a.order - b.order));
     });
-    onSnapshot(collection(db, 'tournaments'), (snap) => {
+    listenList('tournaments', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Tournament, 'id'>) }));
       this.tournaments.set(list.sort((a, b) => a.order - b.order));
     });
-    onSnapshot(collection(db, 'tournamentSeries'), (snap) => {
+    listenList('tournamentSeries', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TournamentSeries, 'id'>) }));
       this.tournamentSeries.set(list.sort((a, b) => a.order - b.order));
     });
-    onSnapshot(collection(db, 'seriesGames'), (snap) => {
+    listenList('seriesGames', (snap) => {
       const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<SeriesGame, 'id'>) }));
       this.seriesGames.set(list.sort((a, b) => a.order - b.order));
     });
-    onSnapshot(collection(db, 'matchNotes'), (snap) => {
+    listenList('matchNotes', (snap) => {
       this.matchNotes.set(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<MatchNote, 'id'>) })));
     });
-    onSnapshot(collection(db, 'compOverrides'), (snap) => {
+    listenList('compOverrides', (snap) => {
       this.compOverrides.set(
         snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CompOverride, 'id'>) }))
       );
     });
-    onSnapshot(collection(db, 'practiceGames'), (snap) => {
+    listenList('practiceGames', (snap) => {
       this.practiceGames.set(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<PracticeGame, 'id'>) })));
     });
-    onSnapshot(collection(db, 'gameReviews'), (snap) => {
+    listenList('gameReviews', (snap) => {
       this.gameReviews.set(snap.docs.map((d) => d.data() as GameReview).sort((a, b) => b.reviewedAt.localeCompare(a.reviewedAt)));
     });
-    onSnapshot(collection(db, 'filmCommitments'), (snap) => {
+    listenList('filmCommitments', (snap) => {
       this.filmCommitments.set(snap.docs.map((d) => ({ ...(d.data() as FilmCommitment), matchId: d.id, by: (d.data() as FilmCommitment).by ?? {} })));
     });
-    onSnapshot(collection(db, 'filmNotes'), (snap) => {
+    listenList('filmNotes', (snap) => {
       this.filmNotes.set(snap.docs.map((d) => ({ ...(d.data() as FilmNotes), matchId: d.id, notes: (d.data() as FilmNotes).notes ?? {} })));
     });
-    onSnapshot(collection(db, 'access'), (snap) => {
-      const list = snap.docs.map((d) => ({
-        email: d.id,
-        ...(d.data() as Omit<AccessEntry, 'email'>)
-      }));
-      this.accessEntries.set(list.sort((a, b) => a.email.localeCompare(b.email)));
-    });
-    onSnapshot(doc(db, 'meta', 'teamIdentity'), (d) => {
+    listenMeta('teamIdentity', (d) => {
       this.teamIdentity.set((d.data() as TeamIdentity) ?? null);
     });
-    onSnapshot(doc(db, 'meta', 'selfScout'), (d) => {
+    listenMeta('selfScout', (d) => {
       this.selfScout.set((d.data() as SelfScout) ?? null);
     });
-    onSnapshot(doc(db, 'meta', 'refreshLog'), (d) => {
+    listenMeta('refreshLog', (d) => {
       this.refreshLog.set((d.data() as RefreshLog) ?? null);
     });
-    onSnapshot(doc(db, 'meta', 'keyHealth'), (d) => {
+    listenMeta('keyHealth', (d) => {
       this.keyHealth.set((d.data() as KeyHealth) ?? null);
     });
-    onSnapshot(doc(db, 'meta', 'compAnalysis'), (d) => {
+    listenMeta('compAnalysis', (d) => {
       this.compAnalysis.set((d.data() as CompAnalysis) ?? null);
     });
-    onSnapshot(doc(db, 'meta', 'championTraits'), (d) => {
+    listenMeta('championTraits', (d) => {
       this.championTraits.set((d.data() as ChampionTraitMap)?.traits ?? {});
     });
-    onSnapshot(doc(db, 'meta', 'resourceLinks'), (d) => {
+    listenMeta('resourceLinks', (d) => {
       const data = d.data() as { groups?: ResourceLinks } | undefined;
       this.resourceLinks.set(data?.groups ?? {});
     });
-    onSnapshot(doc(db, 'meta', 'settings'), (d) => {
-      this.settings.set((d.data() as Settings) ?? { teamName: '' });
-    });
   }
 
-  /** One-time import of SEED_DATA into Firestore. Safe to run only on an empty project. */
+  /** The whole access list, for Admin › Access and Download team data: an admin's alone under the rules. */
+  private openAccessListener(db: Firestore, email: string): void {
+    this.accessListener = this.listen(
+      collection(db, 'access'),
+      (snap) => {
+        const list = snap.docs.map((d) => ({
+          email: d.id,
+          ...(d.data() as Omit<AccessEntry, 'email'>)
+        }));
+        this.accessEntries.set(list.sort((a, b) => a.email.localeCompare(b.email)));
+      },
+      this.onRefused('access', this.session, email)
+    );
+  }
+
+  private closeAccessListener(): void {
+    this.accessListener?.();
+    this.accessListener = null;
+    this.accessEntries.set([]);
+  }
+
+  /** Close every member listen, empty what they held and say the data is not ready. meta/settings stays open. */
+  private closeMemberListeners(): void {
+    for (const stop of this.memberListeners.splice(0)) stop();
+    this.closeAccessListener();
+    this.listeningAs = null;
+    this.session++;
+    this.clearMemberData();
+    this.ready.set(false);
+  }
+
+  /** Every signal a member listen fills, back to what it holds before the first snapshot. */
+  private clearMemberData(): void {
+    this.players.set([]);
+    this.fillIns.set([]);
+    this.comps.set([]);
+    this.compResults.set([]);
+    this.trophies.set([]);
+    this.scrims.set([]);
+    this.scrimOpponents.set([]);
+    this.plays.set([]);
+    this.painPoints.set([]);
+    this.learnEntries.set([]);
+    this.accessEntries.set([]);
+    this.teamIdentity.set(null);
+    this.selfScout.set(null);
+    this.compAnalysis.set(null);
+    this.tournaments.set([]);
+    this.tournamentSeries.set([]);
+    this.seriesGames.set([]);
+    this.matchNotes.set([]);
+    this.compOverrides.set([]);
+    this.practiceGames.set([]);
+    this.gameReviews.set([]);
+    this.filmCommitments.set([]);
+    this.filmNotes.set([]);
+    this.championTraits.set({});
+    this.keyHealth.set(null);
+    this.refreshLog.set(null);
+    this.resourceLinks.set({});
+  }
+
+  /**
+   * What a refused listen does. The SDK has already dropped it; a later sign-in opens a fresh one. A refused players
+   * listen settles `ready`, so the page shows empty rather than "Loading team data…" for ever.
+   */
+  private onRefused(name: string, session: number, email: string): (error: FirestoreError) => void {
+    return (error) => {
+      if (session !== this.session) return;
+      if (name === 'players') this.ready.set(true);
+      // Signing out (or into another account) re-sends the open listens under the new token before the effect has
+      // closed them. Their refusal is the expected end of this session, not something to report.
+      if (this.auth.userEmail() !== email) return;
+      void this.answerRefusal(name, error, session, email);
+    };
+  }
+
+  /**
+   * A refusal while the person is still signed in, answered once a session however many listens it takes down.
+   *
+   * The rules refusing a signed-in member almost always means their access went while the app was open: an admin
+   * unticked Active on Admin › Access or removed the entry. AuthService read the entry only at sign-in, and the
+   * refusals arrive at the next stream restart (a token refresh, at most an hour, or a reconnect). Left alone, that tab
+   * went on showing the last snapshot, frozen, with the nav still up, until a reload. So a `permission-denied` asks
+   * AuthService whether they are still let in; when they are not it signs them out, and the session effects close
+   * and empty everything here and take the page to the login. Nothing is reported for them: clientErrors is a
+   * member's to write, and the row would be refused too.
+   *
+   * Still let in, or the question itself could not be read, is the rules and the app disagreeing, and that is
+   * reported.
+   */
+  private async answerRefusal(name: string, error: FirestoreError, session: number, email: string): Promise<void> {
+    // The access list is refused alone when an admin is demoted, so it does not use up the session's one check.
+    if (name !== 'access') {
+      if (this.refusalAnsweredIn === session) return;
+      this.refusalAnsweredIn = session;
+    }
+    if (error.code === 'permission-denied') {
+      let stillIn = true;
+      try {
+        stillIn = await this.auth.confirmAccess();
+      } catch {
+        // Could not ask; report the refusal as it stands.
+      }
+      if (!stillIn || session !== this.session || this.auth.userEmail() !== email) return;
+      // Still in, but no longer an admin: the check took the role back and the effect closes the access list.
+      if (name === 'access' && !this.auth.canManageUsers()) return;
+    }
+    this.reportRefusal(name, error);
+  }
+
+  /**
+   * As a warning and a row in the app's error log (Admin › Diagnostics), never console.error: a refusal is a state
+   * the app can reach without a bug in it, and the e2e sweeps fail on console errors. The row is what tells an admin
+   * which collection the rules and the app disagree about. Only a member can write one: for an account whose access
+   * was withdrawn the write is refused and swallowed, which is why a withdrawn account is signed out rather than
+   * reported (answerRefusal). Once a session.
+   */
+  private reportRefusal(name: string, error: FirestoreError): void {
+    if (this.refusalReportedIn === this.session) return;
+    this.refusalReportedIn = this.session;
+    const message = `Firestore refused the ${name} listener (${error.code})`;
+    console.warn(`${message}. It stays empty until the next sign-in; any further refusal this session goes unlogged.`);
+    this.reportError(new Error(message));
+  }
+
+  /** The app's error log, behind a method so a spec never writes to Firestore. */
+  protected reportError(error: Error): void {
+    void reportClientError(error);
+  }
+
+  /** One Firestore listen, behind a method so a spec can stand in for Firestore (the ReplayRecordingService pattern). */
+  protected listen(target: Query, next: (snap: QuerySnapshot) => void, error: (error: FirestoreError) => void): Unsubscribe;
+  protected listen(target: DocumentReference, next: (snap: DocumentSnapshot) => void, error: (error: FirestoreError) => void): Unsubscribe;
+  protected listen(
+    target: Query | DocumentReference,
+    next: ((snap: QuerySnapshot) => void) | ((snap: DocumentSnapshot) => void),
+    error: (error: FirestoreError) => void
+  ): Unsubscribe {
+    return target.type === 'document'
+      ? onSnapshot(target, next as (snap: DocumentSnapshot) => void, error)
+      : onSnapshot(target, next as (snap: QuerySnapshot) => void, error);
+  }
+
+  /**
+   * One-time import of SEED_DATA into Firestore. Safe to run only on an empty project.
+   *
+   * An admin's alone, and only once signed in: the batch writes `access` and meta/settings, which the rules keep to
+   * admins. The bootstrap admin needs no access document to be one, so on an empty project they sign in, open
+   * Admin and seed. The marker read is meta/settings, the one public document, so it answers either way.
+   */
   async seedFirestore(): Promise<void> {
     const db = getDb();
     if (!db) {
       throw new Error('Firebase is not configured.');
+    }
+    if (!this.auth.userEmail() || !this.auth.canManageUsers()) {
+      throw new Error('Only a signed-in admin can seed the database.');
     }
     const marker = await getDoc(doc(db, 'meta', 'settings'));
     if (marker.exists()) {

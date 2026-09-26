@@ -15,7 +15,9 @@ figures were measured on 2 Sep 2026 and are reproducible — see §6.
 > the answers and nothing else. This file is the reasoning behind them, and
 > several parts of it would be actively harmful to send:
 >
-> - **§5** describes a security weakness in the app — public read on team data.
+> - **§5** describes the app's data security — team data public read in
+>   production until the members-only rules written on 26 Sep 2026 are
+>   deployed, and reads not separated by team even then.
 >   A sensible note to ourselves; an irresponsible thing to hand a third party.
 > - **§5** also holds our own strategy reasoning, which reads as gaming the
 >   process however honestly it was meant.
@@ -260,10 +262,19 @@ separate product from the draft hub, it needs its own registration.
   **Now asked, as App Note 1 in the submission file.** Do not treat private as
   settled until Riot answers.
 - **Multi-team support.** Deferred with the decision above. The public version
-  would need teams separable so one cannot read another's scouting; today
-  `firestore.rules` grants public read on team data (`allow read: if true`),
-  which is fine for one team's own hub and is **not** fine for a multi-team
-  product. Do not open it up without changing this first.
+  would need teams separable so one cannot read another's scouting. The rules
+  released in production (8 Sep 2026) still grant public read on team data
+  (`allow read: if true`). The repository's `firestore.rules`, written on
+  26 Sep 2026, are members only — nothing is readable signed out except
+  `meta/settings` (the team name), and every other read needs an active
+  `access/{email}` entry — and come into force with the `npm run deploy:rules`
+  that follows the app's listener change reaching Pages. That deploy is also
+  what makes the submitted answer's "Neither is readable by anyone but the
+  functions" (the crawler's state, under "How do you use the API?") true.
+  Members only is right for one team's own hub and is still **not** enough for
+  a multi-team product: membership is one flag for the whole database, so every
+  member of every team would read every team's scouting. Do not open it up
+  without scoping reads by team first.
 - **Monetisation.** None planned. If that ever changes: a free tier is
   mandatory, content must be "transformative", and no exchanging currency back
   into fiat.
@@ -276,14 +287,26 @@ separate product from the draft hub, it needs its own registration.
 ## 6. Reproducing the evidence figures *(internal — not submitted)*
 
 Read straight from Firestore over REST, so the numbers in §3 can be re-measured
-before submitting rather than quoted from this document on trust:
+before submitting rather than quoted from this document on trust. Once the
+members-only rules written on 26 Sep 2026 are deployed a request with no
+credentials is refused, so each one carries a Google OAuth access token (which
+changes nothing while the public-read rules are still the released ones). A request authenticated that way
+is judged by IAM, not by `firestore.rules`, so the project owner's account
+reads these documents as before (a Firebase ID token would be judged by the
+rules instead). It needs the Google Cloud CLI signed in (`gcloud auth login`) as
+an account with read access to the project; the CLI is not installed on the
+dev machine as of 27 Sep 2026. Without it, the same documents open in the
+Firebase console's Firestore data view, which is IAM too, or read through
+firebase-admin with the service account, the way `scripts/` does.
 
 ```bash
 # champion coverage for a patch
-curl -s "https://firestore.googleapis.com/v1/projects/lol-bom-squad/databases/(default)/documents/championStats/16.17_ALL"
+curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  "https://firestore.googleapis.com/v1/projects/lol-bom-squad/databases/(default)/documents/championStats/16.17_ALL"
 
 # matchup density for one lane
-curl -s "https://firestore.googleapis.com/v1/projects/lol-bom-squad/databases/(default)/documents/matchupStats/16.17_TOP"
+curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  "https://firestore.googleapis.com/v1/projects/lol-bom-squad/databases/(default)/documents/matchupStats/16.17_TOP"
 ```
 
 `matches` is the tallied match count; `champions` is a nested map of

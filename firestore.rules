@@ -1,10 +1,41 @@
 rules_version = '2';
 
-// Public read for the app; role-based writes are controlled through access docs.
+// Members only (26 Sep 2026). Nothing is read without a signed-in account whose access
+// document is active, except meta/settings, which the signed-out shell prints the team name
+// from. Writes are role-based through the same access document.
+//
+// Firestore ORs every rule that matches a path, so a broad rule silently voids every stricter
+// one beneath it: the old catch-all `match /{document=**} { allow read: if true; allow write:
+// if canEdit(); }` made access, userPrefs, clientErrors, crawlState and crawlSeen world-readable
+// and let a contributor write access (and so make themselves admin), meta/settings, anyone's
+// userPrefs and the crawler's state, and edit or delete error reports. The catch-all below
+// therefore names the paths that have their own block and stays out of them: each path is
+// decided by exactly one block. A new collection is still covered with no rules
+// change (members read, editors write); a collection given a block of its own must also be
+// added to ownBlock(), or the catch-all goes on granting what that block refuses.
+//
+// What the app must do in return, or these rules break sign-in rather than protect it:
+// - Open no listener but meta/settings until AuthService has let the person in. A listen refused
+//   while signed out ends for good (Firestore never retries it), so a listener opened on the login
+//   page stays dead after sign-in until the page is reloaded. meta/settings is the exception
+//   because it is public: the signed-out shell listens to it from the first paint.
+// - Close every member listener on sign-out (meta/settings stays open) and open them again on the
+//   next sign-in. Signing out re-sends each open listen without a token, each is refused, and the
+//   signals keep the last account's data with nothing on screen saying it is stale.
+// - Listen to the whole `access` collection only as an admin; anyone else is refused it.
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Signed in through one of the app's two doors: Google (the login page) or a custom token (the
+    // e2e runner's, minted from the service account). Membership rests on the token's email, so a
+    // door that lets someone claim an address without proving it must not count here — an
+    // Email/Password sign-up, an anonymous account given an email, any provider switched on later.
+    // Google and the service account both vouch for the address; nothing else here does. A new way
+    // to sign in to the app needs its provider added to this list, or its users get in and are
+    // refused every read.
     function signedIn() {
-      return request.auth != null && request.auth.token.email != null;
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.firebase.sign_in_provider in ['google.com', 'custom'];
     }
 
     function emailKey() {
@@ -21,48 +52,88 @@ service cloud.firestore {
       return signedIn() && exists(/databases/$(database)/documents/access/$(emailKey()));
     }
 
-    function accessRole() {
-      return get(/databases/$(database)/documents/access/$(emailKey())).data.role;
+    function accessData() {
+      return get(/databases/$(database)/documents/access/$(emailKey())).data;
     }
 
+    function accessRole() {
+      return accessData().get('role', null);
+    }
+
+    // JavaScript truthiness, because that is the test the app applies: AuthService (resolveRole and
+    // enforceAccess) signs a person out, and the functions' getAccessRoleByEmail refuses them, on
+    // `!access.active || !access.role`. A stricter test here (say `active == true`) would lock out
+    // someone the app lets in; a looser one would let someone the app turns away read with their
+    // token. An absent field reads as null. (NaN is the one value JavaScript calls falsy that this
+    // does not; nothing writes one.)
+    function truthy(v) {
+      return v != null
+        && !(v is bool && v == false)
+        && !(v is number && v == 0)
+        && !(v is string && v == '');
+    }
+
+    // Signed in and let in by the app: the bootstrap admin, or an access document whose
+    // `active` and `role` are both set. Every read of team data asks this.
+    function hasAccess() {
+      return bootstrapAdmin()
+        || (hasAccessDoc() && truthy(accessData().get('active', null)) && truthy(accessRole()));
+    }
+
+    // Both roles now require an active entry. Unticking Active on Admin › Access takes a person's
+    // writes away at once and their live reads at the next stream restart (a token refresh, at most
+    // an hour, or a reconnect); the app then signs them out, on their next load or mid-session when
+    // TeamDataService sees the refusals and AuthService.confirmAccess finds the entry inactive.
+    // Before, an inactive contributor's token could still write everything the catch-all covers,
+    // including (through it) access.
     function isAdmin() {
-      return bootstrapAdmin() || (hasAccessDoc() && accessRole() == 'admin');
+      return bootstrapAdmin() || (hasAccess() && accessRole() == 'admin');
     }
 
     function canEdit() {
-      return bootstrapAdmin() || (hasAccessDoc() && (accessRole() == 'admin' || accessRole() == 'contributor'));
+      return bootstrapAdmin() || (hasAccess() && accessRole() in ['admin', 'contributor']);
     }
 
+    // The collections decided by their own block below and never by the catch-all.
+    function ownBlock(collectionId) {
+      return collectionId in ['access', 'userPrefs', 'clientErrors', 'crawlState', 'crawlSeen'];
+    }
+
+    // Anyone signed in may read their OWN entry, active or not: AuthService reads it to decide
+    // whether to let them in at all, before anything else, and must learn "inactive" rather than
+    // hit a permission error. Listing the collection is for admins (Admin › Access, Download team
+    // data). isAdmin() is asked first so an admin's list query never depends on the document id.
     match /access/{emailId} {
-      allow read: if signedIn() && (bootstrapAdmin() || isAdmin() || emailId == emailKey());
+      allow read: if isAdmin() || (signedIn() && emailId == emailKey());
       allow create, update, delete: if isAdmin();
     }
 
+    // Public on purpose: the shell listens to it from the first paint, and the signed-out topbar
+    // and the Riot notice in the footer print its team name. Nothing else in it is personal: the
+    // name, the motto, the banner champion, two switches and a patch date.
     match /meta/settings {
       allow read: if true;
       allow write: if isAdmin();
     }
 
+    // One person's tours, film progress and reading depth, keyed by their own lowercased email.
+    // The app only touches it once AuthService has let that person in.
     match /userPrefs/{emailId} {
-      allow read, write: if signedIn() && emailId == emailKey();
+      allow read, write: if hasAccess() && emailId == emailKey();
     }
 
-    // A viewer's browser may report an uncaught error; nobody edits or
-    // deletes one from the app. Reads fall to the catch-all like the draft
-    // log — both name teammates, which the access list already does.
+    // A member's browser may report an uncaught error; only an admin reads them (Admin ›
+    // Diagnostics), and nobody edits or deletes one from the app.
     match /clientErrors/{id} {
-      allow create: if signedIn();
+      allow create: if hasAccess();
+      allow read: if isAdmin();
       allow update, delete: if false;
     }
 
-    // The crawler's working state, not its output. crawlState holds a queue of
-    // up to 4,000 puuids and crawlSeen a marker per match id — neither is of any
-    // use to a reader, and the catch-all below would otherwise publish a list of
-    // identifiers for players who never opted into anything. The functions write
-    // these through the admin SDK, which bypasses rules entirely.
-    //
-    // The aggregate counters in championStats stay public: they are champion
-    // totals with no player in them, which is the whole point of the collection.
+    // The crawler's working state, not its output. crawlState holds a queue of up to 4,000 puuids
+    // and crawlSeen a marker per match id — neither is of any use to a reader, and a list of
+    // identifiers for players who never opted into anything must not leave the functions, which
+    // write these through the admin SDK (it bypasses rules entirely).
     match /crawlState/{doc} {
       allow read, write: if false;
     }
@@ -71,9 +142,29 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /{document=**} {
-      allow read: if true;
-      allow write: if canEdit();
+    // Everything else: members read, editors write. That includes championStats, matchupIndex and
+    // the rest of meta, which the app reads only behind the viewer guard. The scripts, including
+    // scripts/dev-timeline.mjs (players and matchCache), read through firebase-admin with the
+    // service account, which rules do not apply to. The function-written collections (gameReviews,
+    // matchCache, matchTimeline, rankHistory, replayRecordings, replayShots, meta/compAnalysis …)
+    // are still editor-writable here, as they always were; the functions write them through the
+    // admin SDK, which rules do not apply to.
+    //
+    // Two matches rather than `{document=**}`: a recursive wildcard binds a path, and meta/settings
+    // has to be told apart from the rest of meta by comparing two plain strings. The first covers
+    // every top-level document, the second anything in a subcollection.
+    match /{collectionId}/{docId} {
+      allow read: if hasAccess()
+        && !ownBlock(collectionId)
+        && !(collectionId == 'meta' && docId == 'settings');
+      allow write: if canEdit()
+        && !ownBlock(collectionId)
+        && !(collectionId == 'meta' && docId == 'settings');
+    }
+
+    match /{collectionId}/{docId}/{subcollectionId}/{rest=**} {
+      allow read: if hasAccess() && !ownBlock(collectionId);
+      allow write: if canEdit() && !ownBlock(collectionId);
     }
   }
 }

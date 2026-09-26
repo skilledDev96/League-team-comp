@@ -41,10 +41,39 @@ setup('sign in', async ({ page, context }) => {
   const user = await getAuth(app).getUserByEmail(email);
   const token = await getAuth(app).createCustomToken(user.uid);
 
-  // The site root is the login page and is served directly; a deeper path
-  // goes through the Pages 404 redirect, which is one more place to lose a
-  // fragment.
-  await page.goto(`./#token=${encodeURIComponent(token)}`);
+  // Signed out first, and settled, before the token is handed over (27 Sep
+  // 2026). Under the members-only rules a listener opened on the login page is
+  // refused and never retried, so a build that opens them there hangs on
+  // "Loading team data…" after sign-in. But when the token rode in on the first
+  // load, sign-in raced those refusals: two identitytoolkit round trips and the
+  // access read against Firestore's channel handshake and a rules evaluation.
+  // When sign-in won, Firestore re-sent the still-pending listens under the new
+  // user, they were allowed, and the check below passed against exactly the
+  // build it exists to catch. A real Google popup takes seconds, so for a person
+  // the refusals always land first; this makes the runner meet the same order.
+  //
+  // So: the site root (served directly; a deeper path goes through the Pages
+  // 404 redirect), the login page drawn, and the Listen channel answering, which
+  // it does for the public meta/settings listen on every build. Then a moment
+  // more, so anything else listened to at first paint has had its answer, and
+  // only then the token.
+  const listenChannel = page.waitForResponse((r) => /firestore\.googleapis\.com\/.*\/Listen\/channel/.test(r.url()), {
+    timeout: 30_000
+  });
+  await page.goto('./');
+  await expect(page.getByRole('heading', { name: 'Team Login' })).toBeVisible({ timeout: 30_000 });
+  await listenChannel;
+  await page.waitForTimeout(3_000);
+
+  // The token goes in without a reload, so everything opened above stays as it
+  // was: the login route with the token on its fragment, pushed onto history,
+  // and a popstate so the router builds a fresh LoginComponent there (the site
+  // root is another route, so it is not reused), whose constructor reads the
+  // fragment, clears it from the address bar and signs in.
+  await page.evaluate((fragment) => {
+    history.pushState(null, '', new URL(`login#${fragment}`, document.baseURI).href);
+    window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+  }, `token=${encodeURIComponent(token)}`);
 
   // The page reports its own failures, and its message is far more useful than
   // a timeout on whatever we were waiting for next.
@@ -59,9 +88,22 @@ setup('sign in', async ({ page, context }) => {
   // The nav only renders once a session with a role is established.
   await expect(page.getByRole('link', { name: 'Comps' })).toBeVisible({ timeout: 30_000 });
 
+  // And the team data has to follow, on this very page (27 Sep 2026). Everything
+  // below the nav check runs in the tab that signed in, with no reload, which is
+  // how a person meets the app the first time. Under the members-only rules a
+  // listener opened on the signed-out login page is refused and never retried,
+  // and the shell then sat on "Loading team data…" over a nav that was already
+  // drawn: every check above passed, and every test after this one reloads the
+  // page, which opens the listeners afresh and hides it. The overlay is on screen
+  // whenever the nav is and the data is not, so waiting for it to go is waiting
+  // for the first players snapshot (or a refusal, which settles it too; the
+  // Roster check below is what tells the two apart).
+  await expect(page.getByText('Loading team data…')).toBeHidden({ timeout: 30_000 });
+
   // A new account is met by the welcome tour, which covers the page. Dismissing
-  // it here writes userPrefs/{email} — a rule every signed-in user may write,
-  // viewer included — so it stays dismissed rather than reappearing per test.
+  // it here writes userPrefs/{email} — which the rules let any member write for
+  // their own email, viewer included — so it stays dismissed rather than
+  // reappearing per test.
   // Scoped to the tour's card (10 Sep 2026): the Before you play reminder and
   // the Games banner each end in a "Got it" of their own, and two matches make
   // the unscoped locator throw in strict mode.
@@ -79,6 +121,14 @@ setup('sign in', async ({ page, context }) => {
     await gotIt.click();
     await expect(gotIt).toBeHidden();
   }
+
+  // Real data, still without a reload: the nav's Roster link is an in-app
+  // navigation, and the poster draws one panel per starter, which it can only do
+  // once the players collection has answered. A refused players listen ends the overlay above
+  // with an empty roster, which this catches.
+  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Roster', exact: true }).click();
+  await expect(page).toHaveURL(/\/roster/);
+  await expect(page.locator('.roster-poster .roster-panel-open').first()).toBeVisible({ timeout: 30_000 });
 
   await context.storageState({ path: AUTH_STATE, indexedDB: true });
 });

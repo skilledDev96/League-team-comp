@@ -18,8 +18,9 @@ export function isEditableRole(role: AccessRole | null | undefined): boolean {
 export type AccessMode = 'firebase' | 'local';
 
 /**
- * Who may write team data. Mirrored by canEdit() in firestore.rules, which is
- * the real enforcement — this only decides whether the UI offers the controls.
+ * Who may write team data. Mirrored by canEdit() in firestore.rules, which also
+ * requires an active access entry; the rules are the real enforcement — this
+ * only decides whether the UI offers the controls.
  */
 export function canEditWith(mode: AccessMode, role: AccessRole | null | undefined): boolean {
   return mode === 'local' || isEditableRole(role);

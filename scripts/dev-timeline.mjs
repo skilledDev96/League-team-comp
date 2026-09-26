@@ -12,28 +12,36 @@
  * same arguments `getMatchTimeline` in `api/src/index.ts` passes, and writes
  * the document to a file instead. Nothing here writes anywhere but `--out`.
  *
- *   Usage (bash):        RIOT_API_KEY=RGAPI-...  node scripts/dev-timeline.mjs <matchId> [--out file.json]
- *   Usage (PowerShell):  $env:RIOT_API_KEY='RGAPI-...'; node scripts/dev-timeline.mjs <matchId> [--out file.json]
+ *   Usage (bash):
+ *     FIREBASE_SERVICE_ACCOUNT="$(cat service-account.json)" RIOT_API_KEY=RGAPI-... node scripts/dev-timeline.mjs <matchId> [--out file.json]
+ *   Usage (PowerShell):
+ *     $env:FIREBASE_SERVICE_ACCOUNT = 'C:\path\to\service-account.json'; $env:RIOT_API_KEY = 'RGAPI-...'
+ *     node scripts/dev-timeline.mjs <matchId> [--out file.json]
  *   Before: cd api && npm run build          (this imports api/lib, not api/src)
  *   Then:   git checkout -- api/src/build-info.ts   (the build stamps it)
  *   The default output, dev-timeline-<matchId>.json in the working directory, is in .gitignore.
  *
  * What it does, in the api's order:
- *   1. reads the `players` collection (public-read) with the Firebase web SDK
- *      from frontend/node_modules and the public web config in
- *      frontend/src/environments/environment.ts, and turns it into the analysis
- *      request the way `rosterFromPlayers` does (`analysisRequestFrom`, with
+ *   1. reads the `players` collection through firebase-admin from
+ *      api/node_modules with the service account in FIREBASE_SERVICE_ACCOUNT
+ *      (JSON or a path to the file; never printed), the account the e2e runner
+ *      and the replay recorder use. Until 26 Sep 2026 it read signed out with the
+ *      web SDK, which the members-only firestore.rules written that day refuse
+ *      once they are deployed; the admin SDK is not subject to rules, so this
+ *      reads the same before and after that deploy. It turns the players into the analysis request
+ *      the way `rosterFromPlayers` does (`analysisRequestFrom`, with
  *      no comps and no overrides: the roster is all that is needed);
  *   2. resolves each Riot id through account-v1 exactly as `resolveRoster`
  *      does — the player docs carry no puuid, so this is the api's own road;
- *   3. reads `matchCache/{matchId}` (the seats and the sides come from it,
+ *   3. reads `matchCache/{matchId}` through the same account (the seats and the sides come from it,
  *      as in the api), or fetches match-v5 from Riot and shapes it the way
  *      `getCachedMatch` would when the cache has no entry;
  *   4. fetches the match-v5 timeline from the region routing the api uses;
  *   5. runs `buildMatchTimeline` and puts `gameFacts` on the document, so
  *      the facts ride along as they do on a stored one;
  *   6. writes the JSON to --out (default ./dev-timeline-<matchId>.json) and
- *      prints counts only: frames, wards, bytes. Never the key.
+ *      prints counts only: frames, wards, bytes. Never the key. Firestore is
+ *      only ever read: the account could write, and nothing here asks it to.
  *
  * How the app picks it up: in a dev build, `MatchTimelineService` (builder B,
  * 10 Sep 2026) reads localStorage 'bom-dev-timeline:<matchId>' first, and a
@@ -45,7 +53,7 @@
  * nothing else; this file adds nothing to that. Do not commit the output.
  */
 import { createRequire } from 'node:module';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import fsDefault, { existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import process from 'node:process';
@@ -53,7 +61,6 @@ import process from 'node:process';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const requireApi = createRequire(path.join(root, 'api', 'package.json'));
-const requireFrontend = createRequire(path.join(root, 'frontend', 'package.json'));
 
 /** Mirrors REGION_ROUTING in api/src/index.ts, which is private there. */
 const REGION_ROUTING = {
@@ -111,17 +118,18 @@ function loadApi() {
   };
 }
 
-/** The public web config, read off environment.ts without compiling it: `key: 'value'` pairs inside the firebase block. */
-export function webConfig(text = readFileSync(path.join(root, 'frontend', 'src', 'environments', 'environment.ts'), 'utf8')) {
-  const start = text.indexOf('firebase:');
-  const end = text.indexOf('functions:', start);
-  const block = text.slice(start, end < 0 ? undefined : end);
-  const config = {};
-  for (const m of block.matchAll(/(\w+):\s*'([^']*)'/g)) config[m[1]] = m[2];
-  if (!config.apiKey || !config.projectId) {
-    throw new Error('frontend/src/environments/environment.ts has no Firebase apiKey and projectId (local mode): the players cannot be read.');
+/** The service account, as JSON or as a path to a file holding it. Its contents are never printed. */
+export function parseServiceAccount(raw, fs = fsDefault) {
+  const value = String(raw ?? '').trim();
+  if (!value) throw new Error('FIREBASE_SERVICE_ACCOUNT is not set. Put the service account JSON in it, or a path to the file.');
+  const text = value.startsWith('{') ? value : fs.existsSync(value) ? fs.readFileSync(value, 'utf8') : '';
+  if (!text) throw new Error('FIREBASE_SERVICE_ACCOUNT is neither JSON nor a path to a readable file.');
+  try {
+    // Trimmed: a file written from PowerShell starts with a byte-order mark, which JSON.parse refuses.
+    return JSON.parse(text.replace(/^\uFEFF/, '').trim());
+  } catch {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT did not parse as JSON. (Its contents are never printed.)');
   }
-  return config;
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -280,18 +288,30 @@ export async function run({ matchId, out, apiKey, fetchImpl = globalThis.fetch, 
   return timeline;
 }
 
-/** Read-only Firestore through the web SDK in frontend/node_modules, with the public web config. */
-function openFirestore() {
-  const { initializeApp, deleteApp } = requireFrontend('firebase/app');
-  const { getFirestore, collection, doc, getDoc, getDocs } = requireFrontend('firebase/firestore');
-  const app = initializeApp(webConfig(), 'dev-timeline');
-  const db = getFirestore(app);
+/**
+ * Firestore through firebase-admin, which lives in api/node_modules — the same account the e2e runner
+ * and the replay recorder use. Readers only: nothing here writes. The members-only rules (written
+ * 26 Sep 2026) refuse a signed-out web SDK once deployed, and the admin SDK is not subject to them.
+ */
+function openFirestore(raw) {
+  let adminApp;
+  let adminFirestore;
+  try {
+    adminApp = requireApi('firebase-admin/app');
+    adminFirestore = requireApi('firebase-admin/firestore');
+  } catch {
+    throw new Error('firebase-admin is not installed in api/. Run npm install there first.');
+  }
+  const { cert, deleteApp, getApps, initializeApp } = adminApp;
+  const account = parseServiceAccount(raw);
+  const app = getApps().find((a) => a.name === 'dev-timeline') ?? initializeApp({ credential: cert(account) }, 'dev-timeline');
+  const db = adminFirestore.getFirestore(app);
   return {
     readers: {
-      players: async () => (await getDocs(collection(db, 'players'))).docs.map((d) => ({ ...d.data(), id: d.id })),
+      players: async () => (await db.collection('players').get()).docs.map((d) => ({ ...d.data(), id: d.id })),
       match: async (id) => {
-        const snap = await getDoc(doc(db, 'matchCache', id));
-        return snap.exists() ? snap.data() : null;
+        const snap = await db.collection('matchCache').doc(id).get();
+        return snap.exists ? snap.data() : null;
       }
     },
     close: () => deleteApp(app)
@@ -310,7 +330,7 @@ async function main() {
   const outArg = argValue(args, 'out');
   const matchId = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--out');
   if (!matchId) {
-    console.error('Usage: RIOT_API_KEY=RGAPI-... node scripts/dev-timeline.mjs <matchId> [--out file.json]');
+    console.error('Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> RIOT_API_KEY=RGAPI-... node scripts/dev-timeline.mjs <matchId> [--out file.json]');
     process.exitCode = 1;
     return;
   }
@@ -320,8 +340,14 @@ async function main() {
     process.exitCode = 1;
     return;
   }
+  const account = process.env.FIREBASE_SERVICE_ACCOUNT ?? '';
+  if (!account.trim()) {
+    console.error('FIREBASE_SERVICE_ACCOUNT is not set. Put the service account JSON in it, or a path to the file; it is never printed.');
+    process.exitCode = 1;
+    return;
+  }
   const out = path.resolve(outArg || `dev-timeline-${matchId}.json`);
-  const firestore = openFirestore();
+  const firestore = openFirestore(account);
   try {
     await run({ matchId, out, apiKey, readers: firestore.readers });
   } finally {

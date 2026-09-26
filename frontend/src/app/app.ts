@@ -1,9 +1,10 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import {
   NavigationCancel,
   NavigationEnd,
   NavigationError,
   NavigationStart,
+  PRIMARY_OUTLET,
   Router,
   RouterLink,
   RouterLinkActive,
@@ -99,6 +100,10 @@ export class App {
       } else if (event instanceof NavigationEnd) {
         this.navigating.set(false);
         this.filmRoute.set(/^\/film(\/|\?|$)/.test(event.urlAfterRedirects));
+        // A page answers the emptied data with a navigation of its own (Prep & Draft drops a series it can no longer
+        // find from its query), which cancels the one below and lands on the same guarded route, where no guard runs
+        // again for a query change. So every landing is checked too, not only the moment the session ends.
+        this.leaveGuardedPage();
       } else if (event instanceof NavigationCancel) {
         this.navigating.set(false);
       } else if (event instanceof NavigationError) {
@@ -121,6 +126,31 @@ export class App {
         timeout: 9000
       });
     });
+
+    // A session can end without Log out (27 Sep 2026): another tab signs out (Firebase shares one session across a
+    // site's tabs), Firebase ends it itself, or TeamDataService signs out someone whose access an admin withdrew.
+    // TeamDataService empties every signal and the nav goes with the session, so the tab was left on its guarded page
+    // with nothing on it and no way out but a reload. Take it to the login page with the way back, which is where the
+    // guard sends a cold start.
+    effect(() => {
+      if (!this.auth.ready() || this.auth.isAuthed()) return;
+      untracked(() => this.leaveGuardedPage());
+    });
+  }
+
+  /** Set while Log out runs, so its own navigation is the only one. */
+  private signingOut = false;
+
+  /**
+   * With nobody signed in, off a guarded page to the login, keeping where it was as the returnUrl; the login page
+   * itself stays put, and nothing moves before the first auth state has settled (the guards own a cold start).
+   */
+  private leaveGuardedPage(): void {
+    if (this.signingOut || !this.auth.ready() || this.auth.isAuthed()) return;
+    const url = this.router.url;
+    const first = this.router.parseUrl(url).root.children[PRIMARY_OUTLET]?.segments[0]?.path ?? '';
+    if (first === '' || first === 'login') return;
+    void this.router.navigate(['/login'], { queryParams: { returnUrl: url } });
   }
 
   /** Every running job on one line, for the pill's tooltip. */
@@ -137,7 +167,12 @@ export class App {
   }
 
   protected async logout(): Promise<void> {
-    await this.auth.logout();
-    await this.router.navigate(['/login']);
+    this.signingOut = true;
+    try {
+      await this.auth.logout();
+      await this.router.navigate(['/login']);
+    } finally {
+      this.signingOut = false;
+    }
   }
 }

@@ -43,7 +43,13 @@ npm test             # 10 public checks, +10 more if a test account is configure
 
 # from the repo root, where firebase.json is
 npm run deploy:functions   # firebase deploy --only functions (all five)
-npm run deploy:rules       # firestore rules only
+npm run deploy:rules       # firestore rules only — run the check below first
+node scripts/rules-check.cjs  # firestore.rules against 144 mocked requests
+                              # through the Rules API test endpoint; exits 1 on
+                              # any failure (no deploy, no document read; needs
+                              # firebase-tools installed globally through npm
+                              # and `firebase login`; no emulator, no Java)
+firebase deploy --only firestore:rules --dry-run  # compile only
 npm run key:check          # probe the Riot API key
 npm run record -- <matchId>  # record a custom game off the replay the League
                              # client is playing (docs/replay-recorder.md)
@@ -80,15 +86,15 @@ until a user noticed.
 - Firebase mode → Firestore `setDoc`/`deleteDoc`, with `stripUndefined()` first (Firestore rejects `undefined` fields).
 - Local mode → mutate the signal + `persistLocal()` to `localStorage`.
 
-In Firebase mode the signals are kept live by `onSnapshot` listeners set up in `initFirebase()`. When adding a new persisted entity, wire **all** of: the model in `team.models.ts` + `TeamData`, a signal, an `onSnapshot` listener, `EntityKey`, `pushLocalToSignals`/`persistLocal`, `seedFirestore`, and CRUD methods — mirror how `compResults` is done.
+In Firebase mode the signals are kept live by `onSnapshot` listeners, and since 27 Sep 2026 only `meta/settings` opens in `initFirebase()`: every other listener opens in `openMemberListeners()` once AuthService has set `userEmail`, and on sign-out or an account switch they all close and `clearMemberData()` puts every signal back to its empty value (the whole `access` list opens only while `canManageUsers()`; see "What the app owes the rules" below). When adding a new persisted entity, wire **all** of: the model in `team.models.ts` + `TeamData`, a signal, a listener in `openMemberListeners()` (through `listenList`/`listenMeta`, never a bare `onSnapshot`, so it gets the error callback), its reset in `clearMemberData()`, its path in `MEMBER_PATHS` in `team-data.service.listeners.spec.ts`, `EntityKey`, `pushLocalToSignals`/`persistLocal`, `seedFirestore`, and CRUD methods — mirror how `compResults` is done. That spec finds every writable signal on the service rather than listing them, and fails when one is filled by a member listen and survives sign-out, or is filled by none (a signal that is not an account's data goes in its `NOT_MEMBER_DATA`).
 
 **Firestore layout**: list collections `players`, `fillIns`, `comps`, `compResults`, `scrims` (replays), `tournaments`, `tournamentSeries`, `seriesGames`, `access`; singleton docs under `meta/` (`teamIdentity`, `macro`, `resourceLinks`, `settings`). `SEED_DATA` (`frontend/src/app/data/seed-data.ts`) is the one-time migration source and the local-mode seed; its shape must stay in sync with the `TeamData` interface.
 
 **Auth & roles** (`frontend/src/app/services/auth.service.ts`): roles are `admin` / `contributor` / `viewer`. `canEdit()` is true for local mode, `admin`, or `contributor`; `canManageUsers()` for local mode or `admin`. A bootstrap admin email is hardcoded (`ruanhart7@gmail.com`) in both the service and `firestore.rules`. Content routes are gated by `viewerGuard` (`frontend/src/app/app.routes.ts`); `AuthService.ready`/`waitUntilReady()` prevents guard-redirect races on refresh. **Sign-in is Google only** (9 Sep 2026; the email/password form went, nobody used it). The automated test user's door is `AuthService.loginWithToken`: a Firebase custom token on the login route's fragment (`/#token=…`), minted by the e2e runner from a service account (`FIREBASE_SERVICE_ACCOUNT` secret, `e2e/tests/auth.setup.ts`), then the same `access/{email}` gate — no password provider, no minting endpoint. A Riot reviewer gets a Google account added as a viewer on Admin › Access.
 
-**Firestore security** (`firestore.rules`, at the repo root): public read on everything; writes require `canEdit()` via the catch-all `match /{document=**}`, so a new collection is automatically covered (public read, editor write) — no rules change needed. `access` and `meta/settings` have their own stricter rules.
+**Firestore security** (`firestore.rules`, repo root; members only as written on 26 Sep 2026, and in force only from the `npm run deploy:rules` that follows the listener change below reaching Pages — until then production still serves the public-read ruleset released on 8 Sep 2026). Nothing is readable signed out except `meta/settings`, which the signed-out shell prints the team name from. Every other read of team data asks `hasAccess()`: the bootstrap admin, or an `access/{email}` entry whose `active` and `role` are both truthy — the same `!access.active || !access.role` test AuthService and the functions' `getAccessRoleByEmail` apply, so the rules and the app cannot disagree about who is in. `canEdit()` (admin or contributor) and `isAdmin()` require that active entry too. The token must come from one of the app's two doors, Google or the e2e runner's custom token (`sign_in_provider in ['google.com', 'custom']`), and carry an email; a new sign-in method needs its provider added there. Firestore ORs every rule that matches a path, so the old `match /{document=**} { allow read: if true }` had voided every stricter block (access, userPrefs, clientErrors and the crawler's state were world-readable, and a contributor could write `access` and make themselves admin). The catch-all is now `match /{collectionId}/{docId}` plus one for subcollections — members read, editors write — and stays out of the collections named in `ownBlock()` and out of `meta/settings`, so each path is decided by exactly one block. A collection given a block of its own must be added to `ownBlock()` too. The blocks: `access` — your own entry for anyone signed in (so AuthService learns 'inactive'), anyone else's entry, listing and writes admin only; `meta/settings` — public read, admin write; `userPrefs/{email}` — your own, as a member; `clientErrors` — members create, admins read, nobody edits; `crawlState`/`crawlSeen` — nobody. **What the app owes the rules:** open no listener except `meta/settings` before AuthService sets `userEmail` (a listen refused while signed out is dropped for good, never re-sent after sign-in); close every member listener on sign-out — `meta/settings` stays open, since the signed-out shell prints the team name from it — and reopen them on the next sign-in; listen to `access` only while `canManageUsers()`. Deploy the rules only once a `TeamDataService` that does all three is live on Pages: against a build that opens every listener at first paint, a signed-in tab sits on "Loading team data…" until it is reloaded. Scripts read through the admin SDK (the service account), which rules do not apply to. There is no emulator (no Java): `firebase deploy --only firestore:rules --dry-run` compiles without deploying, and `node scripts/rules-check.cjs` evaluates the rules against mocked requests through the Rules API test endpoint.
 
-**Cloud Functions** (`api/src/`): `enrichPlayer`, `getOpponentHistory`, `getCompAnalysis`, `refreshTeamDataOnce`, `draftAdvice`, `gameReview`, `riotKeyHealth`, `syncChampionTraits`, `crawlOnce` and `buildMatchupIndexOnce` are `onRequest` with `cors: true`, and `refreshTeamData`, `checkRiotKey`, `refreshChampionTraits`, `crawlChampionStats` and `buildMatchupIndex` are scheduled — fifteen in all (`draftAdvice` asks Claude — `claude-opus-5` through `@anthropic-ai/sdk` — for ranked picks or bans from a candidate list the draft room builds; needs the `ANTHROPIC_API_KEY` secret and refuses clearly without it; the prompt, schema and validation are pure in `draft-advice.ts`); `checkRiotKey` is a scheduled probe, and `refreshTeamData` (06:30 Europe/Amsterdam; `refreshTeamDataOnce` for an editor to run it by hand) re-reads every player and re-runs the analysis each morning, writing what it did to `meta/refreshLog` — the pure parts are in `daily-refresh.ts`. All use the `RIOT_API_KEY` secret and deploy to region `europe-west1` (see the `functionUrl` helpers in the services that call them). `index.ts` holds the handlers and the Riot I/O; the logic they call sits in tested modules beside it (`parse-request`, `riot-errors`, `match-stats`, `insights`, `analysis-cache`, `comp-match`). Deploy **all** of them with `npm run deploy:functions` from the repo root.
+**Cloud Functions** (`api/src/`): `enrichPlayer`, `getOpponentHistory`, `getCompAnalysis`, `refreshTeamDataOnce`, `draftAdvice`, `gameReview`, `riotKeyHealth`, `syncChampionTraits`, `crawlOnce` and `buildMatchupIndexOnce` are `onRequest` with `cors: true`, and `refreshTeamData`, `checkRiotKey`, `refreshChampionTraits`, `crawlChampionStats` and `buildMatchupIndex` are scheduled — fifteen in all (`draftAdvice` asks Claude — `claude-opus-5` through `@anthropic-ai/sdk` — for ranked picks or bans from a candidate list the draft room builds, with the other team as champions in seats only since 26 Sep 2026 (see "The advisor gets the other team…" below); needs the `ANTHROPIC_API_KEY` secret and refuses clearly without it; the prompt, schema and validation are pure in `draft-advice.ts`); `checkRiotKey` is a scheduled probe, and `refreshTeamData` (06:30 Europe/Amsterdam; `refreshTeamDataOnce` for an editor to run it by hand) re-reads every player and re-runs the analysis each morning, writing what it did to `meta/refreshLog` — the pure parts are in `daily-refresh.ts`. All use the `RIOT_API_KEY` secret and deploy to region `europe-west1` (see the `functionUrl` helpers in the services that call them). `index.ts` holds the handlers and the Riot I/O; the logic they call sits in tested modules beside it (`parse-request`, `riot-errors`, `match-stats`, `insights`, `analysis-cache`, `comp-match`). Deploy **all** of them with `npm run deploy:functions` from the repo root.
 
 **Pages and routes** (`frontend/src/app/app.routes.ts`, nav in `app/app.html`): every
 route is lazy via `loadComponent`, and every content route is behind `viewerGuard`
@@ -336,8 +342,9 @@ writes one `draftEvents` document per save — who, when, which game, the step
 it moved, and the changes in words ("Ban 2: Ahri", "Undo: removed our ADC
 Jinx", "Reset: every ban and pick cleared"). A hold-only change is skipped.
 `core/error-reporting.ts` is the app's `ErrorHandler`; it writes uncaught
-errors to `clientErrors` (any signed-in user may create one — see
-`firestore.rules`), capped at twenty a session and one row per message.
+errors to `clientErrors` (any member with an active entry may create one, and
+only an admin reads them — see `firestore.rules`), capped at twenty a session
+and one row per message.
 **A tab open across a deploy is the commonest thing in that log**, and
 `core/stale-build.ts` is the one rule for it (11 Sep 2026): every lazy chunk
 is content-hashed and Pages redeploys on every push touching `frontend/**`
@@ -405,6 +412,36 @@ a half-drafted game showed broken chips and counted blanks toward the five.
 **The advisor's auto-ask is a team setting, off by default.**
 `Settings.autoAdvisor` (Admin → Settings) gates the `autoAsk` effect in the
 draft room; "Ask what to pick" always works.
+
+**The advisor gets the other team as champions in seats, and nothing else** (26 Sep 2026). That day's support
+ticket to Riot (production key, App 876788) described `draftAdvice` as sending the other team "as champions in
+seats only, with no Riot IDs, names, ranks or records", while the code sent each opponent's game name, rank,
+per-champion record, counters and mastery, and the team's name; the lead chose to make the code match the ticket.
+**The server is the guard**, because a tab open across a deploy still sends the old fields:
+`parseDraftAdviceRequest` keeps only each opponent's `role` and `pool` whatever arrives, prints the other side as
+`OTHER_TEAM` ("the other team"), and `ADVISOR_SYSTEM` forbids naming, rating or describing any player of theirs.
+**The lanes fail closed**: they are kept only when the request carries `lanesWithoutTheirComfort: true`, because
+the old room sent the first three reasons of a lane sorted by size, so "Nautilus is a main for them (40 games,
+55%)" was often cut in the browser while its -8 stayed in the score, and no test of the sentences can see that
+(`OPPONENT_COMFORT_REASON` stays as a second belt). **The team's own text is scrubbed** — the notes and each comp's
+name, since "Anti-Zzq" names one of theirs — by `scrubTeamText` on both sides: links first (anything after
+`http(s)://` or `www.`, or a bare stat-site path, becomes `[link]`; a roster arrives as an op.gg multi-search link,
+where a Riot ID reads `MOSS+drakexo%23hwei%2C…` and no name match finds it), then names, then ranks written as a
+tier with a division or LP (`[rank]`), all before the notes are cut to 1500 — cut first and a name straddling the
+cut survives in half. **The names are replaced in the browser, by necessity**, because the current build sends the
+server none to look for, and the code says so: every stored game name and Riot ID of anyone on their roster, bench
+included (a `name` holding a whole `Name#TAG` counts both ways), becomes the seat ("their Jungle") and the team's
+name "the other team", whole-word, where a word is letters and digits in any script and `_` is a boundary. The
+server's `redactTerms` only ever meets names from a stale tab. **Every part of the request that could carry the
+other team is built by one pure, specced function**, `advisorRequestParts` in `pages/tournaments/advisor-request.ts`
+(their roster, `opponentBanPool` for a ban step, `advisorLanes` over the room's `laneSeats` with `theirComfort`
+taken out, the scrubbed comps and notes); `askAdvisor` takes those parts from it and builds none of them itself, so
+a tidy-up there cannot quietly send the raw notes again. The champions that have beaten one of their players are no
+longer ban candidates. **The scrub is not a guarantee**: a record, a nickname, a misspelling, a name written other
+than as stored or a short form of the team's name goes as typed, and the provider note says exactly that rather than
+"nothing about an opponent leaves". Our own players are still named: that is disclosed.
+`docs/ai-provider-note.md` lists every field the advisor sends; a change to the request changes that note too,
+and nothing about an opponent player goes back in without the lead reopening what the ticket told Riot.
 
 **Champion lanes come from pro match data, not from Riot.** Riot's champion tags
 are *classes*: Gragas is a Fighter in all three of his lanes, and "Support" is
@@ -1153,8 +1190,10 @@ filter rather than none, so it can never become unpickable.
    Work on this second on a death's card, which reaches the tape as a seek
    request with `lab` (`FilmSeekRequest.lab`) on the death's own second.
    Until the functions are deployed only the dev road makes a version 3
-   document: `scripts/dev-timeline.mjs` (`RIOT_API_KEY=... node
-   scripts/dev-timeline.mjs <matchId>` after `cd api && npm run build`)
+   document: `scripts/dev-timeline.mjs` (`FIREBASE_SERVICE_ACCOUNT=<json
+   or path> RIOT_API_KEY=... node scripts/dev-timeline.mjs <matchId>` after
+   `cd api && npm run build`; the account is the e2e runner's, and the
+   script reads `players` and `matchCache` through firebase-admin with it)
    builds one from `api/lib` and prints a `localStorage.setItem` line for
    the dev override `bom-dev-timeline:<matchId>`, which
    `MatchTimelineService.load` reads in dev builds only (after its cache,
