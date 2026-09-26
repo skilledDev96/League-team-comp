@@ -350,7 +350,9 @@ function fakeFirestore(players = ROSTER, game = { matchId: MATCH_ID, durationSec
   };
 }
 
-const OUT_DIR = path.join('C:', 'tmp', 'replay-shots');
+// Resolved, because the recorder resolves its --out-dir: on Windows 'C:/tmp/replay-shots' is already
+// absolute, but on the Linux CI runner it is relative and the two paths never matched.
+const OUT_DIR = path.resolve('C:', 'tmp', 'replay-shots');
 
 /** A rendered sequence, run-up first and the moment last; the sizes differ so the kept frames are identifiable. */
 const SEQUENCE_SIZES = [2048, 2560, 3072, 3584, 4096, 4608, 5120, 5632, 6144, 6656];
