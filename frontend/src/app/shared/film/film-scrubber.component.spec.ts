@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { FilmMoment } from '../../core/film-model';
 import { clockText, FilmScrubberComponent, minuteAt, neighbourMoment, secAt } from './film-scrubber.component';
 
@@ -46,6 +46,12 @@ describe('the scrubber seek math', () => {
 });
 
 describe('FilmScrubberComponent', () => {
+  // The reveal is measured with motion on. Other specs in the same run store the motion toggle
+  // off, and MotionService reads it at construction, so a full run drew the whole curve here.
+  beforeEach(() => {
+    localStorage.removeItem('bom-motion');
+  });
+
   function mount(inputs: Partial<Record<string, unknown>> = {}) {
     const fixture = TestBed.createComponent(FilmScrubberComponent);
     const all = { durationSec: 1800, goldDiff: [0, 200, -400, -1500, -900, 300], t: 600, moments, revealed: true, guess: 14, answer: 12, playing: false, ...inputs };
