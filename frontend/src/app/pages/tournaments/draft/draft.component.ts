@@ -72,7 +72,8 @@ import {
 } from '../draft-advice';
 import { indexTraits, traitsFor } from '../../../shared/comp-board.util';
 import { comfortOf, gamePlan, GamePlan, LaneRead, LaneVerdict, readLanes, SeatInput } from '../lane-read';
-import { countersFor, poolFor, starters } from '../../../core/opponent-view';
+import { poolFor, starters } from '../../../core/opponent-view';
+import { advisorRequestParts } from '../advisor-request';
 import { playsRole } from '../../../core/champion-lanes';
 import { MAP_SPOTS } from '../../../core/rift-zones';
 import { isSandboxSeries } from '../../../core/sandbox-series';
@@ -2079,10 +2080,13 @@ export class TournamentDraftComponent implements OnInit {
 
   // ---- The advisor --------------------------------------------------------
   //
-  // Everything the panels above already show, weighed at once by a model on
-  // the backend, answered in three ranked champions with a sentence each. It
+  // What the panels above already show, weighed at once by a model on the
+  // backend, answered in three ranked champions with a sentence each. It
   // only ranks: the candidates it may name are built here, already legal for
-  // the step, and the backend drops anything outside them.
+  // the step, and the backend drops anything outside them. The other team is
+  // sent as champions in seats and nothing else (26 Sep 2026): no names,
+  // ranks, records, counters or mastery, and the notes and the comp names
+  // are scrubbed first (`advisor-request.ts`).
 
   protected readonly advisor = inject(DraftAdvisorService);
   /** The stored answer for this game, if one has been asked. */
@@ -2106,11 +2110,18 @@ export class TournamentDraftComponent implements OnInit {
    *
    * For our pick: what fits the seat, our player's own pool and the comps
    * still reachable first, then the rest of the lane. For a ban: what the
-   * opponents play and what has beaten them, plus their likely next seat's
-   * pool. Everything is already filtered for the burn, the bans and the
-   * board, so the model cannot suggest a champion that cannot be taken.
+   * opponents play (`theirBanPool`, from `advisorRequestParts`), plus the
+   * champions our own comps fear. Everything is already filtered for the
+   * burn, the bans and the board, so the model cannot suggest a champion
+   * that cannot be taken.
+   *
+   * The champions that have beaten one of their players were ban candidates
+   * too until 26 Sep 2026. They are read off that player's own losses, and
+   * the advisor now gets the other team as champions in seats and nothing
+   * else (see `advisor-request.ts` `opponentBanPool`), so they are no longer
+   * sent even as a bare name in this list.
    */
-  private advisorCandidates(game: SeriesGame, action: 'ban' | 'pick', seat: Role | null): string[] {
+  private advisorCandidates(game: SeriesGame, action: 'ban' | 'pick', seat: Role | null, theirBanPool: readonly string[]): string[] {
     const blocked = blockedSet(this.sequenceUnavailable(game));
     const legal = (name: string) => !!name && !blocked.has(normalizeChampion(name));
     const out: string[] = [];
@@ -2145,11 +2156,7 @@ export class TournamentDraftComponent implements OnInit {
         if (seats.some((s) => playsRole(champ, s))) add(champ);
       }
     } else {
-      for (const player of starters(this.draftSeries()?.opponentPlayers ?? [])) {
-        for (const rec of poolFor(player)) add(rec.champion);
-        for (const rec of countersFor(player)) add(rec.champion);
-        for (const champ of player.recentChampions ?? []) add(champ);
-      }
+      for (const champ of theirBanPool) add(champ);
       // Their comps' answers to ours: the champions our own comps fear.
       for (const comp of this.draftPlayable(game)) {
         const source = this.data.comps().find((c) => c.id === comp.id);
@@ -2242,14 +2249,36 @@ export class TournamentDraftComponent implements OnInit {
     const seat = action === 'pick' && turn === 'our'
       ? (this.pendingSeat(live) ?? this.explicitSeat())
       : null;
-    const candidates = this.advisorCandidates(live, action, seat);
+    // The other team goes to the model as champions in seats and nothing else (26 Sep 2026, the Riot ticket of
+    // that day, App 876788): no team name, no Riot ID or game name, no rank, record, counters or mastery. The
+    // server strips all of it whatever arrives; what is left to do here is not send it, read the lanes without
+    // their players' comfort, and scrub the text the team wrote (the notes and the comp names). Every one of those
+    // parts is built by `advisorRequestParts`, which is pure and specced; take them from there, not from here.
+    const theirSide = advisorRequestParts({
+      series: this.draftSeries(),
+      seats: this.laneSeats(live),
+      // The five it would field on this board, not the five it was written with (20 Sep 2026): a comp
+      // playing its fallback used to be sent as "Nautilus, playable: true, blocked: [Nautilus]",
+      // which contradicts itself. `blocked` still lists every champion of the comp that is gone.
+      // A seat with nothing left keeps its written priority rather than dropping out, so the list is
+      // one champion a seat either way: a broken comp sending four names for a five-seat game read as
+      // a four-champion comp, and nothing said the two missing names had been one seat.
+      comps: this.draftComps(live).map((c) => ({
+        name: c.name,
+        champions: c.seats.map((s) => s.best || s.options[0]?.champion || '').filter(Boolean),
+        winRate: c.winRate,
+        games: c.games,
+        playable: c.playable,
+        blocked: c.blocked
+      }))
+    });
+
+    const candidates = this.advisorCandidates(live, action, seat, theirSide.banCandidates);
     if (!candidates.length) {
       this.adviceError.set('Nothing left to choose from for this step.');
       return;
     }
 
-    const series = this.draftSeries();
-    const theirs = starters(series?.opponentPlayers ?? []);
     const pickMap = (side: DraftSide) =>
       Object.fromEntries(this.pickSlots(live, side).filter((s) => s.champion).map((s) => [s.role, s.champion]));
 
@@ -2270,7 +2299,6 @@ export class TournamentDraftComponent implements OnInit {
 
     const request = {
       teamName: this.teamName(),
-      opponent: series?.opponent ?? 'Them',
       action,
       turn,
       stepNumber: positionOf(live) + 1,
@@ -2282,34 +2310,15 @@ export class TournamentDraftComponent implements OnInit {
       bans: (live.bans ?? []).filter((c) => c && !isNoBan(c)),
       burned: this.burnedBefore(live.seriesId, live.gameNumber),
       ourRoster: this.data.starters().map((p) => ({ name: p.name, role: p.role, pool: (p.top3 ?? []).slice(0, 10) })),
-      theirRoster: theirs.map((p) => ({
-        name: p.name,
-        role: p.role,
-        rank: p.soloRank ?? p.rank,
-        pool: poolFor(p).map((r) => r.champion),
-        records: poolFor(p).filter((r) => r.games > 0),
-        counters: countersFor(p).map((r) => r.champion),
-        mastery: (p.mastery ?? []).slice(0, 8)
-      })),
-      // The five it would field on this board, not the five it was written with (20 Sep 2026): a comp
-      // playing its fallback used to be sent as "Nautilus, playable: true, blocked: [Nautilus]",
-      // which contradicts itself. `blocked` still lists every champion of the comp that is gone.
-      // A seat with nothing left keeps its written priority rather than dropping out, so the list is
-      // one champion a seat either way: a broken comp sending four names for a five-seat game read as
-      // a four-champion comp, and nothing said the two missing names had been one seat.
-      comps: this.draftComps(live).map((c) => ({
-        name: c.name,
-        champions: c.seats.map((s) => s.best || s.options[0]?.champion || '').filter(Boolean),
-        winRate: c.winRate,
-        games: c.games,
-        playable: c.playable,
-        blocked: c.blocked
-      })),
-      lanes: this.readableLanes(live).map((r) => ({ lane: r.lane, verdict: r.verdict, score: r.score, reasons: r.reasons.slice(0, 3) })),
+      theirRoster: theirSide.theirRoster,
+      comps: theirSide.comps,
+      lanes: theirSide.lanes,
+      lanesWithoutTheirComfort: theirSide.lanesWithoutTheirComfort,
       candidates,
       soloRates,
       matchups,
-      notes: (series?.notes ?? '').slice(0, 1500) || undefined
+      // Scrubbed in the browser because only the browser holds the names: the server never receives them.
+      notes: theirSide.notes
     };
 
     this.adviceError.set('');
@@ -2346,12 +2355,20 @@ export class TournamentDraftComponent implements OnInit {
   // is there to talk about.
 
   protected laneReads(game: SeriesGame): LaneRead[] {
+    return readLanes(this.laneSeats(game));
+  }
+
+  /**
+   * Each seat's inputs to the lane read, both players' comfort included. The panel reads them whole; the advisor's
+   * request reads them through `advisorLanes`, which takes their players' comfort out first (26 Sep 2026).
+   */
+  private laneSeats(game: SeriesGame): SeatInput[] {
     const index = indexTraits(this.data.championTraits());
     const ourSlots = this.pickSlots(game, 'our');
     const theirSlots = this.pickSlots(game, 'their');
     const theirRoster = starters(this.draftSeries()?.opponentPlayers ?? []);
 
-    const seats: SeatInput[] = this.roles.map((role, i) => {
+    return this.roles.map((role, i): SeatInput => {
       const ours = ourSlots[i].champion;
       const theirs = theirSlots[i].champion;
       const matchup = ours && theirs ? this.matchups.rate(role, ours, theirs) : undefined;
@@ -2386,7 +2403,6 @@ export class TournamentDraftComponent implements OnInit {
         theirTraits: theirs ? traitsFor(index, this.champs.resolve(theirs)?.id) ?? undefined : undefined
       };
     });
-    return readLanes(seats);
   }
 
   /** Lanes with something to say, for the panel. */
