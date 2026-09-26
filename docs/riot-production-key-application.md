@@ -32,7 +32,7 @@ deleted** — Riot may re-check it, and removing it could invalidate the
 verification. The **Messages** tab is inbound only — Riot writes there, we cannot. The only
 outbound channel is a Developer Relations support ticket.
 
-**Nothing further was sent, deliberately.** The policy line about posting a
+**Support ticket sent 26 Sep 2026**, after 24 days in Pending Review: a status check carrying the reviewer account (`bomsquad.test@gmail.com`, role viewer), the re-recorded walkthrough (https://youtu.be/Zt3SRh9tRAg, unlisted, 2½ min, viewer account throughout) and a disclosure that `draftAdvice` and `gameReview` send Riot-derived data to Anthropic. The two App Notes questions were held, as decided. Until then, **nothing further was sent, deliberately.** The policy line about posting a
 question as an "App Note within the application" describes a field this portal
 does not have, so forcing it through a support queue would be answering stale
 guidance rather than reality. Both open questions — whether a production key
