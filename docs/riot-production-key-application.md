@@ -16,8 +16,8 @@ figures were measured on 2 Sep 2026 and are reproducible — see §6.
 > several parts of it would be actively harmful to send:
 >
 > - **§5** describes the app's data security — team data public read in
->   production until the members-only rules written on 26 Sep 2026 are
->   deployed, and reads not separated by team even then.
+>   production until the members-only rules were deployed on 27 Sep 2026,
+>   and reads not separated by team even now.
 >   A sensible note to ourselves; an irresponsible thing to hand a third party.
 > - **§5** also holds our own strategy reasoning, which reads as gaming the
 >   process however honestly it was meant.
@@ -34,7 +34,11 @@ deleted** — Riot may re-check it, and removing it could invalidate the
 verification. The **Messages** tab is inbound only — Riot writes there, we cannot. The only
 outbound channel is a Developer Relations support ticket.
 
-**Support ticket sent 26 Sep 2026**, after 24 days in Pending Review: a status check carrying the reviewer account (`bomsquad.test@gmail.com`, role viewer), the re-recorded walkthrough (https://youtu.be/Zt3SRh9tRAg, unlisted, 2½ min, viewer account throughout) and a disclosure that `draftAdvice` and `gameReview` send Riot-derived data to Anthropic. The two App Notes questions were held, as decided. Until then, **nothing further was sent, deliberately.** The policy line about posting a
+**Support ticket sent 26 Sep 2026**, after 24 days in Pending Review: a status check carrying the reviewer account (`bomsquad.test@gmail.com`, role viewer), the re-recorded walkthrough (https://youtu.be/Zt3SRh9tRAg, unlisted, 2½ min, viewer account throughout) and a disclosure that `draftAdvice` and `gameReview` send Riot-derived data to Anthropic. The two App Notes questions were held, as decided.
+
+**Correction sent 27 Sep 2026**, on the same ticket. The 26 Sep disclosure had said the other team reaches the model "as champions in seats only, with no Riot IDs, names, ranks or records", and had called the advisor pre-draft. That was true of `gameReview`, not of `draftAdvice`: until 27 Sep it sent each opponent's game name, rank, per-champion record, counters and mastery, plus the team name, and it runs at each step of the live draft. The correction set out what had been sent and when the advisor runs. It said the code now matches the disclosure (b7ccae7, seats and champions only, with the server dropping the old fields). It said the advisor arrived on 5 Sep, after the application, and that the database had allowed signed-out reads until the members-only rules of 27 Sep. It offered the field list or an editor login. Watch that thread for Riot's answer; a written OK from Riot is what settles whether sending this to a model provider is authorised.
+
+Before the 26 Sep ticket, **nothing further was sent, deliberately.** The policy line about posting a
 question as an "App Note within the application" describes a field this portal
 does not have, so forcing it through a support queue would be answering stale
 guidance rather than reality. Both open questions — whether a production key
@@ -262,14 +266,15 @@ separate product from the draft hub, it needs its own registration.
   **Now asked, as App Note 1 in the submission file.** Do not treat private as
   settled until Riot answers.
 - **Multi-team support.** Deferred with the decision above. The public version
-  would need teams separable so one cannot read another's scouting. The rules
-  released in production (8 Sep 2026) still grant public read on team data
-  (`allow read: if true`). The repository's `firestore.rules`, written on
-  26 Sep 2026, are members only — nothing is readable signed out except
+  would need teams separable so one cannot read another's scouting. Until
+  27 Sep 2026 the released rules (8 Sep) granted public read on team data
+  (`allow read: if true`). The members-only `firestore.rules` written on
+  26 Sep were deployed on 27 Sep 2026, after the app's listener change
+  (39311e6) reached Pages: nothing is readable signed out except
   `meta/settings` (the team name), and every other read needs an active
-  `access/{email}` entry — and come into force with the `npm run deploy:rules`
-  that follows the app's listener change reaching Pages. That deploy is also
-  what makes the submitted answer's "Neither is readable by anyone but the
+  `access/{email}` entry. Signed-out REST reads of players, series, games,
+  access and crawlState were checked to return 403 that night. That deploy is
+  also what made the submitted answer's "Neither is readable by anyone but the
   functions" (the crawler's state, under "How do you use the API?") true.
   Members only is right for one team's own hub and is still **not** enough for
   a multi-team product: membership is one flag for the whole database, so every
@@ -287,10 +292,9 @@ separate product from the draft hub, it needs its own registration.
 ## 6. Reproducing the evidence figures *(internal — not submitted)*
 
 Read straight from Firestore over REST, so the numbers in §3 can be re-measured
-before submitting rather than quoted from this document on trust. Once the
-members-only rules written on 26 Sep 2026 are deployed a request with no
-credentials is refused, so each one carries a Google OAuth access token (which
-changes nothing while the public-read rules are still the released ones). A request authenticated that way
+before submitting rather than quoted from this document on trust. Since the
+members-only rules were deployed on 27 Sep 2026 a request with no
+credentials is refused, so each one carries a Google OAuth access token. A request authenticated that way
 is judged by IAM, not by `firestore.rules`, so the project owner's account
 reads these documents as before (a Firebase ID token would be judged by the
 rules instead). It needs the Google Cloud CLI signed in (`gcloud auth login`) as
