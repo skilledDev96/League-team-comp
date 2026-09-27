@@ -86,8 +86,11 @@ test('the login screen offers a way in', async ({ page }) => {
  * on a checkout whose HEAD is not the commit being verified.
  */
 test('the deployed site is the build this run made', async ({ request }) => {
-  const expected = process.env.GITHUB_SHA;
-  test.skip(!expected, 'no GITHUB_SHA: nothing to compare the deployed build against');
+  // Set only by deploy.yml's verify job (27 Sep 2026). It used to read GITHUB_SHA, which every
+  // workflow has: the daily health check then compared the live build with main's newest commit
+  // and failed whenever that commit was one Pages never builds (docs, rules).
+  const expected = process.env.EXPECT_DEPLOYED_SHA;
+  test.skip(!expected, 'not a deploy run: nothing to compare the deployed build against');
 
   const short = expected!.slice(0, 7);
   // Pages can take a little while to serve the new build; poll rather than fail

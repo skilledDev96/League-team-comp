@@ -9,6 +9,11 @@ on:
     branches: [main]
     paths:
       - 'frontend/**'
+      # The build stamps API_SHA (the last api/ commit) and verify checks the deployed backend and
+      # runs e2e/, so a change to any of these must rebuild and re-verify (27 Sep 2026).
+      - 'api/**'
+      - 'e2e/**'
+      - 'scripts/gen-build-info.mjs'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
@@ -86,6 +91,8 @@ jobs:
           # authenticated tests are not registered at all.
           E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          # The build this run deployed; site.spec waits for Pages to serve it.
+          EXPECT_DEPLOYED_SHA: ${{ github.sha }}
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

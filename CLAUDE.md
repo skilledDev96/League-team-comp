@@ -7,7 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Frontend and backend are separate packages, with the Firebase project at the repo root:
 
 - **`frontend/`** — the Angular app (**Bom Squad Draft Hub**). GitHub Pages deploys
-  only this (see `.github/workflows/deploy.yml`, which filters on `frontend/**`).
+  only this (see `.github/workflows/deploy.yml`). It rebuilds on a push touching `frontend/**`, `api/**`, `e2e/**`
+  or `scripts/gen-build-info.mjs` (since 27 Sep 2026: the build stamps the last api/ commit, and its verify job
+  checks the deployed backend and runs e2e/), never on a docs- or rules-only commit.
 - **`api/`** — the Cloud Functions. Its own `package.json`, `tsconfig` and build.
 - **`e2e/`** — Playwright checks against the **deployed** system, not a local
   build. Its own package again; see `e2e/README.md`.
@@ -20,7 +22,9 @@ there is the Firebase product, not the directory.
 
 ## Where the reasoning lives
 
-`docs/2026-08-21-session-summary.md`, `HANDOVER.md` (30 Aug) and `docs/handover-2026-09-05.md` record *why* things are the
+**Start with `docs/handover-2026-09-27.md`**: where everything stands, how to work here now and every open item,
+written when all the earlier chats were consolidated and deleted. `docs/2026-08-21-session-summary.md`, `HANDOVER.md`
+(30 Aug), `docs/handover-2026-09-05.md` and `docs/handover-2026-09-26.md` (the Riot ticket) record *why* things are the
 way they are — decisions, reversals, open questions — and `docs/global-plan.md` is the
 longer-range plan (multi-link import, multi-tenancy, user-supplied datasets) with its
 legal reasoning. Read them before proposing something they already settled.
@@ -351,7 +355,7 @@ only an admin reads them — see `firestore.rules`), capped at twenty a session
 and one row per message.
 **A tab open across a deploy is the commonest thing in that log**, and
 `core/stale-build.ts` is the one rule for it (11 Sep 2026): every lazy chunk
-is content-hashed and Pages redeploys on every push touching `frontend/**`
+is content-hashed and Pages redeploys on every push touching `frontend/**` (or `api/**`, `e2e/**`)
 — dozens a day — so an open tab asks for names that are gone.
 `isStaleChunkError` knows all three engines' wordings and `reloadForStaleBuild`
 reloads **once per target**, because a chunk that is genuinely missing would
