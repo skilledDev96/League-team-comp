@@ -125,6 +125,26 @@ describe('parseCompAnalysisRequest', () => {
     expect(parseCompAnalysisRequest({ players: roster(5), comps: 'nope' }).comps).toEqual([]);
   });
 
+  // The team (27 Sep 2026, release 2). Every request sent before it carried no teamId and meant
+  // the root, so absent stays the root; a value that is not a team id is refused rather than read
+  // as the root, because it meant another team's data.
+  it('reads no teamId, a null one and the word default as the root', () => {
+    expect(parseCompAnalysisRequest({ players: roster(5) }).teamId).toBe('default');
+    expect(parseCompAnalysisRequest({ players: roster(5), teamId: null }).teamId).toBe('default');
+    expect(parseCompAnalysisRequest({ players: roster(5), teamId: 'default' }).teamId).toBe('default');
+  });
+
+  it('reads a team id', () => {
+    expect(parseCompAnalysisRequest({ players: roster(5), teamId: 'b' }).teamId).toBe('b');
+    expect(parseCompAnalysisRequest({ players: roster(5), teamId: 'bom-squad-2' }).teamId).toBe('bom-squad-2');
+  });
+
+  it('refuses a capital, the teams collection and anything else that is not a team id', () => {
+    for (const teamId of ['B', 'teams', '', 'a/b', 'bom squad', 42]) {
+      expect(() => parseCompAnalysisRequest({ players: roster(5), teamId }), JSON.stringify(teamId)).toThrow('teamId must be a team id.');
+    }
+  });
+
   it('keeps only the champion entries that are strings', () => {
     const parsed = parseCompAnalysisRequest({
       players: roster(5),

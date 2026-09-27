@@ -44,6 +44,19 @@ function assertTeamId(teamId: string): void {
 }
 
 /**
+ * The team a request names, as every parser reads it. Absent, null and the word default all mean
+ * the root, which is what every request sent before release 2 meant; anything else must be a team
+ * id, and a value that is not one is refused rather than quietly read as the root, because a body
+ * that carries `teamId: 'B'` meant another team and must not land on Bom Squad's paths. Answers the
+ * string and not the paths so a handler can echo what it resolved to.
+ */
+export function parseTeamId(value: unknown): string {
+  if (value == null || value === DEFAULT_TEAM_ID) return DEFAULT_TEAM_ID;
+  if (!isTeamId(value)) throw new Error('teamId must be a team id.');
+  return value;
+}
+
+/**
  * The Firestore path of a team's collection or document. For the default team it is the segments
  * joined and nothing else, so `scopedPath(DEFAULT_TEAM_ID, 'meta', 'refreshLog')` is the string
  * `'meta/refreshLog'` the code held as a literal before. For any other team the same segments sit

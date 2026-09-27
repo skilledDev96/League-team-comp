@@ -74,8 +74,8 @@ const ctx: ReviewContext = {
 
 describe('parseGameReviewRequest', () => {
   it('takes a Riot id or a replay id, and the four axes when sent', () => {
-    expect(parseGameReviewRequest({ matchId: 'EUW1_7000' })).toEqual({ matchId: 'EUW1_7000' });
-    expect(parseGameReviewRequest({ matchId: 'EUW1-7000', expect: null })).toEqual({ matchId: 'EUW1-7000', expect: null });
+    expect(parseGameReviewRequest({ matchId: 'EUW1_7000' })).toEqual({ matchId: 'EUW1_7000', teamId: 'default' });
+    expect(parseGameReviewRequest({ matchId: 'EUW1-7000', expect: null })).toEqual({ matchId: 'EUW1-7000', expect: null, teamId: 'default' });
     expect(parseGameReviewRequest({ matchId: 'EUW1_1', expect: { early: 'high', scaling: 'mid', objectives: 'low', teamfight: 'mid' } }).expect).toEqual({ early: 'high', scaling: 'mid', objectives: 'low', teamfight: 'mid' });
   });
 
@@ -83,6 +83,27 @@ describe('parseGameReviewRequest', () => {
     expect(() => parseGameReviewRequest({ matchId: '../x' })).toThrow(/matchId/);
     expect(() => parseGameReviewRequest({ matchId: 'EUW1_1', expect: { early: 'huge' } })).toThrow(/expect/);
     expect(() => parseGameReviewRequest('nope')).toThrow(/JSON/);
+  });
+
+  // The team (27 Sep 2026, release 2). Every request sent before it carried no teamId and meant
+  // the root, so absent stays the root; a value that is not a team id is refused rather than read
+  // as the root, because it meant another team's game.
+  it('reads no teamId, a null one and the word default as the root', () => {
+    expect(parseGameReviewRequest({ matchId: 'EUW1_1' }).teamId).toBe('default');
+    expect(parseGameReviewRequest({ matchId: 'EUW1_1', teamId: null }).teamId).toBe('default');
+    expect(parseGameReviewRequest({ matchId: 'EUW1_1', teamId: 'default' }).teamId).toBe('default');
+  });
+
+  it('reads a team id', () => {
+    expect(parseGameReviewRequest({ matchId: 'EUW1_1', teamId: 'b' })).toEqual({ matchId: 'EUW1_1', teamId: 'b' });
+    expect(parseGameReviewRequest({ matchId: 'EUW1-1', teamId: 'bom-squad-2', expect: null })).toEqual({ matchId: 'EUW1-1', expect: null, teamId: 'bom-squad-2' });
+  });
+
+  it('refuses a capital, the teams collection and anything else that is not a team id, before it looks at the match', () => {
+    for (const teamId of ['B', 'teams', '', 'a/b', 'bom squad', 42]) {
+      expect(() => parseGameReviewRequest({ matchId: 'EUW1_1', teamId }), JSON.stringify(teamId)).toThrow('teamId must be a team id.');
+    }
+    expect(() => parseGameReviewRequest({ matchId: '../x', teamId: 'B' })).toThrow('teamId must be a team id.');
   });
 });
 

@@ -65,6 +65,7 @@ import { compareCurve, GameFacts, k } from './game-facts';
 import { LaneRead, LaneRole, PlayerFacts } from './lane-read';
 import { LaneMatchup, matchupLines } from './lane-matchups';
 import { deathLines, fightLines, FIGHT_WINDOW_SEC, MAX_DEATH_LINES, MAX_FIGHT_LINES, ReplayRecording } from './replay-recording';
+import { parseTeamId } from './team-scope';
 
 export const REVIEW_VERSION = 8;
 
@@ -95,11 +96,18 @@ export interface GameReviewRequest {
   matchId: string;
   /** The comp's axes as the page shows them right now, over what is stored. */
   expect?: CompExpectation | null;
+  /**
+   * The team the game belongs to (27 Sep 2026, release 2): `default` is the root and what every
+   * request without one means; any other value is a `teams/{teamId}` prefix, checked by
+   * `team-scope.ts`. Always present after the parse, so the handler can echo what it wrote for.
+   */
+  teamId: string;
 }
 
 export function parseGameReviewRequest(body: unknown): GameReviewRequest {
   if (!body || typeof body !== 'object') throw new Error('Invalid payload. Expected a JSON object.');
   const b = body as Record<string, unknown>;
+  const teamId = parseTeamId(b.teamId);
   const matchId = typeof b.matchId === 'string' ? b.matchId.trim() : '';
   if (!/^[A-Za-z0-9]+[_-]\d+$/.test(matchId)) throw new Error('matchId must be a Riot match id or a replay id.');
   let expect: CompExpectation | null | undefined;
@@ -111,7 +119,7 @@ export function parseGameReviewRequest(body: unknown): GameReviewRequest {
   } else if (b.expect === null) {
     expect = null;
   }
-  return { matchId, ...(expect !== undefined && { expect }) };
+  return { matchId, ...(expect !== undefined && { expect }), teamId };
 }
 
 // ---- The context ---------------------------------------------------------------

@@ -1,6 +1,6 @@
 # Cloud Functions
 
-The Firebase Cloud Functions behind Bom Squad Draft Hub — fifteen of them; `CLAUDE.md` at the repo root is the
+The Firebase Cloud Functions behind Bom Squad Draft Hub — sixteen of them; `CLAUDE.md` at the repo root is the
 authoritative list of what each one does and how they fit together. This file keeps the `enrichPlayer` request
 contract and the local build and deploy notes.
 
@@ -91,6 +91,36 @@ await run('buildMatchupIndexOnce');          // republish matchupIndex from matc
 // await run('crawlOnce');                   // one crawl tick; the reply states the switch
 // await run('crawlOnce', '?enable=false');  // move the switch (true / false), then tick
 ```
+
+### Refreshing a team by hand
+
+`refreshTeamDataOnce` runs the morning refresh on demand for an editor (admin or contributor). Since release 2
+(27 Sep 2026) its body may name the team: no body at all is the root, Bom Squad, exactly as before; `{ teamId }`
+runs it for `teams/<id>/` instead, and its log lands at `teams/<id>/meta/refreshLog`. Nothing in the app calls it
+for another team yet, so with `BASE` and `token` from the snippet above:
+
+```js
+const refresh = async (teamId) => {
+  const response = await fetch(`${BASE}/refreshTeamDataOnce`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: teamId ? JSON.stringify({ teamId }) : undefined
+  });
+  console.log('refreshTeamDataOnce', response.status, await response.json());
+};
+
+await refresh('<team id>');   // one team, under teams/<team id>/; the answer is its log and names the team
+// await refresh();           // no body: the root, Bom Squad
+```
+
+A run takes minutes, so the tab waits; a 400 `teamId must be a team id.` means the id is not lower-case letters, digits
+and hyphens (1 to 40, starting with a letter or digit) or is the word `teams`; `default`, null and no body all mean the
+root.
+
+The other teams' mornings are `refreshTeams`, scheduled at 07:00, 07:15, 07:30 and 07:45 Amsterdam after the root's
+`refreshTeamData` at 06:30: each tick runs the same refresh for exactly one team from the root `teams` list, never the
+root, skipping a team switched off (`refresh: 'off'` on its document) or already run or started today, the one refreshed
+longest ago first. Nothing runs it by hand; the snippet above is the way to refresh one team now.
 
 A 401 saying the token could not be verified means the stored token had expired: reload the tab (the SDK refreshes
 it) and run the snippet again. For a terminal instead, `copy(token)` in the same console and

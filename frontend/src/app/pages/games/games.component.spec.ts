@@ -1,11 +1,16 @@
+import { signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { TestBed } from '@angular/core/testing';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { environment } from '../../../environments/environment';
+import { BACKEND_BEHIND, BackendBehindError } from '../../core/team-echo';
+import { DEFAULT_TEAM_ID } from '../../core/team-scope';
 import { AnalysisGame, CompAnalysis, Scrim, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
+import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { ToastService } from '../../services/toast.service';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { GamesComponent } from './games.component';
 
@@ -445,5 +450,55 @@ describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, Starter an
     expect(cells).toContain('7.0');
     expect(cells).toContain('6.0');
     expect(cells).toContain('31.0');
+  });
+});
+
+/**
+ * The page's own Refresh pill is the second applier of an analysis answer (27 Sep 2026, release 2,
+ * Stage 2): the service refuses an answer computed for another team, and the page then shows one
+ * toast and applies nothing, while any other failure stays on the page's own line as before.
+ */
+describe.skipIf(typeof localStorage === 'undefined')('GamesComponent, refreshing the analysis', () => {
+  /** The analysis service as the test drives it: the call is a stub, the running flag is real enough. */
+  const compAnalysis = { running: signal(false), refresh: vi.fn<() => Promise<CompAnalysis>>() };
+  let data: TeamDataService;
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    compAnalysis.running.set(false);
+    compAnalysis.refresh.mockReset();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [provideRouter([{ path: 'games', component: GamesComponent }]), { provide: CompAnalysisService, useValue: compAnalysis }]
+    });
+    data = TestBed.inject(TeamDataService);
+  });
+
+  async function page(): Promise<{ refreshAnalysis(): Promise<void>; analysisError(): string }> {
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/games', GamesComponent);
+    harness.detectChanges();
+    return harness.routeDebugElement!.componentInstance as { refreshAnalysis(): Promise<void>; analysisError(): string };
+  }
+
+  it('shows one toast and applies nothing when the service refuses an answer computed for another team', async () => {
+    const before = { games: [riotGame], comps: [], totalTeamGames: 1, scannedMatches: 1, generatedAt: new Date(TODAY).toISOString() } as CompAnalysis;
+    data.compAnalysis.set(before);
+    compAnalysis.refresh.mockRejectedValue(new BackendBehindError('b', DEFAULT_TEAM_ID));
+    const comp = await page();
+    await comp.refreshAnalysis();
+    expect(comp.analysisError()).toBe('');
+    expect(data.compAnalysis()).toBe(before);
+    const toasts = TestBed.inject(ToastService).toasts();
+    expect(toasts.filter((t) => t.title === BACKEND_BEHIND).map((t) => t.kind)).toEqual(['warn']);
+  });
+
+  it("keeps any other failure on the page's own line, with no toast of its own", async () => {
+    compAnalysis.refresh.mockRejectedValue(new Error('Riot answered 503.'));
+    const comp = await page();
+    await comp.refreshAnalysis();
+    expect(comp.analysisError()).toBe('Riot answered 503.');
+    expect(TestBed.inject(ToastService).toasts().some((t) => t.title === BACKEND_BEHIND)).toBe(false);
   });
 });

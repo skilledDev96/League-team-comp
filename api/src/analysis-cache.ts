@@ -9,6 +9,7 @@
  */
 
 import { normalizeSeats } from './comp-match';
+import { parseTeamId } from './team-scope';
 
 /** Only the field the trust check reads; callers pass richer objects. */
 export interface CachedParticipant {
@@ -110,6 +111,12 @@ export interface CompAnalysisRequestInput {
   comps: AnalysisCompInput[];
   /** matchId -> compId, for games a person has placed by hand. */
   overrides: Record<string, string>;
+  /**
+   * The team the analysis is for (27 Sep 2026, release 2): `default` is the root, Bom Squad, and
+   * what every request without one means; any other value is a `teams/{teamId}` prefix, checked by
+   * `team-scope.ts`. Always present after the parse, so the handler can echo what it wrote for.
+   */
+  teamId: string;
 }
 
 /**
@@ -121,7 +128,10 @@ export function parseCompAnalysisRequest(body: unknown): CompAnalysisRequestInpu
     throw new Error('Invalid payload. Expected a JSON object.');
   }
 
-  const candidate = body as { players?: unknown; comps?: unknown };
+  const candidate = body as { players?: unknown; comps?: unknown; teamId?: unknown };
+  // Before the roster: a request for a team that does not exist should fail on the team, not on
+  // whatever else is wrong with it.
+  const teamId = parseTeamId(candidate.teamId);
   if (!Array.isArray(candidate.players) || candidate.players.length < 5 || candidate.players.length > 10) {
     throw new Error('players must contain between 5 and 10 roster members.');
   }
@@ -174,5 +184,5 @@ export function parseCompAnalysisRequest(body: unknown): CompAnalysisRequestInpu
     }
   }
 
-  return { players, comps, overrides };
+  return { players, comps, overrides, teamId };
 }

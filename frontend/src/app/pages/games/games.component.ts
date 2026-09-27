@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { MvpBannerComponent } from '../../shared/mvp-banner.component';
 import { DetailToggleComponent } from '../../shared/detail-toggle.component';
 import { reviewFailure } from '../../core/review-error';
+import { BACKEND_BEHIND, BACKEND_BEHIND_TOAST, isBackendBehind } from '../../core/team-echo';
 import { matchLink } from '../../core/match-link';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -632,6 +633,12 @@ export class GamesComponent {
       const result = await this.analysis.refresh(this.data.players(), this.data.comps(), this.data.compOverrideMap());
       this.data.compAnalysis.set(result);
     } catch (err) {
+      // An answer computed for another team (a deployment older than release 2 ignoring `teamId`) was
+      // refused by the service and is not applied; one toast says what to do about it.
+      if (isBackendBehind(err)) {
+        this.toast.show(BACKEND_BEHIND, BACKEND_BEHIND_TOAST);
+        return;
+      }
       this.analysisError.set(err instanceof Error ? err.message : 'Analysis failed.');
     }
   }

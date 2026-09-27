@@ -71,6 +71,10 @@ export function reviewFailure(raw: string | undefined): ReviewFailure | null {
     return { said: 'The reviewer would not accept our key.', fix: 'An admin can check the ANTHROPIC_API_KEY secret and redeploy the functions.', detail: inner };
   }
   if (low.includes('sign in')) return { said: inner, detail: inner };
+  if (low.includes('behind this build')) {
+    // Release 2's echo check refused the answer: the deployed function ignored the team (core/team-echo.ts).
+    return { said: 'The backend is behind this build.', fix: 'Deploy the functions, then press Re-review.', detail: inner };
+  }
   if (low.includes('declined')) {
     return { said: 'The reviewer declined to write about this game.', fix: 'That usually means the facts were too thin to say anything honest about.', detail: inner };
   }

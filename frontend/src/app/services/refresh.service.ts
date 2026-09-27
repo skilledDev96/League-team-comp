@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Player } from '../models/team.models';
+import { BACKEND_BEHIND, BACKEND_BEHIND_TOAST, isBackendBehind } from '../core/team-echo';
+import { CompAnalysis, Player } from '../models/team.models';
 import { ActivityService } from './activity.service';
 import { CompAnalysisService } from './comp-analysis.service';
 import { PlayerEnrichmentService } from './player-enrichment.service';
@@ -108,14 +109,26 @@ export class RefreshService {
     return { done, failed };
   }
 
-  /** Re-run the comp analysis over the stored roster, comps and overrides. */
+  /**
+   * Re-run the comp analysis over the stored roster, comps and overrides. An
+   * answer the backend computed for another team (a deployment older than
+   * release 2 ignoring `teamId`) is refused by the service and never applied;
+   * this says why, once. Any other failure is the activity board's to report.
+   */
   async refreshAnalysis(): Promise<void> {
     if (this.analysis.running()) return;
-    const result = await this.analysis.refresh(
-      this.data.players(),
-      this.data.comps(),
-      this.data.compOverrideMap()
-    );
+    let result: CompAnalysis;
+    try {
+      result = await this.analysis.refresh(
+        this.data.players(),
+        this.data.comps(),
+        this.data.compOverrideMap()
+      );
+    } catch (error) {
+      if (!isBackendBehind(error)) throw error;
+      this.toast.show(BACKEND_BEHIND, BACKEND_BEHIND_TOAST);
+      return;
+    }
     // Firebase mode updates over the snapshot listener; set it directly as
     // well so the page reflects the fresh result at once.
     this.data.compAnalysis.set(result);

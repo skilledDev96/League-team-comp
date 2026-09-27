@@ -823,6 +823,11 @@ export interface RefreshLog {
   ranAt: string;
   finishedAt: string;
   trigger: 'schedule' | 'manual';
+  /**
+   * The team the run was for (27 Sep 2026, release 2): `default` for the root, Bom Squad, else the
+   * `teams/{teamId}` prefix the log sits under. Absent on logs written before it. Mirrors api/src/daily-refresh.ts.
+   */
+  teamId?: string;
   playersUpdated: string[];
   playersFailed: string[];
   playersSkipped: string[];

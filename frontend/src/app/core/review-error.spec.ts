@@ -27,6 +27,10 @@ describe('reviewFailure', () => {
     expect(reviewFailure('401 {"error":{"message":"invalid x-api-key"}}')!.said).toContain('would not accept our key');
     expect(reviewFailure('503 upstream failure')!.said).toContain('on its own side');
     expect(reviewFailure('TypeError: Failed to fetch')!.said).toContain('never reached the reviewer');
+    // Release 2's echo check: the row and the takeover split the sentence into what happened and what to do.
+    const behind = reviewFailure('The backend is behind this build. Deploy the functions, then refresh again.')!;
+    expect(behind.said).toBe('The backend is behind this build.');
+    expect(behind.fix).toContain('Deploy the functions');
     for (const raw of ['429 rate limit exceeded', '401 {"error":{"message":"invalid x-api-key"}}']) {
       expect(reviewFailure(raw)!.fix, raw).toBeTruthy();
     }

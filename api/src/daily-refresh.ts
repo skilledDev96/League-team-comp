@@ -265,6 +265,11 @@ export interface RefreshLog {
   ranAt: string;
   finishedAt: string;
   trigger: 'schedule' | 'manual';
+  /**
+   * The team the run was for (27 Sep 2026, release 2): `default` for the root, Bom Squad, else the
+   * `teams/{teamId}` prefix the log sits under. Absent on logs written before it.
+   */
+  teamId?: string;
   playersUpdated: string[];
   playersFailed: string[];
   /** Players left for the next run because the time budget ran out. */

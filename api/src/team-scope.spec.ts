@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_TEAM_ID, isTeamId, scopedPath, storageKeyFor, teamPaths } from './team-scope';
+import { DEFAULT_TEAM_ID, isTeamId, parseTeamId, scopedPath, storageKeyFor, teamPaths } from './team-scope';
 
 /**
  * The mirror check. The fixture table below is the same, case for case, as the one in
@@ -120,5 +120,23 @@ describe('teamPaths', () => {
       expect(() => teamPaths(id), JSON.stringify(id)).toThrow();
     }
     expect(() => teamPaths('b').doc('players', '')).toThrow();
+  });
+});
+
+describe('parseTeamId', () => {
+  it('reads absent, null and the word default as the root', () => {
+    expect(parseTeamId(undefined)).toBe(DEFAULT_TEAM_ID);
+    expect(parseTeamId(null)).toBe(DEFAULT_TEAM_ID);
+    expect(parseTeamId('default')).toBe(DEFAULT_TEAM_ID);
+  });
+
+  it('answers a team id as it is', () => {
+    for (const id of TEAM_IDS_ACCEPTED) expect(parseTeamId(id), id).toBe(id);
+  });
+
+  it('refuses everything else with the one message the three parsers share, rather than reading it as the root', () => {
+    for (const value of [...TEAM_IDS_REFUSED.filter((v) => v !== DEFAULT_TEAM_ID), 1, {}, ['b'], true]) {
+      expect(() => parseTeamId(value), JSON.stringify(value)).toThrow('teamId must be a team id.');
+    }
   });
 });

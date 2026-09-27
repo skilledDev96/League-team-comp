@@ -86,6 +86,8 @@ import {
 } from './game-review';
 import { MAX_REVIEW_SHOTS, MAX_SHOT_BYTES, recordingLines, ReplayRecording, ReplayShot, ReplayShotRef, shotsFor } from './replay-recording';
 import { amsterdamDay, appendRankPoints, RankHistoryDoc, rankPointsFrom } from './rank-history';
+import { isTeamId, TeamPaths, teamPaths } from './team-scope';
+import { nextTeamToRefresh, parseRefreshTeamRequest } from './team-refresh';
 import {
   CompExpectation,
   MAX_TIMELINE_FETCHES,
@@ -1369,14 +1371,21 @@ interface RiotTimelineResponse {
   info: { frameInterval?: number; participants?: { participantId: number; puuid: string }[]; frames: unknown[] };
 }
 
-/** The derived timeline for one game, from Firestore when current, else from Riot. */
+/**
+ * The derived timeline for one game, from Firestore when current, else from Riot.
+ *
+ * The derived document is the team's, under `paths`: it carries our side and our names, so two
+ * teams in one game each need their own. The raw match it is built from is the same for everyone
+ * who played it, so `matchCache` stays at the root whatever the team.
+ */
 async function getMatchTimeline(
   matchId: string,
   roster: ResolvedRoster,
-  apiKey: string
+  apiKey: string,
+  paths: TeamPaths
 ): Promise<{ timeline: MatchTimeline | null; fromCache: boolean }> {
   const db = getFirestore();
-  const ref = db.doc(`matchTimeline/${matchId}`);
+  const ref = db.doc(paths.doc('matchTimeline', matchId));
   const snap = await ref.get();
   const matchSnap = await db.doc(`matchCache/${matchId}`).get();
   if (!matchSnap.exists) return { timeline: null, fromCache: false };
@@ -1452,7 +1461,8 @@ async function backfillTimelines(
   practiceIds: ReadonlySet<string>,
   roster: ResolvedRoster,
   apiKey: string,
-  deadlineMs: number
+  deadlineMs: number,
+  paths: TeamPaths
 ): Promise<NonNullable<RefreshLog['timelines']>> {
   const wanted = timelineCandidates(games, practiceIds, Number.MAX_SAFE_INTEGER);
   const batch = wanted.slice(0, MAX_TIMELINE_FETCHES);
@@ -1465,7 +1475,7 @@ async function backfillTimelines(
       break;
     }
     try {
-      const { timeline } = await getMatchTimeline(game.matchId, roster, apiKey);
+      const { timeline } = await getMatchTimeline(game.matchId, roster, apiKey, paths);
       if (timeline) fetched += 1;
       else failed += 1;
     } catch (error) {
@@ -1561,9 +1571,16 @@ async function resolveRoster(players: RosterPlayerRequest[], apiKey: string): Pr
   };
 }
 
+/**
+ * The analysis of one team's games. `paths` says whose: the scrims it reads and the timeline
+ * coverage it marks are the team's own (release 2, 27 Sep 2026), while the match cache the games
+ * come from is shared by every team at the root, because a Riot match is the same document
+ * whoever asks for it.
+ */
 async function computeCompAnalysis(
   payload: CompAnalysisRequest,
   apiKey: string,
+  paths: TeamPaths,
   resolved?: ResolvedRoster
 ): Promise<CompAnalysisResponse> {
   const { routing, identities, rosterPuuids, nameByPuuid } = resolved ?? (await resolveRoster(payload.players, apiKey));
@@ -1585,7 +1602,7 @@ async function computeCompAnalysis(
   );
   const scrimMatches = new Map<string, CachedMatch>();
   try {
-    const snap = await getFirestore().collection('scrims').get();
+    const snap = await getFirestore().collection(paths.col('scrims')).get();
     for (const doc of snap.docs) {
       const scrim = { id: doc.id, ...(doc.data() as Omit<StoredScrim, 'id'>) };
       const asMatch = scrimAsMatch(scrim, puuidByRiotId);
@@ -1856,7 +1873,7 @@ async function computeCompAnalysis(
   // Which games have a derived timeline. One query over one field, so the
   // pages can say "no timeline yet" without reading two hundred documents.
   try {
-    const snap = await getFirestore().collection('matchTimeline').select('timelineVersion').get();
+    const snap = await getFirestore().collection(paths.col('matchTimeline')).select('timelineVersion').get();
     const current = new Set(snap.docs.filter((d) => isTimelineCurrent(d.data() as { timelineVersion?: number })).map((d) => d.id));
     for (const game of games) {
       if (game.queue === 'Scrim') game.timelineData = 'none';
@@ -1913,10 +1930,14 @@ export const getCompAnalysis = onRequest(
         return;
       }
       const payload = parseCompAnalysisRequest(req.body);
-      const analysis = await computeCompAnalysis(payload, RIOT_API_KEY.value());
+      const paths = teamPaths(payload.teamId);
+      const analysis = await computeCompAnalysis(payload, RIOT_API_KEY.value(), paths);
       // Cache the result so viewers see it without re-running the analysis.
-      await getFirestore().doc('meta/compAnalysis').set(stripUndefinedDeep(analysis));
-      res.status(200).json(analysis);
+      await getFirestore().doc(paths.doc('meta', 'compAnalysis')).set(stripUndefinedDeep(analysis));
+      // The team it was written for rides on the answer, so a caller can refuse a response computed
+      // for another scope: a deployment older than release 2 ignores `teamId` and answers for the
+      // root, and the answer would say nothing about it otherwise.
+      res.status(200).json({ ...analysis, teamId: paths.teamId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unexpected error.';
       res.status(400).json({ error: message });
@@ -1933,15 +1954,21 @@ export const getCompAnalysis = onRequest(
 // `daily-refresh.ts` — with a time budget, because a scheduled function has
 // nine minutes and a player costs about one.
 
-async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['trigger']): Promise<RefreshLog> {
+/**
+ * One team's morning, whichever team: every read and write of the team's own data goes through
+ * `paths` (release 2, 27 Sep 2026), so the root paths and a `teams/{teamId}` prefix run the same
+ * code. Only the match cache is read and written at the root, because a Riot match is the same
+ * document for every team that played it.
+ */
+async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['trigger'], paths: TeamPaths): Promise<RefreshLog> {
   const db = getFirestore();
   const startedAt = Date.now();
   const ranAt = new Date(startedAt).toISOString();
 
   const [playersSnap, compsSnap, overridesSnap] = await Promise.all([
-    db.collection('players').get(),
-    db.collection('comps').get(),
-    db.collection('compOverrides').get()
+    db.collection(paths.col('players')).get(),
+    db.collection(paths.col('comps')).get(),
+    db.collection(paths.col('compOverrides')).get()
   ]);
   const players = playersSnap.docs.map((d) => ({ ...(d.data() as Omit<StoredPlayer, 'id'>), id: d.id }));
   const comps = compsSnap.docs.map((d) => ({ ...(d.data() as Omit<StoredComp, 'id'>), id: d.id }));
@@ -1951,6 +1978,7 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
     ranAt,
     finishedAt: ranAt,
     trigger,
+    teamId: paths.teamId,
     playersUpdated: [],
     playersFailed: [],
     playersSkipped: [],
@@ -1982,7 +2010,7 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
       // Re-read before merging. A run takes minutes and an editor may have
       // saved this player meanwhile; merging into the copy read at the start
       // wrote that save away, which is how a pool edit "reverted on refresh".
-      const freshSnap = await db.doc(`players/${player.id}`).get();
+      const freshSnap = await db.doc(paths.doc('players', player.id)).get();
       const fresh: StoredPlayer = freshSnap.exists
         ? { ...(freshSnap.data() as Omit<StoredPlayer, 'id'>), id: player.id }
         : player;
@@ -1992,14 +2020,14 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
         continue;
       }
       const { id, ...doc } = merged;
-      await db.doc(`players/${id}`).set(stripUndefinedDeep(doc), { merge: true });
+      await db.doc(paths.doc('players', id)).set(stripUndefinedDeep(doc), { merge: true });
       log.playersUpdated.push(player.name);
       // The rank this morning, for the home page's climb (13 Sep 2026). Its own try: a history that
       // cannot be written must never turn a refreshed player into a failed one.
       try {
         const points = rankPointsFrom(merged.queueStats, today);
         if (points.length) {
-          const ref = db.doc(`rankHistory/${id}`);
+          const ref = db.doc(paths.doc('rankHistory', id));
           const existing = await ref.get();
           const history = appendRankPoints((existing.data() as RankHistoryDoc | undefined)?.points, points);
           await ref.set({ playerId: id, points: history.points, updatedAt: new Date().toISOString() } satisfies RankHistoryDoc);
@@ -2021,8 +2049,8 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
       throw new Error(`Only ${request.players.length} roster players; the analysis needs five.`);
     }
     const roster = await resolveRoster(request.players, apiKey ?? '');
-    const analysis = await computeCompAnalysis(request, apiKey ?? '', roster);
-    await db.doc('meta/compAnalysis').set(stripUndefinedDeep(analysis));
+    const analysis = await computeCompAnalysis(request, apiKey ?? '', paths, roster);
+    await db.doc(paths.doc('meta', 'compAnalysis')).set(stripUndefinedDeep(analysis));
     analysed = { analysis, roster };
     log.analysis = {
       ok: true,
@@ -2043,14 +2071,15 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
     log.timelines = { fetched: 0, failed: 0, pending: timelineCandidates(analysed.analysis.games, new Set(), Number.MAX_SAFE_INTEGER).length, skipped: 'time' };
   } else {
     try {
-      const practiceSnap = await db.collection('practiceGames').get();
+      const practiceSnap = await db.collection(paths.col('practiceGames')).get();
       const practiceIds = new Set(practiceSnap.docs.map((d) => d.id));
       log.timelines = await backfillTimelines(
         analysed.analysis.games,
         practiceIds,
         analysed.roster,
         apiKey ?? '',
-        startedAt + TIMELINE_BUDGET_SECONDS * 1000 + 30_000
+        startedAt + TIMELINE_BUDGET_SECONDS * 1000 + 30_000,
+        paths
       );
     } catch (error) {
       console.error('Morning refresh: timelines failed', error);
@@ -2059,10 +2088,10 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
 
   // Reviews last of all, and only when the team switched them on: each one
   // is a paid model call, so the morning writes a few and says what it spent.
-  await autoReviews(log, analysed?.analysis.games ?? null, startedAt);
+  await autoReviews(log, analysed?.analysis.games ?? null, startedAt, paths);
 
   log.finishedAt = new Date().toISOString();
-  await db.doc('meta/refreshLog').set(stripUndefinedDeep(log));
+  await db.doc(paths.doc('meta', 'refreshLog')).set(stripUndefinedDeep(log));
   return log;
 }
 
@@ -2070,13 +2099,61 @@ async function runTeamRefresh(apiKey: string | undefined, trigger: RefreshLog['t
  * Daily, before anyone is up. The key probe runs at 08:00 and reports a dead
  * key either way; this runs first because a refresh with a dead key fails
  * loudly into the log on its own.
+ *
+ * Bom Squad's, on the root paths, exactly as before release 2: the other teams
+ * take their turns at the 07:00 ticks below.
  */
 export const refreshTeamData = onSchedule(
   { schedule: 'every day 06:30', timeZone: 'Europe/Amsterdam', secrets: [RIOT_API_KEY, ANTHROPIC_API_KEY], timeoutSeconds: 540, memory: '512MiB' },
   async () => {
-    const log = await runTeamRefresh(RIOT_API_KEY.value(), 'schedule');
+    const log = await runTeamRefresh(RIOT_API_KEY.value(), 'schedule', teamPaths());
     console.log(
       `Morning refresh: ${log.playersUpdated.length} players updated, ${log.playersFailed.length} failed, ` +
+        `${log.playersSkipped.length} skipped; analysis ${log.analysis.ok ? 'ok' : 'failed'}.`
+    );
+  }
+);
+
+/**
+ * The other teams' mornings (27 Sep 2026, release 2). Four ticks after the
+ * 06:30 run, and each one refreshes exactly one team: the one not switched
+ * off, not yet run today and refreshed longest ago, chosen by
+ * `nextTeamToRefresh`. Never a loop over the teams inside one run, because
+ * the run's budgets are all measured from one start inside the same 540 s,
+ * and a second team would only ever be skipped. With nothing due, the tick
+ * returns without a write. A fifth team a morning waits for the next one, or
+ * for the cron to widen.
+ *
+ * The team's turn is taken before its run, not after: `refreshStartedAt` on
+ * the `teams/{id}` document is written first, and a team started today is not
+ * due again today whatever its log says. The log itself is written last, so a
+ * run the timeout kills leaves yesterday's, and read alone it would send the
+ * same team through every tick of the morning.
+ */
+export const refreshTeams = onSchedule(
+  { schedule: '0,15,30,45 7 * * *', timeZone: 'Europe/Amsterdam', secrets: [RIOT_API_KEY, ANTHROPIC_API_KEY], timeoutSeconds: 540, memory: '512MiB' },
+  async () => {
+    const db = getFirestore();
+    const teamsSnap = await db.collection('teams').get();
+    const candidates = await Promise.all(
+      teamsSnap.docs.map(async (d) => {
+        const { refresh, refreshStartedAt } = d.data() as { refresh?: unknown; refreshStartedAt?: unknown };
+        const lastStartedAt = typeof refreshStartedAt === 'string' ? refreshStartedAt : undefined;
+        // A stray document that is not a team has no paths; the choice skips it, so its log is not read.
+        if (!isTeamId(d.id)) return { id: d.id, refresh };
+        const log = (await db.doc(teamPaths(d.id).doc('meta', 'refreshLog')).get()).data() as RefreshLog | undefined;
+        return { id: d.id, refresh, lastRanAt: log?.ranAt, lastStartedAt };
+      })
+    );
+    const teamId = nextTeamToRefresh(candidates, amsterdamDay(new Date()));
+    if (!teamId) {
+      console.log(`Team refresh: nothing due among ${candidates.length} teams.`);
+      return;
+    }
+    await db.doc(`teams/${teamId}`).set({ refreshStartedAt: new Date().toISOString() }, { merge: true });
+    const log = await runTeamRefresh(RIOT_API_KEY.value(), 'schedule', teamPaths(teamId));
+    console.log(
+      `Team refresh for ${teamId}: ${log.playersUpdated.length} players updated, ${log.playersFailed.length} failed, ` +
         `${log.playersSkipped.length} skipped; analysis ${log.analysis.ok ? 'ok' : 'failed'}.`
     );
   }
@@ -2111,7 +2188,10 @@ export const refreshTeamDataOnce = onRequest(
         res.status(403).json({ error: 'Editor access required to refresh team data.' });
         return;
       }
-      const log = await runTeamRefresh(RIOT_API_KEY.value(), 'manual');
+      // `{ teamId }` in the body, optional: no body at all is the root, as every call before
+      // release 2 was. The log answered carries the team it ran for.
+      const { teamId } = parseRefreshTeamRequest(req.body);
+      const log = await runTeamRefresh(RIOT_API_KEY.value(), 'manual', teamPaths(teamId));
       res.status(200).json(log);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unexpected error.';
@@ -2253,18 +2333,19 @@ interface StoredSettings {
   autoReview?: boolean;
 }
 
-async function readSettings(): Promise<StoredSettings> {
-  const snap = await getFirestore().doc('meta/settings').get();
+/** The team's own settings: the root document for Bom Squad, `teams/{teamId}/meta/settings` for any other. */
+async function readSettings(paths: TeamPaths): Promise<StoredSettings> {
+  const snap = await getFirestore().doc(paths.doc('meta', 'settings')).get();
   return (snap.data() as StoredSettings | undefined) ?? {};
 }
 
-/** The roster resolved from the players collection, for a timeline fetched on demand. */
-async function rosterFromPlayers(apiKey: string): Promise<ResolvedRoster> {
+/** The roster resolved from the team's players collection, for a timeline fetched on demand. */
+async function rosterFromPlayers(apiKey: string, paths: TeamPaths): Promise<ResolvedRoster> {
   const db = getFirestore();
   const [playersSnap, compsSnap, overridesSnap] = await Promise.all([
-    db.collection('players').get(),
-    db.collection('comps').get(),
-    db.collection('compOverrides').get()
+    db.collection(paths.col('players')).get(),
+    db.collection(paths.col('comps')).get(),
+    db.collection(paths.col('compOverrides')).get()
   ]);
   const players = playersSnap.docs.map((d) => ({ ...(d.data() as Omit<StoredPlayer, 'id'>), id: d.id }));
   const comps = compsSnap.docs.map((d) => ({ ...(d.data() as Omit<StoredComp, 'id'>), id: d.id }));
@@ -2322,12 +2403,13 @@ function clock(sec: number): string {
 }
 
 /** The recording for a game, or null when there is none. A read that fails is warned about and treated as none: the review is worth writing without it. */
-async function readRecording(matchId: string): Promise<ReplayRecording | null> {
+async function readRecording(matchId: string, paths: TeamPaths): Promise<ReplayRecording | null> {
+  const path = paths.doc('replayRecordings', matchId);
   try {
-    const snap = await getFirestore().doc(`replayRecordings/${matchId}`).get();
+    const snap = await getFirestore().doc(path).get();
     return snap.exists ? (snap.data() as ReplayRecording) : null;
   } catch (error) {
-    console.warn(`[gameReview] replayRecordings/${matchId} could not be read; the review sees the replay's totals only: ${(error as Error)?.message ?? error}`);
+    console.warn(`[gameReview] ${path} could not be read; the review sees the replay's totals only: ${(error as Error)?.message ?? error}`);
     return null;
   }
 }
@@ -2337,12 +2419,12 @@ async function readRecording(matchId: string): Promise<ReplayRecording | null> {
  * that is missing, empty or over `MAX_SHOT_BYTES` of base64 is skipped rather
  * than failing the review — a review with six frames is worth more than none.
  */
-async function readShots(refs: readonly ReplayShotRef[]): Promise<ReviewFrame[]> {
+async function readShots(refs: readonly ReplayShotRef[], paths: TeamPaths): Promise<ReviewFrame[]> {
   if (refs.length === 0) return [];
   const db = getFirestore();
   let snaps;
   try {
-    snaps = await db.getAll(...refs.map((ref) => db.doc(`replayShots/${ref.docId}`)));
+    snaps = await db.getAll(...refs.map((ref) => db.doc(paths.doc('replayShots', ref.docId))));
   } catch (error) {
     // The frames are optional to a review, as the champion list is: a hiccup
     // reading them must not cost the game its review.
@@ -2479,17 +2561,20 @@ async function laneMatchupsFor(ours: ReviewContext["players"], enemies: { positi
  * Clash game: nothing is closed but the enemy five, which the context already carries. A group is fearless unless it
  * is the scrims group or says fearless: false, the rule the app uses.
  */
-async function draftLockoutsFor(matchId: string): Promise<{ bans: string[]; burned: string[] }> {
+async function draftLockoutsFor(matchId: string, paths: TeamPaths): Promise<{ bans: string[]; burned: string[] }> {
   const none = { bans: [] as string[], burned: [] as string[] };
   try {
     const db = getFirestore();
-    const owner = await db.collection('seriesGames').where('matchId', '==', matchId).limit(1).get();
+    const owner = await db.collection(paths.col('seriesGames')).where('matchId', '==', matchId).limit(1).get();
     if (owner.empty) return none;
     const seriesId = String(owner.docs[0].data().seriesId ?? '');
     if (!seriesId) return none;
-    const [gamesSnap, seriesSnap] = await Promise.all([db.collection('seriesGames').where('seriesId', '==', seriesId).get(), db.doc('tournamentSeries/' + seriesId).get()]);
+    const [gamesSnap, seriesSnap] = await Promise.all([
+      db.collection(paths.col('seriesGames')).where('seriesId', '==', seriesId).get(),
+      db.doc(paths.doc('tournamentSeries', seriesId)).get()
+    ]);
     const tournamentId = String((seriesSnap.data() as { tournamentId?: string } | undefined)?.tournamentId ?? '');
-    const group = tournamentId ? ((await db.doc('tournaments/' + tournamentId).get()).data() as { kind?: string; fearless?: boolean } | undefined) : undefined;
+    const group = tournamentId ? ((await db.doc(paths.doc('tournaments', tournamentId)).get()).data() as { kind?: string; fearless?: boolean } | undefined) : undefined;
     const fearless = !!group && group.kind !== 'scrims' && group.fearless !== false;
     const games = gamesSnap.docs.map((d) => d.data() as SeriesGameLike);
     return draftLockouts(matchId, games, fearless);
@@ -2498,23 +2583,29 @@ async function draftLockoutsFor(matchId: string): Promise<{ bans: string[]; burn
   }
 }
 
+/**
+ * One game's review, for the team `opts.paths` names: every document it reads about the game and
+ * the review it writes are the team's own (release 2, 27 Sep 2026). What it reads about champions
+ * (`meta/championTraits`, `matchupIndex`, `championStats`) is the site's and stays at the root.
+ */
 async function reviewGame(
   matchId: string,
-  opts: { anthropicKey: string; riotKey: string; trigger: GameReview['trigger']; expect?: CompExpectation | null; games?: AnalysisGameResponse[] }
+  opts: { anthropicKey: string; riotKey: string; trigger: GameReview['trigger']; paths: TeamPaths; expect?: CompExpectation | null; games?: AnalysisGameResponse[] }
 ): Promise<GameReview | null> {
   const db = getFirestore();
-  const games = opts.games ?? ((await db.doc('meta/compAnalysis').get()).data() as CompAnalysisResponse | undefined)?.games ?? [];
+  const { paths } = opts;
+  const games = opts.games ?? ((await db.doc(paths.doc('meta', 'compAnalysis')).get()).data() as CompAnalysisResponse | undefined)?.games ?? [];
   const game = games.find((g) => g.matchId === matchId);
   if (!game) throw new Error(`${matchId} is not in the analysis. Refresh match data first.`);
   const tier: GameReview['tier'] = game.queue === 'Scrim' ? 'endOfGame' : 'timeline';
 
   let facts: GameFacts;
   if (tier === 'timeline') {
-    const stored = (await db.doc(`matchTimeline/${matchId}`).get()).data() as MatchTimeline | undefined;
+    const stored = (await db.doc(paths.doc('matchTimeline', matchId)).get()).data() as MatchTimeline | undefined;
     let timeline: MatchTimeline | null = stored && isTimelineCurrent(stored) && stored.facts ? stored : null;
     if (!timeline) {
-      const roster = await rosterFromPlayers(opts.riotKey);
-      timeline = (await getMatchTimeline(matchId, roster, opts.riotKey)).timeline;
+      const roster = await rosterFromPlayers(opts.riotKey, paths);
+      timeline = (await getMatchTimeline(matchId, roster, opts.riotKey, paths)).timeline;
     }
     if (!timeline) throw new Error(`No timeline could be read for ${matchId}.`);
     facts = (timeline.facts as GameFacts | undefined) ?? gameFacts(timeline, game);
@@ -2531,14 +2622,14 @@ async function reviewGame(
   // of a Clash or flex game was dropped in silence, with every other surface
   // saying the frames had been read — and the frames are the only view of the
   // map either tier has.
-  const recording = await readRecording(matchId);
+  const recording = await readRecording(matchId, paths);
   const recordedLines = recording ? recordingLines(recording) : [];
-  const frames = recording ? await readShots(shotsFor(recording, MAX_REVIEW_SHOTS)) : [];
+  const frames = recording ? await readShots(shotsFor(recording, MAX_REVIEW_SHOTS), paths) : [];
 
   const [settings, compSnap, noteSnap, traitsSnap] = await Promise.all([
-    readSettings(),
-    game.compId ? db.doc(`comps/${game.compId}`).get() : Promise.resolve(null),
-    db.doc(`matchNotes/${matchId}`).get(),
+    readSettings(paths),
+    game.compId ? db.doc(paths.doc('comps', game.compId)).get() : Promise.resolve(null),
+    db.doc(paths.doc('matchNotes', matchId)).get(),
     // Every champion's display name, for the draft with hindsight (version 5,
     // 10 Sep 2026): a swap's "in" is resolved against this list and dropped
     // otherwise, so the model spells it Data Dragon's way and the film can show
@@ -2574,7 +2665,7 @@ async function reviewGame(
 
   const ourFive = reviewPlayers(game);
   const laneMatchups = await laneMatchupsFor(ourFive, game.enemies, matchId);
-  const lockouts = await draftLockoutsFor(matchId);
+  const lockouts = await draftLockoutsFor(matchId, paths);
 
   const ctx: ReviewContext = {
     teamName: settings.teamName || 'the team',
@@ -2652,19 +2743,19 @@ async function reviewGame(
       tookMs: Date.now() - started
     }
   };
-  await db.doc(`gameReviews/${matchId}`).set(stripUndefinedDeep(review));
+  await db.doc(paths.doc('gameReviews', matchId)).set(stripUndefinedDeep(review));
   return review;
 }
 
-/** The morning's reviews, when switched on; writes what it did to the log. */
-async function autoReviews(log: RefreshLog, games: AnalysisGameResponse[] | null, startedAt: number): Promise<void> {
+/** The morning's reviews, when the team switched them on; writes what it did to the log. */
+async function autoReviews(log: RefreshLog, games: AnalysisGameResponse[] | null, startedAt: number, paths: TeamPaths): Promise<void> {
   const empty = { attempted: [], written: [], failed: [], costUsd: 0 };
   if (!games) {
     log.reviews = { ...empty, skipped: 'analysis' };
     return;
   }
   try {
-    const settings = await readSettings();
+    const settings = await readSettings(paths);
     if (settings.autoReview !== true) {
       log.reviews = { ...empty, skipped: 'off' };
       return;
@@ -2676,9 +2767,9 @@ async function autoReviews(log: RefreshLog, games: AnalysisGameResponse[] | null
     }
     const db = getFirestore();
     const [practiceSnap, timelineSnap, reviewSnap] = await Promise.all([
-      db.collection('practiceGames').get(),
-      db.collection('matchTimeline').select('timelineVersion').get(),
-      db.collection('gameReviews').select('reviewVersion').get()
+      db.collection(paths.col('practiceGames')).get(),
+      db.collection(paths.col('matchTimeline')).select('timelineVersion').get(),
+      db.collection(paths.col('gameReviews')).select('reviewVersion').get()
     ]);
     const practiceIds = new Set(practiceSnap.docs.map((d) => d.id));
     const timelineIds = new Set(timelineSnap.docs.filter((d) => isTimelineCurrent(d.data() as { timelineVersion?: number })).map((d) => d.id));
@@ -2691,7 +2782,7 @@ async function autoReviews(log: RefreshLog, games: AnalysisGameResponse[] | null
       }
       reviews.attempted.push(game.matchId);
       try {
-        const review = await reviewGame(game.matchId, { anthropicKey, riotKey: RIOT_API_KEY.value(), trigger: 'auto', games });
+        const review = await reviewGame(game.matchId, { anthropicKey, riotKey: RIOT_API_KEY.value(), trigger: 'auto', paths, games });
         if (review) {
           reviews.written.push(game.matchId);
           reviews.costUsd = Math.round((reviews.costUsd + review.usage.costUsd) * 1000) / 1000;
@@ -2744,17 +2835,21 @@ export const gameReview = onRequest(
         return;
       }
       const request = parseGameReviewRequest(req.body);
+      const paths = teamPaths(request.teamId);
       const review = await reviewGame(request.matchId, {
         anthropicKey,
         riotKey: RIOT_API_KEY.value(),
         trigger: 'manual',
+        paths,
         ...(request.expect !== undefined && { expect: request.expect })
       });
+      // The team the review was written for rides on either answer, so a caller can refuse one
+      // computed for another scope (a deployment older than release 2 answers for the root).
       if (!review) {
-        res.status(200).json({ declined: true });
+        res.status(200).json({ declined: true, teamId: paths.teamId });
         return;
       }
-      res.status(200).json(review);
+      res.status(200).json({ ...review, teamId: paths.teamId });
     } catch (error) {
       if (error instanceof Anthropic.AuthenticationError) {
         res.status(503).json({ error: 'The ANTHROPIC_API_KEY secret is not valid — create a new key in the Anthropic console and set it again.' });
