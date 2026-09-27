@@ -223,27 +223,30 @@ export class AdminTeamsService {
         refresh: 'on'
       };
       await this.data.createTeam(team);
+      // The team exists from here, so the fold is spent and empties at once (27 Sep 2026, the lead, watching the
+      // first real create with the form still full under the progress bar: "the team section should clear after
+      // adding a team"). The paste is kept in hand and put back only when the import cannot start, so it can be
+      // copied to Players rather than found again.
+      this.newName.set('');
+      this.newRegion.set('euw');
+      this.newPaste.set('');
       this.scope.choose(id);
       await this.rememberTeam(id);
       const ready = await this.awaitScope(id);
       if (this.scope.activeTeamId() !== id) {
         // The teams list sent the scope back (the document was not in a server snapshot), or something else chose.
         // Importing now would land the roster on whichever team is active, so nothing is imported.
+        this.newPaste.set(text);
         this.flash(`Created ${name}, but the app is not on it; open it from the list and paste the roster on Players.`);
         return;
       }
       this.shell.requestResync();
-      const reason = await this.importer.run(text);
-      // The fold empties only once the paste has been handed over. The team exists either way, so its name and
-      // region are spent; a refused run keeps the paste where it is, to be copied to Players rather than found again.
-      this.newName.set('');
-      this.newRegion.set('euw');
-      if (reason) {
-        this.flash(`Created ${name}; the import did not start: ${reason} The paste is still in the fold; copy it to Players.`);
-        return;
-      }
-      this.newPaste.set('');
       this.flash(ready ? `Created ${name}; importing ${plural(count, 'player', 'players')}.` : `Created ${name}; importing ${plural(count, 'player', 'players')}, though its data has not loaded here yet.`);
+      const reason = await this.importer.run(text);
+      if (reason) {
+        this.newPaste.set(text);
+        this.flash(`Created ${name}; the import did not start: ${reason} The paste is still in the fold; copy it to Players.`);
+      }
     } catch (error) {
       this.flash(error instanceof Error ? error.message : 'The team could not be created.');
     } finally {

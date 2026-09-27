@@ -399,6 +399,20 @@ describe('AdminTeamsService', () => {
       expect(svc.newPaste()).toBe(LINK);
     });
 
+    it('empties the fold the moment the team exists, before the importer is handed the paste', async () => {
+      let foldAtRun: { name: string; paste: string } | null = null;
+      run.mockImplementationOnce(async () => {
+        log.push('run');
+        foldAtRun = { name: svc.newName(), paste: svc.newPaste() };
+        return null;
+      });
+      fill();
+      await svc.createTeam();
+      expect(foldAtRun).toEqual({ name: '', paste: '' });
+      expect(svc.newPaste()).toBe('');
+      expect(shell.status()).toBe('Created Bom Squad Academy; importing 5 players.');
+    });
+
     it('keeps the paste in the fold when the importer refuses after the team exists, and says so', async () => {
       run.mockImplementationOnce(async () => {
         log.push('run');
