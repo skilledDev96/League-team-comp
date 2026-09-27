@@ -1,17 +1,71 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { formatRiotId } from '../../../core/riot-id';
 import { Player, Role, ROLES } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
+import { OpponentScoutService } from '../../../services/opponent-scout.service';
 import { PlayerEditorService } from '../../../services/player-editor.service';
+import { RosterImportPreview, RosterImportRow, RosterImportService } from '../../../services/roster-import.service';
 import { TeamDataService } from '../../../services/team-data.service';
 import { PlayerDraft, toPlayerDraft } from '../admin-drafts';
 import { AdminShellService } from './admin-shell.service';
 import { ConfirmService } from '../../../services/confirm.service';
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * The line under the paste box: what the paste would do, before anything is
+ * written. "5 players read: Alpha#EUW to Top, …; 2 already on the roster;
+ * 1 line skipped, no tag or a repeat." Empty when nothing parsed, since the
+ * planner's refusal says that on its own line.
+ */
+export function importPreviewLine(preview: RosterImportPreview): string {
+  if (!preview.ids.length) return '';
+  const parts: string[] = [];
+  if (preview.creates.length) {
+    const seats = preview.creates.map((c) => `${formatRiotId(c.id)} to ${c.player.role}${c.player.sub ? ' (sub)' : ''}`);
+    parts.push(`${plural(preview.creates.length, 'player', 'players')} read: ${seats.join(', ')}`);
+  } else {
+    parts.push('Nothing new to add');
+  }
+  if (preview.skips.length) parts.push(`${preview.skips.length} already on the roster`);
+  if (preview.dropped) parts.push(`${plural(preview.dropped, 'line', 'lines')} skipped, no tag or a repeat`);
+  return `${parts.join('; ')}.`;
+}
+
+/** The Import pill's label: the count it would add, or plain "Import players" while there is nothing to count. */
+export function importLabel(preview: RosterImportPreview): string {
+  return preview.creates.length ? `Import ${plural(preview.creates.length, 'player', 'players')}` : 'Import players';
+}
+
+/**
+ * Why "Seat by Riot's roles" is off, or null when the service allows it: the
+ * pill only makes sense once all five starters came from this import and Riot
+ * put them in five different seats, and a disabled pill with no reason is a
+ * mechanism that silently does nothing.
+ */
+export function reseatReason(rows: readonly RosterImportRow[], importing: boolean, allowed: boolean): string | null {
+  if (allowed) return null;
+  if (importing) return 'Wait for the import to finish.';
+  const starters = rows.filter((r) => !r.sub && r.state !== 'skipped');
+  if (starters.some((r) => r.state === 'failed' || r.state === 'pending' || r.state === 'reading')) {
+    return 'Every starter has to be read from Riot first; Retry is on the row.';
+  }
+  if (starters.filter((r) => r.state === 'done').length !== 5) {
+    return 'Only when all five starters came from this import and were read from Riot.';
+  }
+  return 'Riot sees two of them in the same seat, so there is no seating to copy.';
+}
 
 /**
  * The player editor's Admin side: the roster drafts, the add-player dialog
  * and the delete. The form, the autosave and the Riot refresh live in
  * `PlayerEditorService`, shared with the drawer on the profile and the
  * roster cards (8 Sep 2026), so a player is edited the same way everywhere.
+ *
+ * The third way to add (27 Sep 2026): paste the team's op.gg multi-link and
+ * `RosterImportService` writes them all. Only the paste is read here; the
+ * preview under the box is the planner's answer, and the import itself runs
+ * in the root service so it survives leaving the page.
  */
 @Injectable()
 export class AdminPlayersService {
@@ -20,6 +74,9 @@ export class AdminPlayersService {
   private readonly auth = inject(AuthService);
   private readonly editor = inject(PlayerEditorService);
   private readonly shell = inject(AdminShellService);
+  private readonly scout = inject(OpponentScoutService);
+  /** Public: the tab reads its progress, rows and blocker straight off the service. */
+  readonly importer = inject(RosterImportService);
 
   private flash(message: string): void {
     this.shell.flash(message);
@@ -68,10 +125,22 @@ export class AdminPlayersService {
   });
 
   readonly showAddPlayerDialog = signal(false);
-  readonly addPlayerMode = signal<'choose' | 'summoner'>('choose');
+  readonly addPlayerMode = signal<'choose' | 'summoner' | 'link'>('choose');
   readonly newPlayerSummoner = signal('');
   readonly newPlayerTag = signal('EUW');
   readonly newPlayerRegion = signal('euw');
+
+  // ---- The op.gg multi-link import ---------------------------------------
+
+  /** The paste. Kept across a cancelled question, so nobody pastes twice. */
+  readonly importPaste = signal('');
+  /** What the paste would do against the roster as it is now; reactive to both. */
+  readonly importPreview = computed(() => this.importer.preview(this.importPaste()));
+  readonly importLine = computed(() => importPreviewLine(this.importPreview()));
+  readonly importLabel = computed(() => importLabel(this.importPreview()));
+  readonly reseatReason = computed(() => reseatReason(this.importer.rows(), this.importer.importing(), this.importer.riotSeats() !== null));
+  /** The self-scout runs under the id the Roster's report uses. */
+  readonly scoutBusy = computed(() => this.scout.scouting() === 'us');
 
   isPlayerOpen(draft: PlayerDraft): boolean {
     return this.openPlayer() === draft;
@@ -118,6 +187,66 @@ export class AdminPlayersService {
 
   chooseAutofillAdd(): void {
     this.addPlayerMode.set('summoner');
+  }
+
+  chooseLinkAdd(): void {
+    this.addPlayerMode.set('link');
+  }
+
+  /** The deep link from the Roster's empty poster (`/admin?tab=players&import=1`): straight to the paste. */
+  openImport(): void {
+    this.shell.activeTab.set('players');
+    this.addPlayerMode.set('link');
+    this.showAddPlayerDialog.set(true);
+  }
+
+  /**
+   * Hand the paste to the importer. The dialog closes first: the importer asks
+   * its own question through ConfirmService when the roster is not empty, and
+   * two modals at once is one too many. A refusal (a running job, nothing
+   * readable, the cap, everyone already here) goes on the status line.
+   */
+  async startImport(): Promise<void> {
+    const text = this.importPaste();
+    this.showAddPlayerDialog.set(false);
+    const before = this.importer.createdIds();
+    const reason = await this.importer.run(text);
+    if (reason) {
+      this.flash(reason);
+      return;
+    }
+    // A run that started replaces createdIds; a cancelled question leaves it, and the paste, alone.
+    if (this.importer.createdIds() !== before) {
+      this.importPaste.set('');
+      this.shell.requestResync();
+    }
+  }
+
+  async retryImport(row: RosterImportRow): Promise<void> {
+    const reason = await this.importer.retry(row);
+    if (reason) this.flash(reason);
+  }
+
+  /** The Open pill on a result row: the player's panel, opened and lit the way a deep link lights it. */
+  openImported(row: RosterImportRow): void {
+    const draft = row.playerId ? this.playerDrafts().find((d) => d.id === row.playerId) : undefined;
+    if (!draft) {
+      this.flash('That player is not on the roster any more.');
+      return;
+    }
+    this.openPlayer.set(draft);
+    this.highlightedPlayer.set(draft);
+    setTimeout(() => this.highlightedPlayer.set(null), 2400);
+    this.shell.scrollToCard(`player-${draft.uid}`);
+  }
+
+  async reseatByRiot(): Promise<void> {
+    await this.importer.reseatByRiot();
+  }
+
+  /** The same call as the Roster report's "Scout us from Riot" button. */
+  async scoutUs(): Promise<void> {
+    await this.scout.scoutOurselves(this.data.players(), this.data.settings().teamName || 'us');
   }
 
   addPlayerManually(): void {

@@ -854,9 +854,11 @@ export class TeamDataService {
 
   // ---- Players ----------------------------------------------------------
 
-  createPlayer(data: Omit<Player, 'id' | 'order'>): Promise<void> {
+  /** Returns the new id, as createTournament does: the roster importer enriches and can undo what it made. */
+  async createPlayer(data: Omit<Player, 'id' | 'order'>): Promise<string> {
     const player: Player = { ...data, id: this.newId('player'), order: this.nextOrder(this.players()) };
-    return this.persistUpsert('players', this.players, player);
+    await this.persistUpsert('players', this.players, player);
+    return player.id;
   }
 
   updatePlayer(player: Player): Promise<void> {

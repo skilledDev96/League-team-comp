@@ -16,8 +16,8 @@ import { ActivityService } from './activity.service';
  * one line on how they play. That is what a draft can use, and collecting more
  * than a draft can use is how a scouting tool turns into a dossier.
  */
-/** Measured against the live API, not guessed: about a minute a player. */
-const SECONDS_PER_PLAYER = 60;
+/** Measured against the live API, not guessed: about a minute a player. The roster importer's estimate too. */
+export const SECONDS_PER_PLAYER = 60;
 
 @Injectable({ providedIn: 'root' })
 export class OpponentScoutService {
@@ -123,7 +123,9 @@ export class OpponentScoutService {
     save: (players: OpponentPlayer[]) => Promise<void>,
     teamName = ''
   ): Promise<void> {
-    if (!roster.length || this.scouting()) return;
+    // Not while a roster import runs either (27 Sep 2026): both spend the same
+    // hundred Riot calls per two minutes, and the import refuses while a scout runs.
+    if (!roster.length || this.scouting() || this.activity.has('Importing roster')) return;
 
     this.scouting.set(id);
     this.total.set(roster.length);

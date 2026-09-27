@@ -32,9 +32,13 @@ export class RefreshService {
   readonly playersProgress = signal('');
   readonly allRunning = signal(false);
 
-  /** Any refresh that rewrites team data. Buttons that start one read this. */
+  /**
+   * Any refresh that rewrites team data. Buttons that start one read this.
+   * A roster import counts too (27 Sep 2026): it writes the same player
+   * documents, and `has()` reads the jobs signal, so this stays reactive.
+   */
   readonly anyRunning = computed(
-    () => this.playersRunning() || this.allRunning() || this.analysis.running()
+    () => this.playersRunning() || this.allRunning() || this.analysis.running() || this.activity.has('Importing roster')
   );
 
   /** Re-read one roster member from Riot and write what came back. */
@@ -49,7 +53,11 @@ export class RefreshService {
     if (enriched.source !== 'provider') return 'no-data';
     await this.data.updatePlayer({
       ...p,
-      role: enriched.role ?? p.role,
+      // A refresh fills an empty seat and never moves a set one (27 Sep 2026, for
+      // the roster importer, whose seats are the paste order). A browser Player
+      // always has a seat, so it is simply kept; the morning job's mergePlayer
+      // applies the same rule. Riot's detected role stays a suggestion.
+      role: p.role,
       icon: enriched.iconUrl ?? p.icon,
       playstyle: enriched.playstyle || p.playstyle,
       strengths: enriched.strengths.length ? enriched.strengths : p.strengths,

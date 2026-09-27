@@ -209,6 +209,11 @@ export function mergeChampionPool(existing: readonly string[] | undefined, incom
  * page performs when a person clicks Refresh, so the morning run and a manual
  * one leave the same document behind. Returns null for a template result:
  * storing invented strengths on a real person's row is worse than leaving it.
+ *
+ * The seat: a refresh fills an empty one and never moves a set one (27 Sep
+ * 2026, for the roster importer, whose seats are the paste order). Until then
+ * this branch wrote Riot's most-played position over the stored seat every
+ * morning, so a pasted seat would have flipped on the first run.
  */
 export function mergePlayer(
   player: StoredPlayer,
@@ -226,7 +231,7 @@ export function mergePlayer(
   }
   return {
     ...player,
-    role: enriched.role ?? player.role,
+    role: player.role ?? enriched.role,
     icon: enriched.iconUrl ?? player.icon,
     playstyle: enriched.playstyle || player.playstyle,
     strengths: enriched.strengths?.length ? enriched.strengths : player.strengths ?? [],

@@ -304,3 +304,62 @@ describe('AdminContextService ending a tournament', () => {
     expect(ctx.tournamentDrafts()[0]).toMatchObject({ endedAt: '2026-09-12', active: false });
   });
 });
+
+/**
+ * The deep link from the Roster's empty poster (27 Sep 2026): `/admin?tab=players&import=1` opens the Add player
+ * dialog on its paste step, once. The resync after an import runs the route focus again with the same params, and
+ * without the once-guard the dialog reopened over the results card.
+ */
+describe('AdminContextService import deep link', () => {
+  it('opens the paste step once, and not again when the focus re-runs after a resync', () => {
+    const showAddPlayerDialog = signal(false);
+    const addPlayerMode = signal<'choose' | 'summoner' | 'link'>('choose');
+    const openImport = vi.fn(() => {
+      addPlayerMode.set('link');
+      showAddPlayerDialog.set(true);
+    });
+    const params = convertToParamMap({ tab: 'players', import: '1' });
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        AdminContextService,
+        AdminShellService,
+        {
+          provide: AdminPlayersService,
+          useValue: { load: vi.fn(), follow: vi.fn(), playerDrafts: signal([]), showAddPlayerDialog, addPlayerMode, openImport }
+        },
+        {
+          provide: TeamDataService,
+          useValue: {
+            ready: signal(true),
+            settings: signal<Settings>({ teamName: 'Bom Squad' }),
+            players: signal([]),
+            fillIns: signal([]),
+            comps: signal<Comp[]>([]),
+            accessEntries: signal([]),
+            tournaments: signal<Tournament[]>([]),
+            compAnalysis: signal(null)
+          }
+        },
+        { provide: AuthService, useValue: { canManageUsers: signal(true) } },
+        { provide: ConfirmService, useValue: {} },
+        { provide: PlayerEnrichmentService, useValue: {} },
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: params }, queryParamMap: of(params) } }
+      ]
+    });
+    const ctx = TestBed.inject(AdminContextService);
+    const shell = TestBed.inject(AdminShellService);
+    TestBed.tick();
+    expect(openImport).toHaveBeenCalledTimes(1);
+    expect(ctx.showAddPlayerDialog()).toBe(true);
+    expect(ctx.addPlayerMode()).toBe('link');
+    expect(shell.activeTab()).toBe('players');
+
+    // The person closes the dialog; the import's resync runs the focus again with the same params.
+    showAddPlayerDialog.set(false);
+    shell.requestResync();
+    TestBed.tick();
+    expect(openImport).toHaveBeenCalledTimes(1);
+    expect(ctx.showAddPlayerDialog()).toBe(false);
+  });
+});

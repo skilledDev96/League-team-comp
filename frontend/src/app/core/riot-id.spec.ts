@@ -1,5 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { formatRiotId, parseRiotId, parseRiotIds } from './riot-id';
+
+describe('parseRiotIds never leaves the page', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('reads only the pasted text: op.gg is never requested, which is what keeps the Riot key safe', () => {
+    // docs/global-plan.md asked for this assertion; the roster importer (27 Sep 2026) relies on it too.
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.reject(new Error('a parser must not fetch')));
+    parseRiotIds('https://www.op.gg/multisearch/euw?summoners=Alpha%23EUW,Bravo%23123');
+    parseRiotIds('https://op.gg/summoners/euw/Some-Name-EUW');
+    parseRiotIds('Alpha#EUW, Bravo#123');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
 
 describe('parseRiotIds', () => {
   it('reads a plain Riot ID', () => {

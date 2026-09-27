@@ -4,8 +4,8 @@
       <app-info-tip text="What an opponent sees when they scout us, straight from Riot: rank, what we play, what beats us, and what they would ban." label="What this is" /></h2>
     @if (when()) { <span class="muted scout-report-when">scouted {{ when() }}</span> }
     @if (auth.editing()) {
-      <button data-tour="roster-scout-us" type="button" class="view-btn active scout-report-btn" [disabled]="busy() || !data.players().length" (click)="scoutUs()"
-              appTip="Looks up every player on the roster by Name#TAG, about two minutes a player. Keeps running if you leave the page.">
+      <button data-tour="roster-scout-us" type="button" class="view-btn active scout-report-btn" [disabled]="busy() || importing() || !data.players().length" (click)="scoutUs()"
+              [appTip]="importing() ? 'Wait for the roster import to finish; it spends the same Riot calls.' : 'Looks up every player on the roster by Name#TAG, about two minutes a player. Keeps running if you leave the page.'">
         @if (busy()) { <span class="btn-spinner" aria-hidden="true"></span> Scouting… } @else { <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span> {{ players().length ? 'Scout us again from Riot' : 'Scout us from Riot' }} }
       </button>
     }

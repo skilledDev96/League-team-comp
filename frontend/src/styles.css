@@ -342,6 +342,29 @@ dialog.modal-card::backdrop {
 .admin-tab-head .edit-hint { flex: 1 1 14rem; min-width: 0; margin: 0; font-size: var(--fs-meta); }
 .admin-tab-head > .view-btn { margin-left: auto; }
 
+/* The roster importer on Admin › Players (27 Sep 2026). Every rule is prefixed `.roster-import-` so nothing here can
+   reach another page through a shared class; the progress block itself is Prep's `.opp-progress`, reused not restyled.
+   The results card is one row a player: name, the seat and Sub chips the panel headers wear, the state, the reason. */
+.admin-tab-head .roster-import-hint { flex: 1 1 100%; margin: 0; font-size: var(--fs-meta); }
+.roster-import-progress { margin: 0 0 0.8rem; }
+.roster-import-card { margin: 0 0 0.8rem; }
+.roster-import-rows { display: grid; gap: 0; margin: 0; }
+.roster-import-rows > li { margin: 0; }
+.roster-import-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.55rem; padding: 0.4rem 0; border-top: 1px solid var(--card-border); font-size: var(--fs-body); }
+.roster-import-row:first-child { border-top: 0; }
+.roster-import-name { font-family: "Chakra Petch", sans-serif; font-weight: 700; }
+.roster-import-name .muted { font-weight: 400; }
+.roster-import-state { font-size: var(--fs-meta); color: var(--text-1); }
+.roster-import-state.is-done { color: var(--ok); }
+.roster-import-state.is-trouble { color: var(--warn); }
+.roster-import-reason { flex: 1 1 100%; font-size: var(--fs-meta); }
+.roster-import-actions { margin-left: auto; }
+.roster-import-next { flex-wrap: wrap; margin-top: 0.7rem; }
+/* The dialog's paste step: the preview line and the refusal sit under the box in the meta size, the refusal in --warn. */
+.modal-card .roster-import-line { margin: 0.35rem 0 0; font-size: var(--fs-meta); line-height: 1.45; }
+.modal-card .roster-import-refused { margin: 0.35rem 0 0; font-size: var(--fs-meta); line-height: 1.45; color: var(--warn); }
+.modal-card .roster-import-submit { margin-top: 0.75rem; }
+
 .player-panel {
   padding: 0.6rem 0.75rem;
   align-self: start;

@@ -3,7 +3,8 @@
 *The "Global plan" from the League App project, written 30 Aug 2026 and
 committed here on 5 Sep so every session reads it. Phase 1's opponent roster
 has since shipped as `OpponentPlayer[]` on a series and on a scrim opponent
-(see CLAUDE.md); the multi-link parser is `core/riot-id.ts`. Phases 2–4 and
+(see CLAUDE.md); the multi-link parser is `core/riot-id.ts`. Phase 2, the own-roster
+import, shipped on 27 Sep 2026 (see the sequencing table); phases 3–4 and
 multi-tenancy are still open.*
 
 ## Context
@@ -71,7 +72,9 @@ data never moves, there is no migration, and a bug in the new path cannot reach 
 `persistUpsert`/`persistRemove` in `frontend/src/app/services/team-data.service.ts`
 funnel **every** write through `doc(db, key, id)` — so one `path(key)` helper plus the
 13 `collection()` and 6 `doc(db, 'meta', …)` calls in `initFirebase()` is the entire
-change surface. `EntityKey` stays the vocabulary.
+change surface. `EntityKey` stays the vocabulary. *(That count is stale, 27 Sep 2026:
+the tenant-prefix design measured 36 lines; see `docs/handover-2026-09-27.md` §4
+before sizing it.)*
 
 Supporting changes:
 - `firestore.rules` — add a `match /teams/{teamId}/{document=**}` block reading
@@ -116,6 +119,9 @@ signals. *(Shipped as `OpponentScoutService`.)*
 
 Entry points: a paste box in Admin → Players (own roster), and on the series panel
 (opponent). Both reuse `autoFillPlayerSlugs`, which already builds the `Name-TAG` slug.
+*(Own roster shipped 27 Sep 2026 as `core/roster-import.ts` and `RosterImportService`;
+Admin › Players, third choice in the Add player dialog. The one slug rule is
+`profileSlugs` in `pages/admin/admin-drafts.ts`, which `autoFillSlugs` now delegates to.)*
 
 ### Comps — two honest paths
 
@@ -147,7 +153,7 @@ already shipped.
 |---|---|---|
 | **0** | `core/multi-link.ts` + specs | None — pure function, no UI, no schema |
 | **1** | `OpponentTeam` entity + import into a series | Additive; touches no existing page |
-| **2** | Own-roster bulk import in Admin | Reuses 0 + 1 |
+| **2** | Own-roster bulk import in Admin *(Shipped 27 Sep 2026 as `core/roster-import.ts` and `RosterImportService`; Admin › Players.)* | Reuses 0 + 1 |
 | **3** | Multi-tenancy (`TeamScope`, rules, switcher) | Rules + auth — **recommend after 5 Oct** |
 | **4** | Dataset upload + comp derivation | Additive |
 
@@ -160,7 +166,8 @@ data moves.
 1. **`multi-link.ts` unit tests** — real pasted links from OP.GG and u.gg, a bare
    `Name#TAG` list, names containing spaces and non-ASCII, and a malformed link. Assert
    **no `fetch` is called** (the test that proves the compliance claim).
-   `npm test -- --no-watch` from `frontend/`.
+   `npm test -- --no-watch` from `frontend/`. *(The no-fetch assertion shipped
+   27 Sep 2026 in `core/riot-id.spec.ts`.)*
 2. **Import in the running app**, not just green tests — local mode: blank `apiKey`,
    `npm --prefix frontend start -- --port 4201`, clear `bom-team-data`, dismiss the tour
    with **Got it** first, then paste a real multi-link. Read state at the source via

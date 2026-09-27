@@ -16,6 +16,16 @@
         </li>
       }
     </ul>
+  } @else if (!m.bench.length) {
+    <!-- Zero players (27 Sep 2026): "Everyone is on the bench" was wrong with nobody on it. One import UI, on Admin. -->
+    <p class="empty-state roster-empty">No players yet. @if (!auth.canEdit()) { An editor adds them on Admin. }</p>
+    @if (auth.canEdit()) {
+      <div class="action-row roster-empty-actions">
+        <a id="roster-import-link" class="view-btn" [routerLink]="['/admin']" [queryParams]="{ tab: 'players', import: '1' }">
+          <span class="material-symbols-rounded" aria-hidden="true">playlist_add</span>Import the roster from an op.gg link
+        </a>
+      </div>
+    }
   } @else {
     <p class="empty-state">Everyone is on the bench. Put five in the A team from a player's sheet in edit mode.</p>
   }

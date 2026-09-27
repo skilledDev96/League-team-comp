@@ -1347,6 +1347,41 @@ used by Admin and by the drawer opened from a profile or a roster card; the
 bench flag is labelled **A team / Bench** everywhere; every Riot refresh is
 "Refresh … from Riot" with its scope.
 
+**The roster importer** (27 Sep 2026, the lead: paste an op.gg multi-link and have
+the app populate itself). `core/roster-import.ts` is the pure planner
+(`planRosterImport`, `applyEnrichment`, `seatSuggestion`, `seatsFromDetected`,
+`failureReason`, `MAX_ROSTER`) and `services/roster-import.service.ts` the root
+service that applies it write by write, the `scrims-migration` pattern. Admin ›
+Players' Add player dialog has the third choice, "Paste an op.gg multi-link", with
+the planner's preview line under the box and a results card after the run, and
+`/admin?tab=players&import=1` (the Roster poster's pill at zero players) opens it
+once per visit. **Only the pasted text is read** (`parseRiotIds`; op.gg is never
+fetched) and nothing goes to the model provider. Two phases: every skeleton first
+through `createPlayer` (which returns the id since this release), then one
+`enrichPlayer` at a time in the scout's queue, re-reading the live document before
+each write because `persistUpsert` writes it whole. **Seats are the paste order**,
+top to support for the first five; everyone past five is a sub whose seat cycles
+until Riot is read, when a sub takes Riot's detected role (a newcomer whose seat a
+starter already holds is a sub too); for a starter Riot's role is a suggestion on
+the row and never written, and the one pill that moves seats is "Seat by Riot's
+roles", enabled only when the five detected roles are distinct.
+Imported players carry no `curated`, so the morning job keeps refreshing their text,
+pool and bans; to keep their seats, **a refresh fills an empty seat and never moves a
+set one, on both paths** (`mergePlayer`'s uncurated branch in `api/src/daily-refresh.ts`
+and `RefreshService.refreshPlayer`), and `applyEnrichment` follows `mergePlayer`'s
+curated branch for a player hand-edited while Riot was being read. A failed read
+keeps the skeleton with the reason and a Retry pill; an unknown Riot ID (404 on
+account-v1) withdraws its own skeleton, because one unresolvable player fails the
+whole analysis through `resolveRoster`'s `Promise.all`. It asks through
+ConfirmService before adding to a non-empty roster, offers Undo in the finish toast
+(deletes only what it created), caps existing plus new at `MAX_ROSTER` (10,
+`parseCompAnalysisRequest`'s cap), and excludes the scout and the refreshes through
+`ActivityService.has('Importing roster')` in both directions: `RefreshService.anyRunning`,
+`scoutRoster`, the Games quick action and the Scout report's pill all read it. In
+local mode phase 1 runs and every row says the preview has no Riot access; the rows
+and the Undo belong to the account that ran it and empty on sign-out. The Undo
+pill holds for 15 s, longer than the default toast, because the import took minutes.
+
 **How much of a page to draw is a preference, not a layout** (12 Sep 2026).
 `UserPrefs.depth?: Partial<Record<DepthSurface, 'full'>>` where `DepthSurface`
 is `'games' | 'reviews' | 'patterns' | 'prep' | 'roster' | 'comps'` (`roster` is

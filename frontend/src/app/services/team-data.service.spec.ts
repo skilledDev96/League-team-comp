@@ -238,6 +238,13 @@ describe('TeamDataService in local mode', () => {
       expect(data.comps().at(-1)!.name).toBe('Last');
       expect(data.comps().at(-1)!.order).toBe(highest + 1);
     });
+
+    it('createPlayer hands back the id it gave the player, so the roster importer can find and undo its own (27 Sep 2026)', async () => {
+      const id = await data.createPlayer({ name: 'Newcomer', role: 'Top', strengths: [], weaknesses: [], top3: [], bans: [] });
+      expect(id).toBeTruthy();
+      expect(data.players().find((p) => p.id === id)?.name).toBe('Newcomer');
+      expect(stored()['players'].some((p) => p.id === id)).toBe(true);
+    });
   });
 
   describe('updating', () => {

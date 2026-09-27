@@ -4,6 +4,7 @@ import {
   emptyPicks,
   newUid,
   normalizeEmailValue,
+  profileSlugs,
   slugifyName,
   splitList,
   toFillInDraft,
@@ -198,5 +199,26 @@ describe('mobalyticsSlugFor', () => {
     expect(mobalyticsSlugFor('Shadow Keeper#EUW')).toBe('shadow-keeper-euw');
     expect(mobalyticsSlugFor('Solo')).toBe('solo');
     expect(mobalyticsSlugFor('')).toBe('');
+  });
+});
+
+// 27 Sep 2026: the rule autoFillSlugs applied on its own, lifted out so the roster importer fills the same slugs.
+describe('profileSlugs', () => {
+  it('gives op.gg the name and tag as typed and Mobalytics the lowercase slug', () => {
+    expect(profileSlugs('Big Bad Wolf', 'EUW')).toEqual({ opggSlug: 'Big Bad Wolf-EUW', mobalyticsSlug: 'big-bad-wolf-euw' });
+    expect(profileSlugs(' Go10x ', ' 2247 ')).toEqual({ opggSlug: 'Go10x-2247', mobalyticsSlug: 'go10x-2247' });
+  });
+
+  it('leaves the tag off both when there is none', () => {
+    expect(profileSlugs('Solo', '')).toEqual({ opggSlug: 'Solo', mobalyticsSlug: 'solo' });
+  });
+
+  it('gives nothing for a name that slugs to nothing', () => {
+    expect(profileSlugs('!!!', 'EUW')).toEqual({ opggSlug: '', mobalyticsSlug: '' });
+    expect(profileSlugs('', 'EUW')).toEqual({ opggSlug: '', mobalyticsSlug: '' });
+  });
+
+  it('agrees with mobalyticsSlugFor on the same Riot ID', () => {
+    expect(profileSlugs('Shadow Keeper', 'EUW').mobalyticsSlug).toBe(mobalyticsSlugFor('Shadow Keeper#EUW'));
   });
 });

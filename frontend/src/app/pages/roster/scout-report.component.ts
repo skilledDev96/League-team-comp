@@ -1,6 +1,7 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { MvpBannerComponent } from '../../shared/mvp-banner.component';
 import { OpponentPlayer } from '../../models/team.models';
+import { ActivityService } from '../../services/activity.service';
 import { AuthService } from '../../services/auth.service';
 import { ChampionFilterService } from '../../services/champion-filter.service';
 import { OpponentScoutService } from '../../services/opponent-scout.service';
@@ -51,6 +52,7 @@ export class ScoutReportComponent {
   protected readonly ui = inject(UiService);
   protected readonly filter = inject(ChampionFilterService);
   protected readonly scout = inject(OpponentScoutService);
+  private readonly activity = inject(ActivityService);
 
   protected readonly SELF_ID = 'us';
   /** Set by the Roster shell's one switch. */
@@ -70,6 +72,12 @@ export class ScoutReportComponent {
   protected readonly board = computed(() => banCandidates(this.players()));
   protected readonly when = computed(() => (this.players().length ? scoutedAgo(this.players()) : ''));
   protected readonly busy = computed(() => this.scout.scouting() === this.SELF_ID);
+  /**
+   * The scout refuses while a roster import runs (27 Sep 2026: both spend the same
+   * hundred Riot calls), and a live pill that returns without a word is a mechanism
+   * that silently does nothing, so the pill says why instead.
+   */
+  protected readonly importing = computed(() => this.activity.has('Importing roster'));
   /** Players on the roster with no Riot tag: the scout has nothing to look up for them. */
   protected readonly untagged = computed(() => this.data.players().filter((p) => !p.profile?.riotTag?.trim()).map((p) => p.name));
 

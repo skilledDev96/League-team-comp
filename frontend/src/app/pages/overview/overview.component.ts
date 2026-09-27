@@ -1,6 +1,8 @@
 import { afterNextRender, Component, computed, effect, inject, Injector, input, signal, untracked } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { amsterdamToday, RankTrend, rankTrendOf } from '../../core/rank-ladder';
 import { RosterCard, RosterGroup, RosterModel } from '../../core/roster-model';
+import { AuthService } from '../../services/auth.service';
 import { RankHistoryService } from '../../services/rank-history.service';
 import { MotionService } from '../../services/motion.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -19,7 +21,7 @@ import { RosterSheetComponent } from '../roster/poster/roster-sheet.component';
  */
 @Component({
   selector: 'app-overview',
-  imports: [InViewDirective, RosterPanelComponent, RosterSheetComponent],
+  imports: [InViewDirective, RosterPanelComponent, RosterSheetComponent, RouterLink],
   templateUrl: './overview.component.html'
 })
 export class OverviewComponent {
@@ -29,6 +31,8 @@ export class OverviewComponent {
   readonly model = input.required<RosterModel>();
 
   private readonly data = inject(TeamDataService);
+  /** For the zero-players poster (27 Sep 2026): an editor gets the import pill, a viewer a line saying who adds them. */
+  protected readonly auth = inject(AuthService);
   private readonly motion = inject(MotionService);
   private readonly injector = inject(Injector);
   private readonly history = inject(RankHistoryService);

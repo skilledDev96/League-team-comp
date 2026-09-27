@@ -15,6 +15,7 @@ import { UserPrefsService } from '../../services/user-prefs.service';
 import { ChampionFilterService } from '../../services/champion-filter.service';
 import { CompAnalysisService } from '../../services/comp-analysis.service';
 import { RefreshService } from '../../services/refresh.service';
+import { ActivityService } from '../../services/activity.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { UiService } from '../../services/ui.service';
 import { ChampionFilterComponent } from '../../shared/champion-filter.component';
@@ -90,6 +91,7 @@ export class GamesComponent {
   protected readonly ui = inject(UiService);
   protected readonly auth = inject(AuthService);
   protected readonly refresh = inject(RefreshService);
+  private readonly activity = inject(ActivityService);
   protected readonly filter = inject(ChampionFilterService);
   private readonly prefs = inject(UserPrefsService);
   private readonly analysis = inject(CompAnalysisService);
@@ -588,6 +590,19 @@ export class GamesComponent {
       return;
     }
     if (this.analysisLoading()) return;
+    if (this.refresh.anyRunning()) {
+      // The quick action arrives by URL, so the pill's disabled state never stood in
+      // its way (27 Sep 2026): a roster import or a player refresh is spending the
+      // same hundred Riot calls, and the analysis fails on a skeleton the import has
+      // not read yet. Say which job, the way the importer names its blocker.
+      const job = this.activity.primary()?.label ?? 'A refresh';
+      this.toast.show('Another Riot job is running', {
+        text: `${job} is spending the same Riot calls; press "Refresh matches from Riot" once it lands.`,
+        kind: 'info',
+        timeout: 6000
+      });
+      return;
+    }
     const before = new Set((this.data.compAnalysis()?.games ?? []).map((g) => g.matchId));
     this.tab.set('games');
     await this.refreshAnalysis();

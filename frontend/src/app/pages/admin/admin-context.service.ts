@@ -7,6 +7,7 @@ import { AuthService } from '../../services/auth.service';
 import { AdminPlayersService } from './state/admin-players.service';
 import { AdminShellService } from './state/admin-shell.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
+import { RosterImportRow } from '../../services/roster-import.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { API_SHA, BUILD_SHA } from '../../build-info';
 import { ConfirmService } from '../../services/confirm.service';
@@ -97,6 +98,21 @@ export class AdminContextService {
   readonly savePlayer = (d: PlayerDraft) => this.players.savePlayer(d);
   readonly autosave = (d: PlayerDraft) => this.players.autosave(d);
   readonly deletePlayer = (d: PlayerDraft) => this.players.deletePlayer(d);
+
+  // The op.gg multi-link import (27 Sep 2026), the same way.
+  readonly importer = this.players.importer;
+  readonly importPaste = this.players.importPaste;
+  readonly importPreview = this.players.importPreview;
+  readonly importLine = this.players.importLine;
+  readonly importLabel = this.players.importLabel;
+  readonly reseatReason = this.players.reseatReason;
+  readonly scoutBusy = this.players.scoutBusy;
+  readonly chooseLinkAdd = () => this.players.chooseLinkAdd();
+  readonly startImport = () => this.players.startImport();
+  readonly retryImport = (r: RosterImportRow) => this.players.retryImport(r);
+  readonly openImported = (r: RosterImportRow) => this.players.openImported(r);
+  readonly reseatByRiot = () => this.players.reseatByRiot();
+  readonly scoutUs = () => this.players.scoutUs();
 
   // Accordion: only one player panel open at a time to reduce clutter.
 
@@ -424,6 +440,13 @@ export class AdminContextService {
     this.shell.scrollToCard(id);
   }
 
+  /**
+   * Whether `import=1` has been honoured on this visit. The resync after an
+   * import runs this focus again with the same params, and without the flag
+   * the dialog would open a second time over the results card.
+   */
+  private importOpened = false;
+
   /** Deep links from elsewhere in the app open a tab and focus one row. */
   private applyRouteFocus(): void {
     const params = this.route.snapshot.queryParamMap;
@@ -434,6 +457,15 @@ export class AdminContextService {
     // "Add a comp" from the quick actions: one blank comp, not one per visit.
     if (params.get('add') === 'comp' && !this.compDrafts().some((d) => !d.id && !d.name)) {
       this.addComp();
+    }
+    // "Import the roster" from the Roster's empty poster (27 Sep 2026): the Add player dialog on its paste step, once.
+    if (params.get('import') === '1') {
+      if (!this.importOpened) {
+        this.importOpened = true;
+        this.players.openImport();
+      }
+    } else {
+      this.importOpened = false;
     }
 
     const playerId = params.get('playerId');

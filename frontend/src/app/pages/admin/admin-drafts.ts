@@ -114,6 +114,22 @@ export function mobalyticsSlugFor(summoner: string): string {
   return tag ? `${base}-${tag.toLowerCase()}` : base;
 }
 
+/**
+ * Both profile slugs for a Riot ID, the one rule the editor's auto-fill and the
+ * roster importer share (27 Sep 2026): op.gg takes `Name-TAG` as typed, Mobalytics
+ * the lowercase slug with the tag. Both empty when the name slugs to nothing.
+ */
+export function profileSlugs(name: string, tag: string): { opggSlug: string; mobalyticsSlug: string } {
+  const cleanName = name.trim();
+  const cleanTag = tag.trim();
+  const base = slugifyName(cleanName);
+  if (!base) return { opggSlug: '', mobalyticsSlug: '' };
+  return {
+    opggSlug: cleanTag ? `${cleanName}-${cleanTag}` : cleanName,
+    mobalyticsSlug: cleanTag ? `${base}-${cleanTag.toLowerCase()}` : base
+  };
+}
+
 export function slugifyName(value: string): string {
   return value
     .trim()

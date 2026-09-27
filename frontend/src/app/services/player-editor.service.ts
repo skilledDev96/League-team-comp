@@ -1,6 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { Player, Role } from '../models/team.models';
-import { newUid, PlayerDraft, slugifyName, splitList, toPlayerDraft } from '../pages/admin/admin-drafts';
+import { newUid, PlayerDraft, profileSlugs, splitList, toPlayerDraft } from '../pages/admin/admin-drafts';
 import { PlayerEnrichmentService } from './player-enrichment.service';
 import { TeamDataService } from './team-data.service';
 import { ToastService } from './toast.service';
@@ -78,12 +78,12 @@ export class PlayerEditorService {
     return draft.id || (name ? `new-${name}` : `new-${draft.uid}`);
   }
 
+  /** Fill the empty slugs from the name and tag; one rule with the roster importer (profileSlugs). */
   autoFillSlugs(draft: PlayerDraft): void {
-    const baseName = slugifyName(draft.name);
-    const tag = draft.riotTag.trim();
-    if (!baseName) return;
-    if (!draft.opggSlug.trim()) draft.opggSlug = tag ? `${draft.name.trim()}-${tag}` : draft.name.trim();
-    if (!draft.mobalyticsSlug.trim()) draft.mobalyticsSlug = tag ? `${baseName}-${tag.toLowerCase()}` : baseName;
+    const slugs = profileSlugs(draft.name, draft.riotTag);
+    if (!slugs.opggSlug && !slugs.mobalyticsSlug) return;
+    if (!draft.opggSlug.trim()) draft.opggSlug = slugs.opggSlug;
+    if (!draft.mobalyticsSlug.trim()) draft.mobalyticsSlug = slugs.mobalyticsSlug;
   }
 
   // ---- Riot ------------------------------------------------------------------

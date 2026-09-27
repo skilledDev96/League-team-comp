@@ -186,20 +186,30 @@ describe('mergePlayer', () => {
     expect(mergePlayer(player, { source: 'template', strengths: ['made up'] }, '2026-09-05T05:00:00Z')).toBeNull();
   });
 
-  it('merges a provider result the way the roster page does, and stamps the time', () => {
+  it('merges a provider result the way the roster page does, keeps the seat, and stamps the time', () => {
     const merged = mergePlayer(
       player,
-      { source: 'provider', role: 'Top', top3: ['Sion'], bans: [], strengths: [], queueStats: { solo: {} } },
+      { source: 'provider', role: 'Jungle', top3: ['Sion'], bans: [], strengths: [], queueStats: { solo: {} } },
       '2026-09-05T05:00:00Z'
     );
     expect(merged).toMatchObject({
       id: 'p1',
+      // A refresh never moves a set seat (27 Sep 2026): Riot's Jungle is a suggestion, the stored Top stays.
+      role: 'Top',
       top3: ['Ornn', 'Sion'],
       bans: ['Fiora'],
       strengths: ['old'],
       queueStats: { solo: {} },
       refreshedAt: '2026-09-05T05:00:00Z'
     });
+  });
+
+  it("fills an empty seat with Riot's, and leaves it empty when Riot named none", () => {
+    const { role: _unset, ...seatless } = player;
+    const filled = mergePlayer(seatless, { source: 'provider', role: 'Jungle' }, '2026-09-27T05:00:00Z');
+    expect(filled?.role).toBe('Jungle');
+    const stillEmpty = mergePlayer(seatless, { source: 'provider' }, '2026-09-27T05:00:00Z');
+    expect(stillEmpty?.role).toBeUndefined();
   });
 
   it('keeps a hand-edited player as saved, and still takes the stats and the time', () => {
