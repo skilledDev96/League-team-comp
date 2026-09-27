@@ -11,6 +11,7 @@
  * the cache; everything here is decided from data it is handed.
  */
 import { RosterPlayerInput, parseRosterRequest } from './parse-request';
+import { parseTeamId } from './team-scope';
 
 /**
  * Queues a five plays as a five. Flex and Clash are the team queues; draft is
@@ -43,16 +44,24 @@ export const MAX_HISTORY_FETCHES = 40;
 export interface TeamHistoryRequest {
   players: RosterPlayerInput[];
   days: number;
+  /**
+   * The team asking (27 Sep 2026, release 3): `default` is the root, Bom Squad, and what every
+   * request without one means; any other value must be a team id (`team-scope.ts`). The handler
+   * reads nothing by it; it is the team whose member the caller must be.
+   */
+  teamId: string;
 }
 
 export function parseTeamHistoryRequest(body: unknown): TeamHistoryRequest {
   const { players } = parseRosterRequest(body);
-  const raw = (body as { days?: unknown }).days;
+  const candidate = body as { days?: unknown; teamId?: unknown };
+  const teamId = parseTeamId(candidate.teamId);
+  const raw = candidate.days;
   const days =
     typeof raw === 'number' && Number.isFinite(raw)
       ? Math.min(MAX_DAYS, Math.max(MIN_DAYS, Math.round(raw)))
       : DEFAULT_DAYS;
-  return { players, days };
+  return { players, days, teamId };
 }
 
 /** Riot's `startTime` is epoch seconds. */

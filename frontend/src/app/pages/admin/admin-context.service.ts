@@ -124,6 +124,7 @@ export class AdminContextService {
   readonly newTeamName = this.teams.newName;
   readonly newTeamRegion = this.teams.newRegion;
   readonly newTeamPaste = this.teams.newPaste;
+  readonly newTeamCopyMembers = this.teams.copyMembers;
   readonly newTeamPreview = this.teams.newPreview;
   readonly newTeamLine = this.teams.newLine;
   readonly createTeamLabel = this.teams.createLabel;
@@ -134,6 +135,7 @@ export class AdminContextService {
   readonly switchTeam = (id: string) => this.teams.switchTo(id);
   readonly createTeam = () => this.teams.createTeam();
   readonly deleteTeam = (row: TeamRow) => this.teams.deleteTeam(row);
+  readonly copyRootMembers = (row: TeamRow) => this.teams.copyRootMembers(row);
 
   // Accordion: only one player panel open at a time to reduce clutter.
 

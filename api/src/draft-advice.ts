@@ -35,6 +35,8 @@
  * validation. The call itself is in index.ts beside the other handlers.
  */
 
+import { parseTeamId } from './team-scope';
+
 export type KnownRole = 'Top' | 'Jungle' | 'Mid' | 'ADC' | 'Support';
 
 export interface AdviceRoster {
@@ -105,6 +107,12 @@ export interface DraftAdviceRequest {
    * arrived replaced by its seat (`scrubTeamText`).
    */
   notes?: string;
+  /**
+   * The team asking (27 Sep 2026, release 3): `default` is the root, Bom Squad, and what every
+   * request without one means; any other value must be a team id (`team-scope.ts`). Nothing in the
+   * prompt comes from it; it is the team whose editor the caller must be.
+   */
+  teamId: string;
 }
 
 export interface DraftAdvice {
@@ -259,6 +267,8 @@ export function parseDraftAdviceRequest(body: unknown): DraftAdviceRequest {
   if (!body || typeof body !== 'object') throw new Error('Invalid payload. Expected a JSON object.');
   const b = body as Record<string, unknown>;
 
+  // Before the draft: a request for a team that does not exist should fail on the team.
+  const teamId = parseTeamId(b.teamId);
   const action = b.action === 'ban' || b.action === 'pick' ? b.action : null;
   if (!action) throw new Error('action must be "ban" or "pick".');
   const candidates = strList(b.candidates, MAX_CANDIDATES);
@@ -397,7 +407,8 @@ export function parseDraftAdviceRequest(body: unknown): DraftAdviceRequest {
     candidates,
     soloRates,
     matchups,
-    notes: notes || undefined
+    notes: notes || undefined,
+    teamId
   };
 }
 

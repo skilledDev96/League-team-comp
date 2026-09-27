@@ -52,13 +52,22 @@ describe('teamRows', () => {
   it('puts the root team first as the default, named from the public settings, then the teams by name', () => {
     const rows = teamRows('Bom Squad', [team('zulu-aaaaaa', 'Zulu'), team('alpha-aaaaaa', 'Alpha')], DEFAULT_TEAM_ID);
     expect(rows.map((r) => r.name)).toEqual(['Bom Squad', 'Alpha', 'Zulu']);
-    expect(rows[0]).toMatchObject({ id: DEFAULT_TEAM_ID, isDefault: true, active: true, region: null, createdAt: null });
-    expect(rows[1]).toMatchObject({ id: 'alpha-aaaaaa', isDefault: false, active: false, region: 'euw' });
+    expect(rows[0]).toMatchObject({ id: DEFAULT_TEAM_ID, isDefault: true, active: true, region: null, createdAt: null, members: null });
+    expect(rows[1]).toMatchObject({ id: 'alpha-aaaaaa', isDefault: false, active: false, region: 'euw', members: null });
   });
 
   it('marks the active team and not the root when another team is chosen', () => {
     const rows = teamRows('Bom Squad', [team('alpha-aaaaaa', 'Alpha')], 'alpha-aaaaaa');
     expect(rows.map((r) => r.active)).toEqual([false, true]);
+  });
+
+  it('leaves the root row out for a person who is not on its list, and carries the member counts it is given (release 3)', () => {
+    const rows = teamRows('Bom Squad', [team('alpha-aaaaaa', 'Alpha'), team('zulu-aaaaaa', 'Zulu')], 'alpha-aaaaaa', {
+      rootMember: false,
+      members: { 'alpha-aaaaaa': 3 }
+    });
+    expect(rows.map((r) => r.name)).toEqual(['Alpha', 'Zulu']);
+    expect(rows.map((r) => r.members)).toEqual([3, null]);
   });
 });
 
@@ -91,8 +100,8 @@ describe('createTeamReason', () => {
     expect(createTeamReason({ ...ok, mode: 'local', name: '' })).toBe('Teams need Firebase; the local preview has one team.');
   });
 
-  it('is for admins', () => {
-    expect(createTeamReason({ ...ok, admin: false })).toBe('Only an admin can create a team.');
+  it('is for root admins', () => {
+    expect(createTeamReason({ ...ok, admin: false })).toBe('Only a root admin can create a team.');
   });
 
   it('waits for a create in flight', () => {
@@ -145,9 +154,15 @@ describe('AdminTeamsService', () => {
   let primary: WritableSignal<ActivityJob | null>;
   let mode: 'firebase' | 'local';
   let ask: Mock<(request: ConfirmRequest) => Promise<boolean>>;
-  let createTeam: Mock<(team: Team) => Promise<void>>;
+  let createTeam: Mock<(team: Team, options?: { copyRootMembers?: boolean }) => Promise<void>>;
   let teamHasData: Mock<(id: string) => Promise<string | null>>;
   let deleteTeam: Mock<(id: string) => Promise<void>>;
+  let copyRootMembers: Mock<(id: string) => Promise<{ added: number; kept: number }>>;
+  /** The role the fake AuthService answers for any team: a root admin unless a case says otherwise. */
+  let roleFor: Mock<(id: string) => 'admin' | 'contributor' | 'viewer' | null>;
+  let isRootAdmin: WritableSignal<boolean>;
+  let isRootMember: WritableSignal<boolean>;
+  let accessEntries: WritableSignal<{ email: string; role: 'admin' | 'contributor' | 'viewer'; active: boolean }[]>;
   let choose: Mock<(id: string) => void>;
   let setTeam: Mock<(id: string) => Promise<void>>;
   let run: Mock<(text: string) => Promise<string | null>>;
@@ -174,6 +189,14 @@ describe('AdminTeamsService', () => {
       log.push(`deleteTeam:${id}`);
       teams.update((list) => list.filter((t) => t.id !== id));
     });
+    copyRootMembers = vi.fn(async (id: string) => {
+      log.push(`copyRootMembers:${id}`);
+      return { added: 2, kept: 1 };
+    });
+    roleFor = vi.fn((_id: string) => 'admin' as const);
+    isRootAdmin = signal(true);
+    isRootMember = signal(true);
+    accessEntries = signal([]);
     choose = vi.fn((id: string) => {
       log.push(`choose:${id}`);
       activeTeamId.set(id);
@@ -189,13 +212,16 @@ describe('AdminTeamsService', () => {
     const data = {
       mode,
       teams,
+      visibleTeams: teams,
       rootTeamName: signal('Bom Squad'),
       scopeReady,
       ready: signal(true),
       players: signal<Player[]>([]),
+      accessEntries,
       createTeam,
       teamHasData,
-      deleteTeam
+      deleteTeam,
+      copyRootMembers
     };
     const importer = {
       preview: (text: string, existing: readonly Player[]) => preview(text, existing),
@@ -210,7 +236,10 @@ describe('AdminTeamsService', () => {
         AdminTeamsService,
         AdminShellService,
         { provide: TeamDataService, useValue: data },
-        { provide: AuthService, useValue: { mode, canManageUsers: signal(true), canEdit: signal(true), userEmail: signal('lead@example.com') } },
+        {
+          provide: AuthService,
+          useValue: { mode, canManageUsers: signal(true), canEdit: signal(true), userEmail: signal('lead@example.com'), isRootAdmin, isRootMember, roleFor }
+        },
         { provide: TeamScopeService, useValue: { activeTeamId, choose } },
         { provide: UserPrefsService, useValue: { setTeam } },
         { provide: ConfirmService, useValue: { ask } },
@@ -242,6 +271,19 @@ describe('AdminTeamsService', () => {
       expect(svc.rows().map((r) => r.name)).toEqual(['Bom Squad', 'Alpha']);
       expect(svc.regions.map((r) => r.code)).toEqual(['euw', 'eune', 'na', 'kr', 'br', 'jp', 'lan', 'las', 'oce', 'ru', 'tr']);
       expect(svc.regions[0].label).toBe('EUW');
+    });
+
+    it("counts the active team's list for its admin, leaves the root row out for a person off the root list, and refuses a create to anyone but a root admin (release 3)", () => {
+      teams.set([team('alpha-aaaaaa', 'Alpha')]);
+      accessEntries.set([{ email: 'a@example.com', role: 'admin', active: true }, { email: 'b@example.com', role: 'viewer', active: true }]);
+      expect(svc.rows().map((r) => r.members)).toEqual([null, null]);
+      activeTeamId.set('alpha-aaaaaa');
+      expect(svc.rows().map((r) => r.members)).toEqual([null, 2]);
+      isRootMember.set(false);
+      expect(svc.rows().map((r) => r.name)).toEqual(['Alpha']);
+      isRootAdmin.set(false);
+      fill();
+      expect(svc.createReason()).toBe('Only a root admin can create a team.');
     });
 
     it('is off with no name, off with nothing readable, and on with both', () => {
@@ -287,6 +329,8 @@ describe('AdminTeamsService', () => {
       expect(ask).toHaveBeenCalledTimes(1);
       expect(ask.mock.calls[0][0]).toMatchObject({ title: 'Create Bom Squad Academy?', confirmLabel: 'Create team' });
       expect(ask.mock.calls[0][0].body).toMatch(/its own roster, comps, games and settings/);
+      // The copy of the root list is on by default, and the question says so.
+      expect(ask.mock.calls[0][0].body).toMatch(/everyone active on Bom Squad's list joins it with the same role/);
       const id = createTeam.mock.calls[0][0].id;
       expect(id).toMatch(/^bom-squad-academy-[a-z0-9]{6}$/);
       expect(isTeamId(id)).toBe(true);
@@ -295,8 +339,10 @@ describe('AdminTeamsService', () => {
       expect(run).toHaveBeenCalledWith(LINK);
       expect(createTeam.mock.calls[0][0]).toMatchObject({ name: 'Bom Squad Academy', region: 'euw', createdBy: 'lead@example.com', refresh: 'on' });
       expect(createTeam.mock.calls[0][0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(createTeam.mock.calls[0][1]).toEqual({ copyRootMembers: true });
       expect(svc.newName()).toBe('');
       expect(svc.newPaste()).toBe('');
+      expect(svc.copyMembers()).toBe(true);
       expect(shell.resyncToken()).toBe(1);
       expect(shell.status()).toBe('Created Bom Squad Academy; importing 5 players.');
       expect(svc.creating()).toBe(false);
@@ -310,6 +356,16 @@ describe('AdminTeamsService', () => {
       const written = createTeam.mock.calls[0][0];
       expect(written.region).toBe('na');
       expect(written.id).not.toBe('bom-squad-academy-aaaaaa');
+    });
+
+    it('creates a team with the creator alone on its list when the copy is unticked, and says so', async () => {
+      fill();
+      svc.copyMembers.set(false);
+      await svc.createTeam();
+      expect(ask.mock.calls[0][0].body).toMatch(/You are its admin, and nobody else is on it yet/);
+      expect(createTeam.mock.calls[0][1]).toEqual({ copyRootMembers: false });
+      // The fold is spent, the box included.
+      expect(svc.copyMembers()).toBe(true);
     });
 
     it('writes nothing when the question is cancelled, and keeps the form', async () => {
@@ -355,6 +411,16 @@ describe('AdminTeamsService', () => {
       expect(shell.status()).toBe('Missing or insufficient permissions.');
       expect(svc.creating()).toBe(false);
       expect(svc.newName()).toBe('Bom Squad Academy');
+    });
+
+    it("says what a permission refusal means, since Firestore's sentence does not (release 3: the rules deployed before it refuse the batch)", async () => {
+      createTeam.mockRejectedValueOnce(Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' }));
+      fill();
+      await svc.createTeam();
+      expect(shell.status()).toBe(
+        'The team could not be created. Firestore refused the write. If the release 3 membership rules are not live yet, ask the lead to deploy them.'
+      );
+      expect(run).not.toHaveBeenCalled();
     });
 
     it('waits for the new scope to be ready before importing, and goes on after the bound when it never is', async () => {
@@ -483,17 +549,52 @@ describe('AdminTeamsService', () => {
     });
   });
 
-  describe('deleteTeam', () => {
-    const row = (over: Partial<TeamRow> = {}): TeamRow => ({
-      id: 'alpha-aaaaaa',
-      name: 'Alpha',
-      region: 'euw',
-      createdBy: 'lead@example.com',
-      createdAt: '2026-09-27T10:00:00.000Z',
-      isDefault: false,
-      active: false,
-      ...over
+  const row = (over: Partial<TeamRow> = {}): TeamRow => ({
+    id: 'alpha-aaaaaa',
+    name: 'Alpha',
+    region: 'euw',
+    createdBy: 'lead@example.com',
+    createdAt: '2026-09-27T10:00:00.000Z',
+    isDefault: false,
+    active: false,
+    members: null,
+    ...over
+  });
+
+  describe('copyRootMembers (release 3)', () => {
+    it('asks, copies, counts on the row and says what landed', async () => {
+      teams.set([team('alpha-aaaaaa', 'Alpha')]);
+      await svc.copyRootMembers(row());
+      expect(ask.mock.calls[0][0]).toMatchObject({ title: "Copy Bom Squad's members to Alpha?", confirmLabel: 'Copy members' });
+      expect(ask.mock.calls[0][0].body).toMatch(/keeps what they have there/);
+      expect(log).toEqual(['ask', 'copyRootMembers:alpha-aaaaaa']);
+      expect(shell.status()).toBe('Copied 2 members of Bom Squad to Alpha; 1 entry was already there.');
+      expect(svc.rows().map((r) => r.members)).toEqual([null, 3]);
     });
+
+    it('copies nothing when the question is cancelled, for the root row, or for anyone but a root admin', async () => {
+      ask.mockImplementationOnce(async () => {
+        log.push('ask');
+        return false;
+      });
+      await svc.copyRootMembers(row());
+      expect(log).toEqual(['ask']);
+      await svc.copyRootMembers(row({ id: DEFAULT_TEAM_ID, name: 'Bom Squad', isDefault: true }));
+      expect(log).toEqual(['ask']);
+      isRootAdmin.set(false);
+      await svc.copyRootMembers(row());
+      expect(log).toEqual(['ask']);
+      expect(shell.status()).toBe('Only a root admin can copy the members.');
+    });
+
+    it('puts a refused copy on the status line', async () => {
+      copyRootMembers.mockRejectedValueOnce(new Error('Missing or insufficient permissions.'));
+      await svc.copyRootMembers(row());
+      expect(shell.status()).toBe('Missing or insufficient permissions.');
+    });
+  });
+
+  describe('deleteTeam', () => {
 
     it('refuses, naming the collection, while the prefix holds a document, and never asks', async () => {
       teamHasData.mockResolvedValueOnce('players');
@@ -527,6 +628,24 @@ describe('AdminTeamsService', () => {
       await svc.deleteTeam(row());
       expect(teamHasData).not.toHaveBeenCalled();
       expect(shell.status()).toMatch(/^Importing roster is running/);
+    });
+
+    it("refuses anyone who is not a root admin, a team's own admin included: the rules let only a root admin delete the team document (release 3)", async () => {
+      isRootAdmin.set(false);
+      roleFor.mockImplementation((id: string) => (id === 'alpha-aaaaaa' ? 'admin' : null));
+      await svc.deleteTeam(row());
+      expect(teamHasData).not.toHaveBeenCalled();
+      expect(ask).not.toHaveBeenCalled();
+      expect(shell.status()).toBe('Only a root admin can delete a team.');
+    });
+
+    it("says what a permission refusal of the batch means, since Firestore's sentence does not", async () => {
+      deleteTeam.mockRejectedValueOnce(Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' }));
+      await svc.deleteTeam(row());
+      expect(shell.status()).toBe(
+        'The team could not be deleted. Firestore refused the write. If the release 3 membership rules are not live yet, ask the lead to deploy them.'
+      );
+      expect(choose).not.toHaveBeenCalled();
     });
   });
 });

@@ -20,6 +20,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  * The seeded timeline is current, so the ordinary cases never fetch one; the stale-timeline cases
  * seed it a version behind, which is the only way `getMatchTimeline`'s read and write and
  * `rosterFromPlayers`' three reads are reached at all.
+ *
+ * Since release 3 (the same day) a team has a membership list of its own, `teams/{teamId}/access`,
+ * and the six token-checked handlers stand behind `admitEditor` or `admitMember` for the team the
+ * request names. The `editor` token here is a root contributor who is also listed on team b, so
+ * the path cases run as before; the "who may call them" cases at the end take a contributor listed
+ * on b alone, a root viewer and a root admin through every one of the six, and the members-index
+ * trigger is driven at the end.
  */
 
 type Row = Record<string, unknown>;
@@ -31,6 +38,8 @@ const fb = vi.hoisted(() => {
   const touched: string[] = [];
   /** Every write, in order. */
   const writes: { path: string; data: Row; options?: unknown }[] = [];
+  /** Every delete, in order. */
+  const deleted: string[] = [];
   const verifyIdToken = vi.fn();
   const snapOf = (path: string) => {
     const data = docs.get(path);
@@ -43,9 +52,25 @@ const fb = vi.hoisted(() => {
       set: async (data: Row, options?: { merge?: boolean }) => {
         writes.push({ path, data, options });
         docs.set(path, options?.merge ? { ...(docs.get(path) ?? {}), ...data } : { ...data });
+      },
+      delete: async () => {
+        deleted.push(path);
+        docs.delete(path);
       }
     };
   };
+  type DocRef = ReturnType<typeof doc>;
+  /** A transaction over the same fakes: reads and writes go straight through, so the record is the same. */
+  const runTransaction = async <T>(fn: (tx: { get(ref: DocRef): Promise<unknown>; set(ref: DocRef, data: Row): void; delete(ref: DocRef): void }) => Promise<T>) =>
+    fn({
+      get: (ref) => ref.get(),
+      set: (ref, data) => {
+        void ref.set(data);
+      },
+      delete: (ref) => {
+        void ref.delete();
+      }
+    });
   /** A collection query: `where` filters on equality, `select` and `limit` are accepted and ignored. */
   const query = (name: string, filters: { field: string; value: unknown }[]) => ({
     select: () => query(name, filters),
@@ -65,9 +90,10 @@ const fb = vi.hoisted(() => {
       touched.push(name);
       return query(name, []);
     },
-    getAll: async (...refs: { get: () => Promise<unknown> }[]) => Promise.all(refs.map((ref) => ref.get()))
+    getAll: async (...refs: { get: () => Promise<unknown> }[]) => Promise.all(refs.map((ref) => ref.get())),
+    runTransaction
   };
-  return { docs, touched, writes, verifyIdToken, firestore };
+  return { docs, touched, writes, deleted, verifyIdToken, firestore };
 });
 
 const reviewer = vi.hoisted(() => {
@@ -95,6 +121,7 @@ vi.mock('firebase-admin/firestore', () => ({
 }));
 vi.mock('firebase-functions/v2/https', () => ({ onRequest: (_options: unknown, handler: unknown) => handler }));
 vi.mock('firebase-functions/v2/scheduler', () => ({ onSchedule: (_options: unknown, handler: unknown) => handler }));
+vi.mock('firebase-functions/v2/firestore', () => ({ onDocumentWritten: (_options: unknown, handler: unknown) => handler }));
 vi.mock('firebase-functions/v2/options', () => ({ setGlobalOptions: vi.fn() }));
 vi.mock('firebase-functions/params', () => ({ defineSecret: () => ({ value: () => 'test-key' }) }));
 vi.mock('@anthropic-ai/sdk', () => ({ default: reviewer.Anthropic }));
@@ -102,7 +129,17 @@ vi.mock('@anthropic-ai/sdk', () => ({ default: reviewer.Anthropic }));
 import { CACHE_VERSION } from './analysis-cache';
 import { endOfGameFacts } from './game-facts';
 import { TIMELINE_VERSION } from './timeline-features';
-import { gameReview, getCompAnalysis, refreshTeamData, refreshTeamDataOnce, refreshTeams } from './index';
+import {
+  draftAdvice,
+  enrichPlayer,
+  gameReview,
+  getCompAnalysis,
+  getOpponentHistory,
+  refreshTeamData,
+  refreshTeamDataOnce,
+  refreshTeams,
+  syncTeamMember
+} from './index';
 
 type Handler = (req: unknown, res: unknown) => Promise<void>;
 
@@ -115,9 +152,28 @@ type Handler = (req: unknown, res: unknown) => Promise<void>;
 const GLOBAL = ['matchCache', 'meta/championTraits', 'matchupIndex', 'championStats', 'meta/keyHealth', 'access', 'teams'];
 const isGlobal = (path: string) => GLOBAL.some((g) => path === g || (g !== 'teams' && path.startsWith(g + '/')));
 
+const google = { sign_in_provider: 'google.com' };
 const TOKENS: Record<string, { email?: string; firebase: { sign_in_provider: string } }> = {
-  editor: { email: 'editor@example.com', firebase: { sign_in_provider: 'google.com' } }
+  /** A root contributor, listed on team b as a contributor too. */
+  editor: { email: 'editor@example.com', firebase: google },
+  /** A contributor on team b and nothing else: no root entry. */
+  teamOnly: { email: 'teamonly@example.com', firebase: google },
+  /** A root viewer, on no team. */
+  rootViewer: { email: 'viewer@example.com', firebase: google },
+  /** A root admin, on no team list. */
+  rootAdmin: { email: 'lead@example.com', firebase: google },
+  /** Team b's contributor on a provider the rules do not accept. */
+  password: { email: 'teamonly@example.com', firebase: { sign_in_provider: 'password' } }
 };
+
+/** The membership lists: the root's and team b's. */
+function seedAccess(): void {
+  fb.docs.set('access/editor@example.com', { active: true, role: 'contributor' });
+  fb.docs.set('access/viewer@example.com', { active: true, role: 'viewer' });
+  fb.docs.set('access/lead@example.com', { active: true, role: 'admin' });
+  fb.docs.set('teams/b/access/editor@example.com', { email: 'editor@example.com', active: true, role: 'contributor' });
+  fb.docs.set('teams/b/access/teamonly@example.com', { email: 'teamonly@example.com', active: true, role: 'contributor' });
+}
 
 async function call(handler: unknown, init: { method?: string; token?: string; body?: unknown } = {}) {
   const sent: { status: number; body?: unknown } = { status: 200 };
@@ -263,7 +319,8 @@ beforeEach(() => {
   fb.docs.clear();
   fb.touched.length = 0;
   fb.writes.length = 0;
-  fb.docs.set('access/editor@example.com', { active: true, role: 'contributor' });
+  fb.deleted.length = 0;
+  seedAccess();
   fb.docs.set(`matchCache/${MATCH_ID}`, cachedMatch);
   fb.verifyIdToken.mockReset().mockImplementation(async (token: string) => {
     const decoded = TOKENS[token];
@@ -316,7 +373,8 @@ async function bothScopes(run: (teamId: string | undefined) => Promise<unknown>)
   fb.docs.clear();
   fb.touched.length = 0;
   fb.writes.length = 0;
-  fb.docs.set('access/editor@example.com', { active: true, role: 'contributor' });
+  fb.deleted.length = 0;
+  seedAccess();
   fb.docs.set(`matchCache/${MATCH_ID}`, cachedMatch);
   seedTeam(teamB);
   await run('b');
@@ -356,13 +414,16 @@ describe('getCompAnalysis', () => {
     expect(new Set(team.map(unprefixed))).toEqual(new Set(atRoot));
     // And the root run's names are today's literals, written out.
     expect(new Set(atRoot)).toEqual(new Set(['access/editor@example.com', 'scrims', `matchCache/${MATCH_ID}`, 'matchTimeline', 'meta/compAnalysis']));
+    // The team run read the team's own list beside the root's: the one path under the prefix the root run has no twin of.
+    expect(team).toContain('teams/b/access/editor@example.com');
   });
 
   it('refuses a teamId that is not a team id before touching any data', async () => {
     const sent = await call(getCompAnalysis, { token: 'editor', body: analysisRequest('B') });
     expect(sent).toEqual({ status: 400, body: { error: 'teamId must be a team id.' } });
     expect(fb.writes).toEqual([]);
-    expect(uniqueTouched()).toEqual(['access/editor@example.com']);
+    // Since release 3 the body is parsed before the door, so not even the access entry is read.
+    expect(uniqueTouched()).toEqual([]);
   });
 });
 
@@ -681,5 +742,230 @@ describe('refreshTeams', () => {
     await tick();
     expect(writtenPaths()).not.toContain('meta/refreshLog');
     expect(fb.docs.has('meta/refreshLog')).toBe(false);
+  });
+});
+
+// ---- Who may call them (release 3, 27 Sep 2026) ---------------------------------------------------
+
+/**
+ * The six token-checked handlers, each behind `admitEditor` or `admitMember` for the team its body
+ * names. A handler that forgot the door, or asked the root list for a team request, would pass
+ * `admin-auth.spec.ts` and still answer the wrong person, so every one is driven here with a
+ * contributor listed on team b alone, a root viewer and a root admin, and a refused request is
+ * checked to reach none of the work: no write, no Riot call, no model call.
+ */
+type Least = 'member' | 'editor';
+
+/** A body for each handler, at the root when `teamId` is undefined. */
+const BODIES: Record<string, (teamId?: string) => unknown> = {
+  enrichPlayer: (teamId) => ({ summonerName: 'Ruan', riotTag: 'EUW', region: 'euw', role: 'Top', ...(teamId !== undefined && { teamId }) }),
+  getOpponentHistory: (teamId) => ({
+    players: [
+      { id: 'a', name: 'Ruan', riotTag: 'EUW', region: 'euw' },
+      { id: 'b', name: 'Dan', riotTag: 'EUW', region: 'euw' }
+    ],
+    ...(teamId !== undefined && { teamId })
+  }),
+  getCompAnalysis: (teamId) => analysisRequest(teamId),
+  refreshTeamDataOnce: (teamId) => (teamId !== undefined ? { teamId } : undefined),
+  draftAdvice: (teamId) => ({ action: 'pick', candidates: ['Ornn'], ...(teamId !== undefined && { teamId }) }),
+  gameReview: (teamId) => ({ matchId: MATCH_ID, ...(teamId !== undefined && { teamId }) })
+};
+
+const DOORS: Array<[string, unknown, Least]> = [
+  ['enrichPlayer', enrichPlayer, 'editor'],
+  ['getOpponentHistory', getOpponentHistory, 'member'],
+  ['getCompAnalysis', getCompAnalysis, 'editor'],
+  ['refreshTeamDataOnce', refreshTeamDataOnce, 'editor'],
+  ['draftAdvice', draftAdvice, 'editor'],
+  ['gameReview', gameReview, 'editor']
+];
+
+/** Whether a handler did any of its work, as opposed to only checking who asked. */
+const didWork = () => fb.writes.length > 0 || fetchMock.mock.calls.length > 0 || reviewer.create.mock.calls.length > 0;
+
+const REFUSED = (least: Least) => ({ error: expect.stringMatching(least === 'editor' ? /^Editor access required to / : /^Member access required to /) });
+
+describe.each(DOORS)('%s, the door', (name, handler, least) => {
+  const body = BODIES[name];
+
+  it('lets a contributor listed on team b alone work for team b, reading both lists and nothing else outside the prefix', async () => {
+    seedTeam(teamB);
+    const sent = await call(handler, { token: 'teamOnly', body: body('b') });
+    expect(sent.status).toBe(200);
+    expect(fb.touched).toContain('access/teamonly@example.com');
+    expect(fb.touched).toContain('teams/b/access/teamonly@example.com');
+    expectAllScoped('teams/b/');
+  });
+
+  it('refuses that contributor on the root with 403 and does none of the work', async () => {
+    seedTeam(root);
+    const sent = await call(handler, { token: 'teamOnly', body: body() });
+    expect(sent).toEqual({ status: 403, body: REFUSED(least) });
+    expect(uniqueTouched()).toEqual(['access/teamonly@example.com']);
+    expect(didWork()).toBe(false);
+  });
+
+  it('refuses that contributor on another team with 403 and does none of the work', async () => {
+    seedTeam((path) => `teams/c/${path}`);
+    const sent = await call(handler, { token: 'teamOnly', body: body('c') });
+    expect(sent).toEqual({ status: 403, body: REFUSED(least) });
+    expect(uniqueTouched()).toEqual(['access/teamonly@example.com', 'teams/c/access/teamonly@example.com']);
+    expect(didWork()).toBe(false);
+  });
+
+  it(least === 'editor' ? 'refuses a root viewer as an editor' : 'lets a root viewer in as a member', async () => {
+    seedTeam(root);
+    const sent = await call(handler, { token: 'rootViewer', body: body() });
+    if (least === 'editor') {
+      expect(sent).toEqual({ status: 403, body: REFUSED(least) });
+      expect(didWork()).toBe(false);
+    } else {
+      expect(sent.status).toBe(200);
+    }
+  });
+
+  it('refuses a root viewer on team b, where they are not listed', async () => {
+    seedTeam(teamB);
+    const sent = await call(handler, { token: 'rootViewer', body: body('b') });
+    expect(sent).toEqual({ status: 403, body: REFUSED(least) });
+    expect(didWork()).toBe(false);
+  });
+
+  it("lets a root admin work for team b without an entry on b's list, which is not read", async () => {
+    seedTeam(teamB);
+    const sent = await call(handler, { token: 'rootAdmin', body: body('b') });
+    expect(sent.status).toBe(200);
+    expect(fb.touched).toContain('access/lead@example.com');
+    expect(fb.touched).not.toContain('teams/b/access/lead@example.com');
+    expectAllScoped('teams/b/');
+  });
+
+  it('refuses a request with no token with 401, before verifying anything', async () => {
+    seedTeam(teamB);
+    const sent = await call(handler, { body: body('b') });
+    expect(sent).toEqual({ status: 401, body: { error: 'Missing Authorization: Bearer <ID_TOKEN> header.' } });
+    expect(fb.verifyIdToken).not.toHaveBeenCalled();
+    expect(uniqueTouched()).toEqual([]);
+    expect(didWork()).toBe(false);
+  });
+
+  it('refuses a token that does not verify with 401', async () => {
+    seedTeam(teamB);
+    const sent = await call(handler, { token: 'forged', body: body('b') });
+    expect(sent.status).toBe(401);
+    expect(uniqueTouched()).toEqual([]);
+    expect(didWork()).toBe(false);
+  });
+
+  it("refuses team b's contributor on a provider the rules do not accept, before any list is read", async () => {
+    seedTeam(teamB);
+    const sent = await call(handler, { token: 'password', body: body('b') });
+    expect(sent).toEqual({ status: 403, body: { error: expect.stringMatching(/^Sign in with Google to /) } });
+    expect(uniqueTouched()).toEqual([]);
+    expect(didWork()).toBe(false);
+  });
+
+  it('refuses a teamId that is not a team id with 400 before the token is looked at', async () => {
+    const sent = await call(handler, { token: 'teamOnly', body: body('B') });
+    expect(sent).toEqual({ status: 400, body: { error: 'teamId must be a team id.' } });
+    expect(fb.verifyIdToken).not.toHaveBeenCalled();
+    expect(uniqueTouched()).toEqual([]);
+    expect(didWork()).toBe(false);
+  });
+
+  it('answers the CORS preflight with 204 and refuses GET with 405', async () => {
+    expect(await call(handler, { method: 'OPTIONS' })).toEqual({ status: 204, body: '' });
+    expect(await call(handler, { method: 'GET', token: 'teamOnly', body: body('b') })).toEqual({ status: 405, body: { error: 'Method not allowed. Use POST.' } });
+    expect(uniqueTouched()).toEqual([]);
+  });
+});
+
+// ---- syncTeamMember, the members index ----------------------------------------------------------
+
+type Trigger = (event: { params: { teamId: string; email: string }; document: string; data?: unknown }) => Promise<void>;
+
+/** Fires the trigger for one entry as Firestore would after a write to it; the entry itself is whatever `fb.docs` holds. */
+const fire = (teamId: string, email: string) =>
+  (syncTeamMember as unknown as Trigger)({ params: { teamId, email }, document: `teams/${teamId}/access/${email}`, data: undefined });
+
+describe('syncTeamMember', () => {
+  const X = 'x@example.com';
+
+  it('writes members/{email} with the team when an active entry is created, the whole document and not a merge', async () => {
+    fb.docs.set(`teams/b/access/${X}`, { email: X, active: true, role: 'contributor' });
+    await fire('b', X);
+    expect(fb.writes).toEqual([{ path: `members/${X}`, data: { teams: { b: 'contributor' } }, options: undefined }]);
+    expect(fb.deleted).toEqual([]);
+    expect(uniqueTouched()).toEqual([`teams/b/access/${X}`, `members/${X}`]);
+  });
+
+  it('adds a second team beside the first and follows a role change', async () => {
+    fb.docs.set(`members/${X}`, { teams: { a: 'viewer' } });
+    fb.docs.set(`teams/b/access/${X}`, { email: X, active: true, role: 'admin' });
+    await fire('b', X);
+    expect(fb.docs.get(`members/${X}`)).toEqual({ teams: { a: 'viewer', b: 'admin' } });
+    fb.docs.set(`teams/b/access/${X}`, { email: X, active: true, role: 'viewer' });
+    await fire('b', X);
+    expect(fb.docs.get(`members/${X}`)).toEqual({ teams: { a: 'viewer', b: 'viewer' } });
+  });
+
+  it('drops the team when the entry is switched off, keeping the others', async () => {
+    fb.docs.set(`members/${X}`, { teams: { a: 'viewer', b: 'admin' } });
+    fb.docs.set(`teams/b/access/${X}`, { email: X, active: false, role: 'admin' });
+    await fire('b', X);
+    expect(fb.docs.get(`members/${X}`)).toEqual({ teams: { a: 'viewer' } });
+    expect(fb.deleted).toEqual([]);
+  });
+
+  it('deletes the document when the last team goes, rather than writing an empty map', async () => {
+    fb.docs.set(`members/${X}`, { teams: { b: 'contributor' } });
+    // The entry is gone: the app deleted it, or the whole team with it.
+    await fire('b', X);
+    expect(fb.deleted).toEqual([`members/${X}`]);
+    expect(fb.docs.has(`members/${X}`)).toBe(false);
+    expect(fb.writes).toEqual([]);
+  });
+
+  it('reads the entry as it now stands rather than trusting the event, so a late delivery cannot undo a newer write', async () => {
+    fb.docs.set(`teams/b/access/${X}`, { email: X, active: true, role: 'contributor' });
+    await (syncTeamMember as unknown as Trigger)({
+      params: { teamId: 'b', email: X },
+      document: `teams/b/access/${X}`,
+      // A stale delete event for the same entry.
+      data: { before: { exists: true, data: () => ({ active: true, role: 'contributor' }) }, after: { exists: false, data: () => undefined } }
+    });
+    expect(fb.docs.get(`members/${X}`)).toEqual({ teams: { b: 'contributor' } });
+  });
+
+  it('does nothing for a deleted entry of a person with no index', async () => {
+    await fire('b', X);
+    expect(fb.deleted).toEqual([`members/${X}`]);
+    expect(fb.writes).toEqual([]);
+  });
+
+  it('skips a document id that is not a team id or an email that is not lower-case and trimmed, touching nothing', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    for (const [teamId, email] of [
+      ['Team B', X],
+      ['default', X],
+      ['teams', X],
+      ['b', 'X@Example.com'],
+      ['b', ' x@example.com'],
+      ['b', '']
+    ]) {
+      fb.docs.set(`teams/${teamId}/access/${email}`, { active: true, role: 'admin' });
+      await fire(teamId, email);
+    }
+    expect(uniqueTouched()).toEqual([]);
+    expect(fb.writes).toEqual([]);
+    expect(fb.deleted).toEqual([]);
+    expect(warn).toHaveBeenCalledTimes(6);
+  });
+
+  it("never touches the root access list: Bom Squad's members are not in the index", async () => {
+    fb.docs.set(`teams/b/access/${X}`, { email: X, active: true, role: 'contributor' });
+    await fire('b', X);
+    expect(fb.touched.some((path) => path.startsWith('access/'))).toBe(false);
   });
 });

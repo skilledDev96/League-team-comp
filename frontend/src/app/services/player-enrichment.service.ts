@@ -1,7 +1,9 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { getAuthInstance, isFirebaseConfigured } from '../core/firebase';
+import { teamIdForRequest } from '../core/team-echo';
 import { ChampionRecord, OpponentQueuePool, PlayerQueueStats, Role, MasteryRecord } from '../models/team.models';
+import { TeamScopeService } from './team-scope.service';
 
 interface EnrichRequest {
   summonerName: string;
@@ -100,6 +102,9 @@ function fallbackByRole(role: Role): EnrichResponse {
 
 @Injectable({ providedIn: 'root' })
 export class PlayerEnrichmentService {
+  /** The team the read is for (release 3): the function's door asks who the caller is on THAT team. */
+  private readonly scope = inject(TeamScopeService);
+
   async enrichPlayer(request: EnrichRequest): Promise<EnrichResponse> {
     if (!request.summonerName.trim()) {
       throw new Error('Player name is required for enrichment.');
@@ -111,13 +116,7 @@ export class PlayerEnrichmentService {
       return fallbackByRole(role);
     }
 
-    const auth = getAuthInstance();
-    const user = auth?.currentUser;
-    if (!auth || !user) {
-      throw new Error('Sign in first to use profile enrichment.');
-    }
-
-    const idToken = await user.getIdToken();
+    const idToken = await this.idToken();
     const baseUrl = environment.functions?.enrichPlayerUrl || this.defaultFunctionUrl();
 
     const response = await fetch(baseUrl, {
@@ -131,7 +130,13 @@ export class PlayerEnrichmentService {
         riotTag: request.riotTag?.trim() || undefined,
         region: request.region?.trim().toLowerCase() || undefined,
         role,
-        mobalyticsSlug: request.mobalyticsSlug?.trim() || undefined
+        mobalyticsSlug: request.mobalyticsSlug?.trim() || undefined,
+        // The team whose editor the caller must be (release 3, 27 Sep 2026): the door on `enrichPlayer`
+        // asks `roleOf(email, teamId)`, and a body naming no team is judged on Bom Squad's list, so a
+        // person listed on another team alone was refused their own team's imports and refreshes. No key
+        // at all for the default, so Bom Squad's body is the body it always was; the handler reads
+        // nothing else by it, so no echo check is needed.
+        ...teamIdForRequest(this.scope.activeTeamId())
       })
     });
 
@@ -163,6 +168,19 @@ export class PlayerEnrichmentService {
       provider: data.provider ?? 'unknown',
       generatedAt: data.generatedAt ?? new Date().toISOString()
     };
+  }
+
+  /**
+   * The signed-in person's ID token, or the reason there is none. Its own method so a spec can stand
+   * in for the Firebase session and drive the POST itself (the CompAnalysisService pattern).
+   */
+  protected async idToken(): Promise<string> {
+    const auth = getAuthInstance();
+    const user = auth?.currentUser;
+    if (!auth || !user) {
+      throw new Error('Sign in first to use profile enrichment.');
+    }
+    return user.getIdToken();
   }
 
   private defaultFunctionUrl(): string {

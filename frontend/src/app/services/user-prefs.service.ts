@@ -232,9 +232,10 @@ export class UserPrefsService {
    * document merges over it.
    *
    * The document's `team` wins over the device's (27 Sep 2026, release 2): when it names a team,
-   * or the default, that is not the one active, the scope is told, and TeamDataService follows. A
-   * document with no `team` is one written before there were teams to choose, and it leaves the
-   * device where it was. One direction, this service to the scope, never back.
+   * or the default, that is not the one active, and this person may see it (release 3), the scope is
+   * told, and TeamDataService follows. A document with no `team` is one written before there were
+   * teams to choose, and it leaves the device where it was. One direction, this service to the
+   * scope, never back.
    *
    * Two things can happen while the read is in flight, and each is checked after the await. The
    * account can change: A signs out and B signs in on the same tab while A's read waits (offline, the
@@ -257,8 +258,10 @@ export class UserPrefsService {
         if (chosen === undefined) delete merged.team;
         else merged.team = chosen;
       } else {
+        // Only a team this person may see (release 3): a document naming one they were taken off, or the root
+        // for someone on other teams alone, leaves the device where the active-team rule put it.
         const wanted = UserPrefsService.wantedTeam(stored);
-        if (wanted && wanted !== teamAtStart) this.scope.choose(wanted);
+        if (wanted && wanted !== teamAtStart && this.auth.maySee(wanted)) this.scope.choose(wanted);
       }
       this.prefs.set(merged);
     }

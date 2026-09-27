@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   ALLOWED_SIGN_IN_PROVIDERS,
+  AccessAuthDeps,
   AccessRole,
-  AdminAuthDeps,
   DecodedIdTokenLike,
   admitAdmin,
+  admitEditor,
+  admitMember,
+  authorize,
   authorizeAdmin
 } from './admin-auth';
 
@@ -13,14 +16,17 @@ const TOKENS: Record<string, DecodedIdTokenLike> = {
   admin: { email: 'Lead@Example.com ', firebase: { sign_in_provider: 'google.com' } },
   editor: { email: 'editor@example.com', firebase: { sign_in_provider: 'google.com' } },
   viewer: { email: 'viewer@example.com', firebase: { sign_in_provider: 'google.com' } },
+  teamOnly: { email: 'teamonly@example.com', firebase: { sign_in_provider: 'google.com' } },
   e2e: { email: 'e2e@bomsquad.test', firebase: { sign_in_provider: 'custom' } },
   e2eAdmin: { email: 'lead@example.com', firebase: { sign_in_provider: 'custom' } },
   passwordAdmin: { email: 'lead@example.com', firebase: { sign_in_provider: 'password' } },
+  passwordTeamOnly: { email: 'teamonly@example.com', firebase: { sign_in_provider: 'password' } },
   anonymous: { firebase: { sign_in_provider: 'anonymous' } },
   noProvider: { email: 'lead@example.com' },
   noEmail: { firebase: { sign_in_provider: 'google.com' } }
 };
 
+/** The root list. */
 const ROLES: Record<string, AccessRole> = {
   'lead@example.com': 'admin',
   'editor@example.com': 'contributor',
@@ -28,14 +34,27 @@ const ROLES: Record<string, AccessRole> = {
   'e2e@bomsquad.test': 'viewer'
 };
 
-function deps(): AdminAuthDeps & { verifyIdToken: ReturnType<typeof vi.fn>; roleOf: ReturnType<typeof vi.fn> } {
+/** Team b's own list: one person who is on b and nowhere else, and the root viewer as a contributor. */
+const TEAM_ROLES: Record<string, Record<string, AccessRole>> = {
+  b: { 'teamonly@example.com': 'contributor', 'viewer@example.com': 'contributor' }
+};
+
+/** `roleOf` as `roles.ts` answers it (its own spec pins the rule): the root list at the root, a root admin everywhere, else the team's list. */
+function fakeRoleOf(email: string, teamId: string): AccessRole | null {
+  const root = ROLES[email] ?? null;
+  if (teamId === 'default') return root;
+  if (root === 'admin') return 'admin';
+  return TEAM_ROLES[teamId]?.[email] ?? null;
+}
+
+function deps(): AccessAuthDeps & { verifyIdToken: ReturnType<typeof vi.fn>; roleOf: ReturnType<typeof vi.fn> } {
   return {
     verifyIdToken: vi.fn(async (token: string) => {
       const decoded = TOKENS[token];
       if (!decoded) throw new Error('Firebase ID token has invalid signature.');
       return decoded;
     }),
-    roleOf: vi.fn(async (email: string) => ROLES[email] ?? null)
+    roleOf: vi.fn(async (email: string, teamId: string) => fakeRoleOf(email, teamId))
   };
 }
 
@@ -45,7 +64,8 @@ describe('authorizeAdmin', () => {
   it('accepts an admin signed in with Google, and names them by their normalised email', async () => {
     const d = deps();
     expect(await authorizeAdmin('Bearer admin', d, ACTION)).toEqual({ ok: true, email: 'lead@example.com' });
-    expect(d.roleOf).toHaveBeenCalledWith('lead@example.com');
+    // The admin door asks the root: the three triggers are the site's, not a team's.
+    expect(d.roleOf).toHaveBeenCalledWith('lead@example.com', 'default');
   });
 
   it('accepts an admin whose token came through the custom-token door, as the rules do', async () => {
@@ -159,5 +179,113 @@ describe('admitAdmin', () => {
     const { res, sent } = response();
     expect(await admitAdmin({ method: 'POST', headers: { authorization: 'Bearer admin' } }, res, deps(), ACTION)).toBe(true);
     expect(sent).toEqual({});
+  });
+});
+
+// ---- The member and editor doors (release 3, 27 Sep 2026) ---------------------------------------
+
+const EDIT = 'review a game';
+const READ = "read an opponent team's history";
+
+describe('authorize, for a team', () => {
+  it('shares the token, provider and email steps with the admin door, refusal for refusal', async () => {
+    for (const header of [undefined, '', 'Basic abc', 'Bearer']) {
+      const d = deps();
+      expect(await authorize(header, d, EDIT, 'b', 'editor')).toEqual({ ok: false, status: 401, error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
+      expect(d.verifyIdToken).not.toHaveBeenCalled();
+    }
+    expect(await authorize('Bearer forged', deps(), EDIT, 'b', 'editor')).toMatchObject({ ok: false, status: 401 });
+    for (const token of ['passwordTeamOnly', 'anonymous', 'noProvider']) {
+      const d = deps();
+      expect(await authorize(`Bearer ${token}`, d, EDIT, 'b', 'editor')).toEqual({ ok: false, status: 403, error: 'Sign in with Google to review a game.' });
+      expect(d.roleOf).not.toHaveBeenCalled();
+    }
+    const d = deps();
+    expect(await authorize('Bearer noEmail', d, READ, 'b', 'member')).toEqual({ ok: false, status: 401, error: 'Authenticated user has no email claim.' });
+    expect(d.roleOf).not.toHaveBeenCalled();
+  });
+
+  it('asks the role on the team the request named, by the normalised email', async () => {
+    const d = deps();
+    await authorize('Bearer admin', d, EDIT, 'b', 'editor');
+    expect(d.roleOf).toHaveBeenCalledWith('lead@example.com', 'b');
+    await authorize('Bearer editor', d, EDIT, 'default', 'editor');
+    expect(d.roleOf).toHaveBeenCalledWith('editor@example.com', 'default');
+  });
+
+  it('lets a member in as a member, an editor in as an editor, and never a viewer as an editor', async () => {
+    expect(await authorize('Bearer viewer', deps(), READ, 'default', 'member')).toEqual({ ok: true, email: 'viewer@example.com' });
+    expect(await authorize('Bearer e2e', deps(), READ, 'default', 'member')).toEqual({ ok: true, email: 'e2e@bomsquad.test' });
+    expect(await authorize('Bearer editor', deps(), EDIT, 'default', 'editor')).toEqual({ ok: true, email: 'editor@example.com' });
+    expect(await authorize('Bearer admin', deps(), EDIT, 'default', 'editor')).toEqual({ ok: true, email: 'lead@example.com' });
+    for (const token of ['viewer', 'e2e']) {
+      expect(await authorize(`Bearer ${token}`, deps(), EDIT, 'default', 'editor')).toEqual({ ok: false, status: 403, error: 'Editor access required to review a game.' });
+    }
+  });
+
+  it('lets a team-only contributor edit their team, and refuses them on the root and on another team', async () => {
+    expect(await authorize('Bearer teamOnly', deps(), EDIT, 'b', 'editor')).toEqual({ ok: true, email: 'teamonly@example.com' });
+    expect(await authorize('Bearer teamOnly', deps(), READ, 'b', 'member')).toEqual({ ok: true, email: 'teamonly@example.com' });
+    expect(await authorize('Bearer teamOnly', deps(), EDIT, 'default', 'editor')).toEqual({ ok: false, status: 403, error: 'Editor access required to review a game.' });
+    expect(await authorize('Bearer teamOnly', deps(), READ, 'default', 'member')).toEqual({ ok: false, status: 403, error: "Member access required to read an opponent team's history." });
+    expect(await authorize('Bearer teamOnly', deps(), EDIT, 'c', 'editor')).toMatchObject({ ok: false, status: 403 });
+    expect(await authorize('Bearer teamOnly', deps(), READ, 'c', 'member')).toMatchObject({ ok: false, status: 403 });
+  });
+
+  it("gives a root viewer the team's own role on a team, and a root admin admin everywhere", async () => {
+    // A viewer at the root, a contributor on b: an editor of b, still no editor of the root.
+    expect(await authorize('Bearer viewer', deps(), EDIT, 'b', 'editor')).toEqual({ ok: true, email: 'viewer@example.com' });
+    expect(await authorize('Bearer viewer', deps(), EDIT, 'default', 'editor')).toMatchObject({ ok: false, status: 403 });
+    expect(await authorize('Bearer admin', deps(), EDIT, 'never-listed', 'editor')).toEqual({ ok: true, email: 'lead@example.com' });
+    expect(await authorize('Bearer admin', deps(), EDIT, 'never-listed', 'admin')).toEqual({ ok: true, email: 'lead@example.com' });
+  });
+
+  it('refuses a root contributor with no entry on the team', async () => {
+    expect(await authorize('Bearer editor', deps(), EDIT, 'b', 'editor')).toEqual({ ok: false, status: 403, error: 'Editor access required to review a game.' });
+    expect(await authorize('Bearer editor', deps(), READ, 'b', 'member')).toMatchObject({ ok: false, status: 403 });
+  });
+});
+
+describe('admitMember and admitEditor', () => {
+  it('answer the CORS preflight with 204 and refuse anything but POST with 405', async () => {
+    for (const door of [admitMember, admitEditor]) {
+      const d = deps();
+      const preflight = response();
+      expect(await door({ method: 'OPTIONS', headers: {} }, preflight.res, d, EDIT, 'b')).toBe(false);
+      expect(preflight.sent).toEqual({ status: 204, body: '' });
+      const get = response();
+      expect(await door({ method: 'GET', headers: { authorization: 'Bearer teamOnly' } }, get.res, d, EDIT, 'b')).toBe(false);
+      expect(get.sent).toEqual({ status: 405, body: { error: 'Method not allowed. Use POST.' } });
+      expect(d.verifyIdToken).not.toHaveBeenCalled();
+    }
+  });
+
+  it('send the refusal and stop the handler', async () => {
+    const asEditor = response();
+    expect(await admitEditor({ method: 'POST', headers: { authorization: 'Bearer viewer' } }, asEditor.res, deps(), EDIT, 'default')).toBe(false);
+    expect(asEditor.sent).toEqual({ status: 403, body: { error: 'Editor access required to review a game.' } });
+    const asMember = response();
+    expect(await admitMember({ method: 'POST', headers: { authorization: 'Bearer teamOnly' } }, asMember.res, deps(), READ, 'default')).toBe(false);
+    expect(asMember.sent).toEqual({ status: 403, body: { error: "Member access required to read an opponent team's history." } });
+    const noToken = response();
+    expect(await admitMember({ method: 'POST', headers: {} }, noToken.res, deps(), READ, 'b')).toBe(false);
+    expect(noToken.sent).toEqual({ status: 401, body: { error: 'Missing Authorization: Bearer <ID_TOKEN> header.' } });
+  });
+
+  it('refuse with 500 when the role lookup itself fails', async () => {
+    const d = deps();
+    d.roleOf.mockRejectedValueOnce(new Error('Firestore unavailable'));
+    const { res, sent } = response();
+    expect(await admitEditor({ method: 'POST', headers: { authorization: 'Bearer teamOnly' } }, res, d, EDIT, 'b')).toBe(false);
+    expect(sent).toEqual({ status: 500, body: { error: 'Could not check access: Firestore unavailable' } });
+  });
+
+  it('let the right person through and send nothing', async () => {
+    const editor = response();
+    expect(await admitEditor({ method: 'POST', headers: { authorization: 'Bearer teamOnly' } }, editor.res, deps(), EDIT, 'b')).toBe(true);
+    expect(editor.sent).toEqual({});
+    const member = response();
+    expect(await admitMember({ method: 'POST', headers: { authorization: 'Bearer e2e' } }, member.res, deps(), READ, 'default')).toBe(true);
+    expect(member.sent).toEqual({});
   });
 });

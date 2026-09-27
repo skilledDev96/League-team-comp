@@ -1,18 +1,27 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { maySee } from '../core/access';
 import { DEFAULT_TEAM_ID } from '../core/team-scope';
+import { AccessRole } from '../models/team.models';
 import { AuthService } from './auth.service';
 import { resetOnTeamChange, TeamScopeService } from './team-scope.service';
 
 /**
- * Where the active team comes from (27 Sep 2026, release 2). Nothing chooses a team yet, so what
- * is pinned is the memory and its edges: the stored id is read the moment someone signs in and
- * without waiting for anything, a stored value that is not a team id is the default, signing out
- * is the default, and local mode is always the default.
+ * Where the active team comes from (27 Sep 2026, release 2). What is pinned is the memory and its edges: the
+ * stored id is read the moment someone signs in and without waiting for anything, a stored value that is not a
+ * team id is the default, signing out is the default, and local mode is always the default. Since release 3 the
+ * rule is over what the person may see: the fake AuthService answers `maySee` from its root role and team map,
+ * a root admin by default so every team is theirs, as every case before release 3 assumed.
  */
 describe('TeamScopeService', () => {
-  const auth = { mode: 'firebase' as 'firebase' | 'local', userEmail: signal<string | null>(null) };
+  const auth = {
+    mode: 'firebase' as 'firebase' | 'local',
+    userEmail: signal<string | null>(null),
+    rootRole: signal<AccessRole | null>('admin'),
+    teamRoles: signal<Record<string, AccessRole>>({}),
+    maySee: (teamId: string) => maySee(auth.rootRole(), auth.teamRoles(), teamId)
+  };
 
   function create(): TeamScopeService {
     TestBed.resetTestingModule();
@@ -23,6 +32,8 @@ describe('TeamScopeService', () => {
   beforeEach(() => {
     auth.mode = 'firebase';
     auth.userEmail.set(null);
+    auth.rootRole.set('admin');
+    auth.teamRoles.set({});
     localStorage.clear();
   });
 
@@ -122,6 +133,77 @@ describe('TeamScopeService', () => {
     scope.choose('b');
     expect(scope.activeTeamId()).toBe(DEFAULT_TEAM_ID);
     expect(localStorage.getItem('bom-team:local@preview')).toBe('b');
+  });
+
+  /**
+   * What a person may see decides the team (release 3): a stored key naming a team that has since taken them off
+   * its list is passed over, the root is only a root member's to land on, and `choose` refuses a team that is not
+   * theirs while the default, "no choice", is always accepted.
+   */
+  describe('over what the person may see (release 3)', () => {
+    it('passes over a stored team they may not see: the root for a root member, their first team for anyone else', () => {
+      localStorage.setItem('bom-team:a@example.com', 'gone');
+      auth.rootRole.set('viewer');
+      auth.teamRoles.set({ c: 'viewer', b: 'contributor' });
+      const scope = create();
+      auth.userEmail.set('a@example.com');
+      expect(scope.activeTeamId()).toBe(DEFAULT_TEAM_ID);
+      // The key is left as it is: the rule decides, and the person may be put back on the team later.
+      expect(localStorage.getItem('bom-team:a@example.com')).toBe('gone');
+
+      auth.rootRole.set(null);
+      expect(scope.activeTeamId()).toBe('b');
+      // And a stored team they may see is read as before.
+      localStorage.setItem('bom-team:a@example.com', 'c');
+      auth.userEmail.set(null);
+      auth.userEmail.set('a@example.com');
+      expect(scope.activeTeamId()).toBe('c');
+    });
+
+    it('never lands a person on other teams alone on the root, and moves them the moment their index changes', () => {
+      auth.rootRole.set(null);
+      auth.teamRoles.set({ b: 'contributor', c: 'viewer' });
+      const scope = create();
+      auth.userEmail.set('only@example.com');
+      expect(scope.activeTeamId()).toBe('b');
+      scope.choose('c');
+      expect(scope.activeTeamId()).toBe('c');
+      // Taken off c: the rule lands on the team that is left, with no tick and no choose.
+      auth.teamRoles.set({ b: 'contributor' });
+      expect(scope.activeTeamId()).toBe('b');
+      // Off every team: nothing to open, and AuthService signs them out from here.
+      auth.teamRoles.set({});
+      expect(scope.activeTeamId()).toBe(DEFAULT_TEAM_ID);
+    });
+
+    it('refuses a team the person may not see, and accepts the default as no choice', () => {
+      auth.rootRole.set('contributor');
+      auth.teamRoles.set({ b: 'viewer' });
+      const scope = create();
+      auth.userEmail.set('a@example.com');
+      scope.choose('b');
+      expect(scope.activeTeamId()).toBe('b');
+      expect(() => scope.choose('c')).toThrow(/not a member of the team c/);
+      expect(scope.activeTeamId()).toBe('b');
+      expect(localStorage.getItem('bom-team:a@example.com')).toBe('b');
+      scope.choose(DEFAULT_TEAM_ID);
+      expect(scope.activeTeamId()).toBe(DEFAULT_TEAM_ID);
+      expect(localStorage.getItem('bom-team:a@example.com')).toBeNull();
+
+      // For a person on other teams alone the default is their first team, and the key is cleared the same.
+      auth.rootRole.set(null);
+      scope.choose('b');
+      scope.choose(DEFAULT_TEAM_ID);
+      expect(scope.activeTeamId()).toBe('b');
+      expect(localStorage.getItem('bom-team:a@example.com')).toBeNull();
+    });
+
+    it('lets a root admin choose any team, listed in their index or not', () => {
+      const scope = create();
+      auth.userEmail.set('admin@example.com');
+      scope.choose('never-listed');
+      expect(scope.activeTeamId()).toBe('never-listed');
+    });
   });
 
   /**

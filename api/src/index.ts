@@ -3,9 +3,12 @@ import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { retryDelayMs, riotError } from './riot-errors';
-import { normalizeEmail, parseBearerToken, parseEnrichRequest } from './parse-request';
-import { AdminAuthDeps, admitAdmin } from './admin-auth';
+import { parseEnrichRequest } from './parse-request';
+import { AccessAuthDeps, admitAdmin, admitEditor, admitMember } from './admin-auth';
+import { AccessEntryLike, RoleReads, roleOf } from './roles';
+import { memberKeyOf, MembersDoc, nextMembersDoc } from './members-index';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
@@ -110,7 +113,6 @@ const RIOT_API_KEY = defineSecret('RIOT_API_KEY');
 /** For the draft advisor. Set with `firebase functions:secrets:set ANTHROPIC_API_KEY`. */
 const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
 
-type AccessRole = 'admin' | 'contributor' | 'viewer';
 type KnownRole = 'Top' | 'Jungle' | 'Mid' | 'ADC' | 'Support';
 
 interface EnrichRequest {
@@ -284,24 +286,36 @@ const ROLE_TEMPLATES: Record<KnownRole, Omit<EnrichResponse, 'generatedAt'>> = {
   }
 };
 
-async function getAccessRoleByEmail(email: string): Promise<AccessRole | null> {
-  if (BOOTSTRAP_ADMIN_EMAILS.has(email)) {
-    return 'admin';
-  }
+/**
+ * How a handler learns who is asking (release 3, 27 Sep 2026): `roleOf` in `roles.ts` over these
+ * two reads. The root list is `access/{email}`; a team's own is `teams/{teamId}/access/{email}`,
+ * the same shape, and a root admin is admin everywhere without the team read being made. The root
+ * case, `rootRoleOf`, is what `getAccessRoleByEmail` answered before release 3 (the bootstrap admin,
+ * else an active root entry's role, else null); that function went with the review of 27 Sep 2026,
+ * since every door asks `roleOf` for the team the request names and `admitAdmin` asks it for the root.
+ */
+const ROLE_READS: RoleReads = {
+  bootstrapAdmins: BOOTSTRAP_ADMIN_EMAILS,
+  rootEntry: (email) => readAccessEntry(`access/${email}`),
+  teamEntry: (teamId, email) => readAccessEntry(teamPaths(teamId).doc('access', email))
+};
 
-  const db = getFirestore();
-  const snap = await db.doc(`access/${email}`).get();
-  if (!snap.exists) {
-    return null;
-  }
-
-  const data = snap.data() as { role?: AccessRole; active?: boolean } | undefined;
-  if (!data?.active || !data.role) {
-    return null;
-  }
-
-  return data.role;
+async function readAccessEntry(path: string): Promise<AccessEntryLike | null> {
+  const snap = await getFirestore().doc(path).get();
+  if (!snap.exists) return null;
+  return (snap.data() ?? null) as AccessEntryLike | null;
 }
+
+/**
+ * How every guarded `onRequest` handler checks its caller: the doors in `admin-auth.ts`
+ * (`admitMember`, `admitEditor`, `admitAdmin`), which verify the token, require a Google or
+ * custom-token sign-in and ask `roleOf` for the team the request named. The scheduled functions
+ * and the trigger need no HTTP auth at all.
+ */
+const ACCESS_AUTH: AccessAuthDeps = {
+  verifyIdToken: (token) => getAuth().verifyIdToken(token),
+  roleOf: (email, teamId) => roleOf(email, teamId, ROLE_READS)
+};
 
 /** One champion's mastery, as the app shows it. */
 interface MasteryRecord {
@@ -908,27 +922,9 @@ export const enrichPlayer = onRequest({ cors: true, secrets: [RIOT_API_KEY], tim
   }
 
   try {
-    const idToken = parseBearerToken(req.headers.authorization);
-    if (!idToken) {
-      res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
-      return;
-    }
-
-    const auth = getAuth();
-    const decoded = await auth.verifyIdToken(idToken);
-    const email = normalizeEmail(decoded.email);
-    if (!email) {
-      res.status(401).json({ error: 'Authenticated user has no email claim.' });
-      return;
-    }
-
-    const role = await getAccessRoleByEmail(email);
-    if (role !== 'admin' && role !== 'contributor') {
-      res.status(403).json({ error: 'Insufficient role. Admin or contributor required.' });
-      return;
-    }
-
+    // The body first: the team whose editor the caller must be is in it (release 3, 27 Sep 2026).
     const payload = parseEnrichRequest(req.body);
+    if (!(await admitEditor(req, res, ACCESS_AUTH, 'enrich a player', payload.teamId))) return;
     const enriched = await enrichPlayerProfile(payload, RIOT_API_KEY.value());
     res.status(200).json(enriched);
   } catch (error) {
@@ -954,19 +950,9 @@ export const getOpponentHistory = onRequest({ cors: true, secrets: [RIOT_API_KEY
     return;
   }
   try {
-    const idToken = parseBearerToken(req.headers.authorization);
-    if (!idToken) {
-      res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
-      return;
-    }
-    const decoded = await getAuth().verifyIdToken(idToken);
-    const email = normalizeEmail(decoded.email);
-    const role = await getAccessRoleByEmail(email);
-    if (!role) {
-      res.status(403).json({ error: 'Insufficient role. Viewer access required.' });
-      return;
-    }
     const payload = parseTeamHistoryRequest(req.body);
+    // A member of the team asking is enough: this only reads, and costs the key what is new.
+    if (!(await admitMember(req, res, ACCESS_AUTH, "read an opponent team's history", payload.teamId))) return;
     const result = await computeOpponentHistory(payload, RIOT_API_KEY.value());
     res.status(200).json(result);
   } catch (error) {
@@ -1917,19 +1903,8 @@ export const getCompAnalysis = onRequest(
       return;
     }
     try {
-      const idToken = parseBearerToken(req.headers.authorization);
-      if (!idToken) {
-        res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
-        return;
-      }
-      const decoded = await getAuth().verifyIdToken(idToken);
-      const email = normalizeEmail(decoded.email);
-      const role = await getAccessRoleByEmail(email);
-      if (role !== 'admin' && role !== 'contributor') {
-        res.status(403).json({ error: 'Editor access required to refresh comp analysis.' });
-        return;
-      }
       const payload = parseCompAnalysisRequest(req.body);
+      if (!(await admitEditor(req, res, ACCESS_AUTH, 'refresh comp analysis', payload.teamId))) return;
       const paths = teamPaths(payload.teamId);
       const analysis = await computeCompAnalysis(payload, RIOT_API_KEY.value(), paths);
       // Cache the result so viewers see it without re-running the analysis.
@@ -2176,21 +2151,10 @@ export const refreshTeamDataOnce = onRequest(
       return;
     }
     try {
-      const idToken = parseBearerToken(req.headers.authorization);
-      if (!idToken) {
-        res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
-        return;
-      }
-      const decoded = await getAuth().verifyIdToken(idToken);
-      const email = normalizeEmail(decoded.email);
-      const role = await getAccessRoleByEmail(email);
-      if (role !== 'admin' && role !== 'contributor') {
-        res.status(403).json({ error: 'Editor access required to refresh team data.' });
-        return;
-      }
       // `{ teamId }` in the body, optional: no body at all is the root, as every call before
       // release 2 was. The log answered carries the team it ran for.
       const { teamId } = parseRefreshTeamRequest(req.body);
+      if (!(await admitEditor(req, res, ACCESS_AUTH, 'refresh team data', teamId))) return;
       const log = await runTeamRefresh(RIOT_API_KEY.value(), 'manual', teamPaths(teamId));
       res.status(200).json(log);
     } catch (error) {
@@ -2223,19 +2187,9 @@ export const draftAdvice = onRequest(
       return;
     }
     try {
-      const idToken = parseBearerToken(req.headers.authorization);
-      if (!idToken) {
-        res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
-        return;
-      }
-      const decoded = await getAuth().verifyIdToken(idToken);
-      const email = normalizeEmail(decoded.email);
-      const role = await getAccessRoleByEmail(email);
+      const request = parseDraftAdviceRequest(req.body);
       // Editors only: each answer costs money, and only an editor can act on it.
-      if (role !== 'admin' && role !== 'contributor') {
-        res.status(403).json({ error: 'Editor access required to ask the draft advisor.' });
-        return;
-      }
+      if (!(await admitEditor(req, res, ACCESS_AUTH, 'ask the draft advisor', request.teamId))) return;
 
       const apiKey = ANTHROPIC_API_KEY.value();
       if (!apiKey) {
@@ -2247,7 +2201,6 @@ export const draftAdvice = onRequest(
         return;
       }
 
-      const request = parseDraftAdviceRequest(req.body);
       const client = new Anthropic({ apiKey });
       const started = Date.now();
       const response = await client.beta.messages.create({
@@ -2812,19 +2765,9 @@ export const gameReview = onRequest(
       return;
     }
     try {
-      const idToken = parseBearerToken(req.headers.authorization);
-      if (!idToken) {
-        res.status(401).json({ error: 'Missing Authorization: Bearer <ID_TOKEN> header.' });
-        return;
-      }
-      const decoded = await getAuth().verifyIdToken(idToken);
-      const email = normalizeEmail(decoded.email);
-      const role = await getAccessRoleByEmail(email);
+      const request = parseGameReviewRequest(req.body);
       // Editors only: each review costs money.
-      if (role !== 'admin' && role !== 'contributor') {
-        res.status(403).json({ error: 'Editor access required to review a game.' });
-        return;
-      }
+      if (!(await admitEditor(req, res, ACCESS_AUTH, 'review a game', request.teamId))) return;
       const anthropicKey = ANTHROPIC_API_KEY.value();
       if (!anthropicKey) {
         res.status(503).json({
@@ -2834,7 +2777,6 @@ export const gameReview = onRequest(
         });
         return;
       }
-      const request = parseGameReviewRequest(req.body);
       const paths = teamPaths(request.teamId);
       const review = await reviewGame(request.matchId, {
         anthropicKey,
@@ -3050,21 +2992,16 @@ export const refreshChampionTraits = onSchedule(
   }
 );
 
-/**
- * How the three admin-only manual triggers below check their caller: the token check and the access
- * lookup every other handler uses, through `admitAdmin` (`admin-auth.ts`), which also requires the
- * admin role and a Google or custom-token sign-in. Their scheduled twins need no HTTP auth at all.
- */
-const ADMIN_AUTH: AdminAuthDeps = {
-  verifyIdToken: (token) => getAuth().verifyIdToken(token),
-  roleOf: getAccessRoleByEmail
-};
+// The three admin-only manual triggers below check their caller through `admitAdmin`
+// (`admin-auth.ts`) over `ACCESS_AUTH`, the door the six team handlers use with the admin role
+// required, on the root: the triggers are the site's, not a team's. Their scheduled twins need no
+// HTTP auth at all.
 
 /** Manual trigger, so the map can be filled without waiting for Monday. Admins only, by POST. */
 export const syncChampionTraits = onRequest(
   { cors: true, timeoutSeconds: 300 },
   async (req, res) => {
-    if (!(await admitAdmin(req, res, ADMIN_AUTH, 'sync the champion traits'))) return;
+    if (!(await admitAdmin(req, res, ACCESS_AUTH, 'sync the champion traits'))) return;
     try {
       const count = await writeChampionTraits();
       res.json({ ok: true, champions: count });
@@ -3472,7 +3409,7 @@ export const crawlChampionStats = onSchedule(
 export const crawlOnce = onRequest(
   { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 120 },
   async (req, res) => {
-    if (!(await admitAdmin(req, res, ADMIN_AUTH, 'run the crawler by hand'))) return;
+    if (!(await admitAdmin(req, res, ACCESS_AUTH, 'run the crawler by hand'))) return;
     try {
       const wanted = String(req.query.enable ?? '').toLowerCase();
       if (wanted === 'true' || wanted === 'false') {
@@ -3548,11 +3485,59 @@ export const buildMatchupIndex = onSchedule(
 export const buildMatchupIndexOnce = onRequest(
   { cors: true, timeoutSeconds: 540, memory: '512MiB' },
   async (req, res) => {
-    if (!(await admitAdmin(req, res, ADMIN_AUTH, 'rebuild the matchup index'))) return;
+    if (!(await admitAdmin(req, res, ACCESS_AUTH, 'rebuild the matchup index'))) return;
     try {
       res.json({ ok: true, note: await rollupMatchupIndex() });
     } catch (err) {
       res.status(500).json({ ok: false, error: err instanceof Error ? err.message : 'rollup failed' });
     }
+  }
+);
+
+// ---- The members index -------------------------------------------------------
+//
+// A team's membership list lives under the team, `teams/{teamId}/access/{email}` (release 3,
+// 27 Sep 2026), and under the release 3 rules only the team's admins may list it, so a person
+// cannot ask Firestore which teams they are on. The root `members/{email}` answers instead:
+// `{ teams: { [teamId]: role } }`, one document a person, written here and nowhere else, through
+// the admin SDK. The app reads its own at sign-in. Bom Squad's own list is the root `access`
+// collection, which this never sees: a root member's standing comes from the root entry.
+
+/**
+ * Keeps `members/{email}` in step with a team's access entry. On every write to one, created,
+ * changed or deleted, the entry is read back and the person's map gains, changes or loses the
+ * team (`nextMembersDoc`); a map with nothing left is deleted rather than written empty. The
+ * entry is read rather than taken from the event, and the read and the write share a
+ * transaction, so a late or repeated delivery and two entries of one person changing at once
+ * both land on the truth. The whole document is set, never merged, so a stale key cannot survive.
+ * A path the index should not hold (an id that is not a team id, an email that is not lower-case
+ * and trimmed) is logged and left alone.
+ */
+export const syncTeamMember = onDocumentWritten(
+  { document: 'teams/{teamId}/access/{email}', region: 'europe-west1' },
+  async (event) => {
+    const key = memberKeyOf(event.params.teamId, event.params.email);
+    if (!key) {
+      console.warn(`Members index: skipped ${event.document}, not an entry the index holds.`);
+      return;
+    }
+    const db = getFirestore();
+    const entryRef = db.doc(teamPaths(key.teamId).doc('access', key.email));
+    const membersRef = db.doc(`members/${key.email}`);
+    const role = await db.runTransaction(async (tx) => {
+      const [entry, current] = await Promise.all([tx.get(entryRef), tx.get(membersRef)]);
+      const next = nextMembersDoc(
+        (current.data() ?? null) as MembersDoc | null,
+        key.teamId,
+        entry.exists ? ((entry.data() ?? null) as AccessEntryLike | null) : null
+      );
+      if (next) {
+        tx.set(membersRef, next);
+      } else {
+        tx.delete(membersRef);
+      }
+      return next?.teams[key.teamId] ?? null;
+    });
+    console.log(`Members index: ${key.email} on ${key.teamId} is now ${role ?? 'nothing'}.`);
   }
 );

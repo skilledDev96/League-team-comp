@@ -73,7 +73,13 @@ const EMAIL = 'a@example.com';
 const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 describe('UserPrefsService, the document per team (release 2)', () => {
-  const auth = { mode: 'firebase' as const, ready: signal(true), userEmail: signal<string | null>(null) };
+  const auth = {
+    mode: 'firebase' as const,
+    ready: signal(true),
+    userEmail: signal<string | null>(null),
+    /** Whether the person may see a team (release 3); every team unless a case says otherwise. */
+    maySee: vi.fn<(teamId: string) => boolean>(() => true)
+  };
   const scope = { activeTeamId: signal(DEFAULT_TEAM_ID), choose: vi.fn<(teamId: string) => void>() };
   /** What Firestore holds for the account. */
   let stored: UserPrefs | null;
@@ -108,6 +114,8 @@ describe('UserPrefsService, the document per team (release 2)', () => {
   beforeEach(() => {
     localStorage.clear();
     auth.userEmail.set(null);
+    auth.maySee.mockReset();
+    auth.maySee.mockImplementation(() => true);
     scope.activeTeamId.set(DEFAULT_TEAM_ID);
     scope.choose.mockReset();
     scope.choose.mockImplementation((teamId) => scope.activeTeamId.set(teamId));
@@ -210,6 +218,20 @@ describe('UserPrefsService, the document per team (release 2)', () => {
     expect(scope.activeTeamId()).toBe(DEFAULT_TEAM_ID);
     // And nothing is written back: the document already says so.
     expect(writeDoc).not.toHaveBeenCalled();
+  });
+
+  it('leaves the device where the active-team rule put it when the document names a team the person may not see (release 3)', async () => {
+    // Taken off b since the document was written, or the root named by a person on other teams alone.
+    auth.maySee.mockImplementation((teamId) => teamId !== 'b' && teamId !== DEFAULT_TEAM_ID);
+    stored = { team: 'b' };
+    await signIn();
+    expect(auth.maySee).toHaveBeenCalledWith('b');
+    expect(scope.choose).not.toHaveBeenCalled();
+    scope.activeTeamId.set('c');
+    stored = { team: DEFAULT_TEAM_ID };
+    await signIn();
+    expect(scope.choose).not.toHaveBeenCalled();
+    expect(scope.activeTeamId()).toBe('c');
   });
 
   it('leaves the device where it was when the document has no team, the same team, or a value that is not a team id', async () => {

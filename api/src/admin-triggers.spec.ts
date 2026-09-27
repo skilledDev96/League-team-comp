@@ -39,6 +39,7 @@ vi.mock('firebase-admin/firestore', () => ({
 }));
 vi.mock('firebase-functions/v2/https', () => ({ onRequest: (_options: unknown, handler: unknown) => handler }));
 vi.mock('firebase-functions/v2/scheduler', () => ({ onSchedule: (_options: unknown, handler: unknown) => handler }));
+vi.mock('firebase-functions/v2/firestore', () => ({ onDocumentWritten: (_options: unknown, handler: unknown) => handler }));
 vi.mock('firebase-functions/v2/options', () => ({ setGlobalOptions: vi.fn() }));
 vi.mock('firebase-functions/params', () => ({ defineSecret: () => ({ value: () => 'test-riot-key' }) }));
 

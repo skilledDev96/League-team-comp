@@ -27,14 +27,25 @@ export interface TeamRow {
   isDefault: boolean;
   /** The team the person is on right now. */
   active: boolean;
+  /** How many entries the team's own membership list holds, when known (release 3): the active team's, or one just copied to; null otherwise. */
+  members: number | null;
 }
 
 /** How long to wait for a team's data after a switch before going on without it. */
 export const SCOPE_WAIT_MS = 10000;
 const SCOPE_POLL_MS = 50;
 
-/** The list: the root team first as the default, then the team documents by name. */
-export function teamRows(rootName: string, teams: readonly Team[], activeTeamId: string): TeamRow[] {
+/**
+ * The list: the root team first as the default, for a member of Bom Squad's own list, then the team documents
+ * by name. `members` is the count of each team's list where one is known, by team id (the root has no count: its
+ * list is Admin › Access's on the default team).
+ */
+export function teamRows(
+  rootName: string,
+  teams: readonly Team[],
+  activeTeamId: string,
+  options: { rootMember?: boolean; members?: Readonly<Record<string, number>> } = {}
+): TeamRow[] {
   const root: TeamRow = {
     id: DEFAULT_TEAM_ID,
     name: rootName,
@@ -42,7 +53,8 @@ export function teamRows(rootName: string, teams: readonly Team[], activeTeamId:
     createdBy: null,
     createdAt: null,
     isDefault: true,
-    active: activeTeamId === DEFAULT_TEAM_ID
+    active: activeTeamId === DEFAULT_TEAM_ID,
+    members: null
   };
   const rest = [...teams]
     .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
@@ -53,9 +65,10 @@ export function teamRows(rootName: string, teams: readonly Team[], activeTeamId:
       createdBy: t.createdBy ?? null,
       createdAt: t.createdAt ?? null,
       isDefault: false,
-      active: t.id === activeTeamId
+      active: t.id === activeTeamId,
+      members: options.members?.[t.id] ?? null
     }));
-  return [root, ...rest];
+  return [...(options.rootMember === false ? [] : [root]), ...rest];
 }
 
 /** The Create pill's label: the count it would import, or plain while there is nothing to count. */
@@ -70,6 +83,7 @@ export function createTeamLabel(preview: RosterImportPreview): string {
  */
 export function createTeamReason(input: {
   mode: 'firebase' | 'local';
+  /** A root admin: a team is theirs to create, and the copy of the root list needs their read. */
   admin: boolean;
   creating: boolean;
   name: string;
@@ -83,7 +97,7 @@ export function createTeamReason(input: {
   importBlocker: string | null;
 }): string | null {
   if (input.mode !== 'firebase') return 'Teams need Firebase; the local preview has one team.';
-  if (!input.admin) return 'Only an admin can create a team.';
+  if (!input.admin) return 'Only a root admin can create a team.';
   if (input.creating) return 'A team is being created; wait for it.';
   const name = input.name.trim();
   if (!name) return 'Give the team a name.';
@@ -104,6 +118,20 @@ export function createTeamReason(input: {
  */
 export function switchTeamReason(runningJob: string | null): string | null {
   return runningJob ? `${runningJob} is running; switching teams would leave it writing to the wrong one. Wait for it to finish.` : null;
+}
+
+/**
+ * What a refused team write is told as (release 3). The create, copy and delete batches all touch a team's own
+ * list, `teams/{id}/access`, which the rules deployed before release 3 refuse whole, and Firestore's own
+ * sentence ("Missing or insufficient permissions.") says nothing about why. The app's gates stand before every
+ * one of these writes, so a refusal that reaches the status line is the rules disagreeing with the app, and the
+ * one expected reason is that the release 3 rules are not live yet; the sentence says so and what to do.
+ */
+export function teamWriteMessage(error: unknown, fallback: string): string {
+  if ((error as { code?: unknown } | null)?.code === 'permission-denied') {
+    return `${fallback} Firestore refused the write. If the release 3 membership rules are not live yet, ask the lead to deploy them.`;
+  }
+  return error instanceof Error ? error.message : fallback;
 }
 
 /** "27 Sep 2026" from an ISO stamp, for the row; the stamp itself when it does not parse. */
@@ -140,7 +168,25 @@ export class AdminTeamsService {
   /** The region select's choices: the eleven codes `core/riot-id.ts` knows, labelled the way op.gg prints them. */
   readonly regions = REGION_CODES.map((code) => ({ code, label: code.toUpperCase() }));
 
-  readonly rows = computed(() => teamRows(this.data.rootTeamName(), this.data.teams(), this.scope.activeTeamId()));
+  /**
+   * The counts of the teams' membership lists, by id, where one is known (release 3): the active team's list is
+   * open for its admin (`accessEntries`), and a copy just made says how many the list holds now. Nothing reads
+   * every team's list to count it: that is one query a team, and the count is a nicety.
+   */
+  private readonly copiedCounts = signal<Record<string, number>>({});
+  private readonly memberCounts = computed<Record<string, number>>(() => {
+    const active = this.scope.activeTeamId();
+    const counts = { ...this.copiedCounts() };
+    if (active !== DEFAULT_TEAM_ID && this.auth.canManageUsers()) counts[active] = this.data.accessEntries().length;
+    return counts;
+  });
+
+  readonly rows = computed(() =>
+    teamRows(this.data.rootTeamName(), this.data.visibleTeams(), this.scope.activeTeamId(), {
+      rootMember: this.auth.isRootMember(),
+      members: this.memberCounts()
+    })
+  );
 
   // ---- The New team fold ------------------------------------------------
 
@@ -148,6 +194,8 @@ export class AdminTeamsService {
   readonly newRegion = signal('euw');
   /** The paste. Kept across a cancelled question, so nobody pastes twice. */
   readonly newPaste = signal('');
+  /** Whether the new team's list starts as a copy of Bom Squad's (release 3); on by default, since that is the usual case. */
+  readonly copyMembers = signal(true);
   /** What the paste would do on a roster that does not exist yet: planned against no players at all. */
   readonly newPreview = computed(() => this.importer.preview(this.newPaste(), []));
   readonly newLine = computed(() => importPreviewLine(this.newPreview()));
@@ -161,7 +209,7 @@ export class AdminTeamsService {
   readonly createReason = computed(() =>
     createTeamReason({
       mode: this.data.mode,
-      admin: this.auth.canManageUsers(),
+      admin: this.auth.isRootAdmin(),
       creating: this.creating(),
       name: this.newName(),
       taken: this.rows().map((r) => r.name),
@@ -198,10 +246,12 @@ export class AdminTeamsService {
     const name = this.newName().trim();
     const region = this.newRegion();
     const text = this.newPaste();
+    const copy = this.copyMembers();
     const count = this.newPreview().creates.length;
+    const rootName = this.data.rootTeamName();
     const ok = await this.confirm.ask({
       title: `Create ${name}?`,
-      body: `${name} gets its own roster, comps, games and settings, apart from ${this.data.rootTeamName()}'s; the roster import of ${plural(count, 'player', 'players')} starts at once.`,
+      body: `${name} gets its own roster, comps, games and settings, apart from ${rootName}'s; the roster import of ${plural(count, 'player', 'players')} starts at once. You are its admin${copy ? `, and everyone active on ${rootName}'s list joins it with the same role` : ', and nobody else is on it yet'}.`,
       confirmLabel: 'Create team'
     });
     if (!ok) return;
@@ -222,7 +272,7 @@ export class AdminTeamsService {
         createdAt: new Date().toISOString(),
         refresh: 'on'
       };
-      await this.data.createTeam(team);
+      await this.data.createTeam(team, { copyRootMembers: copy });
       // The team exists from here, so the fold is spent and empties at once (27 Sep 2026, the lead, watching the
       // first real create with the form still full under the progress bar: "the team section should clear after
       // adding a team"). The paste is kept in hand and put back only when the import cannot start, so it can be
@@ -230,6 +280,7 @@ export class AdminTeamsService {
       this.newName.set('');
       this.newRegion.set('euw');
       this.newPaste.set('');
+      this.copyMembers.set(true);
       this.scope.choose(id);
       await this.rememberTeam(id);
       const ready = await this.awaitScope(id);
@@ -248,7 +299,7 @@ export class AdminTeamsService {
         this.flash(`Created ${name}; the import did not start: ${reason} The paste is still in the fold; copy it to Players.`);
       }
     } catch (error) {
-      this.flash(error instanceof Error ? error.message : 'The team could not be created.');
+      this.flash(teamWriteMessage(error, 'The team could not be created.'));
     } finally {
       this.creating.set(false);
     }
@@ -281,14 +332,46 @@ export class AdminTeamsService {
   }
 
   /**
+   * Copy Bom Squad's members onto a team that exists (release 3, the row action): the question, then the write,
+   * which adds every active entry of the root list the team's own does not hold yet and leaves the rest as they
+   * are. One-time by nature: the lists are separate from then on, and a second copy adds only whoever is new.
+   */
+  async copyRootMembers(row: TeamRow): Promise<void> {
+    if (row.isDefault) return;
+    if (!this.auth.isRootAdmin()) {
+      this.flash('Only a root admin can copy the members.');
+      return;
+    }
+    const rootName = this.data.rootTeamName();
+    const ok = await this.confirm.ask({
+      title: `Copy ${rootName}'s members to ${row.name}?`,
+      body: `Everyone active on ${rootName}'s list is added to ${row.name} with the same role. Anyone already on ${row.name}'s list keeps what they have there, and the two lists are separate from then on.`,
+      confirmLabel: 'Copy members'
+    });
+    if (!ok) return;
+    try {
+      const { added, kept } = await this.data.copyRootMembers(row.id);
+      this.copiedCounts.update((counts) => ({ ...counts, [row.id]: added + kept }));
+      const held = kept ? `; ${plural(kept, 'entry was', 'entries were')} already there` : '';
+      this.flash(`Copied ${plural(added, 'member', 'members')} of ${rootName} to ${row.name}${held}.`);
+    } catch (error) {
+      this.flash(teamWriteMessage(error, 'The members could not be copied.'));
+    }
+  }
+
+  /**
    * The delete guard: only an empty team goes. The prefix is checked first and the refusal names the
    * collection that stands in the way, then the question, then the batch, which checks again. The root
-   * team has no pill and is refused here as well. Deleting the active team puts the person on the default.
+   * team has no pill and is refused here as well, and so is anyone who is not a root admin: the rules let
+   * only a root admin delete a team document (`allow delete: if isAdmin()`), so a team's own admin, who
+   * passed this gate until the review of 27 Sep 2026, confirmed the danger dialog and got Firestore's
+   * refusal on the status line; the row hides the action from them now. Deleting the active team puts the
+   * person on the default.
    */
   async deleteTeam(row: TeamRow): Promise<void> {
     if (row.isDefault) return;
-    if (!this.auth.canManageUsers()) {
-      this.flash('Only admins can delete a team.');
+    if (!this.auth.isRootAdmin()) {
+      this.flash('Only a root admin can delete a team.');
       return;
     }
     const job = this.runningJob();
@@ -309,7 +392,7 @@ export class AdminTeamsService {
     }
     const ok = await this.confirm.ask({
       title: `Delete ${row.name}?`,
-      body: 'It holds no players, comps or games, so only its document and settings go. Anyone on it is put back on the default team.',
+      body: 'It holds no players, comps or games, so only its document, its settings and its membership list go. Anyone on it is put back on the default team, or on their next team.',
       confirmLabel: 'Delete team',
       danger: true
     });
@@ -317,7 +400,7 @@ export class AdminTeamsService {
     try {
       await this.data.deleteTeam(row.id);
     } catch (error) {
-      this.flash(error instanceof Error ? error.message : 'The team could not be deleted.');
+      this.flash(teamWriteMessage(error, 'The team could not be deleted.'));
       return;
     }
     if (row.active) {

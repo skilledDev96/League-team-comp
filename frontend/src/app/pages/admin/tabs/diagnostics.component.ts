@@ -136,7 +136,13 @@ export class AdminDiagnosticsComponent implements OnInit {
     this.logsLoading.set(true);
     this.logsError.set('');
     try {
-      const [events, errors] = await Promise.all([this.data.loadDraftEvents(200), this.data.loadClientErrors(50)]);
+      // The draft log is the active team's and its admins read it; the browser error log is the site's, one root
+      // collection whatever the team, and only a root admin reads it (release 3). Asked for both in one Promise.all,
+      // a team's own admin had the whole read fail on the refused error log and lost the draft log that was theirs.
+      const [events, errors] = await Promise.all([
+        this.data.loadDraftEvents(200),
+        this.ctx.auth.isRootAdmin() ? this.data.loadClientErrors(50) : Promise.resolve([])
+      ]);
       this.draftEvents.set(events);
       this.clientErrors.set(errors);
     } catch (error) {

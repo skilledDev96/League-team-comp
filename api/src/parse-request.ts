@@ -6,6 +6,8 @@
  * what was wrong rather than that something was.
  */
 
+import { parseTeamId } from './team-scope';
+
 export type KnownRole = 'Top' | 'Jungle' | 'Mid' | 'ADC' | 'Support';
 
 export const KNOWN_ROLES: KnownRole[] = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
@@ -16,6 +18,12 @@ export interface EnrichRequestInput {
   region?: string;
   role?: KnownRole;
   mobalyticsSlug?: string;
+  /**
+   * The team the enrichment is for (27 Sep 2026, release 3): `default` is the root, Bom Squad,
+   * and what every request without one means; any other value must be a team id (`team-scope.ts`).
+   * The handler reads nothing by it; it is the team whose editor the caller must be.
+   */
+  teamId: string;
 }
 
 export interface RosterPlayerInput {
@@ -54,6 +62,8 @@ export function parseEnrichRequest(body: unknown): EnrichRequestInput {
   }
 
   const candidate = body as Record<string, unknown>;
+  // Before the name: a request for a team that does not exist should fail on the team.
+  const teamId = parseTeamId(candidate.teamId);
   const summonerName = typeof candidate.summonerName === 'string' ? candidate.summonerName.trim() : '';
   if (!summonerName) {
     throw new Error('summonerName is required.');
@@ -69,7 +79,8 @@ export function parseEnrichRequest(body: unknown): EnrichRequestInput {
     riotTag: optional(candidate.riotTag),
     region: optional(candidate.region, true),
     role: role ? (role as KnownRole) : undefined,
-    mobalyticsSlug: optional(candidate.mobalyticsSlug)
+    mobalyticsSlug: optional(candidate.mobalyticsSlug),
+    teamId
   };
 }
 

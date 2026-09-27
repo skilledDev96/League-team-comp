@@ -7,6 +7,7 @@ import {
   Query,
   QuerySnapshot,
   Unsubscribe,
+  WriteBatch,
   collection,
   deleteDoc,
   deleteField,
@@ -222,8 +223,9 @@ export class TeamDataService {
    * before, and `teams/{teamId}/…` for any other team. Every reference to a team's own data is built
    * here, so the listeners spec can prove the default's paths never moved and no write can land
    * half-prefixed. What is global whatever the team is built with a literal and never comes through
-   * here: `access`, `clientErrors`, `teams` itself, `meta/keyHealth`, `meta/championTraits` and the
-   * public `meta/settings` the signed-out shell prints the name from.
+   * here: `clientErrors`, `members`, `teams` itself, `meta/keyHealth`, `meta/championTraits` and the
+   * public `meta/settings` the signed-out shell prints the name from. `access` does come through it
+   * since release 3: the root list is Bom Squad's and `teams/{id}/access` is a team's own.
    */
   private path(...segments: string[]): string {
     return scopedPath(this.scope.activeTeamId(), ...segments);
@@ -355,8 +357,18 @@ export class TeamDataService {
   private readonly publicSettings = signal<Settings>({ teamName: '' });
   /** A non-default team's own `meta/settings`, once its snapshot has arrived; null on the default team and before it. */
   private readonly scopedSettings = signal<Settings | null>(null);
-  /** Every team other than the default, from the root `teams` collection, by name; kept across a team switch (openTeamsListener). */
+  /**
+   * Every team other than the default this person may see, by name; kept across a team switch (openTeamsListener).
+   * For a root admin the whole root `teams` collection; for anyone else one document per team their index names
+   * (release 3), since under its rules the list is a root admin's to query.
+   */
   readonly teams = signal<Team[]>([]);
+  /**
+   * The teams to offer in a switcher: `teams` filtered through `AuthService.maySee`, which is every team for a
+   * root admin and their own for anyone else. The filter holds the line for the tick between an index re-read that
+   * dropped a team and the listeners following it.
+   */
+  readonly visibleTeams = computed(() => this.teams().filter((t) => this.auth.maySee(t.id)));
   /**
    * The name to print for the active team: its own settings' name when it has one, else its team
    * document's, else the public root name, which is what a signed-out visitor gets, else the app's
@@ -552,15 +564,18 @@ export class TeamDataService {
   /** Whose data the member listeners are open for, as `email|teamId` (27 Sep 2026, release 2); null while none are. */
   private listeningAs: string | null = null;
   private accessListener: Unsubscribe | null = null;
-  /** Whose access list is open; the listen follows the email and the admin flag, never the team. */
+  /** Whose access list is open, as `email|teamId` (release 3: the active team's own list); the listen follows those and the admin flag. */
   private accessListeningAs: string | null = null;
-  /** Bumped every time the access listen closes: it outlives a team switch, so the members' session cannot guard it. */
+  /** Bumped every time the access listen closes: it has a life of its own, so the members' session cannot guard it. */
   private accessSession = 0;
-  /** The root teams listen, one per email and kept across a team switch like the access list (27 Sep 2026); null while none is. */
-  private teamsListener: Unsubscribe | null = null;
-  /** Whose teams list is open; the listen follows the email alone, never the team. */
+  /**
+   * The teams listens, kept across a team switch (27 Sep 2026): the root list for a root admin, else one document
+   * listen per team the person's index names (release 3); empty while none is open.
+   */
+  private readonly teamsListeners: Unsubscribe[] = [];
+  /** Whose teams are open, as `email|*` for the root list or `email|id,id` for the documents; null while none are. */
   private teamsListeningAs: string | null = null;
-  /** Bumped every time the teams listen closes: it outlives a team switch, so the members' session cannot guard it either. */
+  /** Bumped every time the teams listens close: they outlive a team switch, so the members' session cannot guard them either. */
   private teamsSession = 0;
   private settingsListener: Unsubscribe | null = null;
   /** Bumped every time the member listeners close, so a refusal from a closed set is ignored. */
@@ -590,18 +605,21 @@ export class TeamDataService {
     );
 
     // AuthService does not inject this service, so reading its signals here makes no cycle, and TeamScopeService
-    // injects only AuthService. The work runs untracked: only who is signed in, which team they are on, and whether
-    // they manage users, may re-run it.
+    // injects only AuthService and the choice store. The work runs untracked: only who is signed in, which team
+    // they are on, whether they manage it, whether they are a root admin and which teams their index names may
+    // re-run it.
     effect(() => {
       const email = this.auth.userEmail();
       const teamId = this.scope.activeTeamId();
       const admin = email !== null && this.auth.canManageUsers();
-      untracked(() => this.followSession(db, email, teamId, admin));
+      const rootAdmin = email !== null && this.auth.isRootAdmin();
+      const memberTeams = this.auth.teamsOf();
+      untracked(() => this.followSession(db, { email, teamId, admin, rootAdmin, memberTeams }));
     });
 
     inject(DestroyRef).onDestroy(() => {
       this.closeMemberListeners();
-      this.closeTeamsListener();
+      this.closeTeamsListeners();
       this.closeAccessListener();
       this.settingsListener?.();
       this.settingsListener = null;
@@ -609,28 +627,36 @@ export class TeamDataService {
   }
 
   /**
-   * Bring the listeners in line with who is signed in, which team they are on, and whether they may manage users.
+   * Bring the listeners in line with who is signed in, which team they are on, and what they may see and manage.
    * The member listeners are one set per `email|teamId`: a change of either closes them all, bumps the session,
-   * empties what they held and reopens them on the new prefix. Two root lists follow the email alone, so a team
-   * switch leaves them open: the teams list, and the access list, which also needs the admin flag.
+   * empties what they held and reopens them on the new prefix. The teams listens follow the email and, for anyone
+   * but a root admin, the ids their index names, so a team switch leaves them open. The access list follows the
+   * email, the team and the admin flag on that team (release 3): a switch closes the list just left and opens the
+   * new team's own, when this person manages it.
    */
-  private followSession(db: Firestore, email: string | null, teamId: string, admin: boolean): void {
+  private followSession(
+    db: Firestore,
+    session: { email: string | null; teamId: string; admin: boolean; rootAdmin: boolean; memberTeams: readonly string[] }
+  ): void {
+    const { email, teamId, admin, rootAdmin, memberTeams } = session;
     const key = email ? `${email}|${teamId}` : null;
     if (key !== this.listeningAs) {
       this.closeMemberListeners();
       if (email) this.openMemberListeners(db, email, teamId);
     }
-    if (email) {
-      if (this.teamsListener && this.teamsListeningAs !== email) this.closeTeamsListener();
-      if (!this.teamsListener) this.openTeamsListener(db, email);
-    } else if (this.teamsListener) {
-      this.closeTeamsListener();
+    const teamsKey = email ? (rootAdmin ? `${email}|*` : `${email}|${memberTeams.join(',')}`) : null;
+    if (teamsKey !== this.teamsListeningAs) {
+      this.closeTeamsListeners();
+      if (email) {
+        if (rootAdmin) this.openTeamsListener(db, email);
+        else this.openTeamDocListeners(db, memberTeams);
+        this.teamsListeningAs = teamsKey;
+      }
     }
-    if (email && admin) {
-      if (this.accessListener && this.accessListeningAs !== email) this.closeAccessListener();
-      if (!this.accessListener) this.openAccessListener(db, email);
-    } else if (this.accessListener) {
+    const accessKey = email && admin ? `${email}|${teamId}` : null;
+    if (accessKey !== this.accessListeningAs) {
       this.closeAccessListener();
+      if (email && admin) this.openAccessListener(db, email, teamId);
     }
   }
 
@@ -759,9 +785,11 @@ export class TeamDataService {
   /**
    * The teams list, the ROOT collection and not under any prefix: it is what the prefixes are named from, and it
    * names a team in the topbar until that team's own settings arrive. One listen per email, kept open across a
-   * team switch like the access list (27 Sep 2026): closed with the member set, it emptied `teams` for a round
-   * trip after every switch and `teamName` printed the public root name on another team until the reopened listen
-   * answered. Its refusal is guarded by its own session for the same reason.
+   * team switch (27 Sep 2026): closed with the member set, it emptied `teams` for a round trip after every switch
+   * and `teamName` printed the public root name on another team until the reopened listen answered. Its refusal
+   * is guarded by its own session for the same reason. A root admin's alone since release 3: under its rules a
+   * list query on `teams` must be readable in full, and only a root admin may open every team; anyone else gets
+   * `openTeamDocListeners`.
    *
    * When the active team is no longer in the list (deleted, or a stale choice on this device) the scope falls back
    * to the default; this is the one place the data service tells the scope anything, and the scope never reads
@@ -769,45 +797,84 @@ export class TeamDataService {
    * empty one from the cache, and a team that is merely unreachable has not been deleted.
    */
   private openTeamsListener(db: Firestore, email: string): void {
-    this.teamsListeningAs = email;
     const session = this.teamsSession;
-    this.teamsListener = this.listen(
-      collection(db, 'teams'),
-      (snap) => {
-        // Team ids only: a document made by hand in the console under any other id (`Alpha`, `default`) would be
-        // listed and offered by both switchers, and `choose` refuses it. The functions' refreshTeams skips the same.
-        const list = snap.docs.filter((d) => isTeamId(d.id)).map((d) => ({ id: d.id, ...(d.data() as Omit<Team, 'id'>) }));
-        this.teams.set(list.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')));
-        if (snap.metadata.fromCache) return;
-        const active = this.scope.activeTeamId();
-        if (active !== DEFAULT_TEAM_ID && !list.some((t) => t.id === active)) this.scope.choose(DEFAULT_TEAM_ID);
-      },
-      (error) => {
-        if (session !== this.teamsSession) return;
-        // As in onRefused: signing out re-sends the listen without a token, and that refusal is the expected end.
-        if (this.auth.userEmail() !== email) return;
-        void this.answerRefusal('teams', error, this.session, email, () => session === this.teamsSession);
-      }
+    this.teamsListeners.push(
+      this.listen(
+        collection(db, 'teams'),
+        (snap) => {
+          // Team ids only: a document made by hand in the console under any other id (`Alpha`, `default`) would be
+          // listed and offered by both switchers, and `choose` refuses it. The functions' refreshTeams skips the same.
+          const list = snap.docs.filter((d) => isTeamId(d.id)).map((d) => ({ id: d.id, ...(d.data() as Omit<Team, 'id'>) }));
+          this.teams.set(list.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')));
+          if (snap.metadata.fromCache) return;
+          const active = this.scope.activeTeamId();
+          if (active !== DEFAULT_TEAM_ID && !list.some((t) => t.id === active)) this.scope.choose(DEFAULT_TEAM_ID);
+        },
+        (error) => {
+          if (session !== this.teamsSession) return;
+          // As in onRefused: signing out re-sends the listen without a token, and that refusal is the expected end.
+          if (this.auth.userEmail() !== email) return;
+          void this.answerRefusal('teams', error, this.session, email, () => session === this.teamsSession);
+        }
+      )
     );
   }
 
-  private closeTeamsListener(): void {
-    this.teamsListener?.();
-    this.teamsListener = null;
+  /**
+   * The teams a person who is not a root admin may see (release 3): one document listen per team their
+   * `members/{email}` index names, since the list itself is a root admin's to query. Each answer lands in the
+   * same `teams` signal the list fills. A refused one is dropped without a word: the team may have taken this
+   * person off its list since the index was read, and the member listens on that prefix, refused the same way,
+   * are what asks AuthService again and moves them off the team. A document that is gone (the team deleted) is
+   * taken out of the list and AuthService is asked to re-read the index, which the `syncTeamMember` trigger has
+   * cleaned of the deleted team's entries: the active-team rule then lands them on the root or their next team,
+   * or signs them out when that was their last team. Without the re-read `teamRoles` kept naming the deleted
+   * team, so for a person on other teams alone "the default" came back as the deleted id and they sat on its
+   * empty prefix until the next stream restart. The choice is cleared as well, when it was the active team, so
+   * the device's key stops naming a team that is gone; the cache's answer says nothing about any of this, as
+   * for the list.
+   */
+  private openTeamDocListeners(db: Firestore, ids: readonly string[]): void {
+    const session = this.teamsSession;
+    for (const id of ids) {
+      this.teamsListeners.push(
+        this.listen(
+          doc(db, 'teams', id),
+          (snap) => {
+            const rest = this.teams().filter((t) => t.id !== id);
+            const list = snap.exists() ? [...rest, { id, ...(snap.data() as Omit<Team, 'id'>) }] : rest;
+            this.teams.set(list.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')));
+            if (snap.metadata.fromCache || snap.exists()) return;
+            void this.auth.confirmAccess().catch(() => undefined);
+            if (this.scope.activeTeamId() === id) this.scope.choose(DEFAULT_TEAM_ID);
+          },
+          () => {
+            if (session !== this.teamsSession) return;
+            this.teams.set(this.teams().filter((t) => t.id !== id));
+          }
+        )
+      );
+    }
+  }
+
+  private closeTeamsListeners(): void {
+    for (const stop of this.teamsListeners.splice(0)) stop();
     this.teamsListeningAs = null;
     this.teamsSession++;
     this.teams.set([]);
   }
 
   /**
-   * The whole access list, for Admin › Access and Download team data: an admin's alone under the rules, and always
-   * the root's whatever the team. It outlives a team switch, so its refusal is guarded by its own session.
+   * The whole access list of the active team, for Admin › Access and Download team data: an admin's alone under
+   * the rules. The root `access` collection on the default, which is Bom Squad's list exactly as before, and the
+   * team's own `teams/{id}/access` on any other team (release 3). It follows the team, so a switch closes it and
+   * opens the next, and its refusal is guarded by its own session.
    */
-  private openAccessListener(db: Firestore, email: string): void {
-    this.accessListeningAs = email;
+  private openAccessListener(db: Firestore, email: string, teamId: string): void {
+    this.accessListeningAs = `${email}|${teamId}`;
     const session = this.accessSession;
     this.accessListener = this.listen(
-      collection(db, 'access'),
+      collection(db, this.path('access')),
       (snap) => {
         const list = snap.docs.map((d) => ({
           email: d.id,
@@ -834,7 +901,7 @@ export class TeamDataService {
 
   /**
    * Close every member listen, empty what they held and say the data is not ready. meta/settings stays open, and the
-   * access list is closed by followSession when the email or the admin flag changes, not here: a team switch keeps it.
+   * access list and the teams listens are followSession's to close on their own keys, not here.
    */
   private closeMemberListeners(): void {
     for (const stop of this.memberListeners.splice(0)) stop();
@@ -849,9 +916,9 @@ export class TeamDataService {
 
   /**
    * Every signal a member listen fills, back to what it holds before the first snapshot. Not the access list nor
-   * the teams list: those listens stay open across a team switch, and emptying their signals here would leave
-   * Admin › Access blank, and the topbar on the public root name, until the next snapshot, which an idle list never
-   * sends. closeAccessListener and closeTeamsListener empty them.
+   * the teams list: those listens have keys of their own, and the teams listens stay open across a team switch,
+   * where emptying their signal here would leave the topbar on the public root name until the next snapshot, which
+   * an idle list never sends. closeAccessListener and closeTeamsListeners empty them.
    */
   private clearMemberData(): void {
     this.players.set([]);
@@ -1047,25 +1114,72 @@ export class TeamDataService {
 
   /**
    * One batch: the team's root document, its own `meta/settings` carrying the name the shell prints,
-   * and an empty `meta/resourceLinks`. Nothing else: the roster comes from the importer once the scope
-   * has switched, and every other collection fills as the team is used. An admin's alone (the app's
-   * gate; Stage 4's rules close the same door). Refuses an id that is not a team id or that already
-   * names a team in the list, so a retry of the same form can never overwrite a team.
+   * an empty `meta/resourceLinks`, and its membership list (release 3): the creator as its admin, and
+   * when asked every active entry of Bom Squad's list with its root role, so the creator never has to
+   * type the roster of people in again. The copy is one-time; the two lists are separate from then on.
+   * Nothing else: the roster comes from the importer once the scope has switched, and every other
+   * collection fills as the team is used. A root admin's alone (the app's gate; the rules close the
+   * same door, and only a root admin may read the root list the copy needs). Refuses an id that is not
+   * a team id or that already names a team in the list, so a retry of the same form can never
+   * overwrite a team.
    */
-  async createTeam(team: Team): Promise<void> {
+  async createTeam(team: Team, options: { copyRootMembers?: boolean } = {}): Promise<void> {
     if (this.mode !== 'firebase') throw new Error('Teams need Firebase; the local preview has one team.');
     const db = getDb();
     if (!db) throw new Error('Firebase is not configured.');
-    if (!this.auth.userEmail() || !this.auth.canManageUsers()) throw new Error('Only a signed-in admin can create a team.');
+    const creator = this.auth.userEmail();
+    if (!creator || !this.auth.isRootAdmin()) throw new Error('Only a signed-in root admin can create a team.');
     if (!isTeamId(team.id)) throw new Error(`Not a team id: ${JSON.stringify(team.id)}`);
     if (this.teams().some((t) => t.id === team.id)) throw new Error(`A team with the id ${team.id} already exists.`);
     const name = team.name.trim();
     if (!name) throw new Error('The team needs a name.');
-    const batch = writeBatch(db);
+    // The reads before the batch: the root list, when the copy is asked for.
+    const copied = options.copyRootMembers ? await this.rootMemberEntries(db) : [];
+    const batch = this.batch(db);
     batch.set(doc(db, 'teams', team.id), stripUndefined({ ...team, name } as unknown as Record<string, unknown>));
     batch.set(doc(db, scopedPath(team.id, 'meta', 'settings')), { teamName: name } satisfies Settings);
     batch.set(doc(db, scopedPath(team.id, 'meta', 'resourceLinks')), { groups: {} });
+    // The creator last and once: their own entry is admin whatever the root list says of them.
+    for (const entry of copied.filter((e) => e.email !== creator)) this.setAccessEntry(db, batch, team.id, entry);
+    this.setAccessEntry(db, batch, team.id, { email: creator, role: 'admin', active: true });
     await batch.commit();
+  }
+
+  /**
+   * Copy Bom Squad's members onto a team that already exists (release 3, the row action on Admin › Teams):
+   * every active entry of the root list, with its root role, that the team's own list does not hold yet.
+   * An entry already there is left as it is, since a team admin's decisions are the team's; the count of
+   * each is returned for the status line. A root admin's alone: the root list is theirs to read.
+   */
+  async copyRootMembers(teamId: string): Promise<{ added: number; kept: number }> {
+    if (this.mode !== 'firebase') throw new Error('Teams need Firebase; the local preview has one team.');
+    const db = getDb();
+    if (!db) throw new Error('Firebase is not configured.');
+    if (!this.auth.userEmail() || !this.auth.isRootAdmin()) throw new Error('Only a signed-in root admin can copy the members.');
+    if (!isTeamId(teamId)) throw new Error(`Not a team id: ${JSON.stringify(teamId)}`);
+    const [root, own] = await Promise.all([this.rootMemberEntries(db), this.readAll(db, scopedPath(teamId, 'access'))]);
+    const held = new Set(own.docs.map((d) => d.id));
+    const missing = root.filter((entry) => !held.has(entry.email));
+    if (missing.length) {
+      const batch = this.batch(db);
+      for (const entry of missing) this.setAccessEntry(db, batch, teamId, entry);
+      await batch.commit();
+    }
+    return { added: missing.length, kept: root.length - missing.length };
+  }
+
+  /** The active entries of the root list, Bom Squad's, as `{ email, role, active }`; one read, admin only under the rules. */
+  private async rootMemberEntries(db: Firestore): Promise<AccessEntry[]> {
+    const snap = await this.readAll(db, 'access');
+    return snap.docs
+      .map((d) => ({ email: d.id, ...(d.data() as Omit<AccessEntry, 'email'>) }))
+      .filter((entry) => !!entry.active && !!entry.role)
+      .map((entry) => ({ email: entry.email, role: entry.role, active: true }));
+  }
+
+  /** One entry of a team's own list, into a batch, over the team's id and never `this.path()`. */
+  private setAccessEntry(db: Firestore, batch: WriteBatch, teamId: string, entry: AccessEntry): void {
+    batch.set(doc(db, scopedPath(teamId, 'access', entry.email)), { email: entry.email, role: entry.role, active: entry.active });
   }
 
   /**
@@ -1091,24 +1205,41 @@ export class TeamDataService {
   }
 
   /**
-   * Take an empty team away: its root document and the two meta documents `createTeam` wrote, in one
-   * batch. The caller has asked `teamHasData` first; this checks again, since a teammate may have
-   * pasted a roster while the question was open. Never the default: it has no document, and its data is
-   * the root's. The scope's fallback (openTeamsListener) sends anyone on the deleted team to the default.
+   * Take an empty team away: its root document, the two meta documents `createTeam` wrote and every
+   * entry of its own membership list (release 3), in one batch; the `syncTeamMember` trigger takes each
+   * person's index entry away as the entries go. The caller has asked `teamHasData` first, which does not
+   * count the list; this checks again, since a teammate may have pasted a roster while the question was
+   * open. A root admin's alone, as the rules have it (`allow delete: if isAdmin()` on `teams/{teamId}`): a
+   * team's own admin is not a root admin, and the batch would be refused on the team document, so the app
+   * does not offer them the delete. Never the default: it has no document, and its data is the root's. The
+   * teams listens send anyone on the deleted team to the default or their next team (openTeamsListener,
+   * openTeamDocListeners).
    */
   async deleteTeam(teamId: string): Promise<void> {
     if (this.mode !== 'firebase') throw new Error('Teams need Firebase; the local preview has one team.');
     const db = getDb();
     if (!db) throw new Error('Firebase is not configured.');
-    if (!this.auth.userEmail() || !this.auth.canManageUsers()) throw new Error('Only a signed-in admin can delete a team.');
+    if (!this.auth.userEmail() || !this.auth.isRootAdmin()) throw new Error('Only a signed-in root admin can delete a team.');
     if (!isTeamId(teamId)) throw new Error(`Not a team id: ${JSON.stringify(teamId)}`);
     const holds = await this.teamHasData(teamId);
     if (holds) throw new Error(`The team still has ${holds}; take that off first.`);
-    const batch = writeBatch(db);
+    const entries = await this.readAll(db, scopedPath(teamId, 'access'));
+    const batch = this.batch(db);
+    for (const entry of entries.docs) batch.delete(entry.ref);
     batch.delete(doc(db, scopedPath(teamId, 'meta', 'settings')));
     batch.delete(doc(db, scopedPath(teamId, 'meta', 'resourceLinks')));
     batch.delete(doc(db, 'teams', teamId));
     await batch.commit();
+  }
+
+  /** One write batch, behind a method so a spec can stand in for Firestore and read what the batch holds (the `listen` pattern). */
+  protected batch(db: Firestore): WriteBatch {
+    return writeBatch(db);
+  }
+
+  /** One read of a whole collection, behind a method for the same reason; the path is built by the caller. */
+  protected readAll(db: Firestore, path: string): Promise<QuerySnapshot> {
+    return getDocs(collection(db, path));
   }
 
   // ---- CRUD: generic list entities --------------------------------------
@@ -1571,6 +1702,12 @@ export class TeamDataService {
   }
 
   // ---- Access entries --------------------------------------------------
+  //
+  // The active team's list (release 3): the root `access` collection on the
+  // default, Bom Squad's list exactly as before, and `teams/{id}/access` on
+  // any other team, through `path()` like every other team write. A team's
+  // entry is mirrored into the person's `members/{email}` index by the
+  // syncTeamMember trigger; nothing here writes that index.
 
   createAccessEntry(data: Omit<AccessEntry, 'email'> & { email: string }): Promise<void> {
     const email = normalizeEmail(data.email);
@@ -1591,7 +1728,7 @@ export class TeamDataService {
     if (this.mode === 'firebase') {
       const db = getDb();
       if (!db) return Promise.resolve();
-      return deleteDoc(doc(db, 'access', normalized));
+      return deleteDoc(doc(db, this.path('access', normalized)));
     }
     this.accessEntries.set(this.accessEntries().filter((item) => item.email !== normalized));
     this.persistLocal();
@@ -1602,7 +1739,8 @@ export class TeamDataService {
     if (this.mode === 'firebase') {
       const db = getDb();
       if (!db) return;
-      await setDoc(doc(db, 'access', entry.email), {
+      await setDoc(doc(db, this.path('access', entry.email)), {
+        email: entry.email,
         role: entry.role,
         active: entry.active
       });

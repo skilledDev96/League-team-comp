@@ -1,6 +1,8 @@
-import { Injectable, Signal, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Injectable, Signal, computed, effect, inject, untracked } from '@angular/core';
+import { firstTeam } from '../core/access';
 import { DEFAULT_TEAM_ID, isTeamId } from '../core/team-scope';
 import { AuthService } from './auth.service';
+import { TeamChoiceStore } from './team-choice.store';
 
 /**
  * Which team this person is looking at (27 Sep 2026, release 2 of the multi-team work).
@@ -12,41 +14,44 @@ import { AuthService } from './auth.service';
  * UserPrefsService when the person's document names a team. What this service settles is where the
  * choice lives and when it is read, so the listeners open on the right prefix from the first tick.
  *
- * The choice is remembered per person per device, in localStorage under `bom-team:<email>`, and
- * read the moment AuthService sets `userEmail`: the id is part of the signal's own computation, so
- * the first listeners a sign-in opens land on the stored team, never on the default first and the
- * stored team a tick later. A value that is not a team id (an old key, a hand edit) is the default.
- * Signed out, the team is the default, so the login page belongs to no team. Local mode has one
- * team and is always the default.
+ * The choice is remembered per person per device, in localStorage under `bom-team:<email>`
+ * (TeamChoiceStore), and read the moment AuthService sets `userEmail`: the id is part of the signal's
+ * own computation, so the first listeners a sign-in opens land on the stored team, never on the
+ * default first and the stored team a tick later. Signed out, the team is the default, so the login
+ * page belongs to no team. Local mode has one team and is always the default.
  *
- * This service injects AuthService and nothing else. TeamDataService reads it and calls `choose`
- * when the active team vanishes from the teams list; UserPrefsService calls `choose` when a person's
- * document names a team; the two switchers call it on a click. All point this way, never back, so
- * there is no cycle, and a job that finds the scope moved under it (`teamChangedNotice` below) was
- * moved by one of them.
+ * Since release 3 (the same day) a person may see only some teams, and the team to open is decided by
+ * one rule, `firstTeam` in `core/access.ts`: the wanted team (the session's choice, else the stored
+ * one) when they may see it, else the root when they are a root member, else their first team. So a
+ * stored key naming a team that has since taken them off its list is passed over, and a person on
+ * other teams alone never lands on the root. `choose` refuses a team they may not see; the default is
+ * always accepted, as "no choice", and the rule answers for it. AuthService computes the same id from
+ * the same store, for its `role()`, `canEdit()` and `canManageUsers()`, since it cannot inject this
+ * service (this one injects it); the store is what keeps the two in step.
+ *
+ * This service injects AuthService and the store and nothing else. TeamDataService reads it and calls
+ * `choose` when the active team vanishes from the teams list; UserPrefsService calls `choose` when a
+ * person's document names a team; the two switchers call it on a click. All point this way, never
+ * back, so there is no cycle, and a job that finds the scope moved under it (`teamChangedNotice`
+ * below) was moved by one of them.
  */
 @Injectable({ providedIn: 'root' })
 export class TeamScopeService {
   private readonly auth = inject(AuthService);
-
-  /** The team chosen in this session, for the account that chose it; null until `choose` runs. */
-  private readonly chosen = signal<{ email: string; teamId: string } | null>(null);
+  private readonly choice = inject(TeamChoiceStore);
 
   /** The active team id: `DEFAULT_TEAM_ID` for Bom Squad on the root paths, a team id otherwise. */
   readonly activeTeamId: Signal<string> = computed(() => {
     if (this.auth.mode !== 'firebase') return DEFAULT_TEAM_ID;
-    const email = this.auth.userEmail();
-    if (!email) return DEFAULT_TEAM_ID;
-    const chosen = this.chosen();
-    if (chosen && chosen.email === email) return chosen.teamId;
-    return this.stored(email);
+    return firstTeam(this.choice.wantedTeam(this.auth.userEmail()), this.auth.rootRole(), this.auth.teamRoles());
   });
 
   /**
    * Make a team the active one and remember it for this account on this device. The default clears
    * the key, so a device that has never chosen keeps no key at all. Throws on a value that is neither
-   * the default nor a team id, so a bad id can never build a path. Signed out there is nobody to
-   * remember it for, and in local mode there is one team, so both are left alone.
+   * the default nor a team id, so a bad id can never build a path, and on a team this person may not
+   * see (release 3), so no caller can open a prefix the rules would refuse. Signed out there is nobody
+   * to remember it for, and in local mode there is one team, so both are left alone.
    */
   choose(teamId: string): void {
     if (teamId !== DEFAULT_TEAM_ID && !isTeamId(teamId)) {
@@ -55,26 +60,10 @@ export class TeamScopeService {
     if (this.auth.mode !== 'firebase') return;
     const email = this.auth.userEmail();
     if (!email) return;
-    this.chosen.set({ email, teamId });
-    try {
-      if (teamId === DEFAULT_TEAM_ID) localStorage.removeItem(this.key(email));
-      else localStorage.setItem(this.key(email), teamId);
-    } catch {
-      /* private mode: the choice holds for this session */
+    if (teamId !== DEFAULT_TEAM_ID && !this.auth.maySee(teamId)) {
+      throw new Error(`You are not a member of the team ${teamId}.`);
     }
-  }
-
-  private stored(email: string): string {
-    try {
-      const raw = localStorage.getItem(this.key(email));
-      return isTeamId(raw) ? raw : DEFAULT_TEAM_ID;
-    } catch {
-      return DEFAULT_TEAM_ID;
-    }
-  }
-
-  private key(email: string): string {
-    return `bom-team:${email}`;
+    this.choice.choose(email, teamId);
   }
 }
 

@@ -1,8 +1,10 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { getAuthInstance, isFirebaseConfigured } from '../core/firebase';
+import { teamIdForRequest } from '../core/team-echo';
 import { OpponentPlayer, OpponentTeamHistory } from '../models/team.models';
 import { ActivityService } from './activity.service';
+import { TeamScopeService } from './team-scope.service';
 
 /**
  * What their five did as a team lately — the games with three or more of them
@@ -15,6 +17,8 @@ import { ActivityService } from './activity.service';
 @Injectable({ providedIn: 'root' })
 export class OpponentHistoryService {
   private readonly activity = inject(ActivityService);
+  /** The team the scout is for (release 3): the function's door asks who the caller is on THAT team. */
+  private readonly scope = inject(TeamScopeService);
 
   /**
    * The series or scrim opponent whose history is being read, so the button
@@ -56,12 +60,7 @@ export class OpponentHistoryService {
     if (players.length < 2) {
       throw new Error('Paste their roster first.');
     }
-    const auth = getAuthInstance();
-    const user = auth?.currentUser;
-    if (!auth || !user) {
-      throw new Error('Sign in first.');
-    }
-    const idToken = await user.getIdToken();
+    const idToken = await this.idToken();
     const response = await fetch(this.functionUrl(), {
       method: 'POST',
       headers: {
@@ -75,7 +74,11 @@ export class OpponentHistoryService {
           name: p.name,
           riotTag: p.riotTag,
           region: p.region
-        }))
+        })),
+        // The team whose member the caller must be (release 3, 27 Sep 2026): a body naming no team is
+        // judged on Bom Squad's list, which refused a person on another team alone their own scout. No
+        // key at all for the default; the handler reads nothing else by it, so no echo check is needed.
+        ...teamIdForRequest(this.scope.activeTeamId())
       })
     });
     const data = (await response.json()) as Partial<OpponentTeamHistory> & { error?: string };
@@ -90,6 +93,19 @@ export class OpponentHistoryService {
       pending: data.pending ?? 0,
       unresolved: data.unresolved ?? []
     };
+  }
+
+  /**
+   * The signed-in person's ID token, or the reason there is none. Its own method so a spec can stand
+   * in for the Firebase session and drive the POST itself (the CompAnalysisService pattern).
+   */
+  protected async idToken(): Promise<string> {
+    const auth = getAuthInstance();
+    const user = auth?.currentUser;
+    if (!auth || !user) {
+      throw new Error('Sign in first.');
+    }
+    return user.getIdToken();
   }
 
   private functionUrl(): string {

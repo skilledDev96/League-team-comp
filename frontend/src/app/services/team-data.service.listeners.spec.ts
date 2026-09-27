@@ -22,9 +22,14 @@ import { TeamScopeService } from './team-scope.service';
  * Release 2 of the multi-team work (the same day) put every team-scoped reference through one `path()` over the
  * active team. The load-bearing check here is that for the default team, Bom Squad on the flat root paths, every
  * path a listen opens is the literal string it was before (`TODAYS_PATHS`, written out); and that a switch to
- * another team with the same account closes every member listen but the root teams list, empties every member
+ * another team with the same account closes every member listen but the teams listens, empties every member
  * signal but that list, and reopens the same names under `teams/{id}/`, with the site's own documents and the
  * public settings left where they are.
+ *
+ * Release 3 (the same day) gave every team a membership list of its own. The access list follows the active team:
+ * the root `access` collection on the default, `teams/{id}/access` on any other team, for whoever manages that
+ * team. The root `teams` list is a root admin's alone; anyone else listens to one document per team their index
+ * names, and a root viewer with no index, the e2e viewer, opens exactly the 26 root paths and nothing more.
  *
  * Firestore never runs here. The one listen and the one error-log write are methods on the service (the
  * ReplayRecordingService pattern), stubbed on the prototype so they are in place before the constructor runs; the
@@ -34,7 +39,7 @@ import { TeamScopeService } from './team-scope.service';
 /** A list snapshot carries whether the server answered it: the SDK raises an empty one from the cache for a fresh listen while offline. */
 type Snap =
   | { docs: { id: string; data: () => Record<string, unknown> }[]; metadata: { fromCache: boolean } }
-  | { data: () => Record<string, unknown> | undefined; exists: () => boolean };
+  | { data: () => Record<string, unknown> | undefined; exists: () => boolean; metadata?: { fromCache: boolean } };
 type Listen = (target: { path: string }, next: (snap: Snap) => void, error: (error: { code: string }) => void) => () => void;
 
 interface Feed {
@@ -52,14 +57,14 @@ const LIST_NAMES = [
 ];
 /** The meta docs that are a team's own. */
 const TEAM_META_IDS = ['teamIdentity', 'selfScout', 'refreshLog', 'compAnalysis', 'resourceLinks'];
-/** What a member listens to at the root whatever the team: the site's two meta docs and the teams list itself. */
-const ROOT_PATHS = ['meta/keyHealth', 'meta/championTraits', 'teams'];
+/** What a member listens to at the root whatever the team: the site's two meta docs. */
+const ROOT_PATHS = ['meta/keyHealth', 'meta/championTraits'];
 
 /**
  * Every member listen the service keeps for a team: all of it closes on sign-out, none of it opens before sign-in,
- * and a team switch closes all of it but the root teams list, which follows the email alone (like the access list)
- * so the topbar never falls to the public root name between two snapshots. A team that is not the default also
- * listens to its own settings; the default's are the public doc.
+ * and a team switch closes all of it. A team that is not the default also listens to its own settings; the
+ * default's are the public doc. Not here: the teams listens, which follow the email (and the index) rather than
+ * the team, and the access list, which follows the team and the admin flag.
  */
 function memberPaths(teamId: string): string[] {
   return [
@@ -84,6 +89,10 @@ const TODAYS_PATHS = [
 ];
 
 const MEMBER_PATHS = memberPaths(DEFAULT_TEAM_ID);
+/** The root teams list, a root admin's listen. */
+const TEAMS_LIST = 'teams';
+/** Everything a root admin has open on a team: the member set, the list, and that team's access list. */
+const rootAdminPaths = (teamId: string) => [...memberPaths(teamId), TEAMS_LIST, scopedPath(teamId, 'access')];
 
 /**
  * The writable signals that are not one account's data: the public settings the login page prints (`settings`, and
@@ -125,12 +134,17 @@ const TEAM_B = { name: 'The B Team', region: 'euw', createdBy: 'admin@example.co
 const querySnap = (): Snap => ({ docs: [{ id: 'row-1', data: () => ({ ...ROW }) }], metadata: { fromCache: false } });
 const docSnap = (): Snap => ({ data: () => ({ ...DOC }), exists: () => true });
 const teamsSnap = (): Snap => ({ docs: [{ id: 'b', data: () => ({ ...TEAM_B }) }], metadata: { fromCache: false } });
+/** One team's root document, as a document listen answers it (release 3). */
+const teamDoc = (name = TEAM_B.name, fromCache = false): Snap => ({ data: () => ({ ...TEAM_B, name }), exists: () => true, metadata: { fromCache } });
+/** A team's root document that is gone. */
+const teamGone = (fromCache = false): Snap => ({ data: () => undefined, exists: () => false, metadata: { fromCache } });
 /** An empty list the server answered. */
 const emptyList = (): Snap => ({ docs: [], metadata: { fromCache: false } });
 /** The empty list a fresh listen raises from the cache while the client is offline: it says nothing about the server. */
 const cachedEmptyList = (): Snap => ({ docs: [], metadata: { fromCache: true } });
-/** A document for a document path (an even number of segments), a list for a collection; the teams list names team b. */
-const snapFor = (path: string): Snap => (path === 'teams' ? teamsSnap() : path.split('/').length % 2 === 0 ? docSnap() : querySnap());
+/** A document for a document path (an even number of segments), a list for a collection; the teams list and a team's document name team b. */
+const snapFor = (path: string): Snap =>
+  path === TEAMS_LIST ? teamsSnap() : /^teams\/[^/]+$/.test(path) ? teamDoc() : path.split('/').length % 2 === 0 ? docSnap() : querySnap();
 
 let savedApiKey = '';
 beforeAll(() => {
@@ -141,20 +155,20 @@ afterAll(() => {
 });
 
 describe('the member paths', () => {
-  it("are, for the default team, exactly the 26 strings Bom Squad's listeners opened before release 2, plus the root teams list", () => {
+  it("are, for the default team, exactly the 26 strings Bom Squad's listeners opened before release 2", () => {
     expect(TODAYS_PATHS).toHaveLength(26);
-    expect(sorted(memberPaths(DEFAULT_TEAM_ID))).toEqual(sorted([...TODAYS_PATHS, 'teams']));
+    expect(sorted(memberPaths(DEFAULT_TEAM_ID))).toEqual(sorted(TODAYS_PATHS));
     // Written out, not built: nothing in this list may come through scopedPath.
     for (const path of TODAYS_PATHS) expect(path.startsWith('teams/')).toBe(false);
   });
 
-  it('are, for another team, the same names under teams/{id}, plus its own settings, with the site docs and the list at the root', () => {
+  it('are, for another team, the same names under teams/{id}, plus its own settings, with the site docs at the root', () => {
     const paths = memberPaths('b');
-    expect(paths).toHaveLength(TODAYS_PATHS.length + 2);
+    expect(paths).toHaveLength(TODAYS_PATHS.length + 1);
     expect(paths).toContain('teams/b/players');
     expect(paths).toContain('teams/b/meta/compAnalysis');
     expect(paths).toContain('teams/b/meta/settings');
-    expect(paths.filter((p) => !p.startsWith('teams/b/'))).toEqual(['meta/keyHealth', 'meta/championTraits', 'teams']);
+    expect(paths.filter((p) => !p.startsWith('teams/b/'))).toEqual(['meta/keyHealth', 'meta/championTraits']);
   });
 
   it("are each, under a team, on the delete guard's lists: what a member listens to is what teamHasData looks for", () => {
@@ -167,6 +181,8 @@ describe('the member paths', () => {
     expect(collections.filter((name) => !(TEAM_COLLECTIONS as readonly string[]).includes(name))).toEqual([]);
     // The two documents createTeam writes are deleteTeam's own to take away, so they are not on the guard's list.
     expect(metas.filter((id) => !(TEAM_META_DOCS as readonly string[]).includes(id))).toEqual(['resourceLinks', 'settings']);
+    // The team's membership list is deleteTeam's own too (release 3): the guard does not count it.
+    expect(TEAM_COLLECTIONS as readonly string[]).not.toContain('access');
   });
 });
 
@@ -179,7 +195,13 @@ describe('TeamDataService listeners', () => {
     mode: 'firebase' as const,
     userEmail: signal<string | null>(null),
     role: signal<AccessRole | null>(null),
+    /** Whether they manage the ACTIVE team (release 3); the spec sets it by hand where a switch changes it. */
     canManageUsers: signal(false),
+    /** A root admin: the root teams list is theirs; anyone else listens per team of their index. */
+    isRootAdmin: signal(false),
+    /** The ids the person's index names. */
+    teamsOf: signal<string[]>([]),
+    maySee: (_teamId: string) => true,
     confirmAccess: vi.fn<() => Promise<boolean>>()
   };
   /** The scope as the test drives it; the real one follows the account and localStorage (its own spec). */
@@ -209,10 +231,15 @@ describe('TeamDataService listeners', () => {
     return data;
   }
 
-  /** What AuthService does once its access check passes: the role, then the email. */
-  function signIn(email: string, role: AccessRole): void {
+  /**
+   * What AuthService does once its access check passes: the roles, then the email. `role` is the role on the active
+   * team; a root admin unless `rootAdmin` says otherwise (an admin of team b alone); `teams` the index's ids.
+   */
+  function signIn(email: string, role: AccessRole, options: { teams?: string[]; rootAdmin?: boolean } = {}): void {
     auth.role.set(role);
     auth.canManageUsers.set(role === 'admin');
+    auth.isRootAdmin.set(options.rootAdmin ?? role === 'admin');
+    auth.teamsOf.set(options.teams ?? []);
     auth.userEmail.set(email);
     TestBed.tick();
   }
@@ -222,6 +249,8 @@ describe('TeamDataService listeners', () => {
     auth.userEmail.set(null);
     auth.role.set(null);
     auth.canManageUsers.set(false);
+    auth.isRootAdmin.set(false);
+    auth.teamsOf.set([]);
     scope.activeTeamId.set(DEFAULT_TEAM_ID);
     TestBed.tick();
   }
@@ -242,6 +271,8 @@ describe('TeamDataService listeners', () => {
     auth.userEmail.set(null);
     auth.role.set(null);
     auth.canManageUsers.set(false);
+    auth.isRootAdmin.set(false);
+    auth.teamsOf.set([]);
     auth.confirmAccess.mockReset();
     auth.confirmAccess.mockResolvedValue(true);
     scope.activeTeamId.set(DEFAULT_TEAM_ID);
@@ -289,11 +320,12 @@ describe('TeamDataService listeners', () => {
       expect(data.teamName()).toBe('Bom Squad');
     });
 
-    it('opens every member listen once someone is let in, on the root paths, and data.ready follows the players', () => {
+    it('opens every member listen once a root viewer is let in, on the root paths and nothing else, and data.ready follows the players', () => {
+      // The e2e viewer: a root viewer with no index and no preference. Exactly the 26 paths of before, verbatim, not
+      // one of them under a prefix, no teams list (a root admin's since release 3) and no access list.
       signIn('viewer@example.com', 'viewer');
       expect(openPaths()).toEqual(sorted(['meta/settings', ...MEMBER_PATHS]));
-      // The paths Bom Squad has always used, verbatim: not one of them under a prefix.
-      expect(openPaths()).toEqual(sorted(['meta/settings', 'teams', ...TODAYS_PATHS]));
+      expect(openPaths()).toEqual(sorted(['meta/settings', ...TODAYS_PATHS]));
       expect(data.ready()).toBe(false);
 
       feed('players').next(querySnap());
@@ -313,12 +345,13 @@ describe('TeamDataService listeners', () => {
       feed('meta/settings').next(docSnap());
       fillEverything();
       expect(data.ready()).toBe(true);
-      // Every one of them is filled by some member listen (the access list included, for an admin), so the check
-      // after sign-out below is a real one for each. A new writable signal no listen fills belongs in NOT_MEMBER_DATA.
-      // The one exception is the team's own settings, which only a team other than the default opens.
+      // Every one of them is filled by some member listen (the access list and the teams list included, for a root
+      // admin), so the check after sign-out below is a real one for each. A new writable signal no listen fills
+      // belongs in NOT_MEMBER_DATA. The one exception is the team's own settings, which only a team other than the
+      // default opens.
       expect(members.filter((key) => isEmpty(writableSignals(data).get(key)!()))).toEqual(SCOPED_ONLY);
       const first = open().filter((f) => f.path !== 'meta/settings');
-      expect(first).toHaveLength(MEMBER_PATHS.length + 1);
+      expect(first).toHaveLength(rootAdminPaths(DEFAULT_TEAM_ID).length);
 
       signOut();
       expect(first.filter((f) => f.stop.mock.calls.length !== 1).map((f) => f.path)).toEqual([]);
@@ -330,8 +363,8 @@ describe('TeamDataService listeners', () => {
       expect(data.settings().teamName).toBe('Bom Squad');
 
       signIn('admin@example.com', 'admin');
-      expect(openPaths()).toEqual(sorted(['meta/settings', 'access', ...MEMBER_PATHS]));
-      expect(feeds).toHaveLength(1 + 2 * (MEMBER_PATHS.length + 1));
+      expect(openPaths()).toEqual(sorted(['meta/settings', ...rootAdminPaths(DEFAULT_TEAM_ID)]));
+      expect(feeds).toHaveLength(1 + 2 * rootAdminPaths(DEFAULT_TEAM_ID).length);
       expect(data.ready()).toBe(false);
       feed('players').next(querySnap());
       expect(data.ready()).toBe(true);
@@ -349,24 +382,32 @@ describe('TeamDataService listeners', () => {
       expect(holding(data, members)).toEqual(before);
     });
 
-    it('opens the whole access list only while the account manages users, and closes it when that stops', () => {
+    it('opens the whole access list, and the teams list, only while the account is a root admin, and closes both when that stops', () => {
       signIn('contributor@example.com', 'contributor');
       expect(openPaths()).not.toContain('access');
+      expect(openPaths()).not.toContain(TEAMS_LIST);
 
       auth.role.set('admin');
       auth.canManageUsers.set(true);
+      auth.isRootAdmin.set(true);
       TestBed.tick();
       const access = feed('access');
       access.next(querySnap());
       expect(data.accessEntries().map((a) => a.email)).toEqual(['row-1']);
+      const teams = feed(TEAMS_LIST);
+      teams.next(teamsSnap());
+      expect(data.teams().map((t) => t.id)).toEqual(['b']);
 
       auth.role.set('contributor');
       auth.canManageUsers.set(false);
+      auth.isRootAdmin.set(false);
       TestBed.tick();
       expect(access.stop).toHaveBeenCalledTimes(1);
+      expect(teams.stop).toHaveBeenCalledTimes(1);
       expect(openPaths()).not.toContain('access');
       expect(data.accessEntries()).toEqual([]);
-      // Only the access list went: the member listens stay open.
+      expect(data.teams()).toEqual([]);
+      // Only those two went: the member listens stay open.
       expect(openPaths()).toEqual(sorted(['meta/settings', ...MEMBER_PATHS]));
 
       // And an admin signing out takes theirs down with the rest.
@@ -443,6 +484,7 @@ describe('TeamDataService listeners', () => {
       auth.confirmAccess.mockImplementation(async () => {
         auth.role.set('contributor');
         auth.canManageUsers.set(false);
+        auth.isRootAdmin.set(false);
         TestBed.tick();
         return true;
       });
@@ -481,28 +523,28 @@ describe('TeamDataService listeners', () => {
 
     describe('on another team (release 2)', () => {
       it('switching team for the same account stops every member listen once and reopens the same names under teams/b/', () => {
-        signIn('viewer@example.com', 'viewer');
+        // A root viewer whose index names team b: one document listen on it, kept across the switch.
+        signIn('viewer@example.com', 'viewer', { teams: ['b'] });
         fillEverything();
         expect(data.ready()).toBe(true);
-        const teams = feed('teams');
-        const first = open().filter((f) => f.path !== 'meta/settings' && f.path !== 'teams');
+        const teamB = feed('teams/b');
+        const first = open().filter((f) => f.path !== 'meta/settings' && f.path !== 'teams/b');
 
         switchTo('b');
         expect(first.filter((f) => f.stop.mock.calls.length !== 1).map((f) => f.path)).toEqual([]);
-        // The root teams list follows the email, not the team: the one member listen a switch leaves open.
-        expect(teams.stop).not.toHaveBeenCalled();
-        expect(openPaths()).toEqual(sorted(['meta/settings', ...memberPaths('b')]));
-        // The team's own collections and meta docs moved under the prefix; the site's two docs and the list did not.
+        // The team's document follows the email and the index, not the team: the one listen a switch leaves open.
+        expect(teamB.stop).not.toHaveBeenCalled();
+        expect(openPaths()).toEqual(sorted(['meta/settings', 'teams/b', ...memberPaths('b')]));
+        // The team's own collections and meta docs moved under the prefix; the site's two docs did not.
         expect(openPaths()).toContain('teams/b/players');
         expect(openPaths()).toContain('teams/b/meta/compAnalysis');
         expect(openPaths()).toContain('teams/b/meta/settings');
         expect(openPaths()).toContain('meta/keyHealth');
         expect(openPaths()).toContain('meta/championTraits');
-        expect(openPaths()).toContain('teams');
         expect(openPaths().filter((p) => p.startsWith('teams/b/'))).toHaveLength(TODAYS_PATHS.length - 2 + 1);
         // Nothing of Bom Squad's stays in memory, and the page waits for the team's own players. The teams list is
         // the one member signal that keeps what it held, so the topbar names the team from the first tick of the
-        // switch rather than printing the public root name until the list is answered again.
+        // switch rather than printing the public root name until the document is answered again.
         const kept = holding(data, members);
         expect(kept['teams']).toEqual([{ id: 'b', ...TEAM_B }]);
         expect({ ...kept, teams: [] }).toEqual(before);
@@ -515,8 +557,8 @@ describe('TeamDataService listeners', () => {
         // list is the one a viewer never opens.
         fillEverything();
         expect(members.filter((key) => isEmpty(writableSignals(data).get(key)!()))).toEqual(['accessEntries']);
-        // And nothing opened twice: the teams list was not reopened.
-        expect(feeds).toHaveLength(1 + MEMBER_PATHS.length + memberPaths('b').length - 1);
+        // And nothing opened twice: the team's document was not reopened.
+        expect(feeds).toHaveLength(1 + MEMBER_PATHS.length + 1 + memberPaths('b').length);
       });
 
       it("settles ready when the team's players listen is refused, and names the collection plainly", async () => {
@@ -532,12 +574,12 @@ describe('TeamDataService listeners', () => {
 
       it("keeps the public name in settings until the team's own settings arrive, and puts it back on sign-out", () => {
         feed('meta/settings').next(docSnap());
-        signIn('viewer@example.com', 'viewer');
+        signIn('viewer@example.com', 'viewer', { teams: ['b'] });
         switchTo('b');
         // Before the team's own document: the public root copy, and the name is the team document's when the list has it.
         expect(data.settings().teamName).toBe('Bom Squad');
         expect(data.teamName()).toBe('Bom Squad');
-        feed('teams').next(teamsSnap());
+        feed('teams/b').next(teamDoc());
         expect(data.teamName()).toBe('The B Team');
         expect(data.settings().teamName).toBe('Bom Squad');
         // A change to the root document while the team's has not arrived still reaches settings.
@@ -560,12 +602,12 @@ describe('TeamDataService listeners', () => {
       });
 
       it("names the team from its own settings, else its document, else the public root, else the app's fallback", () => {
-        signIn('viewer@example.com', 'viewer');
+        signIn('viewer@example.com', 'viewer', { teams: ['b'] });
         switchTo('b');
         expect(data.teamName()).toBe('Bom Squad');
         feed('meta/settings').next({ data: () => ({ teamName: 'The root' }), exists: () => true });
         expect(data.teamName()).toBe('The root');
-        feed('teams').next(teamsSnap());
+        feed('teams/b').next(teamDoc());
         expect(data.teamName()).toBe('The B Team');
         // A settings document with no name yet defers to the team document.
         feed('teams/b/meta/settings').next({ data: () => ({ teamName: '' }), exists: () => true });
@@ -574,34 +616,66 @@ describe('TeamDataService listeners', () => {
         expect(data.teamName()).toBe('B, named');
       });
 
-      it("leaves an admin's root access list open across a team switch, and its entries with it", () => {
+      it("follows a root admin's access list to the team: the root list closes on the switch, the team's own opens, and its refusal is answered against its own session (release 3)", async () => {
         signIn('admin@example.com', 'admin');
         const access = feed('access');
         access.next(querySnap());
-        switchTo('b');
-        expect(access.stop).not.toHaveBeenCalled();
         expect(data.accessEntries().map((a) => a.email)).toEqual(['row-1']);
-        expect(openPaths()).toEqual(sorted(['meta/settings', 'access', ...memberPaths('b')]));
-        // A refusal of it after the switch is still answered: the list outlives the members' session.
+        switchTo('b');
+        // The root list is Bom Squad's; on team b the list is the team's own, emptied in between so the tab never
+        // shows one team's members under another's name.
+        expect(access.stop).toHaveBeenCalledTimes(1);
+        expect(data.accessEntries()).toEqual([]);
+        const own = feed('teams/b/access');
+        expect(openPaths()).toEqual(sorted(['meta/settings', ...rootAdminPaths('b')]));
+        own.next(querySnap());
+        expect(data.accessEntries().map((a) => a.email)).toEqual(['row-1']);
+        // The root list did not come back with the member set, and nothing opened twice.
+        expect(feeds.filter((f) => f.path === 'access')).toHaveLength(1);
+        expect(feeds.filter((f) => f.path === TEAMS_LIST)).toHaveLength(1);
+
+        // Demoted on this team while the list is open: the check takes the flag back and the effect closes the list.
         auth.confirmAccess.mockImplementation(async () => {
           auth.role.set('contributor');
           auth.canManageUsers.set(false);
           TestBed.tick();
           return true;
         });
-        access.error({ code: 'permission-denied' });
-        return settle().then(() => {
-          expect(auth.confirmAccess).toHaveBeenCalledTimes(1);
-          expect(access.stop).toHaveBeenCalledTimes(1);
-          expect(data.accessEntries()).toEqual([]);
-          expect(reportError).not.toHaveBeenCalled();
-        });
+        own.error({ code: 'permission-denied' });
+        await settle();
+        expect(auth.confirmAccess).toHaveBeenCalledTimes(1);
+        expect(own.stop).toHaveBeenCalledTimes(1);
+        expect(data.accessEntries()).toEqual([]);
+        expect(reportError).not.toHaveBeenCalled();
+
+        // And back on the default the root list opens again for an admin there.
+        auth.role.set('admin');
+        auth.canManageUsers.set(true);
+        switchTo(DEFAULT_TEAM_ID);
+        expect(openPaths()).toEqual(sorted(['meta/settings', ...rootAdminPaths(DEFAULT_TEAM_ID)]));
+      });
+
+      it("opens a team's own access list for its admin who is not a root admin, on the team's prefix and nothing at the root (release 3)", () => {
+        // An admin of team b alone, landed on b by the active-team rule: b's list, b's document, no root list, no root teams list.
+        scope.activeTeamId.set('b');
+        signIn('lead-of-b@example.com', 'admin', { teams: ['b'], rootAdmin: false });
+        expect(openPaths()).toEqual(sorted(['meta/settings', 'teams/b', 'teams/b/access', ...memberPaths('b')]));
+        expect(openPaths()).not.toContain('access');
+        expect(openPaths()).not.toContain(TEAMS_LIST);
+        feed('teams/b/access').next(querySnap());
+        expect(data.accessEntries().map((a) => a.email)).toEqual(['row-1']);
+        fillEverything();
+        expect(members.filter((key) => isEmpty(writableSignals(data).get(key)!()))).toEqual([]);
+
+        signOut();
+        expect(openPaths()).toEqual(['meta/settings']);
+        expect(holding(data, members)).toEqual(before);
       });
 
       it('falls back to the default team when the teams list no longer holds the active one', () => {
-        signIn('viewer@example.com', 'viewer');
+        signIn('admin@example.com', 'admin');
         switchTo('b');
-        const teams = feed('teams');
+        const teams = feed(TEAMS_LIST);
         teams.next(teamsSnap());
         expect(scope.choose).not.toHaveBeenCalled();
         expect(data.teams().map((t) => t.id)).toEqual(['b']);
@@ -609,16 +683,16 @@ describe('TeamDataService listeners', () => {
         teams.next(emptyList());
         expect(scope.choose).toHaveBeenCalledWith(DEFAULT_TEAM_ID);
         TestBed.tick();
-        expect(openPaths()).toEqual(sorted(['meta/settings', ...MEMBER_PATHS]));
+        expect(openPaths()).toEqual(sorted(['meta/settings', ...rootAdminPaths(DEFAULT_TEAM_ID)]));
         expect(data.ready()).toBe(false);
         // On the default team an empty list is simply an empty list.
-        feed('teams').next(emptyList());
+        feed(TEAMS_LIST).next(emptyList());
         expect(scope.choose).toHaveBeenCalledTimes(1);
       });
 
       it('lists only the documents whose id is a team id, as the functions do, so neither switcher offers one choose refuses', () => {
-        signIn('viewer@example.com', 'viewer');
-        feed('teams').next({
+        signIn('admin@example.com', 'admin');
+        feed(TEAMS_LIST).next({
           docs: [
             { id: 'Alpha', data: () => ({ ...TEAM_B, name: 'Made by hand' }) },
             { id: DEFAULT_TEAM_ID, data: () => ({ ...TEAM_B, name: 'A stray root' }) },
@@ -650,9 +724,9 @@ describe('TeamDataService listeners', () => {
       });
 
       it('leaves the scope alone on a list from the cache: an empty answer the server never gave says nothing about the team', () => {
-        signIn('viewer@example.com', 'viewer');
+        signIn('admin@example.com', 'admin');
         switchTo('b');
-        const teams = feed('teams');
+        const teams = feed(TEAMS_LIST);
         // A fresh listen while the client is offline: the SDK raises an empty snapshot from the cache first.
         teams.next(cachedEmptyList());
         expect(data.teams()).toEqual([]);
@@ -664,22 +738,98 @@ describe('TeamDataService listeners', () => {
         expect(scope.choose).toHaveBeenCalledWith(DEFAULT_TEAM_ID);
       });
 
-      it("answers the access list's refusal against its own session, so a team switch during the check does not drop it", async () => {
+      it("answers the teams list's refusal against its own session, so a team switch during the check does not drop it", async () => {
         signIn('admin@example.com', 'admin');
-        const access = feed('access');
+        const teams = feed(TEAMS_LIST);
         // Still an admin, but the check takes long enough for a switch to land in the middle of it.
         auth.confirmAccess.mockImplementation(async () => {
           switchTo('b');
           return true;
         });
-        access.error({ code: 'permission-denied' });
+        teams.error({ code: 'permission-denied' });
         await settle();
         expect(auth.confirmAccess).toHaveBeenCalledTimes(1);
-        // The switch closed the member set, not the access list: the rules and the app disagree about a listen
-        // that is still open, and that is reported.
-        expect(access.stop).not.toHaveBeenCalled();
+        // The switch closed the member set and the root access list, not the teams list: the rules and the app
+        // disagree about a listen that is still open, and that is reported.
+        expect(teams.stop).not.toHaveBeenCalled();
         expect(reportError).toHaveBeenCalledTimes(1);
-        expect(reportError.mock.calls[0][0].message).toContain('access');
+        expect(reportError.mock.calls[0][0].message).toContain('teams');
+      });
+    });
+
+    describe('a person on other teams alone (release 3)', () => {
+      it('opens one document listen per team the index names, no list, no root access list, and lists what they answer', () => {
+        scope.activeTeamId.set('b');
+        signIn('only@example.com', 'contributor', { teams: ['b', 'c'] });
+        expect(openPaths()).toEqual(sorted(['meta/settings', 'teams/b', 'teams/c', ...memberPaths('b')]));
+        expect(openPaths()).not.toContain(TEAMS_LIST);
+        expect(openPaths()).not.toContain('access');
+        feed('teams/c').next(teamDoc('The C Team'));
+        feed('teams/b').next(teamDoc('The B Team'));
+        expect(data.teams().map((t) => t.id)).toEqual(['b', 'c']);
+        expect(data.teamName()).toBe('The B Team');
+        // A document answered again replaces its row and nothing else.
+        feed('teams/b').next(teamDoc('B, renamed'));
+        expect(data.teams().map((t) => t.name)).toEqual(['B, renamed', 'The C Team']);
+        expect(data.teams()).toHaveLength(2);
+      });
+
+      it('drops a refused team document without a word, and keeps the rest', async () => {
+        scope.activeTeamId.set('b');
+        signIn('only@example.com', 'contributor', { teams: ['b', 'c'] });
+        feed('teams/b').next(teamDoc());
+        feed('teams/c').next(teamDoc('The C Team'));
+        // Taken off c since the index was read: the team's document is refused, and that is not a disagreement.
+        feed('teams/c').error({ code: 'permission-denied' });
+        await settle();
+        expect(data.teams().map((t) => t.id)).toEqual(['b']);
+        expect(auth.confirmAccess).not.toHaveBeenCalled();
+        expect(reportError).not.toHaveBeenCalled();
+        expect(warn).not.toHaveBeenCalled();
+      });
+
+      it("re-reads the index and clears the choice when the active team's document is gone, on the server's word and not the cache's", () => {
+        scope.activeTeamId.set('b');
+        signIn('only@example.com', 'contributor', { teams: ['b', 'c'] });
+        feed('teams/b').next(teamDoc());
+        feed('teams/c').next(teamDoc('The C Team'));
+        feed('teams/b').next(teamGone(true));
+        expect(scope.choose).not.toHaveBeenCalled();
+        expect(auth.confirmAccess).not.toHaveBeenCalled();
+        feed('teams/b').next(teamGone());
+        expect(data.teams().map((t) => t.id)).toEqual(['c']);
+        // AuthService re-reads the index, which the trigger has cleaned of the deleted team: without that the roles
+        // kept naming it, and for a person on other teams alone "the default" came back as the deleted id.
+        expect(auth.confirmAccess).toHaveBeenCalledTimes(1);
+        // The default is "no choice": the real scope's rule then lands them on their next team.
+        expect(scope.choose).toHaveBeenCalledWith(DEFAULT_TEAM_ID);
+      });
+
+      it('follows the index: a change reopens the document listens, and sign-out closes them all with every signal back to before', () => {
+        scope.activeTeamId.set('b');
+        signIn('only@example.com', 'contributor', { teams: ['b', 'c'] });
+        fillEverything();
+        const docB = feed('teams/b');
+        const docC = feed('teams/c');
+        expect(data.teams().map((t) => t.id)).toEqual(['b', 'c']);
+
+        // Put on d and taken off c (AuthService re-read the index): the set of document listens is remade.
+        auth.teamsOf.set(['b', 'd']);
+        TestBed.tick();
+        expect(docB.stop).toHaveBeenCalledTimes(1);
+        expect(docC.stop).toHaveBeenCalledTimes(1);
+        expect(openPaths()).toEqual(sorted(['meta/settings', 'teams/b', 'teams/d', ...memberPaths('b')]));
+        // The member set was not touched: nothing about the active team changed.
+        expect(feeds.filter((f) => f.path === 'teams/b/players')).toHaveLength(1);
+        expect(data.teams()).toEqual([]);
+        feed('teams/b').next(teamDoc());
+        feed('teams/d').next(teamDoc('The D Team'));
+        expect(data.teams().map((t) => t.id)).toEqual(['b', 'd']);
+
+        signOut();
+        expect(openPaths()).toEqual(['meta/settings']);
+        expect(holding(data, members)).toEqual(before);
+        expect(data.ready()).toBe(false);
       });
     });
   });

@@ -34,8 +34,11 @@ function text(el: Element | null): string {
 
 // Renders under TestBed, which needs the DOM only the Angular runner (ng test, jsdom) provides.
 describe.skipIf(typeof localStorage === 'undefined')('UserMenuComponent, the Team group', () => {
-  const data = { mode: 'firebase' as 'firebase' | 'local', teams: signal<Team[]>([]), rootTeamName: signal('Bom Squad') };
-  const auth = { canManageUsers: signal(false) };
+  const teams = signal<Team[]>([]);
+  /** The teams the person may see are the teams the fake holds: the real service filters its list through AuthService.maySee. */
+  const data = { mode: 'firebase' as 'firebase' | 'local', teams, visibleTeams: teams, rootTeamName: signal('Bom Squad') };
+  /** A member of the root list, not an admin, unless a case says otherwise (release 3: the root row is a root member's, New team… a root admin's). */
+  const auth = { canManageUsers: signal(false), isRootAdmin: signal(false), isRootMember: signal(true) };
   /** The order the switch ran its steps in, as the fakes saw them. */
   let steps: string[];
   const scope = {
@@ -76,6 +79,8 @@ describe.skipIf(typeof localStorage === 'undefined')('UserMenuComponent, the Tea
     data.mode = 'firebase';
     data.teams.set([]);
     auth.canManageUsers.set(false);
+    auth.isRootAdmin.set(false);
+    auth.isRootMember.set(true);
     scope.activeTeamId.set(DEFAULT_TEAM_ID);
     scope.choose.mockClear();
     prefs.setTeam.mockClear();
@@ -108,6 +113,7 @@ describe.skipIf(typeof localStorage === 'undefined')('UserMenuComponent, the Tea
     data.mode = 'local';
     data.teams.set([ALPHA]);
     auth.canManageUsers.set(true);
+    auth.isRootAdmin.set(true);
     const { open, group, panel } = mount();
     open();
     expect(panel()).not.toBeNull();
@@ -122,8 +128,9 @@ describe.skipIf(typeof localStorage === 'undefined')('UserMenuComponent, the Tea
     expect(panel()!.children).toHaveLength(0);
   });
 
-  it('draws the group for an admin with no teams: the root row, checked, and New team… into Admin › Teams', () => {
+  it('draws the group for a root admin with no teams: the root row, checked, and New team… into Admin › Teams', () => {
     auth.canManageUsers.set(true);
+    auth.isRootAdmin.set(true);
     const { open, rows, group } = mount();
     open();
     expect(text(group()!.querySelector('.user-menu-group-label'))).toBe('Team');
@@ -145,6 +152,32 @@ describe.skipIf(typeof localStorage === 'undefined')('UserMenuComponent, the Tea
     expect(rows().map((r) => !!r.querySelector('.user-menu-check'))).toEqual([false, false, true]);
     expect(rows().map((r) => r.id)).toEqual(['user-menu-team-default', 'user-menu-team-alpha-a1b2c3', 'user-menu-team-zeta-z9y8x7']);
     expect(group()!.querySelector('#user-menu-new-team')).toBeNull();
+  });
+
+  it('draws no New team… for an admin of a team who is not a root admin', () => {
+    data.teams.set([ALPHA]);
+    scope.activeTeamId.set(ALPHA.id);
+    auth.canManageUsers.set(true);
+    const { open, rows, group } = mount();
+    open();
+    expect(rows().map((r) => text(r.querySelector('.user-menu-team-name')))).toEqual(['Bom Squad', 'Alpha']);
+    expect(group()!.querySelector('#user-menu-new-team')).toBeNull();
+  });
+
+  it('lists no root row for a person on other teams alone, and no group at all while they have one team (release 3)', () => {
+    auth.isRootMember.set(false);
+    data.teams.set([ALPHA]);
+    scope.activeTeamId.set(ALPHA.id);
+    const one = mount();
+    one.open();
+    expect(one.group()).toBeNull();
+
+    data.teams.set([ZETA, ALPHA]);
+    const two = mount();
+    two.open();
+    expect(two.rows().map((r) => text(r.querySelector('.user-menu-team-name')))).toEqual(['Alpha', 'Zeta']);
+    expect(two.rows().map((r) => r.getAttribute('aria-current'))).toEqual(['true', null]);
+    expect(two.group()!.querySelector('#user-menu-new-team')).toBeNull();
   });
 
   it('refuses a switch while a job runs: names the job, moves nothing', async () => {

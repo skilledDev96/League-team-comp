@@ -120,3 +120,24 @@ describe('gamesTogether / summariseTogether', () => {
     expect(summariseTogether([])).toEqual({ games: 0, wins: 0, losses: 0, fullStacks: 0, picks: [] });
   });
 });
+
+describe('parseTeamHistoryRequest, the team (release 3, 27 Sep 2026)', () => {
+  const players = [{ id: 'a', name: 'a' }, { id: 'b', name: 'b' }];
+
+  it('reads no teamId, a null one and the word default as the root', () => {
+    expect(parseTeamHistoryRequest({ players }).teamId).toBe('default');
+    expect(parseTeamHistoryRequest({ players, teamId: null }).teamId).toBe('default');
+    expect(parseTeamHistoryRequest({ players, teamId: 'default' }).teamId).toBe('default');
+  });
+
+  it('keeps a team id', () => {
+    expect(parseTeamHistoryRequest({ players, teamId: 'b' })).toEqual({ players: players.map((p) => ({ ...p, riotTag: undefined, region: undefined })), days: DEFAULT_DAYS, teamId: 'b' });
+    expect(parseTeamHistoryRequest({ players, teamId: 'bom-squad-2' }).teamId).toBe('bom-squad-2');
+  });
+
+  it('refuses anything else', () => {
+    for (const teamId of ['B', 'teams', '', 'a/b', 'bom squad', 42]) {
+      expect(() => parseTeamHistoryRequest({ players, teamId }), JSON.stringify(teamId)).toThrow('teamId must be a team id.');
+    }
+  });
+});

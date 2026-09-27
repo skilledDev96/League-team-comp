@@ -1,6 +1,6 @@
 # Cloud Functions
 
-The Firebase Cloud Functions behind Bom Squad Draft Hub — sixteen of them; `CLAUDE.md` at the repo root is the
+The Firebase Cloud Functions behind Bom Squad Draft Hub — seventeen of them; `CLAUDE.md` at the repo root is the
 authoritative list of what each one does and how they fit together. This file keeps the `enrichPlayer` request
 contract and the local build and deploy notes.
 
@@ -10,7 +10,8 @@ contract and the local build and deploy notes.
 - Trigger type: HTTPS request
 - Method: POST
 - Auth: Firebase ID token required in Authorization header
-- Role guard: admin or contributor only (access collection)
+- Role guard: an editor (admin or contributor) of the team the body names, the root when it names none
+  (`admitEditor` in `src/admin-auth.ts`; see "Who may call the six team handlers" below)
 
 ## Request payload
 
@@ -20,9 +21,14 @@ contract and the local build and deploy notes.
   "riotTag": "EUW",
   "region": "euw",
   "role": "Mid",
-  "mobalyticsSlug": "skilledscarecrow-euw"
+  "mobalyticsSlug": "skilledscarecrow-euw",
+  "teamId": "default"
 }
 ```
+
+`teamId` is optional (release 3, 27 Sep 2026): absent, `null` or `default` is the root, Bom Squad, which is what every
+call before it meant; any other value must be a team id and is refused with `teamId must be a team id.` otherwise. It
+names the team whose editor the caller must be; `enrichPlayer` reads nothing else by it.
 
 ## Response payload
 
@@ -126,6 +132,30 @@ A 401 saying the token could not be verified means the stored token had expired:
 it) and run the snippet again. For a terminal instead, `copy(token)` in the same console and
 `curl -X POST -H "Authorization: Bearer <token>" <BASE>/<name>`; the token lasts an hour. The snippet was checked
 against a page seeded the way the SDK writes its store, not against the live functions.
+
+## Who may call the six team handlers
+
+Since release 3 (27 Sep 2026) `enrichPlayer`, `getCompAnalysis`, `refreshTeamDataOnce`, `draftAdvice` and `gameReview`
+open with `admitEditor`, and `getOpponentHistory` with `admitMember`, both in `src/admin-auth.ts` beside `admitAdmin` and
+sharing its steps: the Bearer ID token, verified; a Google or custom-token sign-in; an email; then the role the email
+holds on the team the body's `teamId` names (`src/roles.ts` `roleOf`). On the root that is the bootstrap admin or an
+active `access/{email}` entry, as before. On any other team a root admin is admin without the team's list being read;
+anyone else has the active role of the team's own entry `teams/{teamId}/access/{email}`, or nothing. A root contributor
+is refused on a team that does not list them; a person listed on one team alone is refused on the root and on every
+other team.
+
+| Answer | Why |
+| --- | --- |
+| 204 | CORS preflight (`OPTIONS`) |
+| 405 | anything but POST |
+| 400 | the body, `teamId` included, did not parse; this comes before the token is looked at and touches nothing |
+| 401 | no `Authorization: Bearer <ID_TOKEN>`, a token that does not verify, or no email claim |
+| 403 | a provider other than `google.com` / `custom` (`Sign in with Google to …`), or a role below the door on that team (`Editor access required to …`, `Member access required to …`) |
+| 500 | the access read itself failed (`Could not check access: …`) and nothing ran |
+
+`syncTeamMember` is the seventeenth function: a Firestore trigger on `teams/{teamId}/access/{email}` that keeps the root
+index `members/{email}` (`{ teams: { [teamId]: role } }`) in step with every team's list, through the admin SDK. The app
+reads its own index at sign-in and never writes one; `CLAUDE.md` has the exact behaviour.
 
 ## Ranked queue data
 

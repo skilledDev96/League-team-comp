@@ -17,9 +17,17 @@ rules_version = '2';
 // Another team's data (release 2, 27 Sep 2026) lives under teams/{teamId}: the same collection
 // and meta names as the root, under a root document teams/{teamId}. 'teams' is in ownBlock(), so
 // the root catch-all never reaches that tree, and the tree has a catch-all pair of its own with
-// teamOwnBlock() as its ownBlock(). One membership list for every team in this release: the team
-// blocks ask the same hasAccess(), canEdit() and isAdmin() as the root; per-team access
-// (teams/{teamId}/access) is release 3 and is refused everything until then.
+// teamOwnBlock() as its ownBlock(). A membership list per team (release 3, the same day): the team
+// blocks ask teamMember(), teamEditor() and teamAdmin(), which read the team's own list
+// teams/{teamId}/access/{email}, the same { email, role, active } shape as the root list, through the
+// same truthy() gate. A root admin passes every team's door; nobody else has anything on a team whose
+// own list does not name them, Bom Squad's viewers and contributors included, and a person listed on
+// one team alone is nobody on the root and on every other team. Bom Squad's list stays the root
+// access collection, and its blocks are byte for byte what they were. The root index members/{email}
+// says which teams name a person: the syncTeamMember trigger writes it (the admin SDK, which rules do
+// not apply to) and the app reads its own. What is nobody's team's is anyone let in's (anyMember()):
+// userPrefs, an error report, and the four site-wide documents the app reads on every team
+// (meta/keyHealth, meta/championTraits, championStats, matchupIndex).
 //
 // What the app must do in return, or these rules break sign-in rather than protect it:
 // - Open no listener but meta/settings until AuthService has let the person in. A listen refused
@@ -29,7 +37,10 @@ rules_version = '2';
 // - Close every member listener on sign-out (meta/settings stays open) and open them again on the
 //   next sign-in. Signing out re-sends each open listen without a token, each is refused, and the
 //   signals keep the last account's data with nothing on screen saying it is stale.
-// - Listen to the whole `access` collection only as an admin; anyone else is refused it.
+// - Listen to a membership list only as its admin: the root `access` collection as a root admin, a
+//   team's `teams/{teamId}/access` as an admin of that team. Anyone else is refused it.
+// - List `teams` only as a root admin: a query must be readable in full, and every team is a root
+//   admin's alone. Anyone else opens one document listen per team their members/{email} index names.
 service cloud.firestore {
   match /databases/{database}/documents {
     // Signed in through one of the app's two doors: Google (the login page) or a custom token (the
@@ -67,12 +78,16 @@ service cloud.firestore {
       return accessData().get('role', null);
     }
 
-    // JavaScript truthiness, because that is the test the app applies: AuthService (resolveRole and
-    // enforceAccess) signs a person out, and the functions' getAccessRoleByEmail refuses them, on
-    // `!access.active || !access.role`. A stricter test here (say `active == true`) would lock out
-    // someone the app lets in; a looser one would let someone the app turns away read with their
-    // token. An absent field reads as null. (NaN is the one value JavaScript calls falsy that this
-    // does not; nothing writes one.)
+    // JavaScript truthiness, because that is the test the app applies: AuthService (activeRoleOf in
+    // core/access.ts) signs a person out, and the functions' activeRole (api/src/roles.ts) refuses
+    // them, on `!access.active || !access.role`. A stricter test here (say `active == true`) would
+    // lock out someone the app lets in; a looser one would let someone the app turns away read with
+    // their token. An absent field reads as null. (NaN is the one value JavaScript calls falsy that
+    // this does not; nothing writes one.) One known looseness, left as it is: the app and the
+    // functions also require the role to be one of admin, contributor and viewer, while here any
+    // non-empty role string passes the member doors, so an entry hand-written with another role
+    // (`owner`, say) can read as a member with its token and is nobody to the app and the functions.
+    // The app never writes one, and the extra `in` test would be one more document access per door.
     function truthy(v) {
       return v != null
         && !(v is bool && v == false)
@@ -101,16 +116,72 @@ service cloud.firestore {
       return bootstrapAdmin() || (hasAccess() && accessRole() in ['admin', 'contributor']);
     }
 
+    // A team's own membership list (release 3, 27 Sep 2026): teams/{teamId}/access/{email}, the root
+    // list's { email, role, active } shape, read through the root's truthy() gate, so the rules, the
+    // app (roleOnTeam in core/access.ts) and the functions (roleOf in api/src/roles.ts) cannot disagree
+    // about who is on a team. isAdmin() stands first in each of the three doors: a root admin is an
+    // admin of every team and passes without the team's entry being read. Anyone else has exactly the
+    // rights the team's own entry gives them. The team id comes from the path, so a person on team b
+    // can never be asked about through team c's door.
+    function teamAccessData(teamId) {
+      return get(/databases/$(database)/documents/teams/$(teamId)/access/$(emailKey())).data;
+    }
+
+    function teamRole(teamId) {
+      return teamAccessData(teamId).get('role', null);
+    }
+
+    // Named on the team's own list, active, with a role: the team's hasAccess(), without the root
+    // admin's pass. Not a door on its own; the three below ask it after isAdmin().
+    function teamListed(teamId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/teams/$(teamId)/access/$(emailKey()))
+        && truthy(teamAccessData(teamId).get('active', null))
+        && truthy(teamRole(teamId));
+    }
+
+    function teamMember(teamId) {
+      return isAdmin() || teamListed(teamId);
+    }
+
+    function teamEditor(teamId) {
+      return isAdmin() || (teamListed(teamId) && teamRole(teamId) in ['admin', 'contributor']);
+    }
+
+    function teamAdmin(teamId) {
+      return isAdmin() || (teamListed(teamId) && teamRole(teamId) == 'admin');
+    }
+
+    // Let in by the app on some team (letIn in core/access.ts): a root member, or a person whose index
+    // members/{email} names a team. The index exists only while it names one, since the syncTeamMember
+    // trigger deletes it when its map would be empty, so its existence is the test and nothing in it is
+    // read. What is not a team's asks this: userPrefs and an error report (personal), and the four
+    // site-wide documents the app reads on every team (meta/keyHealth, meta/championTraits, championStats,
+    // matchupIndex), which hold no team's data and nothing personal.
+    function anyMember() {
+      return hasAccess() || (signedIn() && exists(/databases/$(database)/documents/members/$(emailKey())));
+    }
+
     // The collections decided by their own block below and never by the root catch-all. 'teams' is
     // the whole of another team's tree: the team document and everything under it are decided by the
     // teams blocks, and without this entry the root catch-all would go on granting what they refuse.
+    // 'members' is the per-person index of teams (release 3), read by its owner and written by nobody.
+    // 'championStats' and 'matchupIndex' are two of the four site-wide reads (release 3, the review of
+    // 27 Sep 2026), read by anyone let in on some team; the other two are meta documents and are named
+    // beside meta/settings in the root catch-all's string tests, since 'meta' as a whole stays there.
     function ownBlock(collectionId) {
-      return collectionId in ['access', 'userPrefs', 'clientErrors', 'draftEvents', 'crawlState', 'crawlSeen', 'teams'];
+      return collectionId in ['access', 'userPrefs', 'clientErrors', 'draftEvents', 'crawlState', 'crawlSeen', 'teams', 'members', 'championStats', 'matchupIndex'];
+    }
+
+    // The two meta documents that are the site's whatever the team, decided by their own block below
+    // beside meta/settings and never by the root catch-all; the rest of meta stays with the catch-all.
+    function siteMetaDoc(collectionId, docId) {
+      return collectionId == 'meta' && docId in ['settings', 'keyHealth', 'championTraits'];
     }
 
     // The teams tree's ownBlock(): the collections under teams/{teamId} decided by their own block
-    // and never by the team catch-all. draftEvents has its block below; access has none yet, so it
-    // is refused everything until release 3 gives a team its own membership list there.
+    // and never by the team catch-all. draftEvents and access (the team's own membership list, release
+    // 3) each have their block below.
     function teamOwnBlock(collectionId) {
       return collectionId in ['draftEvents', 'access'];
     }
@@ -133,15 +204,18 @@ service cloud.firestore {
     }
 
     // One person's tours, film progress and reading depth, keyed by their own lowercased email.
-    // The app only touches it once AuthService has let that person in.
+    // The app only touches it once AuthService has let that person in, which since release 3 may be
+    // on a team of their own with no root entry at all, so the door is anyMember(), not hasAccess().
+    // The id test stands before the reads: someone else's document costs no read to refuse.
     match /userPrefs/{emailId} {
-      allow read, write: if hasAccess() && emailId == emailKey();
+      allow read, write: if signedIn() && emailId == emailKey() && anyMember();
     }
 
-    // A member's browser may report an uncaught error; only an admin reads them (Admin ›
-    // Diagnostics), and nobody edits or deletes one from the app.
+    // A member's browser may report an uncaught error, from any team (anyMember(), release 3); only
+    // a root admin reads them (Admin › Diagnostics on Bom Squad; a row names the team that was
+    // showing), and nobody edits or deletes one from the app.
     match /clientErrors/{id} {
-      allow create: if hasAccess();
+      allow create: if anyMember();
       allow read: if isAdmin();
       allow update, delete: if false;
     }
@@ -171,70 +245,147 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // A person's index of the teams whose lists name them (release 3): { teams: { [teamId]: role } },
+    // written by the syncTeamMember trigger through the admin SDK, which rules do not apply to, on
+    // every change of a team's access entry. Their own for anyone signed in, entry or none: AuthService
+    // reads it beside the root entry to decide whether to let them in, and must learn "absent" rather
+    // than hit a permission error. Nobody else's, a root admin included (who is on a team is read from
+    // that team's list), and nothing writes it from the app: the index is the trigger's alone. The
+    // rules read only that it exists (anyMember()), so a hand-written one would buy userPrefs and an
+    // error report and nothing on any team; the app, though, trusts it for which teams to open.
+    match /members/{emailId} {
+      allow read: if signedIn() && emailId == emailKey();
+      allow write: if false;
+    }
+
+    // The four site-wide reads the app makes on every team (release 3, the review of 27 Sep 2026): the
+    // Riot key probe (meta/keyHealth, the footer's notice), the champion traits (meta/championTraits, what
+    // comp matching and the advisor read a champion by), the crawler's champion stats and the matchup
+    // index (the draft room's rates). None holds a team's data or anything personal, and the app opens
+    // all four whatever the team, so they are anyone let in on some team's to read (anyMember()), where
+    // the root catch-all's hasAccess() refused a person on another team alone and left them with an
+    // empty notice, no trait matching, no rates and one refused-listener row in the error log a session.
+    // The writes are the catch-all's own terms, as they were: the functions write all four through the
+    // admin SDK, which rules do not apply to, and an editor of Bom Squad may still write them by hand.
+    match /meta/keyHealth {
+      allow read: if anyMember();
+      allow write: if canEdit();
+    }
+
+    match /meta/championTraits {
+      allow read: if anyMember();
+      allow write: if canEdit();
+    }
+
+    match /championStats/{id} {
+      allow read: if anyMember();
+      allow write: if canEdit();
+    }
+
+    match /matchupIndex/{id} {
+      allow read: if anyMember();
+      allow write: if canEdit();
+    }
+
     // Another team's tree (release 2, 27 Sep 2026). Bom Squad stays on the flat root; any other team
     // lives at teams/{teamId}/<collection> and teams/{teamId}/meta/<doc>, the same names, under the
     // team document. Before these blocks the two root catch-alls covered the whole tree, so a
     // contributor could write the team document and its meta/settings (the root's is admin-only) and
     // a viewer could list its draftEvents (the root's is admin-read). The blocks give the tree the
-    // root's own terms and ask the root membership list: one list for every team in this release.
+    // root's own terms and, since release 3, ask the team's own membership list through teamMember(),
+    // teamEditor() and teamAdmin().
     //
-    // The team document: every member reads it (the switcher lists teams); an admin creates it (one
-    // batch with meta/settings and meta/resourceLinks) and deletes it (the same three, once the tree is
-    // empty). Nothing in the app updates it: a rename is written to the team's own meta/settings.teamName
-    // (Admin › Settings) and the name here is only the fallback; update stays admin-only so an edit by
-    // hand needs no rules change. The functions write refreshStartedAt on it through the admin SDK,
-    // which rules do not apply to, so no editor write. createdBy on it is the creating admin's email,
-    // and every member reads it with the rest of the document: a read rule cannot hide a field, and the
-    // switcher must list teams. Known and left there for now; the alternative is the email in a
-    // subdocument only admins read (teams/{teamId}/meta/owner, with a block of its own and a
-    // teamOwnBlock() entry), and which of the two stands is the lead's call (docs/handover-2026-09-27.md,
-    // Stage 4).
+    // The team document: a member of the team reads it (one document listen per team a person's index
+    // names, which is what the switcher draws for them); only a root admin lists the collection (a
+    // list query must be readable in full, and every team is a root admin's alone), creates it (one
+    // batch with meta/settings, meta/resourceLinks and the team's first access entries: the creator as
+    // its admin and, when asked, a copy of Bom Squad's active members) and deletes it (the same three
+    // plus every entry of its list, once the tree is empty). A team's own admin is not a root admin and
+    // creates no team. Nothing in the app updates it: a rename is written to the team's own
+    // meta/settings.teamName (Admin › Settings) and the name here is only the fallback; update stays
+    // root-admin-only so an edit by hand needs no rules change. The functions write refreshStartedAt on
+    // it through the admin SDK, which rules do not apply to, so no editor write. createdBy on it is the
+    // creating admin's email, and every member of the team reads it with the rest of the document: a
+    // read rule cannot hide a field, and the switcher must draw the team. Known and left there for now;
+    // the alternative is the email in a subdocument only admins read (teams/{teamId}/meta/owner, with a
+    // block of its own and a teamOwnBlock() entry), and which of the two stands is the lead's call
+    // (docs/handover-2026-09-27.md, Stage 4).
     match /teams/{teamId} {
-      allow read: if hasAccess();
+      allow get: if teamMember(teamId);
+      allow list: if isAdmin();
       allow create, update, delete: if isAdmin();
     }
 
-    // The team's settings: members only, no public read. The signed-out shell prints the ROOT name
-    // from the root meta/settings, and nothing signed out needs a team's. Admin write, as at the root.
+    // The team's settings: its members only, no public read. The signed-out shell prints the ROOT name
+    // from the root meta/settings, and nothing signed out needs a team's. Its admins write it, as at
+    // the root.
     match /teams/{teamId}/meta/settings {
-      allow read: if hasAccess();
-      allow write: if isAdmin();
+      allow read: if teamMember(teamId);
+      allow write: if teamAdmin(teamId);
     }
 
     // The team's draft log: the root block's twin, for the same reasons. Every row's `by` is a
-    // teammate's email and the one reader is Admin › Diagnostics; editors write one on every save of
-    // a game (update because two saves inside a tenth of a second share an id); nothing deletes one.
+    // teammate's email and the one reader is Admin › Diagnostics, so the team's admins; its editors
+    // write one on every save of a game (update because two saves inside a tenth of a second share an
+    // id); nothing deletes one.
     match /teams/{teamId}/draftEvents/{id} {
-      allow create, update: if canEdit();
-      allow read: if isAdmin();
+      allow create, update: if teamEditor(teamId);
+      allow read: if teamAdmin(teamId);
       allow delete: if false;
     }
 
-    // Everything else under the team: members read, editors write, the root catch-all's terms. Out
-    // of the collections in teamOwnBlock() and out of meta/settings, so each path is decided by
+    // The team's own membership list (release 3): { email, role, active } under the lowercased email,
+    // the root list's shape. Anyone signed in may read their OWN entry, present or not, as at the root,
+    // so a person can learn where they stand with a team; the whole list, anyone else's entry and every
+    // write are the team's admins' (Admin › Access on that team, the copy of Bom Squad's members onto
+    // it, the create-team batch that seeds the creator, the delete-team batch that takes every entry
+    // away). A root admin is an admin here without an entry of their own. Every write here fires the
+    // syncTeamMember trigger, which keeps members/{email} in step; the app never writes that index.
+    // The list decides this team alone: an admin of team b is refused team c's list and the root's.
+    match /teams/{teamId}/access/{emailId} {
+      allow get: if (signedIn() && emailId == emailKey()) || teamAdmin(teamId);
+      allow list: if teamAdmin(teamId);
+      allow create, update, delete: if teamAdmin(teamId);
+    }
+
+    // Everything else under the team: its members read, its editors write, the root catch-all's terms.
+    // Out of the collections in teamOwnBlock() and out of meta/settings, so each path is decided by
     // exactly one block. Two matches for the root's reason: the first covers the team's top-level
     // documents, the second anything in a subcollection of one.
     //
-    // The string tests stand before hasAccess() and canEdit(), here and in the root pair: && stops at
-    // the first false, so a path a block refuses costs no read of the access document. That matters
+    // The string tests stand before teamMember() and teamEditor(), here and in the root pair: && stops
+    // at the first false, so a path a block refuses costs no read of any access document. That matters
     // because a write to a team's meta/settings matches three blocks (its own, this one and the root
     // subcollection catch-all, which matches every path of three segments or more), and each
-    // hasAccess() or canEdit() is up to four get/exists calls when nothing is cached, against
-    // Firestore's limit of ten per evaluation and per operation of a batch. Firestore says a repeated
-    // read of one document MAY be cached, and neither rules-check (mocked calls) nor the dry-run can
-    // measure that; with the tests first the uncached worst case is four calls, not twelve.
+    // teamMember(), teamEditor() or teamAdmin() is up to eight get/exists calls when nothing is cached:
+    // isAdmin() reads the root entry up to four times (exists, active, role, and the role against
+    // 'admin'), then teamListed() and the door read the team's entry up to four times (exists, active,
+    // role, and the role against the door). Firestore's limit is ten per evaluation and per operation of
+    // a batch. Measured on this file, uncached: a root contributor listed on a team writing
+    // teams/b/players/p1 is eight calls on two documents; a person on team b alone is five (the root
+    // entry's exists says no and nothing more of it is read); a root admin is four, on one document;
+    // the bootstrap admin none, since bootstrapAdmin() is a string test. Firestore says a repeated read
+    // of one document MAY be cached, and neither rules-check (mocked calls) nor the dry-run can measure
+    // that; with the tests first the uncached worst case is eight calls, not twenty-four.
+    //
+    // A batch has twenty for all its operations together. The create-team and delete-team batches
+    // (teams/{id}, its meta/settings, its meta/resourceLinks and one access entry per member) ask
+    // isAdmin() on every operation, four uncached calls each and all on the one root entry of the
+    // admin writing them: the bootstrap admin's batch reads nothing, and any other root admin's batch
+    // of five operations or more stays under twenty only if Firestore caches that one document across
+    // the operations.
     match /teams/{teamId}/{collectionId}/{docId} {
       allow read: if !teamOwnBlock(collectionId)
         && !(collectionId == 'meta' && docId == 'settings')
-        && hasAccess();
+        && teamMember(teamId);
       allow write: if !teamOwnBlock(collectionId)
         && !(collectionId == 'meta' && docId == 'settings')
-        && canEdit();
+        && teamEditor(teamId);
     }
 
     match /teams/{teamId}/{collectionId}/{docId}/{subcollectionId}/{rest=**} {
-      allow read: if !teamOwnBlock(collectionId) && hasAccess();
-      allow write: if !teamOwnBlock(collectionId) && canEdit();
+      allow read: if !teamOwnBlock(collectionId) && teamMember(teamId);
+      allow write: if !teamOwnBlock(collectionId) && teamEditor(teamId);
     }
 
     // Everything else at the root: members read, editors write. That includes championStats, matchupIndex and
@@ -246,17 +397,22 @@ service cloud.firestore {
     // are still editor-writable here, as they always were; the functions write them through the
     // admin SDK, which rules do not apply to.
     //
-    // Two matches rather than `{document=**}`: a recursive wildcard binds a path, and meta/settings
-    // has to be told apart from the rest of meta by comparing two plain strings. The first covers
-    // every top-level document, the second anything in a subcollection. The string tests come first
-    // for the reason given on the team pair: the second match here also reaches every teams path, and
-    // with !ownBlock() first that costs it no read of the access document.
+    // Members here means Bom Squad's: hasAccess() reads the root list, so a person on another team alone
+    // is refused every root path. The four site-wide documents the app reads on every team are the
+    // exception, decided by their own blocks above (anyMember()) and kept out of here through ownBlock()
+    // and siteMetaDoc().
+    //
+    // Two matches rather than `{document=**}`: a recursive wildcard binds a path, and the three site
+    // meta documents have to be told apart from the rest of meta by comparing plain strings. The first
+    // covers every top-level document, the second anything in a subcollection. The string tests come
+    // first for the reason given on the team pair: the second match here also reaches every teams path,
+    // and with !ownBlock() first that costs it no read of the access document.
     match /{collectionId}/{docId} {
       allow read: if !ownBlock(collectionId)
-        && !(collectionId == 'meta' && docId == 'settings')
+        && !siteMetaDoc(collectionId, docId)
         && hasAccess();
       allow write: if !ownBlock(collectionId)
-        && !(collectionId == 'meta' && docId == 'settings')
+        && !siteMetaDoc(collectionId, docId)
         && canEdit();
     }
 

@@ -112,3 +112,25 @@ describe('normalizeEmail', () => {
   });
 });
 
+
+describe('parseEnrichRequest, the team (release 3, 27 Sep 2026)', () => {
+  // Every request sent before it carried no teamId and meant the root; the handler asks whose
+  // editor the caller must be by it, and reads nothing else by it.
+  it('reads no teamId, a null one and the word default as the root', () => {
+    expect(parseEnrichRequest({ summonerName: 'x' }).teamId).toBe('default');
+    expect(parseEnrichRequest({ summonerName: 'x', teamId: null }).teamId).toBe('default');
+    expect(parseEnrichRequest({ summonerName: 'x', teamId: 'default' }).teamId).toBe('default');
+  });
+
+  it('keeps a team id', () => {
+    expect(parseEnrichRequest({ summonerName: 'x', teamId: 'b' }).teamId).toBe('b');
+    expect(parseEnrichRequest({ summonerName: 'x', teamId: 'bom-squad-2' }).teamId).toBe('bom-squad-2');
+  });
+
+  it('refuses anything else, before the name is looked at', () => {
+    for (const teamId of ['B', 'teams', '', 'a/b', 'bom squad', 42]) {
+      expect(() => parseEnrichRequest({ summonerName: 'x', teamId }), JSON.stringify(teamId)).toThrow('teamId must be a team id.');
+    }
+    expect(() => parseEnrichRequest({ teamId: 'B' })).toThrow('teamId must be a team id.');
+  });
+});

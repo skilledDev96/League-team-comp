@@ -306,3 +306,26 @@ describe('ADVICE_SCHEMA', () => {
     expect(JSON.stringify(ADVICE_SCHEMA)).not.toMatch(/maxItems|minItems/);
   });
 });
+
+describe('parseDraftAdviceRequest, the team (release 3, 27 Sep 2026)', () => {
+  // Every request sent before it carried no teamId and meant the root; the handler asks whose
+  // editor the caller must be by it, and nothing in the prompt comes from it.
+  it('reads no teamId, a null one and the word default as the root', () => {
+    expect(parseDraftAdviceRequest(minimal).teamId).toBe('default');
+    expect(parseDraftAdviceRequest({ ...minimal, teamId: null }).teamId).toBe('default');
+    expect(parseDraftAdviceRequest({ ...minimal, teamId: 'default' }).teamId).toBe('default');
+  });
+
+  it('keeps a team id, and the prompt does not carry it', () => {
+    const req = parseDraftAdviceRequest({ ...minimal, teamId: 'bom-squad-2' });
+    expect(req.teamId).toBe('bom-squad-2');
+    expect(buildDraftPrompt(req)).not.toContain('bom-squad-2');
+  });
+
+  it('refuses anything else, before the draft is looked at', () => {
+    for (const teamId of ['B', 'teams', '', 'a/b', 'bom squad', 42]) {
+      expect(() => parseDraftAdviceRequest({ ...minimal, teamId }), JSON.stringify(teamId)).toThrow('teamId must be a team id.');
+    }
+    expect(() => parseDraftAdviceRequest({ teamId: 'B' })).toThrow('teamId must be a team id.');
+  });
+});

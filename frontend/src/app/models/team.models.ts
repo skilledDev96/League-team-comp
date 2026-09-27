@@ -10,6 +10,19 @@ export interface AccessEntry {
   active: boolean;
 }
 
+/**
+ * The index of one person's teams (27 Sep 2026, release 3): the root document `members/{email}`,
+ * `teams` keyed by team id with the role that team's own list (`teams/{teamId}/access/{email}`)
+ * gives them. The `syncTeamMember` trigger writes it on every change to a team's entry and deletes
+ * it when the map would be empty; the app reads its own at sign-in and never writes one. Bom
+ * Squad's own list is the root `access` collection and is never in here. The document id is the
+ * email and the document holds `teams` alone, exactly as `nextMembersDoc` in
+ * `api/src/members-index.ts` writes it; nothing else is stored on it.
+ */
+export interface Members {
+  teams: Record<string, AccessRole>;
+}
+
 export interface SummonerProfile {
   region: string;
   opggSlug?: string;

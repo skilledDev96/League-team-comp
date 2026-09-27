@@ -51,7 +51,9 @@ test: it fights bot detection and can demand a second factor. So the runner
 mints a Firebase **custom token** for the viewer account with the service
 account it holds (`tests/auth.setup.ts`) and hands it to the app on the login
 route's fragment, `/#token=…`. The app signs in with it and then runs the same
-`access/{email}` gate as everyone else, so the token alone grants nothing.
+gate as everyone else, two reads since release 3 (27 Sep 2026): its root entry
+`access/{email}` and its index of teams `members/{email}`, which for this
+account must not exist (below). So the token alone grants nothing.
 There is no password provider and no minting endpoint on the internet; the key
 lives only in the repository secrets and in your `.env`.
 
@@ -77,6 +79,27 @@ while signed in as it, and never re-record the storage state after a switch. Not
 writes either without a click, but for one correction: a document that names a
 team since deleted is put back to `default` once the app has fallen back to it,
 which a document that never named a team never meets.
+
+### The account must be on no team's list
+
+Since release 3 (the same day) the account is a **root viewer with no team
+entries**: a viewer on Bom Squad's root `access` list, on no `teams/{id}/access`
+list, and so with no `members/{email}` index. Keep it that way: never add it on
+another team's Admin › Access, and untick "Copy Bom Squad's members" when
+creating a team it must not see (the copy takes every active root entry,
+viewers included). Why: a team's list entry makes the `syncTeamMember` trigger
+write `members/e2e@bomsquad.test`, and from then on the account opens a
+document listen on that team and its account menu offers the team; it still
+lands on Bom Squad (a root member with no preference does), but a stray click
+in a test could move it, the listeners spec's "exactly the 26 root paths" would
+no longer describe it, and a read-only account pointed at production could read
+another group's data. Two checks pin the shape without reading the live account:
+`scripts/rules-check.cjs` (the `e2e` persona reads its own `members` document as
+absent, not a refusal, and is refused `teams/b` and `teams/b/players/p1`) and
+`team-data.service.listeners.spec.ts` (a root viewer with no index opens the 26
+root paths and no teams list). A stray entry on the live account is only caught
+by the verify job landing on the wrong team, so look at `teams/<id>/access` for
+it after any copy.
 
 ### What is still not covered
 

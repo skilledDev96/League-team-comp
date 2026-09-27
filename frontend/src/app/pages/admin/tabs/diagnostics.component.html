@@ -260,7 +260,10 @@
   }
 
   <h3>Browser errors</h3>
-  @if (clientErrors().length) {
+  @if (!ctx.auth.isRootAdmin()) {
+    <!-- The error log is the site's, one root collection whatever the team, and a root admin's to read (release 3). -->
+    <p class="empty-state">The browser error log is {{ data.rootTeamName() }}'s and a root admin reads it; a row names the team that was showing.</p>
+  } @else if (clientErrors().length) {
     <ul class="list-clean draft-log">
       @for (e of clientErrors(); track e.id) {
         <li class="draft-log-row is-error" [appTip]="e.stack || e.message">

@@ -8,7 +8,7 @@ import { TeamScopeService } from '../services/team-scope.service';
 import { ToastService } from '../services/toast.service';
 import { UserPrefsService } from '../services/user-prefs.service';
 
-/** One line of the Team group: the root team first, then every team document by name. */
+/** One line of the Team group: the root team first, for a root member, then every team the person may see by name. */
 export interface TeamMenuRow {
   id: string;
   name: string;
@@ -24,10 +24,13 @@ export interface TeamMenuRow {
  * Since 27 Sep 2026 (release 2, Stage 3c) the panel opens with the Team group:
  * the switcher between Bom Squad, on the root paths, and every team in the root
  * `teams` list, drawn only in Firebase mode and only when there is a team to
- * switch to or an admin who could make one ("New team…" goes to Admin › Teams).
- * The default team's menu is therefore exactly what it was: Bom Squad alone,
- * for anyone who is not an admin, draws no group at all. The panel is a popover
- * over the page, so nothing in the topbar or on any page moves with it.
+ * switch to or a root admin who could make one ("New team…" goes to Admin ›
+ * Teams). Since release 3 (the same day) the rows are the teams this person may
+ * see: the root only for a member of Bom Squad's own list, and the teams their
+ * index names, or every team for a root admin. The default team's menu is
+ * therefore exactly what it was: Bom Squad alone, for anyone who is not a root
+ * admin, draws no group at all. The panel is a popover over the page, so nothing
+ * in the topbar or on any page moves with it.
  *
  * A switch is three steps in an order that matters. First the page: the draft
  * room writes the game it is on and Patterns keeps the storage key it captured
@@ -93,20 +96,18 @@ export class UserMenuComponent {
 
   protected readonly open = signal(false);
 
-  /** The Team group draws only where there is a choice to make, or an admin who could make one. */
-  protected readonly showTeams = computed(
-    () => this.data.mode === 'firebase' && (this.data.teams().length > 0 || this.auth.canManageUsers())
-  );
-  /** New team… is Admin › Teams' door, so it follows the same guard as that tab. */
-  protected readonly canCreate = computed(() => this.auth.canManageUsers());
+  /** New team… is Admin › Teams' door, and a team is a root admin's to create. */
+  protected readonly canCreate = computed(() => this.auth.isRootAdmin());
   protected readonly teamRows = computed<TeamMenuRow[]>(() => {
     const active = this.scope.activeTeamId();
     const root: TeamMenuRow = { id: DEFAULT_TEAM_ID, name: this.data.rootTeamName(), active: active === DEFAULT_TEAM_ID };
-    const rest = [...this.data.teams()]
+    const rest = [...this.data.visibleTeams()]
       .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
       .map<TeamMenuRow>((t) => ({ id: t.id, name: t.name, active: t.id === active }));
-    return [root, ...rest];
+    return [...(this.auth.isRootMember() ? [root] : []), ...rest];
   });
+  /** The Team group draws only where there is a choice to make, or a root admin who could make one. */
+  protected readonly showTeams = computed(() => this.data.mode === 'firebase' && (this.teamRows().length > 1 || this.canCreate()));
 
   protected toggle(event: Event): void {
     event.stopPropagation();

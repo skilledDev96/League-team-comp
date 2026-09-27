@@ -1,7 +1,13 @@
 <section aria-label="Team access">
   <div class="admin-tab-head">
-    <h2 class="section-line"><span class="section-line-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span class="section-line-label">Team access</span></h2>
-    <p class="muted edit-hint">Grant access by email and role. Sign-in is with Google; the email has to match. Only an admin sees this tab.</p>
+    @if (onTeam()) {
+      <!-- A team's own list (release 3): who may open this team, apart from the root's admins, who are its admins without an entry. -->
+      <h2 class="section-line"><span class="section-line-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span class="section-line-label" id="admin-access-team-head">Members of {{ ctx.data.teamName() }}</span></h2>
+      <p class="muted edit-hint">Who may open {{ ctx.data.teamName() }}, by email and role; {{ ctx.data.rootTeamName() }}'s list is separate, and its admins are admins here without an entry. Sign-in is with Google; the email has to match. Only an admin of this team sees this tab.</p>
+    } @else {
+      <h2 class="section-line"><span class="section-line-icon material-symbols-rounded" aria-hidden="true">manage_accounts</span><span class="section-line-label">Team access</span></h2>
+      <p class="muted edit-hint">Grant access by email and role. Sign-in is with Google; the email has to match. Only an admin sees this tab.</p>
+    }
     <button class="view-btn active" type="button" (click)="ctx.addAccessEntry()">+ Add member</button>
   </div>
 

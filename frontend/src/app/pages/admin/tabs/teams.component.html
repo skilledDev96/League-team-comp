@@ -1,7 +1,7 @@
 <section aria-label="Teams">
 <div class="admin-tab-head">
   <h2 class="section-line"><span class="section-line-icon material-symbols-rounded" aria-hidden="true">diversity_3</span><span class="section-line-label">Teams</span></h2>
-  <p class="muted edit-hint">Every team keeps its own roster, comps, games and settings; {{ ctx.data.rootTeamName() }} is the default and stays where it is. Switch to a team to work on it here and on every other page. Only an admin sees this tab.</p>
+  <p class="muted edit-hint">Every team keeps its own roster, comps, games, settings and members; {{ ctx.data.rootTeamName() }} is the default and stays where it is. Switch to a team to work on it here and on every other page. Only an admin sees this tab.</p>
 </div>
 
 @if (ctx.data.mode !== 'firebase') {
@@ -17,15 +17,18 @@
         @if (row.region) { <span class="chip is-compact" appTip="The Riot region the roster was created for.">{{ row.region.toUpperCase() }}</span> }
         <span class="muted admin-teams-meta">
           @if (row.isDefault) { The root team, on the flat root paths from the start. }
-          @else { Created by {{ row.createdBy || 'an admin' }} on {{ ctx.teamCreatedLabel(row) }}. }
+          @else { Created by {{ row.createdBy || 'an admin' }} on {{ ctx.teamCreatedLabel(row) }}.@if (row.members !== null) { <span class="admin-teams-members"> {{ row.members }} {{ row.members === 1 ? 'member' : 'members' }} on its list.</span> } }
         </span>
         <span class="links action-row admin-teams-actions">
           <button class="view-btn admin-teams-switch" [class.active]="row.active" type="button"
                   [disabled]="row.active || !!ctx.switchTeamReason()"
                   [appTip]="row.active ? 'This is the team you are on.' : (ctx.switchTeamReason() ?? '')"
                   (click)="ctx.switchTeam(row.id)">Switch to</button>
-          @if (!row.isDefault) {
+          <!-- Both actions are a root admin's (release 3): the rules let only a root admin write the team document or read
+               the root list the copy needs, so a team's own admin sees no menu rather than a delete that would be refused. -->
+          @if (!row.isDefault && ctx.auth.isRootAdmin()) {
             <app-overflow-menu>
+              <button class="overflow-item admin-teams-copy" type="button" (click)="ctx.copyRootMembers(row)">Copy {{ ctx.data.rootTeamName() }}'s members</button>
               <button class="overflow-item danger" type="button" (click)="ctx.deleteTeam(row)">Delete team</button>
             </app-overflow-menu>
           }
@@ -63,6 +66,14 @@
     } @else {
       <p class="muted roster-import-line">Paste order is the seat order: Top, Jungle, Mid, ADC, Support. Anyone past five joins the bench. Nothing is written until you press Create.</p>
     }
+    <!-- The team's own membership list (release 3). The creator is its admin either way; this decides who else starts on it. -->
+    <label class="field field-check admin-teams-copy-field">
+      <input id="admin-teams-copy" type="checkbox" [ngModel]="ctx.newTeamCopyMembers()" (ngModelChange)="ctx.newTeamCopyMembers.set($event)" name="ctx.newTeamCopyMembers" />
+      <span>
+        Copy {{ ctx.data.rootTeamName() }}'s members
+        <small class="muted">Everyone active on {{ ctx.data.rootTeamName() }}'s list joins the new team with the same role, once; the two lists are separate from then on, and you are its admin either way.</small>
+      </span>
+    </label>
     <div class="action-row admin-teams-submit">
       <button id="admin-teams-create" class="view-btn active" type="button"
               [disabled]="!!ctx.createTeamReason()"
