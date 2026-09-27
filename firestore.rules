@@ -8,11 +8,18 @@ rules_version = '2';
 // one beneath it: the old catch-all `match /{document=**} { allow read: if true; allow write:
 // if canEdit(); }` made access, userPrefs, clientErrors, crawlState and crawlSeen world-readable
 // and let a contributor write access (and so make themselves admin), meta/settings, anyone's
-// userPrefs and the crawler's state, and edit or delete error reports. The catch-all below
+// userPrefs and the crawler's state, and edit or delete error reports. The root catch-all below
 // therefore names the paths that have their own block and stays out of them: each path is
 // decided by exactly one block. A new collection is still covered with no rules
 // change (members read, editors write); a collection given a block of its own must also be
 // added to ownBlock(), or the catch-all goes on granting what that block refuses.
+//
+// Another team's data (release 2, 27 Sep 2026) lives under teams/{teamId}: the same collection
+// and meta names as the root, under a root document teams/{teamId}. 'teams' is in ownBlock(), so
+// the root catch-all never reaches that tree, and the tree has a catch-all pair of its own with
+// teamOwnBlock() as its ownBlock(). One membership list for every team in this release: the team
+// blocks ask the same hasAccess(), canEdit() and isAdmin() as the root; per-team access
+// (teams/{teamId}/access) is release 3 and is refused everything until then.
 //
 // What the app must do in return, or these rules break sign-in rather than protect it:
 // - Open no listener but meta/settings until AuthService has let the person in. A listen refused
@@ -94,9 +101,18 @@ service cloud.firestore {
       return bootstrapAdmin() || (hasAccess() && accessRole() in ['admin', 'contributor']);
     }
 
-    // The collections decided by their own block below and never by the catch-all.
+    // The collections decided by their own block below and never by the root catch-all. 'teams' is
+    // the whole of another team's tree: the team document and everything under it are decided by the
+    // teams blocks, and without this entry the root catch-all would go on granting what they refuse.
     function ownBlock(collectionId) {
-      return collectionId in ['access', 'userPrefs', 'clientErrors', 'draftEvents', 'crawlState', 'crawlSeen'];
+      return collectionId in ['access', 'userPrefs', 'clientErrors', 'draftEvents', 'crawlState', 'crawlSeen', 'teams'];
+    }
+
+    // The teams tree's ownBlock(): the collections under teams/{teamId} decided by their own block
+    // and never by the team catch-all. draftEvents has its block below; access has none yet, so it
+    // is refused everything until release 3 gives a team its own membership list there.
+    function teamOwnBlock(collectionId) {
+      return collectionId in ['draftEvents', 'access'];
     }
 
     // Anyone signed in may read their OWN entry, active or not: AuthService reads it to decide
@@ -155,8 +171,75 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Everything else: members read, editors write. That includes championStats, matchupIndex and
-    // the rest of meta, which the app reads only behind the viewer guard. The scripts, including
+    // Another team's tree (release 2, 27 Sep 2026). Bom Squad stays on the flat root; any other team
+    // lives at teams/{teamId}/<collection> and teams/{teamId}/meta/<doc>, the same names, under the
+    // team document. Before these blocks the two root catch-alls covered the whole tree, so a
+    // contributor could write the team document and its meta/settings (the root's is admin-only) and
+    // a viewer could list its draftEvents (the root's is admin-read). The blocks give the tree the
+    // root's own terms and ask the root membership list: one list for every team in this release.
+    //
+    // The team document: every member reads it (the switcher lists teams); an admin creates it (one
+    // batch with meta/settings and meta/resourceLinks) and deletes it (the same three, once the tree is
+    // empty). Nothing in the app updates it: a rename is written to the team's own meta/settings.teamName
+    // (Admin › Settings) and the name here is only the fallback; update stays admin-only so an edit by
+    // hand needs no rules change. The functions write refreshStartedAt on it through the admin SDK,
+    // which rules do not apply to, so no editor write. createdBy on it is the creating admin's email,
+    // and every member reads it with the rest of the document: a read rule cannot hide a field, and the
+    // switcher must list teams. Known and left there for now; the alternative is the email in a
+    // subdocument only admins read (teams/{teamId}/meta/owner, with a block of its own and a
+    // teamOwnBlock() entry), and which of the two stands is the lead's call (docs/handover-2026-09-27.md,
+    // Stage 4).
+    match /teams/{teamId} {
+      allow read: if hasAccess();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // The team's settings: members only, no public read. The signed-out shell prints the ROOT name
+    // from the root meta/settings, and nothing signed out needs a team's. Admin write, as at the root.
+    match /teams/{teamId}/meta/settings {
+      allow read: if hasAccess();
+      allow write: if isAdmin();
+    }
+
+    // The team's draft log: the root block's twin, for the same reasons. Every row's `by` is a
+    // teammate's email and the one reader is Admin › Diagnostics; editors write one on every save of
+    // a game (update because two saves inside a tenth of a second share an id); nothing deletes one.
+    match /teams/{teamId}/draftEvents/{id} {
+      allow create, update: if canEdit();
+      allow read: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Everything else under the team: members read, editors write, the root catch-all's terms. Out
+    // of the collections in teamOwnBlock() and out of meta/settings, so each path is decided by
+    // exactly one block. Two matches for the root's reason: the first covers the team's top-level
+    // documents, the second anything in a subcollection of one.
+    //
+    // The string tests stand before hasAccess() and canEdit(), here and in the root pair: && stops at
+    // the first false, so a path a block refuses costs no read of the access document. That matters
+    // because a write to a team's meta/settings matches three blocks (its own, this one and the root
+    // subcollection catch-all, which matches every path of three segments or more), and each
+    // hasAccess() or canEdit() is up to four get/exists calls when nothing is cached, against
+    // Firestore's limit of ten per evaluation and per operation of a batch. Firestore says a repeated
+    // read of one document MAY be cached, and neither rules-check (mocked calls) nor the dry-run can
+    // measure that; with the tests first the uncached worst case is four calls, not twelve.
+    match /teams/{teamId}/{collectionId}/{docId} {
+      allow read: if !teamOwnBlock(collectionId)
+        && !(collectionId == 'meta' && docId == 'settings')
+        && hasAccess();
+      allow write: if !teamOwnBlock(collectionId)
+        && !(collectionId == 'meta' && docId == 'settings')
+        && canEdit();
+    }
+
+    match /teams/{teamId}/{collectionId}/{docId}/{subcollectionId}/{rest=**} {
+      allow read: if !teamOwnBlock(collectionId) && hasAccess();
+      allow write: if !teamOwnBlock(collectionId) && canEdit();
+    }
+
+    // Everything else at the root: members read, editors write. That includes championStats, matchupIndex and
+    // the rest of meta, which the app reads only behind the viewer guard. Another team's tree is not
+    // covered here: 'teams' is in ownBlock() and the teams blocks above decide it. The scripts, including
     // scripts/dev-timeline.mjs (players and matchCache), read through firebase-admin with the
     // service account, which rules do not apply to. The function-written collections (gameReviews,
     // matchCache, matchTimeline, rankHistory, replayRecordings, replayShots, meta/compAnalysis …)
@@ -165,19 +248,21 @@ service cloud.firestore {
     //
     // Two matches rather than `{document=**}`: a recursive wildcard binds a path, and meta/settings
     // has to be told apart from the rest of meta by comparing two plain strings. The first covers
-    // every top-level document, the second anything in a subcollection.
+    // every top-level document, the second anything in a subcollection. The string tests come first
+    // for the reason given on the team pair: the second match here also reaches every teams path, and
+    // with !ownBlock() first that costs it no read of the access document.
     match /{collectionId}/{docId} {
-      allow read: if hasAccess()
-        && !ownBlock(collectionId)
-        && !(collectionId == 'meta' && docId == 'settings');
-      allow write: if canEdit()
-        && !ownBlock(collectionId)
-        && !(collectionId == 'meta' && docId == 'settings');
+      allow read: if !ownBlock(collectionId)
+        && !(collectionId == 'meta' && docId == 'settings')
+        && hasAccess();
+      allow write: if !ownBlock(collectionId)
+        && !(collectionId == 'meta' && docId == 'settings')
+        && canEdit();
     }
 
     match /{collectionId}/{docId}/{subcollectionId}/{rest=**} {
-      allow read: if hasAccess() && !ownBlock(collectionId);
-      allow write: if canEdit() && !ownBlock(collectionId);
+      allow read: if !ownBlock(collectionId) && hasAccess();
+      allow write: if !ownBlock(collectionId) && canEdit();
     }
   }
 }

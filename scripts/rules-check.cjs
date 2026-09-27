@@ -10,6 +10,7 @@
 // firebase binary has no lib folder to load), from FIREBASE_TOOLS_LIB (the lib folder itself) when
 // set, else `npm root -g`/firebase-tools/lib. Written against firebase-tools 15.
 // The rules file defaults to the repo's firestore.rules, the project to .firebaserc's default.
+// The cases go up in requests of BATCH each (the endpoint refuses a larger suite; see BATCH).
 // Exits 1 when any case fails, when a case comes back without a result, or when the file does not
 // compile — so it can gate a `npm run deploy:rules`.
 const fs = require('fs');
@@ -263,6 +264,142 @@ t('admin', 'list', 'clientErrors/any', 'ALLOW');
 t('viewer', 'list', 'players/any', 'ALLOW');
 t('anon', 'list', 'players/any', 'DENY');
 
+// teams/{teamId}: another team's tree (release 2, 27 Sep 2026), the same collection and meta names as the root
+// under a root team document. One membership list for every team in this release, so the blocks ask the root
+// hasAccess()/canEdit()/isAdmin(); per-team access is release 3. Before the blocks the two root catch-alls covered
+// the whole tree: a contributor could write the team document and its meta/settings, a viewer could list its
+// draftEvents. Every 'was allowed through the root catch-all' below names one of those.
+//
+// THE GUARD, first: 'teams' in ownBlock() without its own blocks refuses every read of every team, and Firestore ORs
+// every matching rule, so the blocks without 'teams' in ownBlock() refuse nothing. Both halves must land together.
+t('viewer', 'get', 'teams/b/players/p1', 'ALLOW', 'GUARD: fails when teams is in ownBlock() without its blocks');
+// the team document: members read (the switcher lists teams); admins create, update and delete; the functions'
+// refreshStartedAt write goes through the admin SDK, which rules do not apply to
+t('viewer', 'get', 'teams/b', 'ALLOW', 'the switcher');
+t('viewer', 'list', 'teams/any', 'ALLOW', 'the switcher lists teams');
+t('contributor', 'get', 'teams/b', 'ALLOW');
+t('admin', 'get', 'teams/b', 'ALLOW');
+t('bootstrap', 'get', 'teams/b', 'ALLOW');
+t('e2e', 'get', 'teams/b', 'ALLOW');
+t('anon', 'get', 'teams/b', 'DENY');
+t('anon', 'list', 'teams/any', 'DENY');
+t('nonmember', 'get', 'teams/b', 'DENY');
+t('inactiveViewer', 'get', 'teams/b', 'DENY');
+t('passwordAttacker', 'get', 'teams/b', 'DENY');
+for (const m of ['create', 'update', 'delete']) {
+  t('admin', m, 'teams/b', 'ALLOW');
+  t('bootstrap', m, 'teams/b', 'ALLOW');
+  t('contributor', m, 'teams/b', 'DENY', 'was allowed through the root catch-all');
+  t('viewer', m, 'teams/b', 'DENY');
+  t('anon', m, 'teams/b', 'DENY');
+  t('inactiveAdmin', m, 'teams/b', 'DENY');
+}
+// the list collections under the prefix: members read, editors write, the root catch-all's terms
+t('viewer', 'list', 'teams/b/players/any', 'ALLOW');
+t('contributor', 'get', 'teams/b/players/p1', 'ALLOW');
+t('admin', 'get', 'teams/b/players/p1', 'ALLOW');
+t('bootstrap', 'get', 'teams/b/players/p1', 'ALLOW');
+t('e2e', 'get', 'teams/b/players/p1', 'ALLOW', 'a viewer through the custom token');
+t('anon', 'get', 'teams/b/players/p1', 'DENY');
+t('anon', 'list', 'teams/b/players/any', 'DENY');
+t('nonmember', 'get', 'teams/b/players/p1', 'DENY');
+t('inactiveViewer', 'get', 'teams/b/players/p1', 'DENY');
+t('passwordAttacker', 'get', 'teams/b/players/p1', 'DENY');
+for (const m of ['create', 'update', 'delete']) {
+  t('contributor', m, 'teams/b/players/p1', 'ALLOW');
+  t('admin', m, 'teams/b/players/p1', 'ALLOW');
+  t('bootstrap', m, 'teams/b/players/p1', 'ALLOW');
+  t('viewer', m, 'teams/b/players/p1', 'DENY');
+  t('anon', m, 'teams/b/players/p1', 'DENY');
+  t('inactiveContrib', m, 'teams/b/players/p1', 'DENY');
+}
+t('e2e', 'update', 'teams/b/players/p1', 'DENY', 'a viewer through the custom token');
+t('passwordVerified', 'update', 'teams/b/players/p1', 'DENY');
+for (const coll of ['comps/c1', 'seriesGames/g1', 'gameReviews/NA1_1', 'matchTimeline/NA1_1', 'rankHistory/p1',
+  'replayRecordings/m1', 'replayShots/m1__60', 'filmCommitments/NA1_1', 'meta/teamIdentity', 'meta/refreshLog', 'meta/resourceLinks']) {
+  t('viewer', 'get', `teams/b/${coll}`, 'ALLOW');
+  t('anon', 'get', `teams/b/${coll}`, 'DENY');
+}
+t('contributor', 'update', 'teams/b/seriesGames/g1', 'ALLOW', 'every save of a game');
+t('contributor', 'delete', 'teams/b/gameReviews/NA1_1', 'ALLOW');
+// the team's meta/settings: members only, no public read (the signed-out shell prints the ROOT name); admin write
+t('viewer', 'get', 'teams/b/meta/settings', 'ALLOW');
+t('contributor', 'get', 'teams/b/meta/settings', 'ALLOW');
+t('anon', 'get', 'teams/b/meta/settings', 'DENY', "the root's is public, a team's is not");
+t('nonmember', 'get', 'teams/b/meta/settings', 'DENY');
+t('inactiveViewer', 'get', 'teams/b/meta/settings', 'DENY');
+t('contributor', 'update', 'teams/b/meta/settings', 'DENY', 'was allowed through the root catch-all');
+t('viewer', 'update', 'teams/b/meta/settings', 'DENY');
+t('admin', 'update', 'teams/b/meta/settings', 'ALLOW');
+t('admin', 'create', 'teams/b/meta/settings', 'ALLOW', 'the create-team batch');
+t('bootstrap', 'create', 'teams/b/meta/settings', 'ALLOW');
+t('admin', 'delete', 'teams/b/meta/settings', 'ALLOW', 'the delete-team batch');
+t('inactiveAdmin', 'update', 'teams/b/meta/settings', 'DENY');
+// the rest of the team's meta: the catch-all's terms, as at the root. resourceLinks is the third document of the
+// create-team and delete-team batches (with teams/b and meta/settings), the one shipped write that crosses three
+// blocks, so its two operations are pinned by name rather than implied by compAnalysis.
+t('admin', 'create', 'teams/b/meta/resourceLinks', 'ALLOW', 'the create-team batch');
+t('admin', 'delete', 'teams/b/meta/resourceLinks', 'ALLOW', 'the delete-team batch');
+t('viewer', 'get', 'teams/b/meta/compAnalysis', 'ALLOW');
+t('contributor', 'update', 'teams/b/meta/compAnalysis', 'ALLOW');
+t('contributor', 'create', 'teams/b/meta/compAnalysis', 'ALLOW');
+t('contributor', 'update', 'teams/b/meta/selfScout', 'ALLOW');
+t('viewer', 'update', 'teams/b/meta/compAnalysis', 'DENY');
+t('anon', 'get', 'teams/b/meta/compAnalysis', 'DENY');
+// the team's draft log: the root block's twin. Admins read, editors create and update, nobody deletes.
+t('viewer', 'get', 'teams/b/draftEvents/e1', 'DENY', "teammates' emails; was allowed through the root catch-all");
+t('viewer', 'list', 'teams/b/draftEvents/any', 'DENY', 'was allowed through the root catch-all');
+t('e2e', 'get', 'teams/b/draftEvents/e1', 'DENY');
+t('contributor', 'get', 'teams/b/draftEvents/e1', 'DENY');
+t('contributor', 'list', 'teams/b/draftEvents/any', 'DENY');
+t('admin', 'get', 'teams/b/draftEvents/e1', 'ALLOW');
+t('admin', 'list', 'teams/b/draftEvents/any', 'ALLOW', 'Diagnostics');
+t('bootstrap', 'list', 'teams/b/draftEvents/any', 'ALLOW');
+t('inactiveAdmin', 'get', 'teams/b/draftEvents/e1', 'DENY');
+t('anon', 'get', 'teams/b/draftEvents/e1', 'DENY');
+t('anon', 'list', 'teams/b/draftEvents/any', 'DENY');
+t('nonmember', 'get', 'teams/b/draftEvents/e1', 'DENY');
+t('contributor', 'create', 'teams/b/draftEvents/e1', 'ALLOW', 'every save of a game');
+t('contributor', 'update', 'teams/b/draftEvents/e1', 'ALLOW', 'one game saved twice inside a tenth of a second');
+t('admin', 'create', 'teams/b/draftEvents/e1', 'ALLOW');
+t('bootstrap', 'create', 'teams/b/draftEvents/e1', 'ALLOW');
+t('viewer', 'create', 'teams/b/draftEvents/e1', 'DENY');
+t('viewer', 'update', 'teams/b/draftEvents/e1', 'DENY');
+t('anon', 'create', 'teams/b/draftEvents/e1', 'DENY');
+t('inactiveContrib', 'create', 'teams/b/draftEvents/e1', 'DENY');
+t('passwordVerified', 'create', 'teams/b/draftEvents/e1', 'DENY');
+t('contributor', 'delete', 'teams/b/draftEvents/e1', 'DENY');
+t('admin', 'delete', 'teams/b/draftEvents/e1', 'DENY', 'nothing in the app deletes a row');
+t('bootstrap', 'delete', 'teams/b/draftEvents/e1', 'DENY');
+t('viewer', 'get', 'teams/b/draftEvents/e1/x/y', 'DENY', 'teamOwnBlock guard on the subcollection');
+t('admin', 'get', 'teams/b/draftEvents/e1/x/y', 'DENY');
+t('contributor', 'create', 'teams/b/draftEvents/e1/x/y', 'DENY');
+// teams/{teamId}/access: reserved for release 3 (a team's own membership list); nothing reads or writes it yet
+for (const w of ['anon', 'nonmember', 'viewer', 'contributor', 'admin', 'bootstrap'])
+  t(w, 'get', 'teams/b/access/x', 'DENY', 'reserved for release 3');
+t('admin', 'list', 'teams/b/access/any', 'DENY', 'reserved for release 3');
+t('admin', 'create', 'teams/b/access/x', 'DENY', 'reserved for release 3');
+t('bootstrap', 'create', 'teams/b/access/x', 'DENY', 'reserved for release 3');
+t('contributor', 'update', 'teams/b/access/x', 'DENY', 'reserved for release 3');
+t('admin', 'get', 'teams/b/access/x/y/z', 'DENY', 'teamOwnBlock guard on the subcollection');
+// deeper paths under a team: the subcollection twin
+t('viewer', 'get', 'teams/b/players/p1/x/y', 'ALLOW');
+t('contributor', 'create', 'teams/b/players/p1/x/y', 'ALLOW');
+t('admin', 'update', 'teams/b/players/p1/x/y', 'ALLOW');
+t('viewer', 'create', 'teams/b/players/p1/x/y', 'DENY', 'members read, only editors write');
+t('anon', 'get', 'teams/b/players/p1/x/y', 'DENY');
+t('inactiveContrib', 'update', 'teams/b/players/p1/x/y', 'DENY');
+// And nothing at the root moved: the root cases above (a viewer's get and list of players, anon's get of
+// meta/settings, a contributor's update of players and of meta/settings, a viewer's get of draftEvents) run against
+// this same file in this same suite, so they are that proof and are not repeated here; a second copy of a case can
+// only agree with the first, and each costs one of the BATCH slots below.
+
+// Cases per request. The Rules API answers a larger suite with a bare 400 INVALID_ARGUMENT and no word on why:
+// measured on 27 Sep 2026, when the teams cases took the suite from 169 to 318, a request of 249 cases passed and
+// one of 250 was refused, whichever 250 were sent. Each request carries the whole rules file again; nothing is
+// deployed or read by any of them.
+const BATCH = 200;
+
 (async () => {
   const account = auth.getProjectDefaultAccount(ROOT);
   if (!account) throw new Error('firebase CLI is not logged in (run: firebase login)');
@@ -270,17 +407,29 @@ t('anon', 'list', 'players/any', 'DENY');
   auth.setActiveAccount(options, account);
   await requireAuth(options);
   const client = new Client({ urlPrefix: RULES_ORIGIN, apiVersion: 'v1' });
-  console.log(`Rules: ${rulesFile}\nProject: ${PROJECT}\n`);
-  const res = await client.post(`/projects/${PROJECT}:test`, {
-    source: { files: [{ name: 'firestore.rules', content }] },
-    testSuite: { testCases: cases.map((c) => c.tc) }
-  });
-  const issues = res.body.issues || [];
-  for (const i of issues) console.log('ISSUE', i.severity, JSON.stringify(i.sourcePosition), i.description);
-  const results = res.body.testResults || [];
+  const requests = Math.ceil(cases.length / BATCH);
+  console.log(`Rules: ${rulesFile}\nProject: ${PROJECT}\nCases: ${cases.length} in ${requests} request${requests === 1 ? '' : 's'} of at most ${BATCH}\n`);
+  // [case index, result] pairs: a batch that comes back short leaves later batches' labels aligned, and the gap
+  // counts as 'without a result' below.
+  const results = [];
+  let issues = [];
+  for (let at = 0; at < cases.length; at += BATCH) {
+    const res = await client.post(`/projects/${PROJECT}:test`, {
+      source: { files: [{ name: 'firestore.rules', content }] },
+      testSuite: { testCases: cases.slice(at, at + BATCH).map((c) => c.tc) }
+    });
+    // Every request compiles the same file, so the issues repeat; keep the first request's, and stop there
+    // when the file does not compile, since no later batch can answer anything.
+    if (at === 0) {
+      issues = res.body.issues || [];
+      for (const i of issues) console.log('ISSUE', i.severity, JSON.stringify(i.sourcePosition), i.description);
+      if (issues.some((i) => i.severity === 'ERROR')) break;
+    }
+    (res.body.testResults || []).forEach((r, j) => results.push([at + j, r]));
+  }
   let pass = 0;
   let fail = 0;
-  results.forEach((r, i) => {
+  results.forEach(([i, r]) => {
     const ok = r.state === 'SUCCESS';
     if (ok) pass++;
     else fail++;
