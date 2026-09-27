@@ -96,7 +96,7 @@ service cloud.firestore {
 
     // The collections decided by their own block below and never by the catch-all.
     function ownBlock(collectionId) {
-      return collectionId in ['access', 'userPrefs', 'clientErrors', 'crawlState', 'crawlSeen'];
+      return collectionId in ['access', 'userPrefs', 'clientErrors', 'draftEvents', 'crawlState', 'crawlSeen'];
     }
 
     // Anyone signed in may read their OWN entry, active or not: AuthService reads it to decide
@@ -128,6 +128,19 @@ service cloud.firestore {
       allow create: if hasAccess();
       allow read: if isAdmin();
       allow update, delete: if false;
+    }
+
+    // The draft log (27 Sep 2026): one row per save of a series game and per deleted game
+    // (TeamDataService.logDraftEvent, logDeletedGame), and `by` on every row is the saver's email.
+    // The catch-all let every member list them, a viewer included, while the access list that holds
+    // the same addresses is admin-only. The one reader is Admin › Diagnostics, an admin's tab. Editors
+    // write them because every save of a game writes one. Update as well as create: a row's id is the
+    // save's time to a tenth of a second plus the game's id and setDoc does not merge, so a second save
+    // of one game inside the same tenth is an overwrite. Nothing in the app deletes a row.
+    match /draftEvents/{id} {
+      allow create, update: if canEdit();
+      allow read: if isAdmin();
+      allow delete: if false;
     }
 
     // The crawler's working state, not its output. crawlState holds a queue of up to 4,000 puuids

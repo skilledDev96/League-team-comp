@@ -135,7 +135,7 @@ t('bootstrap', 'create', 'meta/settings', 'ALLOW', 'seedFirestore');
 t('inactiveAdmin', 'update', 'meta/settings', 'DENY');
 
 // the catch-all: team data
-for (const coll of ['players/p1', 'comps/c1', 'seriesGames/g1', 'draftEvents/e1', 'gameReviews/NA1_1', 'matchCache/NA1_1',
+for (const coll of ['players/p1', 'comps/c1', 'seriesGames/g1', 'gameReviews/NA1_1', 'matchCache/NA1_1',
   'matchTimeline/NA1_1', 'championStats/16.17_ALL', 'matchupIndex/16.17_TOP', 'meta/compAnalysis', 'meta/teamIdentity',
   'rankHistory/p1', 'replayRecordings/m1', 'replayShots/m1__60', 'filmCommitments/NA1_1', 'filmNotes/NA1_1', 'trophies/t1']) {
   t('anon', 'get', coll, 'DENY');
@@ -154,7 +154,6 @@ for (const m of ['create', 'update', 'delete']) {
   t('inactiveContrib', m, 'players/p1', 'DENY', 'was allowed before');
   t('activeZero', m, 'players/p1', 'DENY');
 }
-t('contributor', 'create', 'draftEvents/e1', 'ALLOW');
 t('contributor', 'update', 'filmCommitments/NA1_1', 'ALLOW');
 t('contributor', 'update', 'meta/selfScout', 'ALLOW');
 t('contributor', 'delete', 'gameReviews/NA1_1', 'ALLOW');
@@ -217,6 +216,38 @@ t('contributor', 'get', 'clientErrors/err-1', 'DENY');
 t('admin', 'get', 'clientErrors/err-1', 'ALLOW', 'Diagnostics');
 t('contributor', 'update', 'clientErrors/err-1', 'DENY', 'allowed before');
 t('admin', 'delete', 'clientErrors/err-1', 'DENY');
+
+// draftEvents: the draft log, `by` a teammate's email on every row. Admins read (Diagnostics lists them), editors
+// write (every save of a game writes one; update because two saves of one game inside a tenth of a second share an
+// id and setDoc overwrites), nobody deletes. All of it was the catch-all's before: every member read, editors wrote.
+t('viewer', 'get', 'draftEvents/e1', 'DENY', "teammates' emails; allowed before");
+t('viewer', 'list', 'draftEvents/any', 'DENY', 'allowed before');
+t('e2e', 'get', 'draftEvents/e1', 'DENY', 'a viewer through the custom token');
+t('contributor', 'get', 'draftEvents/e1', 'DENY', 'allowed before');
+t('contributor', 'list', 'draftEvents/any', 'DENY', 'allowed before');
+t('admin', 'get', 'draftEvents/e1', 'ALLOW');
+t('admin', 'list', 'draftEvents/any', 'ALLOW', 'Diagnostics');
+t('bootstrap', 'list', 'draftEvents/any', 'ALLOW');
+t('inactiveAdmin', 'get', 'draftEvents/e1', 'DENY');
+t('inactiveAdmin', 'list', 'draftEvents/any', 'DENY');
+t('anon', 'get', 'draftEvents/e1', 'DENY');
+t('anon', 'list', 'draftEvents/any', 'DENY');
+t('nonmember', 'get', 'draftEvents/e1', 'DENY');
+t('contributor', 'create', 'draftEvents/e1', 'ALLOW', 'every save of a game');
+t('contributor', 'update', 'draftEvents/e1', 'ALLOW', 'one game saved twice inside a tenth of a second');
+t('admin', 'create', 'draftEvents/e1', 'ALLOW');
+t('bootstrap', 'create', 'draftEvents/e1', 'ALLOW');
+t('viewer', 'create', 'draftEvents/e1', 'DENY');
+t('viewer', 'update', 'draftEvents/e1', 'DENY');
+t('anon', 'create', 'draftEvents/e1', 'DENY');
+t('nonmember', 'create', 'draftEvents/e1', 'DENY');
+t('inactiveContrib', 'create', 'draftEvents/e1', 'DENY');
+t('passwordVerified', 'create', 'draftEvents/e1', 'DENY');
+t('contributor', 'delete', 'draftEvents/e1', 'DENY', 'allowed before');
+t('admin', 'delete', 'draftEvents/e1', 'DENY', 'allowed before; nothing in the app deletes a row');
+t('viewer', 'get', 'draftEvents/e1/x/y', 'DENY', 'ownBlock guard on the subcollection; allowed before');
+t('admin', 'get', 'draftEvents/e1/x/y', 'DENY');
+t('contributor', 'create', 'draftEvents/e1/x/y', 'DENY', 'allowed before');
 
 // crawler state
 for (const w of ['anon', 'viewer', 'admin', 'bootstrap']) {
