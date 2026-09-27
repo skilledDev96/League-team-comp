@@ -5,6 +5,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { retryDelayMs, riotError } from './riot-errors';
 import { normalizeEmail, parseBearerToken, parseEnrichRequest } from './parse-request';
+import { AdminAuthDeps, admitAdmin } from './admin-auth';
 import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { defineSecret } from 'firebase-functions/params';
 import { matchComp } from './comp-match';
@@ -2954,10 +2955,21 @@ export const refreshChampionTraits = onSchedule(
   }
 );
 
-/** Manual trigger, so the map can be filled without waiting for Monday. */
+/**
+ * How the three admin-only manual triggers below check their caller: the token check and the access
+ * lookup every other handler uses, through `admitAdmin` (`admin-auth.ts`), which also requires the
+ * admin role and a Google or custom-token sign-in. Their scheduled twins need no HTTP auth at all.
+ */
+const ADMIN_AUTH: AdminAuthDeps = {
+  verifyIdToken: (token) => getAuth().verifyIdToken(token),
+  roleOf: getAccessRoleByEmail
+};
+
+/** Manual trigger, so the map can be filled without waiting for Monday. Admins only, by POST. */
 export const syncChampionTraits = onRequest(
   { cors: true, timeoutSeconds: 300 },
   async (req, res) => {
+    if (!(await admitAdmin(req, res, ADMIN_AUTH, 'sync the champion traits'))) return;
     try {
       const count = await writeChampionTraits();
       res.json({ ok: true, champions: count });
@@ -3358,10 +3370,14 @@ export const crawlChampionStats = onSchedule(
  * act; it just no longer needs the console.
  *
  * The reply always states the flag, so "is it running" is never a guess.
+ *
+ * Admins only, by POST (27 Sep 2026): it spends the Riot key's allowance and moves the switch, and
+ * until then anyone holding the URL could do both. The query string is read only after the check.
  */
 export const crawlOnce = onRequest(
   { cors: true, secrets: [RIOT_API_KEY], timeoutSeconds: 120 },
   async (req, res) => {
+    if (!(await admitAdmin(req, res, ADMIN_AUTH, 'run the crawler by hand'))) return;
     try {
       const wanted = String(req.query.enable ?? '').toLowerCase();
       if (wanted === 'true' || wanted === 'false') {
@@ -3433,10 +3449,11 @@ export const buildMatchupIndex = onSchedule(
   }
 );
 
-/** Manual trigger, so the index can be built the moment it is first deployed. */
+/** Manual trigger, so the index can be built the moment it is first deployed. Admins only, by POST. */
 export const buildMatchupIndexOnce = onRequest(
   { cors: true, timeoutSeconds: 540, memory: '512MiB' },
-  async (_req, res) => {
+  async (req, res) => {
+    if (!(await admitAdmin(req, res, ADMIN_AUTH, 'rebuild the matchup index'))) return;
     try {
       res.json({ ok: true, note: await rollupMatchupIndex() });
     } catch (err) {

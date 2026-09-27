@@ -37,6 +37,66 @@ contract and the local build and deploy notes.
 }
 ```
 
+## Admin-only manual triggers
+
+`syncChampionTraits`, `crawlOnce` and `buildMatchupIndexOnce` run by hand what their scheduled twins
+(`refreshChampionTraits`, `crawlChampionStats`, `buildMatchupIndex`) run on their own. Since 27 Sep 2026 they are
+**POST only, and only for an admin** (the bootstrap admin or an active `access/{email}` entry with role `admin`),
+signed in with Google or the e2e custom token, the same two providers `firestore.rules` accepts. The check is
+`admitAdmin` in `src/admin-auth.ts`; `riotKeyHealth` stays open, since the public e2e checks call it signed out.
+
+| Answer | Why |
+| --- | --- |
+| 204 | CORS preflight (`OPTIONS`) |
+| 405 | anything but POST, even from an admin |
+| 401 | no `Authorization: Bearer <ID_TOKEN>`, a token that does not verify (expired, forged), or no email claim |
+| 403 | a contributor, a viewer, no access entry, an entry switched off (`active` false, even with role `admin`), or a provider other than `google.com` / `custom` |
+| 500 | either the access lookup failed and nothing ran (the error starts `Could not check access:`), or the admin was let in and the job itself failed part-way (see below) |
+
+A 500 from the job is not "nothing happened". `crawlOnce` moves the switch *before* it ticks, so after
+`?enable=true` the crawler can be on — and the scheduled `crawlChampionStats` ticking every two minutes — even
+though the reply was a 500; check `crawlState/championStats.enabled`, or run it again. `buildMatchupIndexOnce`
+rewrites `matchupIndex` one bucket at a time, so a failure part-way leaves some buckets new and the rest as they
+were; run it again. `syncChampionTraits` writes `meta/championTraits` in one piece at the end, so its 500 leaves
+the stored map as it was.
+
+Nothing in the app calls them, so the way in is the app's own tab. Open the deployed site, sign in with Google as an
+admin, then in DevTools → Console:
+
+```js
+const BASE = 'https://europe-west1-lol-bom-squad.cloudfunctions.net';
+// The signed-in session's ID token, where the Firebase SDK keeps it. The store also holds a
+// '__sak' marker row, so pick the session by its key rather than taking the first row.
+const token = await new Promise((resolve, reject) => {
+  const open = indexedDB.open('firebaseLocalStorageDb');
+  open.onerror = () => reject(open.error);
+  open.onsuccess = () => {
+    const db = open.result;
+    if (!db.objectStoreNames.contains('firebaseLocalStorage')) return reject(new Error('Not signed in in this tab.'));
+    const rows = db.transaction('firebaseLocalStorage').objectStore('firebaseLocalStorage').getAll();
+    rows.onerror = () => reject(rows.error);
+    rows.onsuccess = () => {
+      const user = rows.result.find((row) => String(row.fbase_key).startsWith('firebase:authUser:'));
+      user ? resolve(user.value.stsTokenManager.accessToken) : reject(new Error('Not signed in in this tab.'));
+    };
+  };
+});
+const run = async (name, query = '') => {
+  const response = await fetch(`${BASE}/${name}${query}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+  console.log(name, response.status, await response.json());
+};
+
+await run('buildMatchupIndexOnce');          // republish matchupIndex from matchupStats
+// await run('syncChampionTraits');          // refill meta/championTraits (173 champions in Sep 2026, never the 236 with Jade_*)
+// await run('crawlOnce');                   // one crawl tick; the reply states the switch
+// await run('crawlOnce', '?enable=false');  // move the switch (true / false), then tick
+```
+
+A 401 saying the token could not be verified means the stored token had expired: reload the tab (the SDK refreshes
+it) and run the snippet again. For a terminal instead, `copy(token)` in the same console and
+`curl -X POST -H "Authorization: Bearer <token>" <BASE>/<name>`; the token lasts an hour. The snippet was checked
+against a page seeded the way the SDK writes its store, not against the live functions.
+
 ## Ranked queue data
 
 The enrichment function fetches official ranked entries from League V4 and keeps only these queues:

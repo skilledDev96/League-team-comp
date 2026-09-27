@@ -73,9 +73,11 @@ test('the deployed backend is running the current api code', async ({ request })
     // build-info.ts is stamped at build time and differs by design, so it is
     // not evidence that the backend code moved; nor is documentation under api/
     // (13 Sep 2026: a README edit failed three deploys in a row until the
-    // functions were redeployed for a change that never ran in them).
+    // functions were redeployed for a change that never ran in them), nor are the
+    // spec files, which never run in a deployed function (27 Sep 2026: a test
+    // isolation fix to replay-recorder.spec.mjs failed the verify of PR #17's merge).
     apiDiff = execSync(
-      `git diff --name-only ${deployed} ${head} -- ../api ":(exclude)../api/src/build-info.ts" ":(exclude,glob)../api/**/*.md"`,
+      `git diff --name-only ${deployed} ${head} -- ../api ":(exclude)../api/src/build-info.ts" ":(exclude,glob)../api/**/*.md" ":(exclude,glob)../api/**/*.spec.*"`,
       { encoding: 'utf8' }
     ).trim();
   } catch {
