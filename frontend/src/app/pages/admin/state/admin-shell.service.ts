@@ -30,13 +30,18 @@ export class AdminShellService {
     this.resyncToken.update((n) => n + 1);
   }
 
-  /** Waits a tick so the row exists before scrolling to it. */
-  scrollToCard(id: string): void {
+  /**
+   * Waits a tick so the row exists before scrolling to it. With a selector, the
+   * first matching control inside the row takes focus as well (27 Sep 2026, the
+   * lead: "when adding a new user the page does not scroll to the new box"), so
+   * a fresh Access card is under the cursor and not two screens down.
+   */
+  scrollToCard(id: string, focus?: string): void {
     setTimeout(() => {
       const element = document.getElementById(id);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      if (!element) return;
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (focus) element.querySelector<HTMLElement>(focus)?.focus({ preventScroll: true });
     }, 0);
   }
 }

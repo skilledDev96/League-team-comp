@@ -766,6 +766,9 @@ export class AdminContextService {
       ...list,
       { email: '', role: 'viewer', active: true }
     ]);
+    // The new card lands at the foot of the list; bring it up and put the cursor in
+    // its email box, the way a new player card is scrolled to.
+    this.shell.scrollToCard(`access-draft-${this.accessDrafts().length - 1}`, 'input[type="email"]');
   }
 
   async saveAccessEntry(draft: AccessDraft): Promise<void> {

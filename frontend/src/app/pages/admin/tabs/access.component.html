@@ -7,7 +7,7 @@
 
   <div class="grid two">
     @for (draft of ctx.accessDrafts(); track draft.email + $index) {
-      <article class="card">
+      <article class="card" [id]="'access-draft-' + $index">
         <label class="field"><span>Email</span>
           <input type="email" [ngModel]="draft.email" (ngModelChange)="draft.email = $event" [name]="'aemail' + $index" /></label>
         <label data-tour="admin-access-role" class="field"><span>Role</span>

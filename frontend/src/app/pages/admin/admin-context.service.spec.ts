@@ -363,3 +363,74 @@ describe('AdminContextService import deep link', () => {
     expect(ctx.showAddPlayerDialog()).toBe(false);
   });
 });
+/**
+ * Adding a member (27 Sep 2026, the lead: "when adding a new user onto the site the page does not scroll to the
+ * new box"). The new card lands at the foot of the list, so the shell scrolls to it and puts the cursor in its
+ * email box; a player card already got that.
+ */
+describe('AdminContextService add member', () => {
+  let ctx: AdminContextService;
+  let shell: AdminShellService;
+  let canManage = signal(true);
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    canManage = signal(true);
+    const data = {
+      ready: signal(true),
+      settings: signal<Settings>(structuredClone(STORED)),
+      players: signal([]),
+      fillIns: signal([]),
+      comps: signal([]),
+      accessEntries: signal([{ email: 'first@example.com', role: 'viewer', active: true }]),
+      tournaments: signal([]),
+      compAnalysis: signal(null),
+      updateSettings: vi.fn(async () => undefined)
+    };
+    const empty = convertToParamMap({});
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        AdminContextService,
+        AdminShellService,
+        { provide: AdminPlayersService, useValue: { load: vi.fn(), follow: vi.fn(), playerDrafts: signal([]) } },
+        { provide: TeamDataService, useValue: data },
+        { provide: AuthService, useValue: { canManageUsers: canManage } },
+        { provide: ConfirmService, useValue: {} },
+        { provide: PlayerEnrichmentService, useValue: {} },
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: empty }, queryParamMap: of(empty) } }
+      ]
+    });
+    ctx = TestBed.inject(AdminContextService);
+    shell = TestBed.inject(AdminShellService);
+    TestBed.tick();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('scrolls to the new card and focuses its email box', () => {
+    const scrollToCard = vi.spyOn(shell, 'scrollToCard');
+    const before = ctx.accessDrafts().length;
+
+    ctx.addAccessEntry();
+
+    expect(ctx.accessDrafts().length).toBe(before + 1);
+    expect(ctx.accessDrafts().at(-1)).toEqual({ email: '', role: 'viewer', active: true });
+    expect(shell.activeTab()).toBe('access');
+    expect(scrollToCard).toHaveBeenCalledWith(`access-draft-${before}`, 'input[type="email"]');
+  });
+
+  it('refuses for anyone who cannot manage users', () => {
+    canManage.set(false);
+    const scrollToCard = vi.spyOn(shell, 'scrollToCard');
+    const before = ctx.accessDrafts().length;
+
+    ctx.addAccessEntry();
+
+    expect(ctx.accessDrafts().length).toBe(before);
+    expect(scrollToCard).not.toHaveBeenCalled();
+  });
+});
+
