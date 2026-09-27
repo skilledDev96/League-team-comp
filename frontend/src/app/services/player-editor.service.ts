@@ -1,5 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { Player, Role } from '../models/team.models';
+import { handEdited } from '../core/hand-edited';
 import { newUid, PlayerDraft, profileSlugs, splitList, toPlayerDraft } from '../pages/admin/admin-drafts';
 import { PlayerEnrichmentService } from './player-enrichment.service';
 import { TeamDataService } from './team-data.service';
@@ -158,8 +159,6 @@ export class PlayerEditorService {
       role: draft.role,
       secondaryRoles: secondaryRoles.length ? secondaryRoles : undefined,
       sub: draft.sub || undefined,
-      // Saved by hand: the refresh keeps this player's text, pool and bans.
-      curated: true,
       icon: draft.icon.trim() || undefined,
       playstyle: draft.playstyle.trim() || undefined,
       strengths: splitList(draft.strengths),
@@ -172,23 +171,30 @@ export class PlayerEditorService {
     if (!base.name) return { ok: false, message: 'Player name is required.' };
     if (draft.id) {
       const existing = this.data.players().find((p) => p.id === draft.id);
-      // The save replaces the document, so carry the refresh stamp across.
-      await this.data.updatePlayer({ ...base, id: draft.id, order: existing?.order ?? 0, refreshedAt: existing?.refreshedAt });
-      this.handEditedToast(existing, base.name);
-      draft.curated = true;
+      // Hand-edited only when a field the refresh would rewrite changed by hand (core/hand-edited.ts); a seat, the
+      // bench or a second seat alone leaves the flag as it was. The save replaces the document, so the refresh
+      // stamp is carried across.
+      const curated = handEdited(existing, base) || undefined;
+      await this.data.updatePlayer({ ...base, curated, id: draft.id, order: existing?.order ?? 0, refreshedAt: existing?.refreshedAt });
+      if (curated) this.handEditedToast(existing, base.name);
+      draft.curated = !!curated;
     } else {
-      await this.data.createPlayer(base);
+      // A player typed into the editor is the team's own from birth.
+      await this.data.createPlayer({ ...base, curated: true });
     }
     return { ok: true, message: options.quiet ? `Saved ${base.name}` : `Saved ${base.name}.` };
   }
 
   /**
    * A one-field change from a toggle on a card or a table: the bench flag,
-   * a second seat. Same stamp, same toast, no draft.
+   * a second seat, the pool on the roster row. Same rule for the flag, same
+   * toast, no draft.
    */
   async patch(player: Player, patch: Partial<Player>): Promise<void> {
-    await this.data.updatePlayer({ ...player, ...patch, curated: true });
-    this.handEditedToast(player, player.name);
+    const next = { ...player, ...patch };
+    const curated = handEdited(player, next) || undefined;
+    await this.data.updatePlayer({ ...next, curated });
+    if (curated) this.handEditedToast(player, player.name);
   }
 
   /** Say so the moment a player becomes hand-edited, because it changes what the morning refresh does. */
