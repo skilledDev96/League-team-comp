@@ -288,9 +288,13 @@ export class PlayerProfileComponent {
         () => this.refresh.refreshPlayer(p),
         { detail: 'ranked history from Riot' }
       );
-      this.refreshStatus.set(outcome === 'updated'
-        ? 'Updated from Riot.'
-        : "Couldn't fetch live Riot data for this player — check the Riot ID.");
+      this.refreshStatus.set(
+        outcome === 'updated'
+          ? 'Updated from Riot.'
+          : outcome === 'stopped'
+            ? 'Stopped: the team changed during the refresh; nothing was written.'
+            : "Couldn't fetch live Riot data for this player — check the Riot ID."
+      );
     } catch (err) {
       this.refreshStatus.set(err instanceof Error ? err.message : 'Refresh failed.');
     } finally {

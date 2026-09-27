@@ -22,8 +22,7 @@
     @if (auth.canEdit()) {
       <div class="action-row roster-empty-actions">
         <a id="roster-import-link" class="view-btn" [routerLink]="['/admin']" [queryParams]="{ tab: 'players', import: '1' }">
-          <span class="material-symbols-rounded" aria-hidden="true">playlist_add</span>Import the roster from an op.gg link
-        </a>
+          <span class="material-symbols-rounded" aria-hidden="true">playlist_add</span>Import the roster from an op.gg link or Riot IDs</a>
       </div>
     }
   } @else {

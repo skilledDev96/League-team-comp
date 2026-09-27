@@ -90,7 +90,16 @@ export function accessRenamePlan(draft: AccessDraft, existingEmails: readonly st
   return { exists, deleteEmail: renamed ? original : null };
 }
 
-export type EditorTab = 'settings' | 'players' | 'fillins' | 'comps' | 'tournaments' | 'trophies' | 'access' | 'diagnostics';
+export type EditorTab = 'settings' | 'players' | 'fillins' | 'comps' | 'tournaments' | 'trophies' | 'access' | 'teams' | 'diagnostics';
+
+/** The tabs only an admin sees: Settings, Access, Teams and Diagnostics. `openTab` and the route focus send anyone else to Players. */
+export const ADMIN_ONLY_TABS: readonly EditorTab[] = ['settings', 'access', 'teams', 'diagnostics'];
+
+/** Whether a query-string value names a tab, so a deep link can open it. */
+export function isEditorTab(value: string | null): value is EditorTab {
+  return value === 'settings' || value === 'players' || value === 'fillins' || value === 'comps' || value === 'tournaments'
+    || value === 'trophies' || value === 'access' || value === 'teams' || value === 'diagnostics';
+}
 
 export function splitList(value: string): string[] {
   return value

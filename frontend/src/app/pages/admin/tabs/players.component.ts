@@ -1,5 +1,4 @@
 import { Component, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { MvpBannerComponent } from '../../../shared/mvp-banner.component';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
@@ -10,11 +9,12 @@ import { OverflowMenuComponent } from '../../../shared/overflow-menu.component';
 import { PlayerAvatarComponent } from '../../../shared/player-avatar.component';
 import { ModalDirective } from '../../../shared/modal.directive';
 import { AdminContextService } from '../admin-context.service';
+import { RosterImportStatusComponent } from './roster-import-status.component';
 
 /** The roster: profiles, pools and Riot autofill. */
 @Component({
   selector: 'app-admin-players',
-  imports: [MvpBannerComponent, PlayerAvatarComponent, OverflowMenuComponent, PlayerEditorComponent, NgModelNameDirective, FormsModule, TooltipDirective, ModalDirective, RouterLink],
+  imports: [MvpBannerComponent, PlayerAvatarComponent, OverflowMenuComponent, PlayerEditorComponent, NgModelNameDirective, FormsModule, TooltipDirective, ModalDirective, RosterImportStatusComponent],
   templateUrl: './players.component.html'
 })
 export class AdminPlayersComponent {

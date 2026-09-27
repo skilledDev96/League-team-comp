@@ -12,6 +12,7 @@ import { ToastService } from '../../services/toast.service';
 import { AdminContextService } from './admin-context.service';
 import { AdminPlayersService } from './state/admin-players.service';
 import { AdminShellService } from './state/admin-shell.service';
+import { AdminTeamsService } from './state/admin-teams.service';
 
 /**
  * The settings save (17 Sep 2026). `meta/settings` is written whole, with no merge, so a field the save forgets
@@ -32,10 +33,13 @@ const STORED: Required<Settings> = {
 describe('AdminContextService settings save', () => {
   let ctx: AdminContextService;
   let updateSettings: Mock<(settings: Settings) => Promise<void>>;
+  /** What an emptied name saves as: the service's own computed, the literal on the default team and the team document's name elsewhere. */
+  const teamNameFallback = signal('Bom Squad');
 
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     updateSettings = vi.fn(async (_settings: Settings) => undefined);
+    teamNameFallback.set('Bom Squad');
     const data = {
       ready: signal(true),
       settings: signal<Settings>(structuredClone(STORED)),
@@ -45,6 +49,7 @@ describe('AdminContextService settings save', () => {
       accessEntries: signal([]),
       tournaments: signal([]),
       compAnalysis: signal(null),
+      teamNameFallback,
       updateSettings
     };
     const empty = convertToParamMap({});
@@ -54,6 +59,7 @@ describe('AdminContextService settings save', () => {
         AdminContextService,
         AdminShellService,
         { provide: AdminPlayersService, useValue: { load: vi.fn(), follow: vi.fn(), playerDrafts: signal([]) } },
+        { provide: AdminTeamsService, useValue: { rows: signal([]), regions: [] } },
         { provide: TeamDataService, useValue: data },
         { provide: AuthService, useValue: { canManageUsers: signal(true) } },
         { provide: ConfirmService, useValue: {} },
@@ -115,6 +121,20 @@ describe('AdminContextService settings save', () => {
     ctx.setAutoReview(false);
     expect(updateSettings.mock.calls[0][0]).toEqual({ ...STORED, autoReview: false });
   });
+
+  // An emptied name used to save as the literal 'Bom Squad' whatever team was showing (27 Sep 2026, release 2).
+  it('saves an emptied name as the team\'s own fallback, the literal on the default team', () => {
+    ctx.setTeamName('   ');
+    vi.advanceTimersByTime(600);
+    expect(updateSettings.mock.calls[0][0]).toEqual({ ...STORED, teamName: 'Bom Squad' });
+  });
+
+  it('saves an emptied name as the team document\'s name on another team, never Bom Squad', () => {
+    teamNameFallback.set('The B Team');
+    ctx.setTeamName('');
+    vi.advanceTimersByTime(600);
+    expect(updateSettings.mock.calls[0][0]).toEqual({ ...STORED, teamName: 'The B Team' });
+  });
 });
 
 /**
@@ -145,6 +165,7 @@ describe('AdminContextService comp save', () => {
         AdminContextService,
         AdminShellService,
         { provide: AdminPlayersService, useValue: { load: vi.fn(), follow: vi.fn(), playerDrafts: signal([]) } },
+        { provide: AdminTeamsService, useValue: { rows: signal([]), regions: [] } },
         {
           provide: TeamDataService,
           useValue: {
@@ -210,6 +231,7 @@ describe('AdminContextService ending a tournament', () => {
         AdminContextService,
         AdminShellService,
         { provide: AdminPlayersService, useValue: { load: vi.fn(), follow: vi.fn(), playerDrafts: signal([]) } },
+        { provide: AdminTeamsService, useValue: { rows: signal([]), regions: [] } },
         {
           provide: TeamDataService,
           useValue: {
@@ -328,6 +350,7 @@ describe('AdminContextService import deep link', () => {
           provide: AdminPlayersService,
           useValue: { load: vi.fn(), follow: vi.fn(), playerDrafts: signal([]), showAddPlayerDialog, addPlayerMode, openImport }
         },
+        { provide: AdminTeamsService, useValue: { rows: signal([]), regions: [] } },
         {
           provide: TeamDataService,
           useValue: {
@@ -385,6 +408,7 @@ describe('AdminContextService add member', () => {
       accessEntries: signal([{ email: 'first@example.com', role: 'viewer', active: true }]),
       tournaments: signal([]),
       compAnalysis: signal(null),
+      teamNameFallback: signal('Bom Squad'),
       updateSettings: vi.fn(async () => undefined)
     };
     const empty = convertToParamMap({});
@@ -394,6 +418,7 @@ describe('AdminContextService add member', () => {
         AdminContextService,
         AdminShellService,
         { provide: AdminPlayersService, useValue: { load: vi.fn(), follow: vi.fn(), playerDrafts: signal([]) } },
+        { provide: AdminTeamsService, useValue: { rows: signal([]), regions: [] } },
         { provide: TeamDataService, useValue: data },
         { provide: AuthService, useValue: { canManageUsers: canManage } },
         { provide: ConfirmService, useValue: {} },

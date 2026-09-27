@@ -28,8 +28,11 @@ export class TournamentContextService {
 
   readonly roles = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'] as const;
 
-  /** Our team name, used to label the sides of a game. */
-  readonly teamName = computed(() => this.data.settings().teamName || 'Us');
+  /**
+   * Our team name, used to label the sides of a game: the active team's, as the topbar prints it (27 Sep 2026,
+   * release 2). The `'Us'` fallback went with the move; the accessor always has a name.
+   */
+  readonly teamName = computed(() => this.data.teamName());
 
   // ---- Selection ---------------------------------------------------------
 

@@ -34,6 +34,13 @@ const REGION_ALIASES: Record<string, string> = {
   tr: 'tr'
 };
 
+/**
+ * The eleven region codes this file knows, in the order above, for a select that offers them
+ * (Admin › Teams, 27 Sep 2026). A team's region is one of these, and so is the region a link
+ * carries; nothing else in the app should keep a list of its own.
+ */
+export const REGION_CODES: readonly string[] = Object.keys(REGION_ALIASES);
+
 function clean(value: string): string {
   // A query string encodes a space as "+", so "MOSS+drakexo" is two words and
   // not a name with a plus in it. decodeURIComponent does not do this — it is a

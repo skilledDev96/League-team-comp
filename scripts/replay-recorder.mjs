@@ -20,7 +20,7 @@
  *     FIREBASE_SERVICE_ACCOUNT="$(cat service-account.json)" node scripts/replay-recorder.mjs EUW1-7977592156
  *   Usage (PowerShell):
  *     $env:FIREBASE_SERVICE_ACCOUNT = (Get-Content service-account.json -Raw); node scripts/replay-recorder.mjs EUW1-7977592156
- *   Options: [--shots 20] [--frames 5] [--clip-seconds 45] [--clip-fps 60] [--out-dir <dir>] [--dry-run] [--roster <file.json>]
+ *   Options: [--shots 20] [--frames 5] [--clip-seconds 45] [--clip-fps 60] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--team <teamId>]
  *
  * In the client first: open the replay for that game (Match History → Download
  * → Watch, or double-click the .rofl), let it start playing, and leave the
@@ -465,7 +465,7 @@ export const POSITION_ROLE = {
 export const ROLES = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
 
 const USAGE =
-  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--frames 5] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--follow <seat|champion>]';
+  'Usage: FIREBASE_SERVICE_ACCOUNT=<json or a path to it> node scripts/replay-recorder.mjs <matchId> [--shots 20] [--frames 5] [--out-dir <dir>] [--dry-run] [--roster <file.json>] [--hide-panels] [--no-health-bars] [--follow <seat|champion>] [--team <teamId>]';
 
 const CLIENT_HELP =
   'Is the League client open, with the replay playing? The Live Client and Replay APIs only answer while a replay is up.';
@@ -500,6 +500,44 @@ export function normaliseMatchId(id) {
  */
 export function shotDocId(matchId, sec, frame = 0) {
   return frame ? `${matchId}__${sec}__${frame}` : `${matchId}__${sec}`;
+}
+
+/**
+ * Where a team's documents live (27 Sep 2026, release 2 of the multi-team work). Bom Squad is the
+ * flat root, byte for byte the paths every run before wrote; any other team sits under
+ * `teams/{teamId}/` with the same collection and document names. The four lines mirror `scopedPath`
+ * in frontend/src/app/core/team-scope.ts, and the spec pins the same strings; an absent, empty or
+ * literal `default` team is the root. The id is not checked here: parseArgs refused a bad one before
+ * anything was opened, and `run` never sees the team at all, only the readers built over it.
+ */
+export function scopedPath(teamId, ...segments) {
+  if (!teamId || teamId === 'default') return segments.join('/');
+  return ['teams', teamId, ...segments].join('/');
+}
+
+/**
+ * A team id as Admin › Teams makes one: lower-case letters, digits and hyphens, 1 to 40 long, starting
+ * with a letter or digit (the app's `isTeamId`). `default` means the root and `teams` is the
+ * collection the prefix starts with, so neither is ever a team.
+ */
+const TEAM_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
+export function isTeamId(value) {
+  return typeof value === 'string' && value !== 'default' && value !== 'teams' && TEAM_ID.test(value);
+}
+
+/**
+ * A clip's object name in the bucket: `clips/{matchId}__{sec}.{ext}` for Bom Squad, as every clip
+ * before release 2, and the same under `teams/{teamId}/` for another team. The sweep deletes by the
+ * `clips/{matchId}__` prefix, so with the team in the name an A-vs-B custom recorded once per team
+ * keeps both teams' clips of the one match, and a sweep on the B team can never reach Bom Squad's.
+ */
+export function clipObjectName(teamId, matchId, sec, ext) {
+  return `${scopedPath(teamId, 'clips', shotDocId(matchId, sec))}.${ext}`;
+}
+
+/** What a sweep lists: every clip of this match on this team, either extension. */
+export function clipPrefix(teamId, matchId) {
+  return scopedPath(teamId, 'clips', `${matchId}__`);
 }
 
 /**
@@ -546,7 +584,8 @@ export function parseArgs(argv) {
   // back rather than the normalised form nobody typed.
   // Panels on unless the lead says otherwise: the client's streamer mode is what keeps a Riot id off the screen,
   // and a frame without the scoreboard and the team frames is missing the gold, the items and the kills.
-  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, frames: SHOT_FRAMES, clipSeconds: CLIP_LEAD_SEC, clipFps: CLIP_FPS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '' };
+  // `team` is empty for Bom Squad, the root; a team id puts every read and write under teams/{id}/ (27 Sep 2026).
+  const parsed = { matchId: '', typed: '', shots: DEFAULT_SHOTS, frames: SHOT_FRAMES, clipSeconds: CLIP_LEAD_SEC, clipFps: CLIP_FPS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '', team: '' };
   const assign = (name, value) => {
     // `--out-dir --dry-run` used to swallow the flag as the value, write the
     // frames to a directory called "--dry-run" and upload to Firestore for
@@ -587,6 +626,14 @@ export function parseArgs(argv) {
     else if (name === '--follow') {
       parsed.followChampion = value;
       parsed.follow = true;
+    }
+    // Which team's documents to write (27 Sep 2026, release 2). Bom Squad is the root and takes no flag,
+    // and the word `default` is refused rather than read as the root: a copied command line says what
+    // it means, and a game recorded onto the wrong team is the one mistake the sweep cannot undo.
+    else if (name === '--team') {
+      if (value === 'default') throw new Error('--team default is not a team: leave --team out for Bom Squad.');
+      if (!isTeamId(value)) throw new Error(`--team wants a team id as the Teams tab made it (lower-case letters, digits and hyphens), not "${value}".`);
+      parsed.team = value;
     }
     else throw new Error(`Unknown option ${name}.\n${USAGE}`);
   };
@@ -2483,25 +2530,26 @@ function findShotFile({ fs, file, dir, stem, skip = [], frames = 1, rangeSec = 0
   return newest ? [newest] : [];
 }
 
-/** Firestore through firebase-admin, which lives in api/node_modules — the same account the e2e runner uses. */
-function openFirestore(raw, fs = fsDefault) {
-  const requireApi = createRequire(path.join(root, 'api', 'package.json'));
-  const { cert, deleteApp, getApps, initializeApp } = requireApi('firebase-admin/app');
-  const { getFirestore } = requireApi('firebase-admin/firestore');
-  const { getStorage } = requireApi('firebase-admin/storage');
-  const account = parseServiceAccount(raw, fs);
-  const app = getApps().find((a) => a.name === 'replay-recorder') ?? initializeApp({ credential: cert(account) }, 'replay-recorder');
-  const db = getFirestore(app);
+/**
+ * The readers and writers the run drives, over a Firestore `db` and the clips `bucket`, scoped to one
+ * team (27 Sep 2026, release 2): every collection and document goes through `scopedPath`, and every
+ * clip's object name carries the same prefix. With no team every string is what it was before the
+ * team existed. Apart from openFirestore, which wires the real firebase-admin in, so the spec can
+ * drive this with a fake `db` and `bucket` and read back exactly which paths a team's run touches.
+ * `bucket` is a function, called per clip: the storage client is not opened until a clip needs it.
+ */
+export function scopedFirestore({ db, bucket, teamId = '' }) {
+  const scoped = (...segments) => scopedPath(teamId, ...segments);
   return {
-    players: async () => (await db.collection('players').get()).docs.map((d) => ({ ...d.data(), id: d.id })),
+    players: async () => (await db.collection(scoped('players')).get()).docs.map((d) => ({ ...d.data(), id: d.id })),
     /** The analysis's own row for this id, for the "is the right replay open?" check. Null when the analysis has never seen it. */
     game: async (matchId) => {
-      const analysis = (await db.doc('meta/compAnalysis').get()).data();
+      const analysis = (await db.doc(scoped('meta', 'compAnalysis')).get()).data();
       const games = Array.isArray(analysis?.games) ? analysis.games : [];
       return games.find((g) => String(g?.matchId ?? '').toUpperCase() === matchId) ?? null;
     },
     set: async (collection, id, data) => {
-      await db.collection(collection).doc(id).set(data);
+      await db.collection(scoped(collection)).doc(id).set(data);
     },
     /**
      * The clips bucket, `{project}-clips` (12 Sep 2026).
@@ -2515,12 +2563,12 @@ function openFirestore(raw, fs = fsDefault) {
      */
     clips: {
       put: async (file, matchId, sec) => {
-        const bucket = getStorage(app).bucket(`${account.project_id}-clips`);
+        const store = bucket();
         // The extension follows the file, because a clip is mp4 where ffmpeg re-encoded it and webm
         // where it could not: serving an H.264 file as video/webm makes a browser refuse to play it.
         const mp4 = /\.mp4$/i.test(file);
-        const name = `clips/${shotDocId(matchId, sec)}.${mp4 ? 'mp4' : 'webm'}`;
-        await bucket.upload(file, {
+        const name = clipObjectName(teamId, matchId, sec, mp4 ? 'mp4' : 'webm');
+        await store.upload(file, {
           destination: name,
           metadata: {
             contentType: mp4 ? 'video/mp4' : 'video/webm',
@@ -2529,8 +2577,8 @@ function openFirestore(raw, fs = fsDefault) {
             cacheControl: 'public, max-age=31536000, immutable'
           }
         });
-        await bucket.file(name).makePublic();
-        return `https://storage.googleapis.com/${bucket.name}/${name}`;
+        await store.file(name).makePublic();
+        return `https://storage.googleapis.com/${store.name}/${name}`;
       },
       /**
        * Delete every clip of this game the new recording does not name — the sweep that
@@ -2538,11 +2586,12 @@ function openFirestore(raw, fs = fsDefault) {
        * forever, which is the same leak the pictures had.
        */
       sweep: async (matchId, keep) => {
-        const bucket = getStorage(app).bucket(`${account.project_id}-clips`);
+        const store = bucket();
         // Both extensions: a re-record that gains ffmpeg writes mp4 where the last run wrote webm,
-        // and prefix-matching on the id catches either.
-        const [files] = await bucket.getFiles({ prefix: `clips/${matchId}__` });
-        const doomed = files.filter((f) => !keep.has(`https://storage.googleapis.com/${bucket.name}/${f.name}`));
+        // and prefix-matching on the id catches either. The prefix carries the team, so the B team's
+        // sweep of a match lists nothing of Bom Squad's.
+        const [files] = await store.getFiles({ prefix: clipPrefix(teamId, matchId) });
+        const doomed = files.filter((f) => !keep.has(`https://storage.googleapis.com/${store.name}/${f.name}`));
         for (const f of doomed) await f.delete().catch(() => undefined);
         return doomed.length;
       }
@@ -2556,7 +2605,7 @@ function openFirestore(raw, fs = fsDefault) {
      * and none of it needs to cross the wire to learn its id.
      */
     sweepShots: async (matchId, keep) => {
-      const snap = await db.collection('replayShots').where('matchId', '==', matchId).select().get();
+      const snap = await db.collection(scoped('replayShots')).where('matchId', '==', matchId).select().get();
       const doomed = snap.docs.filter((d) => !keep.has(d.id) && d.id.startsWith(`${matchId}__`));
       // Firestore takes 500 writes to a batch; 400 leaves room and the loop costs nothing.
       for (let i = 0; i < doomed.length; i += 400) {
@@ -2565,7 +2614,25 @@ function openFirestore(raw, fs = fsDefault) {
         await batch.commit();
       }
       return doomed.length;
-    },
+    }
+  };
+}
+
+/**
+ * Firestore through firebase-admin, which lives in api/node_modules — the same account the e2e runner
+ * uses. `teamId` is which team's documents to read and write (27 Sep 2026): empty is Bom Squad.
+ */
+function openFirestore(raw, { teamId = '', fs = fsDefault } = {}) {
+  const requireApi = createRequire(path.join(root, 'api', 'package.json'));
+  const { cert, deleteApp, getApps, initializeApp } = requireApi('firebase-admin/app');
+  const { getFirestore } = requireApi('firebase-admin/firestore');
+  const { getStorage } = requireApi('firebase-admin/storage');
+  const account = parseServiceAccount(raw, fs);
+  const app = getApps().find((a) => a.name === 'replay-recorder') ?? initializeApp({ credential: cert(account) }, 'replay-recorder');
+  const db = getFirestore(app);
+  const bucket = () => getStorage(app).bucket(`${account.project_id}-clips`);
+  return {
+    ...scopedFirestore({ db, bucket, teamId }),
     // Firestore holds an open gRPC channel, so without this the shell never
     // comes back after the last line and a hang looks exactly like a success.
     // The house pattern, from scripts/dev-timeline.mjs.
@@ -2637,7 +2704,9 @@ async function main() {
   process.once('SIGINT', onSignal);
   process.once('SIGTERM', onSignal);
 
-  const firestore = raw ? openFirestore(raw) : null;
+  const firestore = raw ? openFirestore(raw, { teamId: args.team }) : null;
+  // Said before the run: recording a game onto the wrong team is the one mistake the sweep cannot undo.
+  if (args.team) console.log(`Recording for team ${args.team}: the roster is read from and every document is written under teams/${args.team}/, the clips under teams/${args.team}/clips/.`);
   try {
     await run({
       matchId: args.matchId,

@@ -5,12 +5,14 @@ import { TeamDataService } from '../../services/team-data.service';
 import { AdminContextService } from './admin-context.service';
 import { AdminPlayersService } from './state/admin-players.service';
 import { AdminShellService } from './state/admin-shell.service';
+import { AdminTeamsService } from './state/admin-teams.service';
 import { AdminAccessComponent } from './tabs/access.component';
 import { AdminCompsComponent } from './tabs/comps.component';
 import { AdminDiagnosticsComponent } from './tabs/diagnostics.component';
 import { AdminFillInsComponent } from './tabs/fill-ins.component';
 import { AdminPlayersComponent } from './tabs/players.component';
 import { AdminSettingsComponent } from './tabs/settings.component';
+import { AdminTeamsComponent } from './tabs/teams.component';
 import { TourPillComponent } from '../../shared/tour-pill.component';
 import { AdminTournamentsComponent } from './tabs/tournaments.component';
 import { AdminTrophiesComponent } from './tabs/trophies.component';
@@ -23,7 +25,7 @@ import { AdminTrophiesComponent } from './tabs/trophies.component';
  */
 @Component({
   selector: 'app-admin',
-  providers: [AdminShellService, AdminPlayersService, AdminContextService],
+  providers: [AdminShellService, AdminPlayersService, AdminTeamsService, AdminContextService],
   imports: [InViewDirective, AdminSettingsComponent,
     AdminPlayersComponent,
     AdminFillInsComponent,
@@ -31,6 +33,7 @@ import { AdminTrophiesComponent } from './tabs/trophies.component';
     AdminTournamentsComponent,
     AdminTrophiesComponent,
     AdminAccessComponent,
+    AdminTeamsComponent,
     AdminDiagnosticsComponent, TourPillComponent],
   templateUrl: './admin.component.html'
 })

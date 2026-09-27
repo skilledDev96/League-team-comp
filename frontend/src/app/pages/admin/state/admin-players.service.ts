@@ -227,13 +227,18 @@ export class AdminPlayersService {
     if (reason) this.flash(reason);
   }
 
-  /** The Open pill on a result row: the player's panel, opened and lit the way a deep link lights it. */
+  /**
+   * The Open pill on a result row: the player's panel, opened and lit the way a deep link lights it.
+   * The results card shows on Admin › Teams too (27 Sep 2026, Stage 3), so the Players tab is opened
+   * first; on Players that is where it already is.
+   */
   openImported(row: RosterImportRow): void {
     const draft = row.playerId ? this.playerDrafts().find((d) => d.id === row.playerId) : undefined;
     if (!draft) {
       this.flash('That player is not on the roster any more.');
       return;
     }
+    this.shell.activeTab.set('players');
     this.openPlayer.set(draft);
     this.highlightedPlayer.set(draft);
     setTimeout(() => this.highlightedPlayer.set(null), 2400);

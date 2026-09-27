@@ -60,7 +60,7 @@ import {
   Team
 } from '../models/team.models';
 import { normalizeEmail } from '../core/access';
-import { DEFAULT_TEAM_ID, scopedPath } from '../core/team-scope';
+import { DEFAULT_TEAM_ID, isTeamId, scopedPath } from '../core/team-scope';
 import { AuthService } from './auth.service';
 import { TeamScopeService } from './team-scope.service';
 import { describeGameChange } from '../core/draft-diff';
@@ -138,6 +138,24 @@ type EntityKey =
   | 'painPoints'
   | 'learnEntries'
   | 'trophies';
+
+/**
+ * The collections a team keeps under its prefix, checked by `teamHasData` before a delete: the nineteen a
+ * member listens to, the five the app writes and reads on demand (the draft log, the rank climb, the
+ * timelines, the replay recordings and shots), and the meta documents a refresh or a scout writes.
+ * `meta/settings` and `meta/resourceLinks` are not here: `createTeam` wrote them and `deleteTeam` takes
+ * them away. A name missing here is a mechanism that silently does nothing: a team holding only that data
+ * passes the guard and is deleted, and its documents stay under the deleted prefix for good, since Firestore
+ * keeps a deleted document's subcollections. The listeners spec pins both lists against every path a member
+ * listens to, so an entity wired there and not here goes red.
+ */
+export const TEAM_COLLECTIONS = [
+  'players', 'fillIns', 'comps', 'scrims', 'scrimOpponents', 'compResults', 'plays', 'painPoints', 'learnEntries',
+  'trophies', 'tournaments', 'tournamentSeries', 'seriesGames', 'matchNotes', 'compOverrides', 'practiceGames',
+  'gameReviews', 'filmCommitments', 'filmNotes',
+  'draftEvents', 'rankHistory', 'matchTimeline', 'replayRecordings', 'replayShots'
+] as const;
+export const TEAM_META_DOCS = ['teamIdentity', 'selfScout', 'refreshLog', 'compAnalysis'] as const;
 
 @Injectable({ providedIn: 'root' })
 export class TeamDataService {
@@ -306,6 +324,23 @@ export class TeamDataService {
    */
   readonly settings = signal<Settings>({ teamName: '' });
   readonly ready = signal(false);
+  /** The team the member listeners are open for (the default in local mode); null while none are. What `scopeReady` asks beside `ready`. */
+  private readonly listeningTeam = signal<string | null>(null);
+  /**
+   * `ready`, for the team the member listeners are open for, and on a team that is not the default its own
+   * settings snapshot has arrived too (present or not). `ready` settles on the players snapshot alone, and the
+   * two listens open together, so a page that reads `settings()` the moment `ready` turns true can still be
+   * reading the public root copy for a tick; Admin › Teams waits on this before it re-seeds the drafts after a
+   * switch, so the name field never holds Bom Squad's name over another team's document (27 Sep 2026, Stage 3).
+   * The listening team is asked because the scope moves synchronously and the listeners follow it in an effect,
+   * a tick later: in between, `ready` is still the team just left, and a wait for the default read it as done.
+   */
+  readonly scopeReady = computed(
+    () =>
+      this.ready() &&
+      this.listeningTeam() === this.scope.activeTeamId() &&
+      (this.scope.activeTeamId() === DEFAULT_TEAM_ID || this.scopedSettings() !== null)
+  );
 
   // ---- Teams (27 Sep 2026, release 2) -----------------------------------
   //
@@ -326,11 +361,10 @@ export class TeamDataService {
    * The name to print for the active team: its own settings' name when it has one, else its team
    * document's, else the public root name, which is what a signed-out visitor gets, else the app's
    * old fallback. For the default team this is `settings().teamName || 'Bom Squad'`, the expression
-   * every brand reader computed before, so the signed-in topbar and the Home, Roster and Comps heroes
-   * read this now. What still reads `settings().teamName` does so on purpose until release 3: the
-   * draft room's side label with its `'Us'` fallback (TournamentContextService), the scout's "us"
-   * label, and Admin › Settings' name field and its save fallback, which are the settings document's
-   * own value and not a name to print.
+   * every brand reader computed before, so the signed-in topbar, the Home, Roster and Comps heroes, the
+   * window title (TeamTitleStrategy), the draft room's side label and the scout's "us" label read this
+   * now. What still reads `settings().teamName` does so on purpose: Admin › Settings' name field, which
+   * is the settings document's own value and not a name to print (its save fallback is `teamNameFallback`).
    */
   readonly teamName = computed(() => {
     const teamId = this.scope.activeTeamId();
@@ -342,6 +376,22 @@ export class TeamDataService {
       return this.publicSettings().teamName || 'Bom Squad';
     }
     return this.settings().teamName || 'Bom Squad';
+  });
+  /**
+   * The root team's name whatever team is active: the public `meta/settings` name, which is what the
+   * signed-out shell prints and what Admin › Teams lists first as the default (27 Sep 2026, Stage 3).
+   */
+  readonly rootTeamName = computed(() => this.publicSettings().teamName || 'Bom Squad');
+  /**
+   * What an emptied name on Admin › Settings saves as (27 Sep 2026, Stage 3): the app's old literal on the
+   * default team, as every save before, and on any other team the name its team document carries, the one
+   * Admin › Teams wrote when it created the team, so a cleared field can never call a second team Bom Squad.
+   * The id itself if the teams list has not answered yet: at least that team's own.
+   */
+  readonly teamNameFallback = computed(() => {
+    const teamId = this.scope.activeTeamId();
+    if (teamId === DEFAULT_TEAM_ID) return 'Bom Squad';
+    return this.teams().find((t) => t.id === teamId)?.name || teamId;
   });
 
   constructor() {
@@ -394,10 +444,13 @@ export class TeamDataService {
     this.gameReviews.set([...(data.gameReviews ?? [])]);
     this.resourceLinks.set(data.resourceLinks);
     this.settings.set(data.settings);
+    // The local blob is the root team's, so the public copy (the signed-out brand, the footer, the login mark) follows it too.
+    this.publicSettings.set(data.settings);
   }
 
   private initLocal(): void {
     this.pushLocalToSignals(this.loadLocalBlob());
+    this.listeningTeam.set(DEFAULT_TEAM_ID);
     this.ready.set(true);
   }
 
@@ -583,6 +636,7 @@ export class TeamDataService {
 
   private openMemberListeners(db: Firestore, email: string, teamId: string): void {
     this.listeningAs = `${email}|${teamId}`;
+    this.listeningTeam.set(teamId);
     const session = this.session;
     // The team's own collections and meta docs, under the active prefix. The refusal handler gets the BARE name:
     // `onRefused` settles `ready` on 'players', whichever team's players were refused.
@@ -720,7 +774,9 @@ export class TeamDataService {
     this.teamsListener = this.listen(
       collection(db, 'teams'),
       (snap) => {
-        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Team, 'id'>) }));
+        // Team ids only: a document made by hand in the console under any other id (`Alpha`, `default`) would be
+        // listed and offered by both switchers, and `choose` refuses it. The functions' refreshTeams skips the same.
+        const list = snap.docs.filter((d) => isTeamId(d.id)).map((d) => ({ id: d.id, ...(d.data() as Omit<Team, 'id'>) }));
         this.teams.set(list.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')));
         if (snap.metadata.fromCache) return;
         const active = this.scope.activeTeamId();
@@ -783,6 +839,7 @@ export class TeamDataService {
   private closeMemberListeners(): void {
     for (const stop of this.memberListeners.splice(0)) stop();
     this.listeningAs = null;
+    this.listeningTeam.set(null);
     this.session++;
     this.clearMemberData();
     // Whatever team's settings were showing, the public root copy is what shows now: the login page is nobody's team's.
@@ -978,6 +1035,79 @@ export class TeamDataService {
     batch.set(doc(db, 'meta', 'teamIdentity'), SEED_DATA.teamIdentity);
     batch.set(doc(db, 'meta', 'resourceLinks'), { groups: SEED_DATA.resourceLinks });
     batch.set(doc(db, 'meta', 'settings'), SEED_DATA.settings);
+    await batch.commit();
+  }
+
+  // ---- Teams: create and delete (27 Sep 2026, Stage 3) ------------------
+  //
+  // The paths are built here, through `scopedPath` over the NEW team's id
+  // and never `this.path()`: the batch runs before the scope has switched to
+  // it, and Admin › Teams must not build a path of its own. Firebase only: the
+  // local preview has one team, and there is no root document to write.
+
+  /**
+   * One batch: the team's root document, its own `meta/settings` carrying the name the shell prints,
+   * and an empty `meta/resourceLinks`. Nothing else: the roster comes from the importer once the scope
+   * has switched, and every other collection fills as the team is used. An admin's alone (the app's
+   * gate; Stage 4's rules close the same door). Refuses an id that is not a team id or that already
+   * names a team in the list, so a retry of the same form can never overwrite a team.
+   */
+  async createTeam(team: Team): Promise<void> {
+    if (this.mode !== 'firebase') throw new Error('Teams need Firebase; the local preview has one team.');
+    const db = getDb();
+    if (!db) throw new Error('Firebase is not configured.');
+    if (!this.auth.userEmail() || !this.auth.canManageUsers()) throw new Error('Only a signed-in admin can create a team.');
+    if (!isTeamId(team.id)) throw new Error(`Not a team id: ${JSON.stringify(team.id)}`);
+    if (this.teams().some((t) => t.id === team.id)) throw new Error(`A team with the id ${team.id} already exists.`);
+    const name = team.name.trim();
+    if (!name) throw new Error('The team needs a name.');
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'teams', team.id), stripUndefined({ ...team, name } as unknown as Record<string, unknown>));
+    batch.set(doc(db, scopedPath(team.id, 'meta', 'settings')), { teamName: name } satisfies Settings);
+    batch.set(doc(db, scopedPath(team.id, 'meta', 'resourceLinks')), { groups: {} });
+    await batch.commit();
+  }
+
+  /**
+   * The first collection under `teams/{id}/` that still holds a document, by name, or `meta/<doc>` for a
+   * meta document that exists, or null when the prefix is empty but for what `createTeam` wrote. One read
+   * of one document per collection (`limit(1)`), so the answer costs about thirty reads and names what
+   * stands in the way of a delete, rather than refusing without a word.
+   */
+  async teamHasData(teamId: string): Promise<string | null> {
+    if (this.mode !== 'firebase') return null;
+    const db = getDb();
+    if (!db || !isTeamId(teamId)) return null;
+    const lists = TEAM_COLLECTIONS.map(async (name) => {
+      const snap = await getDocs(query(collection(db, scopedPath(teamId, name)), limit(1)));
+      return snap.empty ? null : name;
+    });
+    const metas = TEAM_META_DOCS.map(async (id) => {
+      const snap = await getDoc(doc(db, scopedPath(teamId, 'meta', id)));
+      return snap.exists() ? `meta/${id}` : null;
+    });
+    const found = await Promise.all([...lists, ...metas]);
+    return found.find((name) => name !== null) ?? null;
+  }
+
+  /**
+   * Take an empty team away: its root document and the two meta documents `createTeam` wrote, in one
+   * batch. The caller has asked `teamHasData` first; this checks again, since a teammate may have
+   * pasted a roster while the question was open. Never the default: it has no document, and its data is
+   * the root's. The scope's fallback (openTeamsListener) sends anyone on the deleted team to the default.
+   */
+  async deleteTeam(teamId: string): Promise<void> {
+    if (this.mode !== 'firebase') throw new Error('Teams need Firebase; the local preview has one team.');
+    const db = getDb();
+    if (!db) throw new Error('Firebase is not configured.');
+    if (!this.auth.userEmail() || !this.auth.canManageUsers()) throw new Error('Only a signed-in admin can delete a team.');
+    if (!isTeamId(teamId)) throw new Error(`Not a team id: ${JSON.stringify(teamId)}`);
+    const holds = await this.teamHasData(teamId);
+    if (holds) throw new Error(`The team still has ${holds}; take that off first.`);
+    const batch = writeBatch(db);
+    batch.delete(doc(db, scopedPath(teamId, 'meta', 'settings')));
+    batch.delete(doc(db, scopedPath(teamId, 'meta', 'resourceLinks')));
+    batch.delete(doc(db, 'teams', teamId));
     await batch.commit();
   }
 
@@ -1528,6 +1658,7 @@ export class TeamDataService {
       if (db) await setDoc(doc(db, this.path('meta', 'settings')), stripUndefined(settings as unknown as Record<string, unknown>));
     } else {
       this.settings.set(settings);
+      this.publicSettings.set(settings);
       this.persistLocal();
     }
   }

@@ -15,7 +15,7 @@
       <div class="brand">
         <img class="brand-mark" src="assets/brand/bomb-128.png" srcset="assets/brand/bomb-128.png 128w, assets/brand/bomb-512.png 512w" sizes="3.6rem" alt="" width="128" height="128" />
         <span class="brand-text">
-          {{ data.settings().teamName || 'Bom Squad' }}
+          {{ data.rootTeamName() }}
           <small>Draft Hub</small>
         </span>
       </div>
@@ -105,7 +105,7 @@
        wherever the project is shown, and the login page is public. -->
   <footer class="site-footer">
     <p class="footer-note">
-      {{ data.settings().teamName || 'Bom Squad' }} Draft Hub was created under Riot Games'
+      {{ data.rootTeamName() }} Draft Hub was created under Riot Games'
       "Legal Jibber Jabber" policy using assets owned by Riot Games.
       Riot Games does not endorse or sponsor this project.
     </p>

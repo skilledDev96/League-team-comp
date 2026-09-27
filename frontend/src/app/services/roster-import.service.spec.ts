@@ -1,6 +1,8 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterAll, afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 import { environment } from '../../environments/environment';
+import { DEFAULT_TEAM_ID } from '../core/team-scope';
 import { Player, Role } from '../models/team.models';
 import { ActivityService } from './activity.service';
 import { AuthService } from './auth.service';
@@ -10,6 +12,7 @@ import { EnrichResponse, mergeChampionPool, PlayerEnrichmentService } from './pl
 import { RefreshService } from './refresh.service';
 import { RosterImportService, unreadEntries } from './roster-import.service';
 import { TeamDataService } from './team-data.service';
+import { TeamScopeService } from './team-scope.service';
 import { ToastService } from './toast.service';
 
 // Local mode, as team-data.service.spec.ts runs: isFirebaseConfigured() reads the
@@ -68,6 +71,10 @@ const handMade = (name: string, role: Role, over: Partial<Player> = {}): Player 
   ...over
 });
 
+/** The team the app is on, as the service reads it; a case flips it mid-run (local mode never chooses, so the real one cannot). */
+const scope = { activeTeamId: signal(DEFAULT_TEAM_ID), choose: vi.fn<(teamId: string) => void>() };
+const OTHER_TEAM = 'other-team-a1b2c3';
+
 describe('RosterImportService', () => {
   let svc: RosterImportService;
   let data: TeamDataService;
@@ -80,13 +87,15 @@ describe('RosterImportService', () => {
   function create(reachable = true): void {
     localStorage.clear();
     TestBed.resetTestingModule();
+    scope.activeTeamId.set(DEFAULT_TEAM_ID);
     vi.spyOn(RosterImportService.prototype as unknown as Proto, 'riotReachable').mockReturnValue(reachable);
     enrichPlayer = vi.fn<Enrich>(async ({ role }) => provider({ role }));
     ask = vi.fn(async () => true);
     TestBed.configureTestingModule({
       providers: [
         { provide: PlayerEnrichmentService, useValue: { enrichPlayer, mergeChampionPool } },
-        { provide: ConfirmService, useValue: { ask } }
+        { provide: ConfirmService, useValue: { ask } },
+        { provide: TeamScopeService, useValue: scope }
       ]
     });
     data = TestBed.inject(TeamDataService);
@@ -442,6 +451,75 @@ describe('RosterImportService', () => {
     expect(data.players().filter((p) => p.refreshedAt)).toHaveLength(2);
     expect(svc.importing()).toBe(false);
     expect(undoToast()).toBeUndefined();
+  });
+
+
+  // ---- Pinned to the team it started on (27 Sep 2026, Stage 3c) ---------------------------------
+  //
+  // Every write checks the scope is still on the team the run captured at its start; a run the team moved
+  // under stops there, says so once, and leaves what already landed. The rows and the created ids go with
+  // the team (the reset effect), since the results card would otherwise show one team's import on another's
+  // Players tab. Local mode never chooses a team, so the scope is the fake above and a case flips it mid-run.
+
+  it('stops when the team changes while Riot is being read: the read is thrown away, what landed stays, and the notice says so', async () => {
+    enrichPlayer.mockImplementation(async ({ summonerName, role }) => {
+      if (summonerName === 'Bravo') scope.activeTeamId.set(OTHER_TEAM);
+      return provider({ role });
+    });
+    expect(await svc.run(LINK)).toBeNull();
+    // Phase 1 landed all five before the switch; Alpha was read and written, Bravo read and not written, the rest never asked.
+    expect(names()).toHaveLength(5);
+    expect(enrichPlayer).toHaveBeenCalledTimes(2);
+    expect(data.players().filter((p) => p.refreshedAt).map((p) => p.name)).toEqual(['Alpha']);
+    expect(data.players()[1].playstyle).toBeUndefined();
+    expect(svc.importing()).toBe(false);
+    expect(activity.jobs()).toEqual([]);
+    // One notice, and not the finish toast with its Undo: there is nothing on this team to undo.
+    expect(toast.toasts().map((t) => t.title)).toEqual(['Stopped: the team changed during the roster import']);
+    expect(undoToast()).toBeUndefined();
+    TestBed.tick();
+    expect(svc.rows()).toEqual([]);
+    expect(svc.createdIds()).toEqual([]);
+  });
+
+  it('stops before the next skeleton when the team changes in phase 1, and asks Riot nothing', async () => {
+    const real = data.createPlayer.bind(data);
+    let writes = 0;
+    vi.spyOn(data, 'createPlayer').mockImplementation(async (p) => {
+      const id = await real(p);
+      if (++writes === 2) scope.activeTeamId.set(OTHER_TEAM);
+      return id;
+    });
+    await svc.run(LINK);
+    expect(names()).toEqual(['Alpha', 'Bravo']);
+    expect(enrichPlayer).not.toHaveBeenCalled();
+    expect(toast.toasts().map((t) => t.title)).toEqual(['Stopped: the team changed during the roster import']);
+    expect(svc.importing()).toBe(false);
+  });
+
+  it('a retry stops the same way, with the row saying the read was not written', async () => {
+    enrichPlayer.mockImplementation(async ({ summonerName, role }) => (summonerName === 'Charlie' ? template(NO_GAMES) : provider({ role })));
+    await svc.run(LINK);
+    toast.toasts().forEach((t) => toast.dismiss(t.id));
+    enrichPlayer.mockImplementation(async ({ role }) => {
+      scope.activeTeamId.set(OTHER_TEAM);
+      return provider({ role, playstyle: 'Back from a break' });
+    });
+    expect(await svc.retry(svc.rows()[2])).toBeNull();
+    expect(data.players().find((p) => p.name === 'Charlie')?.playstyle).toBeUndefined();
+    expect(toast.toasts().map((t) => t.title)).toEqual(['Stopped: the team changed during the roster import']);
+    expect(svc.importing()).toBe(false);
+  });
+
+  it('Undo on the finish toast, pressed after a switch, deletes nothing: the ids were created on the team it left', async () => {
+    await svc.run(LINK);
+    scope.activeTeamId.set(OTHER_TEAM);
+    undoToast()!.action!.run();
+    await vi.waitFor(() => expect(toast.toasts().at(-1)?.title).toBe('Stopped: the team changed during the undo'));
+    expect(names()).toHaveLength(5);
+    // And the same through the method, with the team the ids belong to said outright.
+    expect(await svc.undo(svc.createdIds(), DEFAULT_TEAM_ID)).toBe(0);
+    expect(names()).toHaveLength(5);
   });
 
   it('counts what the parser dropped, for the preview line', () => {

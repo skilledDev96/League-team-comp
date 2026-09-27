@@ -6,6 +6,7 @@ import { AccessEntry, AccessRole, Comp, CompPicks, FillIn, Player, ROLES, Role, 
 import { AuthService } from '../../services/auth.service';
 import { AdminPlayersService } from './state/admin-players.service';
 import { AdminShellService } from './state/admin-shell.service';
+import { AdminTeamsService, TeamRow } from './state/admin-teams.service';
 import { PlayerEnrichmentService } from '../../services/player-enrichment.service';
 import { RosterImportRow } from '../../services/roster-import.service';
 import { TeamDataService } from '../../services/team-data.service';
@@ -16,9 +17,11 @@ import { UiService } from '../../services/ui.service';
 import { todayStored } from '../../core/tournament-ended';
 import {
   AccessDraft,
+  ADMIN_ONLY_TABS,
   CompDraft,
   EditorTab,
   emptyPicks,
+  isEditorTab,
   FillInDraft,
   newUid,
   normalizeEmailValue,
@@ -114,6 +117,24 @@ export class AdminContextService {
   readonly reseatByRiot = () => this.players.reseatByRiot();
   readonly scoutUs = () => this.players.scoutUs();
 
+  // Admin › Teams (27 Sep 2026, Stage 3), the same way: the list, the switch, the New team fold and the delete.
+  private readonly teams = inject(AdminTeamsService);
+  readonly teamRows = this.teams.rows;
+  readonly regions = this.teams.regions;
+  readonly newTeamName = this.teams.newName;
+  readonly newTeamRegion = this.teams.newRegion;
+  readonly newTeamPaste = this.teams.newPaste;
+  readonly newTeamPreview = this.teams.newPreview;
+  readonly newTeamLine = this.teams.newLine;
+  readonly createTeamLabel = this.teams.createLabel;
+  readonly createTeamReason = this.teams.createReason;
+  readonly switchTeamReason = this.teams.switchReason;
+  readonly creatingTeam = this.teams.creating;
+  readonly teamCreatedLabel = (row: TeamRow) => this.teams.createdLabel(row);
+  readonly switchTeam = (id: string) => this.teams.switchTo(id);
+  readonly createTeam = () => this.teams.createTeam();
+  readonly deleteTeam = (row: TeamRow) => this.teams.deleteTeam(row);
+
   // Accordion: only one player panel open at a time to reduce clutter.
 
   private initialized = false;
@@ -188,7 +209,7 @@ export class AdminContextService {
     effect(() => {
       const canManageUsers = this.auth.canManageUsers();
       const currentTab = this.activeTab();
-      if (!canManageUsers && (currentTab === 'settings' || currentTab === 'access' || currentTab === 'diagnostics')) {
+      if (!canManageUsers && ADMIN_ONLY_TABS.includes(currentTab)) {
         this.activeTab.set('players');
       }
     });
@@ -429,7 +450,7 @@ export class AdminContextService {
   // ---- Settings ---------------------------------------------------------
 
   openTab(tab: EditorTab): void {
-    if (!this.auth.canManageUsers() && (tab === 'settings' || tab === 'access' || tab === 'diagnostics')) {
+    if (!this.auth.canManageUsers() && ADMIN_ONLY_TABS.includes(tab)) {
       this.activeTab.set('players');
       return;
     }
@@ -451,7 +472,7 @@ export class AdminContextService {
   private applyRouteFocus(): void {
     const params = this.route.snapshot.queryParamMap;
     const tab = params.get('tab');
-    if (tab === 'settings' || tab === 'players' || tab === 'fillins' || tab === 'comps' || tab === 'tournaments' || tab === 'trophies' || tab === 'access' || tab === 'diagnostics') {
+    if (isEditorTab(tab)) {
       this.openTab(tab);
     }
     // "Add a comp" from the quick actions: one blank comp, not one per visit.
@@ -560,7 +581,7 @@ export class AdminContextService {
     const motto = this.motto().trim();
     const nextPatchOn = this.nextPatchOn();
     await this.data.updateSettings({
-      teamName: this.teamName().trim() || 'Bom Squad',
+      teamName: this.teamName().trim() || this.data.teamNameFallback(),
       autoAdvisor: this.autoAdvisor(),
       autoReview: this.autoReview(),
       ...(motto ? { motto } : {}),

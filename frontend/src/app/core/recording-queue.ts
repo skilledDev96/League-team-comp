@@ -14,6 +14,7 @@
 import { Scrim, SeriesGame, Tournament, TournamentSeries } from '../models/team.models';
 import { parseLocalDate } from './local-date';
 import { patchOfBuild } from './replay-parse';
+import { DEFAULT_TEAM_ID } from './team-scope';
 
 /**
  * Patches land two weeks apart, but the first game on a patch comes on or after the day it landed, so two weeks
@@ -94,9 +95,13 @@ function patchOrder(a: string, b: string): number {
   return aMajor - bMajor || aMinor - bMinor;
 }
 
-/** The command that records a game, as the card copies it. */
-export function recordCommand(matchId: string): string {
-  return `npm run record -- ${matchId}`;
+/**
+ * The command that records a game, as the card copies it. On a team that is not the default it carries
+ * `--team <id>` (27 Sep 2026, release 2): the recorder decides "ours" by the roster it is told, and a run
+ * without the flag would record that team's game into Bom Squad's collections.
+ */
+export function recordCommand(matchId: string, teamId: string = DEFAULT_TEAM_ID): string {
+  return `npm run record -- ${matchId}${teamId === DEFAULT_TEAM_ID ? '' : ` --team ${teamId}`}`;
 }
 
 export function recordingQueue(input: RecordingQueueInput): RecordingQueue {

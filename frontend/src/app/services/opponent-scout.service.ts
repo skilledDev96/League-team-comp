@@ -4,6 +4,8 @@ import { PlayerEnrichmentService } from './player-enrichment.service';
 import { TeamDataService } from './team-data.service';
 import { RiotId, parseRiotIds } from '../core/riot-id';
 import { ActivityService } from './activity.service';
+import { TeamScopeService, teamChangedNotice } from './team-scope.service';
+import { ToastService } from './toast.service';
 
 /**
  * Reading the other team from their public Riot IDs.
@@ -24,6 +26,8 @@ export class OpponentScoutService {
   private readonly enrichment = inject(PlayerEnrichmentService);
   private readonly data = inject(TeamDataService);
   private readonly activity = inject(ActivityService);
+  private readonly scope = inject(TeamScopeService);
+  private readonly toast = inject(ToastService);
 
   /** Series id currently being scouted, so one button can show progress. */
   readonly scouting = signal<string | null>(null);
@@ -127,6 +131,13 @@ export class OpponentScoutService {
     // hundred Riot calls per two minutes, and the import refuses while a scout runs.
     if (!roster.length || this.scouting() || this.activity.has('Importing roster')) return;
 
+    // The team this scout writes to, captured once (27 Sep 2026, Stage 3c): `save` lands on the
+    // series or the self-scout document of whichever team is active when it runs, so a switch
+    // mid-scout would put the rest of the roster on another team's series. Checked before each
+    // read, since a minute of Riot calls whose answer is thrown away is a minute wasted, and again
+    // before each write. A stopped scout keeps what it saved and says so instead of "Scouted".
+    const team = this.scope.activeTeamId();
+    let stopped = false;
     this.scouting.set(id);
     this.total.set(roster.length);
     this.done.set(0);
@@ -134,20 +145,40 @@ export class OpponentScoutService {
     try {
       await this.activity.run(`Scouting ${teamName || 'opponent'}`, async (job) => {
         for (const [index, player] of roster.entries()) {
+          if (this.teamChanged(team)) {
+            stopped = true;
+            return;
+          }
           const line = `${player.name || 'player'} (${index + 1} of ${roster.length})`;
           this.progress.set(`Scouting ${line}…`);
           job.progress(line);
-          out.push(await this.scoutOne(player));
+          const scouted = await this.scoutOne(player);
+          if (this.teamChanged(team)) {
+            stopped = true;
+            return;
+          }
+          out.push(scouted);
           this.done.set(out.length);
           await save([...out, ...roster.slice(out.length)]);
         }
-      }, { notify: `Scouted ${teamName || 'the opponent'}` });
+      });
+      if (stopped) {
+        const notice = teamChangedNotice('the scout');
+        this.toast.show(notice.title, { kind: 'warn', icon: 'warning', text: notice.text, timeout: 10000 });
+      } else {
+        this.toast.show(`Scouted ${teamName || 'the opponent'}`, { kind: 'ok', icon: 'check_circle' });
+      }
     } finally {
       this.scouting.set(null);
       this.progress.set('');
       this.done.set(0);
       this.total.set(0);
     }
+  }
+
+  /** True once the scope has left the team a scout started on; every write asks first. */
+  private teamChanged(team: string): boolean {
+    return this.scope.activeTeamId() !== team;
   }
 
   private async scoutOne(player: OpponentPlayer): Promise<OpponentPlayer> {

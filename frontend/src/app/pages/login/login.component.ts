@@ -1,6 +1,7 @@
 import { Component, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { TeamDataService } from '../../services/team-data.service';
 
 /**
  * The way in: Sign in with Google, and nothing else on the page (9 Sep 2026;
@@ -17,6 +18,8 @@ export class LoginComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  /** For the mark's alt text: the root team's name, since the login page is the site's and nobody's team's. */
+  protected readonly data = inject(TeamDataService);
 
   protected readonly error = signal('');
   protected readonly busy = signal(false);

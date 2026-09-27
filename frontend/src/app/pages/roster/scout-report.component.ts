@@ -82,7 +82,7 @@ export class ScoutReportComponent {
   protected readonly untagged = computed(() => this.data.players().filter((p) => !p.profile?.riotTag?.trim()).map((p) => p.name));
 
   protected async scoutUs(): Promise<void> {
-    await this.scout.scoutOurselves(this.data.players(), this.data.settings().teamName || 'us');
+    await this.scout.scoutOurselves(this.data.players(), this.data.teamName());
   }
 
   private readonly recentOpen = signal<ReadonlySet<string>>(new Set());

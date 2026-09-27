@@ -1,4 +1,4 @@
-import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { isFirebaseConfigured } from '../core/firebase';
 import { RiotId, formatRiotId, parseRiotIds } from '../core/riot-id';
 import {
@@ -10,6 +10,7 @@ import {
   seatSuggestion,
   seatsFromDetected
 } from '../core/roster-import';
+import { DEFAULT_TEAM_ID } from '../core/team-scope';
 import { Player, Role } from '../models/team.models';
 import { ActivityHandle, ActivityService } from './activity.service';
 import { AuthService } from './auth.service';
@@ -18,6 +19,7 @@ import { OpponentScoutService, SECONDS_PER_PLAYER } from './opponent-scout.servi
 import { PlayerEnrichmentService } from './player-enrichment.service';
 import { RefreshService } from './refresh.service';
 import { TeamDataService } from './team-data.service';
+import { TeamScopeService, resetOnTeamChange, teamChangedNotice } from './team-scope.service';
 import { ToastService } from './toast.service';
 
 /**
@@ -37,7 +39,10 @@ import { ToastService } from './toast.service';
  * template on any failure, and the reason lives in `provider`; a template on a
  * real person's row is worse than an empty one), touch a player it did not
  * create, fetch op.gg (only the pasted text is read, in core/riot-id.ts) or send
- * anything to the model provider.
+ * anything to the model provider. Nor does it write to a team it did not start on
+ * (27 Sep 2026, Stage 3c): the active team is captured when a run starts and
+ * checked before every write, and a run the team moved under stops there, says so,
+ * and leaves what already landed where it landed.
  */
 
 export type RosterImportState = 'pending' | 'reading' | 'done' | 'failed' | 'withdrawn' | 'skipped';
@@ -114,6 +119,7 @@ export class RosterImportService {
   private readonly toast = inject(ToastService);
   private readonly scout = inject(OpponentScoutService);
   private readonly refresh = inject(RefreshService);
+  private readonly scope = inject(TeamScopeService);
 
   readonly importing = signal(false);
   readonly progress = signal('');
@@ -126,6 +132,8 @@ export class RosterImportService {
   readonly rows = signal<readonly RosterImportRow[]>([]);
   /** Every player id this run created, withdrawn ones included; Undo deletes those still present. */
   readonly createdIds = signal<readonly string[]>([]);
+  /** The team the last run created them on; Undo checks the app is still on it before it deletes. */
+  private createdOn = DEFAULT_TEAM_ID;
 
   /**
    * Why an import cannot start right now, or null. Named, because a silent
@@ -164,35 +172,32 @@ export class RosterImportService {
     )
   );
 
-  /** Whose rows these are. Another account's import is not this one's to see or undo. */
-  private owner: string | null = null;
-
   constructor() {
-    // Rows and created ids belong to the session that made them: sign-out, or
-    // another account taking over, empties them, and a run in flight stops at
-    // its next player (it checks the email each step).
-    effect(() => {
-      const email = this.auth.userEmail();
-      untracked(() => {
-        if (email === this.owner) return;
-        this.owner = email;
-        this.rows.set([]);
-        this.createdIds.set([]);
-      });
+    // Rows and created ids belong to the account and the team that made them: sign-out, another
+    // account taking over, or a team switch (27 Sep 2026, Stage 3c) empties them, and a run in flight
+    // stops at its next step (it checks the email and the team each step). Kept across a switch, the
+    // results card would show one team's import on another's Players tab, with Open pills leading to
+    // players that are not on it and an Undo with nothing to find.
+    resetOnTeamChange(() => {
+      this.rows.set([]);
+      this.createdIds.set([]);
     });
   }
 
   /**
-   * What a paste would do, against the roster as it is now. Only the text is read.
+   * What a paste would do, against the roster as it is now, or against `existing` when given:
+   * Admin › Teams previews a paste for a team that does not exist yet against an empty roster
+   * (27 Sep 2026, Stage 3), since the current team's players are not the ones it would join. Only
+   * the text is read.
    * Never throws: the dialog reads this from a computed on every keystroke, and a
    * computed that throws rethrows to every reader until its inputs change, so a
    * half-typed "Alpha%2" (decodeURIComponent throws a URIError on a stray percent
    * sign) would stop the paste step updating and land a browser error in Diagnostics.
    */
-  preview(text: string): RosterImportPreview {
+  preview(text: string, existing: readonly Player[] = this.data.players()): RosterImportPreview {
     try {
       const ids = parseRiotIds(text);
-      return { ...planRosterImport({ ids, existing: this.data.players() }), ids, dropped: unreadEntries(text, ids.length) };
+      return { ...planRosterImport({ ids, existing }), ids, dropped: unreadEntries(text, ids.length) };
     } catch (error) {
       if (!(error instanceof URIError)) throw error;
       return { ids: [], creates: [], skips: [], dropped: 0, refused: 'That text could not be read. Paste the op.gg link, or one Name#TAG a line.' };
@@ -250,6 +255,8 @@ export class RosterImportService {
     const current = this.rows().find((r) => rowKey(r.id) === key);
     if (!current || current.state !== 'failed') return null;
 
+    const team = this.scope.activeTeamId();
+    let stopped = false;
     this.importing.set(true);
     this.total.set(1);
     this.done.set(0);
@@ -276,6 +283,10 @@ export class RosterImportService {
           const player = { ...create.player, role: current.seat };
           if (sub) player.sub = true;
           else delete player.sub;
+          if (this.teamChanged(team)) {
+            stopped = true;
+            return;
+          }
           const playerId = await this.data.createPlayer(player);
           this.createdIds.update((ids) => [...ids, playerId]);
           this.patch(key, { playerId, seat: current.seat, sub });
@@ -284,14 +295,15 @@ export class RosterImportService {
         const line = formatRiotId(current.id);
         this.progress.set(`Reading ${line} from Riot…`);
         job.progress(line);
-        await this.readOne(target);
-        this.done.set(1);
+        stopped = !(await this.readOne(target, team));
+        if (!stopped) this.done.set(1);
       });
     } catch {
       // ActivityService.run announced it; the row keeps its state.
     } finally {
       this.clearProgress();
     }
+    if (stopped) this.stoppedForTeam();
     return null;
   }
 
@@ -299,15 +311,27 @@ export class RosterImportService {
    * Take off every player this run created that is still on the roster. The
    * Undo of the finish toast, so no second question is asked (the house pattern).
    * Given the ids rather than reading them, so a toast from an earlier run never
-   * undoes a later one.
+   * undoes a later one, and the team they were created on, so an Undo pressed
+   * after a switch (the toast outlives the menu) deletes nothing on the team now
+   * showing: the ids are the other team's, and a delete would go under this prefix.
    */
-  async undo(ids: readonly string[] = this.createdIds()): Promise<number> {
+  async undo(ids: readonly string[] = this.createdIds(), team = this.createdOn): Promise<number> {
     if (this.importing()) {
       this.toast.show('Wait for the import to finish', { kind: 'info', text: 'Undo takes the players off once it has stopped writing.' });
       return 0;
     }
+    if (this.teamChanged(team)) {
+      this.stoppedForTeam('the undo');
+      return 0;
+    }
     const present = ids.filter((id) => this.data.players().some((p) => p.id === id));
-    for (const id of present) await this.data.deletePlayer(id);
+    for (const id of present) {
+      if (this.teamChanged(team)) {
+        this.stoppedForTeam('the undo');
+        return 0;
+      }
+      await this.data.deletePlayer(id);
+    }
     this.createdIds.update((list) => list.filter((id) => !ids.includes(id)));
     // A withdrawn row carries no playerId any more, and its player is as gone as the rest.
     this.rows.update((rows) => rows.filter((r) => !(r.playerId && ids.includes(r.playerId)) && r.state !== 'withdrawn'));
@@ -327,10 +351,15 @@ export class RosterImportService {
   async reseatByRiot(): Promise<number> {
     const seats = this.riotSeats();
     if (!seats || this.importing() || !this.auth.canEdit()) return 0;
+    const team = this.scope.activeTeamId();
     let moved = 0;
     for (const [playerId, role] of Object.entries(seats)) {
       const fresh = this.data.players().find((p) => p.id === playerId);
       if (!fresh || fresh.role === role) continue;
+      if (this.teamChanged(team)) {
+        this.stoppedForTeam("seating by Riot's roles");
+        return moved;
+      }
       await this.data.updatePlayer({ ...fresh, role });
       this.rows.update((rows) => rows.map((r) => (r.playerId === playerId ? { ...r, seat: role, suggestion: undefined } : r)));
       moved += 1;
@@ -355,17 +384,24 @@ export class RosterImportService {
 
   private async execute(plan: RosterImportPreview): Promise<void> {
     const session = this.auth.userEmail();
+    // The team this run writes to, captured once: every write below checks the scope is still on it.
+    const team = this.scope.activeTeamId();
     this.rows.set(rowsFor(plan, this.data.players()));
     this.createdIds.set([]);
+    this.createdOn = team;
     this.importing.set(true);
     this.total.set(plan.creates.length);
     this.done.set(0);
+    let stopped = false;
     try {
       // No `notify` here: the finish toast below is the one notice for this run,
       // with the count and the Undo pill, and two toasts for one event is noise.
       await this.activity.run('Importing roster', async (job) => {
-        await this.createSkeletons(plan, session);
-        await this.readAll(job, session);
+        if (!(await this.createSkeletons(plan, session, team))) {
+          stopped = true;
+          return;
+        }
+        if (!(await this.readAll(job, session, team))) stopped = true;
       });
     } catch (error) {
       // ActivityService.run announced it. Every row still waiting fails, with Retry on
@@ -384,54 +420,69 @@ export class RosterImportService {
     } finally {
       this.clearProgress();
     }
-    if (this.auth.userEmail() === session) this.report();
+    if (stopped) {
+      // The rows went with the team (the reset in the constructor); the notice is what is left to say.
+      this.stoppedForTeam();
+      return;
+    }
+    if (this.auth.userEmail() === session) this.report(team);
   }
 
-  /** Phase 1: every skeleton, in paste order, so the roster is on screen at once. */
-  private async createSkeletons(plan: RosterImportPlan, session: string | null): Promise<void> {
+  /**
+   * Phase 1: every skeleton, in paste order, so the roster is on screen at once. False when the team
+   * changed under it, with nothing more written.
+   */
+  private async createSkeletons(plan: RosterImportPlan, session: string | null, team: string): Promise<boolean> {
     for (const create of plan.creates) {
-      if (this.auth.userEmail() !== session) return;
+      if (this.auth.userEmail() !== session) return true;
+      if (this.teamChanged(team)) return false;
       const playerId = await this.data.createPlayer(create.player);
       this.createdIds.update((ids) => [...ids, playerId]);
       this.patch(rowKey(create.id), { playerId });
     }
+    return true;
   }
 
-  /** Phase 2: one at a time, the scout's queue. */
-  private async readAll(job: ActivityHandle, session: string | null): Promise<void> {
+  /** Phase 2: one at a time, the scout's queue. False when the team changed under it. */
+  private async readAll(job: ActivityHandle, session: string | null, team: string): Promise<boolean> {
     const queue = this.rows().filter((r) => r.state === 'pending' && r.playerId);
     for (const [index, row] of queue.entries()) {
-      if (this.auth.userEmail() !== session) return;
+      if (this.auth.userEmail() !== session) return true;
+      if (this.teamChanged(team)) return false;
       const line = `${formatRiotId(row.id)} (${index + 1} of ${queue.length})`;
       this.progress.set(`Reading ${line} from Riot…`);
       job.progress(line);
-      await this.readOne(row);
+      if (!(await this.readOne(row, team))) return false;
       this.done.update((n) => n + 1);
     }
+    return true;
   }
 
   /**
    * One player from Riot, written on their own document. A failure stays on
    * the row rather than failing the batch: four of five read is worth having.
+   * Answers false only when the team changed while Riot was being read, in
+   * which case nothing is written: the read is thrown away rather than landed
+   * on whichever team is active now.
    */
-  private async readOne(row: RosterImportRow): Promise<void> {
+  private async readOne(row: RosterImportRow, team: string): Promise<boolean> {
     const key = rowKey(row.id);
     const playerId = row.playerId;
-    if (!playerId) return;
+    if (!playerId) return true;
     this.patch(key, { state: 'reading', reason: undefined, kind: undefined });
 
     if (!this.riotReachable()) {
       // Local preview: the skeleton is there, and saying why it stays empty beats a template.
       const local = failureReason('built-in-role-template');
       this.patch(key, { state: 'failed', kind: local.kind, reason: local.text });
-      return;
+      return true;
     }
 
     try {
       const before = this.data.players().find((p) => p.id === playerId);
       if (!before) {
         this.patch(key, { state: 'withdrawn', playerId: undefined, reason: 'Taken off the roster before Riot was read.' });
-        return;
+        return true;
       }
       // The same body the roster refresh sends, so nothing new is asked of Riot.
       const enriched = await this.enrichment.enrichPlayer({
@@ -441,11 +492,16 @@ export class RosterImportService {
         role: before.role,
         mobalyticsSlug: before.profile?.mobalyticsSlug
       });
-      // Re-read: a minute passed, and updatePlayer writes the whole document.
+      // A minute passed. The team first: `players()` is now the other team's roster, and a write would be too.
+      if (this.teamChanged(team)) {
+        this.patch(key, { state: 'failed', kind: 'other', reason: 'Not written: the team changed while Riot was being read.' });
+        return false;
+      }
+      // Re-read: updatePlayer writes the whole document.
       const fresh = this.data.players().find((p) => p.id === playerId);
       if (!fresh) {
         this.patch(key, { state: 'withdrawn', playerId: undefined, reason: 'Taken off the roster while Riot was being read.' });
-        return;
+        return true;
       }
 
       if (enriched.source === 'provider') {
@@ -462,7 +518,7 @@ export class RosterImportService {
           sub: !!written.sub,
           suggestion: keepsSeat ? (seatSuggestion(fresh, enriched) ?? undefined) : undefined
         });
-        return;
+        return true;
       }
 
       const failure = failureReason(enriched.provider);
@@ -476,16 +532,28 @@ export class RosterImportService {
           kind: failure.kind,
           reason: `Riot doesn't know ${formatRiotId(row.id)}. Check the tag and paste them again.`
         });
-        return;
+        return true;
       }
       this.patch(key, { state: 'failed', kind: failure.kind, reason: failure.text });
     } catch (error) {
       this.patch(key, { state: 'failed', kind: 'other', reason: error instanceof Error ? error.message : 'Riot could not be read.' });
     }
+    return true;
   }
 
-  /** The one notice for the run: what landed, what did not, and Undo while it still makes sense. */
-  private report(): void {
+  /** True once the scope has left the team a run started on; every write asks first. */
+  private teamChanged(team: string): boolean {
+    return this.scope.activeTeamId() !== team;
+  }
+
+  /** The one notice for a run the team moved under. */
+  private stoppedForTeam(job = 'the roster import'): void {
+    const notice = teamChangedNotice(job);
+    this.toast.show(notice.title, { kind: 'warn', icon: 'warning', text: notice.text, timeout: 10000 });
+  }
+
+  /** The one notice for the run: what landed, what did not, and Undo while it still makes sense, on the team it ran on. */
+  private report(team: string): void {
     const rows = this.rows();
     const kept = this.createdIds().filter((id) => this.data.players().some((p) => p.id === id));
     const failed = rows.filter((r) => r.state === 'failed');
@@ -512,7 +580,7 @@ export class RosterImportService {
       icon: trouble ? 'warning' : 'check_circle',
       text: notes.join(' ') || undefined,
       timeout: UNDO_WINDOW_MS,
-      action: { label: 'Undo', run: () => void this.undo(ids) }
+      action: { label: 'Undo', run: () => void this.undo(ids, team) }
     });
   }
 

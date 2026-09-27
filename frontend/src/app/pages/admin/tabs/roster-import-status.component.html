@@ -1,0 +1,76 @@
+<!-- Prep's progress block: a minute a player is the rate limit, and a bar that moves is the difference between
+     waiting and thinking it has hung. The import runs in a root service, so leaving the page does not stop it. -->
+@if (ctx.importer.importing()) {
+  <div id="roster-import-progress" class="opp-progress roster-import-progress" role="status" aria-live="polite">
+    <div class="opp-progress-line">
+      <span class="material-symbols-rounded opp-progress-spin" aria-hidden="true">progress_activity</span>
+      <strong>{{ ctx.importer.progress() || 'Adding the players to the roster…' }}</strong>
+      <span class="muted">{{ ctx.importer.done() }} of {{ ctx.importer.total() }} read · ~{{ ctx.importer.secondsLeft() }}s left</span>
+    </div>
+    <div class="opp-progress-track" aria-hidden="true">
+      <span class="opp-progress-fill"
+            [style.width.%]="ctx.importer.total() ? (ctx.importer.done() / ctx.importer.total()) * 100 : 0"></span>
+    </div>
+    <p class="muted opp-progress-note">
+      About a minute a player. A new team's first read is the slowest. <strong>Carry on using the app</strong>;
+      it keeps running and saves each player as it lands.
+    </p>
+  </div>
+}
+
+<!-- What the last import did, one row a player, until the next import or a sign-out. Retry re-reads one failed
+     row, Open jumps to the panel, and the three pills at the foot are the next steps rather than an auto-chain:
+     the analysis needs five resolvable Riot IDs, so a failed row has to be fixed first. -->
+@if (ctx.importer.rows().length && !ctx.importer.importing()) {
+  <details id="roster-import-results" class="card fold-card roster-import-card" open>
+    <summary class="section-head" aria-label="Import results">
+      <h3 class="title-with-icon"><span class="section-icon material-symbols-rounded" aria-hidden="true">playlist_add_check</span>Imported from the paste <small class="muted">{{ ctx.importer.rows().length }}</small></h3>
+      <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+    </summary>
+    <ul class="list-clean roster-import-rows">
+      @for (row of ctx.importer.rows(); track row.id.name + '#' + row.id.tag) {
+        <li class="roster-import-row" [attr.data-state]="row.state">
+          <span class="roster-import-name">{{ row.id.name }}<span class="muted">#{{ row.id.tag }}</span></span>
+          <span class="chip is-compact">{{ row.seat }}</span>
+          @if (row.sub) { <span class="chip is-compact">Sub</span> }
+          <span class="roster-import-state"
+                [class.is-done]="row.state === 'done'"
+                [class.is-trouble]="row.state === 'failed' || row.state === 'withdrawn'">
+            @switch (row.state) {
+              @case ('pending') { Waiting }
+              @case ('reading') { Reading from Riot… }
+              @case ('done') { Read from Riot }
+              @case ('failed') { Not read }
+              @case ('withdrawn') { Taken off }
+              @case ('skipped') { Skipped }
+            }
+          </span>
+          <span class="action-row roster-import-actions">
+            @if (row.state === 'failed') {
+              <button class="view-btn is-compact" type="button" [disabled]="!ctx.importer.canStart()" [appTip]="ctx.importer.blocker() ?? 'Reads this player from Riot again.'" (click)="ctx.retryImport(row)">Retry</button>
+            }
+            @if (row.playerId) {
+              <button class="view-btn is-compact" type="button" (click)="ctx.openImported(row)">Open</button>
+            }
+          </span>
+          @if (row.reason) { <span class="muted roster-import-reason">{{ row.reason }}</span> }
+          @if (row.suggestion) { <span class="muted roster-import-reason">Riot sees them mostly at {{ row.suggestion }}.</span> }
+        </li>
+      }
+    </ul>
+    <div class="action-row roster-import-next">
+      <button id="roster-import-reseat" class="view-btn" type="button" [disabled]="!!ctx.reseatReason()"
+              [appTip]="ctx.reseatReason() ?? 'Puts each starter in the seat Riot sees them in most. The pasted seats stay until you press this.'"
+              (click)="ctx.reseatByRiot()">Seat by Riot's roles</button>
+      <button id="roster-import-scout" class="view-btn" type="button" [disabled]="ctx.scoutBusy() || !ctx.data.players().length"
+              appTip="Looks up every player on the roster by Name#TAG, the table an opponent would build against us. Cheap now that Riot has just been read."
+              (click)="ctx.scoutUs()">
+        @if (ctx.scoutBusy()) { <span class="btn-spinner" aria-hidden="true"></span> Scouting… } @else { <span class="material-symbols-rounded" aria-hidden="true">travel_explore</span> Scout us from Riot }
+      </button>
+      <a id="roster-import-games" class="view-btn" [routerLink]="['/games']" [queryParams]="{ refresh: '1' }"
+         appTip="Pulls the team's Flex and Clash games from Riot and opens what came in. Needs five resolvable Riot IDs.">
+        <span class="material-symbols-rounded" aria-hidden="true">sync</span>Refresh match data
+      </a>
+    </div>
+  </details>
+}

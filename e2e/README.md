@@ -63,6 +63,21 @@ Read-only is what makes it safe to point these at production; testing writes
 honestly needs a second Firebase project, not careful writes against the real
 one.
 
+### The account must stay on Bom Squad
+
+Since release 2 (27 Sep 2026) a member can switch teams, and the choice is
+remembered twice: in the account's `userPrefs/{email}` document as `team`, and
+on the device as the `bom-team:<email>` key in localStorage, which the saved
+storage state carries. The e2e account's document must never carry `team`, and
+its storage state must never hold a `bom-team:` key, so the viewer lands on Bom
+Squad at `/home`: `auth.setup.ts` waits for a starter panel on the Roster and
+the authenticated tests for a comps tile, and another team has neither: with a
+preference set, verify lands on the wrong team and fails. So never switch teams
+while signed in as it, and never re-record the storage state after a switch. Nothing in the app
+writes either without a click, but for one correction: a document that names a
+team since deleted is put back to `default` once the app has fallen back to it,
+which a document that never named a team never meets.
+
 ### What is still not covered
 
 Drafting, the analysis refresh and the admin editors — everything that writes.

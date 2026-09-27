@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Scrim, SeriesGame, Tournament, TournamentSeries } from '../models/team.models';
 import { localDayOf, recordCommand, recordingQueue, RecordingQueueInput } from './recording-queue';
+import { DEFAULT_TEAM_ID } from './team-scope';
 
 // The shape of 17 Sep 2026: twenty-one customs imported, one recorded, eighteen saved on 16.17, and
 // Paradox Requiem games 1 and 2 on 16.18 in the tournament. Played at midday UTC, so the local day
@@ -174,6 +175,9 @@ describe('recordingQueue', () => {
 describe('recordCommand and localDayOf', () => {
   it('copies the command the recorder runs with', () => {
     expect(recordCommand('EUW1-7979450974')).toBe('npm run record -- EUW1-7979450974');
+    expect(recordCommand('EUW1-7979450974', DEFAULT_TEAM_ID)).toBe('npm run record -- EUW1-7979450974');
+    // Another team's game says so, or the recorder would write it onto Bom Squad (27 Sep 2026, release 2).
+    expect(recordCommand('EUW1-7979450974', 'the-b-team-a1b2c3')).toBe('npm run record -- EUW1-7979450974 --team the-b-team-a1b2c3');
   });
 
   it('writes a local day', () => {

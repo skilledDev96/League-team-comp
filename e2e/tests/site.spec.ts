@@ -10,7 +10,9 @@ import { expect, test } from '@playwright/test';
 test('the site is served and boots', async ({ page }) => {
   const response = await page.goto('./');
   expect(response?.status()).toBe(200);
-  await expect(page).toHaveTitle(/Bom ?Squad/i);
+  // The title arrives with the router (TeamTitleStrategy composes it from the team's name; index.html's own is the
+  // neutral "Draft Hub" until then), so this waits for the boot the way the gate check below does.
+  await expect(page).toHaveTitle(/Bom ?Squad/i, { timeout: 30_000 });
 });
 
 test('an unauthenticated visitor is gated, not shown team data', async ({ page }) => {

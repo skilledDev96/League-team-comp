@@ -6,10 +6,11 @@ import { AuthService } from './auth.service';
  * Which team this person is looking at (27 Sep 2026, release 2 of the multi-team work).
  *
  * One signal, `activeTeamId`, that every Firestore path in TeamDataService is built over through
- * `core/team-scope.ts`. The default is Bom Squad on the flat root paths, and in release 2 nothing
- * ever chooses anything else: the switcher is release 3's. What this service settles now is where
- * the choice lives and when it is read, so the listeners can be proven to open on the right prefix
- * before there is a second team to open them on.
+ * `core/team-scope.ts`. The default is Bom Squad on the flat root paths. Three callers choose
+ * another team, all through `choose` (Stage 3, the same day): the account menu's Team group, Admin ›
+ * Teams (Switch to, a team just created, and the default once the active team is deleted), and
+ * UserPrefsService when the person's document names a team. What this service settles is where the
+ * choice lives and when it is read, so the listeners open on the right prefix from the first tick.
  *
  * The choice is remembered per person per device, in localStorage under `bom-team:<email>`, and
  * read the moment AuthService sets `userEmail`: the id is part of the signal's own computation, so
@@ -19,8 +20,10 @@ import { AuthService } from './auth.service';
  * team and is always the default.
  *
  * This service injects AuthService and nothing else. TeamDataService reads it and calls `choose`
- * when the active team vanishes from the teams list; later UserPrefsService will call `choose` when
- * a person's document names a team. Both point this way, never back, so there is no cycle.
+ * when the active team vanishes from the teams list; UserPrefsService calls `choose` when a person's
+ * document names a team; the two switchers call it on a click. All point this way, never back, so
+ * there is no cycle, and a job that finds the scope moved under it (`teamChangedNotice` below) was
+ * moved by one of them.
  */
 @Injectable({ providedIn: 'root' })
 export class TeamScopeService {
@@ -99,4 +102,21 @@ export function resetOnTeamChange(reset: () => void): void {
     seenAs = key;
     untracked(reset);
   });
+}
+
+/**
+ * The notice a job shows when it stops because the active team changed under it (27 Sep 2026, Stage 3c).
+ *
+ * The roster import, the player and analysis refreshes and the scout each capture `activeTeamId` when they
+ * start and check it before every write: TeamDataService builds each path over the team that is active at the
+ * moment of the write, so a switch mid-run would land the rest of a job on whichever team is now showing, the
+ * root included. The switcher refuses while a job is on the Activity board, but the scope can still move under
+ * a run (the person's document naming another team, the teams list falling back), so the jobs guard themselves
+ * too. `job` is a phrase for the title, "the roster import"; the text is the same for all of them.
+ */
+export function teamChangedNotice(job: string): { title: string; text: string } {
+  return {
+    title: `Stopped: the team changed during ${job}`,
+    text: 'What had already landed stays on the team it was written to; nothing was written to the new one.'
+  };
 }

@@ -5,7 +5,7 @@ import { environment } from '../../environments/environment';
 import { DEFAULT_TEAM_ID, scopedPath } from '../core/team-scope';
 import { AccessRole } from '../models/team.models';
 import { AuthService } from './auth.service';
-import { TeamDataService } from './team-data.service';
+import { TEAM_COLLECTIONS, TEAM_META_DOCS, TeamDataService } from './team-data.service';
 import { TeamScopeService } from './team-scope.service';
 
 /**
@@ -87,11 +87,12 @@ const MEMBER_PATHS = memberPaths(DEFAULT_TEAM_ID);
 
 /**
  * The writable signals that are not one account's data: the public settings the login page prints (`settings`, and
- * the root copy kept behind it while another team's is showing), and the flag the shell waits on. Every other
+ * the root copy kept behind it while another team's is showing), the flag the shell waits on, and the team the
+ * listeners are open for (`listeningTeam`, the bookkeeping `scopeReady` asks beside `ready`). Every other
  * writable signal on the service is found, not listed (below), so an entity added later is held to the same rule
  * without anyone remembering to add it here.
  */
-const NOT_MEMBER_DATA = new Set(['settings', 'ready', 'publicSettings']);
+const NOT_MEMBER_DATA = new Set(['settings', 'ready', 'publicSettings', 'listeningTeam']);
 /** Member data that only a team other than the default fills: its own settings. The switch case proves that one. */
 const SCOPED_ONLY = ['scopedSettings'];
 
@@ -154,6 +155,18 @@ describe('the member paths', () => {
     expect(paths).toContain('teams/b/meta/compAnalysis');
     expect(paths).toContain('teams/b/meta/settings');
     expect(paths.filter((p) => !p.startsWith('teams/b/'))).toEqual(['meta/keyHealth', 'meta/championTraits', 'teams']);
+  });
+
+  it("are each, under a team, on the delete guard's lists: what a member listens to is what teamHasData looks for", () => {
+    // TEAM_COLLECTIONS and TEAM_META_DOCS are kept by hand in the service. A name a member listens to that the guard
+    // does not check lets a team holding only that data be deleted, its documents left under the deleted prefix.
+    const own = memberPaths('b').filter((p) => p.startsWith('teams/b/'));
+    const collections = own.filter((p) => p.split('/').length === 3).map((p) => p.split('/')[2]);
+    const metas = own.filter((p) => p.startsWith('teams/b/meta/')).map((p) => p.split('/')[3]);
+    expect(collections.length + metas.length).toBe(own.length);
+    expect(collections.filter((name) => !(TEAM_COLLECTIONS as readonly string[]).includes(name))).toEqual([]);
+    // The two documents createTeam writes are deleteTeam's own to take away, so they are not on the guard's list.
+    expect(metas.filter((id) => !(TEAM_META_DOCS as readonly string[]).includes(id))).toEqual(['resourceLinks', 'settings']);
   });
 });
 
@@ -601,6 +614,39 @@ describe('TeamDataService listeners', () => {
         // On the default team an empty list is simply an empty list.
         feed('teams').next(emptyList());
         expect(scope.choose).toHaveBeenCalledTimes(1);
+      });
+
+      it('lists only the documents whose id is a team id, as the functions do, so neither switcher offers one choose refuses', () => {
+        signIn('viewer@example.com', 'viewer');
+        feed('teams').next({
+          docs: [
+            { id: 'Alpha', data: () => ({ ...TEAM_B, name: 'Made by hand' }) },
+            { id: DEFAULT_TEAM_ID, data: () => ({ ...TEAM_B, name: 'A stray root' }) },
+            { id: 'b', data: () => ({ ...TEAM_B }) }
+          ],
+          metadata: { fromCache: false }
+        });
+        expect(data.teams().map((t) => t.id)).toEqual(['b']);
+        expect(scope.choose).not.toHaveBeenCalled();
+      });
+
+      it("is not scopeReady on the way back to the default until the default's own players answer, however soon the scope moved", () => {
+        signIn('viewer@example.com', 'viewer');
+        switchTo('b');
+        feed('teams/b/players').next(querySnap());
+        feed('teams/b/meta/settings').next(docSnap());
+        expect(data.scopeReady()).toBe(true);
+        // The scope moves synchronously; the listeners follow in an effect, a tick later. In between, `ready` is still
+        // the team just left, and a wait that read it alone settled at once, over the other team's data.
+        scope.activeTeamId.set(DEFAULT_TEAM_ID);
+        expect(data.ready()).toBe(true);
+        expect(data.scopeReady()).toBe(false);
+        TestBed.tick();
+        expect(data.ready()).toBe(false);
+        expect(data.scopeReady()).toBe(false);
+        feed('players').next(querySnap());
+        expect(data.ready()).toBe(true);
+        expect(data.scopeReady()).toBe(true);
       });
 
       it('leaves the scope alone on a list from the cache: an empty answer the server never gave says nothing about the team', () => {

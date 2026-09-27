@@ -14,7 +14,10 @@
  * service account. Since 12 Sep 2026 it also guards the strip: which moments
  * get one, that the moment gates it, that the step between two frames is
  * measured rather than assumed, and that `--frames 1` still writes the
- * documents a version-2 run wrote.
+ * documents a version-2 run wrote. Since 27 Sep 2026 (release 2 of the
+ * multi-team work) it also pins `--team`: which paths a run on another team
+ * touches, all under `teams/{id}/`, and that without the flag every path is
+ * the string it always was.
  */
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
@@ -22,6 +25,11 @@ import {
   bodyAndHeaders,
   championIdOf,
   chooseShots,
+  clipObjectName,
+  clipPrefix,
+  isTeamId,
+  scopedFirestore,
+  scopedPath,
   followBody,
   jpegSize,
   mmss,
@@ -1407,7 +1415,7 @@ describe('the pure parts', () => {
   });
 
   it('parses the argument line and holds the hard cap', () => {
-    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, frames: SHOT_FRAMES, clipSeconds: CLIP_LEAD_SEC, clipFps: CLIP_FPS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '' });
+    expect(parseArgs([MATCH_ID])).toEqual({ matchId: MATCH_ID, typed: MATCH_ID, shots: 20, frames: SHOT_FRAMES, clipSeconds: CLIP_LEAD_SEC, clipFps: CLIP_FPS, outDir: '', dryRun: false, roster: '', noHealthBars: false, streamerMode: true, follow: false, followChampion: '', team: '' });
     // Three frames on the moments a review looks at, unless the lead asks for the old single picture.
     expect(parseArgs([MATCH_ID, '--frames', '1']).frames).toBe(1);
     expect(parseArgs([MATCH_ID, '--frames=2']).frames).toBe(2);
@@ -1435,7 +1443,8 @@ describe('the pure parts', () => {
       noHealthBars: false,
       streamerMode: true,
       follow: false,
-      followChampion: ''
+      followChampion: '',
+      team: ''
     });
     expect(parseArgs([MATCH_ID, '--shots=99']).shots).toBe(30);
     expect(() => parseArgs([MATCH_ID, '--shts', '4'])).toThrow(/Unknown option/);
@@ -1445,6 +1454,23 @@ describe('the pure parts', () => {
     // and uploaded to Firestore for real.
     expect(() => parseArgs([MATCH_ID, '--out-dir', '--dry-run'])).toThrow(/--out-dir wants a value/);
     expect(parseArgs([MATCH_ID, '--dry-run', '--out-dir', 'C:/shots'])).toMatchObject({ dryRun: true, outDir: 'C:/shots' });
+  });
+
+  // Which team a run records for (27 Sep 2026, release 2). Bom Squad is the root and takes no flag; the
+  // id is the one Admin › Teams made, and the word `default` is refused rather than read as the root.
+  it('reads --team as a team id, and refuses what is not one', () => {
+    expect(parseArgs([MATCH_ID]).team).toBe('');
+    expect(parseArgs([MATCH_ID, '--team', 'the-b-team-a1b2c3']).team).toBe('the-b-team-a1b2c3');
+    expect(parseArgs([MATCH_ID, '--team=b']).team).toBe('b');
+    expect(() => parseArgs([MATCH_ID, '--team', 'default'])).toThrow(/leave --team out for Bom Squad/);
+    expect(() => parseArgs([MATCH_ID, '--team', 'teams'])).toThrow(/--team wants a team id/);
+    expect(() => parseArgs([MATCH_ID, '--team', 'The B Team'])).toThrow(/--team wants a team id/);
+    expect(() => parseArgs([MATCH_ID, '--team', '-b'])).toThrow(/--team wants a team id/);
+    expect(() => parseArgs([MATCH_ID, '--team', ''])).toThrow(/--team wants a team id/);
+    expect(() => parseArgs([MATCH_ID, '--team', '--dry-run'])).toThrow(/--team wants a value/);
+    expect(isTeamId('the-b-team-a1b2c3')).toBe(true);
+    expect(isTeamId('default')).toBe(false);
+    expect(isTeamId('a'.repeat(41))).toBe(false);
   });
 
   // Firestore ids are case-sensitive and every reader looks this one up
@@ -1479,5 +1505,134 @@ describe('the pure parts', () => {
     expect(mmss(0)).toBe('0:00');
     expect(mmss(65)).toBe('1:05');
     expect(mmss(2112)).toBe('35:12');
+  });
+});
+
+/**
+ * Where a run's documents go (27 Sep 2026, release 2). The fixture strings are the same ones
+ * frontend/src/app/core/team-scope.spec.ts pins for the app's `scopedPath`, written out by hand on
+ * both sides: neither spec reads the other's source, so the mirror drifting turns one suite red.
+ */
+describe('the recorder on another team', () => {
+  it('builds a path the way the app does: the root for Bom Squad, teams/{id}/ for anyone else', () => {
+    expect(scopedPath('', 'players')).toBe('players');
+    expect(scopedPath('default', 'players')).toBe('players');
+    expect(scopedPath(undefined, 'meta', 'compAnalysis')).toBe('meta/compAnalysis');
+    expect(scopedPath('b', 'players')).toBe('teams/b/players');
+    expect(scopedPath('b', 'meta', 'compAnalysis')).toBe('teams/b/meta/compAnalysis');
+    expect(scopedPath('the-b-team-a1b2c3', 'replayShots')).toBe('teams/the-b-team-a1b2c3/replayShots');
+  });
+
+  it('names a clip under the team, so a sweep by match id stays on one team', () => {
+    expect(clipObjectName('', MATCH_ID, 825, 'mp4')).toBe(`clips/${MATCH_ID}__825.mp4`);
+    expect(clipObjectName('b', MATCH_ID, 825, 'webm')).toBe(`teams/b/clips/${MATCH_ID}__825.webm`);
+    expect(clipPrefix('', MATCH_ID)).toBe(`clips/${MATCH_ID}__`);
+    expect(clipPrefix('b', MATCH_ID)).toBe(`teams/b/clips/${MATCH_ID}__`);
+    // Bom Squad's clip of the same match does not start with the B team's prefix, whichever way round.
+    expect(clipObjectName('', MATCH_ID, 825, 'mp4').startsWith(clipPrefix('b', MATCH_ID))).toBe(false);
+    expect(clipObjectName('b', MATCH_ID, 825, 'mp4').startsWith(clipPrefix('', MATCH_ID))).toBe(false);
+  });
+
+  /** A Firestore and a bucket that record every path they are asked for and answer just enough to be walked. */
+  function fakeStores() {
+    const touched = [];
+    const query = (path) => ({
+      where: () => query(path),
+      select: () => query(path),
+      get: async () => {
+        touched.push(`get ${path}`);
+        return { docs: [`${MATCH_ID}__825`, `${MATCH_ID}__900`, 'OTHER-1__5'].map((id) => ({ id, ref: `${path}/${id}`, data: () => ({}) })) };
+      },
+      doc: (id) => ({
+        set: async () => void touched.push(`set ${path}/${id}`)
+      })
+    });
+    const db = {
+      collection: (name) => query(name),
+      doc: (path) => ({
+        get: async () => {
+          touched.push(`get ${path}`);
+          return { data: () => ({ games: [{ matchId: MATCH_ID.toLowerCase() }] }) };
+        }
+      }),
+      batch: () => ({
+        delete: (ref) => void touched.push(`delete ${ref}`),
+        commit: async () => undefined
+      })
+    };
+    const store = {
+      name: 'proj-clips',
+      upload: async (file, options) => void touched.push(`upload ${options.destination}`),
+      file: (name) => ({ makePublic: async () => void touched.push(`public ${name}`) }),
+      getFiles: async ({ prefix }) => {
+        touched.push(`list ${prefix}`);
+        return [[825, 900].map((sec) => ({ name: `${prefix}${sec}.webm`, delete: async () => void touched.push(`delete ${prefix}${sec}.webm`) }))];
+      }
+    };
+    return { touched, db, bucket: () => store };
+  }
+
+  /** The whole surface `run` drives, once, against the stores. */
+  async function drive(firestore) {
+    await firestore.players();
+    expect(await firestore.game(MATCH_ID)).toEqual({ matchId: MATCH_ID.toLowerCase() });
+    await firestore.set('replayShots', `${MATCH_ID}__825`, {});
+    await firestore.set('replayRecordings', MATCH_ID, {});
+    const shots = await firestore.sweepShots(MATCH_ID, new Set([`${MATCH_ID}__825`]));
+    const url = await firestore.clips.put('C:/clips/a.mp4', MATCH_ID, 825);
+    const clips = await firestore.clips.sweep(MATCH_ID, new Set([url]));
+    return { shots, url, clips };
+  }
+
+  it('touches the root paths and nothing else with no team, as every run before', async () => {
+    const { touched, db, bucket } = fakeStores();
+    const { shots, url, clips } = await drive(scopedFirestore({ db, bucket }));
+    expect(touched).toEqual([
+      'get players',
+      'get meta/compAnalysis',
+      `set replayShots/${MATCH_ID}__825`,
+      `set replayRecordings/${MATCH_ID}`,
+      'get replayShots',
+      // The other id is not this match's and the kept one is named: one picture goes.
+      `delete replayShots/${MATCH_ID}__900`,
+      `upload clips/${MATCH_ID}__825.mp4`,
+      `public clips/${MATCH_ID}__825.mp4`,
+      `list clips/${MATCH_ID}__`,
+      `delete clips/${MATCH_ID}__825.webm`,
+      `delete clips/${MATCH_ID}__900.webm`
+    ]);
+    expect(shots).toBe(1);
+    expect(url).toBe(`https://storage.googleapis.com/proj-clips/clips/${MATCH_ID}__825.mp4`);
+    expect(clips).toBe(2);
+  });
+
+  it('puts every read, write, sweep and clip of a team under its prefix', async () => {
+    const { touched, db, bucket } = fakeStores();
+    const { url } = await drive(scopedFirestore({ db, bucket, teamId: 'the-b-team-a1b2c3' }));
+    const under = 'teams/the-b-team-a1b2c3/';
+    expect(touched).toEqual([
+      `get ${under}players`,
+      `get ${under}meta/compAnalysis`,
+      `set ${under}replayShots/${MATCH_ID}__825`,
+      `set ${under}replayRecordings/${MATCH_ID}`,
+      `get ${under}replayShots`,
+      `delete ${under}replayShots/${MATCH_ID}__900`,
+      `upload ${under}clips/${MATCH_ID}__825.mp4`,
+      `public ${under}clips/${MATCH_ID}__825.mp4`,
+      `list ${under}clips/${MATCH_ID}__`,
+      `delete ${under}clips/${MATCH_ID}__825.webm`,
+      `delete ${under}clips/${MATCH_ID}__900.webm`
+    ]);
+    // No path escapes the prefix, so nothing of Bom Squad's can be read, written or swept by this run.
+    for (const line of touched) expect(line.split(' ')[1].startsWith(under)).toBe(true);
+    expect(url).toBe(`https://storage.googleapis.com/proj-clips/${under}clips/${MATCH_ID}__825.mp4`);
+  });
+
+  it('answers the same paths for an absent team and the literal default', async () => {
+    const a = fakeStores();
+    const b = fakeStores();
+    await drive(scopedFirestore({ db: a.db, bucket: a.bucket, teamId: '' }));
+    await drive(scopedFirestore({ db: b.db, bucket: b.bucket, teamId: 'default' }));
+    expect(b.touched).toEqual(a.touched);
   });
 });

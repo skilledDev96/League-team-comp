@@ -1,0 +1,77 @@
+<section aria-label="Teams">
+<div class="admin-tab-head">
+  <h2 class="section-line"><span class="section-line-icon material-symbols-rounded" aria-hidden="true">diversity_3</span><span class="section-line-label">Teams</span></h2>
+  <p class="muted edit-hint">Every team keeps its own roster, comps, games and settings; {{ ctx.data.rootTeamName() }} is the default and stays where it is. Switch to a team to work on it here and on every other page. Only an admin sees this tab.</p>
+</div>
+
+@if (ctx.data.mode !== 'firebase') {
+  <!-- Local mode: one team, this browser. There is no root document to write and no prefix to switch to. -->
+  <p id="admin-teams-local" class="empty-state">Teams need Firebase. The local preview has one team, and everything on it saves to this browser.</p>
+} @else {
+  <!-- One row a team, the root first as the default. The active row wears aria-current and its Switch to is off;
+       Switch to is off everywhere while a job runs, since the job writes to whichever team is active. -->
+  <ul id="admin-teams-list" class="list-clean admin-teams-list">
+    @for (row of ctx.teamRows(); track row.id) {
+      <li class="card admin-teams-row" [id]="'team-' + row.id" [class.is-active]="row.active" [attr.aria-current]="row.active ? 'true' : null">
+        <span class="admin-teams-name">{{ row.name }}@if (row.isDefault) { <span class="muted admin-teams-default">· default</span> }</span>
+        @if (row.region) { <span class="chip is-compact" appTip="The Riot region the roster was created for.">{{ row.region.toUpperCase() }}</span> }
+        <span class="muted admin-teams-meta">
+          @if (row.isDefault) { The root team, on the flat root paths from the start. }
+          @else { Created by {{ row.createdBy || 'an admin' }} on {{ ctx.teamCreatedLabel(row) }}. }
+        </span>
+        <span class="links action-row admin-teams-actions">
+          <button class="view-btn admin-teams-switch" [class.active]="row.active" type="button"
+                  [disabled]="row.active || !!ctx.switchTeamReason()"
+                  [appTip]="row.active ? 'This is the team you are on.' : (ctx.switchTeamReason() ?? '')"
+                  (click)="ctx.switchTeam(row.id)">Switch to</button>
+          @if (!row.isDefault) {
+            <app-overflow-menu>
+              <button class="overflow-item danger" type="button" (click)="ctx.deleteTeam(row)">Delete team</button>
+            </app-overflow-menu>
+          }
+        </span>
+      </li>
+    }
+  </ul>
+
+  <!-- The whole header is the toggle (the house fold). The paste is planned against an empty roster: the players of
+       the team that is active now are not the ones this paste would join. Only the text is read; op.gg is never fetched. -->
+  <details id="admin-teams-new" class="card fold-card admin-teams-new">
+    <summary class="section-head" aria-label="New team">
+      <h3 class="title-with-icon"><span class="section-icon material-symbols-rounded" aria-hidden="true">group_add</span>New team</h3>
+      <span class="fold-chevron material-symbols-rounded" aria-hidden="true">expand_more</span>
+    </summary>
+    <p class="muted edit-hint admin-teams-hint">The import reads each player from Riot as it runs: names, icons, ranks, pools and text land at once, seats follow the paste order, and the Scout report, the rank climb and the match data fill over the next mornings. Comps, tournaments, trophies, the motto, the banner and the film room are the team's own and are typed in.</p>
+    <div class="grid two">
+      <label class="field"><span>Team name</span>
+        <input id="admin-teams-name" type="text" required maxlength="60" [ngModel]="ctx.newTeamName()" (ngModelChange)="ctx.newTeamName.set($event)" name="ctx.newTeamName" placeholder="e.g. Bom Squad Academy" /></label>
+      <label class="field"><span>Region</span>
+        <select id="admin-teams-region" [ngModel]="ctx.newTeamRegion()" (ngModelChange)="ctx.newTeamRegion.set($event)" name="ctx.newTeamRegion">
+          @for (r of ctx.regions; track r.code) { <option [value]="r.code">{{ r.label }}</option> }
+        </select></label>
+    </div>
+    <label class="field roster-import-field"><span>Paste their op.gg link or Riot IDs, one per line</span>
+      <textarea id="admin-teams-paste" rows="2" [ngModel]="ctx.newTeamPaste()" (ngModelChange)="ctx.newTeamPaste.set($event)" name="ctx.newTeamPaste"
+                placeholder="https://op.gg/multisearch/euw?summoners=… or Name#TAG, one per line"></textarea></label>
+    @if (ctx.newTeamPaste().trim()) {
+      @if (ctx.newTeamLine(); as line) {
+        <p id="admin-teams-line" class="muted roster-import-line" role="status" aria-live="polite">{{ line }}</p>
+      }
+      @if (ctx.newTeamPreview().refused; as refused) {
+        <p id="admin-teams-refused" class="roster-import-refused" role="alert">{{ refused }}</p>
+      }
+    } @else {
+      <p class="muted roster-import-line">Paste order is the seat order: Top, Jungle, Mid, ADC, Support. Anyone past five joins the bench. Nothing is written until you press Create.</p>
+    }
+    <div class="action-row admin-teams-submit">
+      <button id="admin-teams-create" class="view-btn active" type="button"
+              [disabled]="!!ctx.createTeamReason()"
+              [appTip]="ctx.createTeamReason() ?? ''"
+              (click)="ctx.createTeam()">{{ ctx.createTeamLabel() }}</button>
+    </div>
+  </details>
+
+  <!-- The importer's progress and results, the same blocks Admin › Players draws, off the same root service. -->
+  <app-roster-import-status />
+}
+</section>

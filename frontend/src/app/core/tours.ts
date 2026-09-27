@@ -166,7 +166,7 @@ export const TOURS: readonly Tour[] = [
       {
         anchor: 'user-menu',
         title: 'Help and log out',
-        text: 'Help and tours brings any of these tours back, alongside Log out.', more: 'In edit mode the menu also holds Admin (settings, roles and diagnostics) and Refresh everything from Riot, which re-reads the players and the matches.',
+        text: 'Help and tours brings any of these tours back, alongside Log out.', more: 'With more than one team, the Team group at the top switches between them. In edit mode the menu also holds Admin (settings, roles and diagnostics) and Refresh everything from Riot, which re-reads the players and the matches.',
         before: 'openUserMenu'
       }
     ]

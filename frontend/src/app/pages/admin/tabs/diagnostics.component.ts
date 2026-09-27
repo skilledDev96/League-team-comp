@@ -8,6 +8,7 @@ import { localDayOf, recordCommand, recordingQueue } from '../../../core/recordi
 import { DraftEvent } from '../../../models/team.models';
 import { ReplayRecordingService } from '../../../services/replay-recording.service';
 import { TeamDataService } from '../../../services/team-data.service';
+import { TeamScopeService } from '../../../services/team-scope.service';
 import { ToastService } from '../../../services/toast.service';
 import { TourService } from '../../../services/tour.service';
 import { UserPrefsService } from '../../../services/user-prefs.service';
@@ -25,6 +26,8 @@ import { AdminContextService } from '../admin-context.service';
 export class AdminDiagnosticsComponent implements OnInit {
   protected readonly tours = inject(TourService);
   protected readonly prefs = inject(UserPrefsService);
+  /** Which team the copied record command and the export file name belong to (27 Sep 2026, release 2). */
+  private readonly scope = inject(TeamScopeService);
   protected readonly toursSeen = computed(() => this.tours.available().filter((t) => this.tours.seen(t)).length);
 
   /** The draft room's test aids, per browser. */
@@ -101,7 +104,7 @@ export class AdminDiagnosticsComponent implements OnInit {
   }
 
   protected async copyRecordCommand(matchId: string): Promise<void> {
-    const command = recordCommand(matchId);
+    const command = recordCommand(matchId, this.scope.activeTeamId());
     try {
       await navigator.clipboard.writeText(command);
       this.toast.show('Command copied', { kind: 'ok', icon: 'content_copy', text: `${command}. Run it from the repo while the client plays that replay.` });
@@ -111,16 +114,18 @@ export class AdminDiagnosticsComponent implements OnInit {
   }
 
   /**
-   * Saves `exportTeamData` as bom-squad-YYYY-MM-DD.json (17 Sep 2026). A temporary link is the one
+   * Saves `exportTeamData` as bom-squad-YYYY-MM-DD.json (17 Sep 2026), or as <teamId>-YYYY-MM-DD.json on
+   * another team, whose file also carries that id (27 Sep 2026, release 2). A temporary link is the one
    * way a page hands the browser a file it made; the URL is let go on the next turn, since a browser
    * can drop a download whose URL is revoked in the same tick as the click.
    */
   protected downloadTeamData(): void {
-    const blob = new Blob([JSON.stringify(this.data.exportTeamData(), null, 2)], { type: 'application/json' });
+    const file = this.data.exportTeamData();
+    const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `bom-squad-${localDayOf(Date.now())}.json`;
+    link.download = `${file.teamId ?? 'bom-squad'}-${localDayOf(Date.now())}.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();

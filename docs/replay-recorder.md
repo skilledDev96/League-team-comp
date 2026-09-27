@@ -269,6 +269,7 @@ be run directly: `node scripts/replay-recorder.mjs EUW1-7977592156`.
 | `--roster <file.json>` | — | Only needed for a dry run with no service account: `[{ "name": "Ruan", "role": "Top", "profile": { "riotTag": "EUW" } }, …]`. `riotTag` is the tag alone, not `Name#TAG`. |
 | `--follow <seat\|champion>` | — | Holds one player for every picture instead of following each death's victim, so every frame carries that seat's HUD — the jungler for pathing and smite, a carry for the cooldowns in the fights they died in. **Say the seat** (`jungle`, `jg`, `top`, `mid`, `adc`, `bot`, `support`, `sup`) and the same command line keeps working next week, whoever is playing what; a champion by either spelling (`Vi`, `Miss Fortune`, `MissFortune`) works too. A seat always resolves to one of ours. Anything that matches neither is refused before the run starts rather than after it. |
 | `--no-follow` | off | Touches the camera not at all, so the replay's own **Directed Camera** decides every shot. Use it when you want frames of the fight rather than of one player. |
+| `--team <teamId>` | — (Bom Squad) | Records the game for another team (27 Sep 2026, release 2 of the multi-team work). The roster is read from and every document is written under `teams/<teamId>/` (`replayShots`, `replayRecordings`, the `meta/compAnalysis` check), and the clips go under `teams/<teamId>/clips/` in the same bucket, so a sweep by match id can never reach Bom Squad's pictures or clips. The id is the one Admin › Teams made (`<slug>-<six characters>`); Diagnostics' Copy command carries it while that team is showing. Left out, the run is Bom Squad's, byte for byte the paths of every run before. The word `default` is refused rather than read as the root. An A-vs-B custom is one match id seen from two rosters, and the recorder decides "ours" by the roster it is told, so run it once per team. |
 
 A 35-minute game is roughly 35 seeks for the samples, one more per death board
 and one per picture, so expect a few minutes. It prints `minute 12 of 34` as it
@@ -287,7 +288,8 @@ Firestore does not re-run a review on its own.
 
 The recorder writes the pictures first — `replayShots/{matchId}__{sec}` for a
 moment and `{matchId}__{sec}__{frame}` for a frame leading into one, one
-document a picture — and `replayRecordings/{matchId}` last. If it dies half way, nothing
+document a picture — and `replayRecordings/{matchId}` last (both under
+`teams/<teamId>/` when the run carries `--team`, the option above). If it dies half way, nothing
 points at pictures that are not there; running it again simply overwrites the
 same documents. Every frame the last run left on disk under the same name is
 deleted before the client is asked for a new one, so a re-run can never upload

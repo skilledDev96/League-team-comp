@@ -2,16 +2,18 @@ import { inject } from '@angular/core';
 import { Router, Routes } from '@angular/router';
 import { authGuard, viewerGuard } from './core/auth.guard';
 
+// A route's title names the page alone; TeamTitleStrategy (core/team-title.strategy.ts) appends the active
+// team's name, so `Home · Bom Squad` reads `Home · <that team>` on another team (27 Sep 2026, release 2).
 export const routes: Routes = [
   {
     path: '',
-    title: 'Sign in · Bom Squad',
+    title: 'Sign in',
     loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent)
   },
   {
     // The landing page (13 Sep 2026): the team, the season, the next series and the MVP race.
     path: 'home',
-    title: 'Home · Bom Squad',
+    title: 'Home',
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/home/home.component').then((m) => m.HomeComponent)
   },
@@ -20,7 +22,7 @@ export const routes: Routes = [
   // /profiles still opens the table.
   {
     path: 'roster',
-    title: 'Roster · Bom Squad',
+    title: 'Roster',
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/roster/roster.component').then((m) => m.RosterComponent)
   },
@@ -29,27 +31,27 @@ export const routes: Routes = [
   { path: 'overview', redirectTo: 'home' },
   {
     path: 'players',
-    title: 'Roster · Bom Squad',
+    title: 'Roster',
     canActivate: [viewerGuard],
     data: { view: 'players' },
     loadComponent: () => import('./pages/roster/roster.component').then((m) => m.RosterComponent)
   },
   {
     path: 'profiles',
-    title: 'Roster · Bom Squad',
+    title: 'Roster',
     canActivate: [viewerGuard],
     data: { view: 'players' },
     loadComponent: () => import('./pages/roster/roster.component').then((m) => m.RosterComponent)
   },
   {
     path: 'player/:id',
-    title: 'Player · Bom Squad',
+    title: 'Player',
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/player-profile/player-profile.component').then((m) => m.PlayerProfileComponent)
   },
   {
     path: 'comps',
-    title: 'Comps · Bom Squad',
+    title: 'Comps',
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/comps/comps.component').then((m) => m.CompsComponent)
   },
@@ -58,19 +60,19 @@ export const routes: Routes = [
     // Patterns tab (8 Sep 2026). The two old paths still resolve so links in
     // notes and the e2e suite land where they always did.
     path: 'games',
-    title: 'Games · Bom Squad',
+    title: 'Games',
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/games/games.component').then((m) => m.GamesComponent)
   },
   {
     path: 'analysis',
-    title: 'Games · Bom Squad',
+    title: 'Games',
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/games/games.component').then((m) => m.GamesComponent)
   },
   {
     path: 'review',
-    title: 'Games · Bom Squad',
+    title: 'Games',
     canActivate: [viewerGuard],
     data: { tab: 'patterns' },
     loadComponent: () => import('./pages/games/games.component').then((m) => m.GamesComponent)
@@ -83,18 +85,18 @@ export const routes: Routes = [
   },
   {
     path: 'tournaments',
-    title: 'Prep & Draft · Bom Squad',
+    title: 'Prep & Draft',
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/tournaments/tournaments.component').then((m) => m.TournamentsComponent)
   },
   {
     path: 'login',
-    title: 'Sign in · Bom Squad',
+    title: 'Sign in',
     loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent)
   },
   {
     path: 'admin',
-    title: 'Admin · Bom Squad',
+    title: 'Admin',
     canActivate: [authGuard],
     loadComponent: () => import('./pages/admin/admin.component').then((m) => m.AdminComponent)
   },
@@ -102,7 +104,7 @@ export const routes: Routes = [
     // The film room (9 Sep 2026): one review walked as chapters, opened from
     // a game row's poster. ?c=<chapter kind or index> picks the chapter.
     path: 'film/:matchId',
-    title: 'Film room · Bom Squad',
+    title: 'Film room',
     canActivate: [viewerGuard],
     loadComponent: () => import('./pages/film/film.component').then((m) => m.FilmComponent)
   },
