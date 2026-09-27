@@ -84,7 +84,7 @@ export class RosterComponent {
   protected readonly full = computed(() => this.prefs.depthOf('roster') === 'full');
 
   protected readonly heading = computed(() => {
-    const team = this.data.settings().teamName || 'Bom Squad';
+    const team = this.data.teamName();
     const m = this.model();
     const count = m.starters.length + m.bench.length;
     const kicker = `${count} ${count === 1 ? 'player' : 'players'}${m.fillIns.length ? ` · ${m.fillIns.length} ${m.fillIns.length === 1 ? 'fill-in' : 'fill-ins'}` : ''} · ${m.games} team games`;

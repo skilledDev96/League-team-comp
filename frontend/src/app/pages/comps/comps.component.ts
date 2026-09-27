@@ -114,7 +114,7 @@ export class CompsComponent {
 
   /** The slim hero's words: what the page holds, and one line that says what to do. */
   protected readonly heading = computed(() => {
-    const team = this.data.settings().teamName || 'Bom Squad';
+    const team = this.data.teamName();
     const m = this.model();
     const n = m.cards.length;
     const cats = m.categories.length;

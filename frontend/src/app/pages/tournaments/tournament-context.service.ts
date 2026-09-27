@@ -1,6 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
 import { TeamDataService } from '../../services/team-data.service';
+import { resetOnTeamChange } from '../../services/team-scope.service';
 import { isSandboxSeries } from '../../core/sandbox-series';
 import { endedLast, isActiveTournament, isEndedTournament, lastEndedTournament } from '../../core/tournament-ended';
 import { compSeatOptions } from '../../core/comp-seats';
@@ -34,6 +35,16 @@ export class TournamentContextService {
 
   private readonly chosenTournamentId = signal<string>('');
   readonly openSeriesId = signal<string>('');
+
+  constructor() {
+    // A team switch or an account change forgets the chosen group and the open series (27 Sep 2026, release 2):
+    // both are ids from the team that was showing, and TeamDataService's clearMemberData cannot reach them without
+    // a cycle, since this service injects it. The draft's own ids are the address bar's and are left to it.
+    resetOnTeamChange(() => {
+      this.chosenTournamentId.set('');
+      this.openSeriesId.set('');
+    });
+  }
 
   readonly tournaments = computed(() => this.data.tournaments());
 

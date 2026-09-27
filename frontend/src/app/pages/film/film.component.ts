@@ -3,7 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { buildFilm, FilmPrevious } from '../../core/film-build';
 import { FilmModel } from '../../core/film-model';
-import { nextAskAt, reminderFor } from '../../core/film-progress';
+import { filmChapterKey, nextAskAt, reminderFor } from '../../core/film-progress';
 import { easeOf, stageClasses, tempoOf } from '../../core/film-style';
 import { FilmChoice, FilmProgress, GameReview } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
@@ -11,9 +11,9 @@ import { MatchTimelineService } from '../../services/match-timeline.service';
 import { MotionService } from '../../services/motion.service';
 import { ReplayRecordingService } from '../../services/replay-recording.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { TeamScopeService } from '../../services/team-scope.service';
 import { TourService } from '../../services/tour.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
-import { FILM_CHAPTER_KEY } from '../../shared/film/film-poster.component';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { FilmBoardComponent } from './chapters/film-board.component';
 import { FilmCardComponent } from './chapters/film-card.component';
@@ -60,6 +60,7 @@ export class FilmComponent {
   /** The film's own "Show me around" starts the film-room tour from the bar; the walk is `core/tours.ts`. */
   protected readonly tours = inject(TourService);
   private readonly prefs = inject(UserPrefsService);
+  private readonly scope = inject(TeamScopeService);
   private readonly timelines = inject(MatchTimelineService);
   /** The local recorder's own document for this game, read on demand the way the timeline is. */
   private readonly recordings = inject(ReplayRecordingService);
@@ -292,7 +293,7 @@ export class FilmComponent {
           void this.router.navigate([], { relativeTo: this.route, queryParams: { c: kind }, queryParamsHandling: 'merge', replaceUrl: true });
         }
         try {
-          localStorage.setItem(FILM_CHAPTER_KEY + m.matchId, String(i));
+          localStorage.setItem(filmChapterKey(m.matchId, this.scope.activeTeamId()), String(i));
         } catch {
           /* private mode: the url still carries it */
         }

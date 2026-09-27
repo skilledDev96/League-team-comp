@@ -8,6 +8,7 @@ import { RouterLink } from '@angular/router';
 import { AnalysisGame, LaneRead } from '../../models/team.models';
 import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { TeamScopeService } from '../../services/team-scope.service';
 import { UiService } from '../../services/ui.service';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 import { GameCheckComponent } from '../../shared/game-check.component';
@@ -16,6 +17,7 @@ import { SplitCellComponent } from '../../shared/split-cell.component';
 import { SplitViewToggleComponent } from '../../shared/split-view-toggle.component';
 import { TablePrefsService } from '../../services/table-prefs.service';
 import { effectiveComp } from '../../core/comp-alias';
+import { storageKeyFor } from '../../core/team-scope';
 import { sandboxMatchIds } from '../../core/sandbox-series';
 import {
   commonestFactor,
@@ -49,6 +51,9 @@ import { InfoTipComponent } from '../../shared/info-tip.component';
  */
 type SectionKey = 'lanes' | 'changes' | 'recurring' | 'games';
 
+/** The base of the Patterns filters' key; exported so `core/team-scope.spec.ts` can pin that the default team keeps this bare string. */
+export const PATTERN_FILTERS_KEY = 'bom-patterns-filters';
+
 import { PlayerMarkComponent } from '../../shared/player-mark.component';
 @Component({
   selector: 'app-review',
@@ -59,6 +64,14 @@ export class ReviewComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly auth = inject(AuthService);
   protected readonly ui = inject(UiService);
+  private readonly scope = inject(TeamScopeService);
+  /**
+   * The filters' key for the team showing when the page opened (27 Sep 2026, release 2): the bare
+   * `bom-patterns-filters` on Bom Squad, so nothing anyone stored moves, and `bom-patterns-filters:{id}` on
+   * another team, since a comp id and a player's name mean nothing across teams. Read once and written under
+   * the same key for the life of the page, so a switch can never write one team's filters under another's.
+   */
+  private readonly filtersKey = storageKeyFor(PATTERN_FILTERS_KEY, this.scope.activeTeamId());
   protected readonly formatDuration = formatDuration;
   protected readonly factorsOf = factorsOf;
 
@@ -66,7 +79,7 @@ export class ReviewComponent {
 
   protected readonly offBook = OFF_BOOK;
 
-  protected readonly compFilter = signal<string>(ReviewComponent.storedFilters().comp);
+  protected readonly compFilter = signal<string>(this.storedFilters().comp);
   /** Match id of the game whose objective detail is open, or null for none. */
   protected readonly expandedId = signal<string | null>(null);
 
@@ -88,8 +101,8 @@ export class ReviewComponent {
    * the Roster page), or a hand-picked set — tick three players and the games
    * those three played together count (8 Sep 2026).
    */
-  protected readonly starterMode = signal<'team' | 'custom'>(ReviewComponent.storedFilters().starters);
-  protected readonly customPlayers = signal<ReadonlySet<string>>(new Set(ReviewComponent.storedFilters().custom));
+  protected readonly starterMode = signal<'team' | 'custom'>(this.storedFilters().starters);
+  protected readonly customPlayers = signal<ReadonlySet<string>>(new Set(this.storedFilters().custom));
 
   /** The names a starters mode asks for: the A team off the roster, or the ticked set. */
   private startersFor(mode: 'team' | 'custom'): string[] {
@@ -106,7 +119,7 @@ export class ReviewComponent {
   }
 
   /** Main seat only, main or a second seat, or anywhere — as set on the Roster page. */
-  protected readonly roleMode = signal<RoleMode>(ReviewComponent.storedFilters().roles);
+  protected readonly roleMode = signal<RoleMode>(this.storedFilters().roles);
   protected readonly roleSteps: { mode: RoleMode; label: string; tip: string }[] = [
     { mode: 'main', label: 'Main', tip: 'Games where all of ours sat in their main seat — the role in each player’s title, set on the Roster card in edit mode. A 0 means every game had someone off-role.' },
     { mode: 'second', label: '2nd', tip: 'Main seat or a second seat they are listed for' },
@@ -115,7 +128,7 @@ export class ReviewComponent {
   private readonly rosterRoles = computed(() => this.data.players().map((p) => ({ name: p.name, role: p.role, secondaryRoles: p.secondaryRoles })));
 
   /** Serious games only by default; a game tagged as messing around is left out. */
-  protected readonly seriousOnly = signal(ReviewComponent.storedFilters().prep);
+  protected readonly seriousOnly = signal(this.storedFilters().prep);
 
   /**
    * Comp and champion filters applied, every game, tagged or not — except a replay filed under a sandbox series
@@ -150,7 +163,7 @@ export class ReviewComponent {
   private readonly userPrefs = inject(UserPrefsService);
   protected readonly full = computed(() => this.userPrefs.depthOf('patterns') === 'full');
 
-  protected readonly sourceMode = signal<GameSource>(ReviewComponent.storedFilters().source);
+  protected readonly sourceMode = signal<GameSource>(this.storedFilters().source);
   protected readonly sourceSteps: { source: GameSource; label: string; tip: string }[] = [
     { source: 'flex', label: 'Flex', tip: 'Ranked flex: per-minute figures, lane reads, the lot' },
     { source: 'scrimClash', label: 'Scrims + Clash', tip: 'Practice against a team: scrims from replay files and Clash' },
@@ -181,13 +194,12 @@ export class ReviewComponent {
    * to Flex / Prep / A team / Main — a tax on a tab the team opens weekly, and four presses before
    * the numbers meant what the reader last asked them to mean. Per browser, like the sections' key
    * beside it: which games you were last looking at is a place in the page, not a preference about
-   * yourself. A stored value that is no longer a valid option falls back to the default.
+   * yourself. A stored value that is no longer a valid option falls back to the default. The key is
+   * `filtersKey`, declared with the scope above because the field initialisers below read it.
    */
-  private static readonly FILTERS_KEY = 'bom-patterns-filters';
-
-  private static storedFilters(): PatternFilters {
+  private storedFilters(): PatternFilters {
     try {
-      return readPatternFilters(localStorage.getItem(ReviewComponent.FILTERS_KEY));
+      return readPatternFilters(localStorage.getItem(this.filtersKey));
     } catch {
       return readPatternFilters(null);
     }
@@ -213,7 +225,7 @@ export class ReviewComponent {
       comp: this.compFilter()
     };
     try {
-      localStorage.setItem(ReviewComponent.FILTERS_KEY, JSON.stringify(saved));
+      localStorage.setItem(this.filtersKey, JSON.stringify(saved));
     } catch {
       // A private window: the filters last the page instead.
     }

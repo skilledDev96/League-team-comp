@@ -5,10 +5,13 @@
  * (8 Sep 2026): the console was gone with the tab. Every uncaught error now
  * lands in `clientErrors` with the page it happened on and who was signed in,
  * beside the draft log. Capped per session so a render loop cannot write a
- * thousand documents, and deduplicated so one bug is one row.
+ * thousand documents, and deduplicated so one bug is one row. Since 27 Sep
+ * 2026 (release 2) a row also says which team was showing, so Diagnostics
+ * can tell a refusal on another team's prefix from one on Bom Squad's.
  */
-import { ErrorHandler, Injectable } from '@angular/core';
+import { ErrorHandler, Injectable, Injector, inject } from '@angular/core';
 import { doc, setDoc } from 'firebase/firestore';
+import { TeamScopeService } from '../services/team-scope.service';
 import { getAuthInstance, getDb } from './firebase';
 
 const MAX_PER_SESSION = 20;
@@ -18,6 +21,8 @@ export interface ClientError {
   id: string;
   at: string;
   by: string;
+  /** The active team's id when it happened; `default` is Bom Squad on the root paths. Absent on a row written before release 2. */
+  team?: string;
   url: string;
   message: string;
   stack?: string;
@@ -25,7 +30,7 @@ export interface ClientError {
 }
 
 /** Write one error to the log without printing it; exported for failures that must stay off console.error. */
-export async function reportClientError(error: unknown): Promise<void> {
+export async function reportClientError(error: unknown, team?: string): Promise<void> {
   const db = getDb();
   if (!db || seen.size >= MAX_PER_SESSION) return;
   const message = error instanceof Error ? error.message : String(error);
@@ -37,6 +42,7 @@ export async function reportClientError(error: unknown): Promise<void> {
     id,
     at: new Date().toISOString(),
     by: getAuthInstance()?.currentUser?.email ?? 'anonymous',
+    ...(team ? { team } : {}),
     url: location.pathname + location.search,
     message: message.slice(0, 1000),
     ...(error instanceof Error && error.stack ? { stack: error.stack.slice(0, 2000) } : {}),
@@ -52,8 +58,23 @@ export async function reportClientError(error: unknown): Promise<void> {
 
 @Injectable()
 export class ReportingErrorHandler implements ErrorHandler {
+  private readonly injector = inject(Injector);
+
   handleError(error: unknown): void {
     console.error(error);
-    void reportClientError(error);
+    void reportClientError(error, this.team());
+  }
+
+  /**
+   * The active team, looked up when an error lands rather than when the handler is made: the handler is built
+   * before every other service, and the scope's own chain (AuthService, Firebase auth) must not be built by it.
+   * An error early enough that the lookup itself fails is logged without a team rather than lost.
+   */
+  private team(): string | undefined {
+    try {
+      return this.injector.get(TeamScopeService).activeTeamId();
+    } catch {
+      return undefined;
+    }
   }
 }

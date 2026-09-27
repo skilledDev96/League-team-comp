@@ -1,7 +1,9 @@
-import { Injectable, isDevMode, signal } from '@angular/core';
+import { Injectable, inject, isDevMode, signal } from '@angular/core';
 import { collection, doc, Firestore, getDoc, getDocs } from 'firebase/firestore';
 import { getDb, isFirebaseConfigured } from '../core/firebase';
+import { scopedPath } from '../core/team-scope';
 import { ReplayRecording, ReplayShot } from '../models/team.models';
+import { resetOnTeamChange, TeamScopeService } from './team-scope.service';
 
 /** What an `<img>` takes: the stored base64 with the `data:` prefix the document deliberately leaves off. */
 export function shotSrc(shot: ReplayShot): string {
@@ -50,14 +52,29 @@ export function devShotKey(docId: string): string {
  * or is tapped, and never twenty at once. Both are kept for the session: a
  * recording is written once by the recorder and does not change until it is
  * recorded again.
+ *
+ * Both collections are the active team's (27 Sep 2026, release 2):
+ * `replayRecordings` and `replayShots` at the root for Bom Squad, byte for
+ * byte the paths they always were, and under `teams/{id}/` for any other
+ * team. The recorder writes a game from one side, so two teams in one custom
+ * game are two recordings under one match id, and a switch empties what was
+ * read. The dev pastes stay keyed as they are.
  */
 @Injectable({ providedIn: 'root' })
 export class ReplayRecordingService {
+  private readonly scope = inject(TeamScopeService);
   private readonly loaded = signal<ReadonlyMap<string, ReplayRecording | null>>(new Map());
   private readonly inFlight = new Map<string, Promise<ReplayRecording | null>>();
 
   private readonly shots = signal<ReadonlyMap<string, ReplayShot | null>>(new Map());
   private readonly shotsInFlight = new Map<string, Promise<ReplayShot | null>>();
+
+  /** Bumped by a reset, so a read still in flight for the previous team lands nowhere. */
+  private generation = 0;
+
+  constructor() {
+    resetOnTeamChange(() => this.reset());
+  }
 
   /** What has been read so far; `null` means asked and absent. */
   readonly known = this.loaded.asReadonly();
@@ -87,7 +104,10 @@ export class ReplayRecordingService {
     }
     const pending = this.inFlight.get(matchId);
     if (pending) return pending;
-    const task = this.read('replayRecordings', matchId, (d) => d as ReplayRecording).then((rec) => {
+    const generation = this.generation;
+    const task = this.read(this.path('replayRecordings', matchId), (d) => d as ReplayRecording).then((rec) => {
+      // A read that was in flight when the team changed is the previous team's: it stays off the map.
+      if (generation !== this.generation) return rec;
       this.loaded.update((map) => new Map(map).set(matchId, rec));
       this.inFlight.delete(matchId);
       return rec;
@@ -107,7 +127,9 @@ export class ReplayRecordingService {
     }
     const pending = this.shotsInFlight.get(docId);
     if (pending) return pending;
-    const task = this.read('replayShots', docId, (d) => d as ReplayShot).then((shot) => {
+    const generation = this.generation;
+    const task = this.read(this.path('replayShots', docId), (d) => d as ReplayShot).then((shot) => {
+      if (generation !== this.generation) return shot;
       this.shots.update((map) => new Map(map).set(docId, shot));
       this.shotsInFlight.delete(docId);
       return shot;
@@ -132,13 +154,26 @@ export class ReplayRecordingService {
   async recordedIds(): Promise<string[]> {
     const db = this.db();
     if (!db) return [];
-    const snap = await this.listCollection(db, 'replayRecordings');
+    const snap = await this.listCollection(db, this.path('replayRecordings'));
     return snap.docs.map((d) => d.id);
   }
 
-  /** A whole collection read once, behind a method so a spec can stand in for Firestore (17 Sep 2026). */
-  protected listCollection(db: Firestore, name: string): Promise<{ docs: readonly { id: string }[] }> {
-    return getDocs(collection(db, name));
+  /** A whole collection read once at this path, behind a method so a spec can stand in for Firestore (17 Sep 2026). */
+  protected listCollection(db: Firestore, path: string): Promise<{ docs: readonly { id: string }[] }> {
+    return getDocs(collection(db, path));
+  }
+
+  /** A collection's or a document's path for the active team. */
+  private path(...segments: string[]): string {
+    return scopedPath(this.scope.activeTeamId(), ...segments);
+  }
+
+  private reset(): void {
+    this.generation++;
+    this.inFlight.clear();
+    this.shotsInFlight.clear();
+    this.loaded.set(new Map());
+    this.shots.set(new Map());
   }
 
   /** Drop a stale read, so a game recorded again is picked up. */
@@ -186,11 +221,12 @@ export class ReplayRecordingService {
     return null;
   }
 
-  private async read<T>(collection: string, id: string, shape: (data: unknown) => T): Promise<T | null> {
+  /** One document read at this path, behind a method so a spec can stand in for Firestore. */
+  protected async read<T>(path: string, shape: (data: unknown) => T): Promise<T | null> {
     const db = this.db();
     if (!db) return null;
     try {
-      const snap = await getDoc(doc(db, collection, id));
+      const snap = await getDoc(doc(db, path));
       return snap.exists() ? shape(snap.data()) : null;
     } catch {
       return null;

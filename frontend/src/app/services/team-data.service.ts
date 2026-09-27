@@ -56,10 +56,13 @@ import {
   FilmCommitment,
   FilmLabDrawing,
   FilmNote,
-  FilmNotes
+  FilmNotes,
+  Team
 } from '../models/team.models';
 import { normalizeEmail } from '../core/access';
+import { DEFAULT_TEAM_ID, scopedPath } from '../core/team-scope';
 import { AuthService } from './auth.service';
+import { TeamScopeService } from './team-scope.service';
 import { describeGameChange } from '../core/draft-diff';
 import { ClientError, reportClientError } from '../core/error-reporting';
 import { rosterIds, scrimSide } from '../pages/games/game-rows';
@@ -73,6 +76,8 @@ export interface TeamDataExport {
   version: 1;
   /** ISO. */
   exportedAt: string;
+  /** Which team the file holds (27 Sep 2026, release 2); absent is the default team, as in every file before it. */
+  teamId?: string;
   settings: Settings;
   teamIdentity: TeamIdentity | null;
   resourceLinks: ResourceLinks;
@@ -174,7 +179,7 @@ export class TeamDataService {
     this.gameReviews.set(this.gameReviews().filter((r) => r.matchId !== matchId));
     if (this.mode !== 'firebase') return;
     const db = getDb();
-    if (db) await deleteDoc(doc(db, 'gameReviews', matchId));
+    if (db) await deleteDoc(doc(db, this.path('gameReviews', matchId)));
   }
 
   reviewFor(matchId: string | undefined): GameReview | undefined {
@@ -191,6 +196,20 @@ export class TeamDataService {
   // localStorage copy.
 
   private readonly auth = inject(AuthService);
+  private readonly scope = inject(TeamScopeService);
+
+  /**
+   * Where a team-scoped reference lives (27 Sep 2026, release 2): the segments joined for the default
+   * team, which is Bom Squad on the flat root paths and is byte-identical to the literals this file held
+   * before, and `teams/{teamId}/…` for any other team. Every reference to a team's own data is built
+   * here, so the listeners spec can prove the default's paths never moved and no write can land
+   * half-prefixed. What is global whatever the team is built with a literal and never comes through
+   * here: `access`, `clientErrors`, `teams` itself, `meta/keyHealth`, `meta/championTraits` and the
+   * public `meta/settings` the signed-out shell prints the name from.
+   */
+  private path(...segments: string[]): string {
+    return scopedPath(this.scope.activeTeamId(), ...segments);
+  }
 
   /** The team's pick on the first work-on, one per game. */
   readonly filmCommitments = signal<FilmCommitment[]>([]);
@@ -235,7 +254,7 @@ export class TeamDataService {
     if (this.mode !== 'firebase') return;
     const db = getDb();
     if (!db) return;
-    const ref = doc(db, 'filmCommitments', matchId);
+    const ref = doc(db, this.path('filmCommitments', matchId));
     if (reset) await setDoc(ref, next);
     else await setDoc(ref, { matchId, text, ...(options && { options }), by: { [key]: choice } }, { merge: true });
   }
@@ -261,7 +280,7 @@ export class TeamDataService {
     if (this.mode !== 'firebase') return;
     const db = getDb();
     if (!db) return;
-    await setDoc(doc(db, 'filmNotes', matchId), { matchId, notes: { [key]: trimmed ? note : deleteField() } }, { merge: true });
+    await setDoc(doc(db, this.path('filmNotes', matchId)), { matchId, notes: { [key]: trimmed ? note : deleteField() } }, { merge: true });
   }
 
   /** The signed-in email, lowercased, as the key a person's pick or note is stored under. */
@@ -280,8 +299,50 @@ export class TeamDataService {
   /** The last morning refresh, so the pages can say when the numbers are from. */
   readonly refreshLog = signal<RefreshLog | null>(null);
   readonly resourceLinks = signal<ResourceLinks>({});
+  /**
+   * The settings to print: the public root document, or, signed in on a team that is not the default,
+   * that team's own `meta/settings` once its snapshot has arrived. Never the other team's on the login
+   * page: closing the member listeners puts the public copy back.
+   */
   readonly settings = signal<Settings>({ teamName: '' });
   readonly ready = signal(false);
+
+  // ---- Teams (27 Sep 2026, release 2) -----------------------------------
+  //
+  // Bom Squad is the default team, on the flat root paths, and has no
+  // document. Any other team is a root document `teams/{id}` with its data
+  // under that prefix (`path` above). Nothing creates one yet: release 3
+  // brings the Teams tab and the switcher. What is settled here is that the
+  // signals below hold a team's name and settings apart from the public root
+  // copy, so the login page keeps printing Bom Squad whoever was signed in.
+
+  /** The public root `meta/settings`, as the signed-out shell prints it; kept apart from `settings` while another team's is showing. */
+  private readonly publicSettings = signal<Settings>({ teamName: '' });
+  /** A non-default team's own `meta/settings`, once its snapshot has arrived; null on the default team and before it. */
+  private readonly scopedSettings = signal<Settings | null>(null);
+  /** Every team other than the default, from the root `teams` collection, by name; kept across a team switch (openTeamsListener). */
+  readonly teams = signal<Team[]>([]);
+  /**
+   * The name to print for the active team: its own settings' name when it has one, else its team
+   * document's, else the public root name, which is what a signed-out visitor gets, else the app's
+   * old fallback. For the default team this is `settings().teamName || 'Bom Squad'`, the expression
+   * every brand reader computed before, so the signed-in topbar and the Home, Roster and Comps heroes
+   * read this now. What still reads `settings().teamName` does so on purpose until release 3: the
+   * draft room's side label with its `'Us'` fallback (TournamentContextService), the scout's "us"
+   * label, and Admin › Settings' name field and its save fallback, which are the settings document's
+   * own value and not a name to print.
+   */
+  readonly teamName = computed(() => {
+    const teamId = this.scope.activeTeamId();
+    if (teamId !== DEFAULT_TEAM_ID) {
+      const own = this.scopedSettings()?.teamName;
+      if (own) return own;
+      const named = this.teams().find((t) => t.id === teamId)?.name;
+      if (named) return named;
+      return this.publicSettings().teamName || 'Bom Squad';
+    }
+    return this.settings().teamName || 'Bom Squad';
+  });
 
   constructor() {
     if (this.mode === 'firebase') {
@@ -380,10 +441,13 @@ export class TeamDataService {
    */
   exportTeamData(): TeamDataExport {
     const roster = rosterIds(this.players());
+    const teamId = this.scope.activeTeamId();
     return {
       app: 'bom-squad',
       version: 1,
       exportedAt: new Date().toISOString(),
+      // Absent for the default team, so a file of Bom Squad's reads exactly as every file before release 2.
+      ...(teamId !== DEFAULT_TEAM_ID ? { teamId } : {}),
       settings: this.settings(),
       teamIdentity: this.teamIdentity(),
       resourceLinks: this.resourceLinks(),
@@ -432,9 +496,19 @@ export class TeamDataService {
 
   /** The unsubscribe of every open member listen, closed together. */
   private readonly memberListeners: Unsubscribe[] = [];
-  /** Whose data the member listeners are open for; null while none are. */
+  /** Whose data the member listeners are open for, as `email|teamId` (27 Sep 2026, release 2); null while none are. */
   private listeningAs: string | null = null;
   private accessListener: Unsubscribe | null = null;
+  /** Whose access list is open; the listen follows the email and the admin flag, never the team. */
+  private accessListeningAs: string | null = null;
+  /** Bumped every time the access listen closes: it outlives a team switch, so the members' session cannot guard it. */
+  private accessSession = 0;
+  /** The root teams listen, one per email and kept across a team switch like the access list (27 Sep 2026); null while none is. */
+  private teamsListener: Unsubscribe | null = null;
+  /** Whose teams list is open; the listen follows the email alone, never the team. */
+  private teamsListeningAs: string | null = null;
+  /** Bumped every time the teams listen closes: it outlives a team switch, so the members' session cannot guard it either. */
+  private teamsSession = 0;
   private settingsListener: Unsubscribe | null = null;
   /** Bumped every time the member listeners close, so a refusal from a closed set is ignored. */
   private session = 0;
@@ -450,47 +524,74 @@ export class TeamDataService {
       return;
     }
 
-    // Public on purpose (its own block in the rules): the signed-out topbar and footer print the team name.
+    // Public on purpose (its own block in the rules): the signed-out topbar and footer print the team name. Always the
+    // root document, whatever the team: it is the site's, and `settings` follows it until a team's own copy arrives.
     this.settingsListener = this.listen(
       doc(db, 'meta', 'settings'),
-      (d) => this.settings.set((d.data() as Settings) ?? { teamName: '' }),
+      (d) => {
+        const next = (d.data() as Settings) ?? { teamName: '' };
+        this.publicSettings.set(next);
+        if (this.scopedSettings() === null) this.settings.set(next);
+      },
       (error) => this.reportRefusal('meta/settings', error)
     );
 
-    // AuthService does not inject this service, so reading its signals here makes no cycle. The work runs
-    // untracked: only who is signed in, and whether they manage users, may re-run it.
+    // AuthService does not inject this service, so reading its signals here makes no cycle, and TeamScopeService
+    // injects only AuthService. The work runs untracked: only who is signed in, which team they are on, and whether
+    // they manage users, may re-run it.
     effect(() => {
       const email = this.auth.userEmail();
+      const teamId = this.scope.activeTeamId();
       const admin = email !== null && this.auth.canManageUsers();
-      untracked(() => this.followSession(db, email, admin));
+      untracked(() => this.followSession(db, email, teamId, admin));
     });
 
     inject(DestroyRef).onDestroy(() => {
       this.closeMemberListeners();
+      this.closeTeamsListener();
+      this.closeAccessListener();
       this.settingsListener?.();
       this.settingsListener = null;
     });
   }
 
-  /** Bring the listeners in line with who is signed in, and whether they may manage users. */
-  private followSession(db: Firestore, email: string | null, admin: boolean): void {
-    if (email !== this.listeningAs) {
+  /**
+   * Bring the listeners in line with who is signed in, which team they are on, and whether they may manage users.
+   * The member listeners are one set per `email|teamId`: a change of either closes them all, bumps the session,
+   * empties what they held and reopens them on the new prefix. Two root lists follow the email alone, so a team
+   * switch leaves them open: the teams list, and the access list, which also needs the admin flag.
+   */
+  private followSession(db: Firestore, email: string | null, teamId: string, admin: boolean): void {
+    const key = email ? `${email}|${teamId}` : null;
+    if (key !== this.listeningAs) {
       this.closeMemberListeners();
-      if (email) this.openMemberListeners(db, email);
+      if (email) this.openMemberListeners(db, email, teamId);
+    }
+    if (email) {
+      if (this.teamsListener && this.teamsListeningAs !== email) this.closeTeamsListener();
+      if (!this.teamsListener) this.openTeamsListener(db, email);
+    } else if (this.teamsListener) {
+      this.closeTeamsListener();
     }
     if (email && admin) {
+      if (this.accessListener && this.accessListeningAs !== email) this.closeAccessListener();
       if (!this.accessListener) this.openAccessListener(db, email);
     } else if (this.accessListener) {
       this.closeAccessListener();
     }
   }
 
-  private openMemberListeners(db: Firestore, email: string): void {
-    this.listeningAs = email;
+  private openMemberListeners(db: Firestore, email: string, teamId: string): void {
+    this.listeningAs = `${email}|${teamId}`;
     const session = this.session;
+    // The team's own collections and meta docs, under the active prefix. The refusal handler gets the BARE name:
+    // `onRefused` settles `ready` on 'players', whichever team's players were refused.
     const listenList = (name: string, next: (snap: QuerySnapshot) => void) =>
-      this.memberListeners.push(this.listen(collection(db, name), next, this.onRefused(name, session, email)));
+      this.memberListeners.push(this.listen(collection(db, this.path(name)), next, this.onRefused(name, session, email)));
     const listenMeta = (id: string, next: (snap: DocumentSnapshot) => void) =>
+      this.memberListeners.push(this.listen(doc(db, this.path('meta', id)), next, this.onRefused(`meta/${id}`, session, email)));
+    // A meta doc that is the site's whatever the team (the key probe, the champion traits): always at the root.
+    const listenGlobalMeta = (id: string, next: (snap: DocumentSnapshot) => void) =>
       this.memberListeners.push(this.listen(doc(db, 'meta', id), next, this.onRefused(`meta/${id}`, session, email)));
 
     listenList('players', (snap) => {
@@ -576,23 +677,79 @@ export class TeamDataService {
     listenMeta('refreshLog', (d) => {
       this.refreshLog.set((d.data() as RefreshLog) ?? null);
     });
-    listenMeta('keyHealth', (d) => {
+    listenGlobalMeta('keyHealth', (d) => {
       this.keyHealth.set((d.data() as KeyHealth) ?? null);
     });
     listenMeta('compAnalysis', (d) => {
       this.compAnalysis.set((d.data() as CompAnalysis) ?? null);
     });
-    listenMeta('championTraits', (d) => {
+    listenGlobalMeta('championTraits', (d) => {
       this.championTraits.set((d.data() as ChampionTraitMap)?.traits ?? {});
     });
     listenMeta('resourceLinks', (d) => {
       const data = d.data() as { groups?: ResourceLinks } | undefined;
       this.resourceLinks.set(data?.groups ?? {});
     });
+
+    // A team that is not the default has settings of its own, and they are what the signed-in shell prints. The
+    // default team's are the public root document, already open, so nothing is opened twice for it.
+    if (teamId !== DEFAULT_TEAM_ID) {
+      listenMeta('settings', (d) => {
+        const next = (d.data() as Settings) ?? { teamName: '' };
+        this.scopedSettings.set(next);
+        this.settings.set(next);
+      });
+    }
   }
 
-  /** The whole access list, for Admin › Access and Download team data: an admin's alone under the rules. */
+  /**
+   * The teams list, the ROOT collection and not under any prefix: it is what the prefixes are named from, and it
+   * names a team in the topbar until that team's own settings arrive. One listen per email, kept open across a
+   * team switch like the access list (27 Sep 2026): closed with the member set, it emptied `teams` for a round
+   * trip after every switch and `teamName` printed the public root name on another team until the reopened listen
+   * answered. Its refusal is guarded by its own session for the same reason.
+   *
+   * When the active team is no longer in the list (deleted, or a stale choice on this device) the scope falls back
+   * to the default; this is the one place the data service tells the scope anything, and the scope never reads
+   * back. Only a snapshot the server answered says that: a fresh listen while the client is offline raises an
+   * empty one from the cache, and a team that is merely unreachable has not been deleted.
+   */
+  private openTeamsListener(db: Firestore, email: string): void {
+    this.teamsListeningAs = email;
+    const session = this.teamsSession;
+    this.teamsListener = this.listen(
+      collection(db, 'teams'),
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Team, 'id'>) }));
+        this.teams.set(list.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')));
+        if (snap.metadata.fromCache) return;
+        const active = this.scope.activeTeamId();
+        if (active !== DEFAULT_TEAM_ID && !list.some((t) => t.id === active)) this.scope.choose(DEFAULT_TEAM_ID);
+      },
+      (error) => {
+        if (session !== this.teamsSession) return;
+        // As in onRefused: signing out re-sends the listen without a token, and that refusal is the expected end.
+        if (this.auth.userEmail() !== email) return;
+        void this.answerRefusal('teams', error, this.session, email, () => session === this.teamsSession);
+      }
+    );
+  }
+
+  private closeTeamsListener(): void {
+    this.teamsListener?.();
+    this.teamsListener = null;
+    this.teamsListeningAs = null;
+    this.teamsSession++;
+    this.teams.set([]);
+  }
+
+  /**
+   * The whole access list, for Admin › Access and Download team data: an admin's alone under the rules, and always
+   * the root's whatever the team. It outlives a team switch, so its refusal is guarded by its own session.
+   */
   private openAccessListener(db: Firestore, email: string): void {
+    this.accessListeningAs = email;
+    const session = this.accessSession;
     this.accessListener = this.listen(
       collection(db, 'access'),
       (snap) => {
@@ -602,27 +759,43 @@ export class TeamDataService {
         }));
         this.accessEntries.set(list.sort((a, b) => a.email.localeCompare(b.email)));
       },
-      this.onRefused('access', this.session, email)
+      (error) => {
+        if (session !== this.accessSession) return;
+        // As in onRefused: signing out re-sends the listen without a token, and that refusal is the expected end.
+        if (this.auth.userEmail() !== email) return;
+        void this.answerRefusal('access', error, this.session, email, () => session === this.accessSession);
+      }
     );
   }
 
   private closeAccessListener(): void {
     this.accessListener?.();
     this.accessListener = null;
+    this.accessListeningAs = null;
+    this.accessSession++;
     this.accessEntries.set([]);
   }
 
-  /** Close every member listen, empty what they held and say the data is not ready. meta/settings stays open. */
+  /**
+   * Close every member listen, empty what they held and say the data is not ready. meta/settings stays open, and the
+   * access list is closed by followSession when the email or the admin flag changes, not here: a team switch keeps it.
+   */
   private closeMemberListeners(): void {
     for (const stop of this.memberListeners.splice(0)) stop();
-    this.closeAccessListener();
     this.listeningAs = null;
     this.session++;
     this.clearMemberData();
+    // Whatever team's settings were showing, the public root copy is what shows now: the login page is nobody's team's.
+    this.settings.set(this.publicSettings());
     this.ready.set(false);
   }
 
-  /** Every signal a member listen fills, back to what it holds before the first snapshot. */
+  /**
+   * Every signal a member listen fills, back to what it holds before the first snapshot. Not the access list nor
+   * the teams list: those listens stay open across a team switch, and emptying their signals here would leave
+   * Admin › Access blank, and the topbar on the public root name, until the next snapshot, which an idle list never
+   * sends. closeAccessListener and closeTeamsListener empty them.
+   */
   private clearMemberData(): void {
     this.players.set([]);
     this.fillIns.set([]);
@@ -634,7 +807,6 @@ export class TeamDataService {
     this.plays.set([]);
     this.painPoints.set([]);
     this.learnEntries.set([]);
-    this.accessEntries.set([]);
     this.teamIdentity.set(null);
     this.selfScout.set(null);
     this.compAnalysis.set(null);
@@ -651,6 +823,7 @@ export class TeamDataService {
     this.keyHealth.set(null);
     this.refreshLog.set(null);
     this.resourceLinks.set({});
+    this.scopedSettings.set(null);
   }
 
   /**
@@ -664,7 +837,7 @@ export class TeamDataService {
       // Signing out (or into another account) re-sends the open listens under the new token before the effect has
       // closed them. Their refusal is the expected end of this session, not something to report.
       if (this.auth.userEmail() !== email) return;
-      void this.answerRefusal(name, error, session, email);
+      void this.answerRefusal(name, error, session, email, () => session === this.session);
     };
   }
 
@@ -681,8 +854,13 @@ export class TeamDataService {
    *
    * Still let in, or the question itself could not be read, is the rules and the app disagreeing, and that is
    * reported.
+   *
+   * `stillOpen` is the guard of the set the listen belongs to, asked again after the await: the members' session
+   * for a member listen, its own for the access and teams lists, which outlive a team switch. The access refusal
+   * used to be checked against the members' counter here, so a switch during the check dropped its answer for a
+   * listen that was still open (27 Sep 2026).
    */
-  private async answerRefusal(name: string, error: FirestoreError, session: number, email: string): Promise<void> {
+  private async answerRefusal(name: string, error: FirestoreError, session: number, email: string, stillOpen: () => boolean): Promise<void> {
     // The access list is refused alone when an admin is demoted, so it does not use up the session's one check.
     if (name !== 'access') {
       if (this.refusalAnsweredIn === session) return;
@@ -695,7 +873,7 @@ export class TeamDataService {
       } catch {
         // Could not ask; report the refusal as it stands.
       }
-      if (!stillIn || session !== this.session || this.auth.userEmail() !== email) return;
+      if (!stillIn || !stillOpen() || this.auth.userEmail() !== email) return;
       // Still in, but no longer an admin: the check took the role back and the effect closes the access list.
       if (name === 'access' && !this.auth.canManageUsers()) return;
     }
@@ -717,9 +895,9 @@ export class TeamDataService {
     this.reportError(new Error(message));
   }
 
-  /** The app's error log, behind a method so a spec never writes to Firestore. */
+  /** The app's error log, behind a method so a spec never writes to Firestore; the row names the team the listen was for. */
   protected reportError(error: Error): void {
-    void reportClientError(error);
+    void reportClientError(error, this.scope.activeTeamId());
   }
 
   /** One Firestore listen, behind a method so a spec can stand in for Firestore (the ReplayRecordingService pattern). */
@@ -749,6 +927,11 @@ export class TeamDataService {
     }
     if (!this.auth.userEmail() || !this.auth.canManageUsers()) {
       throw new Error('Only a signed-in admin can seed the database.');
+    }
+    // The batch below writes root paths on purpose: SEED_DATA is Bom Squad's roster and comps, and a second team
+    // starts from a roster import (release 3), never from this.
+    if (this.scope.activeTeamId() !== DEFAULT_TEAM_ID) {
+      throw new Error("The starter seed is the default team's.");
     }
     const marker = await getDoc(doc(db, 'meta', 'settings'));
     if (marker.exists()) {
@@ -831,7 +1014,7 @@ export class TeamDataService {
       const db = getDb();
       if (!db) return;
       const { id, ...rest } = entity;
-      await setDoc(doc(db, key, id), stripUndefined(rest as Record<string, unknown>));
+      await setDoc(doc(db, this.path(key, id)), stripUndefined(rest as Record<string, unknown>));
       return;
     }
     this.persistLocal();
@@ -846,7 +1029,7 @@ export class TeamDataService {
     if (this.mode === 'firebase') {
       const db = getDb();
       if (!db) return;
-      await deleteDoc(doc(db, key, id));
+      await deleteDoc(doc(db, this.path(key, id)));
       return;
     }
     this.persistLocal();
@@ -1072,7 +1255,7 @@ export class TeamDataService {
       }
     };
     try {
-      await setDoc(doc(db, 'draftEvents', id), stripUndefined(event as unknown as Record<string, unknown>));
+      await setDoc(doc(db, this.path('draftEvents', id)), stripUndefined(event as unknown as Record<string, unknown>));
     } catch (error) {
       console.warn('Draft log write failed', error);
     }
@@ -1082,7 +1265,7 @@ export class TeamDataService {
   async loadDraftEvents(count = 200): Promise<DraftEvent[]> {
     const db = this.mode === 'firebase' ? getDb() : null;
     if (!db) return [];
-    const snap = await getDocs(query(collection(db, 'draftEvents'), orderBy('at', 'desc'), limit(count)));
+    const snap = await getDocs(query(collection(db, this.path('draftEvents')), orderBy('at', 'desc'), limit(count)));
     return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<DraftEvent, 'id'>) }));
   }
 
@@ -1131,7 +1314,7 @@ export class TeamDataService {
       }
     };
     try {
-      await setDoc(doc(db, 'draftEvents', id), stripUndefined(event as unknown as Record<string, unknown>));
+      await setDoc(doc(db, this.path('draftEvents', id)), stripUndefined(event as unknown as Record<string, unknown>));
     } catch (error) {
       console.warn('Draft log write failed', error);
     }
@@ -1309,7 +1492,7 @@ export class TeamDataService {
   async updateTeamIdentity(identity: TeamIdentity): Promise<void> {
     if (this.mode === 'firebase') {
       const db = getDb();
-      if (db) await setDoc(doc(db, 'meta', 'teamIdentity'), identity);
+      if (db) await setDoc(doc(db, this.path('meta', 'teamIdentity')), identity);
     } else {
       this.teamIdentity.set(identity);
       this.persistLocal();
@@ -1320,7 +1503,7 @@ export class TeamDataService {
   async saveSelfScout(scout: SelfScout): Promise<void> {
     if (this.mode === 'firebase') {
       const db = getDb();
-      if (db) await setDoc(doc(db, 'meta', 'selfScout'), stripUndefined(scout as unknown as Record<string, unknown>));
+      if (db) await setDoc(doc(db, this.path('meta', 'selfScout')), stripUndefined(scout as unknown as Record<string, unknown>));
     } else {
       this.selfScout.set(scout);
       this.persistLocal();
@@ -1330,7 +1513,7 @@ export class TeamDataService {
   async updateResourceLinks(groups: ResourceLinks): Promise<void> {
     if (this.mode === 'firebase') {
       const db = getDb();
-      if (db) await setDoc(doc(db, 'meta', 'resourceLinks'), { groups });
+      if (db) await setDoc(doc(db, this.path('meta', 'resourceLinks')), { groups });
     } else {
       this.resourceLinks.set(groups);
       this.persistLocal();
@@ -1341,7 +1524,8 @@ export class TeamDataService {
     if (this.mode === 'firebase') {
       const db = getDb();
       // Stripped first: a blank motto or no banner arrives as undefined, and Firestore refuses the whole write over one.
-      if (db) await setDoc(doc(db, 'meta', 'settings'), stripUndefined(settings as unknown as Record<string, unknown>));
+      // The active team's own document: the root's for the default, `teams/{id}/meta/settings` for any other.
+      if (db) await setDoc(doc(db, this.path('meta', 'settings')), stripUndefined(settings as unknown as Record<string, unknown>));
     } else {
       this.settings.set(settings);
       this.persistLocal();

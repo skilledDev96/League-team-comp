@@ -1,7 +1,9 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DEFAULT_TEAM_ID } from '../../../core/team-scope';
 import { ChampionDataService, ChampionSkin } from '../../../services/champion-data.service';
 import { TeamDataService } from '../../../services/team-data.service';
+import { TeamScopeService } from '../../../services/team-scope.service';
 import { UiService } from '../../../services/ui.service';
 import { NgModelNameDirective } from '../../../shared/ng-model-name.directive';
 import { RouterLink } from '@angular/router';
@@ -18,7 +20,14 @@ export class AdminSettingsComponent {
   protected readonly data = inject(TeamDataService);
   protected readonly ui = inject(UiService);
   private readonly champions = inject(ChampionDataService);
+  private readonly scope = inject(TeamScopeService);
   protected readonly championNames = computed(() => this.champions.champions().map((c) => c.name).sort((a, b) => a.localeCompare(b)));
+  /**
+   * The starter seed is Bom Squad's roster and comps, written to the root paths whatever the team, and
+   * `seedFirestore` refuses it elsewhere (27 Sep 2026, release 2). So the pill shows only on the default
+   * team; another team starts from a roster import, never from this.
+   */
+  protected readonly isDefaultTeam = computed(() => this.scope.activeTeamId() === DEFAULT_TEAM_ID);
   /**
    * The preview's splash would not load. Data Dragon lists skins Riot does not publish a splash for — Miss
    * Fortune's skin 10 answers 403 while 2 and 15 are served — so this is about the picture, not the skin.

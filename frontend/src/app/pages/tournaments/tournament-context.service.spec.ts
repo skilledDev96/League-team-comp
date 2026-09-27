@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { environment } from '../../../environments/environment';
 import { Comp, Player, SeriesGame, Tournament, TournamentSeries } from '../../models/team.models';
+import { AuthService } from '../../services/auth.service';
 import { TeamDataService } from '../../services/team-data.service';
 import { normalizeChampion } from './draft.util';
 import { TournamentContextService } from './tournament-context.service';
@@ -49,6 +50,24 @@ describe.skipIf(typeof localStorage === 'undefined')('TournamentContextService',
     data.tournaments.set(tournaments);
     data.tournamentSeries.set(series);
     data.seriesGames.set(games);
+  });
+
+  it('forgets the chosen group and the open series when the account changes (release 2), and keeps them for a run with nothing changed', () => {
+    // Local mode has one team, so the account is the one part of the key that can change here; the real scope
+    // service is what follows the account, and the cache specs drive a team switch through a fake one.
+    const auth = TestBed.inject(AuthService);
+    auth.userEmail.set('a@example.com');
+    TestBed.tick();
+    ctx.selectTournament('tournament-12c5a17f');
+    ctx.openSeriesId.set('series-1d59cb83');
+    TestBed.tick();
+    expect(ctx.currentTournament()?.id).toBe('tournament-12c5a17f');
+    expect(ctx.openSeriesId()).toBe('series-1d59cb83');
+
+    auth.userEmail.set('b@example.com');
+    TestBed.tick();
+    expect(ctx.currentTournament()?.id).toBe('tournament-f9515444');
+    expect(ctx.openSeriesId()).toBe('');
   });
 
   it('counts only the games that were played on a series head', () => {

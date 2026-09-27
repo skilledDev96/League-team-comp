@@ -1,7 +1,9 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { environment } from '../../environments/environment';
 import { TeamDataService } from './team-data.service';
+import { TeamScopeService } from './team-scope.service';
 
 // environment.ts is committed with a real Firebase config, so the service would
 // otherwise start in Firebase mode and open live listeners. isFirebaseConfigured()
@@ -123,6 +125,14 @@ describe('TeamDataService in local mode', () => {
       expect(exported.filmNotes[0].notes['d:4:ADC'].text).toBe('Hold the wave.');
       expect(exported.trophies.map((t) => t.id)).toEqual([trophyId]);
       expect(exported.settings).toEqual(data.settings());
+    });
+
+    it('carries the team id only for a team that is not the default, so a file of Bom Squad\'s reads as every file before (27 Sep 2026)', () => {
+      expect(data.exportTeamData()).not.toHaveProperty('teamId');
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({ providers: [{ provide: TeamScopeService, useValue: { activeTeamId: signal('b'), choose: () => undefined } }] });
+      const onB = TestBed.inject(TeamDataService);
+      expect(onB.exportTeamData().teamId).toBe('b');
     });
 
     it('leaves out what a refresh writes again: the analysis and the self-scout', () => {

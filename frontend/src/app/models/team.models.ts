@@ -543,6 +543,19 @@ export interface UserPrefs {
   /** The film room (9 Sep 2026): which seat is mine, and where I am in each film. */
   film?: FilmPrefs;
   /**
+   * The team this person last chose (27 Sep 2026, release 2): a team id, or the literal `default`
+   * for Bom Squad on the flat root paths when they chose it. Absent is a document written before
+   * there were teams to choose; it names no team and leaves a device where it is, which is why an
+   * explicit choice of the default is written as the word and not as a delete.
+   */
+  team?: string;
+  /**
+   * The film room on a team that is not the default (27 Sep 2026): its seat and film progress, by
+   * team id. The default team's stay in `film`, so a document written before this reads exactly
+   * as it did.
+   */
+  teamFilm?: Record<string, FilmPrefs>;
+  /**
    * How much of a surface this person wants (12 Sep 2026, the lead: "too much information to read
    * … introduce all the information gradually"). Only the non-default is stored, so **an absent
    * key means Starter** and a document written before this reads exactly as it did. Per person
@@ -649,6 +662,25 @@ export interface SettingsBanner {
   champion: string;
   /** Riot's skin number; absent or 0 is the base skin. */
   skin?: number;
+}
+
+/**
+ * A team other than Bom Squad, at the root document `teams/{id}` (27 Sep 2026, release 2). Its
+ * data lives under that prefix, `teams/{id}/players` and so on, with the same collection names
+ * and meta doc ids the root has (`core/team-scope.ts`). The default team is Bom Squad on the flat
+ * root paths: it has no document here, and nothing of it ever moves.
+ */
+export interface Team {
+  id: string;
+  name: string;
+  /** A Riot region code `core/riot-id.ts` knows; seeds every imported player's profile. */
+  region: string;
+  /** Email of the admin who created it. */
+  createdBy: string;
+  /** ISO. */
+  createdAt: string;
+  /** Whether the morning run refreshes this team; absent is on. */
+  refresh?: 'on' | 'off';
 }
 
 /**

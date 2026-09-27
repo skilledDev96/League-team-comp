@@ -95,8 +95,8 @@ export class NextUpComponent {
   /** Read a minute at a time, so a reminder falling due while the page is open shows without a navigation. */
   private readonly now = signal(new Date().toISOString());
 
-  /** The seat this person said is theirs in the film room, so the reminder can carry their own ask. */
-  private readonly seat = computed(() => this.prefs.prefs().film?.seat);
+  /** The seat this person said is theirs in the film room on this team, so the reminder can carry their own ask. */
+  private readonly seat = computed(() => this.prefs.filmOf()?.seat);
 
   /** Which games we have an opponent name for, so a card can say "the Sunset Wolves game". */
   private readonly opponentOf = computed(() => {
@@ -127,7 +127,7 @@ export class NextUpComponent {
   private readonly candidates = computed(() => {
     if (!isFirebaseConfigured()) return [];
     const seat = this.seat();
-    return dueReminders(this.prefs.prefs().film, this.now()).flatMap((due) => {
+    return dueReminders(this.prefs.filmOf(), this.now()).flatMap((due) => {
       const review = this.data.reviewFor(due.matchId);
       if (!review) return [];
       const reminder = reminderFor(review, due.progress, this.data.commitmentFor(due.matchId), seedOf(due.matchId), seat);

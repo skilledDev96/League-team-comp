@@ -1,7 +1,9 @@
-import { Injectable, isDevMode, signal } from '@angular/core';
+import { Injectable, inject, isDevMode, signal } from '@angular/core';
 import { doc, getDoc } from 'firebase/firestore';
 import { getDb, isFirebaseConfigured } from '../core/firebase';
+import { scopedPath } from '../core/team-scope';
 import { MatchTimeline } from '../models/team.models';
+import { resetOnTeamChange, TeamScopeService } from './team-scope.service';
 
 /**
  * The dev override's key prefix: a timeline pasted into localStorage under
@@ -31,14 +33,28 @@ export function devTimelineKey(matchId: string): string {
  * kilobytes each on every page load is the wrong trade for something only an
  * opened row reads. Read once, kept for the session; a timeline is derived
  * from a finished game and does not change until the version does.
+ *
+ * The document is the active team's (27 Sep 2026, release 2):
+ * `matchTimeline/{matchId}` for Bom Squad on the root, byte for byte the
+ * path it always was, and `teams/{id}/matchTimeline/{matchId}` for any other
+ * team. A timeline is built from one team's side of a game, so two teams in
+ * one custom game are two documents under one match id, and a switch empties
+ * what was read. The dev paste stays keyed by match id alone.
  */
 @Injectable({ providedIn: 'root' })
 export class MatchTimelineService {
+  private readonly scope = inject(TeamScopeService);
   private readonly loaded = signal<ReadonlyMap<string, MatchTimeline | null>>(new Map());
   private readonly inFlight = new Map<string, Promise<MatchTimeline | null>>();
+  /** Bumped by a reset, so a read still in flight for the previous team lands nowhere. */
+  private generation = 0;
 
   /** What has been read so far; `null` means asked and absent. */
   readonly known = this.loaded.asReadonly();
+
+  constructor() {
+    resetOnTeamChange(() => this.reset());
+  }
 
   async load(matchId: string): Promise<MatchTimeline | null> {
     const have = this.loaded().get(matchId);
@@ -53,13 +69,27 @@ export class MatchTimelineService {
     }
     const pending = this.inFlight.get(matchId);
     if (pending) return pending;
-    const task = this.read(matchId).then((t) => {
+    const generation = this.generation;
+    const task = this.read(this.path(matchId)).then((t) => {
+      // A read that was in flight when the team changed is the previous team's: it stays off the map.
+      if (generation !== this.generation) return t;
       this.loaded.update((map) => new Map(map).set(matchId, t));
       this.inFlight.delete(matchId);
       return t;
     });
     this.inFlight.set(matchId, task);
     return task;
+  }
+
+  /** The document's path for the active team. */
+  private path(matchId: string): string {
+    return scopedPath(this.scope.activeTeamId(), 'matchTimeline', matchId);
+  }
+
+  private reset(): void {
+    this.generation++;
+    this.inFlight.clear();
+    this.loaded.set(new Map());
   }
 
   /** Drop a stale read so a fresh document is picked up, after a review fetched one. */
@@ -104,11 +134,12 @@ export class MatchTimelineService {
     return isDevMode();
   }
 
-  private async read(matchId: string): Promise<MatchTimeline | null> {
+  /** One document read at this path, behind a method so a spec can stand in for Firestore. */
+  protected async read(path: string): Promise<MatchTimeline | null> {
     const db = isFirebaseConfigured() ? getDb() : null;
     if (!db) return null;
     try {
-      const snap = await getDoc(doc(db, 'matchTimeline', matchId));
+      const snap = await getDoc(doc(db, path));
       return snap.exists() ? (snap.data() as MatchTimeline) : null;
     } catch {
       return null;

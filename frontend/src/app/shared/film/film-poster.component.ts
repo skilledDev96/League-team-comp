@@ -1,15 +1,13 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { Router } from '@angular/router';
 import { buildFilm } from '../../core/film-build';
-import { tallyLine } from '../../core/film-progress';
+import { filmChapterKey, tallyLine } from '../../core/film-progress';
 import { AnalysisGame, GameReview } from '../../models/team.models';
 import { ReviewTakeoverService } from '../../services/review-takeover.service';
+import { TeamScopeService } from '../../services/team-scope.service';
 import { UiService } from '../../services/ui.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { TooltipDirective } from '../tooltip.directive';
-
-/** Where a person left a film, per browser: the page writes the chapter index here and the poster reads it. */
-export const FILM_CHAPTER_KEY = 'bom-film-chapter:';
 
 /**
  * The poster for a review (9 Sep 2026): the protagonist's splash as a wide
@@ -66,6 +64,7 @@ export class FilmPosterComponent {
 
   protected readonly ui = inject(UiService);
   private readonly prefs = inject(UserPrefsService);
+  private readonly scope = inject(TeamScopeService);
   private readonly router = inject(Router);
   /** The takeover's "ready" mark: the review landed while its stage was minimised, and this pill is where it is announced now that the row has one door (10 Sep 2026). */
   protected readonly takeover = inject(ReviewTakeoverService);
@@ -83,7 +82,7 @@ export class FilmPosterComponent {
     const progress = this.prefs.filmProgress(m.matchId);
     let at: number | undefined;
     try {
-      const stored = localStorage.getItem(FILM_CHAPTER_KEY + m.matchId);
+      const stored = localStorage.getItem(filmChapterKey(m.matchId, this.scope.activeTeamId()));
       if (stored !== null && Number.isInteger(Number(stored))) at = Number(stored);
     } catch {
       /* private mode: the pill says Continue without the count */

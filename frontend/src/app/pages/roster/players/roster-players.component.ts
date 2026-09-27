@@ -3,12 +3,14 @@ import { MvpBannerComponent } from '../../../shared/mvp-banner.component';
 import { afterNextRender, Component, computed, effect, inject, Injector, input, linkedSignal, signal, untracked } from '@angular/core';
 import { fillInAsPlayer } from '../../../core/roster-build';
 import { RosterCard, RosterModel } from '../../../core/roster-model';
+import { storageKeyFor } from '../../../core/team-scope';
 import { FillIn, Player } from '../../../models/team.models';
 import { AuthService } from '../../../services/auth.service';
 import { ChampionFilterService } from '../../../services/champion-filter.service';
 import { MotionService } from '../../../services/motion.service';
 import { RefreshService } from '../../../services/refresh.service';
 import { TeamDataService } from '../../../services/team-data.service';
+import { TeamScopeService } from '../../../services/team-scope.service';
 import { UiService } from '../../../services/ui.service';
 import { InfoTipComponent } from '../../../shared/info-tip.component';
 import { TooltipDirective } from '../../../shared/tooltip.directive';
@@ -16,9 +18,10 @@ import { defaultQueue, PLAYERS_QUEUE_KEY, PLAYERS_QUEUES, PlayerRowFigures, play
 import { PracticeBoardComponent } from './practice-board.component';
 import { RosterPlayerDetailComponent } from './roster-player-detail.component';
 
-function readQueue(): PlayersQueue | null {
+/** The stored queue under this key, when it is one of the three; null otherwise. */
+function readQueue(key: string): PlayersQueue | null {
   try {
-    const stored = localStorage.getItem(PLAYERS_QUEUE_KEY);
+    const stored = localStorage.getItem(key);
     return (PLAYERS_QUEUES as readonly string[]).includes(stored ?? '') ? (stored as PlayersQueue) : null;
   } catch {
     return null;
@@ -60,18 +63,25 @@ export class RosterPlayersComponent {
   private readonly filter = inject(ChampionFilterService);
   private readonly motion = inject(MotionService);
   private readonly injector = inject(Injector);
+  private readonly scope = inject(TeamScopeService);
 
   protected readonly queues = PLAYERS_QUEUES;
   protected readonly queueLabel = queueLabel;
   protected readonly visionNote = visionNote;
 
+  /**
+   * The queue's key for the active team (27 Sep 2026, release 2): the bare `bom-roster-queue` on Bom Squad, so
+   * nothing stored moves, and `bom-roster-queue:{id}` on another team, whose default queue is read off its own roster.
+   */
+  private readonly queueKey = computed(() => storageKeyFor(PLAYERS_QUEUE_KEY, this.scope.activeTeamId()));
+
   /** The stored choice, else the default for the roster as it loads: a direct load starts before the players arrive. */
-  protected readonly queue = linkedSignal<PlayersQueue>(() => readQueue() ?? defaultQueue(this.data.players()));
+  protected readonly queue = linkedSignal<PlayersQueue>(() => readQueue(this.queueKey()) ?? defaultQueue(this.data.players()));
 
   protected setQueue(queue: PlayersQueue): void {
     this.queue.set(queue);
     try {
-      localStorage.setItem(PLAYERS_QUEUE_KEY, queue);
+      localStorage.setItem(this.queueKey(), queue);
     } catch {
       // Storage can be unavailable; the choice still holds for this visit.
     }

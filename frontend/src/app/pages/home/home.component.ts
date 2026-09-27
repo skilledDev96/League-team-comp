@@ -1,8 +1,10 @@
-import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, linkedSignal, signal } from '@angular/core';
 import { buildHome } from '../../core/home-build';
+import { storageKeyFor } from '../../core/team-scope';
 import { SeasonMode, seasonWindow } from '../../core/team-season';
 import { MotionService } from '../../services/motion.service';
 import { TeamDataService } from '../../services/team-data.service';
+import { TeamScopeService } from '../../services/team-scope.service';
 import { UserPrefsService } from '../../services/user-prefs.service';
 import { HomeHeroComponent } from './home-hero.component';
 import { HomeSpotlightComponent } from './home-spotlight.component';
@@ -10,7 +12,8 @@ import { HomeTilesComponent } from './home-tiles.component';
 import { HomeWelcomeComponent } from './home-welcome.component';
 
 const SEASON_KEY = 'bom-home-season';
-const SEAT_DISMISSED_KEY = 'bom-home-seat-dismissed';
+/** The base of the seat card's dismissal key; exported so `core/team-scope.spec.ts` can pin that the default team keeps this bare string. */
+export const SEAT_DISMISSED_KEY = 'bom-home-seat-dismissed';
 
 function readStored(key: string): string | null {
   try {
@@ -96,13 +99,20 @@ export class HomeComponent {
   private readonly data = inject(TeamDataService);
   private readonly prefs = inject(UserPrefsService);
   protected readonly motion = inject(MotionService);
+  private readonly teamScope = inject(TeamScopeService);
 
   /** The bento's cells, top to bottom: the placeholder draws each as an empty shell of the same size, so nothing moves when the tiles land. */
   protected readonly cells = ['record', 'trend', 'race', 'comp', 'records', 'advice', 'lineup', 'climb', 'objectives', 'trophies'] as const;
 
   // All time unless this browser chose the season (13 Sep 2026, the lead: "keep the default on all time").
   protected readonly mode = signal<SeasonMode>(readStored(SEASON_KEY) === 'season' ? 'season' : 'all');
-  private readonly seatDismissed = signal(readStored(SEAT_DISMISSED_KEY) === '1');
+  /**
+   * Whether this browser waved away the seat question, per team (27 Sep 2026, release 2): the seat it asks for
+   * is one team's, so the key is the bare `bom-home-seat-dismissed` on Bom Squad, where nothing stored moves,
+   * and `bom-home-seat-dismissed:{id}` on another team. A switch re-reads it, so a team never asked is asked.
+   */
+  private readonly seatKey = computed(() => storageKeyFor(SEAT_DISMISSED_KEY, this.teamScope.activeTeamId()));
+  private readonly seatDismissed = linkedSignal(() => readStored(this.seatKey()) === '1');
   private readonly now = signal(Date.now());
 
   protected readonly home = computed(() => {
@@ -113,7 +123,7 @@ export class HomeComponent {
       mode: this.mode(),
       seat: this.prefs.filmSeat(),
       seatDismissed: this.seatDismissed(),
-      teamName: this.data.settings().teamName || 'Bom Squad',
+      teamName: this.data.teamName(),
       motto: this.data.settings().motto,
       banner: this.data.settings().banner,
       players: this.data.players(),
@@ -161,6 +171,6 @@ export class HomeComponent {
 
   protected dismissSeat(): void {
     this.seatDismissed.set(true);
-    writeStored(SEAT_DISMISSED_KEY, '1');
+    writeStored(this.seatKey(), '1');
   }
 }

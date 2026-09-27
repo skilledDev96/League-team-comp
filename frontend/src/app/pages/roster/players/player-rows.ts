@@ -7,7 +7,11 @@ export type PlayersQueue = 'solo' | 'flex' | 'clash';
 
 export const PLAYERS_QUEUES: readonly PlayersQueue[] = ['solo', 'flex', 'clash'];
 
-/** Which queue the Players table reads, remembered per browser like the Patterns filters. */
+/**
+ * Which queue the Players table reads, remembered per browser like the Patterns filters. The base of the key: the
+ * component puts it through `storageKeyFor`, so it is this bare string on Bom Squad and `bom-roster-queue:{teamId}`
+ * on another team (27 Sep 2026, release 2).
+ */
 export const PLAYERS_QUEUE_KEY = 'bom-roster-queue';
 
 export function queueLabel(queue: PlayersQueue): string {

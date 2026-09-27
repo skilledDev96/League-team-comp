@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FilmCommitment, FilmPrefs, GameReview } from '../models/team.models';
-import { advance, commitmentStandsOn, dueReminders, isCurrentCommitment, nextAskAt, reminderFor, tallyLine } from './film-progress';
+import { advance, commitmentStandsOn, dueReminders, FILM_CHAPTER_KEY, filmChapterKey, isCurrentCommitment, nextAskAt, reminderFor, tallyLine } from './film-progress';
 
 const done = '2026-09-09T20:00:00.000Z';
 const now = '2026-09-10T21:00:00.000Z';
@@ -227,5 +227,13 @@ describe('tallyLine', () => {
     expect(tallyLine({ calls: { title: 1 } }, 4)).toBe('Continue');
     expect(tallyLine({}, 4)).toBe('');
     expect(tallyLine(undefined, 4)).toBe('');
+  });
+});
+
+describe('filmChapterKey', () => {
+  it("is the bare bom-film-chapter:{matchId} on Bom Squad, so nobody's place in a film moves, and carries the team id on another (27 Sep 2026)", () => {
+    expect(FILM_CHAPTER_KEY).toBe('bom-film-chapter:');
+    expect(filmChapterKey('EUW1_7000000001', 'default')).toBe('bom-film-chapter:EUW1_7000000001');
+    expect(filmChapterKey('EUW1_7000000001', 'b')).toBe('bom-film-chapter:EUW1_7000000001:b');
   });
 });

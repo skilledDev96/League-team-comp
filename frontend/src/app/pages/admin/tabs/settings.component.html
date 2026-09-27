@@ -73,7 +73,9 @@
 
   <div class="links" style="margin-top: 0.75rem;">
     @if (data.mode === 'firebase') {
-      <button class="view-btn" type="button" (click)="ctx.seed()">Seed database from starter data</button>
+      @if (isDefaultTeam()) {
+        <button class="view-btn" type="button" (click)="ctx.seed()">Seed database from starter data</button>
+      }
     } @else {
       <button class="view-btn" type="button" (click)="ctx.resetLocal()">Reset local data</button>
     }

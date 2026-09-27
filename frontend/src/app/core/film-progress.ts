@@ -1,5 +1,6 @@
 import { FilmChoice, FilmCommitment, FilmPrefs, FilmProgress, GameReview, ReviewPoint, Role } from '../models/team.models';
 import { askOf } from './review-view';
+import { storageKeyFor } from './team-scope';
 
 /**
  * The reminder arithmetic for the film room (9 Sep 2026): when "Before you
@@ -7,6 +8,18 @@ import { askOf } from './review-view';
  * Open the film room pill. Pure: times come in and go out as ISO strings, so
  * the page decides what "now" is and the specs pin every date.
  */
+
+/**
+ * Where a person left a film, per browser: the film page writes the chapter index under `filmChapterKey` and the
+ * poster reads it. Per team since 27 Sep 2026 (release 2): the bare `bom-film-chapter:{matchId}` on Bom Squad, so
+ * nothing stored moves, and `bom-film-chapter:{matchId}:{teamId}` on another team, whose film of the same match id
+ * is its own.
+ */
+export const FILM_CHAPTER_KEY = 'bom-film-chapter:';
+
+export function filmChapterKey(matchId: string, teamId: string): string {
+  return storageKeyFor(FILM_CHAPTER_KEY + matchId, teamId);
+}
 
 /** The reminder ladder in days: the first ask a day after the card, then three, then seven, then never. */
 const ASK_AFTER_DAYS = [1, 3, 7];
